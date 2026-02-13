@@ -1,0 +1,1 @@
+CREATE POLICY "Users can update own ideas" ON public.saved_ideas FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
