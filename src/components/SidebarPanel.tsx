@@ -30,10 +30,10 @@ interface Task {
 }
 
 interface Props {
-  postCount: number;
+  ideaCount: number;
 }
 
-export default function SidebarPanel({ postCount }: Props) {
+export default function SidebarPanel({ ideaCount }: Props) {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [streak, setStreak] = useState(0);
@@ -152,7 +152,7 @@ export default function SidebarPanel({ postCount }: Props) {
           <h3 className="font-display text-lg font-bold">Ma progression</h3>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <StatCard label="Posts créés" value={postCount.toString()} />
+          <StatCard label="Idées trouvées" value={ideaCount.toString()} />
           <StatCard label="Tâches complétées" value={`${completedCount}/${tasks.length}`} />
           <StatCard label="Pilier actuel" value="Social Media" />
           <div className="rounded-xl bg-rose-pale p-3 text-center">
