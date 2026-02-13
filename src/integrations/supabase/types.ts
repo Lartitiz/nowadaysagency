@@ -89,6 +89,33 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_ideas: {
+        Row: {
+          angle: string
+          created_at: string
+          format: string
+          id: string
+          titre: string
+          user_id: string
+        }
+        Insert: {
+          angle: string
+          created_at?: string
+          format: string
+          id?: string
+          titre: string
+          user_id: string
+        }
+        Update: {
+          angle?: string
+          created_at?: string
+          format?: string
+          id?: string
+          titre?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           completed_at: string | null

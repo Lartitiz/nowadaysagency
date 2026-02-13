@@ -61,9 +61,9 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4">
         <div className="mb-8">
-          <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground">
+          <h1 className="font-display text-[22px] sm:text-3xl md:text-4xl font-bold text-foreground">
             Hey {profile.prenom}, on crée quoi aujourd'hui ?
           </h1>
           <p className="mt-2 text-muted-foreground">
@@ -72,8 +72,8 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-          <ContentWorkshop profile={profile} onPostCreated={refreshPostCount} />
-          <SidebarPanel postCount={postCount} />
+          <ContentWorkshop profile={profile} onIdeaGenerated={refreshPostCount} />
+          <SidebarPanel ideaCount={postCount} />
         </div>
       </main>
     </div>

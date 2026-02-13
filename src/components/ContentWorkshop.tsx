@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, RefreshCw, CalendarPlus, PenLine } from "lucide-react";
+import { Copy, RefreshCw, Bookmark, PenLine, Lightbulb } from "lucide-react";
 import type { UserProfile } from "@/pages/Dashboard";
 
 const FORMATS = [
@@ -13,37 +13,41 @@ const FORMATS = [
   "Histoire cliente", "Regard philosophique", "Surf sur l'actu",
 ];
 
-interface Props {
-  profile: UserProfile;
-  onPostCreated: () => void;
+interface Idea {
+  titre: string;
+  format: string;
+  angle: string;
 }
 
-export default function ContentWorkshop({ profile, onPostCreated }: Props) {
+interface Props {
+  profile: UserProfile;
+  onIdeaGenerated: () => void;
+}
+
+export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [format, setFormat] = useState(FORMATS[0]);
+  const [format, setFormat] = useState<string | null>(null);
   const [sujet, setSujet] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [generatedPost, setGeneratedPost] = useState("");
-  const [postId, setPostId] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [addedToPlan, setAddedToPlan] = useState(false);
+  const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [savedIdx, setSavedIdx] = useState<Set<number>>(new Set());
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
-  const handleGenerate = async () => {
-    if (!sujet.trim() || !user) return;
+  const fetchIdeas = async () => {
+    if (!user) return;
     setGenerating(true);
-    setGeneratedPost("");
-    setPostId(null);
-    setCopied(false);
-    setAddedToPlan(false);
+    setIdeas([]);
+    setCopiedIdx(null);
+    setSavedIdx(new Set());
 
     try {
       const res = await supabase.functions.invoke("generate-content", {
         body: {
-          type: "generate",
-          format,
+          type: "ideas",
+          format: format || "",
           sujet,
           profile: {
             prenom: profile.prenom,
@@ -59,19 +63,26 @@ export default function ContentWorkshop({ profile, onPostCreated }: Props) {
 
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
-      setGeneratedPost(content);
 
-      // Save to DB
-      const { data: post, error } = await supabase
+      let parsed: Idea[];
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        // Try extracting JSON from response
+        const match = content.match(/\[[\s\S]*\]/);
+        if (match) parsed = JSON.parse(match[0]);
+        else throw new Error("Format de réponse inattendu");
+      }
+
+      setIdeas(parsed.slice(0, 5));
+
+      // Track as generated post for counting
+      await supabase
         .from("generated_posts")
-        .insert({ user_id: user.id, format, sujet, contenu: content })
-        .select("id")
-        .single();
-      if (post) setPostId(post.id);
-      if (error) console.error(error);
-      onPostCreated();
+        .insert({ user_id: user.id, format: "ideas", sujet: sujet || "(idées variées)", contenu: content });
+      onIdeaGenerated();
     } catch (e: any) {
-      toast({ title: "Erreur de génération", description: e.message, variant: "destructive" });
+      toast({ title: "Erreur", description: e.message, variant: "destructive" });
     } finally {
       setGenerating(false);
     }
@@ -101,22 +112,29 @@ export default function ContentWorkshop({ profile, onPostCreated }: Props) {
     }
   };
 
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(generatedPost);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  const handleCopyIdea = async (idea: Idea, idx: number) => {
+    await navigator.clipboard.writeText(`${idea.titre}\n${idea.angle}`);
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(null), 1500);
   };
 
-  const handleAddToPlan = async () => {
-    if (!postId) return;
-    await supabase.from("generated_posts").update({ added_to_plan: true }).eq("id", postId);
-    setAddedToPlan(true);
+  const handleSaveIdea = async (idea: Idea, idx: number) => {
+    if (!user || savedIdx.has(idx)) return;
+    const { error } = await supabase.from("saved_ideas").insert({
+      user_id: user.id,
+      titre: idea.titre,
+      format: idea.format,
+      angle: idea.angle,
+    });
+    if (error) {
+      toast({ title: "Erreur", description: "Impossible d'enregistrer l'idée", variant: "destructive" });
+      return;
+    }
+    setSavedIdx((prev) => new Set(prev).add(idx));
   };
-
-  const charCount = generatedPost.length;
 
   return (
-    <div className="rounded-2xl bg-card border border-border p-6 shadow-sm">
+    <div className="rounded-2xl bg-card border border-border p-6 max-sm:p-4 shadow-sm min-w-0">
       <div className="flex items-center gap-3 mb-5">
         <PenLine className="h-5 w-5 text-primary" />
         <h2 className="font-display text-xl font-bold">Mon atelier de contenu</h2>
@@ -126,11 +144,11 @@ export default function ContentWorkshop({ profile, onPostCreated }: Props) {
       </div>
 
       {/* Format selector */}
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-none">
+      <div className="flex gap-2 flex-wrap max-sm:flex-nowrap max-sm:overflow-x-auto pb-2 mb-4 scrollbar-none">
         {FORMATS.map((f) => (
           <button
             key={f}
-            onClick={() => setFormat(f)}
+            onClick={() => setFormat(format === f ? null : f)}
             className={`whitespace-nowrap rounded-pill px-4 py-2 text-sm font-medium border transition-all shrink-0 ${
               format === f
                 ? "bg-primary text-primary-foreground border-primary"
@@ -147,16 +165,16 @@ export default function ContentWorkshop({ profile, onPostCreated }: Props) {
         <Input
           value={sujet}
           onChange={(e) => setSujet(e.target.value)}
-          placeholder="De quoi tu veux parler ? Ex : le syndrome de l'impostrice quand on vend..."
-          className="rounded-[10px] h-12 pr-28"
-          onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
+          placeholder="Dis-moi un thème, un mot-clé, ou laisse-moi te proposer des idées..."
+          className="rounded-[10px] h-12 pr-40 w-full box-border"
+          onKeyDown={(e) => e.key === "Enter" && fetchIdeas()}
         />
         <Button
-          onClick={handleGenerate}
-          disabled={generating || !sujet.trim()}
+          onClick={fetchIdeas}
+          disabled={generating}
           className="absolute right-1 top-1 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux h-10 px-5"
         >
-          {generating ? "..." : "Générer"}
+          {generating ? "..." : "Trouver des idées"}
         </Button>
       </div>
 
@@ -166,7 +184,10 @@ export default function ContentWorkshop({ profile, onPostCreated }: Props) {
         disabled={loadingSuggestions}
         className="text-sm text-primary font-medium hover:underline mb-4 block"
       >
-        {loadingSuggestions ? "Je cherche des idées..." : "Inspire-moi"}
+        <span className="inline-flex items-center gap-1.5">
+          <Lightbulb className="h-3.5 w-3.5" />
+          {loadingSuggestions ? "Je cherche des idées..." : "Inspire-moi, j'ai pas d'idée"}
+        </span>
       </button>
 
       {suggestions.length > 0 && (
@@ -191,59 +212,64 @@ export default function ContentWorkshop({ profile, onPostCreated }: Props) {
             <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} />
             <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
           </div>
-          <span className="text-sm italic text-muted-foreground">Je rédige avec ta méthodo...</span>
+          <span className="text-sm italic text-muted-foreground">Je réfléchis à des idées pour toi...</span>
         </div>
       )}
 
-      {/* Generated post */}
-      {generatedPost && !generating && (
-        <div className="animate-fade-in rounded-xl bg-rose-pale border-l-4 border-primary p-5 mt-4">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="rounded-pill bg-primary text-primary-foreground px-3 py-0.5 text-xs font-bold uppercase tracking-wider">
-              {format}
-            </span>
-            <span className="text-xs text-muted-foreground">~{charCount} caractères</span>
-          </div>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{generatedPost}</p>
-          <div className="flex flex-wrap gap-2 mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCopy}
-              className="rounded-pill gap-1.5"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              {copied ? "Copié !" : "Copier"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleGenerate}
-              className="rounded-pill gap-1.5"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Autre version
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAddToPlan}
-              disabled={addedToPlan}
-              className="rounded-pill gap-1.5"
-            >
-              <CalendarPlus className="h-3.5 w-3.5" />
-              {addedToPlan ? "Ajouté !" : "Ajouter au plan"}
-            </Button>
-          </div>
+      {/* Ideas cards */}
+      {ideas.length > 0 && !generating && (
+        <div className="space-y-3 mt-4 animate-fade-in">
+          {ideas.map((idea, i) => (
+            <div key={i} className="rounded-xl bg-rose-pale border border-border p-4">
+              <div className="flex items-start gap-2 mb-2">
+                <span className="rounded-pill bg-primary text-primary-foreground px-3 py-0.5 text-xs font-bold uppercase tracking-wider shrink-0">
+                  {idea.format}
+                </span>
+              </div>
+              <p className="font-bold text-foreground text-sm mb-1">{idea.titre}</p>
+              <p className="text-sm italic text-muted-foreground leading-relaxed">{idea.angle}</p>
+              <div className="flex gap-2 mt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCopyIdea(idea, i)}
+                  className="rounded-pill gap-1.5"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  {copiedIdx === i ? "Copié !" : "Copier l'idée"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSaveIdea(idea, i)}
+                  disabled={savedIdx.has(i)}
+                  className="rounded-pill gap-1.5"
+                >
+                  <Bookmark className="h-3.5 w-3.5" />
+                  {savedIdx.has(i) ? "Enregistré !" : "Enregistrer"}
+                </Button>
+              </div>
+            </div>
+          ))}
+
+          <Button
+            variant="outline"
+            onClick={fetchIdeas}
+            disabled={generating}
+            className="w-full rounded-pill gap-2 mt-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Encore 5 idées
+          </Button>
         </div>
       )}
 
       {/* Empty state */}
-      {!generatedPost && !generating && (
+      {ideas.length === 0 && !generating && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <PenLine className="h-10 w-10 text-muted-foreground/40 mb-3" />
-          <p className="text-muted-foreground font-medium">Ton prochain post t'attend ici</p>
-          <p className="text-sm text-muted-foreground/60 mt-1">Choisis un format et donne un sujet pour commencer</p>
+          <Lightbulb className="h-10 w-10 text-muted-foreground/40 mb-3" />
+          <p className="text-muted-foreground font-medium">Tes prochaines idées de contenu t'attendent ici</p>
+          <p className="text-sm text-muted-foreground/60 mt-1">Choisis un format ou donne un thème pour commencer</p>
         </div>
       )}
     </div>
