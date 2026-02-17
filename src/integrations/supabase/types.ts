@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      calendar_posts: {
+        Row: {
+          angle: string | null
+          created_at: string
+          date: string
+          id: string
+          notes: string | null
+          status: string
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          angle?: string | null
+          created_at?: string
+          date: string
+          id?: string
+          notes?: string | null
+          status?: string
+          theme: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          angle?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          theme?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       generated_posts: {
         Row: {
           added_to_plan: boolean

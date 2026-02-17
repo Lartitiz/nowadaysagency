@@ -43,6 +43,15 @@
     --rose-medium: 338 100% 71%;
     --rose-pale: 340 100% 97%;
 
+    --cal-idea: 220 13% 91%;
+    --cal-idea-border: 220 9% 76%;
+    --cal-drafting: 48 100% 69%;
+    --cal-drafting-border: 48 100% 59%;
+    --cal-ready: 340 100% 97%;
+    --cal-ready-border: 338 96% 61%;
+    --cal-published: 142 76% 92%;
+    --cal-published-border: 142 71% 45%;
+
     --sidebar-background: 340 100% 97%;
     --sidebar-foreground: 270 25% 17%;
     --sidebar-primary: 338 96% 61%;

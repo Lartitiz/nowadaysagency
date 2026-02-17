@@ -154,7 +154,7 @@ export default function SidebarPanel({ ideaCount }: Props) {
         <div className="grid grid-cols-2 gap-4">
           <StatCard label="Idées trouvées" value={ideaCount.toString()} />
           <StatCard label="Tâches complétées" value={`${completedCount}/${tasks.length}`} />
-          <StatCard label="Pilier actuel" value="Social Media" />
+          <StatCard label="Thématique active" value="Social Media" />
           <div className="rounded-xl bg-rose-pale p-3 text-center">
             <div className="flex items-center justify-center gap-1 mb-1">
               <Flame className="h-4 w-4 text-primary" />
