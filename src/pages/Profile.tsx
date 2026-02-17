@@ -113,7 +113,7 @@ export default function Profile() {
             <Input value={probleme} onChange={(e) => setProbleme(e.target.value)} className="rounded-[10px] h-12" />
           </div>
           <div>
-            <label className="text-sm font-medium mb-2 block">Piliers de contenu</label>
+            <label className="text-sm font-medium mb-2 block">Mes thématiques</label>
             <div className="flex flex-wrap gap-2">
               {PILIERS.map((p) => (
                 <button key={p} onClick={() => togglePilier(p)}

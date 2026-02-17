@@ -174,10 +174,10 @@ export default function Onboarding() {
           {/* Step 3 */}
           {step === 3 && (
             <div className="space-y-5 animate-fade-in">
-              <h2 className="font-display text-2xl font-bold">Tes piliers de contenu</h2>
+              <h2 className="font-display text-2xl font-bold">Tes thématiques</h2>
               <div>
                 <label className="text-sm font-medium text-foreground mb-2 block">
-                  Sélectionne 3-4 piliers
+                  De quoi tu parles sur tes réseaux ? Choisis les grandes thématiques qui te ressemblent (3-4 max).
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {PILIERS.map((p) => (
@@ -228,7 +228,7 @@ export default function Onboarding() {
                 <p className="text-sm"><strong>Type :</strong> {ACTIVITY_TYPES.find(t => t.id === typeActivite)?.label}</p>
                 <p className="text-sm"><strong>Cible :</strong> {cible}</p>
                 <p className="text-sm"><strong>Problème :</strong> {probleme}</p>
-                <p className="text-sm"><strong>Piliers :</strong> {piliers.join(", ")}</p>
+                <p className="text-sm"><strong>Thématiques :</strong> {piliers.join(", ")}</p>
                 <p className="text-sm"><strong>Ton :</strong> {tons.join(", ")}</p>
               </div>
               <div className="rounded-xl border-2 border-yellow bg-accent/20 p-5">

@@ -4,7 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, RefreshCw, Bookmark, PenLine, Lightbulb } from "lucide-react";
+import { Copy, RefreshCw, Bookmark, PenLine, Lightbulb, CalendarDays } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import type { UserProfile } from "@/pages/Dashboard";
 
 const FORMATS = [
@@ -143,7 +145,11 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
         </span>
       </div>
 
-      {/* Format selector */}
+      {/* Angle selector */}
+      <div className="mb-1">
+        <p className="text-sm font-medium text-foreground mb-1">Quel angle pour ton post ?</p>
+        <p className="text-xs italic text-muted-foreground mb-3">L'angle, c'est la manière dont tu vas aborder ton sujet. Un même thème peut être raconté en storytelling, en coup de gueule, en conseil...</p>
+      </div>
       <div className="flex gap-2 flex-wrap max-sm:flex-nowrap max-sm:overflow-x-auto pb-2 mb-4 scrollbar-none">
         {FORMATS.map((f) => (
           <button
@@ -248,6 +254,7 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
                   <Bookmark className="h-3.5 w-3.5" />
                   {savedIdx.has(i) ? "Enregistré !" : "Enregistrer"}
                 </Button>
+                <PlanifierButton idea={idea} userId={user?.id} toast={toast} />
               </div>
             </div>
           ))}
@@ -269,9 +276,52 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Lightbulb className="h-10 w-10 text-muted-foreground/40 mb-3" />
           <p className="text-muted-foreground font-medium">Tes prochaines idées de contenu t'attendent ici</p>
-          <p className="text-sm text-muted-foreground/60 mt-1">Choisis un format ou donne un thème pour commencer</p>
+          <p className="text-sm text-muted-foreground/60 mt-1">Choisis un angle ou donne un thème pour commencer</p>
         </div>
       )}
     </div>
+  );
+}
+
+function PlanifierButton({ idea, userId, toast }: { idea: Idea; userId?: string; toast: any }) {
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [open, setOpen] = useState(false);
+
+  const handleSelect = async (d: Date | undefined) => {
+    if (!d || !userId) return;
+    setDate(d);
+    const dateStr = d.toISOString().split("T")[0];
+    const { error } = await supabase.from("calendar_posts").insert({
+      user_id: userId,
+      date: dateStr,
+      theme: idea.titre,
+      angle: idea.format,
+      status: "idea",
+    });
+    setOpen(false);
+    if (error) {
+      toast({ title: "Erreur", description: "Impossible de planifier", variant: "destructive" });
+    } else {
+      toast({ title: "Ajouté au calendrier !" });
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="rounded-pill gap-1.5">
+          <CalendarDays className="h-3.5 w-3.5" />
+          Planifier
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={handleSelect}
+          className="p-3 pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
   );
 }

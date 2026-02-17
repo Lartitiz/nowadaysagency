@@ -8,6 +8,7 @@ import AuthPage from "./pages/AuthPage";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
+import Calendar from "./pages/Calendar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -27,6 +28,9 @@ const App = () => (
             } />
             <Route path="/dashboard" element={
               <ProtectedRoute><Dashboard /></ProtectedRoute>
+            } />
+            <Route path="/calendrier" element={
+              <ProtectedRoute><Calendar /></ProtectedRoute>
             } />
             <Route path="/profil" element={
               <ProtectedRoute><Profile /></ProtectedRoute>

@@ -47,7 +47,7 @@ PROFIL DE L'UTILISATRICE :
 - Type : ${profile.type_activite}
 - Cible : ${profile.cible}
 - Problème qu'elle résout : ${profile.probleme_principal}
-- Piliers de contenu : ${(profile.piliers || []).join(", ")}
+- Thématiques : ${(profile.piliers || []).join(", ")}
 - Ton souhaité : ${(profile.tons || []).join(", ")}
 
 THÈME OU MOT-CLÉ DONNÉ PAR L'UTILISATRICE : ${sujetInstruction}
@@ -55,7 +55,7 @@ THÈME OU MOT-CLÉ DONNÉ PAR L'UTILISATRICE : ${sujetInstruction}
 ${formatInstruction}
 
 CONSIGNE :
-Propose exactement 5 idées de posts Instagram adaptées à son activité, sa cible, et ses piliers de contenu.
+Propose exactement 5 idées de posts Instagram adaptées à son activité, sa cible, et ses thématiques.
 
 Pour chaque idée, donne :
 1. Un TITRE accrocheur (la "grande idée" du post, en une phrase percutante)
