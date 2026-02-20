@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Search, Eye, MessageSquare, Repeat, Sparkles, Check } from "lucide-react";
+import SubPageHeader from "@/components/SubPageHeader";
 
 const TONE_OPTIONS = ["Éducatif", "Inspirant", "Humoristique", "Storytelling", "Provocateur", "Doux", "Direct", "Poétique"];
 
@@ -139,6 +140,7 @@ export default function InstagramInspiration() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
+        <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="M'inspirer" />
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-display text-[26px] font-bold text-foreground">🔍 M'inspirer</h1>

@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Copy, Sparkles } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
+import SubPageHeader from "@/components/SubPageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -250,6 +251,7 @@ export default function InstagramLaunch() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
+        <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Préparer un lancement" />
         <h1 className="font-display text-[26px] font-bold text-foreground">🚀 Préparer un lancement</h1>
         <p className="mt-1 text-sm text-muted-foreground">Un plan structuré, étape par étape, pour lancer ton offre sur Instagram.</p>
 

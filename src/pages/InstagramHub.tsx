@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
-import { PenLine, Star, Search, Lightbulb, CalendarDays, Rocket } from "lucide-react";
+import { ArrowLeft, PenLine, Star, Search, Lightbulb, CalendarDays, Rocket } from "lucide-react";
 
 interface CardDef {
   icon: React.ElementType;
@@ -18,8 +18,8 @@ const CARDS: CardDef[] = [
   { icon: PenLine, emoji: "✍️", title: "Optimiser ma bio", desc: "Première impression parfaite.", to: "/instagram/bio", tag: "Guide + IA" },
   { icon: Star, emoji: "⭐", title: "Stories à la une", desc: "Organise tes highlights.", to: "/instagram/highlights", tag: "Checklist" },
   { icon: Search, emoji: "🔍", title: "M'inspirer", desc: "Observe et apprends.", to: "/instagram/inspiration", tag: "Exercice" },
-  { icon: Lightbulb, emoji: "💡", title: "Trouver des idées", desc: "Direction l'atelier.", to: "/instagram/idees?canal=instagram", tag: "IA" },
-  { icon: CalendarDays, emoji: "📅", title: "Mon calendrier Insta", desc: "Planifie tes posts.", to: "/instagram/calendrier?canal=instagram", tag: "Planning" },
+  { icon: Lightbulb, emoji: "💡", title: "Trouver des idées", desc: "Direction l'atelier.", to: "/atelier?canal=instagram", tag: "IA" },
+  { icon: CalendarDays, emoji: "📅", title: "Mon calendrier Insta", desc: "Planifie tes posts.", to: "/calendrier?canal=instagram", tag: "Planning" },
   { icon: Rocket, emoji: "🚀", title: "Préparer un lancement", desc: "Plan de lancement guidé.", to: "/instagram/lancement", tag: "Template + IA" },
 ];
 
@@ -86,6 +86,15 @@ export default function InstagramHub() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-5xl px-6 py-8 max-md:px-4">
+        {/* Back to hub */}
+        <Link
+          to="/dashboard"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Retour au hub
+        </Link>
+
         <div className="mb-8">
           <h1 className="font-display text-[26px] sm:text-3xl font-bold text-bordeaux">Mon Instagram</h1>
           <p className="mt-2 text-sm text-muted-foreground">

@@ -63,19 +63,20 @@ const App = () => (
             <Route path="/instagram/inspiration" element={
               <ProtectedRoute><InstagramInspiration /></ProtectedRoute>
             } />
-            <Route path="/instagram/idees" element={
-              <ProtectedRoute><Dashboard /></ProtectedRoute>
-            } />
-            <Route path="/instagram/calendrier" element={
-              <ProtectedRoute><Calendar /></ProtectedRoute>
-            } />
             <Route path="/instagram/lancement" element={
               <ProtectedRoute><InstagramLaunch /></ProtectedRoute>
             } />
+            {/* Transversal routes */}
+            <Route path="/atelier" element={
+              <ProtectedRoute><Dashboard /></ProtectedRoute>
+            } />
+            <Route path="/calendrier" element={
+              <ProtectedRoute><Calendar /></ProtectedRoute>
+            } />
             {/* Redirects from old routes */}
-            <Route path="/atelier" element={<Navigate to="/instagram/idees" replace />} />
-            <Route path="/instagram/atelier" element={<Navigate to="/instagram/idees" replace />} />
-            <Route path="/calendrier" element={<Navigate to="/instagram/calendrier" replace />} />
+            <Route path="/instagram/idees" element={<Navigate to="/atelier?canal=instagram" replace />} />
+            <Route path="/instagram/calendrier" element={<Navigate to="/calendrier?canal=instagram" replace />} />
+            <Route path="/instagram/atelier" element={<Navigate to="/atelier?canal=instagram" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

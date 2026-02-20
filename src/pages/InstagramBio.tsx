@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Check, Sparkles, ArrowLeft } from "lucide-react";
+import { Copy, Check, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
+import SubPageHeader from "@/components/SubPageHeader";
 
 interface BioVersion {
   nom_profil: string;
@@ -102,11 +103,7 @@ export default function InstagramBio() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
-        {/* Back link */}
-        <Link to="/instagram" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6">
-          <ArrowLeft className="h-4 w-4" />
-          Retour à Instagram
-        </Link>
+        <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Optimiser ma bio" />
 
         <h1 className="font-display text-[26px] font-bold text-foreground">✍️ Optimiser ma bio</h1>
         <p className="mt-2 text-sm text-muted-foreground mb-8">
