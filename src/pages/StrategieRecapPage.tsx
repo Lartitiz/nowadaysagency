@@ -74,33 +74,6 @@ export default function StrategieRecapPage() {
           </section>
         )}
 
-        {/* Nuage de mots */}
-        {(data.cloud_offer || data.cloud_clients || data.cloud_universe) && (
-          <section className="mb-8">
-            <h2 className="font-display text-lg font-bold text-foreground mb-3">Ton univers de mots</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {data.cloud_offer && (
-                <div className="rounded-xl border-2 border-border bg-card p-4">
-                  <p className="font-semibold text-[13px] text-foreground mb-2">🌿 Ce que tu proposes</p>
-                  <p className="text-[13px] text-muted-foreground">{data.cloud_offer}</p>
-                </div>
-              )}
-              {data.cloud_clients && (
-                <div className="rounded-xl border-2 border-border bg-card p-4">
-                  <p className="font-semibold text-[13px] text-foreground mb-2">🧠 Tes client·es</p>
-                  <p className="text-[13px] text-muted-foreground">{data.cloud_clients}</p>
-                </div>
-              )}
-              {data.cloud_universe && (
-                <div className="rounded-xl border-2 border-border bg-card p-4">
-                  <p className="font-semibold text-[13px] text-foreground mb-2">✨ Ton univers</p>
-                  <p className="text-[13px] text-muted-foreground">{data.cloud_universe}</p>
-                </div>
-              )}
-            </div>
-          </section>
-        )}
-
         {/* Piliers */}
         {data.pillar_major && (
           <section className="mb-8">
@@ -141,7 +114,7 @@ export default function StrategieRecapPage() {
 
         {/* Message */}
         <div className="rounded-xl bg-rose-pale p-5 text-[14px] text-foreground leading-relaxed mb-6">
-          Ta stratégie de contenu est posée. Maintenant, chaque fois que tu vas dans l'atelier d'idées, l'IA s'appuie sur tes piliers, tes combats, et ton concept créatif pour te proposer des idées qui te ressemblent vraiment.
+          Ta stratégie de contenu est posée. Maintenant, chaque fois que tu vas dans l'atelier d'idées, l'IA s'appuie sur tes piliers et ton concept créatif pour te proposer des idées qui te ressemblent vraiment.
         </div>
 
         <Link to="/branding">
