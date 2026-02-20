@@ -278,48 +278,72 @@ export type Database = {
       profiles: {
         Row: {
           activite: string
+          canaux: string[]
+          ce_quon_evite: string
           cible: string
           created_at: string
+          croyances_limitantes: string
+          expressions_cles: string
           id: string
+          mission: string
+          offre: string
           onboarding_completed: boolean
           piliers: string[]
           plan_start_date: string | null
           prenom: string
           probleme_principal: string
+          style_communication: string[]
           tons: string[]
           type_activite: string
           updated_at: string
           user_id: string
+          verbatims: string
         }
         Insert: {
           activite?: string
+          canaux?: string[]
+          ce_quon_evite?: string
           cible?: string
           created_at?: string
+          croyances_limitantes?: string
+          expressions_cles?: string
           id?: string
+          mission?: string
+          offre?: string
           onboarding_completed?: boolean
           piliers?: string[]
           plan_start_date?: string | null
           prenom?: string
           probleme_principal?: string
+          style_communication?: string[]
           tons?: string[]
           type_activite?: string
           updated_at?: string
           user_id: string
+          verbatims?: string
         }
         Update: {
           activite?: string
+          canaux?: string[]
+          ce_quon_evite?: string
           cible?: string
           created_at?: string
+          croyances_limitantes?: string
+          expressions_cles?: string
           id?: string
+          mission?: string
+          offre?: string
           onboarding_completed?: boolean
           piliers?: string[]
           plan_start_date?: string | null
           prenom?: string
           probleme_principal?: string
+          style_communication?: string[]
           tons?: string[]
           type_activite?: string
           updated_at?: string
           user_id?: string
+          verbatims?: string
         }
         Relationships: []
       }
