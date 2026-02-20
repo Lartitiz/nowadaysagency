@@ -23,7 +23,7 @@ serve(async (req) => {
 Profil de l'utilisatrice :
 - Activité : ${profile.activite}
 - Cible : ${profile.cible}
-- Piliers de contenu : ${(profile.piliers || []).join(", ")}
+- Thématiques : ${(profile.piliers || []).join(", ")}
 
 Propose exactement 5 idées de sujets de posts Instagram, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.
 

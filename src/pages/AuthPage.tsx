@@ -57,10 +57,10 @@ export default function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-rose-pale px-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="mb-8 text-center">
-          <h1 className="font-display text-4xl font-bold text-foreground">
-            Now Pilot
+          <h1 className="font-display text-4xl font-bold text-bordeaux">
+            L'Assistant Com'
           </h1>
-          <p className="mt-1 font-body text-sm text-muted-foreground">by Nowadays</p>
+          <p className="mt-1 font-body text-sm text-muted-foreground">par Nowadays Agency</p>
           <span className="mt-2 inline-block rounded-pill bg-secondary px-3 py-1 text-xs font-medium text-primary">
             beta
           </span>
