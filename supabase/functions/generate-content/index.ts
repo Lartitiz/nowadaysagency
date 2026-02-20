@@ -27,11 +27,12 @@ function buildProfileBlock(profile: any): string {
 }
 
 async function buildBrandingContext(supabase: any, userId: string): Promise<string> {
-  const [stRes, perRes, toneRes, propRes] = await Promise.all([
+  const [stRes, perRes, toneRes, propRes, nicheRes] = await Promise.all([
     supabase.from("storytelling").select("step_7_polished").eq("user_id", userId).maybeSingle(),
     supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_profile").select("tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_proposition").select("version_final, version_complete").eq("user_id", userId).maybeSingle(),
+    supabase.from("brand_niche").select("version_final, version_pitch, step_1a_cause").eq("user_id", userId).maybeSingle(),
   ]);
 
   const lines: string[] = [];
@@ -51,6 +52,10 @@ async function buildBrandingContext(supabase: any, userId: string): Promise<stri
 
   const propValue = propRes.data?.version_final || propRes.data?.version_complete;
   if (propValue) lines.push(`PROPOSITION DE VALEUR :\n${propValue}`);
+
+  const nicheValue = nicheRes.data?.version_final || nicheRes.data?.version_pitch;
+  if (nicheValue) lines.push(`NICHE :\n${nicheValue}`);
+  if (nicheRes.data?.step_1a_cause) lines.push(`COMBAT / CAUSE :\n${nicheRes.data.step_1a_cause}`);
 
   const t = toneRes.data;
   if (t) {

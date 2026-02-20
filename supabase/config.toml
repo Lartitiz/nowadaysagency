@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.proposition-ai]
 verify_jwt = false
+
+[functions.niche-ai]
+verify_jwt = false
