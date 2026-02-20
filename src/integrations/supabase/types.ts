@@ -1471,6 +1471,99 @@ export type Database = {
         }
         Relationships: []
       }
+      website_homepage: {
+        Row: {
+          benefits_block: string | null
+          completed: boolean | null
+          created_at: string | null
+          cta_objective: string | null
+          cta_primary: string | null
+          cta_secondary: string | null
+          current_step: number | null
+          faq: Json | null
+          hook_image_done: boolean | null
+          hook_subtitle: string | null
+          hook_title: string | null
+          id: string
+          layout_done: boolean | null
+          layout_notes: string | null
+          offer_block: string | null
+          presentation_block: string | null
+          problem_block: string | null
+          social_proof_done: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          benefits_block?: string | null
+          completed?: boolean | null
+          created_at?: string | null
+          cta_objective?: string | null
+          cta_primary?: string | null
+          cta_secondary?: string | null
+          current_step?: number | null
+          faq?: Json | null
+          hook_image_done?: boolean | null
+          hook_subtitle?: string | null
+          hook_title?: string | null
+          id?: string
+          layout_done?: boolean | null
+          layout_notes?: string | null
+          offer_block?: string | null
+          presentation_block?: string | null
+          problem_block?: string | null
+          social_proof_done?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          benefits_block?: string | null
+          completed?: boolean | null
+          created_at?: string | null
+          cta_objective?: string | null
+          cta_primary?: string | null
+          cta_secondary?: string | null
+          current_step?: number | null
+          faq?: Json | null
+          hook_image_done?: boolean | null
+          hook_subtitle?: string | null
+          hook_title?: string | null
+          id?: string
+          layout_done?: boolean | null
+          layout_notes?: string | null
+          offer_block?: string | null
+          presentation_block?: string | null
+          problem_block?: string | null
+          social_proof_done?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      website_profile: {
+        Row: {
+          cms: string | null
+          created_at: string | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          cms?: string | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          cms?: string | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -47,6 +47,9 @@ import PinterestTableaux from "./pages/PinterestTableaux";
 import PinterestMotsCles from "./pages/PinterestMotsCles";
 import PinterestEpingles from "./pages/PinterestEpingles";
 import PinterestRoutine from "./pages/PinterestRoutine";
+import SiteHub from "./pages/SiteHub";
+import SiteAccueil from "./pages/SiteAccueil";
+import SiteAccueilRecap from "./pages/SiteAccueilRecap";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -187,6 +190,16 @@ const App = () => (
             } />
             <Route path="/calendrier" element={
               <ProtectedRoute><Calendar /></ProtectedRoute>
+            } />
+            {/* Site Web module */}
+            <Route path="/site" element={
+              <ProtectedRoute><SiteHub /></ProtectedRoute>
+            } />
+            <Route path="/site/accueil" element={
+              <ProtectedRoute><SiteAccueil /></ProtectedRoute>
+            } />
+            <Route path="/site/accueil/recap" element={
+              <ProtectedRoute><SiteAccueilRecap /></ProtectedRoute>
             } />
             {/* Redirects from old routes */}
             <Route path="/instagram/idees" element={<Navigate to="/atelier?canal=instagram" replace />} />
