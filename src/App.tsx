@@ -23,6 +23,8 @@ import InstagramInspiration from "./pages/InstagramInspiration";
 import InstagramLaunch from "./pages/InstagramLaunch";
 import AtelierPage from "./pages/AtelierPage";
 import RedactionPage from "./pages/RedactionPage";
+import PersonaPage from "./pages/PersonaPage";
+import PersonaRecapPage from "./pages/PersonaRecapPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -54,6 +56,12 @@ const App = () => (
             } />
             <Route path="/branding/storytelling/recap" element={
               <ProtectedRoute><StorytellingRecapPage /></ProtectedRoute>
+            } />
+            <Route path="/branding/persona" element={
+              <ProtectedRoute><PersonaPage /></ProtectedRoute>
+            } />
+            <Route path="/branding/persona/recap" element={
+              <ProtectedRoute><PersonaRecapPage /></ProtectedRoute>
             } />
             <Route path="/plan" element={
               <ProtectedRoute><PlanPage /></ProtectedRoute>

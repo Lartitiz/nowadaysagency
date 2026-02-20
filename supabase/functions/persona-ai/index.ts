@@ -1,0 +1,263 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Authentification requise" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    const { type, profile, persona } = await req.json();
+    const p = profile || {};
+    const d = persona || {};
+
+    const profileBlock = [
+      p.activite ? `- Activité : ${p.activite}` : "",
+      p.mission ? `- Mission : ${p.mission}` : "",
+      p.offer ? `- Offre : ${p.offer}` : "",
+      p.target_description ? `- Cible : ${p.target_description}` : "",
+      p.tone_register ? `- Registre : ${p.tone_register}` : "",
+    ].filter(Boolean).join("\n");
+
+    const startingPointLabel = d.starting_point === "existing" ? "un·e client·e existant·e" : "un persona imaginé";
+
+    let systemPrompt = "";
+    let userPrompt = "Génère le contenu demandé.";
+
+    switch (type) {
+      case "frustrations":
+        systemPrompt = `Tu es expert·e en stratégie de marque pour des solopreneuses créatives et éthiques.
+
+TEXTE DE L'UTILISATRICE SUR LES FRUSTRATIONS DE SA CIBLE :
+"${d.step_1_frustrations || ""}"
+
+PROFIL :
+${profileBlock}
+- Point de départ : ${startingPointLabel}
+
+Génère une liste de 10 tensions, frustrations ou manques que vit cette cliente idéale.
+
+Pour chaque point :
+- Une frustration nuancée et réaliste (pas caricaturale)
+- L'émotion dominante associée (culpabilité, fatigue, confusion, solitude, impatience, honte...)
+- En quoi c'est relié à ce que propose l'utilisatrice
+
+RÈGLES :
+- Ton direct et empathique, pas clinique
+- Spécifique au secteur de l'utilisatrice
+- Écriture inclusive avec point médian
+- JAMAIS de tiret cadratin (—)
+
+Réponds en JSON :
+[{"frustration": "...", "emotion": "...", "lien_offre": "..."}, ...]`;
+        break;
+
+      case "benefits":
+        systemPrompt = `Tu es expert·e en stratégie de marque pour des solopreneuses créatives et éthiques.
+
+TEXTE DE L'UTILISATRICE SUR LA TRANSFORMATION RÊVÉE :
+"${d.step_2_transformation || ""}"
+
+PROFIL :
+${profileBlock}
+- Point de départ : ${startingPointLabel}
+
+Génère 10 bénéfices ou transformations concrètes que la cliente idéale aimerait vivre.
+
+Pour chaque bénéfice :
+- Ce qu'elle aurait, ferait ou ressentirait (concret, pas abstrait)
+- L'émotion principale (fierté, légèreté, confiance, joie, sérénité...)
+- En quoi ça change sa vie de manière tangible
+
+RÈGLES :
+- Ton direct et empathique
+- Spécifique au secteur
+- Écriture inclusive avec point médian
+- JAMAIS de tiret cadratin (—)
+
+Réponds en JSON :
+[{"benefice": "...", "emotion": "...", "impact": "..."}, ...]`;
+        break;
+
+      case "barriers":
+        systemPrompt = `Tu es expert·e en stratégie de marque pour des solopreneuses créatives et éthiques.
+
+TEXTE SUR LES OBJECTIONS :
+"${d.step_3a_objections || ""}"
+
+TEXTE SUR LES CLICHÉS :
+"${d.step_3b_cliches || ""}"
+
+PROFIL :
+${profileBlock}
+
+Génère 2 listes :
+
+LISTE 1 : 10 freins ou croyances limitantes au moment d'acheter
+Pour chaque frein :
+- La phrase que la cliente se dit (entre guillemets, ton oral)
+- Le type de frein (prix, temps, légitimité, confiance, expérience passée)
+- Une idée de contenu ou de message pour lever ce frein
+
+LISTE 2 : 10 clichés ou idées reçues sur l'univers de l'utilisatrice
+Pour chaque cliché :
+- L'idée reçue (entre guillemets)
+- Ce qu'elle révèle comme frein profond
+- Une idée de contenu "mythe vs réalité" pour le déconstruire
+
+RÈGLES :
+- Ton direct et empathique
+- Écriture inclusive avec point médian
+- JAMAIS de tiret cadratin (—)
+
+Réponds en JSON :
+{"freins": [{"phrase": "...", "type": "...", "idee_contenu": "..."}, ...], "cliches": [{"idee_recue": "...", "frein_profond": "...", "idee_contenu": "..."}, ...]}`;
+        break;
+
+      case "visual":
+        systemPrompt = `Tu es expert·e en stratégie de marque pour des solopreneuses créatives et éthiques.
+
+L'UNIVERS VISUEL DE LA CLIENTE IDÉALE :
+- Ce qu'elle trouve beau : "${d.step_4_beautiful || ""}"
+- Ce qui l'inspire : "${d.step_4_inspiring || ""}"
+- Ce qui la rebute : "${d.step_4_repulsive || ""}"
+- Ce qu'elle a besoin de ressentir : "${d.step_4_feeling || ""}"
+
+PROFIL :
+${profileBlock}
+
+Déduis une direction visuelle concrète pour les contenus de l'utilisatrice :
+- Type de photos recommandé (3-4 suggestions)
+- Ambiance générale (2-3 mots-clés)
+- Couleurs à privilégier (3-4 couleurs avec hex si possible)
+- Ce qu'il faut éviter visuellement (2-3 points)
+- Formats Instagram qui matchent le mieux (carrousel, reel, stories...)
+- Suggestion de moodboard (5 types d'images à chercher sur Pinterest)
+
+Réponds en texte structuré (pas de JSON), ton chaleureux et direct. Écriture inclusive avec point médian. JAMAIS de tiret cadratin (—).`;
+        break;
+
+      case "actions":
+        systemPrompt = `Tu es expert·e en stratégie de marque pour des solopreneuses créatives et éthiques.
+
+PERSONA COMPLET :
+- Frustrations : "${d.step_1_frustrations || ""}"
+- Transformation rêvée : "${d.step_2_transformation || ""}"
+- Objections : "${d.step_3a_objections || ""}"
+- Clichés : "${d.step_3b_cliches || ""}"
+- Univers visuel : ce qu'elle trouve beau "${d.step_4_beautiful || ""}", ce qui l'inspire "${d.step_4_inspiring || ""}", ce qui la rebute "${d.step_4_repulsive || ""}", ce qu'elle a besoin de ressentir "${d.step_4_feeling || ""}"
+
+PROFIL :
+${profileBlock}
+
+Génère un plan d'actions concret :
+
+1. 10 idées de contenus Instagram (posts, stories, reels) directement inspirées du persona. Pour chaque idée : le sujet + le format recommandé + pourquoi ça connecte avec le persona.
+
+2. 5 idées de newsletters ou emails qui répondent à ses besoins profonds.
+
+3. 3 suggestions pour améliorer le message (bio Insta, accroches, page d'accueil).
+
+4. 1 idée de contenu "signature" qui pourrait devenir un repère pour l'audience.
+
+5. 2 idées d'actions hors digital (atelier, collab, événement, partenariat).
+
+Ton direct, concret, actionnable. Écriture inclusive avec point médian. JAMAIS de tiret cadratin (—).
+
+Réponds en JSON :
+{"contenus_instagram": [{"sujet": "...", "format": "...", "pourquoi": "..."}, ...], "newsletters": ["...", ...], "ameliorations_message": ["...", ...], "contenu_signature": "...", "actions_hors_digital": ["...", ...]}`;
+        break;
+
+      case "pitch":
+        systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+
+FICHE PERSONA :
+- Frustrations : "${d.step_1_frustrations || ""}"
+- Transformation : "${d.step_2_transformation || ""}"
+- Freins : "${d.step_3a_objections || ""}"
+
+PROFIL :
+${profileBlock}
+
+Génère 3 versions d'un pitch décrivant la cliente idéale :
+
+VERSION COURTE (2-3 phrases) : pour une bio Instagram ou du networking. Qui est-elle, quel est son problème, ce qu'elle cherche.
+
+VERSION MOYENNE (4-5 phrases) : pour une page de vente. Son portrait + ses frustrations + la transformation qu'elle désire.
+
+VERSION LONGUE (1 paragraphe) : pour une page À propos. Portrait complet et nuancé.
+
+RÈGLES :
+- On parle d'ELLE (3e personne), pas de l'offre
+- Ton empathique, précis, pas caricatural
+- Utiliser les mots et émotions du persona
+- Écriture inclusive avec point médian
+- JAMAIS de tiret cadratin (—)
+
+Réponds en JSON :
+{"short": "...", "medium": "...", "long": "..."}`;
+        break;
+
+      default:
+        return new Response(JSON.stringify({ error: "Type non reconnu" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+    }
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Trop de requêtes, réessaie dans un moment." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "Crédits épuisés, ajoute des crédits pour continuer." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const t = await response.text();
+      console.error("AI gateway error:", response.status, t);
+      throw new Error("Erreur du service IA");
+    }
+
+    const aiData = await response.json();
+    const content = aiData.choices?.[0]?.message?.content || "";
+
+    return new Response(JSON.stringify({ content }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    console.error("persona-ai error:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

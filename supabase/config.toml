@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.storytelling-ai]
 verify_jwt = false
+
+[functions.persona-ai]
+verify_jwt = false
