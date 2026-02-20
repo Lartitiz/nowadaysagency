@@ -34,12 +34,19 @@ export default function Onboarding() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [step, setStep] = useState(1);
   const [showConfetti, setShowConfetti] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [prenom, setPrenom] = useState(() => localStorage.getItem("lac_prenom") || "");
-  const [activite, setActivite] = useState(() => localStorage.getItem("lac_activite") || "");
+  // Pre-fill from landing page signup
+  const storedPrenom = localStorage.getItem("lac_prenom") || "";
+  const storedActivite = localStorage.getItem("lac_activite") || "";
+  const hasLandingData = !!(storedPrenom && storedActivite);
+
+  // Start at step 2 if we already have prénom + activité from the landing form
+  const [step, setStep] = useState(hasLandingData ? 2 : 1);
+
+  const [prenom, setPrenom] = useState(storedPrenom);
+  const [activite, setActivite] = useState(storedActivite);
   const [typeActivite, setTypeActivite] = useState("");
   const [cible, setCible] = useState("");
   const [probleme, setProbleme] = useState("");
@@ -59,22 +66,54 @@ export default function Onboarding() {
     return true;
   };
 
+  // Total steps: if we skipped step 1, we show steps 2-4 (displayed as 1-3)
+  const totalSteps = hasLandingData ? 3 : 4;
+  const displayStep = hasLandingData ? step - 1 : step;
+  const lastStep = 4;
+
   const handleFinish = async () => {
     if (!user) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("profiles").insert({
-        user_id: user.id,
-        prenom,
-        activite,
-        type_activite: typeActivite,
-        cible,
-        probleme_principal: probleme,
-        piliers,
-        tons,
-        onboarding_completed: true,
-      });
-      if (error) throw error;
+      // Check if profile already exists (created during landing signup)
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (existingProfile) {
+        // Update existing profile
+        const { error } = await supabase.from("profiles").update({
+          prenom,
+          activite,
+          type_activite: typeActivite,
+          cible,
+          probleme_principal: probleme,
+          piliers,
+          tons,
+          onboarding_completed: true,
+        }).eq("user_id", user.id);
+        if (error) throw error;
+      } else {
+        // Insert new profile
+        const { error } = await supabase.from("profiles").insert({
+          user_id: user.id,
+          prenom,
+          activite,
+          type_activite: typeActivite,
+          cible,
+          probleme_principal: probleme,
+          piliers,
+          tons,
+          onboarding_completed: true,
+        });
+        if (error) throw error;
+      }
+
+      // Clean up localStorage
+      localStorage.removeItem("lac_prenom");
+      localStorage.removeItem("lac_activite");
 
       setShowConfetti(true);
       setTimeout(() => navigate("/dashboard"), 2000);
@@ -91,11 +130,11 @@ export default function Onboarding() {
       <div className="w-full max-w-lg animate-fade-in">
         {/* Progress */}
         <div className="flex items-center justify-center gap-2 mb-8">
-          {[1, 2, 3, 4].map((s) => (
+          {Array.from({ length: totalSteps }).map((_, i) => (
             <div
-              key={s}
+              key={i}
               className={`h-3 w-3 rounded-full transition-all ${
-                s <= step ? "bg-primary scale-110" : "bg-secondary"
+                i + 1 <= displayStep ? "bg-primary scale-110" : "bg-secondary"
               }`}
             />
           ))}
@@ -242,7 +281,7 @@ export default function Onboarding() {
 
           {/* Navigation */}
           <div className="flex justify-between mt-8">
-            {step > 1 ? (
+            {step > (hasLandingData ? 2 : 1) ? (
               <Button
                 variant="outline"
                 onClick={() => setStep(step - 1)}
@@ -251,7 +290,7 @@ export default function Onboarding() {
                 Retour
               </Button>
             ) : <div />}
-            {step < 4 ? (
+            {step < lastStep ? (
               <Button
                 onClick={() => setStep(step + 1)}
                 disabled={!canNext()}

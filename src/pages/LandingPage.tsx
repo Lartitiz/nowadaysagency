@@ -15,36 +15,69 @@ function SignupForm() {
   const [activite, setActivite] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prenom.trim() || !email.trim() || !password.trim()) return;
     setLoading(true);
     try {
+      // Store for onboarding pre-fill
       localStorage.setItem("lac_prenom", prenom.trim());
       localStorage.setItem("lac_activite", activite.trim());
-      const { error } = await supabase.auth.signUp({
+
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: { emailRedirectTo: window.location.origin },
       });
       if (error) throw error;
+
+      // If user was created AND we have a user id, create the profile row immediately
+      if (data.user) {
+        await supabase.from("profiles").insert({
+          user_id: data.user.id,
+          prenom: prenom.trim(),
+          activite: activite.trim(),
+        });
+      }
+
+      setSuccess(true);
       toast({
         title: "Compte créé !",
         description: "Vérifie tes emails pour confirmer ton inscription.",
       });
     } catch (error: any) {
-      toast({
-        title: "Oups !",
-        description: error.message === "User already registered"
-          ? "Cet email est déjà utilisé. Essaie de te connecter."
-          : error.message,
-        variant: "destructive",
-      });
+      const msg = error.message;
+      if (msg === "User already registered") {
+        toast({
+          title: "Tu as déjà un compte !",
+          description: (
+            <span>
+              Connecte-toi ici :{" "}
+              <a href="/login" className="underline font-medium text-primary">page de connexion</a>
+            </span>
+          ) as any,
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Oups !", description: msg, variant: "destructive" });
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  if (success) {
+    return (
+      <div className="rounded-2xl bg-card border border-border p-6 text-center space-y-2">
+        <p className="font-display text-lg font-bold text-foreground">Presque là !</p>
+        <p className="text-sm text-muted-foreground">
+          Un email de confirmation vient d'être envoyé à ton adresse. Clique sur le lien pour activer ton compte et accéder à ton atelier.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSignup} className="space-y-3">
@@ -120,7 +153,7 @@ export default function LandingPage() {
             <span className="rounded-pill bg-secondary px-2 py-0.5 text-[10px] font-semibold text-primary">beta</span>
           </div>
           <Link
-            to="/connexion"
+            to="/login"
             className="rounded-pill border border-border px-5 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
           >
             Se connecter
@@ -434,7 +467,7 @@ export default function LandingPage() {
           </div>
           <nav className="flex items-center gap-6 text-sm">
             <Link to="/" className="text-background/70 hover:text-background transition-colors">Accueil</Link>
-            <Link to="/connexion" className="text-background/70 hover:text-background transition-colors">Se connecter</Link>
+            <Link to="/login" className="text-background/70 hover:text-background transition-colors">Se connecter</Link>
             <span className="text-background/40">Mentions légales</span>
           </nav>
           <div className="flex items-center gap-4">
