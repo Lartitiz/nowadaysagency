@@ -622,6 +622,75 @@ export type Database = {
         }
         Relationships: []
       }
+      instagram_highlights: {
+        Row: {
+          created_at: string
+          emoji: string | null
+          id: string
+          is_selected: boolean | null
+          role: string | null
+          sort_order: number | null
+          stories: Json | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          is_selected?: boolean | null
+          role?: string | null
+          sort_order?: number | null
+          stories?: Json | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          is_selected?: boolean | null
+          role?: string | null
+          sort_order?: number | null
+          stories?: Json | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      instagram_highlights_questions: {
+        Row: {
+          client_journey: string | null
+          created_at: string
+          frequent_questions: string | null
+          id: string
+          recurring_content: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_journey?: string | null
+          created_at?: string
+          frequent_questions?: string | null
+          id?: string
+          recurring_content?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_journey?: string | null
+          created_at?: string
+          frequent_questions?: string | null
+          id?: string
+          recurring_content?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       launches: {
         Row: {
           created_at: string
