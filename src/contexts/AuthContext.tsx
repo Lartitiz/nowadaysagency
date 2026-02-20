@@ -21,6 +21,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Track whether this is a fresh sign-in vs session restoration
+    let isInitialLoad = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
@@ -28,22 +31,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
 
         if (event === "SIGNED_IN" && session?.user) {
-          // Check if profile exists and onboarding is done
-          setTimeout(async () => {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("onboarding_completed")
-              .eq("user_id", session.user.id)
-              .maybeSingle();
+          // Only redirect on actual sign-in (not session restore on page load)
+          // On initial load, the user is already on the page they navigated to
+          if (isInitialLoad) {
+            isInitialLoad = false;
+            // Still check onboarding for initial load
+            setTimeout(async () => {
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("onboarding_completed")
+                .eq("user_id", session.user.id)
+                .maybeSingle();
 
-            if (!profile) {
-              navigate("/onboarding");
-            } else if (!profile.onboarding_completed) {
-              navigate("/onboarding");
-            } else {
-              navigate("/dashboard");
-            }
-          }, 0);
+              if (!profile || !profile.onboarding_completed) {
+                navigate("/onboarding");
+              }
+              // Don't redirect to /dashboard — let the user stay on their current page
+            }, 0);
+          } else {
+            // Fresh sign-in from login page
+            setTimeout(async () => {
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("onboarding_completed")
+                .eq("user_id", session.user.id)
+                .maybeSingle();
+
+              if (!profile || !profile.onboarding_completed) {
+                navigate("/onboarding");
+              } else {
+                navigate("/dashboard");
+              }
+            }, 0);
+          }
         }
 
         if (event === "SIGNED_OUT") {
@@ -51,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     );
+    isInitialLoad = false;
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);

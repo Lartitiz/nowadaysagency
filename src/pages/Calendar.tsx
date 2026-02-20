@@ -26,11 +26,21 @@ export default function CalendarPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState<CalendarPost | null>(null);
+  const [prefillData, setPrefillData] = useState<{ theme?: string; notes?: string } | null>(null);
 
   useEffect(() => {
     const urlCanal = searchParams.get("canal");
     if (urlCanal && CANAL_FILTERS.some((c) => c.id === urlCanal && c.enabled)) {
       setCanalFilter(urlCanal);
+    }
+    // Handle prefill from atelier/redaction
+    const prefillTheme = searchParams.get("prefill_theme");
+    const prefillContent = searchParams.get("prefill_content");
+    if (prefillTheme) {
+      const today = new Date().toISOString().split("T")[0];
+      setSelectedDate(today);
+      setPrefillData({ theme: prefillTheme, notes: prefillContent || "" });
+      setDialogOpen(true);
     }
   }, [searchParams]);
 
@@ -188,12 +198,13 @@ export default function CalendarPage() {
 
         <CalendarPostDialog
           open={dialogOpen}
-          onOpenChange={setDialogOpen}
+          onOpenChange={(open) => { setDialogOpen(open); if (!open) setPrefillData(null); }}
           editingPost={editingPost}
           selectedDate={selectedDate}
           defaultCanal={canalFilter}
           onSave={handleSave}
           onDelete={handleDelete}
+          prefillData={prefillData}
         />
       </main>
     </div>
