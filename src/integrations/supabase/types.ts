@@ -367,6 +367,75 @@ export type Database = {
         }
         Relationships: []
       }
+      persona: {
+        Row: {
+          completed: boolean | null
+          created_at: string
+          current_step: number | null
+          id: string
+          pitch_long: string | null
+          pitch_medium: string | null
+          pitch_short: string | null
+          starting_point: string | null
+          step_1_frustrations: string | null
+          step_2_transformation: string | null
+          step_3a_objections: string | null
+          step_3b_cliches: string | null
+          step_4_beautiful: string | null
+          step_4_feeling: string | null
+          step_4_inspiring: string | null
+          step_4_pinterest_url: string | null
+          step_4_repulsive: string | null
+          step_5_actions: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string
+          current_step?: number | null
+          id?: string
+          pitch_long?: string | null
+          pitch_medium?: string | null
+          pitch_short?: string | null
+          starting_point?: string | null
+          step_1_frustrations?: string | null
+          step_2_transformation?: string | null
+          step_3a_objections?: string | null
+          step_3b_cliches?: string | null
+          step_4_beautiful?: string | null
+          step_4_feeling?: string | null
+          step_4_inspiring?: string | null
+          step_4_pinterest_url?: string | null
+          step_4_repulsive?: string | null
+          step_5_actions?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string
+          current_step?: number | null
+          id?: string
+          pitch_long?: string | null
+          pitch_medium?: string | null
+          pitch_short?: string | null
+          starting_point?: string | null
+          step_1_frustrations?: string | null
+          step_2_transformation?: string | null
+          step_3a_objections?: string | null
+          step_3b_cliches?: string | null
+          step_4_beautiful?: string | null
+          step_4_feeling?: string | null
+          step_4_inspiring?: string | null
+          step_4_pinterest_url?: string | null
+          step_4_repulsive?: string | null
+          step_5_actions?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       plan_tasks: {
         Row: {
           completed_at: string | null

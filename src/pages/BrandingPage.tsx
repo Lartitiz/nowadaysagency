@@ -40,6 +40,39 @@ function StorytellingCard({ userId }: { userId?: string }) {
   );
 }
 
+/* ─── Persona Card ─── */
+function PersonaCard({ userId }: { userId?: string }) {
+  const [completedSteps, setCompletedSteps] = useState(0);
+
+  useEffect(() => {
+    if (!userId) return;
+    supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions").eq("user_id", userId).maybeSingle().then(({ data }) => {
+      if (!data) return;
+      const fields = [data.step_1_frustrations, data.step_2_transformation, data.step_3a_objections, data.step_4_beautiful, data.step_5_actions];
+      setCompletedSteps(fields.filter((f) => f && String(f).trim().length > 0).length);
+    });
+  }, [userId]);
+
+  return (
+    <Link to="/branding/persona" className="block rounded-2xl border-2 border-primary/30 bg-card p-5 mb-8 group hover:border-primary hover:shadow-card-hover transition-all">
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">👩‍💻</span>
+          <div>
+            <h3 className="font-display text-lg font-bold text-foreground">Mon client·e idéal·e</h3>
+            <p className="text-[13px] text-muted-foreground mt-0.5">Comprends qui tu veux toucher, ce qui la bloque, ce qu'elle désire. En 5 étapes.</p>
+          </div>
+        </div>
+        <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-1" />
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <span className="font-mono-ui text-[11px] font-semibold text-primary">{completedSteps} / 5 étapes complétées</span>
+        <Progress value={(completedSteps / 5) * 100} className="h-1.5 flex-1" />
+      </div>
+    </Link>
+  );
+}
+
 /* ─── Types ─── */
 interface BrandProfile {
   id?: string;
@@ -223,6 +256,9 @@ export default function BrandingPage() {
 
         {/* Storytelling card */}
         <StorytellingCard userId={user?.id} />
+
+        {/* Persona card */}
+        <PersonaCard userId={user?.id} />
 
         {/* Score */}
         <div className="rounded-2xl border border-border bg-card p-5 mb-8">
