@@ -7,14 +7,13 @@ const corsHeaders = {
 };
 
 async function fetchBrandingData(supabase: any, userId: string) {
-  const [profRes, propRes, perRes, nicheRes, stratRes] = await Promise.all([
+  const [profRes, propRes, perRes, toneRes] = await Promise.all([
     supabase.from("profiles").select("prenom, activite, type_activite, cible, mission, offre").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_proposition").select("version_final, version_short").eq("user_id", userId).maybeSingle(),
+    supabase.from("brand_proposition").select("version_final, version_bio").eq("user_id", userId).maybeSingle(),
     supabase.from("persona").select("step_1_frustrations, step_2_transformation").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_niche").select("niche_specific, version_pitch").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_strategy").select("cloud_offer, cloud_universe").eq("user_id", userId).maybeSingle(),
+    supabase.from("brand_profile").select("voice_description, combat_cause, tone_register, key_expressions, things_to_avoid").eq("user_id", userId).maybeSingle(),
   ]);
-  return { profile: profRes.data, proposition: propRes.data, persona: perRes.data, niche: nicheRes.data, strategy: stratRes.data };
+  return { profile: profRes.data, proposition: propRes.data, persona: perRes.data, tone: toneRes.data };
 }
 
 function buildContext(data: any): string {
@@ -26,13 +25,11 @@ function buildContext(data: any): string {
     if (p.activite) lines.push(`- Activité : ${p.activite}`);
     if (p.cible) lines.push(`- Cible : ${p.cible}`);
   }
-  if (data.proposition?.version_short) lines.push(`\nPROPOSITION DE VALEUR : ${data.proposition.version_short}`);
+  if (data.proposition?.version_bio) lines.push(`\nPROPOSITION DE VALEUR : ${data.proposition.version_bio}`);
   else if (data.proposition?.version_final) lines.push(`\nPROPOSITION DE VALEUR : ${data.proposition.version_final}`);
-  if (data.niche?.niche_specific) lines.push(`NICHE : ${data.niche.niche_specific}`);
+  if (data.tone?.combat_cause) lines.push(`COMBATS : ${data.tone.combat_cause}`);
   if (data.persona?.step_1_frustrations) lines.push(`FRUSTRATIONS CIBLE : ${data.persona.step_1_frustrations}`);
   if (data.persona?.step_2_transformation) lines.push(`TRANSFORMATION : ${data.persona.step_2_transformation}`);
-  if (data.strategy?.cloud_offer) lines.push(`NUAGE - OFFRE : ${data.strategy.cloud_offer}`);
-  if (data.strategy?.cloud_universe) lines.push(`NUAGE - UNIVERS : ${data.strategy.cloud_universe}`);
   return lines.join("\n");
 }
 
@@ -58,32 +55,29 @@ serve(async (req) => {
     let userPrompt = "";
 
     if (action === "name") {
-      systemPrompt = `Tu es expert·e en SEO Pinterest pour des solopreneuses créatives.\n\n${context}\n\nPropose 3 options de nom Pinterest optimisé.\nFormat : "[Prénom] — [Mot-clé principal] & [Mot-clé secondaire]"\n\nChaque nom doit :\n- Contenir le prénom\n- Inclure 1-2 mots-clés pertinents pour le SEO Pinterest\n- Max 65 caractères\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["nom 1", "nom 2", "nom 3"]`;
+      systemPrompt = `Tu es expert·e en SEO Pinterest pour des solopreneuses créatives.\n\n${context}\n\nPropose 3 options de nom Pinterest optimisé.\nFormat : "[Prénom] — [Mot-clé principal] & [Mot-clé secondaire]"\nMax 65 caractères.\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["nom 1", "nom 2", "nom 3"]`;
       userPrompt = "Génère 3 options de nom Pinterest.";
 
     } else if (action === "bio") {
-      systemPrompt = `Tu es expert·e en SEO Pinterest.\n\n${context}\n\nGénère 3 bios Pinterest :\n- Max 160 caractères chacune\n- Inclure qui tu es, ce que tu proposes, à qui\n- Intégrer 1-2 mots-clés naturellement\n- Un emoji max si pertinent\n- Écriture inclusive avec point médian\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["bio 1", "bio 2", "bio 3"]`;
+      systemPrompt = `Tu es expert·e en SEO Pinterest.\n\n${context}\n\nGénère 3 bios Pinterest :\n- Max 160 caractères chacune\n- Inclure qui tu es, ce que tu proposes, à qui\n- Intégrer 1-2 mots-clés naturellement\n- Écriture inclusive avec point médian\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["bio 1", "bio 2", "bio 3"]`;
       userPrompt = "Génère 3 bios Pinterest.";
 
     } else if (action === "board-description") {
       const { board_name, board_type } = params;
-      // Fetch keywords
       const kwRes = await supabase.from("pinterest_keywords").select("keywords_raw").eq("user_id", user.id).maybeSingle();
       const kw = kwRes.data?.keywords_raw || "";
-      systemPrompt = `Tu es expert·e en SEO Pinterest.\n\nNOM DU TABLEAU : "${board_name}"\nTYPE : ${board_type}\n\n${context}\n\nMOTS-CLÉS : ${kw}\n\nRédige une description optimisée SEO pour ce tableau Pinterest.\n- 50-100 mots\n- Intègre naturellement les mots-clés pertinents\n- Décris ce qu'on trouve dans ce tableau\n- Ton chaleureux et invitant\n- Pas de hashtags\n\nRéponds avec le texte seul.`;
+      systemPrompt = `Tu es expert·e en SEO Pinterest.\n\nNOM DU TABLEAU : "${board_name}"\nTYPE : ${board_type}\n\n${context}\n\nMOTS-CLÉS : ${kw}\n\nRédige une description optimisée SEO (50-100 mots). Ton chaleureux, pas de hashtags.\n\nRéponds avec le texte seul.`;
       userPrompt = "Rédige la description du tableau.";
 
     } else if (action === "pin") {
       const { subject, board_name } = params;
       const kwRes = await supabase.from("pinterest_keywords").select("keywords_raw").eq("user_id", user.id).maybeSingle();
       const kw = kwRes.data?.keywords_raw || "";
-      const toneRes = await supabase.from("brand_profile").select("tone_register").eq("user_id", user.id).maybeSingle();
-      const tone = toneRes.data?.tone_register || "";
-      systemPrompt = `Tu es expert·e en SEO Pinterest.\n\nSUJET : "${subject}"\nTABLEAU : "${board_name}"\n\n${context}\n\nMOTS-CLÉS : ${kw}\nTON : ${tone}\n\nGénère 3 variantes de titre + description pour cette épingle Pinterest :\n\nVARIANTE 1 — SEO (maximise les mots-clés)\nVARIANTE 2 — STORYTELLING (plus narrative)\nVARIANTE 3 — BÉNÉFICE (centrée sur ce que ça apporte)\n\nPour chaque variante :\n- Titre : court, percutant, max 100 caractères, mots-clés intégrés\n- Description : 100-200 mots, clair, PAS de hashtags\n\nRéponds UNIQUEMENT en JSON sans backticks :\n[{"title": "...", "description": "..."}, {"title": "...", "description": "..."}, {"title": "...", "description": "..."}]`;
+      systemPrompt = `Tu es expert·e en SEO Pinterest.\n\nSUJET : "${subject}"\nTABLEAU : "${board_name}"\n\n${context}\n\nMOTS-CLÉS : ${kw}\nTON : ${branding.tone?.tone_register || ""}\n\nGénère 3 variantes titre + description :\nVARIANTE 1 — SEO\nVARIANTE 2 — STORYTELLING\nVARIANTE 3 — BÉNÉFICE\n\nTitre : max 100 caractères. Description : 100-200 mots, PAS de hashtags.\n\nRéponds UNIQUEMENT en JSON sans backticks :\n[{"title": "...", "description": "..."}, {"title": "...", "description": "..."}, {"title": "...", "description": "..."}]`;
       userPrompt = "Génère titre + description pour l'épingle.";
 
     } else if (action === "keywords") {
-      systemPrompt = `Tu es expert·e en SEO Pinterest.\n\n${context}\n\nGénère 20 mots-clés Pinterest pertinents, classés en 4 catégories :\n\n1. MOTS-CLÉS PRODUIT (ce qu'elle vend) — 5 mots-clés\n2. MOTS-CLÉS BESOIN (ce que cherche la cliente) — 5 mots-clés\n3. MOTS-CLÉS INSPIRATION (l'univers, l'ambiance) — 5 mots-clés\n4. MOTS-CLÉS EN ANGLAIS (Pinterest est international) — 5 mots-clés\n\nChaque mot-clé doit être spécifique et en langage naturel.\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"produit": ["...", ...], "besoin": ["...", ...], "inspiration": ["...", ...], "anglais": ["...", ...]}`;
+      systemPrompt = `Tu es expert·e en SEO Pinterest.\n\n${context}\n\nGénère 20 mots-clés Pinterest pertinents en 4 catégories :\n1. PRODUIT (5)\n2. BESOIN (5)\n3. INSPIRATION (5)\n4. ANGLAIS (5)\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"produit": [...], "besoin": [...], "inspiration": [...], "anglais": [...]}`;
       userPrompt = "Trouve mes mots-clés Pinterest.";
 
     } else {
@@ -100,13 +94,15 @@ serve(async (req) => {
       if (response.status === 429) return new Response(JSON.stringify({ error: "Trop de requêtes, réessaie dans un instant." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       if (response.status === 402) return new Response(JSON.stringify({ error: "Crédits IA épuisés." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const t = await response.text();
-      throw new Error(`AI error: ${response.status} - ${t}`);
+      console.error("AI error:", response.status, t);
+      throw new Error("Oups, l'IA n'a pas pu générer. Réessaie dans un instant.");
     }
 
     const aiData = await response.json();
     const content = aiData.choices?.[0]?.message?.content || "";
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    console.error("pinterest-ai error:", error);
+    return new Response(JSON.stringify({ error: error.message || "Erreur inconnue" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
