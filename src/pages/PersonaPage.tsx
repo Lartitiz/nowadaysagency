@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,7 @@ const STEP_FIELDS: Record<number, (keyof PersonaData)[]> = {
 
 export default function PersonaPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [data, setData] = useState<PersonaData>(EMPTY);
   const [existingId, setExistingId] = useState<string | null>(null);
@@ -129,7 +130,7 @@ export default function PersonaPage() {
       const updated = { ...data, completed: true, current_step: 5 };
       setData(updated);
       debouncedSave(updated);
-      window.location.href = "/branding/persona/recap";
+      navigate("/branding/persona/recap");
     }
   };
 
