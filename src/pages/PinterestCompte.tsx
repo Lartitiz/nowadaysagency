@@ -133,7 +133,11 @@ export default function PinterestCompte() {
           <section className="rounded-xl border border-border bg-card p-5 space-y-3">
             <h3 className="font-display text-base font-bold">3. Ton nom + mot-clé</h3>
             <p className="text-sm text-muted-foreground">Sur Pinterest, ton nom apparaît partout. Ajoute un mot-clé principal pour être trouvée.</p>
-            <div className="rounded-xl bg-rose-pale p-4 text-sm">Format : [Prénom] — [Mot-clé principal]<br />Ex : "Lucie — Céramique artisanale & déco éthique"</div>
+            <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-1.5">
+              <span className="inline-block font-mono-ui text-[10px] font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemple</span>
+              <p className="text-muted-foreground">Format : [Prénom] — [Mot-clé principal]</p>
+              <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3">Ex : "Lucie — Céramique artisanale & déco éthique"</p>
+            </div>
             <Input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Ton prénom — Mot-clé principal" />
             <Button variant="outline" onClick={generateName} disabled={generatingName} className="gap-2 rounded-pill"><Sparkles className="h-4 w-4" />{generatingName ? "Génération..." : "✨ Suggérer un nom optimisé"}</Button>
             {nameSuggestions.length > 0 && (
@@ -151,7 +155,10 @@ export default function PinterestCompte() {
           <section className="rounded-xl border border-border bg-card p-5 space-y-3">
             <h3 className="font-display text-base font-bold">4. Ta bio</h3>
             <p className="text-sm text-muted-foreground">Une phrase : qui tu es, ce que tu proposes, à qui tu t'adresses.</p>
-            <div className="rounded-xl bg-rose-pale p-4 text-sm">Ex : "Créatrice de pièces artisanales en cuir végétal 🌿 Pour un quotidien slow & élégant."</div>
+            <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-1.5">
+              <span className="inline-block font-mono-ui text-[10px] font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemple</span>
+              <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3">Ex : "Créatrice de pièces artisanales en cuir végétal 🌿 Pour un quotidien slow & élégant."</p>
+            </div>
             {propValue && <div className="rounded-xl bg-accent/30 border border-accent p-4 text-sm">💡 Ta proposition de valeur : "<strong>{propValue}</strong>" — tu peux l'adapter pour Pinterest !</div>}
             <Button variant="outline" onClick={generateBio} disabled={generatingBio} className="gap-2 rounded-pill"><Sparkles className="h-4 w-4" />{generatingBio ? "Génération..." : "✨ Générer ma bio Pinterest"}</Button>
             {bioSuggestions.length > 0 && (
