@@ -1,13 +1,10 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Instagram, Lightbulb, CalendarDays, ClipboardList, User, Search, ExternalLink, Menu, X } from "lucide-react";
+import { Instagram, ClipboardList, User, Search, ExternalLink, Menu, X } from "lucide-react";
 import { useState } from "react";
 
 const NAV_ITEMS = [
-  { to: "/dashboard", label: "Tableau de bord", icon: Home },
   { to: "/instagram", label: "Instagram", icon: Instagram },
-  { to: "/atelier", label: "Atelier d'idées", icon: Lightbulb },
-  { to: "/calendrier", label: "Calendrier", icon: CalendarDays },
   { to: "/plan", label: "Mon plan", icon: ClipboardList },
   { to: "/profil", label: "Profil", icon: User },
 ];
@@ -20,7 +17,7 @@ export default function AppHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card">
       <div className="mx-auto flex h-14 max-w-[1100px] items-center justify-between px-6 max-md:px-4">
-        {/* Logo */}
+        {/* Logo → Dashboard */}
         <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
           <span className="font-display text-xl font-bold text-bordeaux">L'Assistant Com'</span>
           <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-md">beta</span>
@@ -33,7 +30,7 @@ export default function AppHeader() {
               {item.label}
             </NavTab>
           ))}
-          {/* SEO external link — visually separated */}
+          {/* SEO external link */}
           <span className="mx-1 h-6 w-px bg-border" />
           <a
             href="https://referencement-seo.lovable.app/"

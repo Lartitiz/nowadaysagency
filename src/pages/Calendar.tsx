@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useLocation } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
+import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,6 +55,8 @@ export default function CalendarPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const location = useLocation();
+  const isInstagramRoute = location.pathname.startsWith("/instagram/");
   const [searchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [posts, setPosts] = useState<CalendarPost[]>([]);
@@ -193,6 +196,9 @@ export default function CalendarPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4">
+        {isInstagramRoute && (
+          <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Calendrier éditorial" />
+        )}
         <div className="mb-6">
           <h1 className="font-display text-[22px] sm:text-3xl md:text-4xl font-bold text-foreground">
             Mon calendrier éditorial

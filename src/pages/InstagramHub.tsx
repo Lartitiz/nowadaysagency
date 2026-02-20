@@ -6,8 +6,8 @@ const CARDS = [
   { icon: PenLine, emoji: "✍️", title: "Optimiser ma bio", desc: "Première impression parfaite.", to: "/instagram/bio" },
   { icon: Star, emoji: "⭐", title: "Stories à la une", desc: "Organise tes highlights.", to: "/instagram/highlights" },
   { icon: Search, emoji: "🔍", title: "M'inspirer", desc: "Observe et apprends.", to: "/instagram/inspiration" },
-  { icon: Lightbulb, emoji: "💡", title: "Trouver des idées", desc: "Direction l'atelier.", to: "/atelier?canal=instagram" },
-  { icon: CalendarDays, emoji: "📅", title: "Mon calendrier Insta", desc: "Planifie tes posts.", to: "/calendrier?canal=instagram" },
+  { icon: Lightbulb, emoji: "💡", title: "Trouver des idées", desc: "Direction l'atelier.", to: "/instagram/atelier?canal=instagram" },
+  { icon: CalendarDays, emoji: "📅", title: "Mon calendrier Insta", desc: "Planifie tes posts.", to: "/instagram/calendrier?canal=instagram" },
   { icon: Rocket, emoji: "🚀", title: "Préparer un lancement", desc: "Plan de lancement guidé.", to: "/instagram/lancement" },
 ];
 
