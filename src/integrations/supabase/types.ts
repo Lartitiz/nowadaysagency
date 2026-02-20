@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      brand_profile: {
+        Row: {
+          channels: string[] | null
+          created_at: string
+          id: string
+          key_expressions: string | null
+          mission: string | null
+          offer: string | null
+          target_beliefs: string | null
+          target_description: string | null
+          target_problem: string | null
+          target_verbatims: string | null
+          things_to_avoid: string | null
+          tone_engagement: string | null
+          tone_humor: string | null
+          tone_level: string | null
+          tone_register: string | null
+          tone_style: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channels?: string[] | null
+          created_at?: string
+          id?: string
+          key_expressions?: string | null
+          mission?: string | null
+          offer?: string | null
+          target_beliefs?: string | null
+          target_description?: string | null
+          target_problem?: string | null
+          target_verbatims?: string | null
+          things_to_avoid?: string | null
+          tone_engagement?: string | null
+          tone_humor?: string | null
+          tone_level?: string | null
+          tone_register?: string | null
+          tone_style?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channels?: string[] | null
+          created_at?: string
+          id?: string
+          key_expressions?: string | null
+          mission?: string | null
+          offer?: string | null
+          target_beliefs?: string | null
+          target_description?: string | null
+          target_problem?: string | null
+          target_verbatims?: string | null
+          things_to_avoid?: string | null
+          tone_engagement?: string | null
+          tone_humor?: string | null
+          tone_level?: string | null
+          tone_register?: string | null
+          tone_style?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       calendar_posts: {
         Row: {
           angle: string | null

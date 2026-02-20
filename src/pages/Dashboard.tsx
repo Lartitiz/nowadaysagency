@@ -153,24 +153,30 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!user) return;
-    const fetchProfile = async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date, mission, offre, croyances_limitantes, verbatims, expressions_cles, ce_quon_evite, style_communication, canaux")
-        .eq("user_id", user.id)
-        .single();
-      if (data) {
-        setProfile(data as UserProfile);
-        // Compute branding score from profiles fields (temporary until brand_profile table)
+    const fetchData = async () => {
+      const [profRes, bpRes] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date")
+          .eq("user_id", user.id)
+          .single(),
+        supabase
+          .from("brand_profile")
+          .select("mission, offer, target_description, target_problem, target_beliefs, target_verbatims, tone_register, key_expressions, things_to_avoid")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
+      if (profRes.data) setProfile(profRes.data as UserProfile);
+      if (bpRes.data) {
         const fields = [
-          data.mission, data.offre, data.cible, data.probleme_principal,
-          data.croyances_limitantes, data.verbatims, data.expressions_cles,
-          data.ce_quon_evite, data.tons?.length > 0 ? "filled" : "",
+          bpRes.data.mission, bpRes.data.offer, bpRes.data.target_description,
+          bpRes.data.target_problem, bpRes.data.target_beliefs, bpRes.data.tone_register,
+          bpRes.data.key_expressions, bpRes.data.things_to_avoid, bpRes.data.target_verbatims,
         ];
         setBrandingScore(fields.filter((f) => f && String(f).trim().length > 0).length);
       }
     };
-    fetchProfile();
+    fetchData();
   }, [user]);
 
   const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
