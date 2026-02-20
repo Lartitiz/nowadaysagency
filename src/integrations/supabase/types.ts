@@ -1336,9 +1336,12 @@ export type Database = {
           created_at: string
           current_step: number | null
           id: string
+          imported_text: string | null
+          is_primary: boolean | null
           pitch_long: string | null
           pitch_medium: string | null
           pitch_short: string | null
+          source: string | null
           step_1_raw: string | null
           step_2_location: string | null
           step_3_action: string | null
@@ -1346,6 +1349,8 @@ export type Database = {
           step_5_emotions: string | null
           step_6_full_story: string | null
           step_7_polished: string | null
+          story_type: string | null
+          title: string | null
           updated_at: string
           user_id: string
         }
@@ -1354,9 +1359,12 @@ export type Database = {
           created_at?: string
           current_step?: number | null
           id?: string
+          imported_text?: string | null
+          is_primary?: boolean | null
           pitch_long?: string | null
           pitch_medium?: string | null
           pitch_short?: string | null
+          source?: string | null
           step_1_raw?: string | null
           step_2_location?: string | null
           step_3_action?: string | null
@@ -1364,6 +1372,8 @@ export type Database = {
           step_5_emotions?: string | null
           step_6_full_story?: string | null
           step_7_polished?: string | null
+          story_type?: string | null
+          title?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1372,9 +1382,12 @@ export type Database = {
           created_at?: string
           current_step?: number | null
           id?: string
+          imported_text?: string | null
+          is_primary?: boolean | null
           pitch_long?: string | null
           pitch_medium?: string | null
           pitch_short?: string | null
+          source?: string | null
           step_1_raw?: string | null
           step_2_location?: string | null
           step_3_action?: string | null
@@ -1382,6 +1395,8 @@ export type Database = {
           step_5_emotions?: string | null
           step_6_full_story?: string | null
           step_7_polished?: string | null
+          story_type?: string | null
+          title?: string | null
           updated_at?: string
           user_id?: string
         }

@@ -8,7 +8,8 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 
 /* ─── Types ─── */
 interface SectionProgress {
-  storytelling: number; // out of 8
+  storytellingCount: number;
+  hasPrimary: boolean;
   persona: number; // out of 5
   tone: number; // out of 9
   proposition: number; // out of 4
@@ -34,9 +35,9 @@ const CARDS: BrandingCard[] = [
     title: "Mon histoire",
     description: "Écris ton histoire en 8 étapes guidées. L'IA t'aide à chaque moment.",
     route: "/branding/storytelling",
-    cta: "Écrire mon histoire →",
-    progressLabel: (p) => `${p.storytelling} / 8 étapes`,
-    progressValue: (p) => (p.storytelling / 8) * 100,
+    cta: "Voir mes storytellings →",
+    progressLabel: (p) => `${p.storytellingCount} storytelling(s)${p.hasPrimary ? " · ⭐ Principal défini" : " · ⚠️ Aucun principal"}`,
+    progressValue: (p) => p.storytellingCount > 0 ? 100 : 0,
     available: true,
   },
   {
@@ -94,13 +95,13 @@ const CARDS: BrandingCard[] = [
 /* ─── Main ─── */
 export default function BrandingPage() {
   const { user } = useAuth();
-  const [progress, setProgress] = useState<SectionProgress>({ storytelling: 0, persona: 0, tone: 0, proposition: 0, niche: 0, strategy: 0 });
+  const [progress, setProgress] = useState<SectionProgress>({ storytellingCount: 0, hasPrimary: false, persona: 0, tone: 0, proposition: 0, niche: 0, strategy: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     Promise.all([
-      supabase.from("storytelling").select("step_1_raw, step_2_location, step_3_action, step_4_thoughts, step_5_emotions, step_6_full_story, step_7_polished, pitch_short").eq("user_id", user.id).maybeSingle(),
+      supabase.from("storytelling").select("id, is_primary").eq("user_id", user.id),
       supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions").eq("user_id", user.id).maybeSingle(),
       supabase.from("brand_profile").select("tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels").eq("user_id", user.id).maybeSingle(),
       supabase.from("brand_proposition").select("step_1_what, step_2a_process, step_3_for_whom, version_final").eq("user_id", user.id).maybeSingle(),
@@ -110,14 +111,15 @@ export default function BrandingPage() {
       const countFilled = (obj: any, fields: string[]) =>
         obj ? fields.filter((f) => obj[f] && String(obj[f]).trim().length > 0).length : 0;
 
-      const storytelling = countFilled(stRes.data, ["step_1_raw", "step_2_location", "step_3_action", "step_4_thoughts", "step_5_emotions", "step_6_full_story", "step_7_polished", "pitch_short"]);
+      const storytellingCount = stRes.data?.length || 0;
+      const hasPrimary = stRes.data?.some((s: any) => s.is_primary) || false;
       const persona = countFilled(perRes.data, ["step_1_frustrations", "step_2_transformation", "step_3a_objections", "step_4_beautiful", "step_5_actions"]);
       const tone = countFilled(toneRes.data, ["tone_register", "tone_level", "tone_style", "tone_humor", "tone_engagement", "key_expressions", "things_to_avoid", "target_verbatims"]) + (toneRes.data?.channels && toneRes.data.channels.length > 0 ? 1 : 0);
       const proposition = countFilled(propRes.data, ["step_1_what", "step_2a_process", "step_3_for_whom", "version_final"]);
       const niche = countFilled(nicheRes.data, ["step_1a_cause", "step_2_refusals", "version_final"]);
       const strategy = countFilled(stratRes.data, ["step_1_hidden_facets", "cloud_offer", "pillar_major", "creative_concept"]);
 
-      setProgress({ storytelling, persona, tone, proposition, niche, strategy });
+      setProgress({ storytellingCount, hasPrimary, persona, tone, proposition, niche, strategy });
       setLoading(false);
     });
   }, [user]);
@@ -125,7 +127,7 @@ export default function BrandingPage() {
   // Global score: 6 sections all available
   const availableSections = 6;
   const sectionScores = [
-    progress.storytelling / 8,
+    progress.storytellingCount > 0 ? 1 : 0,
     progress.persona / 5,
     progress.tone / 9,
     progress.proposition / 4,

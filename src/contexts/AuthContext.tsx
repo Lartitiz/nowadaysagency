@@ -21,8 +21,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Track whether this is a fresh sign-in vs session restoration
-    let isInitialLoad = true;
+    // We only want to redirect on explicit SIGNED_IN from login, not on session restore.
+    // getSession handles initial load; onAuthStateChange handles subsequent events.
+    let initialSessionHandled = false;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -30,40 +31,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         setLoading(false);
 
+        // Skip the first SIGNED_IN that fires right after getSession (session restore)
+        if (!initialSessionHandled) return;
+
         if (event === "SIGNED_IN" && session?.user) {
-          // Only redirect on actual sign-in (not session restore on page load)
-          // On initial load, the user is already on the page they navigated to
-          if (isInitialLoad) {
-            isInitialLoad = false;
-            // Still check onboarding for initial load
-            setTimeout(async () => {
-              const { data: profile } = await supabase
-                .from("profiles")
-                .select("onboarding_completed")
-                .eq("user_id", session.user.id)
-                .maybeSingle();
+          // Fresh sign-in from login page
+          setTimeout(async () => {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("onboarding_completed")
+              .eq("user_id", session.user.id)
+              .maybeSingle();
 
-              if (!profile || !profile.onboarding_completed) {
-                navigate("/onboarding");
-              }
-              // Don't redirect to /dashboard — let the user stay on their current page
-            }, 0);
-          } else {
-            // Fresh sign-in from login page
-            setTimeout(async () => {
-              const { data: profile } = await supabase
-                .from("profiles")
-                .select("onboarding_completed")
-                .eq("user_id", session.user.id)
-                .maybeSingle();
-
-              if (!profile || !profile.onboarding_completed) {
-                navigate("/onboarding");
-              } else {
-                navigate("/dashboard");
-              }
-            }, 0);
-          }
+            if (!profile || !profile.onboarding_completed) {
+              navigate("/onboarding");
+            } else {
+              navigate("/dashboard");
+            }
+          }, 0);
         }
 
         if (event === "SIGNED_OUT") {
@@ -71,12 +56,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     );
-    isInitialLoad = false;
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // After initial session is handled, allow future auth events to trigger redirects
+      if (session?.user) {
+        // Check onboarding only if user is on the landing/login page
+        const path = window.location.pathname;
+        if (path === "/" || path === "/login" || path === "/connexion") {
+          supabase
+            .from("profiles")
+            .select("onboarding_completed")
+            .eq("user_id", session.user.id)
+            .maybeSingle()
+            .then(({ data: profile }) => {
+              if (!profile || !profile.onboarding_completed) {
+                navigate("/onboarding");
+              } else {
+                navigate("/dashboard");
+              }
+            });
+        }
+        // Otherwise, stay on current page (deep link / tab switch preservation)
+      }
+
+      // Mark initial load as done so future onAuthStateChange events can redirect
+      initialSessionHandled = true;
     });
 
     return () => subscription.unsubscribe();
