@@ -14,78 +14,13 @@ export type Database = {
   }
   public: {
     Tables: {
-      brand_niche: {
-        Row: {
-          ai_combats: Json | null
-          ai_limits: Json | null
-          completed: boolean | null
-          created_at: string | null
-          current_step: number | null
-          id: string
-          ideal_public: string | null
-          market: string | null
-          need: string | null
-          niche_specific: string | null
-          step_1a_cause: string | null
-          step_1b_combats: string | null
-          step_1c_alternative: string | null
-          step_2_refusals: string | null
-          updated_at: string | null
-          user_id: string
-          version_descriptive: string | null
-          version_final: string | null
-          version_manifeste: string | null
-          version_pitch: string | null
-        }
-        Insert: {
-          ai_combats?: Json | null
-          ai_limits?: Json | null
-          completed?: boolean | null
-          created_at?: string | null
-          current_step?: number | null
-          id?: string
-          ideal_public?: string | null
-          market?: string | null
-          need?: string | null
-          niche_specific?: string | null
-          step_1a_cause?: string | null
-          step_1b_combats?: string | null
-          step_1c_alternative?: string | null
-          step_2_refusals?: string | null
-          updated_at?: string | null
-          user_id: string
-          version_descriptive?: string | null
-          version_final?: string | null
-          version_manifeste?: string | null
-          version_pitch?: string | null
-        }
-        Update: {
-          ai_combats?: Json | null
-          ai_limits?: Json | null
-          completed?: boolean | null
-          created_at?: string | null
-          current_step?: number | null
-          id?: string
-          ideal_public?: string | null
-          market?: string | null
-          need?: string | null
-          niche_specific?: string | null
-          step_1a_cause?: string | null
-          step_1b_combats?: string | null
-          step_1c_alternative?: string | null
-          step_2_refusals?: string | null
-          updated_at?: string | null
-          user_id?: string
-          version_descriptive?: string | null
-          version_final?: string | null
-          version_manifeste?: string | null
-          version_pitch?: string | null
-        }
-        Relationships: []
-      }
       brand_profile: {
         Row: {
           channels: string[] | null
+          combat_alternative: string | null
+          combat_cause: string | null
+          combat_fights: string | null
+          combat_refusals: string | null
           created_at: string
           id: string
           key_expressions: string | null
@@ -107,6 +42,10 @@ export type Database = {
         }
         Insert: {
           channels?: string[] | null
+          combat_alternative?: string | null
+          combat_cause?: string | null
+          combat_fights?: string | null
+          combat_refusals?: string | null
           created_at?: string
           id?: string
           key_expressions?: string | null
@@ -128,6 +67,10 @@ export type Database = {
         }
         Update: {
           channels?: string[] | null
+          combat_alternative?: string | null
+          combat_cause?: string | null
+          combat_fights?: string | null
+          combat_refusals?: string | null
           created_at?: string
           id?: string
           key_expressions?: string | null
@@ -232,10 +175,6 @@ export type Database = {
           ai_concepts: Json | null
           ai_facets: Json | null
           ai_pillars: Json | null
-          ai_words: Json | null
-          cloud_clients: string | null
-          cloud_offer: string | null
-          cloud_universe: string | null
           completed: boolean | null
           created_at: string | null
           creative_concept: string | null
@@ -259,10 +198,6 @@ export type Database = {
           ai_concepts?: Json | null
           ai_facets?: Json | null
           ai_pillars?: Json | null
-          ai_words?: Json | null
-          cloud_clients?: string | null
-          cloud_offer?: string | null
-          cloud_universe?: string | null
           completed?: boolean | null
           created_at?: string | null
           creative_concept?: string | null
@@ -286,10 +221,6 @@ export type Database = {
           ai_concepts?: Json | null
           ai_facets?: Json | null
           ai_pillars?: Json | null
-          ai_words?: Json | null
-          cloud_clients?: string | null
-          cloud_offer?: string | null
-          cloud_universe?: string | null
           completed?: boolean | null
           created_at?: string | null
           creative_concept?: string | null

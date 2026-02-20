@@ -16,29 +16,26 @@ interface StrategyData {
   facet_1: string; facet_1_format: string;
   facet_2: string; facet_2_format: string;
   facet_3: string; facet_3_format: string;
-  cloud_offer: string; cloud_clients: string; cloud_universe: string;
   pillar_major: string;
   pillar_minor_1: string; pillar_minor_2: string; pillar_minor_3: string;
   creative_concept: string;
-  ai_facets: any; ai_words: any; ai_pillars: any; ai_concepts: any;
+  ai_facets: any; ai_pillars: any; ai_concepts: any;
   current_step: number; completed: boolean;
 }
 
 const EMPTY: StrategyData = {
   step_1_hidden_facets: "",
   facet_1: "", facet_1_format: "", facet_2: "", facet_2_format: "", facet_3: "", facet_3_format: "",
-  cloud_offer: "", cloud_clients: "", cloud_universe: "",
   pillar_major: "", pillar_minor_1: "", pillar_minor_2: "", pillar_minor_3: "",
   creative_concept: "",
-  ai_facets: null, ai_words: null, ai_pillars: null, ai_concepts: null,
+  ai_facets: null, ai_pillars: null, ai_concepts: null,
   current_step: 1, completed: false,
 };
 
 const STEPS = [
   { number: 1, icon: "🗣️", title: "Ose parler plus" },
-  { number: 2, icon: "☁️", title: "Ton univers de mots" },
-  { number: 3, icon: "🔎", title: "Tes piliers" },
-  { number: 4, icon: "✨", title: "Ton concept créatif" },
+  { number: 2, icon: "🔎", title: "Tes piliers" },
+  { number: 3, icon: "✨", title: "Ton concept créatif" },
 ];
 
 const FORMAT_OPTIONS = ["Story perso", "Post coulisses", "Carrousel \"je crois en...\"", "Reel face cam", "Newsletter intime"];
@@ -55,7 +52,6 @@ export default function StrategiePage() {
   const [profile, setProfile] = useState<any>(null);
   const [persona, setPersona] = useState<any>(null);
   const [proposition, setProposition] = useState<any>(null);
-  const [niche, setNiche] = useState<any>(null);
   const [tone, setTone] = useState<any>(null);
   const [activeField, setActiveField] = useState("step_1_hidden_facets");
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -67,19 +63,20 @@ export default function StrategiePage() {
       supabase.from("profiles").select("activite, prenom, mission").eq("user_id", user.id).single(),
       supabase.from("persona").select("step_1_frustrations, step_2_transformation").eq("user_id", user.id).maybeSingle(),
       supabase.from("brand_proposition").select("step_1_what, version_final").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_niche").select("niche_specific, step_1a_cause, version_final").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_profile").select("tone_register, tone_humor, key_expressions, things_to_avoid, target_verbatims").eq("user_id", user.id).maybeSingle(),
-    ]).then(([stratRes, profRes, perRes, propRes, nicheRes, toneRes]) => {
+      supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, tone_register, tone_humor, key_expressions, things_to_avoid, target_verbatims").eq("user_id", user.id).maybeSingle(),
+    ]).then(([stratRes, profRes, perRes, propRes, toneRes]) => {
       if (stratRes.data) {
         const { id, user_id, created_at, updated_at, ...rest } = stratRes.data as any;
-        setData(rest as StrategyData);
+        setData({ ...EMPTY, ...rest } as StrategyData);
         setExistingId(id);
-        setCurrentStep(rest.current_step || 1);
+        // Map old step numbers: if user was on step 3 (old pillars) → now step 2, step 4 → step 3
+        const savedStep = rest.current_step || 1;
+        const mappedStep = savedStep <= 1 ? 1 : savedStep === 2 ? 2 : savedStep === 3 ? 2 : 3;
+        setCurrentStep(Math.min(mappedStep, 3));
       }
       setProfile(profRes.data || {});
       setPersona(perRes.data || null);
       setProposition(propRes.data || null);
-      setNiche(nicheRes.data || null);
       setTone(toneRes.data || null);
       setLoading(false);
     });
@@ -123,9 +120,9 @@ export default function StrategiePage() {
   };
 
   const nextStep = () => {
-    if (currentStep < 4) goToStep(currentStep + 1);
+    if (currentStep < 3) goToStep(currentStep + 1);
     else {
-      const updated = { ...data, completed: true, current_step: 4 };
+      const updated = { ...data, completed: true, current_step: 3 };
       setData(updated);
       debouncedSave(updated);
       navigate("/branding/strategie/recap");
@@ -148,12 +145,11 @@ export default function StrategiePage() {
     toast({ title: "💾 Idée sauvegardée dans ta boîte à idées !" });
   };
 
-  // AI handlers
   const handleAiFacets = async () => {
     setAiLoading(true);
     try {
       const { data: fn, error } = await supabase.functions.invoke("strategy-ai", {
-        body: { type: "facets", text: data.step_1_hidden_facets, facets: [data.facet_1, data.facet_2, data.facet_3], profile, niche, persona },
+        body: { type: "facets", text: data.step_1_hidden_facets, facets: [data.facet_1, data.facet_2, data.facet_3], profile, persona, tone },
       });
       if (error) throw error;
       const raw = fn.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -167,31 +163,13 @@ export default function StrategiePage() {
     setAiLoading(false);
   };
 
-  const handleAiWords = async () => {
-    setAiLoading(true);
-    try {
-      const { data: fn, error } = await supabase.functions.invoke("strategy-ai", {
-        body: { type: "words", cloud_offer: data.cloud_offer, cloud_clients: data.cloud_clients, cloud_universe: data.cloud_universe, profile, niche, persona },
-      });
-      if (error) throw error;
-      const raw = fn.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      const parsed = JSON.parse(raw);
-      const updated = { ...data, ai_words: parsed };
-      setData(updated);
-      debouncedSave(updated);
-    } catch (e: any) {
-      toast({ title: "Erreur IA", description: e.message, variant: "destructive" });
-    }
-    setAiLoading(false);
-  };
-
   const handleAiPillars = async () => {
     setAiLoading(true);
     try {
       const { data: fn, error } = await supabase.functions.invoke("strategy-ai", {
         body: {
-          type: "pillars", cloud_offer: data.cloud_offer, cloud_clients: data.cloud_clients, cloud_universe: data.cloud_universe,
-          profile, persona, niche, proposition, tone, facets: [data.facet_1, data.facet_2, data.facet_3].filter(Boolean),
+          type: "pillars",
+          profile, persona, proposition, tone, facets: [data.facet_1, data.facet_2, data.facet_3].filter(Boolean),
         },
       });
       if (error) throw error;
@@ -226,7 +204,7 @@ export default function StrategiePage() {
       const { data: fn, error } = await supabase.functions.invoke("strategy-ai", {
         body: {
           type: "concepts", creative_text: data.creative_concept,
-          profile, niche, persona, proposition, tone,
+          profile, persona, proposition, tone,
           pillars: { major: data.pillar_major, minors: [data.pillar_minor_1, data.pillar_minor_2, data.pillar_minor_3].filter(Boolean) },
         },
       });
@@ -240,14 +218,6 @@ export default function StrategiePage() {
       toast({ title: "Erreur IA", description: e.message, variant: "destructive" });
     }
     setAiLoading(false);
-  };
-
-  const importPersonaWords = () => {
-    if (!persona) return;
-    let text = data.cloud_clients;
-    if (persona.step_1_frustrations) text += (text ? "\n" : "") + persona.step_1_frustrations;
-    updateField("cloud_clients", text);
-    toast({ title: "Mots du persona importés !" });
   };
 
   if (loading) return (
@@ -296,14 +266,14 @@ export default function StrategiePage() {
                 >
                   {step.number < currentStep ? <Check className="h-3.5 w-3.5" /> : step.number}
                 </button>
-                {i < 3 && <div className={`w-8 sm:w-16 h-0.5 ${step.number < currentStep ? "bg-primary" : "bg-rose-soft"}`} />}
+                {i < 2 && <div className={`w-12 sm:w-24 h-0.5 ${step.number < currentStep ? "bg-primary" : "bg-rose-soft"}`} />}
               </div>
             ))}
           </div>
-          <p className="font-mono-ui text-[12px] text-muted-foreground mt-3 text-center">Étape {currentStep} sur 4</p>
+          <p className="font-mono-ui text-[12px] text-muted-foreground mt-3 text-center">Étape {currentStep} sur 3</p>
         </div>
 
-        {/* STEP 1 */}
+        {/* STEP 1: Facettes */}
         {currentStep === 1 && (
           <div className="animate-fade-in-x">
             <div className="flex items-center gap-3 mb-3">
@@ -311,7 +281,7 @@ export default function StrategiePage() {
               <h2 className="font-display text-xl font-bold text-foreground">Les facettes de toi que tu ne montres pas encore</h2>
             </div>
             <p className="text-[15px] text-foreground leading-relaxed mb-4">
-              Ton audience a besoin de comprendre qui tu es. Pas juste ce que tu vends. C'est là que se crée la connexion.
+              Ton audience a besoin de comprendre qui tu es. Pas juste ce que tu vends.
             </p>
 
             <div className="rounded-xl bg-rose-pale p-4 text-[13px] text-foreground leading-relaxed mb-4">
@@ -383,112 +353,15 @@ export default function StrategiePage() {
           </div>
         )}
 
-        {/* STEP 2 */}
+        {/* STEP 2: Pillars */}
         {currentStep === 2 && (
-          <div className="animate-fade-in-x">
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-2xl">☁️</span>
-              <h2 className="font-display text-xl font-bold text-foreground">Le nuage de mots de ta marque</h2>
-            </div>
-            <p className="text-[15px] text-foreground leading-relaxed mb-4">
-              Note en vrac tous les mots, expressions ou idées qui te viennent quand tu penses à ta marque. Pas de filtre.
-            </p>
-
-            <div className="rounded-xl bg-rose-pale p-4 text-[13px] text-foreground mb-5">
-              💡 On te conseille de le faire d'abord sur papier, puis de reporter ici. C'est plus fluide.
-            </div>
-
-            {/* Category 1 */}
-            <div className="mb-5">
-              <label className="font-display text-sm font-bold text-foreground block mb-1">🌿 Ce que tu proposes</label>
-              <p className="text-[12px] text-muted-foreground mb-2">Tes services, produits, approche, process, expertise.</p>
-              <div className="relative">
-                <textarea
-                  value={data.cloud_offer}
-                  onChange={(e) => updateField("cloud_offer", e.target.value)}
-                  onFocus={() => setActiveField("cloud_offer")}
-                  placeholder="Slow fashion, mentoring, écoute active, packaging réutilisable, storytelling..."
-                  className="w-full min-h-[120px] rounded-xl border-2 border-input bg-card px-4 py-3 pr-12 text-[15px] leading-relaxed placeholder:text-muted-foreground placeholder:italic focus:outline-none focus:border-primary transition-colors resize-none"
-                />
-                <MicButton field="cloud_offer" />
-              </div>
-            </div>
-
-            {/* Category 2 */}
-            <div className="mb-5">
-              <label className="font-display text-sm font-bold text-foreground block mb-1">🧠 Ce que disent tes client·es</label>
-              <p className="text-[12px] text-muted-foreground mb-2">Les mots, expressions, problématiques qui reviennent dans leurs messages, avis, DM...</p>
-              {persona?.step_1_frustrations && (
-                <button onClick={importPersonaWords} className="text-[12px] text-primary hover:underline mb-2 block">
-                  📥 Importer les mots de mon persona
-                </button>
-              )}
-              <div className="relative">
-                <textarea
-                  value={data.cloud_clients}
-                  onChange={(e) => updateField("cloud_clients", e.target.value)}
-                  onFocus={() => setActiveField("cloud_clients")}
-                  placeholder="Je ne sais pas par où commencer, je me sens perdue, j'ai envie d'y croire..."
-                  className="w-full min-h-[120px] rounded-xl border-2 border-input bg-card px-4 py-3 pr-12 text-[15px] leading-relaxed placeholder:text-muted-foreground placeholder:italic focus:outline-none focus:border-primary transition-colors resize-none"
-                />
-                <MicButton field="cloud_clients" />
-              </div>
-            </div>
-
-            {/* Category 3 */}
-            <div className="mb-5">
-              <label className="font-display text-sm font-bold text-foreground block mb-1">✨ Ce qui compose ton univers</label>
-              <p className="text-[12px] text-muted-foreground mb-2">Valeurs, vibes, émotions, imaginaire autour de ta marque.</p>
-              <div className="relative">
-                <textarea
-                  value={data.cloud_universe}
-                  onChange={(e) => updateField("cloud_universe", e.target.value)}
-                  onFocus={() => setActiveField("cloud_universe")}
-                  placeholder="Sororité, ancrage, artisanat, transparence, douceur radicale, pouvoir d'agir..."
-                  className="w-full min-h-[120px] rounded-xl border-2 border-input bg-card px-4 py-3 pr-12 text-[15px] leading-relaxed placeholder:text-muted-foreground placeholder:italic focus:outline-none focus:border-primary transition-colors resize-none"
-                />
-                <MicButton field="cloud_universe" />
-              </div>
-            </div>
-
-            <Button onClick={handleAiWords} disabled={aiLoading} className="w-full mb-4">
-              {aiLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "✨"} Enrichir mon nuage de mots
-            </Button>
-
-            {data.ai_words && (
-              <div className="rounded-xl border-2 border-border bg-card p-4 space-y-3 mb-4">
-                {data.ai_words.propose?.length > 0 && (
-                  <div>
-                    <p className="font-semibold text-[13px] text-foreground mb-1">🌿 Ce que tu proposes :</p>
-                    <p className="text-[13px] text-muted-foreground">{data.ai_words.propose.join(", ")}</p>
-                  </div>
-                )}
-                {data.ai_words.clients?.length > 0 && (
-                  <div>
-                    <p className="font-semibold text-[13px] text-foreground mb-1">🧠 Tes client·es :</p>
-                    <p className="text-[13px] text-muted-foreground">{data.ai_words.clients.join(", ")}</p>
-                  </div>
-                )}
-                {data.ai_words.univers?.length > 0 && (
-                  <div>
-                    <p className="font-semibold text-[13px] text-foreground mb-1">✨ Ton univers :</p>
-                    <p className="text-[13px] text-muted-foreground">{data.ai_words.univers.join(", ")}</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* STEP 3 */}
-        {currentStep === 3 && (
           <div className="animate-fade-in-x">
             <div className="flex items-center gap-3 mb-3">
               <span className="text-2xl">🔎</span>
               <h2 className="font-display text-xl font-bold text-foreground">Tes grandes thématiques</h2>
             </div>
             <p className="text-[15px] text-foreground leading-relaxed mb-4">
-              Identifie 3 à 5 grandes thématiques que tu vas aborder régulièrement. C'est ce qui donne une cohérence globale à ton compte.
+              Identifie 3 à 5 grandes thématiques que tu vas aborder régulièrement.
             </p>
 
             <div className="rounded-xl bg-rose-pale p-4 text-[13px] text-foreground leading-relaxed mb-4">
@@ -548,15 +421,15 @@ export default function StrategiePage() {
           </div>
         )}
 
-        {/* STEP 4 */}
-        {currentStep === 4 && (
+        {/* STEP 3: Creative concept */}
+        {currentStep === 3 && (
           <div className="animate-fade-in-x">
             <div className="flex items-center gap-3 mb-3">
               <span className="text-2xl">✨</span>
               <h2 className="font-display text-xl font-bold text-foreground">Le twist qui te rend mémorable</h2>
             </div>
             <p className="text-[15px] text-foreground leading-relaxed mb-4">
-              Tu as ton sujet, tu as ton format. Maintenant : comment tu peux le présenter d'une manière qu'on n'a pas déjà vue 15 fois dans le même scroll ?
+              Tu as ton sujet, tu as ton format. Maintenant : comment tu peux le présenter d'une manière qu'on n'a pas déjà vue 15 fois ?
             </p>
 
             <div className="rounded-xl bg-rose-pale p-4 text-[13px] text-foreground leading-relaxed mb-5">
@@ -606,7 +479,7 @@ export default function StrategiePage() {
         <div className="flex justify-between mt-8">
           <Button variant="outline" onClick={prevStep} disabled={currentStep === 1}>← Précédent</Button>
           <Button onClick={nextStep}>
-            {currentStep < 4 ? "Suivant →" : "Voir le récap →"}
+            {currentStep < 3 ? "Suivant →" : "Voir le récap →"}
           </Button>
         </div>
       </main>

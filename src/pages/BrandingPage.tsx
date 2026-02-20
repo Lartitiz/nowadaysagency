@@ -11,10 +11,9 @@ interface SectionProgress {
   storytellingCount: number;
   hasPrimary: boolean;
   persona: number; // out of 5
-  tone: number; // out of 9
+  tone: number; // out of 8
   proposition: number; // out of 4
-  niche: number; // out of 3
-  strategy: number; // out of 4
+  strategy: number; // out of 3
 }
 
 /* ─── Card definition ─── */
@@ -53,7 +52,7 @@ const CARDS: BrandingCard[] = [
   {
     emoji: "❤️",
     title: "Ma proposition de valeur",
-    description: "Ce qui te rend unique. Pourquoi ta cliente te choisit toi et pas une autre.",
+    description: "Ce qui te rend unique. Les phrases que tu vas utiliser partout.",
     route: "/branding/proposition",
     cta: "Trouver ma proposition de valeur →",
     progressLabel: (p) => `${p.proposition} / 4 étapes`,
@@ -61,33 +60,23 @@ const CARDS: BrandingCard[] = [
     available: true,
   },
   {
-    emoji: "💎",
-    title: "Ma niche",
-    description: "Ce qui fait qu'on pense à toi et pas à quelqu'un d'autre. Ton combat, tes limites, ton positionnement.",
-    route: "/branding/niche",
-    cta: "Définir ma niche →",
-    progressLabel: (p) => `${p.niche} / 3 étapes`,
-    progressValue: (p) => (p.niche / 3) * 100,
-    available: true,
-  },
-  {
     emoji: "🎨",
-    title: "Mon ton & style",
-    description: "Comment tu parles, tes expressions, ton énergie. Ce qui fait que c'est toi.",
+    title: "Mon ton, mon style & mes combats",
+    description: "Comment tu parles, ce que tu défends, tes limites. Tout ce qui fait que c'est toi.",
     route: "/branding/ton",
-    cta: "Définir mon style →",
-    progressLabel: (p) => `${p.tone} / 9 champs`,
-    progressValue: (p) => (p.tone / 9) * 100,
+    cta: "Définir ma voix →",
+    progressLabel: (p) => `${p.tone} / 8 sections`,
+    progressValue: (p) => (p.tone / 8) * 100,
     available: true,
   },
   {
     emoji: "🍒",
     title: "Ma stratégie de contenu",
-    description: "Tes piliers, ton univers, ton twist créatif. Ce qui donne une colonne vertébrale à tous tes contenus.",
+    description: "Tes piliers, ton twist créatif. Ce qui donne une colonne vertébrale à tes contenus.",
     route: "/branding/strategie",
     cta: "Poser ma stratégie →",
-    progressLabel: (p) => `${p.strategy} / 4 étapes`,
-    progressValue: (p) => (p.strategy / 4) * 100,
+    progressLabel: (p) => `${p.strategy} / 3 étapes`,
+    progressValue: (p) => (p.strategy / 3) * 100,
     available: true,
   },
 ];
@@ -95,7 +84,7 @@ const CARDS: BrandingCard[] = [
 /* ─── Main ─── */
 export default function BrandingPage() {
   const { user } = useAuth();
-  const [progress, setProgress] = useState<SectionProgress>({ storytellingCount: 0, hasPrimary: false, persona: 0, tone: 0, proposition: 0, niche: 0, strategy: 0 });
+  const [progress, setProgress] = useState<SectionProgress>({ storytellingCount: 0, hasPrimary: false, persona: 0, tone: 0, proposition: 0, strategy: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -103,36 +92,48 @@ export default function BrandingPage() {
     Promise.all([
       supabase.from("storytelling").select("id, is_primary").eq("user_id", user.id),
       supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_profile").select("tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels").eq("user_id", user.id).maybeSingle(),
+      supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels").eq("user_id", user.id).maybeSingle(),
       supabase.from("brand_proposition").select("step_1_what, step_2a_process, step_3_for_whom, version_final").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_niche").select("step_1a_cause, step_2_refusals, version_final").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_strategy").select("step_1_hidden_facets, cloud_offer, pillar_major, creative_concept").eq("user_id", user.id).maybeSingle(),
-    ]).then(([stRes, perRes, toneRes, propRes, nicheRes, stratRes]) => {
+      supabase.from("brand_strategy").select("step_1_hidden_facets, pillar_major, creative_concept").eq("user_id", user.id).maybeSingle(),
+    ]).then(([stRes, perRes, toneRes, propRes, stratRes]) => {
       const countFilled = (obj: any, fields: string[]) =>
         obj ? fields.filter((f) => obj[f] && String(obj[f]).trim().length > 0).length : 0;
 
       const storytellingCount = stRes.data?.length || 0;
       const hasPrimary = stRes.data?.some((s: any) => s.is_primary) || false;
       const persona = countFilled(perRes.data, ["step_1_frustrations", "step_2_transformation", "step_3a_objections", "step_4_beautiful", "step_5_actions"]);
-      const tone = countFilled(toneRes.data, ["tone_register", "tone_level", "tone_style", "tone_humor", "tone_engagement", "key_expressions", "things_to_avoid", "target_verbatims"]) + (toneRes.data?.channels && toneRes.data.channels.length > 0 ? 1 : 0);
-      const proposition = countFilled(propRes.data, ["step_1_what", "step_2a_process", "step_3_for_whom", "version_final"]);
-      const niche = countFilled(nicheRes.data, ["step_1a_cause", "step_2_refusals", "version_final"]);
-      const strategy = countFilled(stratRes.data, ["step_1_hidden_facets", "cloud_offer", "pillar_major", "creative_concept"]);
 
-      setProgress({ storytellingCount, hasPrimary, persona, tone, proposition, niche, strategy });
+      // Tone: 8 sections = voice_description + combats(any of 4) + 5 chips(counted as 1 if any) + expressions + avoid + verbatims + channels
+      const td = toneRes.data;
+      let toneScore = 0;
+      if (td) {
+        if (td.voice_description && String(td.voice_description).trim()) toneScore++;
+        if ((td.combat_cause && String(td.combat_cause).trim()) || (td.combat_fights && String(td.combat_fights).trim()) || (td.combat_alternative && String(td.combat_alternative).trim())) toneScore++;
+        if (td.combat_refusals && String(td.combat_refusals).trim()) toneScore++;
+        const chips = [td.tone_register, td.tone_level, td.tone_style, td.tone_humor, td.tone_engagement];
+        if (chips.some((c) => c && String(c).trim())) toneScore++;
+        if (td.key_expressions && String(td.key_expressions).trim()) toneScore++;
+        if (td.things_to_avoid && String(td.things_to_avoid).trim()) toneScore++;
+        if (td.target_verbatims && String(td.target_verbatims).trim()) toneScore++;
+        if (td.channels && td.channels.length > 0) toneScore++;
+      }
+
+      const proposition = countFilled(propRes.data, ["step_1_what", "step_2a_process", "step_3_for_whom", "version_final"]);
+      const strategy = countFilled(stratRes.data, ["step_1_hidden_facets", "pillar_major", "creative_concept"]);
+
+      setProgress({ storytellingCount, hasPrimary, persona, tone: toneScore, proposition, strategy });
       setLoading(false);
     });
   }, [user]);
 
-  // Global score: 6 sections all available
-  const availableSections = 6;
+  // Global score: 5 sections
+  const availableSections = 5;
   const sectionScores = [
     progress.storytellingCount > 0 ? 1 : 0,
     progress.persona / 5,
-    progress.tone / 9,
     progress.proposition / 4,
-    progress.niche / 3,
-    progress.strategy / 4,
+    progress.tone / 8,
+    progress.strategy / 3,
   ];
   const globalPercent = Math.round((sectionScores.reduce((a, b) => a + b, 0) / availableSections) * 100);
 
@@ -187,39 +188,25 @@ export default function BrandingPage() {
           {CARDS.map((card) => {
             const pLabel = card.progressLabel(progress);
             const pValue = card.progressValue(progress);
-            const CardWrapper = card.available ? Link : "div";
-            const wrapperProps = card.available ? { to: card.route } : {};
 
             return (
-              <CardWrapper
+              <Link
                 key={card.route}
-                {...(wrapperProps as any)}
-                className={`block rounded-2xl border-2 bg-card p-5 transition-all group ${
-                  card.available
-                    ? "border-border hover:border-primary hover:shadow-md cursor-pointer"
-                    : "border-border/50 opacity-60 cursor-default"
-                }`}
+                to={card.route}
+                className="block rounded-2xl border-2 bg-card p-5 transition-all group border-border hover:border-primary hover:shadow-md cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-3">
                   <span className="text-2xl">{card.emoji}</span>
-                  {card.available && (
-                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                  )}
+                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 </div>
                 <h3 className="font-display text-base font-bold text-foreground mb-1">{card.title}</h3>
                 <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">{card.description}</p>
-                {card.available ? (
-                  <>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Progress value={pValue} className="h-1.5 flex-1" />
-                      <span className="font-mono-ui text-[10px] font-semibold text-muted-foreground shrink-0">{pLabel}</span>
-                    </div>
-                    <span className="font-mono-ui text-[11px] font-semibold text-primary">{card.cta}</span>
-                  </>
-                ) : (
-                  <span className="font-mono-ui text-[11px] font-semibold text-muted-foreground">{pLabel}</span>
-                )}
-              </CardWrapper>
+                <div className="flex items-center gap-2 mb-2">
+                  <Progress value={pValue} className="h-1.5 flex-1" />
+                  <span className="font-mono-ui text-[10px] font-semibold text-muted-foreground shrink-0">{pLabel}</span>
+                </div>
+                <span className="font-mono-ui text-[11px] font-semibold text-primary">{card.cta}</span>
+              </Link>
             );
           })}
         </div>

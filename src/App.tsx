@@ -34,8 +34,6 @@ import PersonaPage from "./pages/PersonaPage";
 import PersonaRecapPage from "./pages/PersonaRecapPage";
 import PropositionPage from "./pages/PropositionPage";
 import PropositionRecapPage from "./pages/PropositionRecapPage";
-import NichePage from "./pages/NichePage";
-import NicheRecapPage from "./pages/NicheRecapPage";
 import StrategiePage from "./pages/StrategiePage";
 import StrategieRecapPage from "./pages/StrategieRecapPage";
 import LinkedInHub from "./pages/LinkedInHub";
@@ -118,12 +116,9 @@ const App = () => (
             <Route path="/branding/proposition/recap" element={
               <ProtectedRoute><PropositionRecapPage /></ProtectedRoute>
             } />
-            <Route path="/branding/niche" element={
-              <ProtectedRoute><NichePage /></ProtectedRoute>
-            } />
-            <Route path="/branding/niche/recap" element={
-              <ProtectedRoute><NicheRecapPage /></ProtectedRoute>
-            } />
+            {/* Redirect old niche routes to ton */}
+            <Route path="/branding/niche" element={<Navigate to="/branding/ton" replace />} />
+            <Route path="/branding/niche/recap" element={<Navigate to="/branding/ton" replace />} />
             <Route path="/branding/strategie" element={
               <ProtectedRoute><StrategiePage /></ProtectedRoute>
             } />

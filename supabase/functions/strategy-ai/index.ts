@@ -36,7 +36,7 @@ serve(async (req) => {
     let userPrompt = "";
 
     if (type === "facets") {
-      const { text, facets, profile, niche, persona } = body;
+      const { text, facets, profile, persona, tone } = body;
       systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
 
 CE QUE L'UTILISATRICE A PARTAGÉ :
@@ -49,11 +49,10 @@ SES 3 FACETTES IDENTIFIÉES :
 
 PROFIL :
 - Activité : ${profile?.activite || "?"}
-- Niche : ${niche?.niche_specific || "non renseignée"}
-- Combats : ${niche?.step_1a_cause || "non renseignés"}
+- Combats : ${tone?.combat_cause || "non renseignés"}
 - Persona : ${persona?.step_1_frustrations ? `Frustrations : ${persona.step_1_frustrations}` : "non renseigné"}
 
-Propose 5 facettes supplémentaires qu'elle pourrait explorer dans sa communication. Des sujets qu'elle n'ose peut-être pas aborder mais qui créeraient de la connexion avec son audience.
+Propose 5 facettes supplémentaires qu'elle pourrait explorer dans sa communication.
 
 Pour chaque facette :
 - Le sujet (en une phrase)
@@ -70,47 +69,18 @@ Réponds en JSON :
 ]`;
       userPrompt = "Propose-moi des facettes à explorer.";
 
-    } else if (type === "words") {
-      const { cloud_offer, cloud_clients, cloud_universe, profile, niche, persona } = body;
-      systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
-
-NUAGE DE MOTS DE L'UTILISATRICE :
-
-Ce qu'elle propose : "${cloud_offer || ""}"
-Ce que disent ses client·es : "${cloud_clients || ""}"
-Son univers : "${cloud_universe || ""}"
-
-PROFIL :
-- Activité : ${profile?.activite || "?"}
-- Niche : ${niche?.niche_specific || "non renseignée"}
-- Persona frustrations : ${persona?.step_1_frustrations || "non renseigné"}
-- Combats : ${niche?.step_1a_cause || "non renseignés"}
-
-Propose 10 mots ou expressions supplémentaires répartis dans les 3 catégories. Des mots qu'elle n'a peut-être pas pensé à inclure mais qui enrichiraient son univers.
-
-Réponds en JSON :
-{
-  "propose": ["mot1", "mot2", ...],
-  "clients": ["mot1", "mot2", ...],
-  "univers": ["mot1", "mot2", ...]
-}`;
-      userPrompt = "Enrichis mon nuage de mots.";
-
     } else if (type === "pillars") {
-      const { cloud_offer, cloud_clients, cloud_universe, profile, persona, niche, proposition, tone, facets } = body;
+      const { profile, persona, proposition, tone, facets } = body;
       systemPrompt = `Tu es expert·e en stratégie de contenu pour des solopreneuses créatives et éthiques.
 
 TOUT LE BRANDING :
-- Nuage de mots (ce qu'elle propose) : ${cloud_offer || "?"}
-- Nuage de mots (ses client·es) : ${cloud_clients || "?"}
-- Nuage de mots (son univers) : ${cloud_universe || "?"}
 - Persona frustrations : ${persona?.step_1_frustrations || "?"}
 - Persona transformation : ${persona?.step_2_transformation || "?"}
-- Niche : ${niche?.niche_specific || "?"}
-- Combats / cause : ${niche?.step_1a_cause || "?"}
+- Combats / cause : ${tone?.combat_cause || "?"}
 - Proposition de valeur : ${proposition?.version_final || "?"}
 - Facettes : ${facets?.join(", ") || "?"}
 - Ton / registre : ${tone?.tone_register || "?"}
+- Comment elle parle : ${tone?.voice_description || "?"}
 - Expressions : ${tone?.key_expressions || "?"}
 - Activité : ${profile?.activite || "?"}
 
@@ -118,7 +88,7 @@ Propose une stratégie de piliers de contenu :
 
 1 THÉMATIQUE MAJEURE :
 - Le pilier central qui guide tout
-- Explique en 1-2 phrases pourquoi c'est le bon choix pour cette marque
+- Explique en 1-2 phrases pourquoi
 - 3 exemples de sujets concrets
 
 3 THÉMATIQUES MINEURES :
@@ -143,27 +113,27 @@ Réponds en JSON :
       userPrompt = "Suggère-moi des piliers de contenu.";
 
     } else if (type === "concepts") {
-      const { creative_text, profile, niche, persona, proposition, tone, pillars } = body;
+      const { creative_text, profile, persona, proposition, tone, pillars } = body;
       systemPrompt = `Tu es expert·e en création de contenu et branding pour des solopreneuses créatives et éthiques.
 
 BRANDING COMPLET :
 - Activité : ${profile?.activite || "?"}
-- Niche : ${niche?.niche_specific || "?"}
 - Piliers de contenu : Majeure = ${pillars?.major || "?"}, Mineures = ${pillars?.minors?.join(", ") || "?"}
 - Ton / registre : ${tone?.tone_register || "?"}
+- Comment elle parle : ${tone?.voice_description || "?"}
 - Expressions : ${tone?.key_expressions || "?"}
 - Humour : ${tone?.tone_humor || "?"}
-- Combats : ${niche?.step_1a_cause || "?"}
+- Combats : ${tone?.combat_cause || "?"}
 - Persona frustrations : ${persona?.step_1_frustrations || "?"}
 - Proposition de valeur : ${proposition?.version_final || "?"}
 - Ce que l'utilisatrice a écrit sur son concept : "${creative_text || ""}"
 
-Génère 5 concepts créatifs originaux pour rendre ses contenus mémorables. Chaque concept doit être adapté à son univers et à son ton.
+Génère 5 concepts créatifs originaux pour rendre ses contenus mémorables.
 
 Pour chaque concept :
 1. Le concept en une phrase claire
-2. Un exemple concret de post utilisant ce concept (sujet + angle + première phrase)
-3. Le format recommandé (reel, carrousel, story, newsletter)
+2. Un exemple concret de post
+3. Le format recommandé
 4. Pourquoi ça marche pour sa marque
 
 Les concepts doivent être variés : au moins un narratif, un visuel, un ludique, un émotionnel, un décalé.
