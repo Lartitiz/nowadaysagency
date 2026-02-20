@@ -4,8 +4,41 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+/* ─── Storytelling Card ─── */
+function StorytellingCard({ userId }: { userId?: string }) {
+  const [completedSteps, setCompletedSteps] = useState(0);
+
+  useEffect(() => {
+    if (!userId) return;
+    supabase.from("storytelling").select("step_1_raw, step_2_location, step_3_action, step_4_thoughts, step_5_emotions, step_6_full_story, step_7_polished, pitch_short").eq("user_id", userId).maybeSingle().then(({ data }) => {
+      if (!data) return;
+      const fields = [data.step_1_raw, data.step_2_location, data.step_3_action, data.step_4_thoughts, data.step_5_emotions, data.step_6_full_story, data.step_7_polished, data.pitch_short];
+      setCompletedSteps(fields.filter((f) => f && String(f).trim().length > 0).length);
+    });
+  }, [userId]);
+
+  return (
+    <Link to="/branding/storytelling" className="block rounded-2xl border-2 border-primary/30 bg-card p-5 mb-8 group hover:border-primary hover:shadow-card-hover transition-all">
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">👑</span>
+          <div>
+            <h3 className="font-display text-lg font-bold text-foreground">Mon storytelling</h3>
+            <p className="text-[13px] text-muted-foreground mt-0.5">Écris ton histoire en 8 étapes guidées. On te prend par la main.</p>
+          </div>
+        </div>
+        <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-1" />
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <span className="font-mono-ui text-[11px] font-semibold text-primary">{completedSteps} / 8 étapes complétées</span>
+        <Progress value={(completedSteps / 8) * 100} className="h-1.5 flex-1" />
+      </div>
+    </Link>
+  );
+}
 
 /* ─── Types ─── */
 interface BrandProfile {
@@ -187,6 +220,9 @@ export default function BrandingPage() {
         <p className="text-[15px] text-muted-foreground mb-6">
           Plus tu remplis cette section, plus L'Assistant Com' te connaît et plus il te propose des idées qui te ressemblent. C'est la base de tout.
         </p>
+
+        {/* Storytelling card */}
+        <StorytellingCard userId={user?.id} />
 
         {/* Score */}
         <div className="rounded-2xl border border-border bg-card p-5 mb-8">

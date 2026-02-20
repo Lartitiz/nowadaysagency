@@ -13,6 +13,8 @@ import Profile from "./pages/Profile";
 import Calendar from "./pages/Calendar";
 import PlanPage from "./pages/PlanPage";
 import BrandingPage from "./pages/BrandingPage";
+import StorytellingPage from "./pages/StorytellingPage";
+import StorytellingRecapPage from "./pages/StorytellingRecapPage";
 import InstagramHub from "./pages/InstagramHub";
 import InstagramBio from "./pages/InstagramBio";
 import InstagramHighlights from "./pages/InstagramHighlights";
@@ -45,6 +47,12 @@ const App = () => (
             } />
             <Route path="/branding" element={
               <ProtectedRoute><BrandingPage /></ProtectedRoute>
+            } />
+            <Route path="/branding/storytelling" element={
+              <ProtectedRoute><StorytellingPage /></ProtectedRoute>
+            } />
+            <Route path="/branding/storytelling/recap" element={
+              <ProtectedRoute><StorytellingRecapPage /></ProtectedRoute>
             } />
             <Route path="/plan" element={
               <ProtectedRoute><PlanPage /></ProtectedRoute>
