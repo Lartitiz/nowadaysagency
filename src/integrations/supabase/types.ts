@@ -22,6 +22,7 @@ export type Database = {
           date: string
           id: string
           notes: string | null
+          objectif: string | null
           status: string
           theme: string
           updated_at: string
@@ -34,6 +35,7 @@ export type Database = {
           date: string
           id?: string
           notes?: string | null
+          objectif?: string | null
           status?: string
           theme: string
           updated_at?: string
@@ -46,6 +48,7 @@ export type Database = {
           date?: string
           id?: string
           notes?: string | null
+          objectif?: string | null
           status?: string
           theme?: string
           updated_at?: string

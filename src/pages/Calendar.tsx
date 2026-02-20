@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ChevronLeft, ChevronRight, Plus, Trash2, X, ChevronDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getGuide } from "@/lib/production-guides";
@@ -34,6 +34,13 @@ const CANAL_FILTERS = [
   { id: "blog", label: "Blog", enabled: false },
 ];
 
+const OBJECTIFS = [
+  { id: "visibilite", label: "Visibilité", emoji: "👀", color: "bg-blue-100 text-blue-700 border-blue-200" },
+  { id: "confiance", label: "Confiance", emoji: "🤝", color: "bg-amber-100 text-amber-700 border-amber-200" },
+  { id: "vente", label: "Vente", emoji: "💰", color: "bg-green-100 text-green-700 border-green-200" },
+  { id: "credibilite", label: "Crédibilité", emoji: "🏆", color: "bg-purple-100 text-purple-700 border-purple-200" },
+];
+
 interface CalendarPost {
   id: string;
   date: string;
@@ -42,6 +49,7 @@ interface CalendarPost {
   status: string;
   notes: string | null;
   canal: string;
+  objectif: string | null;
 }
 
 const statusStyles: Record<string, string> = {
@@ -50,6 +58,64 @@ const statusStyles: Record<string, string> = {
   ready: "bg-cal-ready border-cal-ready-border text-foreground",
   published: "bg-cal-published border-cal-published-border text-foreground line-through",
 };
+
+// Tiny objective dot for calendar cells
+function ObjectifDot({ objectif }: { objectif: string | null }) {
+  const obj = OBJECTIFS.find((o) => o.id === objectif);
+  if (!obj) return null;
+  return <span className="text-[10px] ml-0.5" title={obj.label}>{obj.emoji}</span>;
+}
+
+// Monthly balance gauge
+function BalanceGauge({ posts }: { posts: CalendarPost[] }) {
+  const counts = OBJECTIFS.map((o) => ({
+    ...o,
+    count: posts.filter((p) => p.objectif === o.id).length,
+  }));
+  const total = counts.reduce((s, c) => s + c.count, 0);
+  const noObj = posts.length - total;
+
+  if (posts.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 mb-6">
+      <h3 className="text-sm font-semibold text-foreground mb-3">Équilibre des objectifs ce mois</h3>
+      {/* Stacked bar */}
+      <div className="flex h-3 rounded-full overflow-hidden bg-muted mb-3">
+        {counts.map((c) =>
+          c.count > 0 ? (
+            <div
+              key={c.id}
+              className={`${c.id === "visibilite" ? "bg-blue-400" : c.id === "confiance" ? "bg-amber-400" : c.id === "vente" ? "bg-green-400" : "bg-purple-400"} transition-all`}
+              style={{ width: `${(c.count / posts.length) * 100}%` }}
+            />
+          ) : null
+        )}
+        {noObj > 0 && (
+          <div className="bg-muted-foreground/20 transition-all" style={{ width: `${(noObj / posts.length) * 100}%` }} />
+        )}
+      </div>
+      {/* Legend */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {counts.map((c) => (
+          <span key={c.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span>{c.emoji}</span>
+            <span>{c.label}</span>
+            <span className="font-semibold text-foreground">{c.count}</span>
+            {total > 0 && <span className="text-[10px]">({Math.round((c.count / posts.length) * 100)}%)</span>}
+          </span>
+        ))}
+        {noObj > 0 && (
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span>—</span>
+            <span>Sans objectif</span>
+            <span className="font-semibold text-foreground">{noObj}</span>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function CalendarPage() {
   const { user } = useAuth();
@@ -71,6 +137,7 @@ export default function CalendarPage() {
   const [status, setStatus] = useState("idea");
   const [notes, setNotes] = useState("");
   const [postCanal, setPostCanal] = useState("instagram");
+  const [objectif, setObjectif] = useState<string | null>(null);
 
   // Pre-select canal filter from URL
   useEffect(() => {
@@ -102,19 +169,16 @@ export default function CalendarPage() {
   const calendarDays = useMemo(() => {
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    let startDow = firstDay.getDay() - 1; // Monday = 0
+    let startDow = firstDay.getDay() - 1;
     if (startDow < 0) startDow = 6;
 
     const days: { date: Date; inMonth: boolean }[] = [];
-    // Previous month padding
     for (let i = startDow - 1; i >= 0; i--) {
       days.push({ date: new Date(year, month, -i), inMonth: false });
     }
-    // Current month
     for (let d = 1; d <= lastDay.getDate(); d++) {
       days.push({ date: new Date(year, month, d), inMonth: true });
     }
-    // Next month padding
     const remaining = 7 - (days.length % 7);
     if (remaining < 7) {
       for (let i = 1; i <= remaining; i++) {
@@ -145,6 +209,7 @@ export default function CalendarPage() {
     setAngle(null);
     setStatus("idea");
     setNotes("");
+    setObjectif(null);
     setPostCanal(canalFilter !== "all" ? canalFilter : "instagram");
     setDialogOpen(true);
   };
@@ -156,6 +221,7 @@ export default function CalendarPage() {
     setAngle(post.angle);
     setStatus(post.status);
     setNotes(post.notes || "");
+    setObjectif(post.objectif || null);
     setPostCanal(post.canal || "instagram");
     setDialogOpen(true);
   };
@@ -164,11 +230,11 @@ export default function CalendarPage() {
     if (!user || !selectedDate || !theme.trim()) return;
     if (editingPost) {
       await supabase.from("calendar_posts").update({
-        theme, angle, status, notes: notes || null, canal: postCanal,
+        theme, angle, status, notes: notes || null, canal: postCanal, objectif: objectif || null,
       }).eq("id", editingPost.id);
     } else {
       await supabase.from("calendar_posts").insert({
-        user_id: user.id, date: selectedDate, theme, angle, status, notes: notes || null, canal: postCanal,
+        user_id: user.id, date: selectedDate, theme, angle, status, notes: notes || null, canal: postCanal, objectif: objectif || null,
       });
     }
     setDialogOpen(false);
@@ -227,6 +293,9 @@ export default function CalendarPage() {
           ))}
         </div>
 
+        {/* Balance gauge */}
+        <BalanceGauge posts={filteredPosts} />
+
         {/* Navigation */}
         <div className="flex items-center justify-between mb-6">
           <Button variant="outline" size="icon" onClick={prevMonth} className="rounded-full">
@@ -257,8 +326,9 @@ export default function CalendarPage() {
                   </div>
                   {dayPosts.map((p) => (
                     <button key={p.id} onClick={() => openEditDialog(p)}
-                      className={`w-full text-left rounded-md border px-2 py-1 text-[11px] font-medium truncate mb-1 ${statusStyles[p.status] || statusStyles.idea}`}>
-                      {p.theme}
+                      className={`w-full text-left rounded-md border px-2 py-1 text-[11px] font-medium truncate mb-1 flex items-center ${statusStyles[p.status] || statusStyles.idea}`}>
+                      <span className="truncate">{p.theme}</span>
+                      <ObjectifDot objectif={p.objectif} />
                     </button>
                   ))}
                 </div>
@@ -300,8 +370,9 @@ export default function CalendarPage() {
                     <div className="space-y-0.5">
                       {dayPosts.slice(0, 2).map((p) => (
                         <button key={p.id} onClick={() => openEditDialog(p)}
-                          className={`w-full text-left rounded-md border px-1.5 py-0.5 text-[11px] font-medium truncate ${statusStyles[p.status] || statusStyles.idea}`}>
-                          {p.theme}
+                          className={`w-full text-left rounded-md border px-1.5 py-0.5 text-[11px] font-medium truncate flex items-center ${statusStyles[p.status] || statusStyles.idea}`}>
+                          <span className="truncate">{p.theme}</span>
+                          <ObjectifDot objectif={p.objectif} />
                         </button>
                       ))}
                       {dayPosts.length > 2 && (
@@ -328,6 +399,22 @@ export default function CalendarPage() {
                 <label className="text-sm font-medium mb-1.5 block">Thème / sujet</label>
                 <Input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="De quoi parle ce post ?" className="rounded-[10px] h-11" />
               </div>
+
+              {/* Objectif selector */}
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Objectif</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {OBJECTIFS.map((o) => (
+                    <button key={o.id} onClick={() => setObjectif(objectif === o.id ? null : o.id)}
+                      className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${
+                        objectif === o.id ? o.color + " border-current" : "bg-card text-foreground border-border hover:border-primary/40"
+                      }`}>
+                      {o.emoji} {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Angle</label>
                 <div className="flex flex-wrap gap-1.5">
