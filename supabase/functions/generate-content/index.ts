@@ -27,12 +27,13 @@ function buildProfileBlock(profile: any): string {
 }
 
 async function buildBrandingContext(supabase: any, userId: string): Promise<string> {
-  const [stRes, perRes, toneRes, propRes, nicheRes] = await Promise.all([
+  const [stRes, perRes, toneRes, propRes, nicheRes, stratRes] = await Promise.all([
     supabase.from("storytelling").select("step_7_polished").eq("user_id", userId).maybeSingle(),
     supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_profile").select("tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_proposition").select("version_final, version_complete").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_niche").select("version_final, version_pitch, step_1a_cause").eq("user_id", userId).maybeSingle(),
+    supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept").eq("user_id", userId).maybeSingle(),
   ]);
 
   const lines: string[] = [];
@@ -68,6 +69,17 @@ async function buildBrandingContext(supabase: any, userId: string): Promise<stri
     if (t.things_to_avoid) tl.push(`- Ce qu'on évite : ${t.things_to_avoid}`);
     if (t.target_verbatims) tl.push(`- Verbatims de la cible : ${t.target_verbatims}`);
     if (tl.length) lines.push(`TON & STYLE :\n${tl.join("\n")}`);
+  }
+
+  // Strategy
+  const s = stratRes.data;
+  if (s) {
+    const sl: string[] = [];
+    if (s.pillar_major) sl.push(`- Pilier majeur : ${s.pillar_major}`);
+    const minors = [s.pillar_minor_1, s.pillar_minor_2, s.pillar_minor_3].filter(Boolean);
+    if (minors.length) sl.push(`- Piliers mineurs : ${minors.join(", ")}`);
+    if (s.creative_concept) sl.push(`- Concept créatif : ${s.creative_concept}`);
+    if (sl.length) lines.push(`STRATÉGIE DE CONTENU :\n${sl.join("\n")}`);
   }
 
   if (!lines.length) return "";

@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.niche-ai]
 verify_jwt = false
+
+[functions.strategy-ai]
+verify_jwt = false

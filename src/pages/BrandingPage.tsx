@@ -13,6 +13,7 @@ interface SectionProgress {
   tone: number; // out of 9
   proposition: number; // out of 4
   niche: number; // out of 3
+  strategy: number; // out of 4
 }
 
 /* ─── Card definition ─── */
@@ -81,19 +82,19 @@ const CARDS: BrandingCard[] = [
   {
     emoji: "🍒",
     title: "Ma stratégie de contenu",
-    description: "Ton rythme, tes piliers, ton équilibre visibilité/confiance/vente.",
+    description: "Tes piliers, ton univers, ton twist créatif. Ce qui donne une colonne vertébrale à tous tes contenus.",
     route: "/branding/strategie",
     cta: "Poser ma stratégie →",
-    progressLabel: () => "Bientôt disponible",
-    progressValue: () => 0,
-    available: false,
+    progressLabel: (p) => `${p.strategy} / 4 étapes`,
+    progressValue: (p) => (p.strategy / 4) * 100,
+    available: true,
   },
 ];
 
 /* ─── Main ─── */
 export default function BrandingPage() {
   const { user } = useAuth();
-  const [progress, setProgress] = useState<SectionProgress>({ storytelling: 0, persona: 0, tone: 0, proposition: 0, niche: 0 });
+  const [progress, setProgress] = useState<SectionProgress>({ storytelling: 0, persona: 0, tone: 0, proposition: 0, niche: 0, strategy: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -104,7 +105,8 @@ export default function BrandingPage() {
       supabase.from("brand_profile").select("tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels").eq("user_id", user.id).maybeSingle(),
       supabase.from("brand_proposition").select("step_1_what, step_2a_process, step_3_for_whom, version_final").eq("user_id", user.id).maybeSingle(),
       supabase.from("brand_niche").select("step_1a_cause, step_2_refusals, version_final").eq("user_id", user.id).maybeSingle(),
-    ]).then(([stRes, perRes, toneRes, propRes, nicheRes]) => {
+      supabase.from("brand_strategy").select("step_1_hidden_facets, cloud_offer, pillar_major, creative_concept").eq("user_id", user.id).maybeSingle(),
+    ]).then(([stRes, perRes, toneRes, propRes, nicheRes, stratRes]) => {
       const countFilled = (obj: any, fields: string[]) =>
         obj ? fields.filter((f) => obj[f] && String(obj[f]).trim().length > 0).length : 0;
 
@@ -113,20 +115,22 @@ export default function BrandingPage() {
       const tone = countFilled(toneRes.data, ["tone_register", "tone_level", "tone_style", "tone_humor", "tone_engagement", "key_expressions", "things_to_avoid", "target_verbatims"]) + (toneRes.data?.channels && toneRes.data.channels.length > 0 ? 1 : 0);
       const proposition = countFilled(propRes.data, ["step_1_what", "step_2a_process", "step_3_for_whom", "version_final"]);
       const niche = countFilled(nicheRes.data, ["step_1a_cause", "step_2_refusals", "version_final"]);
+      const strategy = countFilled(stratRes.data, ["step_1_hidden_facets", "cloud_offer", "pillar_major", "creative_concept"]);
 
-      setProgress({ storytelling, persona, tone, proposition, niche });
+      setProgress({ storytelling, persona, tone, proposition, niche, strategy });
       setLoading(false);
     });
   }, [user]);
 
-  // Global score: 6 sections, 5 available now
-  const availableSections = 5;
+  // Global score: 6 sections all available
+  const availableSections = 6;
   const sectionScores = [
     progress.storytelling / 8,
     progress.persona / 5,
     progress.tone / 9,
     progress.proposition / 4,
     progress.niche / 3,
+    progress.strategy / 4,
   ];
   const globalPercent = Math.round((sectionScores.reduce((a, b) => a + b, 0) / availableSections) * 100);
 

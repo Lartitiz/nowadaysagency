@@ -206,6 +206,90 @@ export type Database = {
         }
         Relationships: []
       }
+      brand_strategy: {
+        Row: {
+          ai_concepts: Json | null
+          ai_facets: Json | null
+          ai_pillars: Json | null
+          ai_words: Json | null
+          cloud_clients: string | null
+          cloud_offer: string | null
+          cloud_universe: string | null
+          completed: boolean | null
+          created_at: string | null
+          creative_concept: string | null
+          current_step: number | null
+          facet_1: string | null
+          facet_1_format: string | null
+          facet_2: string | null
+          facet_2_format: string | null
+          facet_3: string | null
+          facet_3_format: string | null
+          id: string
+          pillar_major: string | null
+          pillar_minor_1: string | null
+          pillar_minor_2: string | null
+          pillar_minor_3: string | null
+          step_1_hidden_facets: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_concepts?: Json | null
+          ai_facets?: Json | null
+          ai_pillars?: Json | null
+          ai_words?: Json | null
+          cloud_clients?: string | null
+          cloud_offer?: string | null
+          cloud_universe?: string | null
+          completed?: boolean | null
+          created_at?: string | null
+          creative_concept?: string | null
+          current_step?: number | null
+          facet_1?: string | null
+          facet_1_format?: string | null
+          facet_2?: string | null
+          facet_2_format?: string | null
+          facet_3?: string | null
+          facet_3_format?: string | null
+          id?: string
+          pillar_major?: string | null
+          pillar_minor_1?: string | null
+          pillar_minor_2?: string | null
+          pillar_minor_3?: string | null
+          step_1_hidden_facets?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_concepts?: Json | null
+          ai_facets?: Json | null
+          ai_pillars?: Json | null
+          ai_words?: Json | null
+          cloud_clients?: string | null
+          cloud_offer?: string | null
+          cloud_universe?: string | null
+          completed?: boolean | null
+          created_at?: string | null
+          creative_concept?: string | null
+          current_step?: number | null
+          facet_1?: string | null
+          facet_1_format?: string | null
+          facet_2?: string | null
+          facet_2_format?: string | null
+          facet_3?: string | null
+          facet_3_format?: string | null
+          id?: string
+          pillar_major?: string | null
+          pillar_minor_1?: string | null
+          pillar_minor_2?: string | null
+          pillar_minor_3?: string | null
+          step_1_hidden_facets?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       calendar_posts: {
         Row: {
           angle: string | null
