@@ -10,6 +10,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
+import SettingsPage from "./pages/SettingsPage";
 import Calendar from "./pages/Calendar";
 import PlanPage from "./pages/PlanPage";
 import BrandingPage from "./pages/BrandingPage";
@@ -59,6 +60,9 @@ const App = () => (
             } />
             <Route path="/profil" element={
               <ProtectedRoute><Profile /></ProtectedRoute>
+            } />
+            <Route path="/parametres" element={
+              <ProtectedRoute><SettingsPage /></ProtectedRoute>
             } />
             {/* Instagram module */}
             <Route path="/instagram" element={
