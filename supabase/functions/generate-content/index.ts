@@ -6,11 +6,62 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function buildProfileBlock(profile: any): string {
+  const lines = [
+    `- Prénom : ${profile.prenom || "?"}`,
+    `- Activité : ${profile.activite || "?"}`,
+    `- Type : ${profile.type_activite || "?"}`,
+    `- Cible : ${profile.cible || "?"}`,
+    `- Problème qu'elle résout : ${profile.probleme_principal || "?"}`,
+    `- Thématiques : ${(profile.piliers || []).join(", ") || "?"}`,
+    `- Ton souhaité : ${(profile.tons || []).join(", ") || "?"}`,
+  ];
+  // Ma marque fields (enriched profile)
+  if (profile.mission) lines.push(`- Mission : ${profile.mission}`);
+  if (profile.offre) lines.push(`- Offre (ce qu'elle vend) : ${profile.offre}`);
+  if (profile.croyances_limitantes) lines.push(`- Croyances limitantes de sa cible : ${profile.croyances_limitantes}`);
+  if (profile.verbatims) lines.push(`- Verbatims (les mots de ses clientes) : ${profile.verbatims}`);
+  if (profile.expressions_cles) lines.push(`- Expressions clés à utiliser : ${profile.expressions_cles}`);
+  if (profile.ce_quon_evite) lines.push(`- Ce qu'on évite dans sa com : ${profile.ce_quon_evite}`);
+  if (profile.style_communication?.length) lines.push(`- Style de communication : ${profile.style_communication.join(", ")}`);
+  return lines.join("\n");
+}
+
+const ACCROCHE_BANK: Record<string, string[]> = {
+  visibilite: [
+    "Accroche polarisante : affirme une position forte et clivante",
+    "Accroche contre-intuitive : commence par le contraire de ce qu'on attend",
+    "Accroche frustration : nomme un problème que tout le monde reconnaît",
+    "Accroche statistique choc : commence par un chiffre surprenant",
+    "Accroche question provocante : pose la question que personne n'ose poser",
+  ],
+  confiance: [
+    "Accroche storytelling : commence par un moment précis (lieu, sensation)",
+    "Accroche suspense : commence par la fin et reviens au début",
+    "Accroche question ouverte : invite à la réflexion personnelle",
+    "Accroche confession : partage un doute ou un échec authentique",
+    "Accroche identification : 'Toi aussi tu...' ou 'POV : tu es...'",
+  ],
+  vente: [
+    "Accroche avant/après : montre le contraste entre les deux états",
+    "Accroche témoignage : commence par les mots d'une cliente",
+    "Accroche permission : autorise ta cible à vouloir ce qu'elle n'ose pas",
+    "Accroche résultat : commence par le résultat obtenu",
+    "Accroche objection : nomme le frein et démonte-le",
+  ],
+  credibilite: [
+    "Accroche décryptage : 'J'ai analysé...' ou 'J'ai remarqué que...'",
+    "Accroche liste : '5 choses que j'ai apprises en...'",
+    "Accroche mythe : '\"Il faut...\" Non.'",
+    "Accroche expertise : partage une observation que seul·e un·e expert·e fait",
+    "Accroche processus : montre ton framework ou ta méthode",
+  ],
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // Validate authentication
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -36,20 +87,24 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { type, format, sujet, profile, canal } = await req.json();
+    const { type, format, sujet, profile, canal, objectif } = await req.json();
 
     const canalLabel = canal === "linkedin" ? "LinkedIn" : canal === "blog" ? "un article de blog" : canal === "pinterest" ? "Pinterest" : "Instagram";
+    const profileBlock = buildProfileBlock(profile || {});
 
     let systemPrompt = "";
     let userPrompt = "";
 
     if (type === "suggest") {
+      const objectifInstruction = objectif
+        ? `L'objectif choisi est : ${objectif}. Oriente les sujets en conséquence.`
+        : "";
       systemPrompt = `Tu es un·e expert·e en stratégie de contenu ${canalLabel} pour des solopreneuses éthiques.
 
-Profil de l'utilisatrice :
-- Activité : ${profile.activite}
-- Cible : ${profile.cible}
-- Thématiques : ${(profile.piliers || []).join(", ")}
+PROFIL DE L'UTILISATRICE :
+${profileBlock}
+
+${objectifInstruction}
 
 Propose exactement 5 idées de sujets de posts ${canalLabel}, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.
 
@@ -57,69 +112,76 @@ Varie les angles : un sujet éducatif, un storytelling, un sujet engagé, un suj
 
 Réponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans tiret, sans explication.`;
       userPrompt = `Propose-moi 5 sujets de posts ${canalLabel}.`;
+
     } else if (type === "ideas") {
       const formatInstruction = format
         ? `FORMAT SÉLECTIONNÉ : ${format}`
         : "FORMAT SÉLECTIONNÉ : aucun, propose le format le plus adapté pour chaque idée";
-      const sujetInstruction = sujet
-        ? sujet
-        : "aucun, propose des idées variées";
+      const sujetInstruction = sujet || "aucun, propose des idées variées";
+
+      // Build accroche instruction based on objective
+      let accrocheInstruction = "";
+      if (objectif && ACCROCHE_BANK[objectif]) {
+        const accroches = ACCROCHE_BANK[objectif];
+        accrocheInstruction = `\nSTYLES D'ACCROCHES RECOMMANDÉS POUR L'OBJECTIF "${objectif.toUpperCase()}" :
+${accroches.map((a, i) => `${i + 1}. ${a}`).join("\n")}
+
+Pour chaque idée, propose aussi 2 ACCROCHES concrètes (phrases complètes, prêtes à être postées) inspirées de ces styles.`;
+      }
+
+      const objectifInstruction = objectif
+        ? `\nOBJECTIF DE COMMUNICATION : ${objectif} (${objectif === "visibilite" ? "faire découvrir, attirer de nouveaux abonnés" : objectif === "confiance" ? "créer du lien, fidéliser, humaniser" : objectif === "vente" ? "convertir, donner envie d'acheter" : "montrer l'expertise, légitimer"})`
+        : "";
 
       systemPrompt = `Tu es un·e expert·e en stratégie de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.
 
 PROFIL DE L'UTILISATRICE :
-- Prénom : ${profile.prenom}
-- Activité : ${profile.activite}
-- Type : ${profile.type_activite}
-- Cible : ${profile.cible}
-- Problème qu'elle résout : ${profile.probleme_principal}
-- Thématiques : ${(profile.piliers || []).join(", ")}
-- Ton souhaité : ${(profile.tons || []).join(", ")}
+${profileBlock}
 
 CANAL SÉLECTIONNÉ : ${canalLabel}
+${objectifInstruction}
 
 THÈME OU MOT-CLÉ DONNÉ PAR L'UTILISATRICE : ${sujetInstruction}
 
 ${formatInstruction}
+${accrocheInstruction}
 
 CONSIGNE :
 Propose exactement 5 idées de posts ${canalLabel} adaptées à son activité, sa cible, et ses thématiques.
 
 Pour chaque idée, donne :
 1. Un TITRE accrocheur (la "grande idée" du post, en une phrase percutante)
-2. Le FORMAT recommandé parmi : Storytelling, Mythe à déconstruire, Coup de gueule, Enquête/décryptage, Conseil contre-intuitif, Test grandeur nature, Before/After, Histoire cliente, Regard philosophique, Surf sur l'actu
+2. Le FORMAT recommandé parmi : Storytelling, Mythe à déconstruire, Coup de gueule, Enquête/décryptage, Conseil contre-intuitif, Test grandeur nature, Before/After, Histoire cliente, Regard philosophique, Surf sur l'actu, Identification / quotidien, Build in public, Analyse en profondeur
 3. Un ANGLE ou ACCROCHE possible (1-2 phrases qui donnent le ton et la direction du post, comme un pitch)
+${objectif ? "4. 2 ACCROCHES concrètes (phrases complètes, prêtes à poster, qui donnent envie de lire la suite)" : ""}
 
 RÈGLES :
 - Varie les formats (pas 2 fois le même sauf si c'est vraiment pertinent)
 - Varie les angles : un sujet éducatif, un engagé, un personnel/storytelling, un pratique, un inspirant
 - Les idées doivent être SPÉCIFIQUES à son activité, pas des sujets génériques
-- Le ton des accroches doit être direct, oral, chaleureux (comme une discussion entre ami·es)
-- Adapte les suggestions au canal ${canalLabel} (longueur, style, conventions de la plateforme)
+- Le ton des accroches doit correspondre au style de communication de l'utilisatrice
+- Si elle a des expressions clés, utilise-les naturellement
+- Si elle a des choses à éviter, ne les utilise JAMAIS
+- Adapte les suggestions au canal ${canalLabel}
 - Écriture inclusive avec point médian
 - Pas de tiret cadratin, utiliser : ou ;
-- Pas d'emojis
+- Pas d'emojis dans les accroches
 
 IMPORTANT : Réponds UNIQUEMENT en JSON, sans aucun texte avant ou après, sans backticks markdown. Format exact :
 [
   {
     "titre": "...",
     "format": "...",
-    "angle": "..."
+    "angle": "..."${objectif ? ',\n    "accroches": ["accroche 1", "accroche 2"]' : ""}
   }
 ]`;
       userPrompt = `Propose-moi 5 idées de posts ${canalLabel}.`;
+
     } else if (type === "bio") {
       systemPrompt = `Tu es un·e expert·e en personal branding Instagram pour des solopreneuses éthiques et créatives.
 
 PROFIL DE L'UTILISATRICE :
-- Prénom : ${profile.prenom}
-- Activité : ${profile.activite}
-- Type : ${profile.type_activite}
-- Cible : ${profile.cible}
-- Problème qu'elle résout : ${profile.probleme_principal}
-- Thématiques : ${(profile.piliers || []).join(", ")}
-- Ton souhaité : ${(profile.tons || []).join(", ")}
+${profileBlock}
 
 CONSIGNE :
 Génère exactement 2 versions de bio Instagram pour cette utilisatrice.
@@ -139,7 +201,8 @@ RÈGLES :
 - Écriture inclusive avec point médian
 - Pas de hashtags dans la bio
 - Pas de tiret cadratin
-- Le ton doit correspondre aux tons souhaités de l'utilisatrice
+- Le ton doit correspondre aux tons souhaités et au style de communication de l'utilisatrice
+- Si elle a des expressions clés, essaie de les intégrer
 - Chaque version doit être SPÉCIFIQUE à son activité
 
 IMPORTANT : Réponds UNIQUEMENT en JSON, sans aucun texte avant ou après, sans backticks markdown. Format exact :
@@ -158,13 +221,12 @@ IMPORTANT : Réponds UNIQUEMENT en JSON, sans aucun texte avant ou après, sans 
   }
 }`;
       userPrompt = "Génère 2 versions de bio Instagram pour moi.";
+
     } else if (type === "launch-ideas") {
       systemPrompt = `Tu es expert·e en stratégie de lancement Instagram pour des solopreneuses éthiques.
 
 PROFIL :
-- Activité : ${profile.activite}
-- Cible : ${profile.cible}
-- Ton : ${(profile.tons || []).join(", ")}
+${profileBlock}
 
 LANCEMENT :
 - Nom : ${profile.launch_name || ""}
@@ -192,8 +254,8 @@ IMPORTANT : Réponds UNIQUEMENT en JSON, sans aucun texte avant ou après, sans 
   }
 ]`;
       userPrompt = `Génère des idées de contenu pour mon lancement.`;
+
     } else {
-      // Legacy generate type
       systemPrompt = `Tu es un·e expert·e en création de contenu Instagram.`;
       userPrompt = `Rédige un post Instagram au format "${format}" sur le sujet : "${sujet}"`;
     }
