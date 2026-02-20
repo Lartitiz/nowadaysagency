@@ -82,20 +82,23 @@ export default function StrategiePage() {
     });
   }, [user]);
 
+  const saveNow = useCallback(async (updated: StrategyData) => {
+    if (!user) return;
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    const payload = { ...updated };
+    delete (payload as any).id;
+    if (existingId) {
+      await supabase.from("brand_strategy").update(payload as any).eq("id", existingId);
+    } else {
+      const { data: inserted } = await supabase.from("brand_strategy").insert({ ...payload, user_id: user.id } as any).select("id").single();
+      if (inserted) setExistingId(inserted.id);
+    }
+  }, [user, existingId]);
+
   const debouncedSave = useCallback((updated: StrategyData) => {
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    saveTimeout.current = setTimeout(async () => {
-      if (!user) return;
-      const payload = { ...updated };
-      delete (payload as any).id;
-      if (existingId) {
-        await supabase.from("brand_strategy").update(payload as any).eq("id", existingId);
-      } else {
-        const { data: inserted } = await supabase.from("brand_strategy").insert({ ...payload, user_id: user.id } as any).select("id").single();
-        if (inserted) setExistingId(inserted.id);
-      }
-    }, 2000);
-  }, [user, existingId]);
+    saveTimeout.current = setTimeout(() => saveNow(updated), 2000);
+  }, [saveNow]);
 
   const updateField = (field: keyof StrategyData, value: string) => {
     const updated = { ...data, [field]: value };
@@ -119,12 +122,12 @@ export default function StrategiePage() {
     }
   };
 
-  const nextStep = () => {
+  const nextStep = async () => {
     if (currentStep < 3) goToStep(currentStep + 1);
     else {
       const updated = { ...data, completed: true, current_step: 3 };
       setData(updated);
-      debouncedSave(updated);
+      await saveNow(updated);
       navigate("/branding/strategie/recap");
     }
   };

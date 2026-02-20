@@ -112,6 +112,14 @@ export default function StrategieRecapPage() {
           </section>
         )}
 
+        {/* Incomplete hint */}
+        {(!data.facet_1 || !data.pillar_major || !data.creative_concept) && (
+          <div className="rounded-xl bg-rose-pale p-4 text-[13px] text-foreground leading-relaxed mb-6 border border-border">
+            💡 Quelques sections ne sont pas encore remplies. Tu peux{" "}
+            <Link to="/branding/strategie" className="text-primary font-semibold hover:underline">revenir les compléter</Link> quand tu veux.
+          </div>
+        )}
+
         {/* Message */}
         <div className="rounded-xl bg-rose-pale p-5 text-[14px] text-foreground leading-relaxed mb-6">
           Ta stratégie de contenu est posée. Maintenant, chaque fois que tu vas dans l'atelier d'idées, l'IA s'appuie sur tes piliers et ton concept créatif pour te proposer des idées qui te ressemblent vraiment.
