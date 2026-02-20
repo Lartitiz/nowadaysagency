@@ -363,9 +363,12 @@ export default function CalendarPage() {
                     <ChevronDown className="h-4 w-4 transition-transform [[data-state=open]>&]:rotate-180" />
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-3">
-                    <ol className="list-decimal list-inside space-y-2 text-[13px] leading-relaxed text-foreground">
+                    <ol className="space-y-3 text-[13px] leading-relaxed text-foreground">
                       {guide.map((step, i) => (
-                        <li key={i}>{step}</li>
+                        <li key={i}>
+                          <span className="font-semibold text-primary">{step.label}</span>
+                          <p className="mt-0.5 text-muted-foreground">{step.detail}</p>
+                        </li>
                       ))}
                     </ol>
                   </CollapsibleContent>
