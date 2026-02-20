@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ const STEPS = [
 
 export default function PropositionPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [data, setData] = useState<PropositionData>(EMPTY);
   const [existingId, setExistingId] = useState<string | null>(null);
@@ -136,7 +138,7 @@ export default function PropositionPage() {
       const updated = { ...data, completed: true, current_step: 4 };
       setData(updated);
       debouncedSave(updated);
-      window.location.href = "/branding/proposition/recap";
+      navigate("/branding/proposition/recap");
     }
   };
 
