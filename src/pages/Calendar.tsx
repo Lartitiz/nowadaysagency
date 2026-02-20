@@ -50,7 +50,7 @@ const statusStyles: Record<string, string> = {
   published: "bg-cal-published border-cal-published-border text-foreground line-through",
 };
 
-export default function Calendar() {
+export default function CalendarPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -167,7 +167,6 @@ export default function Calendar() {
       await supabase.from("calendar_posts").insert({
         user_id: user.id, date: selectedDate, theme, angle, status, notes: notes || null, canal: postCanal,
       });
-    }
     }
     setDialogOpen(false);
     fetchPosts();
