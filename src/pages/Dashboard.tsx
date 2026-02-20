@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
 import { ExternalLink } from "lucide-react";
+import RoutinesPanel from "@/components/RoutinesPanel";
 
 export interface UserProfile {
   prenom: string;
@@ -220,6 +221,11 @@ export default function Dashboard() {
           {MODULES.map((mod) => (
             <ModuleCardComponent key={mod.id} mod={mod} brandingScore={mod.id === "branding" ? brandingScore : undefined} />
           ))}
+        </div>
+
+        {/* Routines */}
+        <div className="mb-8">
+          <RoutinesPanel />
         </div>
 
         {/* Conseil du jour */}
