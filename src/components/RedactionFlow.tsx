@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Check, ChevronLeft, ChevronRight, Copy, RefreshCw, Sparkles, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Copy, RefreshCw, Sparkles, X, BookOpen } from "lucide-react";
 import type { UserProfile } from "@/pages/Dashboard";
+import { getGuide } from "@/lib/production-guides";
 
 interface RedactionIdea {
   titre: string;
@@ -242,24 +243,49 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
         <div className="p-5 min-h-[300px]">
           {/* Step 1: Structure */}
           {step === 1 && (
-            <div className="animate-fade-in">
-              <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <h3 className="font-display text-base font-bold">Structure proposée</h3>
-                <span className="font-mono-ui text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">{idea.format}</span>
+            <div className="animate-fade-in space-y-5">
+              {/* Contextual Nowadays guide */}
+              {(() => {
+                const guide = getGuide(idea.angle);
+                if (!guide) return null;
+                return (
+                  <div className="rounded-xl border border-primary/20 bg-secondary/50 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <BookOpen className="h-4 w-4 text-primary" />
+                      <h4 className="font-display text-sm font-bold">Guide de production – {idea.angle}</h4>
+                    </div>
+                    <ol className="space-y-2">
+                      {guide.map((s, i) => (
+                        <li key={i} className="text-[13px] leading-relaxed">
+                          <span className="font-semibold text-primary">{s.label}</span>
+                          <span className="text-muted-foreground"> — {s.detail}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                );
+              })()}
+
+              {/* AI-generated structure */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <h3 className="font-display text-base font-bold">Structure proposée par l'IA</h3>
+                  <span className="font-mono-ui text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">{idea.format}</span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">Voici un squelette personnalisé basé sur ton profil. Tu peux t'en inspirer librement.</p>
+                {loadingStructure ? (
+                  <LoadingDots text="Je prépare la structure..." />
+                ) : (
+                  <>
+                    <div className="bg-rose-pale rounded-xl p-4 text-sm leading-relaxed whitespace-pre-wrap">{structure}</div>
+                    <Button variant="outline" size="sm" onClick={generateStructure} className="rounded-full gap-1.5 mt-3">
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      Régénérer
+                    </Button>
+                  </>
+                )}
               </div>
-              <p className="text-sm text-muted-foreground mb-4">Voici un squelette détaillé pour ton post. Tu peux t'en inspirer librement.</p>
-              {loadingStructure ? (
-                <LoadingDots text="Je prépare la structure..." />
-              ) : (
-                <>
-                  <div className="bg-rose-pale rounded-xl p-4 text-sm leading-relaxed whitespace-pre-wrap">{structure}</div>
-                  <Button variant="outline" size="sm" onClick={generateStructure} className="rounded-full gap-1.5 mt-3">
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    Régénérer
-                  </Button>
-                </>
-              )}
             </div>
           )}
 
