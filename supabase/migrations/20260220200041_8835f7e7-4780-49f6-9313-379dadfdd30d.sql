@@ -1,0 +1,1 @@
+ALTER TABLE public.calendar_posts ADD COLUMN objectif text DEFAULT NULL;
