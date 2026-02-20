@@ -5,13 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
  * Returns a string to inject BEFORE any specific AI prompt.
  */
 export async function buildBrandingContext(userId: string): Promise<string> {
-  const [stRes, perRes, toneRes, profRes, propRes, nicheRes] = await Promise.all([
+  const [stRes, perRes, toneRes, profRes, propRes, nicheRes, stratRes] = await Promise.all([
     supabase.from("storytelling").select("step_7_polished").eq("user_id", userId).maybeSingle(),
     supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_profile").select("tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq("user_id", userId).maybeSingle(),
     supabase.from("profiles").select("activite, offre, mission, cible").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_proposition").select("version_final, version_complete").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_niche").select("version_final, version_pitch, step_1a_cause").eq("user_id", userId).maybeSingle(),
+    supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept").eq("user_id", userId).maybeSingle(),
   ]);
 
   const lines: string[] = ["CONTEXTE DE LA MARQUE (généré à partir du module Branding) :\n"];
@@ -61,6 +62,17 @@ export async function buildBrandingContext(userId: string): Promise<string> {
   const nicheValue = nicheRes.data?.version_final || nicheRes.data?.version_pitch;
   if (nicheValue) lines.push(`NICHE :\n${nicheValue}\n`);
   if (nicheRes.data?.step_1a_cause) lines.push(`COMBAT / CAUSE :\n${nicheRes.data.step_1a_cause}\n`);
+
+  // Strategy
+  const s = stratRes.data;
+  if (s) {
+    const sLines: string[] = [];
+    if (s.pillar_major) sLines.push(`- Pilier majeur : ${s.pillar_major}`);
+    const minors = [s.pillar_minor_1, s.pillar_minor_2, s.pillar_minor_3].filter(Boolean);
+    if (minors.length) sLines.push(`- Piliers mineurs : ${minors.join(", ")}`);
+    if (s.creative_concept) sLines.push(`- Concept créatif : ${s.creative_concept}`);
+    if (sLines.length) lines.push(`STRATÉGIE DE CONTENU :\n${sLines.join("\n")}\n`);
+  }
 
   if (lines.length <= 1) {
     return "NOTE : Le profil branding est très peu rempli. Indique à l'utilisatrice qu'elle gagnerait à compléter son Branding pour des résultats plus pertinents.\n";

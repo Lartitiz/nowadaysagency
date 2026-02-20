@@ -31,6 +31,8 @@ import PropositionPage from "./pages/PropositionPage";
 import PropositionRecapPage from "./pages/PropositionRecapPage";
 import NichePage from "./pages/NichePage";
 import NicheRecapPage from "./pages/NicheRecapPage";
+import StrategiePage from "./pages/StrategiePage";
+import StrategieRecapPage from "./pages/StrategieRecapPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -86,6 +88,12 @@ const App = () => (
             } />
             <Route path="/branding/niche/recap" element={
               <ProtectedRoute><NicheRecapPage /></ProtectedRoute>
+            } />
+            <Route path="/branding/strategie" element={
+              <ProtectedRoute><StrategiePage /></ProtectedRoute>
+            } />
+            <Route path="/branding/strategie/recap" element={
+              <ProtectedRoute><StrategieRecapPage /></ProtectedRoute>
             } />
             <Route path="/plan" element={
               <ProtectedRoute><PlanPage /></ProtectedRoute>
