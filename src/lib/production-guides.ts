@@ -61,6 +61,24 @@ export const PRODUCTION_GUIDES: Record<string, string[]> = {
     "Fais le lien avec ton audience : pourquoi ça les concerne",
     "Ta position : ce que tu en penses",
   ],
+  "Identification / quotidien": [
+    "Pars d'une situation ultra-concrète que ta cible vit (POV, 'toi aussi tu…')",
+    "Décris la scène avec des détails sensoriels",
+    "Montre que tu comprends parfaitement ce qu'elle ressent",
+    "Finis par une ouverture : 'Dis-moi en commentaire si…'",
+  ],
+  "Build in public": [
+    "Partage une étape concrète de ton projet en cours",
+    "Montre les coulisses : les doutes, les chiffres, les décisions",
+    "Sois honnête sur ce qui marche ET ce qui coince",
+    "Invite ton audience à participer (avis, vote, feedback)",
+  ],
+  "Analyse en profondeur": [
+    "Choisis un sujet précis et annonce-le clairement",
+    "Décompose en 3-5 points clés numérotés",
+    "Pour chaque point, donne un exemple ou une preuve",
+    "Conclus par un take personnel : ta position sur le sujet",
+  ],
 };
 
 // Instagram format recommendations per angle
@@ -75,6 +93,9 @@ export const INSTAGRAM_FORMAT_RECO: Record<string, string> = {
   "Histoire cliente": "Ce sujet se prête bien à un carrousel storytelling ou un post texte.",
   "Regard philosophique": "Ce sujet se prête bien à un post texte long ou un carrousel.",
   "Surf sur l'actu": "Ce sujet se prête bien à un reel réactif ou une story.",
+  "Identification / quotidien": "Ce sujet se prête bien à un reel POV ou un post texte court.",
+  "Build in public": "Ce sujet se prête bien à un carrousel coulisses ou un reel.",
+  "Analyse en profondeur": "Ce sujet se prête bien à un carrousel éducatif 8-10 slides.",
 };
 
 // Normalize angle string for lookup

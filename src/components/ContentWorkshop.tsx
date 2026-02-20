@@ -4,17 +4,32 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, RefreshCw, Bookmark, PenLine, Lightbulb, CalendarDays, Instagram } from "lucide-react";
+import { Copy, RefreshCw, Bookmark, PenLine, Lightbulb, CalendarDays, Instagram, Target } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useSearchParams } from "react-router-dom";
 import { getInstagramFormatReco } from "@/lib/production-guides";
 import type { UserProfile } from "@/pages/Dashboard";
 
+const OBJECTIVES = [
+  { id: "visibilite", label: "🔍 Visibilité", desc: "Faire découvrir", color: "bg-violet-100 text-violet-700 border-violet-300" },
+  { id: "confiance", label: "💛 Confiance", desc: "Créer du lien", color: "bg-yellow/30 text-accent-foreground border-yellow" },
+  { id: "vente", label: "🛒 Vente", desc: "Convertir", color: "bg-secondary text-primary border-primary/30" },
+  { id: "credibilite", label: "🎓 Crédibilité", desc: "Montrer l'expertise", color: "bg-muted text-foreground border-border" },
+];
+
+const OBJECTIVE_FORMAT_RECOS: Record<string, string[]> = {
+  visibilite: ["Coup de gueule", "Mythe à déconstruire", "Conseil contre-intuitif", "Surf sur l'actu"],
+  confiance: ["Storytelling", "Regard philosophique", "Build in public", "Identification / quotidien"],
+  vente: ["Before / After", "Histoire cliente", "Test grandeur nature"],
+  credibilite: ["Enquête / décryptage", "Analyse en profondeur", "Conseil contre-intuitif"],
+};
+
 const FORMATS = [
   "Storytelling", "Mythe à déconstruire", "Coup de gueule", "Enquête / décryptage",
   "Conseil contre-intuitif", "Test grandeur nature", "Before / After",
   "Histoire cliente", "Regard philosophique", "Surf sur l'actu",
+  "Identification / quotidien", "Build in public", "Analyse en profondeur",
 ];
 
 const CHANNELS = [
@@ -28,6 +43,7 @@ interface Idea {
   titre: string;
   format: string;
   angle: string;
+  accroches?: string[];
 }
 
 interface Props {
@@ -40,6 +56,7 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [canal, setCanal] = useState("instagram");
+  const [objectif, setObjectif] = useState<string | null>(null);
   const [format, setFormat] = useState<string | null>(null);
   const [sujet, setSujet] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -49,13 +66,22 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
-  // Pre-select canal from URL param
   useEffect(() => {
     const urlCanal = searchParams.get("canal");
     if (urlCanal && CHANNELS.some((c) => c.id === urlCanal && c.enabled)) {
       setCanal(urlCanal);
     }
   }, [searchParams]);
+
+  // Recommended formats based on objective
+  const recommendedFormats = objectif ? OBJECTIVE_FORMAT_RECOS[objectif] || [] : [];
+  const sortedFormats = objectif
+    ? [...FORMATS].sort((a, b) => {
+        const aRec = recommendedFormats.includes(a) ? 0 : 1;
+        const bRec = recommendedFormats.includes(b) ? 0 : 1;
+        return aRec - bRec;
+      })
+    : FORMATS;
 
   const fetchIdeas = async () => {
     if (!user) return;
@@ -71,6 +97,7 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
           format: format || "",
           sujet,
           canal,
+          objectif: objectif || "",
           profile: {
             prenom: profile.prenom,
             activite: profile.activite,
@@ -79,6 +106,13 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
             probleme_principal: profile.probleme_principal,
             piliers: profile.piliers,
             tons: profile.tons,
+            mission: profile.mission || "",
+            offre: profile.offre || "",
+            croyances_limitantes: profile.croyances_limitantes || "",
+            verbatims: profile.verbatims || "",
+            expressions_cles: profile.expressions_cles || "",
+            ce_quon_evite: profile.ce_quon_evite || "",
+            style_communication: profile.style_communication || [],
           },
         },
       });
@@ -116,6 +150,7 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
         body: {
           type: "suggest",
           canal,
+          objectif: objectif || "",
           profile: {
             activite: profile.activite,
             cible: profile.cible,
@@ -134,7 +169,9 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
   };
 
   const handleCopyIdea = async (idea: Idea, idx: number) => {
-    await navigator.clipboard.writeText(`${idea.titre}\n${idea.angle}`);
+    let text = `${idea.titre}\n${idea.angle}`;
+    if (idea.accroches?.length) text += `\n\nAccroches proposées :\n${idea.accroches.join("\n")}`;
+    await navigator.clipboard.writeText(text);
     setCopiedIdx(idx);
     setTimeout(() => setCopiedIdx(null), 1500);
   };
@@ -161,7 +198,7 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
       <div className="flex items-center gap-3 mb-5">
         <PenLine className="h-5 w-5 text-primary" />
         <h2 className="font-display text-xl font-bold">Mon atelier de contenu</h2>
-        <span className="rounded-pill bg-yellow text-accent-foreground px-3 py-0.5 text-xs font-bold">
+        <span className="rounded-full bg-yellow text-accent-foreground px-3 py-0.5 text-xs font-bold">
           Méthode Nowadays
         </span>
       </div>
@@ -175,7 +212,7 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
               key={ch.id}
               onClick={() => ch.enabled && setCanal(ch.id)}
               disabled={!ch.enabled}
-              className={`whitespace-nowrap rounded-pill px-4 py-2 text-sm font-medium border transition-all shrink-0 ${
+              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium border transition-all shrink-0 ${
                 canal === ch.id
                   ? "bg-primary text-primary-foreground border-primary"
                   : ch.enabled
@@ -190,25 +227,59 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
         </div>
       </div>
 
+      {/* Objective selector - NEW */}
+      <div className="mb-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Target className="h-4 w-4 text-primary" />
+          <p className="text-sm font-medium text-foreground">Quel est ton objectif ?</p>
+        </div>
+        <p className="text-xs italic text-muted-foreground mb-3">L'objectif guide le choix du format et le style des accroches. Tu peux aussi ne rien choisir.</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {OBJECTIVES.map((obj) => (
+            <button
+              key={obj.id}
+              onClick={() => setObjectif(objectif === obj.id ? null : obj.id)}
+              className={`rounded-xl border-2 p-3 text-left transition-all ${
+                objectif === obj.id
+                  ? "border-primary bg-secondary"
+                  : "border-border hover:border-primary/40"
+              }`}
+            >
+              <span className="text-sm font-semibold block">{obj.label}</span>
+              <span className="text-xs text-muted-foreground">{obj.desc}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Angle selector */}
       <div className="mb-1">
         <p className="text-sm font-medium text-foreground mb-1">Quel angle pour ton post ?</p>
-        <p className="text-xs italic text-muted-foreground mb-3">L'angle, c'est la manière dont tu vas aborder ton sujet. Un même thème peut être raconté en storytelling, en coup de gueule, en conseil...</p>
+        <p className="text-xs italic text-muted-foreground mb-3">
+          {objectif
+            ? "Les angles recommandés pour ton objectif sont mis en avant."
+            : "L'angle, c'est la manière dont tu vas aborder ton sujet."}
+        </p>
       </div>
       <div className="flex gap-2 flex-wrap max-sm:flex-nowrap max-sm:overflow-x-auto pb-2 mb-4 scrollbar-none">
-        {FORMATS.map((f) => (
-          <button
-            key={f}
-            onClick={() => setFormat(format === f ? null : f)}
-            className={`whitespace-nowrap rounded-pill px-4 py-2 text-sm font-medium border transition-all shrink-0 ${
-              format === f
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-card text-foreground border-border hover:border-primary/40"
-            }`}
-          >
-            {f}
-          </button>
-        ))}
+        {sortedFormats.map((f) => {
+          const isReco = recommendedFormats.includes(f);
+          return (
+            <button
+              key={f}
+              onClick={() => setFormat(format === f ? null : f)}
+              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium border transition-all shrink-0 ${
+                format === f
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : isReco
+                    ? "bg-secondary text-primary border-primary/40 ring-1 ring-primary/20"
+                    : "bg-card text-foreground border-border hover:border-primary/40"
+              }`}
+            >
+              {isReco && "★ "}{f}
+            </button>
+          );
+        })}
       </div>
 
       {/* Instagram format recommendation */}
@@ -223,14 +294,14 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
         <Input
           value={sujet}
           onChange={(e) => setSujet(e.target.value)}
-          placeholder="Dis-moi un thème, un mot-clé, ou laisse-moi te proposer des idées..."
+          placeholder="De quoi tu veux parler ? Un thème, un mot-clé..."
           className="rounded-[10px] h-12 pr-40 w-full box-border"
           onKeyDown={(e) => e.key === "Enter" && fetchIdeas()}
         />
         <Button
           onClick={fetchIdeas}
           disabled={generating}
-          className="absolute right-1 top-1 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux h-10 px-5"
+          className="absolute right-1 top-1 rounded-full bg-primary text-primary-foreground hover:bg-bordeaux h-10 px-5"
         >
           {generating ? "..." : "Trouver des idées"}
         </Button>
@@ -280,28 +351,41 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
           {ideas.map((idea, i) => (
             <div key={i} className="rounded-xl bg-rose-pale border border-border p-4">
               <div className="flex items-start gap-2 mb-2">
-                <span className="rounded-pill bg-primary text-primary-foreground px-3 py-0.5 text-xs font-bold uppercase tracking-wider shrink-0">
+                <span className="rounded-full bg-primary text-primary-foreground px-3 py-0.5 text-xs font-bold uppercase tracking-wider shrink-0">
                   {idea.format}
                 </span>
               </div>
               <p className="font-bold text-foreground text-sm mb-1">{idea.titre}</p>
-              <p className="text-sm italic text-muted-foreground leading-relaxed">{idea.angle}</p>
-              <div className="flex gap-2 mt-3">
+              <p className="text-sm italic text-muted-foreground leading-relaxed mb-2">{idea.angle}</p>
+
+              {/* Accroches */}
+              {idea.accroches && idea.accroches.length > 0 && (
+                <div className="mt-2 mb-3 space-y-1.5">
+                  <p className="text-xs font-mono-ui font-semibold text-muted-foreground uppercase tracking-wider">Accroches suggérées</p>
+                  {idea.accroches.map((accroche, j) => (
+                    <div key={j} className="rounded-lg bg-card border border-border px-3 py-2 text-sm text-foreground">
+                      {accroche}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2 mt-3 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleCopyIdea(idea, i)}
-                  className="rounded-pill gap-1.5"
+                  className="rounded-full gap-1.5"
                 >
                   <Copy className="h-3.5 w-3.5" />
-                  {copiedIdx === i ? "Copié !" : "Copier l'idée"}
+                  {copiedIdx === i ? "Copié !" : "Copier"}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleSaveIdea(idea, i)}
                   disabled={savedIdx.has(i)}
-                  className="rounded-pill gap-1.5"
+                  className="rounded-full gap-1.5"
                 >
                   <Bookmark className="h-3.5 w-3.5" />
                   {savedIdx.has(i) ? "Enregistré !" : "Enregistrer"}
@@ -315,7 +399,7 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
             variant="outline"
             onClick={fetchIdeas}
             disabled={generating}
-            className="w-full rounded-pill gap-2 mt-2"
+            className="w-full rounded-full gap-2 mt-2"
           >
             <RefreshCw className="h-4 w-4" />
             Encore 5 idées
@@ -328,7 +412,7 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Lightbulb className="h-10 w-10 text-muted-foreground/40 mb-3" />
           <p className="text-muted-foreground font-medium">Tes prochaines idées de contenu t'attendent ici</p>
-          <p className="text-sm text-muted-foreground/60 mt-1">Choisis un angle ou donne un thème pour commencer</p>
+          <p className="text-sm text-muted-foreground/60 mt-1">Choisis un objectif, un angle, ou donne un thème pour commencer</p>
         </div>
       )}
     </div>
@@ -361,7 +445,7 @@ function PlanifierButton({ idea, userId, toast }: { idea: Idea; userId?: string;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="rounded-pill gap-1.5">
+        <Button variant="outline" size="sm" className="rounded-full gap-1.5">
           <CalendarDays className="h-3.5 w-3.5" />
           Planifier
         </Button>

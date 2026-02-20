@@ -19,6 +19,15 @@ export interface UserProfile {
   piliers: string[];
   tons: string[];
   plan_start_date: string | null;
+  // Ma marque fields
+  mission?: string;
+  offre?: string;
+  croyances_limitantes?: string;
+  verbatims?: string;
+  expressions_cles?: string;
+  ce_quon_evite?: string;
+  style_communication?: string[];
+  canaux?: string[];
 }
 
 const DAY_ACTIONS: Record<number, string> = {
