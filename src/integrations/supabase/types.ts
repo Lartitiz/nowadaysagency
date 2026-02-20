@@ -901,6 +901,227 @@ export type Database = {
         }
         Relationships: []
       }
+      pinterest_boards: {
+        Row: {
+          board_type: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          sort_order: number | null
+          user_id: string
+        }
+        Insert: {
+          board_type?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          sort_order?: number | null
+          user_id: string
+        }
+        Update: {
+          board_type?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          sort_order?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pinterest_keywords: {
+        Row: {
+          checklist_bio: boolean | null
+          checklist_board_desc: boolean | null
+          checklist_pin_desc: boolean | null
+          checklist_pin_titles: boolean | null
+          checklist_profile_name: boolean | null
+          checklist_titles: boolean | null
+          created_at: string | null
+          id: string
+          keywords_english: string[] | null
+          keywords_inspiration: string[] | null
+          keywords_need: string[] | null
+          keywords_product: string[] | null
+          keywords_raw: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          checklist_bio?: boolean | null
+          checklist_board_desc?: boolean | null
+          checklist_pin_desc?: boolean | null
+          checklist_pin_titles?: boolean | null
+          checklist_profile_name?: boolean | null
+          checklist_titles?: boolean | null
+          created_at?: string | null
+          id?: string
+          keywords_english?: string[] | null
+          keywords_inspiration?: string[] | null
+          keywords_need?: string[] | null
+          keywords_product?: string[] | null
+          keywords_raw?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          checklist_bio?: boolean | null
+          checklist_board_desc?: boolean | null
+          checklist_pin_desc?: boolean | null
+          checklist_pin_titles?: boolean | null
+          checklist_profile_name?: boolean | null
+          checklist_titles?: boolean | null
+          created_at?: string | null
+          id?: string
+          keywords_english?: string[] | null
+          keywords_inspiration?: string[] | null
+          keywords_need?: string[] | null
+          keywords_product?: string[] | null
+          keywords_raw?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pinterest_pins: {
+        Row: {
+          board_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          link_url: string | null
+          subject: string | null
+          title: string | null
+          user_id: string
+          variant_type: string | null
+        }
+        Insert: {
+          board_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          link_url?: string | null
+          subject?: string | null
+          title?: string | null
+          user_id: string
+          variant_type?: string | null
+        }
+        Update: {
+          board_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          link_url?: string | null
+          subject?: string | null
+          title?: string | null
+          user_id?: string
+          variant_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pinterest_pins_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "pinterest_boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pinterest_profile: {
+        Row: {
+          bio: string | null
+          bio_done: boolean | null
+          created_at: string | null
+          display_name: string | null
+          id: string
+          name_done: boolean | null
+          photo_done: boolean | null
+          pro_account_done: boolean | null
+          updated_at: string | null
+          url_done: boolean | null
+          user_id: string
+          website_url: string | null
+        }
+        Insert: {
+          bio?: string | null
+          bio_done?: boolean | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          name_done?: boolean | null
+          photo_done?: boolean | null
+          pro_account_done?: boolean | null
+          updated_at?: string | null
+          url_done?: boolean | null
+          user_id: string
+          website_url?: string | null
+        }
+        Update: {
+          bio?: string | null
+          bio_done?: boolean | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          name_done?: boolean | null
+          photo_done?: boolean | null
+          pro_account_done?: boolean | null
+          updated_at?: string | null
+          url_done?: boolean | null
+          user_id?: string
+          website_url?: string | null
+        }
+        Relationships: []
+      }
+      pinterest_routine: {
+        Row: {
+          created_at: string | null
+          current_month: string | null
+          id: string
+          keywords_adjusted: boolean | null
+          links_checked: boolean | null
+          pins_done: number | null
+          pins_target: number | null
+          recycled_done: boolean | null
+          rhythm: string | null
+          stats_checked: boolean | null
+          top_pins_noted: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_month?: string | null
+          id?: string
+          keywords_adjusted?: boolean | null
+          links_checked?: boolean | null
+          pins_done?: number | null
+          pins_target?: number | null
+          recycled_done?: boolean | null
+          rhythm?: string | null
+          stats_checked?: boolean | null
+          top_pins_noted?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_month?: string | null
+          id?: string
+          keywords_adjusted?: boolean | null
+          links_checked?: boolean | null
+          pins_done?: number | null
+          pins_target?: number | null
+          recycled_done?: boolean | null
+          rhythm?: string | null
+          stats_checked?: boolean | null
+          top_pins_noted?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       plan_tasks: {
         Row: {
           completed_at: string | null

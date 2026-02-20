@@ -41,6 +41,12 @@ import LinkedInResume from "./pages/LinkedInResume";
 import LinkedInParcours from "./pages/LinkedInParcours";
 import LinkedInRecommandations from "./pages/LinkedInRecommandations";
 import LinkedInEngagement from "./pages/LinkedInEngagement";
+import PinterestHub from "./pages/PinterestHub";
+import PinterestCompte from "./pages/PinterestCompte";
+import PinterestTableaux from "./pages/PinterestTableaux";
+import PinterestMotsCles from "./pages/PinterestMotsCles";
+import PinterestEpingles from "./pages/PinterestEpingles";
+import PinterestRoutine from "./pages/PinterestRoutine";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -159,6 +165,25 @@ const App = () => (
             } />
             <Route path="/linkedin/engagement" element={
               <ProtectedRoute><LinkedInEngagement /></ProtectedRoute>
+            } />
+            {/* Pinterest module */}
+            <Route path="/pinterest" element={
+              <ProtectedRoute><PinterestHub /></ProtectedRoute>
+            } />
+            <Route path="/pinterest/compte" element={
+              <ProtectedRoute><PinterestCompte /></ProtectedRoute>
+            } />
+            <Route path="/pinterest/tableaux" element={
+              <ProtectedRoute><PinterestTableaux /></ProtectedRoute>
+            } />
+            <Route path="/pinterest/mots-cles" element={
+              <ProtectedRoute><PinterestMotsCles /></ProtectedRoute>
+            } />
+            <Route path="/pinterest/epingles" element={
+              <ProtectedRoute><PinterestEpingles /></ProtectedRoute>
+            } />
+            <Route path="/pinterest/routine" element={
+              <ProtectedRoute><PinterestRoutine /></ProtectedRoute>
             } />
             <Route path="/calendrier" element={
               <ProtectedRoute><Calendar /></ProtectedRoute>

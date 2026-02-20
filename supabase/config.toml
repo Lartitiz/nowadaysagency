@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.linkedin-ai]
 verify_jwt = false
+
+[functions.pinterest-ai]
+verify_jwt = false
