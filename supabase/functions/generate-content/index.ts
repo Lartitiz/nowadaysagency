@@ -31,7 +31,7 @@ async function buildBrandingContext(supabase: any, userId: string): Promise<stri
     supabase.from("storytelling").select("step_7_polished").eq("user_id", userId).maybeSingle(),
     supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_proposition").select("version_final, version_complete").eq("user_id", userId).maybeSingle(),
+    supabase.from("brand_proposition").select("version_final, version_bio").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept").eq("user_id", userId).maybeSingle(),
   ]);
 
@@ -50,7 +50,7 @@ async function buildBrandingContext(supabase: any, userId: string): Promise<stri
     if (pl.length) lines.push(`CLIENTE IDÉALE :\n${pl.join("\n")}`);
   }
 
-  const propValue = propRes.data?.version_final || propRes.data?.version_complete;
+  const propValue = propRes.data?.version_final || propRes.data?.version_bio;
   if (propValue) lines.push(`PROPOSITION DE VALEUR :\n${propValue}`);
 
   const t = toneRes.data;
@@ -66,7 +66,6 @@ async function buildBrandingContext(supabase: any, userId: string): Promise<stri
     if (t.target_verbatims) tl.push(`- Verbatims de la cible : ${t.target_verbatims}`);
     if (tl.length) lines.push(`TON & STYLE :\n${tl.join("\n")}`);
 
-    // Combats
     const cl: string[] = [];
     if (t.combat_cause) cl.push(`- Sa cause : ${t.combat_cause}`);
     if (t.combat_fights) cl.push(`- Ses combats : ${t.combat_fights}`);
@@ -75,7 +74,6 @@ async function buildBrandingContext(supabase: any, userId: string): Promise<stri
     if (cl.length) lines.push(`COMBATS & LIMITES :\n${cl.join("\n")}`);
   }
 
-  // Strategy
   const s = stratRes.data;
   if (s) {
     const sl: string[] = [];
@@ -115,7 +113,7 @@ const ACCROCHE_BANK: Record<string, string[]> = {
   credibilite: [
     "Accroche décryptage : 'J'ai analysé...' ou 'J'ai remarqué que...'",
     "Accroche liste : '5 choses que j'ai apprises en...'",
-    "Accroche mythe : '\\\"Il faut...\\\" Non.'",
+    "Accroche mythe : '\"Il faut...\" Non.'",
     "Accroche expertise : partage une observation que seul·e un·e expert·e fait",
     "Accroche processus : montre ton framework ou ta méthode",
   ],
@@ -150,56 +148,54 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput } = await req.json();
-
-    const canalLabel = canal === "linkedin" ? "LinkedIn" : canal === "blog" ? "un article de blog" : canal === "pinterest" ? "Pinterest" : "Instagram";
-    const profileBlock = buildProfileBlock(profile || {});
-
-    // Fetch branding context from DB and append to profile block
-    const brandingContext = await buildBrandingContext(supabase, user.id);
-    const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "");
+    const body = await req.json();
+    const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt } = body;
 
     let systemPrompt = "";
     let userPrompt = "";
 
-    if (type === "suggest") {
-      const objectifInstruction = objectif
-        ? `L'objectif choisi est : ${objectif}. Oriente les sujets en conséquence.`
-        : "''";
-      systemPrompt = `Tu es un·e expert·e en stratégie de contenu ${canalLabel} pour des solopreneuses éthiques.
+    // Handle "raw" type early - no profile block needed
+    if (type === "raw") {
+      systemPrompt = "Tu es une assistante créative et bienveillante spécialisée dans le personal branding pour des solopreneuses éthiques et créatives. Écriture inclusive avec point médian.";
+      userPrompt = rawPrompt || "";
+    } else {
+      const canalLabel = canal === "linkedin" ? "LinkedIn" : canal === "blog" ? "un article de blog" : canal === "pinterest" ? "Pinterest" : "Instagram";
+      const profileBlock = buildProfileBlock(profile || {});
+      const brandingContext = await buildBrandingContext(supabase, user.id);
+      const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "");
 
-PROFIL DE L'UTILISATRICE :
-${fullContext}
+      if (type === "suggest") {
+        const objectifInstruction = objectif
+          ? `L'objectif choisi est : ${objectif}. Oriente les sujets en conséquence.`
+          : "";
+        systemPrompt = `Tu es un·e expert·e en stratégie de contenu ${canalLabel} pour des solopreneuses éthiques.\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\n${objectifInstruction}\n\nPropose exactement 5 idées de sujets de posts ${canalLabel}, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.\n\nVarie les angles : un sujet éducatif, un storytelling, un sujet engagé, un sujet pratique, un sujet inspirant.\n\nRéponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans tiret, sans explication.`;
+        userPrompt = `Propose-moi 5 sujets de posts ${canalLabel}.`;
 
-${objectifInstruction}
+      } else if (type === "ideas") {
+        const formatInstruction = format
+          ? `FORMAT SÉLECTIONNÉ : ${format}`
+          : "FORMAT SÉLECTIONNÉ : aucun, propose le format le plus adapté pour chaque idée";
+        const sujetInstruction = sujet || "aucun, propose des idées variées";
 
-Propose exactement 5 idées de sujets de posts ${canalLabel}, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.
+        let accrocheInstruction = "";
+        if (objectif && ACCROCHE_BANK[objectif]) {
+          const accroches = ACCROCHE_BANK[objectif];
+          accrocheInstruction = `\nSTYLES D'ACCROCHES RECOMMANDÉS POUR L'OBJECTIF "${objectif.toUpperCase()}" :\n${accroches.map((a, i) => `${i + 1}. ${a}`).join("\n")}\n\nPour chaque idée, propose aussi 2 ACCROCHES concrètes inspirées de ces styles.`;
+        }
 
-Varie les angles : un sujet éducatif, un storytelling, un sujet engagé, un sujet pratique, un sujet inspirant.
+        const objectifInstruction = objectif
+          ? `\nOBJECTIF DE COMMUNICATION : ${objectif} (${objectif === "visibilite" ? "faire découvrir, attirer de nouveaux abonnés" : objectif === "confiance" ? "créer du lien, fidéliser, humaniser" : objectif === "vente" ? "convertir, donner envie d'acheter" : "montrer l'expertise, légitimer"})`
+          : "";
 
-Réponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans tiret, sans explication.`;
-      userPrompt = `Propose-moi 5 sujets de posts ${canalLabel}.`;
+        const accrocheJsonPart = objectif
+          ? `,\n    "accroches": [{"short": "...", "long": "..."}, {"short": "...", "long": "..."}, {"short": "...", "long": "..."}]`
+          : "";
 
-    } else if (type === "ideas") {
-      const formatInstruction = format
-        ? `FORMAT SÉLECTIONNÉ : ${format}`
-        : "FORMAT SÉLECTIONNÉ : aucun, propose le format le plus adapté pour chaque idée";
-      const sujetInstruction = sujet || "aucun, propose des idées variées";
+        const accrocheRulePart = objectif
+          ? `4. 3 ACCROCHES avec chacune 2 versions :\n   - Version COURTE (max 15 mots)\n   - Version LONGUE (2-4 phrases)`
+          : "";
 
-      let accrocheInstruction = "";
-      if (objectif && ACCROCHE_BANK[objectif]) {
-        const accroches = ACCROCHE_BANK[objectif];
-        accrocheInstruction = `\nSTYLES D'ACCROCHES RECOMMANDÉS POUR L'OBJECTIF \"${objectif.toUpperCase()}\" :
-${accroches.map((a, i) => `${i + 1}. ${a}`).join("\n")}
-
-Pour chaque idée, propose aussi 2 ACCROCHES concrètes inspirées de ces styles.`;
-      }
-
-      const objectifInstruction = objectif
-        ? `\nOBJECTIF DE COMMUNICATION : ${objectif} (${objectif === "visibilite" ? "faire découvrir, attirer de nouveaux abonnés" : objectif === "confiance" ? "créer du lien, fidéliser, humaniser" : objectif === "vente" ? "convertir, donner envie d'acheter" : "montrer l'expertise, légitimer"})`
-        : "";
-
-      systemPrompt = `Tu es un·e expert·e en stratégie de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.
+        systemPrompt = `Tu es un·e expert·e en stratégie de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.
 
 PROFIL DE L'UTILISATRICE :
 ${fullContext}
@@ -217,11 +213,9 @@ Propose exactement 5 idées de posts ${canalLabel} adaptées à son activité, s
 
 Pour chaque idée, donne :
 1. Un TITRE accrocheur
-2. Le FORMAT recommandé parmi : Storytelling, Mythe à déconstruire, Coup de gueule, Enquête/décryptage, Conseil contre-intuitif, Test grandeur nature, Before/After, Histoire cliente, Regard philosophique, Surf sur l'actu, Identification / quotidien, Build in public, Analyse en profondeur
+2. Le FORMAT recommandé
 3. Un ANGLE ou ACCROCHE possible
-${objectif ? `4. 3 ACCROCHES avec chacune 2 versions :
-   - Version COURTE (max 15 mots)
-   - Version LONGUE (2-4 phrases)` : ""}
+${accrocheRulePart}
 
 RÈGLES :
 - Varie les formats
@@ -237,180 +231,40 @@ IMPORTANT : Réponds UNIQUEMENT en JSON :
   {
     "titre": "...",
     "format": "...",
-    "angle": "..."${objectif ? ',
-    "accroches": [{"short": "...", "long": "..."}, {"short": "...", "long": "..."}, {"short": "...", "long": "..."}]' : ""}
+    "angle": "..."${accrocheJsonPart}
   }
 ]`;
-      userPrompt = `Propose-moi 5 idées de posts ${canalLabel}.`;
+        userPrompt = `Propose-moi 5 idées de posts ${canalLabel}.`;
 
-    } else if (type === "bio") {
-      systemPrompt = `Tu es un·e expert·e en personal branding Instagram pour des solopreneuses éthiques et créatives.
+      } else if (type === "bio") {
+        systemPrompt = `Tu es un·e expert·e en personal branding Instagram pour des solopreneuses éthiques et créatives.\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONSIGNE :\nGénère exactement 2 versions de bio Instagram pour cette utilisatrice.\n\nVERSION 1 : Bio structurée & claire\nFormat strict ligne par ligne :\n- Ligne "nom_profil" : Prénom + mot-clé de l'activité\n- Ligne 1 : Ce qu'elle propose (commence par un emoji pertinent)\n- Ligne 2 : Ce qui la rend unique (commence par un emoji pertinent)\n- Ligne 3 : Appel à l'action (commence par un emoji pertinent, termine par ⤵️)\n\nVERSION 2 : Bio créative & incarnée\nMême structure mais avec un ton plus libre, poétique, avec de l'humour ou de la personnalité.\n\nRÈGLES :\n- Maximum 150 caractères par ligne\n- Écriture inclusive avec point médian\n- Pas de hashtags dans la bio\n- Pas de tiret cadratin\n\nIMPORTANT : Réponds UNIQUEMENT en JSON :\n{"structured": {"nom_profil": "...", "ligne1": "...", "ligne2": "...", "ligne3": "..."}, "creative": {"nom_profil": "...", "ligne1": "...", "ligne2": "...", "ligne3": "..."}}`;
+        userPrompt = "Génère 2 versions de bio Instagram pour moi.";
 
-PROFIL DE L'UTILISATRICE :
-${fullContext}
+      } else if (type === "launch-ideas") {
+        systemPrompt = `Tu es expert·e en stratégie de lancement Instagram pour des solopreneuses éthiques.\n\nPROFIL :\n${fullContext}\n\nLANCEMENT :\n- Nom : ${(profile || {}).launch_name || ""}\n- Promesse : ${(profile || {}).launch_promise || ""}\n- Objections anticipées : ${(profile || {}).launch_objections || ""}\n\nCONTENUS SÉLECTIONNÉS : ${((profile || {}).launch_selected_contents || []).join(", ")}\n\nPour chaque contenu sélectionné, propose :\n- 1 accroche (hook) percutante\n- 1 suggestion de CTA\n- Le format recommandé\n\nTon direct, chaleureux, oral assumé. Écriture inclusive avec point médian.\n\nRéponds UNIQUEMENT en JSON :\n[{"content_type": "...", "hook": "...", "cta": "...", "format": "..."}]`;
+        userPrompt = "Génère des idées de contenu pour mon lancement.";
 
-CONSIGNE :
-Génère exactement 2 versions de bio Instagram pour cette utilisatrice.
+      } else if (type === "redaction-structure") {
+        systemPrompt = `Tu es un·e expert·e en création de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nFORMAT CHOISI : ${format}\nSUJET DU POST : ${sujet}\n\nPropose une STRUCTURE DÉTAILLÉE pour ce post, étape par étape.\n\nPour chaque étape/slide, donne :\n- Le rôle de cette partie\n- Ce qu'il faut y mettre concrètement\n- Un exemple\n\nSois concrète et actionnable. Écriture inclusive avec point médian.\n\nRéponds en texte structuré lisible.`;
+        userPrompt = `Propose-moi une structure détaillée pour un post "${format}" sur : "${sujet}"`;
 
-VERSION 1 : Bio structurée & claire
-Format strict ligne par ligne :
-- Ligne "nom_profil" : Prénom + mot-clé de l'activité
-- Ligne 1 : Ce qu'elle propose (commence par un emoji pertinent)
-- Ligne 2 : Ce qui la rend unique (commence par un emoji pertinent)
-- Ligne 3 : Appel à l'action (commence par un emoji pertinent, termine par ⤵️)
+      } else if (type === "redaction-accroches") {
+        systemPrompt = `Tu es un·e expert·e en copywriting ${canalLabel} pour des solopreneuses éthiques et créatives.\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nFORMAT : ${format}\nSUJET : ${sujet}\n${objectif ? `OBJECTIF : ${objectif}` : ""}\n\nPropose exactement 3 accroches différentes pour ce post.\n\nVarie les styles :\n- Une accroche percutante/polarisante\n- Une accroche storytelling/émotionnelle\n- Une accroche question/identification\n\nRÈGLES :\n- Écriture inclusive avec point médian\n- Pas de tiret cadratin\n- Pas d'emojis\n\nRéponds UNIQUEMENT en JSON :\n["accroche 1", "accroche 2", "accroche 3"]`;
+        userPrompt = `Propose 3 accroches pour un post "${format}" sur "${sujet}".`;
 
-VERSION 2 : Bio créative & incarnée
-Même structure mais avec un ton plus libre, poétique, avec de l'humour ou de la personnalité.
+      } else if (type === "redaction-draft") {
+        systemPrompt = `Tu es un·e expert·e en création de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nFORMAT : ${format}\nSUJET : ${sujet}\n${structureInput ? `STRUCTURE :\n${structureInput}` : ""}\n${accrocheInput ? `ACCROCHE CHOISIE :\n${accrocheInput}` : ""}\n${angleInput ? `ANGLE :\n${angleInput}` : ""}\n\nRédige le post complet, prêt à être publié.\n\nRÈGLES :\n- Écriture inclusive avec point médian\n- Pas de tiret cadratin\n- Le ton doit correspondre au style de l'utilisatrice\n- Si elle a des expressions clés, utilise-les naturellement\n\nRéponds avec le texte du post uniquement.`;
+        userPrompt = "Rédige le post complet.";
 
-RÈGLES :
-- Maximum 150 caractères par ligne
-- Écriture inclusive avec point médian
-- Pas de hashtags dans la bio
-- Pas de tiret cadratin
-
-IMPORTANT : Réponds UNIQUEMENT en JSON :
-{
-  "structured": {
-    "nom_profil": "...",
-    "ligne1": "...",
-    "ligne2": "...",
-    "ligne3": "..."
-  },
-  "creative": {
-    "nom_profil": "...",
-    "ligne1": "...",
-    "ligne2": "...",
-    "ligne3": "..."
-  }
-}`;
-      userPrompt = "Génère 2 versions de bio Instagram pour moi.";
-
-    } else if (type === "launch-ideas") {
-      systemPrompt = `Tu es expert·e en stratégie de lancement Instagram pour des solopreneuses éthiques.
-
-PROFIL :
-${fullContext}
-
-LANCEMENT :
-- Nom : ${profile.launch_name || ""}
-- Promesse : ${profile.launch_promise || ""}
-- Objections anticipées : ${profile.launch_objections || ""}
-- Durée teasing : ${profile.launch_teasing_start || "?"} au ${profile.launch_teasing_end || "?"}
-- Durée vente : ${profile.launch_sale_start || "?"} au ${profile.launch_sale_end || "?"}
-
-CONTENUS SÉLECTIONNÉS PAR L'UTILISATRICE : ${(profile.launch_selected_contents || []).join(", ")}
-
-Pour chaque contenu sélectionné, propose :
-- 1 accroche (hook) percutante
-- 1 suggestion de CTA
-- Le format recommandé
-
-Ton direct, chaleureux, oral assumé. Écriture inclusive avec point médian.
-
-IMPORTANT : Réponds UNIQUEMENT en JSON :
-[
-  {
-    "content_type": "...",
-    "hook": "...",
-    "cta": "...",
-    "format": "..."
-  }
-]`;
-      userPrompt = `Génère des idées de contenu pour mon lancement.`;
-
-    } else if (type === "redaction-structure") {
-      systemPrompt = `Tu es un·e expert·e en création de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.
-
-PROFIL DE L'UTILISATRICE :
-${fullContext}
-
-FORMAT CHOISI : ${format}
-SUJET DU POST : ${sujet}
-
-CONSIGNE :
-Propose une STRUCTURE DÉTAILLÉE pour ce post, étape par étape.
-
-Pour chaque étape/slide, donne :
-- Le rôle de cette partie
-- Ce qu'il faut y mettre concrètement
-- Un exemple
-
-Sois concrète et actionnable. Écriture inclusive avec point médian.
-
-Réponds en texte structuré lisible.`;
-      userPrompt = `Propose-moi une structure détaillée pour un post \"${format}\" sur : \"${sujet}\"`;
-
-    } else if (type === "redaction-accroches") {
-      systemPrompt = `Tu es un·e expert·e en copywriting ${canalLabel} pour des solopreneuses éthiques et créatives.
-
-PROFIL DE L'UTILISATRICE :
-${fullContext}
-
-FORMAT : ${format}
-SUJET : ${sujet}
-${objectif ? `OBJECTIF : ${objectif}` : ""}
-
-CONSIGNE :
-Propose exactement 3 accroches différentes pour ce post.
-
-Varie les styles :
-- Une accroche percutante/polarisante
-- Une accroche storytelling/émotionnelle
-- Une accroche question/identification
-
-RÈGLES :
-- Écriture inclusive avec point médian
-- Pas de tiret cadratin
-- Pas d'emojis
-
-IMPORTANT : Réponds UNIQUEMENT en JSON :
-["accroche 1", "accroche 2", "accroche 3"]`;
-      userPrompt = `Propose 3 accroches pour un post \"${format}\" sur \"${sujet}\".`;
-
-    } else if (type === "redaction-draft") {
-      systemPrompt = `Tu es un·e expert·e en création de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.
-
-PROFIL DE L'UTILISATRICE :
-${fullContext}
-
-FORMAT : ${format}
-SUJET : ${sujet}
-${structureInput ? `STRUCTURE :\n${structureInput}` : ""}
-${accrocheInput ? `ACCROCHE CHOISIE :\n${accrocheInput}` : ""}
-${angleInput ? `ANGLE :\n${angleInput}` : ""}
-
-CONSIGNE :
-Rédige le post complet, prêt à être publié.
-
-RÈGLES :
-- Écriture inclusive avec point médian
-- Pas de tiret cadratin
-- Le ton doit correspondre au style de l'utilisatrice
-- Si elle a des expressions clés, utilise-les naturellement
-
-Réponds avec le texte du post uniquement.`;
-      userPrompt = `Rédige le post complet.`;
-
-    } else if (type === "raw") {
-      const { prompt } = await req.json().catch(() => ({ prompt: "" }));
-      systemPrompt = "Tu es une assistante créative et bienveillante spécialisée dans le personal branding pour des solopreneuses éthiques et créatives. Écriture inclusive avec point médian.";
-      userPrompt = (await req.json().catch(() => ({ prompt: "" }))).prompt || "";
-      // Actually, re-read the body since we already parsed it
-    } else {
-      return new Response(
-        JSON.stringify({ error: "Type de requête non reconnu" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      } else {
+        return new Response(
+          JSON.stringify({ error: "Type de requête non reconnu" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
-    // Handle "raw" type specially - we already parsed the body above
-    if (type === "raw") {
-      const bodyData = await req.clone().json().catch(() => ({}));
-      systemPrompt = "Tu es une assistante créative et bienveillante spécialisée dans le personal branding pour des solopreneuses éthiques et créatives. Écriture inclusive avec point médian.";
-      userPrompt = bodyData.prompt || "";
-    }
-
-    const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -427,8 +281,15 @@ Réponds avec le texte du post uniquement.`;
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Trop de requêtes, réessaie dans un moment." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "Crédits épuisés, ajoute des crédits pour continuer." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       const errText = await response.text();
-      throw new Error(`AI API error: ${response.status} - ${errText}`);
+      console.error("AI gateway error:", response.status, errText);
+      throw new Error("Oups, l'IA n'a pas pu générer. Réessaie dans un instant.");
     }
 
     const result = await response.json();
@@ -439,8 +300,9 @@ Réponds avec le texte du post uniquement.`;
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e: any) {
+    console.error("generate-content error:", e);
     return new Response(
-      JSON.stringify({ error: e.message }),
+      JSON.stringify({ error: e.message || "Erreur inconnue" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
