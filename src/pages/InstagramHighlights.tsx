@@ -7,8 +7,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Check, Star } from "lucide-react";
+import { Check, Star } from "lucide-react";
 import { Link } from "react-router-dom";
+import SubPageHeader from "@/components/SubPageHeader";
 
 const ALL_CATEGORIES = [
   { id: "about", label: "À propos", emoji: "👋" },
@@ -162,10 +163,7 @@ export default function InstagramHighlights() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
-        <Link to="/instagram" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6">
-          <ArrowLeft className="h-4 w-4" />
-          Retour à Instagram
-        </Link>
+        <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Stories à la une" />
 
         <h1 className="font-display text-[26px] font-bold text-foreground">⭐ Stories à la une</h1>
         <p className="mt-2 text-sm text-muted-foreground mb-8">
