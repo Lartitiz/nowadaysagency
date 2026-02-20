@@ -4,12 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, RefreshCw, Bookmark, PenLine, Lightbulb, CalendarDays, Instagram, Target } from "lucide-react";
+import { Copy, RefreshCw, Bookmark, PenLine, Lightbulb, CalendarDays, Instagram, Target, Sparkles } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useSearchParams } from "react-router-dom";
 import { getInstagramFormatReco } from "@/lib/production-guides";
 import type { UserProfile } from "@/pages/Dashboard";
+import RedactionFlow from "@/components/RedactionFlow";
 
 const OBJECTIVES = [
   { id: "visibilite", label: "🔍 Visibilité", desc: "Faire découvrir", color: "bg-violet-100 text-violet-700 border-violet-300" },
@@ -65,6 +66,7 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
   const [savedIdx, setSavedIdx] = useState<Set<number>>(new Set());
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [redactionIdea, setRedactionIdea] = useState<Idea | null>(null);
 
   useEffect(() => {
     const urlCanal = searchParams.get("canal");
@@ -391,6 +393,14 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
                   {savedIdx.has(i) ? "Enregistré !" : "Enregistrer"}
                 </Button>
                 <PlanifierButton idea={idea} userId={user?.id} toast={toast} />
+                <Button
+                  size="sm"
+                  onClick={() => setRedactionIdea(idea)}
+                  className="rounded-full gap-1.5 bg-primary text-primary-foreground hover:bg-bordeaux"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Rédiger ce contenu
+                </Button>
               </div>
             </div>
           ))}
@@ -414,6 +424,17 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
           <p className="text-muted-foreground font-medium">Tes prochaines idées de contenu t'attendent ici</p>
           <p className="text-sm text-muted-foreground/60 mt-1">Choisis un objectif, un angle, ou donne un thème pour commencer</p>
         </div>
+      )}
+
+      {/* Redaction Flow */}
+      {redactionIdea && (
+        <RedactionFlow
+          idea={redactionIdea}
+          profile={profile}
+          canal={canal}
+          objectif={objectif || ""}
+          onClose={() => setRedactionIdea(null)}
+        />
       )}
     </div>
   );

@@ -87,7 +87,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { type, format, sujet, profile, canal, objectif } = await req.json();
+    const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput } = await req.json();
 
     const canalLabel = canal === "linkedin" ? "LinkedIn" : canal === "blog" ? "un article de blog" : canal === "pinterest" ? "Pinterest" : "Instagram";
     const profileBlock = buildProfileBlock(profile || {});
@@ -254,6 +254,107 @@ IMPORTANT : Réponds UNIQUEMENT en JSON, sans aucun texte avant ou après, sans 
   }
 ]`;
       userPrompt = `Génère des idées de contenu pour mon lancement.`;
+
+    } else if (type === "redaction-structure") {
+      systemPrompt = `Tu es un·e expert·e en création de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.
+
+PROFIL DE L'UTILISATRICE :
+${profileBlock}
+
+FORMAT CHOISI : ${format}
+SUJET DU POST : ${sujet}
+
+CONSIGNE :
+Propose une STRUCTURE DÉTAILLÉE pour ce post, étape par étape (ou slide par slide pour un carrousel).
+
+Pour chaque étape/slide, donne :
+- Le rôle de cette partie (ex : "Slide 1 : l'accroche")
+- Ce qu'il faut y mettre concrètement (1-2 phrases d'instruction claire)
+- Un exemple de ce que ça pourrait donner
+
+La structure doit être adaptée au format "${format}" et au canal ${canalLabel}.
+
+RÈGLES :
+- Sois concrète et actionnable, pas de consignes vagues
+- Adapte le nombre d'étapes au format (carrousel 8 slides, reel 4-6 séquences, post texte 4-5 parties)
+- Écriture inclusive avec point médian
+- Pas de tiret cadratin
+- Ton chaleureux et direct
+
+Réponds en texte structuré lisible (pas de JSON), avec des retours à la ligne clairs.`;
+      userPrompt = `Propose-moi une structure détaillée pour un post "${format}" sur : "${sujet}"`;
+
+    } else if (type === "redaction-accroches") {
+      systemPrompt = `Tu es un·e expert·e en copywriting ${canalLabel} pour des solopreneuses éthiques et créatives.
+
+PROFIL DE L'UTILISATRICE :
+${profileBlock}
+
+FORMAT : ${format}
+SUJET : ${sujet}
+${objectif ? `OBJECTIF : ${objectif}` : ""}
+
+CONSIGNE :
+Propose exactement 3 accroches (hooks) différentes pour ce post. Chaque accroche doit :
+- Être une phrase complète, prête à être postée
+- Donner immédiatement envie de lire la suite
+- Correspondre au ton et style de l'utilisatrice
+- Si elle a des expressions clés, les utiliser naturellement
+
+Varie les styles d'accroches :
+- Une accroche percutante/polarisante
+- Une accroche storytelling/émotionnelle
+- Une accroche question/identification
+
+RÈGLES :
+- Écriture inclusive avec point médian
+- Pas de tiret cadratin
+- Pas d'emojis
+- Le ton doit sonner naturel, comme une conversation
+
+IMPORTANT : Réponds UNIQUEMENT en JSON, un tableau de 3 strings, sans backticks markdown :
+["accroche 1", "accroche 2", "accroche 3"]`;
+      userPrompt = `Propose 3 accroches pour un post "${format}" sur "${sujet}".`;
+
+    } else if (type === "redaction-draft") {
+      systemPrompt = `Tu es un·e expert·e en création de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.
+
+PROFIL DE L'UTILISATRICE :
+${profileBlock}
+
+FORMAT : ${format}
+SUJET : ${sujet}
+${objectif ? `OBJECTIF : ${objectif}` : ""}
+
+STRUCTURE À SUIVRE :
+${structureInput || "Structure libre"}
+
+ACCROCHE CHOISIE PAR L'UTILISATRICE :
+${accrocheInput || "Aucune accroche pré-sélectionnée, propose-en une"}
+
+CONSIGNE :
+Rédige un PREMIER JET COMPLET de ce post ${canalLabel}.
+
+- Commence par l'accroche choisie (ou propose-en une si aucune n'a été sélectionnée)
+- Suis la structure proposée
+- Utilise le ton et les expressions de l'utilisatrice
+- Intègre naturellement les verbatims de sa cible si pertinent
+- Adapte la longueur au format ${canalLabel} et au type de contenu "${format}"
+- Pour un carrousel : rédige le texte slide par slide (indique "Slide 1:", "Slide 2:", etc.)
+- Pour un post texte : rédige la caption complète
+- Pour un reel : rédige le script voix off ou les textes à l'écran
+- Finis par une ouverture (question, invitation à réagir) pas un CTA commercial agressif
+
+RÈGLES ABSOLUES :
+- Écriture inclusive avec point médian
+- Pas de tiret cadratin, utiliser : ou ;
+- Pas d'emojis dans le corps du texte (sauf pour les stories)
+- Le texte doit sonner NATUREL, comme si l'utilisatrice l'avait écrit elle-même
+- N'utilise JAMAIS les termes/approches listés dans "ce qu'on évite"
+- Pas de jargon marketing
+
+Réponds directement avec le contenu rédigé (pas de JSON, pas de markdown), prêt à être copié-collé.`;
+      userPrompt = `Rédige le premier jet complet de ce post "${format}" sur "${sujet}".`;
 
     } else {
       systemPrompt = `Tu es un·e expert·e en création de contenu Instagram.`;
