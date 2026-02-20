@@ -1,0 +1,1 @@
+ALTER TABLE brand_profile ADD COLUMN IF NOT EXISTS voice_description TEXT DEFAULT '';

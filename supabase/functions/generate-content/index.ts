@@ -30,7 +30,7 @@ async function buildBrandingContext(supabase: any, userId: string): Promise<stri
   const [stRes, perRes, toneRes, propRes, nicheRes, stratRes] = await Promise.all([
     supabase.from("storytelling").select("step_7_polished").eq("user_id", userId).maybeSingle(),
     supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_profile").select("tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq("user_id", userId).maybeSingle(),
+    supabase.from("brand_profile").select("voice_description, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_proposition").select("version_final, version_complete").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_niche").select("version_final, version_pitch, step_1a_cause").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept").eq("user_id", userId).maybeSingle(),
@@ -61,6 +61,7 @@ async function buildBrandingContext(supabase: any, userId: string): Promise<stri
   const t = toneRes.data;
   if (t) {
     const tl: string[] = [];
+    if (t.voice_description) tl.push(`- Comment elle parle : ${t.voice_description}`);
     const reg = [t.tone_register, t.tone_level, t.tone_style].filter(Boolean).join(" - ");
     if (reg) tl.push(`- Registre : ${reg}`);
     if (t.tone_humor) tl.push(`- Humour : ${t.tone_humor}`);
