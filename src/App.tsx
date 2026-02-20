@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -40,14 +40,8 @@ const App = () => (
             <Route path="/dashboard" element={
               <ProtectedRoute><Dashboard /></ProtectedRoute>
             } />
-            <Route path="/atelier" element={
-              <ProtectedRoute><Dashboard /></ProtectedRoute>
-            } />
             <Route path="/plan" element={
               <ProtectedRoute><PlanPage /></ProtectedRoute>
-            } />
-            <Route path="/calendrier" element={
-              <ProtectedRoute><Calendar /></ProtectedRoute>
             } />
             <Route path="/profil" element={
               <ProtectedRoute><Profile /></ProtectedRoute>
@@ -65,9 +59,18 @@ const App = () => (
             <Route path="/instagram/inspiration" element={
               <ProtectedRoute><InstagramInspiration /></ProtectedRoute>
             } />
+            <Route path="/instagram/atelier" element={
+              <ProtectedRoute><Dashboard /></ProtectedRoute>
+            } />
+            <Route path="/instagram/calendrier" element={
+              <ProtectedRoute><Calendar /></ProtectedRoute>
+            } />
             <Route path="/instagram/lancement" element={
               <ProtectedRoute><InstagramLaunch /></ProtectedRoute>
             } />
+            {/* Redirects from old routes */}
+            <Route path="/atelier" element={<Navigate to="/instagram/atelier" replace />} />
+            <Route path="/calendrier" element={<Navigate to="/instagram/calendrier" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

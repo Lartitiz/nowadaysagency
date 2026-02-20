@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
+import SubPageHeader from "@/components/SubPageHeader";
 import WeeklyRecap from "@/components/WeeklyRecap";
 import PlanMiniRecap from "@/components/PlanMiniRecap";
 import { Lightbulb, CalendarDays, ClipboardList, ArrowRight } from "lucide-react";
@@ -50,6 +51,8 @@ const CONSEILS = [
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const location = useLocation();
+  const isAtelierRoute = location.pathname.startsWith("/instagram/atelier");
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [planTasks, setPlanTasks] = useState<any[]>([]);
 
@@ -138,6 +141,9 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4">
+        {isAtelierRoute && (
+          <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Atelier d'idées" />
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
           {/* LEFT COLUMN */}
           <div className="space-y-6 min-w-0">
@@ -155,14 +161,14 @@ export default function Dashboard() {
             {/* Quick actions */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Link
-                to="/atelier"
+                to="/instagram/atelier"
                 className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary hover:shadow-sm transition-all group"
               >
                 <Lightbulb className="h-5 w-5 text-primary shrink-0" />
                 <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">Trouver une idée</span>
               </Link>
               <Link
-                to="/calendrier"
+                to="/instagram/calendrier"
                 className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary hover:shadow-sm transition-all group"
               >
                 <CalendarDays className="h-5 w-5 text-primary shrink-0" />
