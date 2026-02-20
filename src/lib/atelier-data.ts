@@ -64,7 +64,7 @@ export const CANAUX = [
   { id: "instagram", label: "Instagram", enabled: true },
   { id: "linkedin", label: "LinkedIn", enabled: true },
   { id: "newsletter", label: "Newsletter", enabled: false },
-  { id: "pinterest", label: "Pinterest", enabled: false },
+  { id: "pinterest", label: "Pinterest", enabled: true },
 ];
 
 // ── Reco explainer text ──
