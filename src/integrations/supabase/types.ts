@@ -388,6 +388,105 @@ export type Database = {
           },
         ]
       }
+      engagement_exercise: {
+        Row: {
+          completed: boolean | null
+          created_at: string | null
+          follower_1_done: boolean | null
+          follower_1_name: string | null
+          follower_2_done: boolean | null
+          follower_2_name: string | null
+          follower_3_done: boolean | null
+          follower_3_name: string | null
+          follower_4_done: boolean | null
+          follower_4_name: string | null
+          follower_5_done: boolean | null
+          follower_5_name: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string | null
+          follower_1_done?: boolean | null
+          follower_1_name?: string | null
+          follower_2_done?: boolean | null
+          follower_2_name?: string | null
+          follower_3_done?: boolean | null
+          follower_3_name?: string | null
+          follower_4_done?: boolean | null
+          follower_4_name?: string | null
+          follower_5_done?: boolean | null
+          follower_5_name?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string | null
+          follower_1_done?: boolean | null
+          follower_1_name?: string | null
+          follower_2_done?: boolean | null
+          follower_2_name?: string | null
+          follower_3_done?: boolean | null
+          follower_3_name?: string | null
+          follower_4_done?: boolean | null
+          follower_4_name?: string | null
+          follower_5_done?: boolean | null
+          follower_5_name?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      engagement_weekly: {
+        Row: {
+          comments_done: number | null
+          comments_target: number | null
+          created_at: string | null
+          dm_done: number | null
+          dm_target: number | null
+          id: string
+          objective: number | null
+          replies_done: number | null
+          replies_target: number | null
+          total_done: number | null
+          updated_at: string | null
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          comments_done?: number | null
+          comments_target?: number | null
+          created_at?: string | null
+          dm_done?: number | null
+          dm_target?: number | null
+          id?: string
+          objective?: number | null
+          replies_done?: number | null
+          replies_target?: number | null
+          total_done?: number | null
+          updated_at?: string | null
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          comments_done?: number | null
+          comments_target?: number | null
+          created_at?: string | null
+          dm_done?: number | null
+          dm_target?: number | null
+          id?: string
+          objective?: number | null
+          replies_done?: number | null
+          replies_target?: number | null
+          total_done?: number | null
+          updated_at?: string | null
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       generated_posts: {
         Row: {
           added_to_plan: boolean
@@ -946,6 +1045,54 @@ export type Database = {
           label?: string
           order_index?: number
           period?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_rhythm: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_mode: string | null
+          posts_per_week: number | null
+          preferred_slots: string | null
+          stories_per_day: number | null
+          time_available_weekly: number | null
+          time_ideas_monthly: number | null
+          time_scheduling_per_content: number | null
+          time_texts_per_content: number | null
+          time_visuals_per_content: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_mode?: string | null
+          posts_per_week?: number | null
+          preferred_slots?: string | null
+          stories_per_day?: number | null
+          time_available_weekly?: number | null
+          time_ideas_monthly?: number | null
+          time_scheduling_per_content?: number | null
+          time_texts_per_content?: number | null
+          time_visuals_per_content?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_mode?: string | null
+          posts_per_week?: number | null
+          preferred_slots?: string | null
+          stories_per_day?: number | null
+          time_available_weekly?: number | null
+          time_ideas_monthly?: number | null
+          time_scheduling_per_content?: number | null
+          time_texts_per_content?: number | null
+          time_visuals_per_content?: number | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
