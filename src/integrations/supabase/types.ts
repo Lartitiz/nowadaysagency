@@ -160,11 +160,17 @@ export type Database = {
           step_3_for_whom: string | null
           updated_at: string | null
           user_id: string
+          version_bio: string | null
           version_complete: string | null
           version_emotional: string | null
+          version_engagee: string | null
           version_final: string | null
+          version_networking: string | null
+          version_one_liner: string | null
           version_pitch: string | null
+          version_pitch_naturel: string | null
           version_short: string | null
+          version_site_web: string | null
         }
         Insert: {
           completed?: boolean | null
@@ -179,11 +185,17 @@ export type Database = {
           step_3_for_whom?: string | null
           updated_at?: string | null
           user_id: string
+          version_bio?: string | null
           version_complete?: string | null
           version_emotional?: string | null
+          version_engagee?: string | null
           version_final?: string | null
+          version_networking?: string | null
+          version_one_liner?: string | null
           version_pitch?: string | null
+          version_pitch_naturel?: string | null
           version_short?: string | null
+          version_site_web?: string | null
         }
         Update: {
           completed?: boolean | null
@@ -198,11 +210,17 @@ export type Database = {
           step_3_for_whom?: string | null
           updated_at?: string | null
           user_id?: string
+          version_bio?: string | null
           version_complete?: string | null
           version_emotional?: string | null
+          version_engagee?: string | null
           version_final?: string | null
+          version_networking?: string | null
+          version_one_liner?: string | null
           version_pitch?: string | null
+          version_pitch_naturel?: string | null
           version_short?: string | null
+          version_site_web?: string | null
         }
         Relationships: []
       }

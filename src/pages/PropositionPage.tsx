@@ -18,10 +18,12 @@ interface PropositionData {
   step_2c_feedback: string;
   step_2d_refuse: string;
   step_3_for_whom: string;
-  version_complete: string;
-  version_short: string;
-  version_emotional: string;
-  version_pitch: string;
+  version_pitch_naturel: string;
+  version_bio: string;
+  version_networking: string;
+  version_site_web: string;
+  version_engagee: string;
+  version_one_liner: string;
   version_final: string;
   current_step: number;
   completed: boolean;
@@ -29,8 +31,10 @@ interface PropositionData {
 
 const EMPTY: PropositionData = {
   step_1_what: "", step_2a_process: "", step_2b_values: "", step_2c_feedback: "",
-  step_2d_refuse: "", step_3_for_whom: "", version_complete: "", version_short: "",
-  version_emotional: "", version_pitch: "", version_final: "",
+  step_2d_refuse: "", step_3_for_whom: "",
+  version_pitch_naturel: "", version_bio: "", version_networking: "",
+  version_site_web: "", version_engagee: "", version_one_liner: "",
+  version_final: "",
   current_step: 1, completed: false,
 };
 
@@ -39,6 +43,15 @@ const STEPS = [
   { number: 2, icon: "🌟", title: "Ce qui te rend unique" },
   { number: 3, icon: "🔍", title: "Pour qui et ce que tu apportes" },
   { number: 4, icon: "💌", title: "Assemble ta proposition de valeur" },
+];
+
+const VERSION_CARDS = [
+  { key: "version_pitch_naturel" as const, icon: "☕", label: "PITCH NATUREL", usage: "Pour : expliquer ton métier à une amie" },
+  { key: "version_bio" as const, icon: "📱", label: "BIO", usage: "Pour : Instagram, LinkedIn, partout" },
+  { key: "version_networking" as const, icon: "🎤", label: "PITCH NETWORKING", usage: "Pour : quand on te demande \"tu fais quoi ?\"" },
+  { key: "version_site_web" as const, icon: "🌐", label: "SITE WEB", usage: "Pour : ta page d'accueil" },
+  { key: "version_engagee" as const, icon: "🔥", label: "ENGAGÉE", usage: "Pour : post LinkedIn, newsletter, page À propos" },
+  { key: "version_one_liner" as const, icon: "✨", label: "ONE-LINER", usage: "Pour : signature email, sticker, tote bag" },
 ];
 
 export default function PropositionPage() {
@@ -80,7 +93,6 @@ export default function PropositionPage() {
       setPersona(perRes.data || null);
       setStorytelling(stRes.data || null);
       setTone(toneRes.data || null);
-      // Pre-fill step 1 from profile
       if (!propRes.data?.step_1_what && profRes.data?.activite) {
         setData(prev => ({ ...prev, step_1_what: profRes.data.activite }));
       }
@@ -194,10 +206,12 @@ export default function PropositionPage() {
       const parsed = JSON.parse(raw);
       const updated = {
         ...data,
-        version_complete: parsed.complete || "",
-        version_short: parsed.short_indicative || "",
-        version_emotional: parsed.emotional || "",
-        version_pitch: parsed.pitch_express || "",
+        version_pitch_naturel: parsed.pitch_naturel || "",
+        version_bio: parsed.bio || "",
+        version_networking: parsed.networking || "",
+        version_site_web: parsed.site_web || "",
+        version_engagee: parsed.engagee || "",
+        version_one_liner: parsed.one_liner || "",
       };
       setData(updated);
       debouncedSave(updated);
@@ -207,8 +221,8 @@ export default function PropositionPage() {
     setAiLoading(false);
   };
 
-  const selectFavorite = (version: string, text: string) => {
-    setFavorite(version);
+  const selectFavorite = (versionKey: string, text: string) => {
+    setFavorite(versionKey);
     updateField("version_final", text);
   };
 
@@ -217,11 +231,13 @@ export default function PropositionPage() {
     toast({ title: "Copié !" });
   };
 
+  const hasAnyVersion = VERSION_CARDS.some(v => data[v.key]?.trim());
+
   const filledSteps = [
     data.step_1_what,
     data.step_2a_process || data.step_2b_values,
     data.step_3_for_whom,
-    data.version_final || data.version_complete,
+    data.version_final || data.version_pitch_naturel,
   ].filter(s => s && s.trim().length > 0).length;
 
   if (loading) return (
@@ -236,13 +252,6 @@ export default function PropositionPage() {
     { key: "step_2b_values", label: "Qu'est-ce qui est important pour toi dans ta façon de faire ?", aide: "Parle de tes valeurs, de ce à quoi tu fais attention.", placeholder: "Je refuse le plastique. Je cherche la durabilité..." },
     { key: "step_2c_feedback", label: "Qu'est-ce que tes client·es te disent souvent ?", aide: "Repense aux compliments, retours, messages... Les mots exacts.", placeholder: "J'adore le toucher de ce cuir. C'est la première fois que..." },
     { key: "step_2d_refuse", label: "Que refuses-tu de faire ?", aide: "Parce que dire non, c'est aussi se positionner.", placeholder: "Je ne fais pas de production en série..." },
-  ];
-
-  const versions = [
-    { key: "version_complete", label: "Version complète", text: data.version_complete },
-    { key: "version_short", label: "Courte à l'indicatif", text: data.version_short },
-    { key: "version_emotional", label: "Émotionnelle", text: data.version_emotional },
-    { key: "version_pitch", label: "Pitch express", text: data.version_pitch },
   ];
 
   return (
@@ -399,39 +408,48 @@ export default function PropositionPage() {
               <span className="text-2xl">💌</span>
               <h2 className="font-display text-xl font-bold text-foreground">Écris ta proposition de valeur</h2>
             </div>
-            <p className="text-[15px] text-foreground leading-relaxed mb-4">On assemble tout. L'IA va te proposer plusieurs versions à partir de ce que tu as écrit.</p>
+            <p className="text-[15px] text-foreground leading-relaxed mb-4">On assemble tout. L'IA va te proposer 6 versions différentes, chacune adaptée à un usage précis.</p>
 
             {/* Recap */}
             <div className="rounded-xl bg-rose-pale p-4 text-[13px] text-foreground leading-relaxed mb-4 space-y-2">
-              <p><span className="font-semibold">Ce que tu fais :</span> {data.step_1_what || "—"}</p>
-              <p><span className="font-semibold">Ce qui te rend unique :</span> {[data.step_2a_process, data.step_2b_values].filter(Boolean).join(" · ").slice(0, 200) || "—"}</p>
-              <p><span className="font-semibold">Pour qui et ce que tu apportes :</span> {data.step_3_for_whom?.slice(0, 200) || "—"}</p>
+              <p><span className="font-semibold">Ce que tu fais :</span> {data.step_1_what || "Non renseigné"}</p>
+              <p><span className="font-semibold">Ce qui te rend unique :</span> {[data.step_2a_process, data.step_2b_values].filter(Boolean).join(" · ").slice(0, 200) || "Non renseigné"}</p>
+              <p><span className="font-semibold">Pour qui et ce que tu apportes :</span> {data.step_3_for_whom?.slice(0, 200) || "Non renseigné"}</p>
             </div>
 
             <Button onClick={handleGenerateVersions} disabled={aiLoading} className="w-full rounded-pill h-12 text-base mb-4">
               {aiLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Génération en cours...</> : "✨ Générer ma proposition de valeur"}
             </Button>
 
-            {(data.version_complete || data.version_short || data.version_emotional || data.version_pitch) && (
+            {hasAnyVersion && (
               <>
                 <div className="space-y-3 mb-4">
-                  {versions.map((v) => v.text && (
-                    <div key={v.key} className={`rounded-xl border-2 p-4 transition-all ${favorite === v.key ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
-                      <p className="font-mono-ui text-[10px] font-semibold text-muted-foreground mb-2">{v.label}</p>
-                      <p className="text-[15px] text-foreground leading-relaxed mb-3">{v.text}</p>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => copyText(v.text)} className="rounded-pill text-[11px]">
-                          <Copy className="h-3 w-3 mr-1" /> Copier
-                        </Button>
-                        <Button variant={favorite === v.key ? "default" : "outline"} size="sm" onClick={() => selectFavorite(v.key, v.text)} className="rounded-pill text-[11px]">
-                          <Star className={`h-3 w-3 mr-1 ${favorite === v.key ? "fill-current" : ""}`} /> {favorite === v.key ? "Ma préférée" : "C'est ma préférée"}
-                        </Button>
+                  {VERSION_CARDS.map((v) => {
+                    const text = data[v.key];
+                    if (!text?.trim()) return null;
+                    const isFav = favorite === v.key;
+                    return (
+                      <div key={v.key} className={`rounded-xl border-2 p-4 transition-all ${isFav ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">{v.icon}</span>
+                          <p className="font-mono-ui text-[11px] font-bold text-foreground tracking-wide">{v.label}</p>
+                        </div>
+                        <p className="font-mono-ui text-[10px] text-muted-foreground mb-3">{v.usage}</p>
+                        <p className="text-[15px] text-foreground leading-relaxed mb-3">{text}</p>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => copyText(text)} className="rounded-pill text-[11px]">
+                            <Copy className="h-3 w-3 mr-1" /> Copier
+                          </Button>
+                          <Button variant={isFav ? "default" : "outline"} size="sm" onClick={() => selectFavorite(v.key, text)} className="rounded-pill text-[11px]">
+                            <Star className={`h-3 w-3 mr-1 ${isFav ? "fill-current" : ""}`} /> {isFav ? "Ma préférée" : "C'est ma préférée"}
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <Button variant="outline" onClick={handleGenerateVersions} disabled={aiLoading} className="rounded-pill text-sm mb-4">
-                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Regénérer
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Ces propositions ne me parlent pas, regénérer
                 </Button>
               </>
             )}
@@ -444,7 +462,7 @@ export default function PropositionPage() {
 
             {/* Final textarea */}
             <div className="mb-4">
-              <label className="font-display text-sm font-bold text-foreground block mb-2">Ma version finale</label>
+              <label className="font-display text-sm font-bold text-foreground block mb-2">Ma version finale (tu peux mixer, éditer, faire ta propre sauce) :</label>
               <textarea
                 value={data.version_final}
                 onChange={(e) => updateField("version_final", e.target.value)}
