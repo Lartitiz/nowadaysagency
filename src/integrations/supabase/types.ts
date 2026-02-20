@@ -80,6 +80,36 @@ export type Database = {
         }
         Relationships: []
       }
+      plan_tasks: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          is_completed: boolean
+          task_index: number
+          user_id: string
+          week_number: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          task_index: number
+          user_id: string
+          week_number: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          task_index?: number
+          user_id?: string
+          week_number?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           activite: string
@@ -88,6 +118,7 @@ export type Database = {
           id: string
           onboarding_completed: boolean
           piliers: string[]
+          plan_start_date: string | null
           prenom: string
           probleme_principal: string
           tons: string[]
@@ -102,6 +133,7 @@ export type Database = {
           id?: string
           onboarding_completed?: boolean
           piliers?: string[]
+          plan_start_date?: string | null
           prenom?: string
           probleme_principal?: string
           tons?: string[]
@@ -116,6 +148,7 @@ export type Database = {
           id?: string
           onboarding_completed?: boolean
           piliers?: string[]
+          plan_start_date?: string | null
           prenom?: string
           probleme_principal?: string
           tons?: string[]
