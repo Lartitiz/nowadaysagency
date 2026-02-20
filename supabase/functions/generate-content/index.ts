@@ -158,8 +158,42 @@ IMPORTANT : Réponds UNIQUEMENT en JSON, sans aucun texte avant ou après, sans 
   }
 }`;
       userPrompt = "Génère 2 versions de bio Instagram pour moi.";
+    } else if (type === "launch-ideas") {
+      systemPrompt = `Tu es expert·e en stratégie de lancement Instagram pour des solopreneuses éthiques.
+
+PROFIL :
+- Activité : ${profile.activite}
+- Cible : ${profile.cible}
+- Ton : ${(profile.tons || []).join(", ")}
+
+LANCEMENT :
+- Nom : ${profile.launch_name || ""}
+- Promesse : ${profile.launch_promise || ""}
+- Objections anticipées : ${profile.launch_objections || ""}
+- Durée teasing : ${profile.launch_teasing_start || "?"} au ${profile.launch_teasing_end || "?"}
+- Durée vente : ${profile.launch_sale_start || "?"} au ${profile.launch_sale_end || "?"}
+
+CONTENUS SÉLECTIONNÉS PAR L'UTILISATRICE : ${(profile.launch_selected_contents || []).join(", ")}
+
+Pour chaque contenu sélectionné, propose :
+- 1 accroche (hook) percutante
+- 1 suggestion de CTA (appel à l'action doux mais efficace)
+- Le format recommandé (reel, carrousel, story, post)
+
+Ton direct, chaleureux, oral assumé. Pas de jargon marketing. Écriture inclusive avec point médian.
+
+IMPORTANT : Réponds UNIQUEMENT en JSON, sans aucun texte avant ou après, sans backticks markdown. Format exact :
+[
+  {
+    "content_type": "...",
+    "hook": "...",
+    "cta": "...",
+    "format": "..."
+  }
+]`;
+      userPrompt = `Génère des idées de contenu pour mon lancement.`;
     } else {
-      // Legacy generate type - kept for compatibility
+      // Legacy generate type
       systemPrompt = `Tu es un·e expert·e en création de contenu Instagram.`;
       userPrompt = `Rédige un post Instagram au format "${format}" sur le sujet : "${sujet}"`;
     }

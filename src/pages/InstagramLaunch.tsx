@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { Copy, Sparkles } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,13 @@ const CONTENT_IDEAS = [
   "Post : bonus early bird",
   "Story : dernière chance",
 ];
+
+interface LaunchIdea {
+  content_type: string;
+  hook: string;
+  cta: string;
+  format: string;
+}
 
 interface LaunchData {
   id?: string;
@@ -107,6 +115,10 @@ export default function InstagramLaunch() {
   const [launch, setLaunch] = useState<LaunchData>({ ...EMPTY_LAUNCH });
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [generatingIdeas, setGeneratingIdeas] = useState(false);
+  const [launchIdeas, setLaunchIdeas] = useState<LaunchIdea[]>([]);
+  const [copiedIdeaIdx, setCopiedIdeaIdx] = useState<number | null>(null);
+  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -137,6 +149,14 @@ export default function InstagramLaunch() {
       });
   }, [user]);
 
+  // Fetch profile for AI prompts
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("*").eq("user_id", user.id).single().then(({ data }) => {
+      if (data) setProfile(data);
+    });
+  }, [user]);
+
   const update = (field: keyof LaunchData, value: any) => setLaunch((prev) => ({ ...prev, [field]: value }));
 
   const toggleContent = (c: string) => {
@@ -144,6 +164,53 @@ export default function InstagramLaunch() {
       const has = prev.selected_contents.includes(c);
       return { ...prev, selected_contents: has ? prev.selected_contents.filter((x) => x !== c) : [...prev.selected_contents, c] };
     });
+  };
+
+  const generateLaunchIdeas = async () => {
+    if (!user || !profile || launch.selected_contents.length === 0) return;
+    setGeneratingIdeas(true);
+    setLaunchIdeas([]);
+    try {
+      const res = await supabase.functions.invoke("generate-content", {
+        body: {
+          type: "launch-ideas",
+          profile: {
+            activite: profile.activite,
+            cible: profile.cible,
+            tons: profile.tons,
+            launch_name: launch.name,
+            launch_promise: launch.promise,
+            launch_objections: launch.objections,
+            launch_teasing_start: launch.teasing_start,
+            launch_teasing_end: launch.teasing_end,
+            launch_sale_start: launch.sale_start,
+            launch_sale_end: launch.sale_end,
+            launch_selected_contents: launch.selected_contents,
+          },
+        },
+      });
+      if (res.error) throw new Error(res.error.message);
+      const content = res.data?.content || "";
+      let parsed: LaunchIdea[];
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        const match = content.match(/\[[\s\S]*\]/);
+        if (match) parsed = JSON.parse(match[0]);
+        else throw new Error("Format de réponse inattendu");
+      }
+      setLaunchIdeas(parsed);
+    } catch (e: any) {
+      toast.error(e.message || "Erreur lors de la génération");
+    } finally {
+      setGeneratingIdeas(false);
+    }
+  };
+
+  const copyIdea = async (idea: LaunchIdea, idx: number) => {
+    await navigator.clipboard.writeText(`${idea.content_type}\nAccroche : ${idea.hook}\nCTA : ${idea.cta}\nFormat : ${idea.format}`);
+    setCopiedIdeaIdx(idx);
+    setTimeout(() => setCopiedIdeaIdx(null), 1500);
   };
 
   const save = async () => {
@@ -305,6 +372,57 @@ export default function InstagramLaunch() {
                 <p className="text-xs text-muted-foreground mt-2">
                   {launch.selected_contents.length} contenu{launch.selected_contents.length > 1 ? "s" : ""} sélectionné{launch.selected_contents.length > 1 ? "s" : ""}
                 </p>
+
+                {/* AI Generate button */}
+                {launch.selected_contents.length > 0 && (
+                  <Button
+                    onClick={generateLaunchIdeas}
+                    disabled={generatingIdeas}
+                    className="mt-4 rounded-full gap-2"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {generatingIdeas ? "Génération en cours..." : "✨ Générer des idées pour ces contenus"}
+                  </Button>
+                )}
+
+                {/* Loading */}
+                {generatingIdeas && (
+                  <div className="flex items-center gap-3 py-8 justify-center animate-fade-in">
+                    <div className="flex gap-1">
+                      <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce" />
+                      <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0.16s" }} />
+                      <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0.32s" }} />
+                    </div>
+                    <span className="text-sm italic text-muted-foreground">L'IA prépare tes idées de lancement...</span>
+                  </div>
+                )}
+
+                {/* Generated ideas */}
+                {launchIdeas.length > 0 && !generatingIdeas && (
+                  <div className="space-y-3 mt-4 animate-fade-in">
+                    <p className="text-sm font-medium text-foreground">💡 Idées générées par l'IA :</p>
+                    {launchIdeas.map((idea, i) => (
+                      <div key={i} className="rounded-xl border border-border bg-card p-4 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-bold text-sm text-foreground">{idea.content_type}</p>
+                          <Badge variant="secondary" className="text-xs shrink-0">{idea.format}</Badge>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">Accroche</p>
+                          <p className="text-sm text-foreground">{idea.hook}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">CTA</p>
+                          <p className="text-sm text-foreground italic">{idea.cta}</p>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => copyIdea(idea, i)} className="rounded-full gap-1.5 mt-1">
+                          <Copy className="h-3.5 w-3.5" />
+                          {copiedIdeaIdx === i ? "Copié !" : "Copier"}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             )}
 
