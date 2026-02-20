@@ -162,9 +162,12 @@ export default function InstagramBio() {
             {/* Guide content */}
             {guideOption === "structured" ? (
               <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
+                <span className="inline-block font-mono-ui text-[11px] font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-3 py-1 rounded-pill mb-1">
+                  📖 Guide — Ceci est un exemple, pas un formulaire
+                </span>
                 <h3 className="font-display text-xl font-bold">Le format structuré</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  C'est le format le plus courant et le plus efficace. Chaque ligne a un rôle précis. L'objectif : que ta visiteuse comprenne en 3 secondes ce que tu fais et pour qui.
+                  👇 Voici un exemple de bio bien structurée. Chaque ligne a un rôle précis. Inspire-toi de ce modèle pour écrire la tienne dans le générateur ci-dessous.
                 </p>
 
                 <div className="space-y-4">
@@ -202,12 +205,23 @@ export default function InstagramBio() {
                     ]}
                   />
                 </div>
+
+                {/* CTA to write */}
+                <button
+                  onClick={() => setActiveTab("generator")}
+                  className="w-full text-center text-sm font-semibold text-primary hover:underline mt-4"
+                >
+                  ✍️ Maintenant, écris la tienne →
+                </button>
               </div>
             ) : (
               <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
+                <span className="inline-block font-mono-ui text-[11px] font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-3 py-1 rounded-pill mb-1">
+                  📖 Guide — Ceci est un exemple, pas un formulaire
+                </span>
                 <h3 className="font-display text-xl font-bold">Le format créatif</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Même structure de fond, mais avec un ton plus personnel. Idéal si tu veux te démarquer avec de l'humour, de la poésie, ou une vibe très "toi".
+                  👇 Voici un exemple de bio créative. Même structure de fond, mais avec un ton plus personnel. Inspire-toi de ce modèle pour écrire la tienne dans le générateur.
                 </p>
 
                 <div className="space-y-4">
@@ -240,10 +254,17 @@ export default function InstagramBio() {
                     lines={[
                       "Je transforme la terre en petits bonheurs du matin",
                       "Accro au café, allergique au plastique",
-                      "✨ Rejoins la liste d&apos;attente ⤵️",
+                      "✨ Rejoins la liste d\u2019attente ⤵️",
                     ]}
                   />
                 </div>
+
+                <button
+                  onClick={() => setActiveTab("generator")}
+                  className="w-full text-center text-sm font-semibold text-primary hover:underline mt-4"
+                >
+                  ✍️ Maintenant, écris la tienne →
+                </button>
               </div>
             )}
 
@@ -355,7 +376,11 @@ function BioGuideLine({ label, explanation, example }: { label: string; explanat
     <div className="rounded-xl bg-muted/50 p-4">
       <p className="text-sm font-bold text-foreground">{label}</p>
       <p className="text-sm text-muted-foreground mt-1">{explanation}</p>
-      <p className="text-sm text-foreground mt-2 font-medium bg-card rounded-lg px-3 py-2 border border-border">
+      <p
+        className="text-sm mt-2 italic text-[#6B5E7B] bg-rose-pale border-l-[3px] border-l-primary rounded-r-lg px-4 py-3 cursor-default select-text"
+        style={{ pointerEvents: "none" }}
+      >
+        <span className="not-italic font-mono-ui text-[10px] uppercase text-muted-foreground mr-1.5">Ex :</span>
         {example}
       </p>
     </div>
