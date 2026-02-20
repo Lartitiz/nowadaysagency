@@ -575,36 +575,74 @@ export type Database = {
       }
       saved_ideas: {
         Row: {
+          accroche_long: string | null
+          accroche_short: string | null
           angle: string
+          calendar_post_id: string | null
           canal: string
+          content_draft: string | null
           created_at: string
           format: string
+          format_technique: string | null
           id: string
+          notes: string | null
           objectif: string | null
+          planned_date: string | null
+          status: string | null
           titre: string
+          type: string | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
+          accroche_long?: string | null
+          accroche_short?: string | null
           angle: string
+          calendar_post_id?: string | null
           canal?: string
+          content_draft?: string | null
           created_at?: string
           format: string
+          format_technique?: string | null
           id?: string
+          notes?: string | null
           objectif?: string | null
+          planned_date?: string | null
+          status?: string | null
           titre: string
+          type?: string | null
+          updated_at?: string | null
           user_id: string
         }
         Update: {
+          accroche_long?: string | null
+          accroche_short?: string | null
           angle?: string
+          calendar_post_id?: string | null
           canal?: string
+          content_draft?: string | null
           created_at?: string
           format?: string
+          format_technique?: string | null
           id?: string
+          notes?: string | null
           objectif?: string | null
+          planned_date?: string | null
+          status?: string | null
           titre?: string
+          type?: string | null
+          updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "saved_ideas_calendar_post_id_fkey"
+            columns: ["calendar_post_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       storytelling: {
         Row: {

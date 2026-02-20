@@ -185,7 +185,9 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
       titre: idea.titre,
       format: idea.format,
       angle: idea.angle,
-    });
+      canal,
+      objectif: objectif || null,
+    } as any);
     if (error) {
       toast({ title: "Erreur", description: "Impossible d'enregistrer l'idée", variant: "destructive" });
       return;
