@@ -53,6 +53,15 @@
     --cal-published: 142 76% 92%;
     --cal-published-border: 142 71% 45%;
 
+    --obj-visibilite: 217 91% 60%;
+    --obj-visibilite-bg: 217 91% 95%;
+    --obj-confiance: 38 92% 50%;
+    --obj-confiance-bg: 38 92% 93%;
+    --obj-vente: 142 71% 45%;
+    --obj-vente-bg: 142 76% 92%;
+    --obj-credibilite: 271 81% 56%;
+    --obj-credibilite-bg: 271 81% 94%;
+
     --sidebar-background: 340 100% 97%;
     --sidebar-foreground: 270 25% 17%;
     --sidebar-primary: 338 96% 61%;
