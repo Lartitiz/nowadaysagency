@@ -103,6 +103,7 @@ export type Database = {
           tone_style: string | null
           updated_at: string
           user_id: string
+          voice_description: string | null
         }
         Insert: {
           channels?: string[] | null
@@ -123,6 +124,7 @@ export type Database = {
           tone_style?: string | null
           updated_at?: string
           user_id: string
+          voice_description?: string | null
         }
         Update: {
           channels?: string[] | null
@@ -143,6 +145,7 @@ export type Database = {
           tone_style?: string | null
           updated_at?: string
           user_id?: string
+          voice_description?: string | null
         }
         Relationships: []
       }
