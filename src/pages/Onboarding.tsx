@@ -38,8 +38,8 @@ export default function Onboarding() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [prenom, setPrenom] = useState("");
-  const [activite, setActivite] = useState("");
+  const [prenom, setPrenom] = useState(() => localStorage.getItem("lac_prenom") || "");
+  const [activite, setActivite] = useState(() => localStorage.getItem("lac_activite") || "");
   const [typeActivite, setTypeActivite] = useState("");
   const [cible, setCible] = useState("");
   const [probleme, setProbleme] = useState("");
@@ -233,8 +233,8 @@ export default function Onboarding() {
               </div>
               <div className="rounded-xl border-2 border-yellow bg-accent/20 p-5">
                 <p className="text-sm font-medium">
-                  Now Pilot va utiliser ces infos pour te générer du contenu Instagram
-                  personnalisé, adapté à ta cible et à ton ton. Prête ?
+                  L'Assistant Com' va utiliser ces infos pour te proposer des idées de contenu
+                  personnalisées, adaptées à ta cible et à ton ton. Prête ?
                 </p>
               </div>
             </div>
