@@ -18,11 +18,12 @@ export default function AppHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-sm">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+    <header className="sticky top-0 z-40 border-b border-border bg-card">
+      <div className="mx-auto flex h-14 max-w-[1100px] items-center justify-between px-6 max-md:px-4">
         {/* Logo */}
-        <Link to="/dashboard" className="font-display text-xl font-bold text-bordeaux shrink-0">
-          L'Assistant Com'
+        <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
+          <span className="font-display text-xl font-bold text-bordeaux">L'Assistant Com'</span>
+          <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-md">beta</span>
         </Link>
 
         {/* Desktop nav */}
@@ -114,10 +115,10 @@ function NavTab({ to, active, icon: Icon, children }: { to: string; active: bool
   return (
     <Link
       to={to}
-      className={`flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-sm font-medium transition-all whitespace-nowrap ${
+      className={`flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-sm font-semibold transition-all duration-[250ms] whitespace-nowrap ${
         active
-          ? "bg-card text-foreground shadow-sm"
-          : "text-foreground hover:bg-secondary"
+          ? "bg-card text-bordeaux shadow-[0_2px_8px_rgba(145,1,75,0.1)]"
+          : "text-muted-foreground hover:bg-secondary"
       }`}
     >
       <Icon className="h-3.5 w-3.5" />
