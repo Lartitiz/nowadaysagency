@@ -15,6 +15,7 @@ import {
   RECO_EXPLAIN,
 } from "@/lib/atelier-data";
 import { getInstagramFormatReco } from "@/lib/production-guides";
+import BrandingPrompt from "@/components/BrandingPrompt";
 
 interface AccrocheItem {
   short: string;
@@ -161,9 +162,11 @@ export default function AtelierPage() {
         <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground mb-1">
           💡 Atelier d'idées
         </h1>
-        <p className="text-sm text-muted-foreground mb-8">
+        <p className="text-sm text-muted-foreground mb-4">
           Trouve des idées de contenu adaptées à ton activité et ta cible.
         </p>
+
+        <BrandingPrompt section="global" />
 
         {/* ── Canal selector ── */}
         <div className="mb-6">

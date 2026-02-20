@@ -15,6 +15,7 @@ import SettingsPage from "./pages/SettingsPage";
 import Calendar from "./pages/Calendar";
 import PlanPage from "./pages/PlanPage";
 import BrandingPage from "./pages/BrandingPage";
+import TonStylePage from "./pages/TonStylePage";
 import StorytellingPage from "./pages/StorytellingPage";
 import StorytellingRecapPage from "./pages/StorytellingRecapPage";
 import InstagramHub from "./pages/InstagramHub";
@@ -54,6 +55,9 @@ const App = () => (
             } />
             <Route path="/branding" element={
               <ProtectedRoute><BrandingPage /></ProtectedRoute>
+            } />
+            <Route path="/branding/ton" element={
+              <ProtectedRoute><TonStylePage /></ProtectedRoute>
             } />
             <Route path="/branding/storytelling" element={
               <ProtectedRoute><StorytellingPage /></ProtectedRoute>

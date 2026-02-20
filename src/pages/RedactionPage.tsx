@@ -11,6 +11,7 @@ import { ArrowLeft, Sparkles, Copy, Check, CalendarDays, Save } from "lucide-rea
 import { Link } from "react-router-dom";
 import { getGuide, getInstagramFormatReco } from "@/lib/production-guides";
 import { formatIdToGuideKey, QUALITY_CHECKLIST, OBJECTIFS } from "@/lib/atelier-data";
+import BrandingPrompt from "@/components/BrandingPrompt";
 
 const STEPS = [
   { num: 1, label: "Structure" },
@@ -219,6 +220,7 @@ export default function RedactionPage() {
         </Link>
 
         <h1 className="font-display text-[26px] font-bold text-foreground mb-1">✏️ Rédiger un contenu</h1>
+        <BrandingPrompt section="tone" />
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mb-6">
           <span className="bg-rose-pale text-primary px-2 py-0.5 rounded-md font-semibold">{format}</span>
           {objLabel && <span className="bg-muted px-2 py-0.5 rounded-md">{objLabel}</span>}

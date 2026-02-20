@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams, useLocation } from "react-router-dom";
+import BrandingPrompt from "@/components/BrandingPrompt";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -152,6 +153,9 @@ export default function CalendarPage() {
           </h1>
           <p className="mt-2 text-muted-foreground">Planifie et organise tes publications.</p>
         </div>
+
+        <BrandingPrompt section="strategie" />
+
 
         {/* Canal filter */}
         <div className="flex gap-2 flex-wrap mb-5">
