@@ -23,6 +23,8 @@ import InstagramBio from "./pages/InstagramBio";
 import InstagramHighlights from "./pages/InstagramHighlights";
 import InstagramInspiration from "./pages/InstagramInspiration";
 import InstagramLaunch from "./pages/InstagramLaunch";
+import InstagramRythme from "./pages/InstagramRythme";
+import InstagramEngagement from "./pages/InstagramEngagement";
 import AtelierPage from "./pages/AtelierPage";
 import RedactionPage from "./pages/RedactionPage";
 import PersonaPage from "./pages/PersonaPage";
@@ -119,6 +121,12 @@ const App = () => (
             } />
             <Route path="/instagram/lancement" element={
               <ProtectedRoute><InstagramLaunch /></ProtectedRoute>
+            } />
+            <Route path="/instagram/rythme" element={
+              <ProtectedRoute><InstagramRythme /></ProtectedRoute>
+            } />
+            <Route path="/instagram/engagement" element={
+              <ProtectedRoute><InstagramEngagement /></ProtectedRoute>
             } />
             {/* Transversal routes */}
             <Route path="/atelier" element={
