@@ -59,7 +59,7 @@ const App = () => (
             <Route path="/instagram/inspiration" element={
               <ProtectedRoute><InstagramInspiration /></ProtectedRoute>
             } />
-            <Route path="/instagram/atelier" element={
+            <Route path="/instagram/idees" element={
               <ProtectedRoute><Dashboard /></ProtectedRoute>
             } />
             <Route path="/instagram/calendrier" element={
@@ -69,7 +69,8 @@ const App = () => (
               <ProtectedRoute><InstagramLaunch /></ProtectedRoute>
             } />
             {/* Redirects from old routes */}
-            <Route path="/atelier" element={<Navigate to="/instagram/atelier" replace />} />
+            <Route path="/atelier" element={<Navigate to="/instagram/idees" replace />} />
+            <Route path="/instagram/atelier" element={<Navigate to="/instagram/idees" replace />} />
             <Route path="/calendrier" element={<Navigate to="/instagram/calendrier" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
