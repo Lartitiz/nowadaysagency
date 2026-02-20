@@ -12,6 +12,11 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Calendar from "./pages/Calendar";
 import PlanPage from "./pages/PlanPage";
+import InstagramHub from "./pages/InstagramHub";
+import InstagramBio from "./pages/InstagramBio";
+import InstagramHighlights from "./pages/InstagramHighlights";
+import InstagramInspiration from "./pages/InstagramInspiration";
+import InstagramLaunch from "./pages/InstagramLaunch";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -35,6 +40,9 @@ const App = () => (
             <Route path="/dashboard" element={
               <ProtectedRoute><Dashboard /></ProtectedRoute>
             } />
+            <Route path="/atelier" element={
+              <ProtectedRoute><Dashboard /></ProtectedRoute>
+            } />
             <Route path="/plan" element={
               <ProtectedRoute><PlanPage /></ProtectedRoute>
             } />
@@ -43,6 +51,22 @@ const App = () => (
             } />
             <Route path="/profil" element={
               <ProtectedRoute><Profile /></ProtectedRoute>
+            } />
+            {/* Instagram module */}
+            <Route path="/instagram" element={
+              <ProtectedRoute><InstagramHub /></ProtectedRoute>
+            } />
+            <Route path="/instagram/bio" element={
+              <ProtectedRoute><InstagramBio /></ProtectedRoute>
+            } />
+            <Route path="/instagram/highlights" element={
+              <ProtectedRoute><InstagramHighlights /></ProtectedRoute>
+            } />
+            <Route path="/instagram/inspiration" element={
+              <ProtectedRoute><InstagramInspiration /></ProtectedRoute>
+            } />
+            <Route path="/instagram/lancement" element={
+              <ProtectedRoute><InstagramLaunch /></ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
           </Routes>

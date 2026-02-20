@@ -80,6 +80,168 @@ export type Database = {
         }
         Relationships: []
       }
+      highlight_categories: {
+        Row: {
+          added_to_profile: boolean | null
+          canva_link: string | null
+          category: string
+          covers_created: boolean | null
+          created_at: string
+          has_existing_stories: boolean | null
+          id: string
+          needs_content_creation: boolean | null
+          noted_in_calendar: boolean | null
+          notes: string | null
+          stories_grouped: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          added_to_profile?: boolean | null
+          canva_link?: string | null
+          category: string
+          covers_created?: boolean | null
+          created_at?: string
+          has_existing_stories?: boolean | null
+          id?: string
+          needs_content_creation?: boolean | null
+          noted_in_calendar?: boolean | null
+          notes?: string | null
+          stories_grouped?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          added_to_profile?: boolean | null
+          canva_link?: string | null
+          category?: string
+          covers_created?: boolean | null
+          created_at?: string
+          has_existing_stories?: boolean | null
+          id?: string
+          needs_content_creation?: boolean | null
+          noted_in_calendar?: boolean | null
+          notes?: string | null
+          stories_grouped?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      inspiration_accounts: {
+        Row: {
+          account_handle: string
+          appeal: string | null
+          created_at: string
+          frequent_formats: string | null
+          id: string
+          slot_index: number
+          tone: string[] | null
+          top_engagement: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_handle?: string
+          appeal?: string | null
+          created_at?: string
+          frequent_formats?: string | null
+          id?: string
+          slot_index?: number
+          tone?: string[] | null
+          top_engagement?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_handle?: string
+          appeal?: string | null
+          created_at?: string
+          frequent_formats?: string | null
+          id?: string
+          slot_index?: number
+          tone?: string[] | null
+          top_engagement?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      inspiration_notes: {
+        Row: {
+          content: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      launches: {
+        Row: {
+          created_at: string
+          free_resource: string | null
+          id: string
+          name: string
+          objections: string | null
+          promise: string | null
+          sale_end: string | null
+          sale_start: string | null
+          selected_contents: string[] | null
+          status: string
+          teasing_end: string | null
+          teasing_start: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          free_resource?: string | null
+          id?: string
+          name?: string
+          objections?: string | null
+          promise?: string | null
+          sale_end?: string | null
+          sale_start?: string | null
+          selected_contents?: string[] | null
+          status?: string
+          teasing_end?: string | null
+          teasing_start?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          free_resource?: string | null
+          id?: string
+          name?: string
+          objections?: string | null
+          promise?: string | null
+          sale_end?: string | null
+          sale_start?: string | null
+          selected_contents?: string[] | null
+          status?: string
+          teasing_end?: string | null
+          teasing_start?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       plan_tasks: {
         Row: {
           completed_at: string | null
