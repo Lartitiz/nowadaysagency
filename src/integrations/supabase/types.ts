@@ -487,6 +487,48 @@ export type Database = {
         }
         Relationships: []
       }
+      engagement_weekly_linkedin: {
+        Row: {
+          comments_done: number | null
+          comments_target: number | null
+          created_at: string | null
+          id: string
+          messages_done: number | null
+          messages_target: number | null
+          objective: number | null
+          total_done: number | null
+          updated_at: string | null
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          comments_done?: number | null
+          comments_target?: number | null
+          created_at?: string | null
+          id?: string
+          messages_done?: number | null
+          messages_target?: number | null
+          objective?: number | null
+          total_done?: number | null
+          updated_at?: string | null
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          comments_done?: number | null
+          comments_target?: number | null
+          created_at?: string | null
+          id?: string
+          messages_done?: number | null
+          messages_target?: number | null
+          objective?: number | null
+          total_done?: number | null
+          updated_at?: string | null
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       generated_posts: {
         Row: {
           added_to_plan: boolean
@@ -675,6 +717,117 @@ export type Database = {
           teasing_end?: string | null
           teasing_start?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      linkedin_experiences: {
+        Row: {
+          company: string | null
+          created_at: string | null
+          description_optimized: string | null
+          description_raw: string | null
+          id: string
+          job_title: string | null
+          sort_order: number | null
+          user_id: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string | null
+          description_optimized?: string | null
+          description_raw?: string | null
+          id?: string
+          job_title?: string | null
+          sort_order?: number | null
+          user_id: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string | null
+          description_optimized?: string | null
+          description_raw?: string | null
+          id?: string
+          job_title?: string | null
+          sort_order?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      linkedin_profile: {
+        Row: {
+          banner_done: boolean | null
+          created_at: string | null
+          custom_url: string | null
+          id: string
+          photo_done: boolean | null
+          summary_final: string | null
+          summary_pro: string | null
+          summary_storytelling: string | null
+          title: string | null
+          title_done: boolean | null
+          updated_at: string | null
+          url_done: boolean | null
+          user_id: string
+        }
+        Insert: {
+          banner_done?: boolean | null
+          created_at?: string | null
+          custom_url?: string | null
+          id?: string
+          photo_done?: boolean | null
+          summary_final?: string | null
+          summary_pro?: string | null
+          summary_storytelling?: string | null
+          title?: string | null
+          title_done?: boolean | null
+          updated_at?: string | null
+          url_done?: boolean | null
+          user_id: string
+        }
+        Update: {
+          banner_done?: boolean | null
+          created_at?: string | null
+          custom_url?: string | null
+          id?: string
+          photo_done?: boolean | null
+          summary_final?: string | null
+          summary_pro?: string | null
+          summary_storytelling?: string | null
+          title?: string | null
+          title_done?: boolean | null
+          updated_at?: string | null
+          url_done?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      linkedin_recommendations: {
+        Row: {
+          created_at: string | null
+          id: string
+          person_name: string | null
+          person_type: string | null
+          reco_received: boolean | null
+          request_sent: boolean | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          person_name?: string | null
+          person_type?: string | null
+          reco_received?: boolean | null
+          request_sent?: boolean | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          person_name?: string | null
+          person_type?: string | null
+          reco_received?: boolean | null
+          request_sent?: boolean | null
           user_id?: string
         }
         Relationships: []

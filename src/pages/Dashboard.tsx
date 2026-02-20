@@ -65,9 +65,20 @@ const MODULES: ModuleCard[] = [
     badge: { label: "Disponible", variant: "available" },
   },
   {
+    id: "linkedin",
+    emoji: "💼",
+    number: 3,
+    title: "Mon LinkedIn",
+    description: "Optimise ton profil, développe ton réseau et crée du contenu qui te positionne comme experte.",
+    chips: ["Mon profil", "Mon résumé", "Mon parcours", "Engagement"],
+    cta: "Bosser sur LinkedIn →",
+    route: "/linkedin",
+    badge: { label: "Disponible", variant: "available" },
+  },
+  {
     id: "siteweb",
     emoji: "🌐",
-    number: 3,
+    number: 4,
     title: "Mon Site Web",
     description: "Crée ou améliore ton site pour qu'il vende même quand tu dors.",
     chips: ["Parcours client", "Pages clés", "UX"],
@@ -78,7 +89,7 @@ const MODULES: ModuleCard[] = [
   {
     id: "seo",
     emoji: "🔍",
-    number: 4,
+    number: 5,
     title: "Mon Référencement (SEO)",
     description: "Sois trouvée sur Google. Mots-clés, maillage interne, optimisation de tes pages.",
     chips: ["Mots-clés", "Maillage interne", "Audit SEO"],
@@ -89,7 +100,7 @@ const MODULES: ModuleCard[] = [
   {
     id: "emailing",
     emoji: "📧",
-    number: 5,
+    number: 6,
     title: "Mon Emailing",
     description: "Newsletter, séquences automatisées, emails qui fidélisent sans spammer.",
     chips: ["Newsletter", "Séquences", "Templates"],
@@ -100,7 +111,7 @@ const MODULES: ModuleCard[] = [
   {
     id: "presse",
     emoji: "📣",
-    number: 6,
+    number: 7,
     title: "Presse & Influence",
     description: "Que d'autres racontent ton histoire à ta place. Relations presse, partenariats, ambassadrices.",
     chips: ["Contacts médias", "Partenariats", "Ambassadrices"],

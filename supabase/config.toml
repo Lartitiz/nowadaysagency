@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.strategy-ai]
 verify_jwt = false
+
+[functions.linkedin-ai]
+verify_jwt = false
