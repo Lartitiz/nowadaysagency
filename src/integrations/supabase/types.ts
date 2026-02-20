@@ -17,6 +17,7 @@ export type Database = {
       calendar_posts: {
         Row: {
           angle: string | null
+          canal: string
           created_at: string
           date: string
           id: string
@@ -28,6 +29,7 @@ export type Database = {
         }
         Insert: {
           angle?: string | null
+          canal?: string
           created_at?: string
           date: string
           id?: string
@@ -39,6 +41,7 @@ export type Database = {
         }
         Update: {
           angle?: string | null
+          canal?: string
           created_at?: string
           date?: string
           id?: string
@@ -323,6 +326,7 @@ export type Database = {
       saved_ideas: {
         Row: {
           angle: string
+          canal: string
           created_at: string
           format: string
           id: string
@@ -331,6 +335,7 @@ export type Database = {
         }
         Insert: {
           angle: string
+          canal?: string
           created_at?: string
           format: string
           id?: string
@@ -339,6 +344,7 @@ export type Database = {
         }
         Update: {
           angle?: string
+          canal?: string
           created_at?: string
           format?: string
           id?: string

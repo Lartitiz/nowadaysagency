@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,13 @@ const STATUSES = [
   { id: "published", label: "Publié" },
 ];
 
+const CANAL_FILTERS = [
+  { id: "all", label: "Tout", enabled: true },
+  { id: "instagram", label: "Instagram", enabled: true },
+  { id: "linkedin", label: "LinkedIn", enabled: false },
+  { id: "blog", label: "Blog", enabled: false },
+];
+
 interface CalendarPost {
   id: string;
   date: string;
@@ -32,6 +40,7 @@ interface CalendarPost {
   angle: string | null;
   status: string;
   notes: string | null;
+  canal: string;
 }
 
 const statusStyles: Record<string, string> = {
@@ -45,8 +54,10 @@ export default function Calendar() {
   const { user } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const [searchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [posts, setPosts] = useState<CalendarPost[]>([]);
+  const [canalFilter, setCanalFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState<CalendarPost | null>(null);
@@ -56,6 +67,15 @@ export default function Calendar() {
   const [angle, setAngle] = useState<string | null>(null);
   const [status, setStatus] = useState("idea");
   const [notes, setNotes] = useState("");
+  const [postCanal, setPostCanal] = useState("instagram");
+
+  // Pre-select canal filter from URL
+  useEffect(() => {
+    const urlCanal = searchParams.get("canal");
+    if (urlCanal && CANAL_FILTERS.some((c) => c.id === urlCanal && c.enabled)) {
+      setCanalFilter(urlCanal);
+    }
+  }, [searchParams]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -101,14 +121,19 @@ export default function Calendar() {
     return days;
   }, [year, month]);
 
+  const filteredPosts = useMemo(() => {
+    if (canalFilter === "all") return posts;
+    return posts.filter((p) => p.canal === canalFilter);
+  }, [posts, canalFilter]);
+
   const postsByDate = useMemo(() => {
     const map: Record<string, CalendarPost[]> = {};
-    posts.forEach((p) => {
+    filteredPosts.forEach((p) => {
       if (!map[p.date]) map[p.date] = [];
       map[p.date].push(p);
     });
     return map;
-  }, [posts]);
+  }, [filteredPosts]);
 
   const openCreateDialog = (dateStr: string) => {
     setSelectedDate(dateStr);
@@ -117,6 +142,7 @@ export default function Calendar() {
     setAngle(null);
     setStatus("idea");
     setNotes("");
+    setPostCanal(canalFilter !== "all" ? canalFilter : "instagram");
     setDialogOpen(true);
   };
 
@@ -127,6 +153,7 @@ export default function Calendar() {
     setAngle(post.angle);
     setStatus(post.status);
     setNotes(post.notes || "");
+    setPostCanal(post.canal || "instagram");
     setDialogOpen(true);
   };
 
@@ -134,12 +161,13 @@ export default function Calendar() {
     if (!user || !selectedDate || !theme.trim()) return;
     if (editingPost) {
       await supabase.from("calendar_posts").update({
-        theme, angle, status, notes: notes || null,
+        theme, angle, status, notes: notes || null, canal: postCanal,
       }).eq("id", editingPost.id);
     } else {
       await supabase.from("calendar_posts").insert({
-        user_id: user.id, date: selectedDate, theme, angle, status, notes: notes || null,
+        user_id: user.id, date: selectedDate, theme, angle, status, notes: notes || null, canal: postCanal,
       });
+    }
     }
     setDialogOpen(false);
     fetchPosts();
@@ -171,6 +199,27 @@ export default function Calendar() {
             Mon calendrier éditorial
           </h1>
           <p className="mt-2 text-muted-foreground">Planifie et organise tes publications.</p>
+        </div>
+
+        {/* Canal filter */}
+        <div className="flex gap-2 flex-wrap mb-5">
+          {CANAL_FILTERS.map((ch) => (
+            <button
+              key={ch.id}
+              onClick={() => ch.enabled && setCanalFilter(ch.id)}
+              disabled={!ch.enabled}
+              className={`whitespace-nowrap rounded-pill px-4 py-2 text-sm font-medium border transition-all shrink-0 ${
+                canalFilter === ch.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : ch.enabled
+                    ? "bg-card text-foreground border-border hover:border-primary/40"
+                    : "bg-muted text-muted-foreground border-border opacity-60 cursor-not-allowed"
+              }`}
+            >
+              {ch.label}
+              {!ch.enabled && <span className="ml-1 text-xs">(Bientôt)</span>}
+            </button>
+          ))}
         </div>
 
         {/* Navigation */}
