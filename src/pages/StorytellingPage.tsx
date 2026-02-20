@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,9 @@ function getFieldForStep(step: number): keyof StorytellingData | null {
 
 export default function StorytellingPage() {
   const { user } = useAuth();
+  const { id: paramId } = useParams();
+  const navTo = useNavigate();
+  const isNew = !paramId || paramId === "new";
   const { toast } = useToast();
   const [data, setData] = useState<StorytellingData>(EMPTY_DATA);
   const [existingId, setExistingId] = useState<string | null>(null);
@@ -60,23 +63,29 @@ export default function StorytellingPage() {
   useEffect(() => {
     if (!user) return;
     const fetch = async () => {
-      const [stRes, profRes, bpRes] = await Promise.all([
-        supabase.from("storytelling").select("*").eq("user_id", user.id).maybeSingle(),
+      // Load profile data
+      const [profRes, bpRes] = await Promise.all([
         supabase.from("profiles").select("activite, prenom, tons").eq("user_id", user.id).single(),
         supabase.from("brand_profile").select("mission, offer, target_description, tone_register, key_expressions, things_to_avoid").eq("user_id", user.id).maybeSingle(),
       ]);
-      if (stRes.data) {
-        const { id, user_id, created_at, updated_at, ...rest } = stRes.data;
-        setData(rest as StorytellingData);
-        setExistingId(id);
-        setCurrentStep(rest.current_step || 1);
-      }
       const merged = { ...(profRes.data || {}), ...(bpRes.data || {}) };
       setProfile(merged);
+
+      if (!isNew && paramId) {
+        // Load existing storytelling by ID
+        const { data: stData } = await supabase.from("storytelling").select("*").eq("id", paramId).eq("user_id", user.id).single();
+        if (stData) {
+          const { id, user_id, created_at, updated_at, title, story_type, source, is_primary, imported_text, ...rest } = stData as any;
+          setData(rest as StorytellingData);
+          setExistingId(id);
+          setCurrentStep(rest.current_step || 1);
+        }
+      }
+      // If isNew, start fresh with EMPTY_DATA
       setLoading(false);
     };
     fetch();
-  }, [user]);
+  }, [user, paramId, isNew]);
 
   // Auto-save
   const debouncedSave = useCallback((updated: StorytellingData) => {
@@ -88,7 +97,21 @@ export default function StorytellingPage() {
       if (existingId) {
         await supabase.from("storytelling").update(payload as any).eq("id", existingId);
       } else {
-        const { data: inserted } = await supabase.from("storytelling").insert({ ...payload, user_id: user.id } as any).select("id").single();
+        // Check if any existing storytelling is primary
+        const { data: existingPrimary } = await supabase
+          .from("storytelling")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("is_primary", true);
+        const isPrimary = !existingPrimary || existingPrimary.length === 0;
+
+        const { data: inserted } = await supabase.from("storytelling").insert({
+          ...payload,
+          user_id: user.id,
+          source: "stepper",
+          story_type: "fondatrice",
+          is_primary: isPrimary,
+        } as any).select("id").single();
         if (inserted) setExistingId(inserted.id);
       }
     }, 2000);
@@ -131,7 +154,8 @@ export default function StorytellingPage() {
       const updated = { ...data, completed: true, current_step: 8 };
       setData(updated);
       debouncedSave(updated);
-      window.location.href = "/branding/storytelling/recap";
+      const recapId = existingId || "recap";
+      navTo(`/branding/storytelling/${recapId}/recap`);
     }
   };
 
@@ -236,7 +260,7 @@ export default function StorytellingPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Mon storytelling" />
+        <SubPageHeader parentLabel="Mes storytellings" parentTo="/branding/storytelling" currentLabel="Rédiger" />
 
         <h1 className="font-display text-[26px] font-bold text-foreground mb-1">Ton histoire</h1>
         <p className="text-[15px] text-muted-foreground italic mb-8">

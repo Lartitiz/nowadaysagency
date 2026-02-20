@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -10,17 +10,21 @@ import { Copy, Pencil } from "lucide-react";
 
 export default function StorytellingRecapPage() {
   const { user } = useAuth();
+  const { id } = useParams();
   const { toast } = useToast();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("storytelling").select("*").eq("user_id", user.id).maybeSingle().then(({ data: d }) => {
+    const query = id
+      ? supabase.from("storytelling").select("*").eq("id", id).eq("user_id", user.id).single()
+      : supabase.from("storytelling").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    query.then(({ data: d }) => {
       setData(d);
       setLoading(false);
     });
-  }, [user]);
+  }, [user, id]);
 
   const copyText = async (text: string) => {
     await navigator.clipboard.writeText(text);
@@ -34,20 +38,26 @@ export default function StorytellingRecapPage() {
     </div>
   );
 
-  const story = data?.step_7_polished || data?.step_6_full_story || "";
+  const story = data?.step_7_polished || data?.imported_text || data?.step_6_full_story || "";
   const pitches = [
     { label: "Version courte", sublabel: "Bio Instagram", text: data?.pitch_short || "" },
     { label: "Version moyenne", sublabel: "Dossier de presse", text: data?.pitch_medium || "" },
     { label: "Version longue", sublabel: "Page À propos", text: data?.pitch_long || "" },
   ];
 
+  const editLink = data?.source === "import"
+    ? `/branding/storytelling/${data.id}/edit`
+    : `/branding/storytelling/${data?.id || "new"}`;
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Mon storytelling" />
+        <SubPageHeader parentLabel="Mes storytellings" parentTo="/branding/storytelling" currentLabel={data?.title || "Mon storytelling"} />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground mb-2">Ton storytelling</h1>
+        <h1 className="font-display text-[26px] font-bold text-foreground mb-2">
+          {data?.title || "Ton storytelling"}
+        </h1>
 
         {/* Story */}
         <div className="rounded-2xl bg-card border border-border p-6 shadow-card mb-8">
@@ -56,7 +66,7 @@ export default function StorytellingRecapPage() {
             <Button variant="outline" size="sm" onClick={() => copyText(story)} className="rounded-pill text-xs" disabled={!story}>
               <Copy className="h-3 w-3 mr-1" /> Copier
             </Button>
-            <Link to="/branding/storytelling">
+            <Link to={editLink}>
               <Button variant="outline" size="sm" className="rounded-pill text-xs">
                 <Pencil className="h-3 w-3 mr-1" /> Modifier
               </Button>
@@ -94,8 +104,8 @@ export default function StorytellingRecapPage() {
           </p>
         </div>
 
-        <Link to="/branding" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
-          ← Retour au Branding
+        <Link to="/branding/storytelling" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+          ← Retour à Mes storytellings
         </Link>
       </main>
     </div>

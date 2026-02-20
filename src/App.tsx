@@ -18,6 +18,9 @@ import BrandingPage from "./pages/BrandingPage";
 import TonStylePage from "./pages/TonStylePage";
 import StorytellingPage from "./pages/StorytellingPage";
 import StorytellingRecapPage from "./pages/StorytellingRecapPage";
+import StorytellingListPage from "./pages/StorytellingListPage";
+import StorytellingImportPage from "./pages/StorytellingImportPage";
+import StorytellingEditPage from "./pages/StorytellingEditPage";
 import InstagramHub from "./pages/InstagramHub";
 import InstagramBio from "./pages/InstagramBio";
 import InstagramHighlights from "./pages/InstagramHighlights";
@@ -83,7 +86,22 @@ const App = () => (
               <ProtectedRoute><TonStylePage /></ProtectedRoute>
             } />
             <Route path="/branding/storytelling" element={
+              <ProtectedRoute><StorytellingListPage /></ProtectedRoute>
+            } />
+            <Route path="/branding/storytelling/new" element={
               <ProtectedRoute><StorytellingPage /></ProtectedRoute>
+            } />
+            <Route path="/branding/storytelling/import" element={
+              <ProtectedRoute><StorytellingImportPage /></ProtectedRoute>
+            } />
+            <Route path="/branding/storytelling/:id" element={
+              <ProtectedRoute><StorytellingPage /></ProtectedRoute>
+            } />
+            <Route path="/branding/storytelling/:id/recap" element={
+              <ProtectedRoute><StorytellingRecapPage /></ProtectedRoute>
+            } />
+            <Route path="/branding/storytelling/:id/edit" element={
+              <ProtectedRoute><StorytellingEditPage /></ProtectedRoute>
             } />
             <Route path="/branding/storytelling/recap" element={
               <ProtectedRoute><StorytellingRecapPage /></ProtectedRoute>
