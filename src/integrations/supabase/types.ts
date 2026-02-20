@@ -502,6 +502,63 @@ export type Database = {
         }
         Relationships: []
       }
+      storytelling: {
+        Row: {
+          completed: boolean | null
+          created_at: string
+          current_step: number | null
+          id: string
+          pitch_long: string | null
+          pitch_medium: string | null
+          pitch_short: string | null
+          step_1_raw: string | null
+          step_2_location: string | null
+          step_3_action: string | null
+          step_4_thoughts: string | null
+          step_5_emotions: string | null
+          step_6_full_story: string | null
+          step_7_polished: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string
+          current_step?: number | null
+          id?: string
+          pitch_long?: string | null
+          pitch_medium?: string | null
+          pitch_short?: string | null
+          step_1_raw?: string | null
+          step_2_location?: string | null
+          step_3_action?: string | null
+          step_4_thoughts?: string | null
+          step_5_emotions?: string | null
+          step_6_full_story?: string | null
+          step_7_polished?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string
+          current_step?: number | null
+          id?: string
+          pitch_long?: string | null
+          pitch_medium?: string | null
+          pitch_short?: string | null
+          step_1_raw?: string | null
+          step_2_location?: string | null
+          step_3_action?: string | null
+          step_4_thoughts?: string | null
+          step_5_emotions?: string | null
+          step_6_full_story?: string | null
+          step_7_polished?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           completed_at: string | null

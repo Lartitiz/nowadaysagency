@@ -2,3 +2,6 @@ project_id = "fhdyflgojppwgrscmtdp"
 
 [functions.generate-content]
 verify_jwt = false
+
+[functions.storytelling-ai]
+verify_jwt = false
