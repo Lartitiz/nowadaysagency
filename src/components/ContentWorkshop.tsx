@@ -1,18 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, RefreshCw, Bookmark, PenLine, Lightbulb, CalendarDays } from "lucide-react";
+import { Copy, RefreshCw, Bookmark, PenLine, Lightbulb, CalendarDays, Instagram } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { useSearchParams } from "react-router-dom";
+import { getInstagramFormatReco } from "@/lib/production-guides";
 import type { UserProfile } from "@/pages/Dashboard";
 
 const FORMATS = [
   "Storytelling", "Mythe à déconstruire", "Coup de gueule", "Enquête / décryptage",
   "Conseil contre-intuitif", "Test grandeur nature", "Before / After",
   "Histoire cliente", "Regard philosophique", "Surf sur l'actu",
+];
+
+const CHANNELS = [
+  { id: "instagram", label: "Instagram", icon: Instagram, enabled: true },
+  { id: "linkedin", label: "LinkedIn", enabled: false },
+  { id: "blog", label: "Blog", enabled: false },
+  { id: "pinterest", label: "Pinterest", enabled: false },
 ];
 
 interface Idea {
@@ -29,6 +38,8 @@ interface Props {
 export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const [canal, setCanal] = useState("instagram");
   const [format, setFormat] = useState<string | null>(null);
   const [sujet, setSujet] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -37,6 +48,14 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
   const [savedIdx, setSavedIdx] = useState<Set<number>>(new Set());
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  // Pre-select canal from URL param
+  useEffect(() => {
+    const urlCanal = searchParams.get("canal");
+    if (urlCanal && CHANNELS.some((c) => c.id === urlCanal && c.enabled)) {
+      setCanal(urlCanal);
+    }
+  }, [searchParams]);
 
   const fetchIdeas = async () => {
     if (!user) return;
@@ -51,6 +70,7 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
           type: "ideas",
           format: format || "",
           sujet,
+          canal,
           profile: {
             prenom: profile.prenom,
             activite: profile.activite,
@@ -70,7 +90,6 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
       try {
         parsed = JSON.parse(content);
       } catch {
-        // Try extracting JSON from response
         const match = content.match(/\[[\s\S]*\]/);
         if (match) parsed = JSON.parse(match[0]);
         else throw new Error("Format de réponse inattendu");
@@ -78,7 +97,6 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
 
       setIdeas(parsed.slice(0, 5));
 
-      // Track as generated post for counting
       await supabase
         .from("generated_posts")
         .insert({ user_id: user.id, format: "ideas", sujet: sujet || "(idées variées)", contenu: content });
@@ -97,6 +115,7 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
       const res = await supabase.functions.invoke("generate-content", {
         body: {
           type: "suggest",
+          canal,
           profile: {
             activite: profile.activite,
             cible: profile.cible,
@@ -135,6 +154,8 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
     setSavedIdx((prev) => new Set(prev).add(idx));
   };
 
+  const formatReco = canal === "instagram" && format ? getInstagramFormatReco(format) : null;
+
   return (
     <div className="rounded-2xl bg-card border border-border p-6 max-sm:p-4 shadow-sm min-w-0">
       <div className="flex items-center gap-3 mb-5">
@@ -143,6 +164,30 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
         <span className="rounded-pill bg-yellow text-accent-foreground px-3 py-0.5 text-xs font-bold">
           Méthode Nowadays
         </span>
+      </div>
+
+      {/* Canal selector */}
+      <div className="mb-5">
+        <p className="text-sm font-medium text-foreground mb-2">Pour quel canal ?</p>
+        <div className="flex gap-2 flex-wrap">
+          {CHANNELS.map((ch) => (
+            <button
+              key={ch.id}
+              onClick={() => ch.enabled && setCanal(ch.id)}
+              disabled={!ch.enabled}
+              className={`whitespace-nowrap rounded-pill px-4 py-2 text-sm font-medium border transition-all shrink-0 ${
+                canal === ch.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : ch.enabled
+                    ? "bg-card text-foreground border-border hover:border-primary/40"
+                    : "bg-muted text-muted-foreground border-border opacity-60 cursor-not-allowed"
+              }`}
+            >
+              {ch.label}
+              {!ch.enabled && <span className="ml-1 text-xs">(Bientôt)</span>}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Angle selector */}
@@ -165,6 +210,13 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
           </button>
         ))}
       </div>
+
+      {/* Instagram format recommendation */}
+      {formatReco && (
+        <div className="mb-4 rounded-lg bg-primary/5 border border-primary/20 px-4 py-2.5 text-sm text-foreground animate-fade-in">
+          📱 {formatReco}
+        </div>
+      )}
 
       {/* Input */}
       <div className="relative mb-2">

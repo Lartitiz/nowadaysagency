@@ -36,25 +36,27 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { type, format, sujet, profile } = await req.json();
+    const { type, format, sujet, profile, canal } = await req.json();
+
+    const canalLabel = canal === "linkedin" ? "LinkedIn" : canal === "blog" ? "un article de blog" : canal === "pinterest" ? "Pinterest" : "Instagram";
 
     let systemPrompt = "";
     let userPrompt = "";
 
     if (type === "suggest") {
-      systemPrompt = `Tu es un·e expert·e en stratégie de contenu Instagram pour des solopreneuses éthiques.
+      systemPrompt = `Tu es un·e expert·e en stratégie de contenu ${canalLabel} pour des solopreneuses éthiques.
 
 Profil de l'utilisatrice :
 - Activité : ${profile.activite}
 - Cible : ${profile.cible}
 - Thématiques : ${(profile.piliers || []).join(", ")}
 
-Propose exactement 5 idées de sujets de posts Instagram, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.
+Propose exactement 5 idées de sujets de posts ${canalLabel}, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.
 
 Varie les angles : un sujet éducatif, un storytelling, un sujet engagé, un sujet pratique, un sujet inspirant.
 
 Réponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans tiret, sans explication.`;
-      userPrompt = "Propose-moi 5 sujets de posts.";
+      userPrompt = `Propose-moi 5 sujets de posts ${canalLabel}.`;
     } else if (type === "ideas") {
       const formatInstruction = format
         ? `FORMAT SÉLECTIONNÉ : ${format}`
@@ -63,7 +65,7 @@ Réponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans ti
         ? sujet
         : "aucun, propose des idées variées";
 
-      systemPrompt = `Tu es un·e expert·e en stratégie de contenu Instagram pour des solopreneuses éthiques et créatives.
+      systemPrompt = `Tu es un·e expert·e en stratégie de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.
 
 PROFIL DE L'UTILISATRICE :
 - Prénom : ${profile.prenom}
@@ -74,12 +76,14 @@ PROFIL DE L'UTILISATRICE :
 - Thématiques : ${(profile.piliers || []).join(", ")}
 - Ton souhaité : ${(profile.tons || []).join(", ")}
 
+CANAL SÉLECTIONNÉ : ${canalLabel}
+
 THÈME OU MOT-CLÉ DONNÉ PAR L'UTILISATRICE : ${sujetInstruction}
 
 ${formatInstruction}
 
 CONSIGNE :
-Propose exactement 5 idées de posts Instagram adaptées à son activité, sa cible, et ses thématiques.
+Propose exactement 5 idées de posts ${canalLabel} adaptées à son activité, sa cible, et ses thématiques.
 
 Pour chaque idée, donne :
 1. Un TITRE accrocheur (la "grande idée" du post, en une phrase percutante)
@@ -91,6 +95,7 @@ RÈGLES :
 - Varie les angles : un sujet éducatif, un engagé, un personnel/storytelling, un pratique, un inspirant
 - Les idées doivent être SPÉCIFIQUES à son activité, pas des sujets génériques
 - Le ton des accroches doit être direct, oral, chaleureux (comme une discussion entre ami·es)
+- Adapte les suggestions au canal ${canalLabel} (longueur, style, conventions de la plateforme)
 - Écriture inclusive avec point médian
 - Pas de tiret cadratin, utiliser : ou ;
 - Pas d'emojis
@@ -103,7 +108,7 @@ IMPORTANT : Réponds UNIQUEMENT en JSON, sans aucun texte avant ou après, sans 
     "angle": "..."
   }
 ]`;
-      userPrompt = "Propose-moi 5 idées de posts.";
+      userPrompt = `Propose-moi 5 idées de posts ${canalLabel}.`;
     } else if (type === "bio") {
       systemPrompt = `Tu es un·e expert·e en personal branding Instagram pour des solopreneuses éthiques et créatives.
 
