@@ -119,6 +119,62 @@ export type Database = {
         }
         Relationships: []
       }
+      content_drafts: {
+        Row: {
+          accroche: string | null
+          canal: string | null
+          content: string | null
+          created_at: string
+          format: string | null
+          format_technique: string | null
+          id: string
+          idea_id: string | null
+          objectif: string | null
+          status: string | null
+          theme: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accroche?: string | null
+          canal?: string | null
+          content?: string | null
+          created_at?: string
+          format?: string | null
+          format_technique?: string | null
+          id?: string
+          idea_id?: string | null
+          objectif?: string | null
+          status?: string | null
+          theme?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accroche?: string | null
+          canal?: string | null
+          content?: string | null
+          created_at?: string
+          format?: string | null
+          format_technique?: string | null
+          id?: string
+          idea_id?: string | null
+          objectif?: string | null
+          status?: string | null
+          theme?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_drafts_idea_id_fkey"
+            columns: ["idea_id"]
+            isOneToOne: false
+            referencedRelation: "saved_ideas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       generated_posts: {
         Row: {
           added_to_plan: boolean
@@ -420,6 +476,7 @@ export type Database = {
           created_at: string
           format: string
           id: string
+          objectif: string | null
           titre: string
           user_id: string
         }
@@ -429,6 +486,7 @@ export type Database = {
           created_at?: string
           format: string
           id?: string
+          objectif?: string | null
           titre: string
           user_id: string
         }
@@ -438,6 +496,7 @@ export type Database = {
           created_at?: string
           format?: string
           id?: string
+          objectif?: string | null
           titre?: string
           user_id?: string
         }

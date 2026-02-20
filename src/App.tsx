@@ -18,6 +18,8 @@ import InstagramBio from "./pages/InstagramBio";
 import InstagramHighlights from "./pages/InstagramHighlights";
 import InstagramInspiration from "./pages/InstagramInspiration";
 import InstagramLaunch from "./pages/InstagramLaunch";
+import AtelierPage from "./pages/AtelierPage";
+import RedactionPage from "./pages/RedactionPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -68,7 +70,10 @@ const App = () => (
             } />
             {/* Transversal routes */}
             <Route path="/atelier" element={
-              <ProtectedRoute><Dashboard /></ProtectedRoute>
+              <ProtectedRoute><AtelierPage /></ProtectedRoute>
+            } />
+            <Route path="/atelier/rediger" element={
+              <ProtectedRoute><RedactionPage /></ProtectedRoute>
             } />
             <Route path="/calendrier" element={
               <ProtectedRoute><Calendar /></ProtectedRoute>
