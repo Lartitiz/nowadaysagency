@@ -29,6 +29,8 @@ import PersonaPage from "./pages/PersonaPage";
 import PersonaRecapPage from "./pages/PersonaRecapPage";
 import PropositionPage from "./pages/PropositionPage";
 import PropositionRecapPage from "./pages/PropositionRecapPage";
+import NichePage from "./pages/NichePage";
+import NicheRecapPage from "./pages/NicheRecapPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -78,6 +80,12 @@ const App = () => (
             } />
             <Route path="/branding/proposition/recap" element={
               <ProtectedRoute><PropositionRecapPage /></ProtectedRoute>
+            } />
+            <Route path="/branding/niche" element={
+              <ProtectedRoute><NichePage /></ProtectedRoute>
+            } />
+            <Route path="/branding/niche/recap" element={
+              <ProtectedRoute><NicheRecapPage /></ProtectedRoute>
             } />
             <Route path="/plan" element={
               <ProtectedRoute><PlanPage /></ProtectedRoute>

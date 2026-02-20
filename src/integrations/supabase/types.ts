@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      brand_niche: {
+        Row: {
+          ai_combats: Json | null
+          ai_limits: Json | null
+          completed: boolean | null
+          created_at: string | null
+          current_step: number | null
+          id: string
+          ideal_public: string | null
+          market: string | null
+          need: string | null
+          niche_specific: string | null
+          step_1a_cause: string | null
+          step_1b_combats: string | null
+          step_1c_alternative: string | null
+          step_2_refusals: string | null
+          updated_at: string | null
+          user_id: string
+          version_descriptive: string | null
+          version_final: string | null
+          version_manifeste: string | null
+          version_pitch: string | null
+        }
+        Insert: {
+          ai_combats?: Json | null
+          ai_limits?: Json | null
+          completed?: boolean | null
+          created_at?: string | null
+          current_step?: number | null
+          id?: string
+          ideal_public?: string | null
+          market?: string | null
+          need?: string | null
+          niche_specific?: string | null
+          step_1a_cause?: string | null
+          step_1b_combats?: string | null
+          step_1c_alternative?: string | null
+          step_2_refusals?: string | null
+          updated_at?: string | null
+          user_id: string
+          version_descriptive?: string | null
+          version_final?: string | null
+          version_manifeste?: string | null
+          version_pitch?: string | null
+        }
+        Update: {
+          ai_combats?: Json | null
+          ai_limits?: Json | null
+          completed?: boolean | null
+          created_at?: string | null
+          current_step?: number | null
+          id?: string
+          ideal_public?: string | null
+          market?: string | null
+          need?: string | null
+          niche_specific?: string | null
+          step_1a_cause?: string | null
+          step_1b_combats?: string | null
+          step_1c_alternative?: string | null
+          step_2_refusals?: string | null
+          updated_at?: string | null
+          user_id?: string
+          version_descriptive?: string | null
+          version_final?: string | null
+          version_manifeste?: string | null
+          version_pitch?: string | null
+        }
+        Relationships: []
+      }
       brand_profile: {
         Row: {
           channels: string[] | null
