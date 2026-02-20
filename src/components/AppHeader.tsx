@@ -1,10 +1,11 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useLocation } from "react-router-dom";
-import { Home, ClipboardList, User, Settings, Menu, X } from "lucide-react";
+import { Home, ClipboardList, User, Settings, Menu, X, Lightbulb } from "lucide-react";
 import { useState } from "react";
 
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Accueil", icon: Home },
+  { to: "/idees", label: "Mes idées", icon: Lightbulb },
   { to: "/plan", label: "Mon plan", icon: ClipboardList },
   { to: "/profil", label: "Profil", icon: User },
   { to: "/parametres", label: "Paramètres", icon: Settings },

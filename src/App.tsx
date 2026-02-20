@@ -9,6 +9,7 @@ import LoginPage from "./pages/LoginPage";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
+import IdeasPage from "./pages/IdeasPage";
 import Profile from "./pages/Profile";
 import SettingsPage from "./pages/SettingsPage";
 import Calendar from "./pages/Calendar";
@@ -47,6 +48,9 @@ const App = () => (
             } />
             <Route path="/dashboard" element={
               <ProtectedRoute><Dashboard /></ProtectedRoute>
+            } />
+            <Route path="/idees" element={
+              <ProtectedRoute><IdeasPage /></ProtectedRoute>
             } />
             <Route path="/branding" element={
               <ProtectedRoute><BrandingPage /></ProtectedRoute>
