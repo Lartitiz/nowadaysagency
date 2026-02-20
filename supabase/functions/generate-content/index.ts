@@ -153,7 +153,9 @@ Pour chaque idée, donne :
 1. Un TITRE accrocheur (la "grande idée" du post, en une phrase percutante)
 2. Le FORMAT recommandé parmi : Storytelling, Mythe à déconstruire, Coup de gueule, Enquête/décryptage, Conseil contre-intuitif, Test grandeur nature, Before/After, Histoire cliente, Regard philosophique, Surf sur l'actu, Identification / quotidien, Build in public, Analyse en profondeur
 3. Un ANGLE ou ACCROCHE possible (1-2 phrases qui donnent le ton et la direction du post, comme un pitch)
-${objectif ? "4. 2 ACCROCHES concrètes (phrases complètes, prêtes à poster, qui donnent envie de lire la suite)" : ""}
+${objectif ? `4. 3 ACCROCHES avec chacune 2 versions :
+   - Version COURTE (max 15 mots) : un hook percutant pour un carrousel ou un reel
+   - Version LONGUE (2-4 phrases) : l'accroche développée pour ouvrir une caption ou une newsletter. La version longue commence par la version courte et la prolonge naturellement.` : ""}
 
 RÈGLES :
 - Varie les formats (pas 2 fois le même sauf si c'est vraiment pertinent)
@@ -172,7 +174,7 @@ IMPORTANT : Réponds UNIQUEMENT en JSON, sans aucun texte avant ou après, sans 
   {
     "titre": "...",
     "format": "...",
-    "angle": "..."${objectif ? ',\n    "accroches": ["accroche 1", "accroche 2"]' : ""}
+    "angle": "..."${objectif ? ',\n    "accroches": [{"short": "accroche courte 1 (max 15 mots)", "long": "accroche longue 1 (2-4 phrases)"}, {"short": "accroche courte 2", "long": "accroche longue 2"}, {"short": "accroche courte 3", "long": "accroche longue 3"}]' : ""}
   }
 ]`;
       userPrompt = `Propose-moi 5 idées de posts ${canalLabel}.`;

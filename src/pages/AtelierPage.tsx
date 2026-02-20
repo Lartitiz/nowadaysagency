@@ -16,14 +16,21 @@ import {
 } from "@/lib/atelier-data";
 import { getInstagramFormatReco } from "@/lib/production-guides";
 
+interface AccrocheItem {
+  short: string;
+  long: string;
+}
+
 interface IdeaResult {
   titre: string;
   format: string;
   angle: string;
-  accroches?: string[];
+  accroches?: (string | AccrocheItem)[];
 }
 
 export default function AtelierPage() {
+  // Track which accroche view mode per idea: "short" or "long"
+  const [accrocheMode, setAccrocheMode] = useState<Record<string, "short" | "long">>({});
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -308,12 +315,40 @@ export default function AtelierPage() {
                 {/* Accroches */}
                 {idea.accroches && idea.accroches.length > 0 && (
                   <div className="space-y-1.5">
-                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Accroches</p>
-                    {idea.accroches.map((a, i) => (
-                      <p key={i} className="text-sm text-foreground bg-muted/50 rounded-lg px-3 py-2 italic">
-                        "{a}"
-                      </p>
-                    ))}
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Accroches</p>
+                      {/* Toggle short/long if accroches are objects */}
+                      {typeof idea.accroches[0] === "object" && (
+                        <div className="flex gap-0.5 bg-muted rounded-lg p-0.5">
+                          <button
+                            onClick={() => setAccrocheMode(prev => ({ ...prev, [idx]: "short" }))}
+                            className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                              (accrocheMode[idx] || "short") === "short" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+                            }`}
+                          >
+                            Courte
+                          </button>
+                          <button
+                            onClick={() => setAccrocheMode(prev => ({ ...prev, [idx]: "long" }))}
+                            className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                              accrocheMode[idx] === "long" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+                            }`}
+                          >
+                            Longue
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {idea.accroches.map((a, i) => {
+                      const isObject = typeof a === "object" && a !== null;
+                      const mode = accrocheMode[idx] || "short";
+                      const text = isObject ? (mode === "long" ? (a as AccrocheItem).long : (a as AccrocheItem).short) : (a as string);
+                      return (
+                        <p key={i} className="text-sm text-foreground bg-muted/50 rounded-lg px-3 py-2 italic">
+                          "{text}"
+                        </p>
+                      );
+                    })}
                   </div>
                 )}
 

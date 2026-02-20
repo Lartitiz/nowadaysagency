@@ -16,9 +16,10 @@ interface Props {
   defaultCanal: string;
   onSave: (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null }) => void;
   onDelete: () => void;
+  prefillData?: { theme?: string; notes?: string } | null;
 }
 
-export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onDelete }: Props) {
+export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onDelete, prefillData }: Props) {
   const [theme, setTheme] = useState("");
   const [angle, setAngle] = useState<string | null>(null);
   const [status, setStatus] = useState("idea");
@@ -34,6 +35,13 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       setNotes(editingPost.notes || "");
       setObjectif(editingPost.objectif || null);
       setPostCanal(editingPost.canal || "instagram");
+    } else if (prefillData) {
+      setTheme(prefillData.theme || "");
+      setAngle(null);
+      setStatus("idea");
+      setNotes(prefillData.notes || "");
+      setObjectif(null);
+      setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
     } else {
       setTheme("");
       setAngle(null);
@@ -42,7 +50,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       setObjectif(null);
       setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
     }
-  }, [editingPost, open, defaultCanal]);
+  }, [editingPost, open, defaultCanal, prefillData]);
 
   const guide = angle ? getGuide(angle) : null;
 
