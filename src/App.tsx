@@ -27,6 +27,8 @@ import AtelierPage from "./pages/AtelierPage";
 import RedactionPage from "./pages/RedactionPage";
 import PersonaPage from "./pages/PersonaPage";
 import PersonaRecapPage from "./pages/PersonaRecapPage";
+import PropositionPage from "./pages/PropositionPage";
+import PropositionRecapPage from "./pages/PropositionRecapPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -70,6 +72,12 @@ const App = () => (
             } />
             <Route path="/branding/persona/recap" element={
               <ProtectedRoute><PersonaRecapPage /></ProtectedRoute>
+            } />
+            <Route path="/branding/proposition" element={
+              <ProtectedRoute><PropositionPage /></ProtectedRoute>
+            } />
+            <Route path="/branding/proposition/recap" element={
+              <ProtectedRoute><PropositionRecapPage /></ProtectedRoute>
             } />
             <Route path="/plan" element={
               <ProtectedRoute><PlanPage /></ProtectedRoute>

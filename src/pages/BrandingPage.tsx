@@ -11,6 +11,7 @@ interface SectionProgress {
   storytelling: number; // out of 8
   persona: number; // out of 5
   tone: number; // out of 9
+  proposition: number; // out of 4
 }
 
 /* ─── Card definition ─── */
@@ -52,9 +53,9 @@ const CARDS: BrandingCard[] = [
     description: "Ce qui te rend unique. Pourquoi ta cliente te choisit toi et pas une autre.",
     route: "/branding/proposition",
     cta: "Trouver ma proposition de valeur →",
-    progressLabel: () => "Bientôt disponible",
-    progressValue: () => 0,
-    available: false,
+    progressLabel: (p) => `${p.proposition} / 4 étapes`,
+    progressValue: (p) => (p.proposition / 4) * 100,
+    available: true,
   },
   {
     emoji: "💎",
@@ -91,7 +92,7 @@ const CARDS: BrandingCard[] = [
 /* ─── Main ─── */
 export default function BrandingPage() {
   const { user } = useAuth();
-  const [progress, setProgress] = useState<SectionProgress>({ storytelling: 0, persona: 0, tone: 0 });
+  const [progress, setProgress] = useState<SectionProgress>({ storytelling: 0, persona: 0, tone: 0, proposition: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -100,25 +101,28 @@ export default function BrandingPage() {
       supabase.from("storytelling").select("step_1_raw, step_2_location, step_3_action, step_4_thoughts, step_5_emotions, step_6_full_story, step_7_polished, pitch_short").eq("user_id", user.id).maybeSingle(),
       supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions").eq("user_id", user.id).maybeSingle(),
       supabase.from("brand_profile").select("tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels").eq("user_id", user.id).maybeSingle(),
-    ]).then(([stRes, perRes, toneRes]) => {
+      supabase.from("brand_proposition").select("step_1_what, step_2a_process, step_3_for_whom, version_final").eq("user_id", user.id).maybeSingle(),
+    ]).then(([stRes, perRes, toneRes, propRes]) => {
       const countFilled = (obj: any, fields: string[]) =>
         obj ? fields.filter((f) => obj[f] && String(obj[f]).trim().length > 0).length : 0;
 
       const storytelling = countFilled(stRes.data, ["step_1_raw", "step_2_location", "step_3_action", "step_4_thoughts", "step_5_emotions", "step_6_full_story", "step_7_polished", "pitch_short"]);
       const persona = countFilled(perRes.data, ["step_1_frustrations", "step_2_transformation", "step_3a_objections", "step_4_beautiful", "step_5_actions"]);
       const tone = countFilled(toneRes.data, ["tone_register", "tone_level", "tone_style", "tone_humor", "tone_engagement", "key_expressions", "things_to_avoid", "target_verbatims"]) + (toneRes.data?.channels && toneRes.data.channels.length > 0 ? 1 : 0);
+      const proposition = countFilled(propRes.data, ["step_1_what", "step_2a_process", "step_3_for_whom", "version_final"]);
 
-      setProgress({ storytelling, persona, tone });
+      setProgress({ storytelling, persona, tone, proposition });
       setLoading(false);
     });
   }, [user]);
 
-  // Global score: 6 sections, 3 available now
-  const availableSections = 3;
+  // Global score: 6 sections, 4 available now
+  const availableSections = 4;
   const sectionScores = [
     progress.storytelling / 8,
     progress.persona / 5,
     progress.tone / 9,
+    progress.proposition / 4,
   ];
   const globalPercent = Math.round((sectionScores.reduce((a, b) => a + b, 0) / availableSections) * 100);
 

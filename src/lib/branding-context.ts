@@ -5,11 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
  * Returns a string to inject BEFORE any specific AI prompt.
  */
 export async function buildBrandingContext(userId: string): Promise<string> {
-  const [stRes, perRes, toneRes, profRes] = await Promise.all([
+  const [stRes, perRes, toneRes, profRes, propRes] = await Promise.all([
     supabase.from("storytelling").select("step_7_polished").eq("user_id", userId).maybeSingle(),
     supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_profile").select("tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq("user_id", userId).maybeSingle(),
     supabase.from("profiles").select("activite, offre, mission, cible").eq("user_id", userId).maybeSingle(),
+    supabase.from("brand_proposition").select("version_final, version_complete").eq("user_id", userId).maybeSingle(),
   ]);
 
   const lines: string[] = ["CONTEXTE DE LA MARQUE (généré à partir du module Branding) :\n"];
@@ -50,6 +51,10 @@ export async function buildBrandingContext(userId: string): Promise<string> {
       lines.push(`IDENTITÉ :\n${idLines.join("\n")}\n`);
     }
   }
+
+  // Proposition de valeur
+  const propValue = propRes.data?.version_final || propRes.data?.version_complete;
+  if (propValue) lines.push(`PROPOSITION DE VALEUR :\n${propValue}\n`);
 
   if (lines.length <= 1) {
     return "NOTE : Le profil branding est très peu rempli. Indique à l'utilisatrice qu'elle gagnerait à compléter son Branding pour des résultats plus pertinents.\n";
