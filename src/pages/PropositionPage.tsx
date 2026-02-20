@@ -100,20 +100,23 @@ export default function PropositionPage() {
     });
   }, [user]);
 
+  const saveNow = useCallback(async (updated: PropositionData) => {
+    if (!user) return;
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    const payload = { ...updated };
+    delete (payload as any).id;
+    if (existingId) {
+      await supabase.from("brand_proposition").update(payload as any).eq("id", existingId);
+    } else {
+      const { data: inserted } = await supabase.from("brand_proposition").insert({ ...payload, user_id: user.id } as any).select("id").single();
+      if (inserted) setExistingId(inserted.id);
+    }
+  }, [user, existingId]);
+
   const debouncedSave = useCallback((updated: PropositionData) => {
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    saveTimeout.current = setTimeout(async () => {
-      if (!user) return;
-      const payload = { ...updated };
-      delete (payload as any).id;
-      if (existingId) {
-        await supabase.from("brand_proposition").update(payload as any).eq("id", existingId);
-      } else {
-        const { data: inserted } = await supabase.from("brand_proposition").insert({ ...payload, user_id: user.id } as any).select("id").single();
-        if (inserted) setExistingId(inserted.id);
-      }
-    }, 2000);
-  }, [user, existingId]);
+    saveTimeout.current = setTimeout(() => saveNow(updated), 2000);
+  }, [saveNow]);
 
   const updateField = (field: keyof PropositionData, value: string) => {
     const updated = { ...data, [field]: value };
@@ -144,12 +147,12 @@ export default function PropositionPage() {
     }
   };
 
-  const nextStep = () => {
+  const nextStep = async () => {
     if (currentStep < 4) goToStep(currentStep + 1);
     else {
       const updated = { ...data, completed: true, current_step: 4 };
       setData(updated);
-      debouncedSave(updated);
+      await saveNow(updated);
       navigate("/branding/proposition/recap");
     }
   };

@@ -88,34 +88,36 @@ export default function StorytellingPage() {
   }, [user, paramId, isNew]);
 
   // Auto-save
+  const saveNow = useCallback(async (updated: StorytellingData) => {
+    if (!user) return;
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    const payload = { ...updated };
+    delete (payload as any).id;
+    if (existingId) {
+      await supabase.from("storytelling").update(payload as any).eq("id", existingId);
+    } else {
+      const { data: existingPrimary } = await supabase
+        .from("storytelling")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("is_primary", true);
+      const isPrimary = !existingPrimary || existingPrimary.length === 0;
+
+      const { data: inserted } = await supabase.from("storytelling").insert({
+        ...payload,
+        user_id: user.id,
+        source: "stepper",
+        story_type: "fondatrice",
+        is_primary: isPrimary,
+      } as any).select("id").single();
+      if (inserted) setExistingId(inserted.id);
+    }
+  }, [user, existingId]);
+
   const debouncedSave = useCallback((updated: StorytellingData) => {
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    saveTimeout.current = setTimeout(async () => {
-      if (!user) return;
-      const payload = { ...updated };
-      delete (payload as any).id;
-      if (existingId) {
-        await supabase.from("storytelling").update(payload as any).eq("id", existingId);
-      } else {
-        // Check if any existing storytelling is primary
-        const { data: existingPrimary } = await supabase
-          .from("storytelling")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("is_primary", true);
-        const isPrimary = !existingPrimary || existingPrimary.length === 0;
-
-        const { data: inserted } = await supabase.from("storytelling").insert({
-          ...payload,
-          user_id: user.id,
-          source: "stepper",
-          story_type: "fondatrice",
-          is_primary: isPrimary,
-        } as any).select("id").single();
-        if (inserted) setExistingId(inserted.id);
-      }
-    }, 2000);
-  }, [user, existingId]);
+    saveTimeout.current = setTimeout(() => saveNow(updated), 2000);
+  }, [saveNow]);
 
   const updateField = (field: keyof StorytellingData, value: string) => {
     const updated = { ...data, [field]: value };
@@ -147,13 +149,13 @@ export default function StorytellingPage() {
     }
   };
 
-  const nextStep = () => {
+  const nextStep = async () => {
     if (currentStep < 8) goToStep(currentStep + 1);
     else {
       // Complete & go to recap
       const updated = { ...data, completed: true, current_step: 8 };
       setData(updated);
-      debouncedSave(updated);
+      await saveNow(updated);
       const recapId = existingId || "recap";
       navTo(`/branding/storytelling/${recapId}/recap`);
     }
