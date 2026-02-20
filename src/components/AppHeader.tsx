@@ -16,6 +16,7 @@ export default function AppHeader() {
 
         <nav className="hidden sm:flex items-center rounded-pill bg-rose-pale p-1 gap-1">
           <NavTab to="/dashboard" active={location.pathname === "/dashboard"}>Mon atelier</NavTab>
+          <NavTab to="/plan" active={location.pathname === "/plan"}>Mon plan</NavTab>
           <NavTab to="/calendrier" active={location.pathname === "/calendrier"}>Mon calendrier</NavTab>
           <NavTab to="/profil" active={location.pathname === "/profil"}>Mon profil</NavTab>
         </nav>
@@ -36,6 +37,7 @@ export default function AppHeader() {
       <div className="sm:hidden flex items-center justify-center pb-2 gap-1">
         <nav className="flex items-center rounded-pill bg-rose-pale p-1 gap-1">
           <NavTab to="/dashboard" active={location.pathname === "/dashboard"}>Mon atelier</NavTab>
+          <NavTab to="/plan" active={location.pathname === "/plan"}>Mon plan</NavTab>
           <NavTab to="/calendrier" active={location.pathname === "/calendrier"}>Mon calendrier</NavTab>
           <NavTab to="/profil" active={location.pathname === "/profil"}>Mon profil</NavTab>
         </nav>

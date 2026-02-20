@@ -18,7 +18,6 @@ export interface UserProfile {
 export default function Dashboard() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [postCount, setPostCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -31,19 +30,6 @@ export default function Dashboard() {
       if (data) setProfile(data as UserProfile);
     };
     fetchProfile();
-  }, [user]);
-
-  const refreshPostCount = async () => {
-    if (!user) return;
-    const { count } = await supabase
-      .from("generated_posts")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id);
-    setPostCount(count || 0);
-  };
-
-  useEffect(() => {
-    refreshPostCount();
   }, [user]);
 
   if (!profile) {
@@ -72,8 +58,8 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-          <ContentWorkshop profile={profile} onIdeaGenerated={refreshPostCount} />
-          <SidebarPanel ideaCount={postCount} />
+          <ContentWorkshop profile={profile} onIdeaGenerated={() => {}} />
+          <SidebarPanel />
         </div>
       </main>
     </div>
