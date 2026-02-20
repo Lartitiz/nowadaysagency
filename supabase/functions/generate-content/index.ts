@@ -104,6 +104,55 @@ IMPORTANT : Réponds UNIQUEMENT en JSON, sans aucun texte avant ou après, sans 
   }
 ]`;
       userPrompt = "Propose-moi 5 idées de posts.";
+    } else if (type === "bio") {
+      systemPrompt = `Tu es un·e expert·e en personal branding Instagram pour des solopreneuses éthiques et créatives.
+
+PROFIL DE L'UTILISATRICE :
+- Prénom : ${profile.prenom}
+- Activité : ${profile.activite}
+- Type : ${profile.type_activite}
+- Cible : ${profile.cible}
+- Problème qu'elle résout : ${profile.probleme_principal}
+- Thématiques : ${(profile.piliers || []).join(", ")}
+- Ton souhaité : ${(profile.tons || []).join(", ")}
+
+CONSIGNE :
+Génère exactement 2 versions de bio Instagram pour cette utilisatrice.
+
+VERSION 1 : Bio structurée & claire
+Format strict ligne par ligne :
+- Ligne "nom_profil" : Prénom + mot-clé de l'activité (ex : "Lucie | Céramique slow & solaire")
+- Ligne 1 : Ce qu'elle propose (commence par un emoji pertinent)
+- Ligne 2 : Ce qui la rend unique (commence par un emoji pertinent)
+- Ligne 3 : Appel à l'action (commence par un emoji pertinent, termine par ⤵️)
+
+VERSION 2 : Bio créative & incarnée
+Même structure mais avec un ton plus libre, poétique, avec de l'humour ou de la personnalité. Moins formaté, plus authentique.
+
+RÈGLES :
+- Maximum 150 caractères par ligne
+- Écriture inclusive avec point médian
+- Pas de hashtags dans la bio
+- Pas de tiret cadratin
+- Le ton doit correspondre aux tons souhaités de l'utilisatrice
+- Chaque version doit être SPÉCIFIQUE à son activité
+
+IMPORTANT : Réponds UNIQUEMENT en JSON, sans aucun texte avant ou après, sans backticks markdown. Format exact :
+{
+  "structured": {
+    "nom_profil": "...",
+    "ligne1": "...",
+    "ligne2": "...",
+    "ligne3": "..."
+  },
+  "creative": {
+    "nom_profil": "...",
+    "ligne1": "...",
+    "ligne2": "...",
+    "ligne3": "..."
+  }
+}`;
+      userPrompt = "Génère 2 versions de bio Instagram pour moi.";
     } else {
       // Legacy generate type - kept for compatibility
       systemPrompt = `Tu es un·e expert·e en création de contenu Instagram.`;
