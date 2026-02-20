@@ -1,14 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
-import SubPageHeader from "@/components/SubPageHeader";
-import WeeklyRecap from "@/components/WeeklyRecap";
-import PlanMiniRecap from "@/components/PlanMiniRecap";
-import { Lightbulb, ClipboardList, ArrowRight, User } from "lucide-react";
-import { PLAN_WEEKS } from "@/lib/plan-content";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
+import { ExternalLink } from "lucide-react";
 
 export interface UserProfile {
   prenom: string;
@@ -19,7 +15,6 @@ export interface UserProfile {
   piliers: string[];
   tons: string[];
   plan_start_date: string | null;
-  // Ma marque fields
   mission?: string;
   offre?: string;
   croyances_limitantes?: string;
@@ -30,20 +25,102 @@ export interface UserProfile {
   canaux?: string[];
 }
 
-const DAY_ACTIONS: Record<number, string> = {
-  1: "parfait pour planifier ta semaine.",
-  2: "parfait pour rédiger un post.",
-  3: "parfait pour trouver de nouvelles idées.",
-  4: "parfait pour avancer sur ton plan.",
-  5: "parfait pour préparer le contenu de la semaine prochaine.",
-  6: "parfait pour prendre du recul et observer.",
-  0: "Jour de repos ou jour d'inspi ?",
-};
+/* ─── Module cards data ─── */
+interface ModuleCard {
+  id: string;
+  emoji: string;
+  number: number;
+  title: string;
+  description: string;
+  chips: string[];
+  cta: string;
+  route?: string;
+  externalUrl?: string;
+  badge: { label: string; variant: "available" | "soon" | "external" };
+  disabled?: boolean;
+}
 
+const MODULES: ModuleCard[] = [
+  {
+    id: "branding",
+    emoji: "🎨",
+    number: 1,
+    title: "Mon Branding",
+    description: "Pose les bases de ta marque : ta mission, ton positionnement, ta cible, ton ton. C'est ce qui rend tout le reste cohérent.",
+    chips: ["Ma mission", "Ma cible", "Mon ton", "Mon positionnement"],
+    cta: "Définir ma marque →",
+    route: "/branding",
+    badge: { label: "Disponible", variant: "available" },
+  },
+  {
+    id: "instagram",
+    emoji: "📱",
+    number: 2,
+    title: "Mon Instagram",
+    description: "Optimise ton compte, trouve des idées de contenu, planifie tes posts, et crée du contenu qui fonctionne.",
+    chips: ["Ma bio", "Idées de contenu", "Calendrier", "Stories à la une", "Lancement"],
+    cta: "Bosser sur Instagram →",
+    route: "/instagram",
+    badge: { label: "Disponible", variant: "available" },
+  },
+  {
+    id: "siteweb",
+    emoji: "🌐",
+    number: 3,
+    title: "Mon Site Web",
+    description: "Crée ou améliore ton site pour qu'il vende même quand tu dors.",
+    chips: ["Parcours client", "Pages clés", "UX"],
+    cta: "Arrive bientôt",
+    badge: { label: "Bientôt", variant: "soon" },
+    disabled: true,
+  },
+  {
+    id: "seo",
+    emoji: "🔍",
+    number: 4,
+    title: "Mon Référencement (SEO)",
+    description: "Sois trouvée sur Google. Mots-clés, maillage interne, optimisation de tes pages.",
+    chips: ["Mots-clés", "Maillage interne", "Audit SEO"],
+    cta: "Ouvrir l'outil SEO ↗",
+    externalUrl: "https://referencement-seo.lovable.app/",
+    badge: { label: "Outil dispo ↗", variant: "external" },
+  },
+  {
+    id: "emailing",
+    emoji: "📧",
+    number: 5,
+    title: "Mon Emailing",
+    description: "Newsletter, séquences automatisées, emails qui fidélisent sans spammer.",
+    chips: ["Newsletter", "Séquences", "Templates"],
+    cta: "Arrive bientôt",
+    badge: { label: "Bientôt", variant: "soon" },
+    disabled: true,
+  },
+  {
+    id: "presse",
+    emoji: "📣",
+    number: 6,
+    title: "Presse & Influence",
+    description: "Que d'autres racontent ton histoire à ta place. Relations presse, partenariats, ambassadrices.",
+    chips: ["Contacts médias", "Partenariats", "Ambassadrices"],
+    cta: "Arrive bientôt",
+    badge: { label: "Bientôt", variant: "soon" },
+    disabled: true,
+  },
+];
+
+/* ─── Conseils du jour ─── */
 const CONSEILS = [
-  "Tu n'as pas besoin de poster tous les jours. Tu as besoin de poster avec intention.",
-  "Un bon post par semaine vaut mieux que 7 posts vides.",
-  "Si ton post fait réagir 10 personnes qui correspondent à ta cible, c'est un succès.",
+  "Ta com' n'a pas besoin d'être parfaite. Elle a besoin d'être régulière et sincère.",
+  "Un post imparfait publié vaut mille posts parfaits restés dans tes brouillons.",
+  "Si tu ne sais pas quoi poster, raconte une galère récente et ce que tu en as appris.",
+  "Ton audience ne te suit pas pour tes photos. Elle te suit pour ta vision.",
+  "La meilleure stratégie Instagram du monde ne remplacera jamais un positionnement clair.",
+  "Vendre, ce n'est pas manipuler. C'est montrer à quelqu'un que tu as la solution à son problème.",
+  "2 posts par semaine avec intention valent plus que 7 posts par semaine sans stratégie.",
+  "Si un sujet engage en stories, c'est un signal pour en faire un post.",
+  "Ton contenu ne doit pas plaire à tout le monde. Il doit parler à la bonne personne.",
+  "La visibilité n'est pas de la vanité. C'est politique.",
   "Arrête de te comparer aux comptes qui ont 50K abonné·es. Toi, tu construis une communauté, pas une audience.",
   "Le contenu parfait n'existe pas. Le contenu publié, oui.",
   "Ton expertise mérite d'être visible. Poster, c'est un acte de générosité.",
@@ -54,75 +131,50 @@ const CONSEILS = [
   "Chaque post est une graine. Certaines germent tout de suite, d'autres dans 6 mois.",
   "Ta voix unique est ton meilleur atout marketing.",
   "Mieux vaut 100 abonné·es engagé·es que 10 000 fantômes.",
-  "Créer du contenu, c'est documenter ton expertise, pas performer.",
-  "L'authenticité n'est pas une stratégie, c'est un état d'esprit.",
 ];
 
+/* ─── Badge styles ─── */
+function badgeClass(variant: "available" | "soon" | "external") {
+  switch (variant) {
+    case "available":
+      return "bg-primary text-primary-foreground";
+    case "soon":
+      return "bg-accent text-accent-foreground";
+    case "external":
+      return "bg-[#E8F5E9] text-[#2E7D32]";
+  }
+}
+
+/* ─── Main component ─── */
 export default function Dashboard() {
   const { user } = useAuth();
-  const location = useLocation();
-  const isAtelierRoute = location.pathname.startsWith("/instagram/idees");
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [planTasks, setPlanTasks] = useState<any[]>([]);
+  const [brandingScore, setBrandingScore] = useState(0);
 
   useEffect(() => {
     if (!user) return;
-    const fetchData = async () => {
-      const [profileRes, tasksRes] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date")
-          .eq("user_id", user.id)
-          .single(),
-        supabase
-          .from("plan_tasks")
-          .select("week_number, task_index, is_completed, completed_at")
-          .eq("user_id", user.id),
-      ]);
-      if (profileRes.data) setProfile(profileRes.data as UserProfile);
-      if (tasksRes.data) setPlanTasks(tasksRes.data);
+    const fetchProfile = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date, mission, offre, croyances_limitantes, verbatims, expressions_cles, ce_quon_evite, style_communication, canaux")
+        .eq("user_id", user.id)
+        .single();
+      if (data) {
+        setProfile(data as UserProfile);
+        // Compute branding score from profiles fields (temporary until brand_profile table)
+        const fields = [
+          data.mission, data.offre, data.cible, data.probleme_principal,
+          data.croyances_limitantes, data.verbatims, data.expressions_cles,
+          data.ce_quon_evite, data.tons?.length > 0 ? "filled" : "",
+        ];
+        setBrandingScore(fields.filter((f) => f && String(f).trim().length > 0).length);
+      }
     };
-    fetchData();
+    fetchProfile();
   }, [user]);
 
-  const currentWeek = useMemo(() => {
-    if (!profile?.plan_start_date) return 0;
-    const start = new Date(profile.plan_start_date);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    return Math.min(Math.floor(diffDays / 7) + 1, 12);
-  }, [profile?.plan_start_date]);
-
-  const weekData = PLAN_WEEKS.find((w) => w.weekNumber === currentWeek);
-
-  const handleToggleTask = async (taskIndex: number, checked: boolean) => {
-    if (!user || !weekData) return;
-    const existing = planTasks.find(
-      (t) => t.week_number === currentWeek && t.task_index === taskIndex
-    );
-    if (existing) {
-      await supabase
-        .from("plan_tasks")
-        .update({ is_completed: checked, completed_at: checked ? new Date().toISOString() : null })
-        .eq("user_id", user.id)
-        .eq("week_number", currentWeek)
-        .eq("task_index", taskIndex);
-    } else {
-      await supabase.from("plan_tasks").insert({
-        user_id: user.id,
-        week_number: currentWeek,
-        task_index: taskIndex,
-        is_completed: checked,
-        completed_at: checked ? new Date().toISOString() : null,
-      });
-    }
-    // Refresh
-    const { data } = await supabase
-      .from("plan_tasks")
-      .select("week_number, task_index, is_completed, completed_at")
-      .eq("user_id", user.id);
-    if (data) setPlanTasks(data);
-  };
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+  const conseil = CONSEILS[dayOfYear % CONSEILS.length];
 
   if (!profile) {
     return (
@@ -136,150 +188,119 @@ export default function Dashboard() {
     );
   }
 
-  const today = new Date().getDay();
-  const dayName = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"][today];
-  const dayAction = DAY_ACTIONS[today];
-  const subtitle = today === 0
-    ? dayAction
-    : `C'est ${dayName}, ${dayAction}`;
-
-  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
-  const conseil = CONSEILS[dayOfYear % CONSEILS.length];
-
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4">
-        {isAtelierRoute && (
-          <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Trouver des idées" />
-        )}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-          {/* LEFT COLUMN */}
-          <div className="space-y-6 min-w-0">
-            {/* Header */}
-            <div>
-              <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">
-                Hey {profile.prenom}, on avance sur quoi aujourd'hui ?
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
-            </div>
+        {/* Header */}
+        <div className="mb-2">
+          <h1 className="font-display text-[22px] sm:text-[30px] font-bold text-foreground">
+            Hey <span className="text-primary">{profile.prenom}</span>, on avance sur quoi aujourd'hui ?
+          </h1>
+          <p className="mt-1 text-[15px] text-muted-foreground">
+            Choisis un pilier de ta communication. On te guide étape par étape.
+          </p>
+        </div>
 
-            {/* Weekly recap */}
-            <WeeklyRecap currentWeek={currentWeek} planTasks={planTasks} />
+        {/* Suggestion d'ordre */}
+        <div className="rounded-[10px] bg-rose-pale px-4 py-3 mb-6">
+          <p className="text-[13px] text-muted-foreground">
+            💡 <span className="font-bold text-bordeaux">Notre conseil</span> : commence par le Branding, c'est la base de tout. Ensuite Instagram, puis le reste. Mais c'est toi qui décides.
+          </p>
+        </div>
 
-            {/* Quick actions */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Link
-                to="/instagram"
-                className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary hover:shadow-sm transition-all group"
-              >
-                <Lightbulb className="h-5 w-5 text-primary shrink-0" />
-                <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">Aller sur Instagram</span>
-              </Link>
-              <Link
-                to="/plan"
-                className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary hover:shadow-sm transition-all group"
-              >
-                <ClipboardList className="h-5 w-5 text-primary shrink-0" />
-                <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">Continuer mon plan</span>
-              </Link>
-              <Link
-                to="/profil"
-                className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary hover:shadow-sm transition-all group"
-              >
-                <User className="h-5 w-5 text-primary shrink-0" />
-                <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">Mon profil</span>
-              </Link>
-            </div>
-          </div>
+        {/* Module grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          {MODULES.map((mod) => (
+            <ModuleCardComponent key={mod.id} mod={mod} brandingScore={mod.id === "branding" ? brandingScore : undefined} />
+          ))}
+        </div>
 
-          {/* RIGHT COLUMN */}
-          <div className="space-y-5">
-            {/* Plan week tasks */}
-            {weekData && currentWeek > 0 ? (
-              <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
-                <div className="flex items-center gap-2 mb-1">
-                  <ClipboardList className="h-5 w-5 text-primary" />
-                  <h3 className="font-display text-lg font-bold">Ma semaine du plan</h3>
-                </div>
-                <p className="text-sm text-foreground font-medium mb-1">
-                  Semaine {currentWeek} / 12 : {weekData.title}
-                </p>
-                {/* 12-segment progress */}
-                <div className="flex gap-1 mb-4">
-                  {Array.from({ length: 12 }, (_, i) => {
-                    const weekTasks = PLAN_WEEKS.find((w) => w.weekNumber === i + 1);
-                    const completedCount = planTasks.filter(
-                      (t) => t.week_number === i + 1 && t.is_completed
-                    ).length;
-                    const isComplete = weekTasks && completedCount >= weekTasks.tasks.length;
-                    return (
-                      <div
-                        key={i}
-                        className={`h-2 flex-1 rounded-full ${
-                          isComplete
-                            ? "bg-primary"
-                            : i + 1 === currentWeek
-                            ? "bg-primary/40"
-                            : "bg-secondary"
-                        }`}
-                      />
-                    );
-                  })}
-                </div>
-                {/* Tasks */}
-                <div className="space-y-2.5">
-                  {weekData.tasks.map((task, idx) => {
-                    const isCompleted = planTasks.some(
-                      (t) => t.week_number === currentWeek && t.task_index === idx && t.is_completed
-                    );
-                    return (
-                      <label
-                        key={idx}
-                        className="flex items-start gap-2.5 cursor-pointer group"
-                      >
-                        <Checkbox
-                          checked={isCompleted}
-                          onCheckedChange={(checked) => handleToggleTask(idx, !!checked)}
-                          className="mt-0.5"
-                        />
-                        <span
-                          className={`text-sm leading-snug ${
-                            isCompleted
-                              ? "line-through text-muted-foreground"
-                              : "text-foreground"
-                          }`}
-                        >
-                          {task.text}
-                          <span className="text-xs text-muted-foreground ml-1">({task.duration})</span>
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-                <Link
-                  to="/plan"
-                  className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mt-4"
-                >
-                  Voir le plan complet
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
-            ) : (
-              <PlanMiniRecap />
-            )}
-
-            {/* Conseil */}
-            <div className="rounded-2xl bg-rose-pale border border-border p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Lightbulb className="h-5 w-5 text-primary" />
-                <h3 className="font-display text-lg font-bold">Le conseil Nowadays</h3>
-              </div>
-              <p className="text-sm text-foreground leading-relaxed italic">"{conseil}"</p>
-            </div>
-          </div>
+        {/* Conseil du jour */}
+        <div className="rounded-none rounded-r-2xl bg-rose-pale border-l-4 border-primary px-5 py-4">
+          <p className="font-mono-ui text-[11px] font-semibold text-primary uppercase tracking-wide mb-2">
+            💡 Le conseil du jour
+          </p>
+          <p className="text-sm text-foreground leading-relaxed italic">"{conseil}"</p>
         </div>
       </main>
     </div>
   );
+}
+
+/* ─── Module Card ─── */
+function ModuleCardComponent({ mod, brandingScore }: { mod: ModuleCard; brandingScore?: number }) {
+  const isActive = mod.id === "branding";
+
+  const inner = (
+    <div
+      className={`relative rounded-2xl border bg-card p-5 transition-all duration-[250ms] ${
+        mod.disabled
+          ? "opacity-45 cursor-default"
+          : "hover:shadow-card-hover hover:-translate-y-px cursor-pointer"
+      } ${
+        isActive
+          ? "border-primary border-2 before:absolute before:top-0 before:left-4 before:right-4 before:h-[3px] before:bg-primary before:rounded-b-full"
+          : "border-border"
+      }`}
+    >
+      {/* Top row: number + badge */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-2xl">{mod.emoji}</span>
+        <div className="flex items-center gap-2">
+          <span className={`font-mono-ui text-[11px] font-semibold px-2 py-0.5 rounded-md ${badgeClass(mod.badge.variant)}`}>
+            {mod.badge.label}
+          </span>
+          <span className="font-mono-ui text-[11px] font-semibold bg-rose-pale text-foreground px-2 py-0.5 rounded-md">
+            {mod.number}
+          </span>
+        </div>
+      </div>
+
+      {/* Title */}
+      <h3 className="font-display text-lg font-bold text-foreground mb-1">{mod.title}</h3>
+      <p className="text-[13px] text-muted-foreground leading-relaxed mb-3">{mod.description}</p>
+
+      {/* Chips */}
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        {mod.chips.map((chip) => (
+          <span
+            key={chip}
+            className={`font-mono-ui text-[10px] font-medium px-2 py-0.5 rounded-md ${
+              mod.disabled ? "bg-secondary text-muted-foreground" : "bg-rose-pale text-bordeaux"
+            }`}
+          >
+            {chip}
+          </span>
+        ))}
+      </div>
+
+      {/* Branding progress */}
+      {brandingScore !== undefined && (
+        <div className="mb-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-mono-ui text-[11px] text-muted-foreground">{brandingScore} / 9 champs complétés</span>
+          </div>
+          <Progress value={(brandingScore / 9) * 100} className="h-2" />
+        </div>
+      )}
+
+      {/* CTA */}
+      <p className={`text-sm font-semibold ${mod.disabled ? "text-muted-foreground" : "text-primary"}`}>
+        {mod.cta}
+      </p>
+    </div>
+  );
+
+  if (mod.disabled) return inner;
+
+  if (mod.externalUrl) {
+    return (
+      <a href={mod.externalUrl} target="_blank" rel="noopener noreferrer">
+        {inner}
+      </a>
+    );
+  }
+
+  return <Link to={mod.route!}>{inner}</Link>;
 }
