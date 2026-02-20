@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    --background: 340 33% 99%;
+    --background: 330 33% 99%;
     --foreground: 270 25% 17%;
 
     --card: 0 0% 100%;
@@ -18,10 +18,10 @@
     --primary: 338 96% 61%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 338 100% 91%;
+    --secondary: 330 100% 91%;
     --secondary-foreground: 338 96% 61%;
 
-    --muted: 340 60% 97%;
+    --muted: 330 40% 96%;
     --muted-foreground: 268 14% 42%;
 
     --accent: 50 100% 69%;
@@ -30,8 +30,8 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 338 30% 90%;
-    --input: 338 30% 90%;
+    --border: 330 30% 92%;
+    --input: 330 30% 92%;
     --ring: 338 96% 61%;
 
     --radius: 1rem;
@@ -39,9 +39,10 @@
     --raspberry: 338 96% 61%;
     --bordeaux: 330 100% 28%;
     --yellow: 50 100% 69%;
-    --rose-soft: 338 100% 91%;
+    --rose-soft: 330 100% 91%;
     --rose-medium: 338 100% 71%;
     --rose-pale: 340 100% 97%;
+    --placeholder: 275 30% 80%;
 
     --cal-idea: 220 13% 91%;
     --cal-idea-border: 220 9% 76%;
@@ -56,10 +57,15 @@
     --sidebar-foreground: 270 25% 17%;
     --sidebar-primary: 338 96% 61%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 338 100% 91%;
+    --sidebar-accent: 330 100% 91%;
     --sidebar-accent-foreground: 270 25% 17%;
-    --sidebar-border: 338 30% 90%;
+    --sidebar-border: 330 30% 92%;
     --sidebar-ring: 338 96% 61%;
+
+    --shadow-card: 0 2px 20px rgba(145, 1, 75, 0.08);
+    --shadow-card-hover: 0 4px 24px rgba(145, 1, 75, 0.12);
+    --shadow-strong: 0 8px 40px rgba(145, 1, 75, 0.12);
+    --shadow-cta: 0 4px 16px rgba(251, 61, 128, 0.3);
   }
 
   .dark {
@@ -95,24 +101,33 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Fraunces', serif;
+    font-family: 'Libre Baskerville', serif;
   }
 }
 
 @layer utilities {
   .font-display {
-    font-family: 'Fraunces', serif;
+    font-family: 'Libre Baskerville', serif;
   }
 
   .font-body {
     font-family: 'DM Sans', sans-serif;
   }
+
+  .font-mono-ui {
+    font-family: 'IBM Plex Mono', monospace;
+  }
 }
 
 /* Animations */
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in-x {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes bounce-dot {
@@ -126,7 +141,11 @@
 }
 
 .animate-fade-in {
-  animation: fade-in 0.3s ease-out forwards;
+  animation: fade-in 0.4s ease-out forwards;
+}
+
+.animate-fade-in-x {
+  animation: fade-in-x 0.35s ease-out forwards;
 }
 
 .animate-bounce-dot {

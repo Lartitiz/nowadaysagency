@@ -14,8 +14,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ["Fraunces", "serif"],
+        display: ["Libre Baskerville", "serif"],
         body: ["DM Sans", "sans-serif"],
+        "mono-ui": ["IBM Plex Mono", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -57,6 +58,7 @@ export default {
         "rose-soft": "hsl(var(--rose-soft))",
         "rose-medium": "hsl(var(--rose-medium))",
         "rose-pale": "hsl(var(--rose-pale))",
+        placeholder: "hsl(var(--placeholder))",
         "cal-idea": "hsl(var(--cal-idea))",
         "cal-idea-border": "hsl(var(--cal-idea-border))",
         "cal-drafting": "hsl(var(--cal-drafting))",
@@ -81,6 +83,12 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
         pill: "50px",
+      },
+      boxShadow: {
+        card: "var(--shadow-card)",
+        "card-hover": "var(--shadow-card-hover)",
+        strong: "var(--shadow-strong)",
+        cta: "var(--shadow-cta)",
       },
       keyframes: {
         "accordion-down": {
