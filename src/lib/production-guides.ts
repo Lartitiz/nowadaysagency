@@ -63,13 +63,35 @@ export const PRODUCTION_GUIDES: Record<string, string[]> = {
   ],
 };
 
-// Normalize angle string for lookup (handles "Enquête/décryptage" vs "Enquête / décryptage")
+// Instagram format recommendations per angle
+export const INSTAGRAM_FORMAT_RECO: Record<string, string> = {
+  "Storytelling": "Ce sujet se prête bien à un carrousel ou un post texte long.",
+  "Mythe à déconstruire": "Ce sujet se prête bien à un carrousel éducatif.",
+  "Coup de gueule": "Ce sujet se prête bien à un reel face caméra ou un post texte.",
+  "Enquête / décryptage": "Ce sujet se prête bien à un carrousel ou un reel explicatif.",
+  "Conseil contre-intuitif": "Ce sujet se prête bien à un carrousel ou un reel court.",
+  "Test grandeur nature": "Ce sujet se prête bien à un reel ou un carrousel avant/après.",
+  "Before / After": "Ce sujet se prête bien à un carrousel visuel ou un reel.",
+  "Histoire cliente": "Ce sujet se prête bien à un carrousel storytelling ou un post texte.",
+  "Regard philosophique": "Ce sujet se prête bien à un post texte long ou un carrousel.",
+  "Surf sur l'actu": "Ce sujet se prête bien à un reel réactif ou une story.",
+};
+
+// Normalize angle string for lookup
 export function getGuide(angle: string): string[] | null {
   const normalized = angle.trim();
   if (PRODUCTION_GUIDES[normalized]) return PRODUCTION_GUIDES[normalized];
-  // Try fuzzy match
   const key = Object.keys(PRODUCTION_GUIDES).find(
     (k) => k.toLowerCase().replace(/\s+/g, "") === normalized.toLowerCase().replace(/\s+/g, "")
   );
   return key ? PRODUCTION_GUIDES[key] : null;
+}
+
+export function getInstagramFormatReco(angle: string): string | null {
+  const normalized = angle.trim();
+  if (INSTAGRAM_FORMAT_RECO[normalized]) return INSTAGRAM_FORMAT_RECO[normalized];
+  const key = Object.keys(INSTAGRAM_FORMAT_RECO).find(
+    (k) => k.toLowerCase().replace(/\s+/g, "") === normalized.toLowerCase().replace(/\s+/g, "")
+  );
+  return key ? INSTAGRAM_FORMAT_RECO[key] : null;
 }
