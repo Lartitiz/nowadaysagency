@@ -16,7 +16,6 @@ function buildProfileBlock(profile: any): string {
     `- Thématiques : ${(profile.piliers || []).join(", ") || "?"}`,
     `- Ton souhaité : ${(profile.tons || []).join(", ") || "?"}`,
   ];
-  // Ma marque fields (enriched profile)
   if (profile.mission) lines.push(`- Mission : ${profile.mission}`);
   if (profile.offre) lines.push(`- Offre (ce qu'elle vend) : ${profile.offre}`);
   if (profile.croyances_limitantes) lines.push(`- Croyances limitantes de sa cible : ${profile.croyances_limitantes}`);
@@ -25,6 +24,49 @@ function buildProfileBlock(profile: any): string {
   if (profile.ce_quon_evite) lines.push(`- Ce qu'on évite dans sa com : ${profile.ce_quon_evite}`);
   if (profile.style_communication?.length) lines.push(`- Style de communication : ${profile.style_communication.join(", ")}`);
   return lines.join("\n");
+}
+
+async function buildBrandingContext(supabase: any, userId: string): Promise<string> {
+  const [stRes, perRes, toneRes, propRes] = await Promise.all([
+    supabase.from("storytelling").select("step_7_polished").eq("user_id", userId).maybeSingle(),
+    supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches").eq("user_id", userId).maybeSingle(),
+    supabase.from("brand_profile").select("tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq("user_id", userId).maybeSingle(),
+    supabase.from("brand_proposition").select("version_final, version_complete").eq("user_id", userId).maybeSingle(),
+  ]);
+
+  const lines: string[] = [];
+
+  const story = stRes.data?.step_7_polished;
+  if (story) lines.push(`HISTOIRE :\n${story}`);
+
+  const p = perRes.data;
+  if (p) {
+    const pl: string[] = [];
+    if (p.step_1_frustrations) pl.push(`- Frustrations : ${p.step_1_frustrations}`);
+    if (p.step_2_transformation) pl.push(`- Transformation rêvée : ${p.step_2_transformation}`);
+    if (p.step_3a_objections) pl.push(`- Objections : ${p.step_3a_objections}`);
+    if (p.step_3b_cliches) pl.push(`- Clichés : ${p.step_3b_cliches}`);
+    if (pl.length) lines.push(`CLIENTE IDÉALE :\n${pl.join("\n")}`);
+  }
+
+  const propValue = propRes.data?.version_final || propRes.data?.version_complete;
+  if (propValue) lines.push(`PROPOSITION DE VALEUR :\n${propValue}`);
+
+  const t = toneRes.data;
+  if (t) {
+    const tl: string[] = [];
+    const reg = [t.tone_register, t.tone_level, t.tone_style].filter(Boolean).join(" - ");
+    if (reg) tl.push(`- Registre : ${reg}`);
+    if (t.tone_humor) tl.push(`- Humour : ${t.tone_humor}`);
+    if (t.tone_engagement) tl.push(`- Engagement : ${t.tone_engagement}`);
+    if (t.key_expressions) tl.push(`- Expressions clés : ${t.key_expressions}`);
+    if (t.things_to_avoid) tl.push(`- Ce qu'on évite : ${t.things_to_avoid}`);
+    if (t.target_verbatims) tl.push(`- Verbatims de la cible : ${t.target_verbatims}`);
+    if (tl.length) lines.push(`TON & STYLE :\n${tl.join("\n")}`);
+  }
+
+  if (!lines.length) return "";
+  return `\nCONTEXTE DE LA MARQUE :\n${lines.join("\n\n")}\n`;
 }
 
 const ACCROCHE_BANK: Record<string, string[]> = {
@@ -92,6 +134,10 @@ serve(async (req) => {
     const canalLabel = canal === "linkedin" ? "LinkedIn" : canal === "blog" ? "un article de blog" : canal === "pinterest" ? "Pinterest" : "Instagram";
     const profileBlock = buildProfileBlock(profile || {});
 
+    // Fetch branding context from DB and append to profile block
+    const brandingContext = await buildBrandingContext(supabase, user.id);
+    const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "");
+
     let systemPrompt = "";
     let userPrompt = "";
 
@@ -102,7 +148,7 @@ serve(async (req) => {
       systemPrompt = `Tu es un·e expert·e en stratégie de contenu ${canalLabel} pour des solopreneuses éthiques.
 
 PROFIL DE L'UTILISATRICE :
-${profileBlock}
+${fullContext}
 
 ${objectifInstruction}
 
@@ -136,7 +182,7 @@ Pour chaque idée, propose aussi 2 ACCROCHES concrètes (phrases complètes, pr�
       systemPrompt = `Tu es un·e expert·e en stratégie de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.
 
 PROFIL DE L'UTILISATRICE :
-${profileBlock}
+${fullContext}
 
 CANAL SÉLECTIONNÉ : ${canalLabel}
 ${objectifInstruction}
@@ -183,7 +229,7 @@ IMPORTANT : Réponds UNIQUEMENT en JSON, sans aucun texte avant ou après, sans 
       systemPrompt = `Tu es un·e expert·e en personal branding Instagram pour des solopreneuses éthiques et créatives.
 
 PROFIL DE L'UTILISATRICE :
-${profileBlock}
+${fullContext}
 
 CONSIGNE :
 Génère exactement 2 versions de bio Instagram pour cette utilisatrice.
@@ -228,7 +274,7 @@ IMPORTANT : Réponds UNIQUEMENT en JSON, sans aucun texte avant ou après, sans 
       systemPrompt = `Tu es expert·e en stratégie de lancement Instagram pour des solopreneuses éthiques.
 
 PROFIL :
-${profileBlock}
+${fullContext}
 
 LANCEMENT :
 - Nom : ${profile.launch_name || ""}
@@ -261,7 +307,7 @@ IMPORTANT : Réponds UNIQUEMENT en JSON, sans aucun texte avant ou après, sans 
       systemPrompt = `Tu es un·e expert·e en création de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.
 
 PROFIL DE L'UTILISATRICE :
-${profileBlock}
+${fullContext}
 
 FORMAT CHOISI : ${format}
 SUJET DU POST : ${sujet}
@@ -290,7 +336,7 @@ Réponds en texte structuré lisible (pas de JSON), avec des retours à la ligne
       systemPrompt = `Tu es un·e expert·e en copywriting ${canalLabel} pour des solopreneuses éthiques et créatives.
 
 PROFIL DE L'UTILISATRICE :
-${profileBlock}
+${fullContext}
 
 FORMAT : ${format}
 SUJET : ${sujet}
@@ -322,7 +368,7 @@ IMPORTANT : Réponds UNIQUEMENT en JSON, un tableau de 3 strings, sans backticks
       systemPrompt = `Tu es un·e expert·e en création de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.
 
 PROFIL DE L'UTILISATRICE :
-${profileBlock}
+${fullContext}
 
 FORMAT : ${format}
 SUJET : ${sujet}

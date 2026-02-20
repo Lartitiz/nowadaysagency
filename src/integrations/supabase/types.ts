@@ -77,6 +77,66 @@ export type Database = {
         }
         Relationships: []
       }
+      brand_proposition: {
+        Row: {
+          completed: boolean | null
+          created_at: string | null
+          current_step: number | null
+          id: string
+          step_1_what: string | null
+          step_2a_process: string | null
+          step_2b_values: string | null
+          step_2c_feedback: string | null
+          step_2d_refuse: string | null
+          step_3_for_whom: string | null
+          updated_at: string | null
+          user_id: string
+          version_complete: string | null
+          version_emotional: string | null
+          version_final: string | null
+          version_pitch: string | null
+          version_short: string | null
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string | null
+          current_step?: number | null
+          id?: string
+          step_1_what?: string | null
+          step_2a_process?: string | null
+          step_2b_values?: string | null
+          step_2c_feedback?: string | null
+          step_2d_refuse?: string | null
+          step_3_for_whom?: string | null
+          updated_at?: string | null
+          user_id: string
+          version_complete?: string | null
+          version_emotional?: string | null
+          version_final?: string | null
+          version_pitch?: string | null
+          version_short?: string | null
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string | null
+          current_step?: number | null
+          id?: string
+          step_1_what?: string | null
+          step_2a_process?: string | null
+          step_2b_values?: string | null
+          step_2c_feedback?: string | null
+          step_2d_refuse?: string | null
+          step_3_for_whom?: string | null
+          updated_at?: string | null
+          user_id?: string
+          version_complete?: string | null
+          version_emotional?: string | null
+          version_final?: string | null
+          version_pitch?: string | null
+          version_short?: string | null
+        }
+        Relationships: []
+      }
       calendar_posts: {
         Row: {
           angle: string | null

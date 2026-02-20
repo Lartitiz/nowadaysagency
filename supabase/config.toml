@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.persona-ai]
 verify_jwt = false
+
+[functions.proposition-ai]
+verify_jwt = false
