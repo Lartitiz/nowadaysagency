@@ -35,6 +35,12 @@ import NichePage from "./pages/NichePage";
 import NicheRecapPage from "./pages/NicheRecapPage";
 import StrategiePage from "./pages/StrategiePage";
 import StrategieRecapPage from "./pages/StrategieRecapPage";
+import LinkedInHub from "./pages/LinkedInHub";
+import LinkedInProfil from "./pages/LinkedInProfil";
+import LinkedInResume from "./pages/LinkedInResume";
+import LinkedInParcours from "./pages/LinkedInParcours";
+import LinkedInRecommandations from "./pages/LinkedInRecommandations";
+import LinkedInEngagement from "./pages/LinkedInEngagement";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -134,6 +140,25 @@ const App = () => (
             } />
             <Route path="/atelier/rediger" element={
               <ProtectedRoute><RedactionPage /></ProtectedRoute>
+            } />
+            {/* LinkedIn module */}
+            <Route path="/linkedin" element={
+              <ProtectedRoute><LinkedInHub /></ProtectedRoute>
+            } />
+            <Route path="/linkedin/profil" element={
+              <ProtectedRoute><LinkedInProfil /></ProtectedRoute>
+            } />
+            <Route path="/linkedin/resume" element={
+              <ProtectedRoute><LinkedInResume /></ProtectedRoute>
+            } />
+            <Route path="/linkedin/parcours" element={
+              <ProtectedRoute><LinkedInParcours /></ProtectedRoute>
+            } />
+            <Route path="/linkedin/recommandations" element={
+              <ProtectedRoute><LinkedInRecommandations /></ProtectedRoute>
+            } />
+            <Route path="/linkedin/engagement" element={
+              <ProtectedRoute><LinkedInEngagement /></ProtectedRoute>
             } />
             <Route path="/calendrier" element={
               <ProtectedRoute><Calendar /></ProtectedRoute>

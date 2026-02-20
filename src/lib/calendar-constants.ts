@@ -14,7 +14,7 @@ export const STATUSES = [
 export const CANAL_FILTERS = [
   { id: "all", label: "Tout", enabled: true },
   { id: "instagram", label: "Instagram", enabled: true },
-  { id: "linkedin", label: "LinkedIn", enabled: false },
+  { id: "linkedin", label: "LinkedIn", enabled: true },
   { id: "blog", label: "Blog", enabled: false },
 ];
 

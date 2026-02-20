@@ -62,7 +62,7 @@ export function formatIdToGuideKey(formatId: string): string {
 // ── Canal filters ──
 export const CANAUX = [
   { id: "instagram", label: "Instagram", enabled: true },
-  { id: "linkedin", label: "LinkedIn", enabled: false },
+  { id: "linkedin", label: "LinkedIn", enabled: true },
   { id: "newsletter", label: "Newsletter", enabled: false },
   { id: "pinterest", label: "Pinterest", enabled: false },
 ];
