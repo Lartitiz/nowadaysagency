@@ -11,6 +11,7 @@ import { Sparkles, Upload, X, Loader2, Mic, MicOff, Save } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import ContentAnalysisResults from "@/components/audit/ContentAnalysisResults";
+import StoriesPerformanceSection, { type StoryPerformanceEntry } from "@/components/audit/StoriesPerformanceSection";
 
 const RHYTHM_OPTIONS = ["Tous les jours", "3-4x/semaine", "1-2x/semaine", "Moins d'1x/semaine", "Irrégulier"];
 const OBJECTIVE_OPTIONS = ["Vendre", "Me faire connaître", "Créer une communauté", "Rediriger vers mon site", "Trouver des partenaires"];
@@ -268,6 +269,10 @@ export default function InstagramAudit() {
   const [objective, setObjective] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
 
+  // Stories performance
+  const [storyEntries, setStoryEntries] = useState<StoryPerformanceEntry[]>([]);
+  const storyUpload = useFileUpload(5);
+
   // Results
   const [auditResult, setAuditResult] = useState<any>(null);
   const [auditId, setAuditId] = useState<string | null>(null);
@@ -402,6 +407,7 @@ export default function InstagramAudit() {
           objective,
           successPostsData,
           failPostsData,
+          storiesPerformanceData: storyEntries.filter(e => e.type),
         },
       });
 
@@ -628,6 +634,16 @@ export default function InstagramAudit() {
             globalNote={failNotes}
             onGlobalNoteChange={setFailNotes}
             speech={failSpeech}
+          />
+
+          {/* Zone 4: Stories performance */}
+          <StoriesPerformanceSection
+            entries={storyEntries}
+            onChange={setStoryEntries}
+            files={storyUpload.files}
+            previews={storyUpload.previews}
+            onFiles={storyUpload.handleFiles}
+            onRemoveFile={storyUpload.removeFile}
           />
 
           {/* Questions */}

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import StickerGuide from "@/components/engagement/StickerGuide";
+import StoryChecklist from "@/components/stories/StoryChecklist";
 
 // Types
 interface StorySticker {
@@ -309,7 +310,17 @@ export default function InstagramStories() {
             ))}
           </div>
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          {/* Checklist */}
+          <div className="mt-6">
+            <StoryChecklist
+              hasHook={!!(result.stories[0]?.text)}
+              hasSticker={result.stories.some(s => s.sticker !== null)}
+              hasCTA={result.stories.some(s => s.role?.toLowerCase().includes("cta") || s.text?.toLowerCase().includes("dm") || s.text?.toLowerCase().includes("écris"))}
+              hasFaceCam={result.stories.some(s => s.face_cam)}
+            />
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
             <Button variant="outline" size="sm" onClick={handleCopyAll}>
               <Copy className="h-4 w-4" /> Copier tout
             </Button>

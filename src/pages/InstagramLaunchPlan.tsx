@@ -23,6 +23,7 @@ import {
   TIME_OPTIONS, FALLBACK_TIME_OPTIONS,
   type LaunchTemplate, type LaunchSlot, type LaunchPlan, type LaunchPhase,
 } from "@/lib/launch-templates";
+import LaunchStoriesPlanning from "@/components/launch/LaunchStoriesPlanning";
 
 interface PhaseConfig {
   name: string;
@@ -636,6 +637,9 @@ export default function InstagramLaunchPlan() {
             {viewMode === "calendar" && (
               <CalendarPreview slots={slots} />
             )}
+
+            {/* ── Launch Stories Planning ── */}
+            <LaunchStoriesPlanning launchName={launch?.name} />
 
             {/* ── Recap ── */}
             <Card className="border-primary/20">
