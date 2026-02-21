@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, GripVertical, CalendarIcon } from "lucide-react";
 import { DndContext, DragOverlay, closestCenter, type DragStartEvent, type DragEndEvent, useDroppable, useDraggable } from "@dnd-kit/core";
-import { statusStyles, type CalendarPost } from "@/lib/calendar-constants";
+import { statusStyles, CANAL_COLORS, type CalendarPost } from "@/lib/calendar-constants";
 import { ObjectifBadge } from "./ObjectifBadge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
@@ -42,6 +42,7 @@ function DraggableWeekChip({ post, onClick }: { post: CalendarPost; onClick: () 
         onClick={onClick}
         className={`flex-1 text-left rounded-md border px-2 py-1 text-xs font-medium flex items-center gap-1 ${statusStyles[post.status] || statusStyles.idea}`}
       >
+        <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${CANAL_COLORS[post.canal] || "bg-muted-foreground"}`} />
         <span className="truncate flex-1">{post.theme}</span>
         <ObjectifBadge objectif={post.objectif} size="sm" />
       </button>
@@ -125,6 +126,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
             onTouchCancel={() => handleTouchEnd(p.id)}
             className={`w-full text-left rounded-md border px-1.5 py-0.5 text-[11px] font-medium flex items-center gap-1 ${statusStyles[p.status] || statusStyles.idea}`}
           >
+            <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${CANAL_COLORS[p.canal] || "bg-muted-foreground"}`} />
             <span className="truncate flex-1">{p.theme}</span>
             <ObjectifBadge objectif={p.objectif} size="sm" />
           </button>

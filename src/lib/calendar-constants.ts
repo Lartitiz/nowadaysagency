@@ -33,6 +33,13 @@ export const statusStyles: Record<string, string> = {
   published: "bg-cal-published border-cal-published-border text-foreground line-through",
 };
 
+export const CANAL_COLORS: Record<string, string> = {
+  instagram: "bg-[hsl(340,96%,60%)]",   // rose
+  linkedin: "bg-[hsl(210,80%,40%)]",    // bleu LinkedIn
+  pinterest: "bg-[hsl(356,82%,52%)]",   // rouge Pinterest
+  blog: "bg-[hsl(160,50%,45%)]",
+};
+
 export interface CalendarPost {
   id: string;
   date: string;
