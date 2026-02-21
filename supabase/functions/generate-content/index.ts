@@ -403,6 +403,27 @@ Réponds en JSON :
         systemPrompt = `${CORE_PRINCIPLES}\n\nL'utilisatrice a ${p?.time_available || "?"} par semaine (${p?.available_minutes || 0} minutes).\nSon rythme actuel : ${p?.current_posts || "?"} posts + stories ${p?.current_stories || "?"}.\nFormats préférés : ${(p?.preferred_formats || []).join(", ") || "aucun"}.\nTemps estimé actuel : ~${p?.estimated_minutes || 0} minutes/semaine.\n\nPropose un rythme RÉALISTE qui tient dans son temps disponible.\n\nRéponds en JSON :\n{"suggestion": "Texte lisible avec le plan concret (quels jours, combien de temps par session)", "posts_frequency": "Xx/semaine", "stories_frequency": "label exact parmi: Tous les jours, 3-4x/semaine, 1-2x/semaine, Quand j'ai envie"}`;
         userPrompt = "Adapte mon rythme à mon temps disponible.";
 
+      } else if (type === "calendar-quick") {
+        const { theme, objectif: calObj, angle: calAngle, format: calFormat, notes: calNotes, launchContext } = body;
+        const formatMap: Record<string, string> = {
+          post_carrousel: "Carrousel (texte structuré slide par slide : Slide 1, Slide 2, etc.)",
+          reel: "Reel (script avec timing : 0-3 sec, 3-10 sec, etc.)",
+          post_photo: "Post photo (texte de légende complet)",
+          story: "Story (1 story unique)",
+          story_serie: "Stories (séquence story par story)",
+          live: "Live (plan de session structuré)",
+        };
+        const formatInstruction = calFormat ? `FORMAT : ${formatMap[calFormat] || calFormat}` : "FORMAT : Carrousel par défaut";
+
+        let launchBlock = "";
+        if (launchContext) {
+          const lc = launchContext;
+          launchBlock = `\nCONTEXTE LANCEMENT :\n- Phase : ${lc.phase || "?"}\n- Chapitre : ${lc.chapter_label || "?"}\n- Phase mentale audience : ${lc.audience_phase || "?"}\n- Objectif du slot : ${lc.objective || "?"}\n- Angle suggéré : ${lc.angle_suggestion || "?"}\n- Offre : "${lc.offer || "?"}"\n- Promesse : "${lc.promise || "?"}"\n- Objections : "${lc.objections || "?"}"\n`;
+        }
+
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}\n\n${WRITING_RESOURCES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONTEXTE DU POST :\n- Thème/sujet : "${theme || "?"}"\n- Objectif : ${calObj || "non précisé"}\n- Angle : ${calAngle || "non précisé"}\n- ${formatInstruction}\n- Notes : "${calNotes || "aucune"}"\n${launchBlock}\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Le ton correspond au branding de l'utilisatrice\n- Utiliser ses expressions, son vocabulaire\n- Oral assumé mais pas surjoué\n- Phrases fluides et complètes\n- Le contenu a de la valeur même pour celles qui n'achètent pas\n- CTA conversationnel, jamais agressif\n\nGARDE-FOUS ÉTHIQUES :\n- Pas de fausse urgence\n- Pas de shaming\n- Pas de promesses de résultats garantis\n- Pas de FOMO artificiel\n\nGénère le contenu complet, prêt à copier-coller. Réponds avec le texte uniquement.`;
+        userPrompt = `Rédige le contenu complet pour ce post sur "${theme || "?"}".`;
+
       } else {
         return new Response(
           JSON.stringify({ error: "Type de requête non reconnu" }),

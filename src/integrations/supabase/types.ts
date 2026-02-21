@@ -253,6 +253,7 @@ export type Database = {
       }
       calendar_posts: {
         Row: {
+          accroche: string | null
           angle: string | null
           angle_suggestion: string | null
           audience_phase: string | null
@@ -260,10 +261,12 @@ export type Database = {
           category: string | null
           chapter: number | null
           chapter_label: string | null
+          content_draft: string | null
           content_type: string | null
           content_type_emoji: string | null
           created_at: string
           date: string
+          format: string | null
           id: string
           launch_id: string | null
           notes: string | null
@@ -276,6 +279,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          accroche?: string | null
           angle?: string | null
           angle_suggestion?: string | null
           audience_phase?: string | null
@@ -283,10 +287,12 @@ export type Database = {
           category?: string | null
           chapter?: number | null
           chapter_label?: string | null
+          content_draft?: string | null
           content_type?: string | null
           content_type_emoji?: string | null
           created_at?: string
           date: string
+          format?: string | null
           id?: string
           launch_id?: string | null
           notes?: string | null
@@ -299,6 +305,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          accroche?: string | null
           angle?: string | null
           angle_suggestion?: string | null
           audience_phase?: string | null
@@ -306,10 +313,12 @@ export type Database = {
           category?: string | null
           chapter?: number | null
           chapter_label?: string | null
+          content_draft?: string | null
           content_type?: string | null
           content_type_emoji?: string | null
           created_at?: string
           date?: string
+          format?: string | null
           id?: string
           launch_id?: string | null
           notes?: string | null
