@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
@@ -6,22 +6,103 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, ArrowLeft } from "lucide-react";
+import { Copy, FileText, RefreshCw, Loader2 } from "lucide-react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+
+interface PillarData {
+  name: string;
+  type: "major" | "minor";
+  percentage: number;
+  content_ideas: string[];
+}
+
+interface RecapSummary {
+  concept_short: string;
+  concept_full: string;
+  pillars: PillarData[];
+  facets: string[];
+  content_mix: { visibility: number; trust: number; sales: number };
+  creative_gestures: string[];
+}
 
 export default function StrategieRecapPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [data, setData] = useState<any>(null);
+  const [summary, setSummary] = useState<RecapSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const recapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
     supabase.from("brand_strategy").select("*").eq("user_id", user.id).maybeSingle()
-      .then(({ data: d }) => { setData(d); setLoading(false); });
+      .then(({ data: d }) => {
+        setData(d);
+        if (d?.recap_summary) setSummary(d.recap_summary as unknown as RecapSummary);
+        setLoading(false);
+      });
   }, [user]);
 
-  const copyText = async (text: string) => {
-    await navigator.clipboard.writeText(text);
+  const generateSummary = async () => {
+    if (!user || !data) return;
+    setGenerating(true);
+    try {
+      const [profileRes, personaRes, propositionRes, toneRes, editorialRes] = await Promise.all([
+        supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("persona").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("brand_proposition").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("instagram_editorial_line").select("*").eq("user_id", user.id).maybeSingle(),
+      ]);
+
+      const { data: fnData, error } = await supabase.functions.invoke("strategy-ai", {
+        body: {
+          type: "generate-recap",
+          strategy_data: data,
+          profile: profileRes.data,
+          persona: personaRes.data,
+          proposition: propositionRes.data,
+          tone: toneRes.data,
+          editorial_line: editorialRes.data,
+        },
+      });
+
+      if (error) throw error;
+      const raw = fnData.content.replace(/```json|```/g, "").trim();
+      const parsed: RecapSummary = JSON.parse(raw);
+
+      await supabase.from("brand_strategy").update({ recap_summary: parsed as any }).eq("id", data.id);
+      setSummary(parsed);
+      toast({ title: "Synthèse générée !" });
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const exportPDF = async () => {
+    if (!recapRef.current) return;
+    setExporting(true);
+    try {
+      const canvas = await html2canvas(recapRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageW = pdf.internal.pageSize.getWidth();
+      const imgW = pageW - 20;
+      const imgH = (canvas.height * imgW) / canvas.width;
+      pdf.addImage(imgData, "PNG", 10, 10, imgW, imgH);
+      pdf.save("ma-strategie-de-contenu.pdf");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const copyText = (text: string) => {
+    navigator.clipboard.writeText(text);
     toast({ title: "Copié !" });
   };
 
@@ -42,93 +123,192 @@ export default function StrategieRecapPage() {
     </div>
   );
 
-  const facets = [
-    { text: data.facet_1, format: data.facet_1_format },
-    { text: data.facet_2, format: data.facet_2_format },
-    { text: data.facet_3, format: data.facet_3_format },
-  ].filter((f) => f.text);
+  if (!summary) return (
+    <div className="min-h-screen bg-background">
+      <AppHeader />
+      <main className="mx-auto max-w-[640px] px-6 py-8">
+        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Récap stratégie" />
+        <h1 className="font-display text-[26px] font-bold text-foreground mb-4">🚀 Ma stratégie de contenu</h1>
+        <p className="text-muted-foreground mb-6">La synthèse de ta stratégie n'a pas encore été générée.</p>
+        <Button onClick={generateSummary} disabled={generating}>
+          {generating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Génération...</> : "✨ Générer ma fiche récap"}
+        </Button>
+      </main>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
+      <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Récap stratégie" />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground mb-6">Ta stratégie de contenu</h1>
-
-        {/* Facettes */}
-        {facets.length > 0 && (
-          <section className="mb-8">
-            <h2 className="font-display text-lg font-bold text-foreground mb-3">Les facettes que tu vas oser montrer</h2>
-            <div className="space-y-2">
-              {facets.map((f, i) => (
-                <div key={i} className="rounded-xl border-2 border-border bg-card p-4 flex justify-between items-center">
-                  <div>
-                    <p className="text-[15px] text-foreground font-medium">{f.text}</p>
-                    {f.format && <p className="text-[12px] text-muted-foreground">📱 {f.format}</p>}
-                  </div>
-                  <button onClick={() => copyText(f.text)} className="text-primary hover:text-primary/80"><Copy className="h-4 w-4" /></button>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Piliers */}
-        {data.pillar_major && (
-          <section className="mb-8">
-            <h2 className="font-display text-lg font-bold text-foreground mb-3">Tes piliers de contenu</h2>
-            <div className="rounded-xl border-2 border-primary/30 bg-card p-4 mb-2">
-              <p className="font-semibold text-foreground">🔥 Majeure : {data.pillar_major}</p>
-            </div>
-            {[data.pillar_minor_1, data.pillar_minor_2, data.pillar_minor_3].filter(Boolean).map((p, i) => (
-              <div key={i} className="rounded-xl border-2 border-border bg-card p-4 mb-2">
-                <p className="text-foreground">🌱 {p}</p>
-              </div>
-            ))}
-          </section>
-        )}
-
-        {/* Concept créatif */}
-        {(data.creative_concept || data.ai_concepts) && (
-          <section className="mb-8">
-            <h2 className="font-display text-lg font-bold text-foreground mb-3">Ton concept créatif</h2>
-            {data.creative_concept && (
-              <div className="rounded-xl border-2 border-border bg-card p-4 mb-3">
-                <p className="text-[15px] text-foreground italic leading-relaxed">{data.creative_concept}</p>
-              </div>
-            )}
-            {data.ai_concepts && Array.isArray(data.ai_concepts) && (
-              <div className="space-y-2">
-                {data.ai_concepts.map((c: any, i: number) => (
-                  <div key={i} className="rounded-xl border-2 border-border bg-card p-4">
-                    <p className="font-semibold text-sm text-foreground mb-1">{c.concept}</p>
-                    <p className="text-[12px] text-muted-foreground">{c.exemple}</p>
-                    <p className="text-[11px] text-muted-foreground mt-1">📱 {c.format}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* Incomplete hint */}
-        {(!data.facet_1 || !data.pillar_major || !data.creative_concept) && (
-          <div className="rounded-xl bg-rose-pale p-4 text-[13px] text-foreground leading-relaxed mb-6 border border-border">
-            💡 Quelques sections ne sont pas encore remplies. Tu peux{" "}
-            <Link to="/branding/strategie" className="text-primary font-semibold hover:underline">revenir les compléter</Link> quand tu veux.
-          </div>
-        )}
-
-        {/* Message */}
-        <div className="rounded-xl bg-rose-pale p-5 text-[14px] text-foreground leading-relaxed mb-6">
-          Ta stratégie de contenu est posée. Maintenant, chaque fois que tu vas dans l'atelier d'idées, l'IA s'appuie sur tes piliers et ton concept créatif pour te proposer des idées qui te ressemblent vraiment.
+        <div className="flex items-center gap-2 mb-4">
+          <Button variant="outline" size="sm" onClick={generateSummary} disabled={generating}>
+            {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            <span className="ml-1.5 text-xs">Regénérer</span>
+          </Button>
         </div>
 
-        <Link to="/branding">
-          <Button variant="outline"><ArrowLeft className="h-4 w-4 mr-2" /> Retour au Branding</Button>
-        </Link>
+        {/* ===== FICHE ===== */}
+        <div ref={recapRef} id="strategie-recap" className="bg-white p-8 max-md:p-5 rounded-2xl print:p-6">
+
+          {/* Header */}
+          <div className="flex justify-between items-start mb-6">
+            <h1 style={{ fontFamily: "'Libre Baskerville', serif", fontSize: 24, fontWeight: 700, color: "#1a1a2e" }}>
+              🚀 Ma stratégie de contenu
+            </h1>
+            <button onClick={exportPDF} disabled={exporting}
+              className="flex items-center gap-1.5 text-sm font-medium hover:opacity-80 transition-opacity"
+              style={{ color: "#fb3d80" }}>
+              <FileText className="h-4 w-4" />
+              {exporting ? "Export..." : "Exporter PDF"}
+            </button>
+          </div>
+
+          {/* Concept créatif */}
+          <div style={{ background: "#FFF4F8", borderLeft: "4px solid #fb3d80", padding: "24px", borderRadius: "0 12px 12px 0", marginBottom: 32 }}>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", marginBottom: 8 }}>
+              Mon concept créatif
+            </p>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 16, fontStyle: "italic", color: "#1a1a2e", lineHeight: 1.6 }}>
+              "{summary.concept_short}"
+            </p>
+            {summary.concept_full && summary.concept_full !== summary.concept_short && (
+              <details style={{ marginTop: 12 }}>
+                <summary style={{ fontSize: 12, color: "#fb3d80", cursor: "pointer" }}>Voir le concept complet</summary>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#6B5E7B", marginTop: 8, lineHeight: 1.6, whiteSpace: "pre-line" }}>
+                  {summary.concept_full}
+                </p>
+              </details>
+            )}
+          </div>
+
+          {/* Piliers */}
+          <div style={{ marginBottom: 32 }}>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", marginBottom: 16 }}>
+              Mes piliers de contenu
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
+              {summary.pillars.map((p, i) => {
+                const isMajor = p.type === "major";
+                return (
+                  <div key={i} style={{
+                    border: `2px solid ${isMajor ? "#fb3d80" : "#E5E0EB"}`,
+                    borderRadius: 12, padding: 16,
+                    background: isMajor ? "rgba(251,61,128,0.03)" : "#fff"
+                  }}>
+                    <span style={{
+                      display: "inline-block", fontSize: 10, fontWeight: 600, textTransform: "uppercase",
+                      letterSpacing: 0.5, padding: "3px 8px", borderRadius: 99, marginBottom: 8,
+                      background: isMajor ? "#fb3d80" : "#F3F0F7", color: isMajor ? "#fff" : "#6B5E7B"
+                    }}>
+                      {isMajor ? "🔥 Majeur" : "🌱 Mineur"}
+                    </span>
+                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, color: "#1a1a2e", marginBottom: 12 }}>
+                      {p.name}
+                    </p>
+                    {/* Progress bar */}
+                    <div style={{ width: "100%", height: 6, borderRadius: 99, background: "#F3F0F7", marginBottom: 4 }}>
+                      <div style={{ width: `${p.percentage}%`, height: 6, borderRadius: 99, background: isMajor ? "#fb3d80" : "#8B5CF6" }} />
+                    </div>
+                    <p style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 12 }}>{p.percentage}%</p>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: "#6B5E7B", marginBottom: 4 }}>Idées :</p>
+                    <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none" }}>
+                      {p.content_ideas.map((idea, j) => (
+                        <li key={j} style={{ fontSize: 12, color: "#4B5563", marginBottom: 2 }}>• {idea}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Facettes */}
+          {summary.facets?.length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", marginBottom: 12 }}>
+                Mes facettes
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {summary.facets.map((f, i) => (
+                  <span key={i} style={{
+                    padding: "6px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+                    background: "#F8F4FF", color: "#6B5E7B"
+                  }}>
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Mix de contenu */}
+          <div style={{ marginBottom: 32 }}>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", marginBottom: 16 }}>
+              Mon mix de contenu
+            </p>
+            <p style={{ fontSize: 12, color: "#9CA3AF", marginBottom: 12 }}>Sur 10 posts :</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <MixBar emoji="👁️" label="Visibilité" value={summary.content_mix.visibility} color="#fb3d80" />
+              <MixBar emoji="🤝" label="Confiance" value={summary.content_mix.trust} color="#8B5CF6" />
+              <MixBar emoji="💰" label="Vente" value={summary.content_mix.sales} color="#F59E0B" />
+            </div>
+
+            {/* Mémo */}
+            <div style={{ background: "#F9FAFB", borderRadius: 10, padding: 16, marginTop: 16 }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: "#6B5E7B", marginBottom: 8 }}>💡 Mémo rapide</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <p style={{ fontSize: 12, color: "#4B5563" }}>
+                  <strong>Visibilité :</strong> contenus qui attirent de nouvelles personnes (coups de gueule, mythes déconstruits, reels viraux)
+                </p>
+                <p style={{ fontSize: 12, color: "#4B5563" }}>
+                  <strong>Confiance :</strong> contenus qui créent du lien (storytelling, coulisses, permissions, éducatif)
+                </p>
+                <p style={{ fontSize: 12, color: "#4B5563" }}>
+                  <strong>Vente :</strong> contenus qui invitent à l'action (témoignages, avant/après, présentation d'offre)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Gestes créatifs */}
+          {summary.creative_gestures?.length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", marginBottom: 12 }}>
+                Les gestes créatifs de ma signature
+              </p>
+              <ol style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+                {summary.creative_gestures.map((g, i) => (
+                  <li key={i} style={{ fontSize: 14, color: "#1a1a2e", display: "flex", gap: 10 }}>
+                    <span style={{ color: "#fb3d80", fontWeight: 700 }}>{i + 1}.</span>
+                    <span>{g}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {/* Footer */}
+          <p style={{ textAlign: "center", fontSize: 11, color: "#D1D5DB", marginTop: 32 }}>
+            L'Assistant Com' × Nowadays Agency
+          </p>
+        </div>
       </main>
+    </div>
+  );
+}
+
+function MixBar({ emoji, label, value, color }: { emoji: string; label: string; value: number; color: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <span style={{ fontSize: 14, width: 24 }}>{emoji}</span>
+      <span style={{ fontSize: 12, color: "#4B5563", width: 80 }}>{label}</span>
+      <div style={{ flex: 1, height: 10, borderRadius: 99, background: "#F3F0F7" }}>
+        <div style={{ width: `${(value / 10) * 100}%`, height: 10, borderRadius: 99, background: color }} />
+      </div>
+      <span style={{ fontSize: 12, color: "#6B5E7B", width: 40, textAlign: "right" }}>{value}/10</span>
     </div>
   );
 }

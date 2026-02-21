@@ -147,6 +147,60 @@ Réponds en JSON :
 ]`;
       userPrompt = "Génère des concepts créatifs pour moi.";
 
+    } else if (type === "generate-recap") {
+      const { strategy_data, profile, persona, proposition, tone, editorial_line } = body;
+
+      systemPrompt = `Tu es expert·e en stratégie de contenu pour solopreneuses créatives et éthiques.
+
+À partir de cette stratégie de contenu, génère une synthèse structurée pour une fiche récap visuelle.
+
+STRATÉGIE :
+- Facettes choisies : facette 1 = "${strategy_data?.facet_1 || ""}" (format: ${strategy_data?.facet_1_format || "?"}), facette 2 = "${strategy_data?.facet_2 || ""}" (format: ${strategy_data?.facet_2_format || "?"}), facette 3 = "${strategy_data?.facet_3 || ""}" (format: ${strategy_data?.facet_3_format || "?"})
+- Pilier majeur : "${strategy_data?.pillar_major || ""}"
+- Piliers mineurs : "${strategy_data?.pillar_minor_1 || ""}", "${strategy_data?.pillar_minor_2 || ""}", "${strategy_data?.pillar_minor_3 || ""}"
+- Concept créatif : "${strategy_data?.creative_concept || ""}"
+- Facettes IA suggérées : ${JSON.stringify(strategy_data?.ai_facets || [])}
+
+LIGNE ÉDITORIALE (si remplie) :
+${editorial_line ? `- Piliers avec distribution : ${JSON.stringify(editorial_line.pillars || [])}
+- Distribution : ${JSON.stringify(editorial_line.pillar_distribution || {})}` : "Non renseignée"}
+
+BRANDING GLOBAL :
+- Proposition de valeur : "${proposition?.version_bio || proposition?.version_final || ""}"
+- Combats / cause : "${tone?.combat_cause || ""}"
+- Combats secondaires : "${tone?.combat_fights || ""}"
+- Ton / voix : "${tone?.voice_description || ""}"
+- Activité : "${profile?.activite || ""}"
+- Persona frustrations : "${persona?.step_1_frustrations || ""}"
+
+Génère en JSON STRICT (pas de markdown, pas de commentaires) :
+{
+  "concept_short": "La formule courte du concept créatif (la phrase X rencontre Y). Max 15 mots. Si elle existe dans le concept, extrais-la.",
+  "concept_full": "Le concept créatif complet tel quel. Ne pas modifier.",
+  "pillars": [
+    {
+      "name": "Nom du pilier",
+      "type": "major ou minor",
+      "percentage": 40,
+      "content_ideas": ["Sujet de post concret 1", "Sujet de post concret 2", "Sujet 3"]
+    }
+  ],
+  "facets": ["Mot court 1", "Mot court 2", "..."],
+  "content_mix": {"visibility": 4, "trust": 4, "sales": 2},
+  "creative_gestures": ["geste 1 décrivant un pattern stylistique", "geste 2", "geste 3", "geste 4", "geste 5"]
+}
+
+RÈGLES :
+- "pillars" : le majeur en premier avec type "major" et percentage 40, puis les mineurs (25, 20, 15). Si la ligne éditoriale a des pourcentages, utilise-les.
+- "content_ideas" : des SUJETS de posts concrets, pas des catégories abstraites
+- "facets" : 4-8 mots-étiquettes courts (1-2 mots chaque) = les casquettes qu'elle porte
+- "creative_gestures" : 5 phrases courtes décrivant des patterns stylistiques récurrents. Si le concept créatif en contient, extrais-les. Sinon génère-les.
+- "content_mix" : toujours 4/4/2 par défaut
+- Écriture inclusive avec point médian
+- ULTRA CONCIS partout`;
+
+      userPrompt = "Génère la synthèse structurée de ma stratégie de contenu.";
+
     } else {
       return new Response(JSON.stringify({ error: "Type inconnu" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
