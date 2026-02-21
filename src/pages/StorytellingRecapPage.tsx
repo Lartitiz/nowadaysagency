@@ -6,7 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, FileText, Loader2, RefreshCw, ArrowRight, Pencil } from "lucide-react";
+import { Copy, FileText, Loader2, RefreshCw, Pencil } from "lucide-react";
 
 interface RecapSummary {
   before: string;
@@ -209,26 +209,26 @@ export default function StorytellingRecapPage() {
             )}
 
             {/* Fil rouge - Timeline */}
-            <div className="px-6 sm:px-8 mb-6">
+            <div className="px-6 sm:px-8 mb-2">
               <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-4" style={{ color: "#6B5E7B" }}>
                 Le fil rouge
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <TimelineCard emoji="🔵" label="AVANT" text={summary.before} color="#F8F4FF" />
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto_1fr] gap-2 sm:gap-3 items-stretch">
+                <TimelineCard emoji="🔵" label="AVANT" text={summary.before} color="#FFF4F8" />
+                <div className="hidden sm:flex items-center text-muted-foreground/40 text-lg select-none">→</div>
                 <TimelineCard emoji="💥" label="DÉCLIC" text={summary.trigger} color="#FFF4F8" />
-                <TimelineCard emoji="🌱" label="APRÈS" text={summary.after} color="#F0FFF4" />
-              </div>
-              {/* Arrows between cards (desktop only) */}
-              <div className="hidden sm:flex justify-around mt-[-52px] mb-4 pointer-events-none px-8" style={{ transform: "translateY(-50%)" }}>
-                <ArrowRight className="h-5 w-5" style={{ color: "#fb3d80" }} />
-                <ArrowRight className="h-5 w-5" style={{ color: "#fb3d80" }} />
+                <div className="hidden sm:flex items-center text-muted-foreground/40 text-lg select-none">→</div>
+                <TimelineCard emoji="🌱" label="APRÈS" text={summary.after} color="#E8F5E9" />
               </div>
             </div>
 
+            {/* Separator */}
+            <div className="mx-6 sm:mx-8 my-8 border-t border-border" />
+
             {/* Valeurs + Unique */}
-            <div className="px-6 sm:px-8 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="px-6 sm:px-8 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-6">
               <ListCard emoji="❤️" title="Mes valeurs" items={summary.values} bgColor="#FFF4F8" />
-              <ListCard emoji="💪" title="Ce qui me rend unique" items={summary.unique} bgColor="#F8F4FF" />
+              <ListCard emoji="💪" title="Ce qui me rend unique" items={summary.unique} bgColor="#FFF4F8" />
             </div>
 
             {/* Erreurs */}
@@ -274,11 +274,11 @@ export default function StorytellingRecapPage() {
 
 function TimelineCard({ emoji, label, text, color }: { emoji: string; label: string; text: string; color: string }) {
   return (
-    <div className="rounded-xl p-4 flex flex-col" style={{ backgroundColor: color }}>
-      <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "#6B5E7B" }}>
+    <div className="rounded-xl p-5 flex flex-col" style={{ backgroundColor: color }}>
+      <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>
         {emoji} {label}
       </p>
-      <p className="font-body text-[13px] leading-relaxed" style={{ color: "#1a1a2e" }}>
+      <p className="font-body text-[13px] leading-relaxed flex-1" style={{ color: "#1a1a2e" }}>
         {text}
       </p>
     </div>
@@ -287,17 +287,20 @@ function TimelineCard({ emoji, label, text, color }: { emoji: string; label: str
 
 function ListCard({ emoji, title, items, bgColor }: { emoji: string; title: string; items: string[]; bgColor: string }) {
   return (
-    <div className="rounded-xl p-4" style={{ backgroundColor: bgColor }}>
-      <p className="font-display text-[15px] font-bold mb-3" style={{ color: "#1a1a2e" }}>
+    <div className="rounded-xl p-5" style={{ backgroundColor: bgColor }}>
+      <p className="font-display text-base font-semibold mb-4" style={{ color: "#1a1a2e" }}>
         {emoji} {title}
       </p>
-      <ul className="space-y-1.5">
+      <div className="space-y-2">
         {items.map((item, i) => (
-          <li key={i} className="font-body text-[13px] leading-relaxed" style={{ color: "#1a1a2e" }}>
-            • {item}
-          </li>
+          <div key={i} className="flex items-start gap-2">
+            <span className="mt-1.5 text-[8px] shrink-0" style={{ color: "#fb3d80" }}>●</span>
+            <span className="font-body text-[13px] leading-relaxed" style={{ color: "#1a1a2e" }}>
+              {item}
+            </span>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
