@@ -1,0 +1,196 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { LINKEDIN_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+async function fetchBrandingData(supabase: any, userId: string) {
+  const [profRes, propRes, perRes, toneRes] = await Promise.all([
+    supabase.from("profiles").select("prenom, activite, type_activite, cible, mission, offre").eq("user_id", userId).maybeSingle(),
+    supabase.from("brand_proposition").select("version_final, version_bio").eq("user_id", userId).maybeSingle(),
+    supabase.from("persona").select("step_1_frustrations, step_2_transformation").eq("user_id", userId).maybeSingle(),
+    supabase.from("brand_profile").select("voice_description, combat_cause, tone_register, tone_level, tone_style").eq("user_id", userId).maybeSingle(),
+  ]);
+  return { profile: profRes.data, proposition: propRes.data, persona: perRes.data, tone: toneRes.data };
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Authentification requise" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Authentification invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    const body = await req.json();
+    const branding = await fetchBrandingData(supabase, user.id);
+
+    // Build branding context
+    const brandingLines: string[] = [];
+    const p = branding.profile;
+    if (p) {
+      if (p.activite) brandingLines.push(`Activité : ${p.activite}`);
+      if (p.mission) brandingLines.push(`Mission : ${p.mission}`);
+      if (p.cible) brandingLines.push(`Cible : ${p.cible}`);
+    }
+    if (branding.proposition?.version_final) brandingLines.push(`Proposition de valeur : ${branding.proposition.version_final}`);
+    if (branding.persona) {
+      if (branding.persona.step_1_frustrations) brandingLines.push(`Frustrations cible : ${branding.persona.step_1_frustrations}`);
+      if (branding.persona.step_2_transformation) brandingLines.push(`Transformation : ${branding.persona.step_2_transformation}`);
+    }
+    if (branding.tone) {
+      const t = branding.tone;
+      if (t.voice_description) brandingLines.push(`Voix : ${t.voice_description}`);
+      const reg = [t.tone_register, t.tone_level, t.tone_style].filter(Boolean).join(" - ");
+      if (reg) brandingLines.push(`Registre : ${reg}`);
+    }
+
+    // Build screenshot content array for multimodal
+    const contentParts: any[] = [];
+    const screenshots = body.screenshots || [];
+    for (const s of screenshots) {
+      if (s.url) {
+        contentParts.push({ type: "image_url", image_url: { url: s.url } });
+      }
+    }
+
+    const systemPrompt = `${LINKEDIN_PRINCIPLES}
+
+Tu es experte en optimisation de profils LinkedIn pour des solopreneuses créatives et engagées (mode, artisanat, bien-être, design, coaching).
+
+DONNÉES DE L'AUDIT :
+- URL profil : "${body.profileUrl || "non fourni"}"
+- Objectif principal : ${body.objective || "non précisé"}
+- Rythme actuel : ${body.currentRhythm || "non précisé"}
+- Vues moyennes : ${body.avgViews || "non précisé"}
+- Nombre de connexions : ${body.connectionsCount || "non précisé"}
+- Type de connexions : ${JSON.stringify(body.connectionTypes || [])}
+- Politique d'acceptation : ${body.acceptancePolicy || "non précisé"}
+- Demandes proactives : ${body.proactiveRequests || "non précisé"}
+- Recommandations : ${body.recommendationsCount || "non précisé"}
+- Type de contenu : ${JSON.stringify(body.contentTypes || [])}
+- Type d'engagement : ${body.engagementType || "non précisé"}
+- Style d'accroche : ${body.accrochestyle || "non précisé"}
+- Recyclage cross-canal : ${body.recycling || "non précisé"}
+- Organisation publication : ${body.publicationOrg || "non précisé"}
+- Demandes entrantes : ${body.inboundRequests || "non précisé"}
+
+${brandingLines.length > 0 ? `BRANDING :\n${brandingLines.join("\n")}` : ""}
+
+ANALYSE les screenshots et les réponses. Pour chaque section, donne un score et des recommandations.
+
+SPÉCIFICITÉS LINKEDIN :
+- Le titre est le champ le plus important (apparaît partout)
+- La section À propos : seules les 3 premières lignes sont visibles sans cliquer "voir plus"
+- Le profil LinkedIn EST la landing page pour les prospects B2B
+- L'engagement (commenter chez les autres) pèse autant que publier
+- Les carrousels PDF ont un engagement 3x supérieur aux posts texte
+- Le seuil symbolique est 500 connexions (apparaît comme "500+")
+- Les recommandations sont de la preuve sociale ultra-puissante en B2B
+- Le mode Créateur donne accès aux hashtags de suivi
+
+TON : direct, bienveillant, actionnable. Pas de jargon LinkedIn.
+
+Réponds UNIQUEMENT en JSON sans backticks :
+{
+  "score_global": 45,
+  "sections": {
+    "profil": {
+      "score": 52,
+      "elements": [
+        {
+          "name": "Photo de profil",
+          "score": 8,
+          "max_score": 10,
+          "status": "good",
+          "feedback": "...",
+          "recommendation": "..."
+        }
+      ]
+    },
+    "contenu": {
+      "score": 38,
+      "elements": [...]
+    },
+    "strategie": {
+      "score": 41,
+      "elements": [...]
+    },
+    "reseau": {
+      "score": 49,
+      "elements": [...]
+    }
+  },
+  "top_5_priorities": [
+    {
+      "rank": 1,
+      "title": "...",
+      "impact": "high",
+      "why": "...",
+      "action_label": "...",
+      "action_route": "/linkedin/profil"
+    }
+  ]
+}`;
+
+    const userContent: any[] = [
+      { type: "text", text: "Analyse mon profil LinkedIn en détail avec les screenshots fournis et les données ci-dessus." },
+      ...contentParts,
+    ];
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent },
+        ],
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) return new Response(JSON.stringify({ error: "Trop de requêtes, réessaie dans un moment." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (response.status === 402) return new Response(JSON.stringify({ error: "Crédits IA épuisés." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const errorText = await response.text();
+      console.error("AI error:", response.status, errorText);
+      throw new Error("L'IA n'a pas pu générer l'audit. Réessaie.");
+    }
+
+    const aiData = await response.json();
+    const content = aiData.choices?.[0]?.message?.content || "";
+
+    return new Response(JSON.stringify({ content }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error: any) {
+    console.error("linkedin-audit-ai error:", error);
+    return new Response(JSON.stringify({ error: error.message || "Erreur inconnue" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
