@@ -280,7 +280,7 @@ export default function InstagramHighlights() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Stories à la une" />
+        <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Stories à la une" />
 
         <h1 className="font-display text-[26px] font-bold text-foreground">Tes stories à la une</h1>
         <p className="mt-2 text-[15px] text-muted-foreground italic mb-6">
