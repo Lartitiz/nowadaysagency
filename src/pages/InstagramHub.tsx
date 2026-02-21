@@ -19,6 +19,7 @@ const CARDS: CardDef[] = [
   { icon: Sparkles, emoji: "✨", title: "M'inspirer", desc: "Colle un contenu qui t'a plu. L'IA t'explique pourquoi ça marche et te crée ta version.", to: "/instagram/inspirer", tag: "Analyser · Adapter · Poster" },
   { icon: Lightbulb, emoji: "💡", title: "Trouver des idées", desc: "Direction l'atelier.", to: "/atelier?canal=instagram", tag: "IA" },
   { icon: PenLine, emoji: "✏️", title: "Rédiger un contenu", desc: "L'IA t'aide à rédiger un post complet.", to: "/atelier?canal=instagram&mode=rediger", tag: "Rédaction IA" },
+  { icon: Heart, emoji: "📱", title: "Mes Stories", desc: "Crée des séquences stories complètes avec le bon sticker et le bon CTA.", to: "/instagram/stories", tag: "Stories · Séquences · Stickers" },
   { icon: CalendarDays, emoji: "📅", title: "Mon calendrier", desc: "Planifie tes posts.", to: "/calendrier?canal=instagram", tag: "Planning" },
   { icon: Rocket, emoji: "🚀", title: "Mon lancement", desc: "Plan de lancement guidé.", to: "/instagram/lancement", tag: "Template + IA" },
   { icon: Heart, emoji: "📊", title: "Mon engagement", desc: "Crée du lien avec ta communauté. Exercice guidé + checklist hebdo.", to: "/instagram/engagement", tag: "Exercice + Suivi" },
@@ -81,9 +82,10 @@ export default function InstagramHub() {
       case 1: return progress.inspirerCount > 0 ? `${progress.inspirerCount} analyse${progress.inspirerCount !== 1 ? "s" : ""}` : null;
       case 2: return `${progress.ideasCount} idée${progress.ideasCount !== 1 ? "s" : ""}`;
       case 3: return null;
-      case 4: return `${progress.calendarCount} post${progress.calendarCount !== 1 ? "s" : ""} ce mois`;
-      case 5: return `${progress.launchCount} lancement${progress.launchCount !== 1 ? "s" : ""}`;
-      case 6: return progress.engagementWeekly;
+      case 4: return null; // Stories
+      case 5: return `${progress.calendarCount} post${progress.calendarCount !== 1 ? "s" : ""} ce mois`;
+      case 6: return `${progress.launchCount} lancement${progress.launchCount !== 1 ? "s" : ""}`;
+      case 7: return progress.engagementWeekly;
       default: return null;
     }
   };

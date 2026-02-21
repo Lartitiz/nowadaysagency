@@ -2113,6 +2113,57 @@ export type Database = {
           },
         ]
       }
+      stories_sequences: {
+        Row: {
+          created_at: string
+          face_cam: string | null
+          id: string
+          is_launch: boolean | null
+          objective: string | null
+          price_range: string | null
+          published: boolean | null
+          published_at: string | null
+          sequence_result: Json | null
+          structure_type: string | null
+          subject: string | null
+          time_available: string | null
+          total_stories: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          face_cam?: string | null
+          id?: string
+          is_launch?: boolean | null
+          objective?: string | null
+          price_range?: string | null
+          published?: boolean | null
+          published_at?: string | null
+          sequence_result?: Json | null
+          structure_type?: string | null
+          subject?: string | null
+          time_available?: string | null
+          total_stories?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          face_cam?: string | null
+          id?: string
+          is_launch?: boolean | null
+          objective?: string | null
+          price_range?: string | null
+          published?: boolean | null
+          published_at?: string | null
+          sequence_result?: Json | null
+          structure_type?: string | null
+          subject?: string | null
+          time_available?: string | null
+          total_stories?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       storytelling: {
         Row: {
           completed: boolean | null
