@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Plus, GripVertical, CalendarIcon } from "lucide-react";
 import { DndContext, DragOverlay, closestCenter, type DragStartEvent, type DragEndEvent, useDroppable, useDraggable } from "@dnd-kit/core";
-import { statusStyles, CANAL_COLORS, type CalendarPost } from "@/lib/calendar-constants";
-import { ObjectifBadge } from "./ObjectifBadge";
+import { type CalendarPost } from "@/lib/calendar-constants";
+import { CalendarContentCard, CalendarContentCardMini } from "./CalendarContentCard";
+import { WeekRecapBar } from "./WeekRecapBar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
@@ -19,8 +20,8 @@ interface Props {
   onMovePost?: (postId: string, newDate: string) => void;
 }
 
-/* ── Draggable post chip (desktop) ── */
-function DraggablePostChip({ post, onClick }: { post: CalendarPost; onClick: () => void }) {
+/* ── Draggable content card (desktop) ── */
+function DraggableCard({ post, onClick }: { post: CalendarPost; onClick: () => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id });
   const style: React.CSSProperties = {
     transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
@@ -38,31 +39,10 @@ function DraggablePostChip({ post, onClick }: { post: CalendarPost; onClick: () 
       >
         <GripVertical className="h-3 w-3 text-muted-foreground" />
       </span>
-      <button
-        onClick={onClick}
-        className={`flex-1 text-left rounded-md border px-1.5 py-0.5 text-[11px] font-medium flex items-center gap-1 ${post.launch_id ? "border-dashed" : ""} ${statusStyles[post.status] || statusStyles.idea}`}
-      >
-        <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${CANAL_COLORS[post.canal] || "bg-muted-foreground"}`} />
-        {post.launch_id && <span className="shrink-0">🚀</span>}
-        {post.content_type_emoji && <span className="shrink-0">{post.content_type_emoji}</span>}
-        <span className="truncate flex-1">{post.theme}</span>
-        <ObjectifBadge objectif={post.objectif} size="sm" />
-      </button>
+      <div className="flex-1 min-w-0">
+        <CalendarContentCard post={post} onClick={onClick} variant="compact" />
+      </div>
     </div>
-  );
-}
-
-/* ── Simple post chip (no drag, for mobile & overlay) ── */
-function PostChip({ post, onClick }: { post: CalendarPost; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left rounded-md border px-1.5 py-0.5 text-[11px] font-medium flex items-center gap-1 ${statusStyles[post.status] || statusStyles.idea}`}
-    >
-      <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${CANAL_COLORS[post.canal] || "bg-muted-foreground"}`} />
-      <span className="truncate flex-1">{post.theme}</span>
-      <ObjectifBadge objectif={post.objectif} size="sm" />
-    </button>
   );
 }
 
@@ -75,12 +55,13 @@ function DroppableDay({
 }) {
   const isPast = new Date(dateStr + "T00:00:00") < new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
   const { setNodeRef, isOver } = useDroppable({ id: dateStr, disabled: isPast });
+  const maxVisible = 3;
 
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "min-h-[100px] border-b border-r border-border p-1.5 group relative transition-colors",
+        "min-h-[110px] max-h-[150px] overflow-hidden border-b border-r border-border p-1.5 group relative transition-colors",
         !inMonth && "opacity-40",
         isToday && "bg-rose-pale",
         isOver && "bg-primary/10 ring-2 ring-primary/30 ring-inset",
@@ -97,20 +78,25 @@ function DroppableDay({
           </button>
         )}
       </div>
-      <div className="space-y-0.5">
-        {posts.slice(0, 2).map((p) => (
-          <DraggablePostChip key={p.id} post={p} onClick={() => onEditPost(p)} />
+      <div className="space-y-0">
+        {posts.slice(0, maxVisible).map((p) => (
+          <DraggableCard key={p.id} post={p} onClick={() => onEditPost(p)} />
         ))}
-        {posts.length > 2 && (
-          <span className="text-[10px] text-muted-foreground">+{posts.length - 2} de plus</span>
+        {posts.length > maxVisible && (
+          <button
+            onClick={() => posts[maxVisible] && onEditPost(posts[maxVisible])}
+            className="text-[10px] text-muted-foreground hover:text-primary cursor-pointer px-1"
+          >
+            +{posts.length - maxVisible} autre{posts.length - maxVisible > 1 ? "s" : ""}
+          </button>
         )}
       </div>
     </div>
   );
 }
 
-/* ── Mobile post chip with long-press move ── */
-function MobilePostChip({ post, onClick, onMove }: { post: CalendarPost; onClick: () => void; onMove: (post: CalendarPost) => void }) {
+/* ── Mobile post card with long-press move ── */
+function MobilePostCard({ post, onClick, onMove }: { post: CalendarPost; onClick: () => void; onMove: (post: CalendarPost) => void }) {
   const [pressTimer, setPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   const handleTouchStart = () => {
@@ -123,17 +109,13 @@ function MobilePostChip({ post, onClick, onMove }: { post: CalendarPost; onClick
   };
 
   return (
-    <button
-      onClick={onClick}
+    <div
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
-      className={`w-full text-left rounded-md border px-1.5 py-0.5 text-[11px] font-medium flex items-center gap-1 ${statusStyles[post.status] || statusStyles.idea}`}
     >
-      <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${CANAL_COLORS[post.canal] || "bg-muted-foreground"}`} />
-      <span className="truncate flex-1">{post.theme}</span>
-      <ObjectifBadge objectif={post.objectif} size="sm" />
-    </button>
+      <CalendarContentCard post={post} onClick={onClick} variant="compact" />
+    </div>
   );
 }
 
@@ -184,6 +166,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
             const dateStr = d.date.toISOString().split("T")[0];
             const dayPosts = postsByDate[dateStr] || [];
             const isToday = dateStr === todayStr;
+            if (dayPosts.length === 0 && !isToday) return null;
             return (
               <div key={dateStr} className={`rounded-xl border p-3 ${isToday ? "bg-rose-pale border-primary/30" : "border-border"}`}>
                 <div className="flex items-center justify-between mb-2">
@@ -194,10 +177,18 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
                     <Plus className="h-4 w-4" />
                   </button>
                 </div>
-                <div className="space-y-1">
-                  {dayPosts.map((p) => (
-                    <MobilePostChip key={p.id} post={p} onClick={() => onEditPost(p)} onMove={handleMobileMove} />
+                <div>
+                  {dayPosts.slice(0, 1).map((p) => (
+                    <MobilePostCard key={p.id} post={p} onClick={() => onEditPost(p)} onMove={handleMobileMove} />
                   ))}
+                  {dayPosts.length > 1 && (
+                    <button
+                      onClick={() => onEditPost(dayPosts[1])}
+                      className="text-[11px] text-muted-foreground hover:text-primary mt-0.5"
+                    >
+                      +{dayPosts.length - 1} autre{dayPosts.length - 1 > 1 ? "s" : ""}
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -237,6 +228,17 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
   }
 
   /* ── Desktop view with DnD ── */
+  // Compute week rows for recap
+  const weekRows: CalendarPost[][] = [];
+  for (let i = 0; i < calendarDays.length; i += 7) {
+    const weekPosts: CalendarPost[] = [];
+    for (let j = i; j < i + 7 && j < calendarDays.length; j++) {
+      const dateStr = calendarDays[j].date.toISOString().split("T")[0];
+      weekPosts.push(...(postsByDate[dateStr] || []));
+    }
+    weekRows.push(weekPosts);
+  }
+
   return (
     <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="rounded-2xl bg-card border border-border overflow-hidden">
@@ -248,33 +250,45 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
             </div>
           ))}
         </div>
-        {/* Days grid */}
-        <div className="grid grid-cols-7">
-          {calendarDays.map((d, i) => {
-            const dateStr = d.date.toISOString().split("T")[0];
-            const dayPosts = postsByDate[dateStr] || [];
-            const isToday = dateStr === todayStr;
-            return (
-              <DroppableDay
-                key={i}
-                dateStr={dateStr}
-                dayNum={d.date.getDate()}
-                inMonth={d.inMonth}
-                isToday={isToday}
-                posts={dayPosts}
-                onCreatePost={() => onCreatePost(dateStr)}
-                onEditPost={onEditPost}
-              />
-            );
-          })}
-        </div>
+        {/* Days grid with week recaps */}
+        {Array.from({ length: Math.ceil(calendarDays.length / 7) }, (_, weekIdx) => {
+          const weekSlice = calendarDays.slice(weekIdx * 7, weekIdx * 7 + 7);
+          return (
+            <div key={weekIdx}>
+              <div className="grid grid-cols-7">
+                {weekSlice.map((d, i) => {
+                  const dateStr = d.date.toISOString().split("T")[0];
+                  const dayPosts = postsByDate[dateStr] || [];
+                  const isToday = dateStr === todayStr;
+                  return (
+                    <DroppableDay
+                      key={weekIdx * 7 + i}
+                      dateStr={dateStr}
+                      dayNum={d.date.getDate()}
+                      inMonth={d.inMonth}
+                      isToday={isToday}
+                      posts={dayPosts}
+                      onCreatePost={() => onCreatePost(dateStr)}
+                      onEditPost={onEditPost}
+                    />
+                  );
+                })}
+              </div>
+              {weekRows[weekIdx] && weekRows[weekIdx].length > 0 && (
+                <div className="border-b border-border bg-muted/30 px-2">
+                  <WeekRecapBar posts={weekRows[weekIdx]} compact />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Drag overlay */}
       <DragOverlay>
         {activePost ? (
           <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg text-xs font-medium max-w-[180px]">
-            <span className="truncate block">{activePost.theme}</span>
+            <span className="truncate block">{activePost.content_type_emoji || ""} {activePost.theme}</span>
           </div>
         ) : null}
       </DragOverlay>

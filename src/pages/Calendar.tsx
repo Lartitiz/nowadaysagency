@@ -14,6 +14,8 @@ import { BalanceGauge } from "@/components/calendar/BalanceGauge";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { CalendarWeekGrid } from "@/components/calendar/CalendarWeekGrid";
 import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
+import { CalendarLegend } from "@/components/calendar/CalendarLegend";
+import { CalendarCategoryFilters } from "@/components/calendar/CalendarCategoryFilters";
 
 export default function CalendarPage() {
   const { user } = useAuth();
@@ -30,6 +32,7 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState<CalendarPost | null>(null);
   const [prefillData, setPrefillData] = useState<{ theme?: string; notes?: string } | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   useEffect(() => {
     const urlCanal = searchParams.get("canal");
@@ -107,9 +110,19 @@ export default function CalendarPage() {
   }, [year, month]);
 
   const filteredPosts = useMemo(() => {
-    if (canalFilter === "all") return posts;
-    return posts.filter((p) => p.canal === canalFilter);
-  }, [posts, canalFilter]);
+    let result = posts;
+    if (canalFilter !== "all") {
+      result = result.filter((p) => p.canal === canalFilter);
+    }
+    if (categoryFilter === "visibilite" || categoryFilter === "confiance" || categoryFilter === "vente") {
+      result = result.filter((p) => p.category === categoryFilter);
+    } else if (categoryFilter === "launch") {
+      result = result.filter((p) => !!p.launch_id);
+    } else if (categoryFilter === "a_rediger") {
+      result = result.filter((p) => p.status === "a_rediger");
+    }
+    return result;
+  }, [posts, canalFilter, categoryFilter]);
 
   const postsByDate = useMemo(() => {
     const map: Record<string, CalendarPost[]> = {};
@@ -219,6 +232,9 @@ export default function CalendarPage() {
         </div>
 
         <BalanceGauge posts={filteredPosts} />
+
+        <CalendarCategoryFilters value={categoryFilter} onChange={setCategoryFilter} />
+        <CalendarLegend />
 
         {/* View toggle + Navigation */}
         <div className="flex items-center justify-between mb-6">
