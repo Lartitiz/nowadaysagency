@@ -1809,6 +1809,51 @@ export type Database = {
         }
         Relationships: []
       }
+      website_about: {
+        Row: {
+          angle: string | null
+          approach: string | null
+          created_at: string
+          cta: string | null
+          custom_facts: Json | null
+          for_whom: string | null
+          id: string
+          story: string | null
+          title: string | null
+          updated_at: string
+          user_id: string
+          values_blocks: Json | null
+        }
+        Insert: {
+          angle?: string | null
+          approach?: string | null
+          created_at?: string
+          cta?: string | null
+          custom_facts?: Json | null
+          for_whom?: string | null
+          id?: string
+          story?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          values_blocks?: Json | null
+        }
+        Update: {
+          angle?: string | null
+          approach?: string | null
+          created_at?: string
+          cta?: string | null
+          custom_facts?: Json | null
+          for_whom?: string | null
+          id?: string
+          story?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          values_blocks?: Json | null
+        }
+        Relationships: []
+      }
       website_homepage: {
         Row: {
           benefits_block: string | null

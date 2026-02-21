@@ -59,6 +59,7 @@ import PinterestRoutine from "./pages/PinterestRoutine";
 import SiteHub from "./pages/SiteHub";
 import SiteAccueil from "./pages/SiteAccueil";
 import SiteAccueilRecap from "./pages/SiteAccueilRecap";
+import SiteAPropos from "./pages/SiteAPropos";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -141,6 +142,7 @@ const App = () => (
             <Route path="/site" element={<ProtectedRoute><SiteHub /></ProtectedRoute>} />
             <Route path="/site/accueil" element={<ProtectedRoute><SiteAccueil /></ProtectedRoute>} />
             <Route path="/site/accueil/recap" element={<ProtectedRoute><SiteAccueilRecap /></ProtectedRoute>} />
+            <Route path="/site/a-propos" element={<ProtectedRoute><SiteAPropos /></ProtectedRoute>} />
             {/* Redirects from old routes */}
             <Route path="/instagram/idees" element={<Navigate to="/atelier?canal=instagram" replace />} />
             <Route path="/instagram/calendrier" element={<Navigate to="/calendrier?canal=instagram" replace />} />

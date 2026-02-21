@@ -35,8 +35,23 @@ export default function StorytellingRecapPage() {
     query.then(({ data: d }) => {
       setData(d);
       setLoading(false);
+      // Auto-generate recap if missing
+      if (d && !d.recap_summary) {
+        const storyText = d.step_7_polished || d.imported_text || d.step_6_full_story || "";
+        if (storyText) {
+          autoGenerateRef.current = true;
+        }
+      }
     });
   }, [user, id]);
+
+  const autoGenerateRef = useRef(false);
+  useEffect(() => {
+    if (autoGenerateRef.current && data && !generating) {
+      autoGenerateRef.current = false;
+      generateRecap();
+    }
+  }, [data]);
 
   const story = data?.step_7_polished || data?.imported_text || data?.step_6_full_story || "";
   const summary: RecapSummary | null = data?.recap_summary as any;
