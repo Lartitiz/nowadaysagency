@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, ArrowRight } from "lucide-react";
 import RoutinesPanel from "@/components/RoutinesPanel";
+import { getMonday } from "@/lib/mission-engine";
 
 export interface UserProfile {
   prenom: string;
@@ -173,6 +174,8 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [brandingScore, setBrandingScore] = useState(0);
+  const [missionsDone, setMissionsDone] = useState(0);
+  const [missionsTotal, setMissionsTotal] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -197,6 +200,18 @@ export default function Dashboard() {
           bpRes.data.key_expressions, bpRes.data.things_to_avoid, bpRes.data.target_verbatims,
         ];
         setBrandingScore(fields.filter((f) => f && String(f).trim().length > 0).length);
+      }
+
+      // Fetch missions summary
+      const weekStart = getMonday(new Date()).toISOString().split("T")[0];
+      const { data: missionsData } = await supabase
+        .from("weekly_missions")
+        .select("is_done")
+        .eq("user_id", user.id)
+        .eq("week_start", weekStart);
+      if (missionsData) {
+        setMissionsTotal(missionsData.length);
+        setMissionsDone(missionsData.filter((m: any) => m.is_done).length);
       }
     };
     fetchData();
@@ -237,6 +252,21 @@ export default function Dashboard() {
             💡 <span className="font-bold text-bordeaux">Notre conseil</span> : commence par le Branding, c'est la base de tout. Ensuite Instagram, puis le reste. Mais c'est toi qui décides.
           </p>
         </div>
+
+        {/* Missions summary */}
+        {missionsTotal > 0 && (
+          <Link to="/plan" className="block mb-6">
+            <div className="rounded-2xl border border-border bg-card p-4 hover:border-primary/40 transition-all hover:shadow-card-hover hover:-translate-y-px">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-bold text-foreground">🎯 Cette semaine : {missionsDone}/{missionsTotal} missions faites</p>
+                <span className="flex items-center gap-1 text-xs text-primary font-medium">
+                  Voir mon plan <ArrowRight className="h-3.5 w-3.5" />
+                </span>
+              </div>
+              <Progress value={missionsTotal > 0 ? (missionsDone / missionsTotal) * 100 : 0} className="h-2" />
+            </div>
+          </Link>
+        )}
 
         {/* Module grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">

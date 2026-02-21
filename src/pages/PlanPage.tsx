@@ -2,128 +2,136 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
-import WeeklyRecap from "@/components/WeeklyRecap";
-import WeekCard from "@/components/WeekCard";
-import { PLAN_WEEKS, PHASES } from "@/lib/plan-content";
-import { Lightbulb, RotateCcw, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Link } from "react-router-dom";
-import Confetti from "@/components/Confetti";
+import { Check, Clock, ArrowRight, ChevronDown, ChevronRight, Sparkles } from "lucide-react";
+import { fetchAppState, generateMissions, computeProgress, getMonday, type MissionDef } from "@/lib/mission-engine";
+import { useToast } from "@/hooks/use-toast";
 
-interface PlanTaskRow {
+interface MissionRow {
   id: string;
-  week_number: number;
-  task_index: number;
-  is_completed: boolean;
+  mission_key: string;
+  title: string;
+  description: string | null;
+  priority: string;
+  module: string | null;
+  route: string | null;
+  estimated_minutes: number | null;
+  is_done: boolean;
+  auto_completed: boolean;
   completed_at: string | null;
+  week_start: string;
 }
+
+const PRIORITY_BADGE: Record<string, { label: string; className: string }> = {
+  urgent: { label: "🔴 Urgent", className: "bg-red-100 text-red-700" },
+  important: { label: "🟡 Important", className: "bg-amber-100 text-amber-700" },
+  bonus: { label: "🟢 Bonus", className: "bg-emerald-100 text-emerald-700" },
+};
+
+const MODULE_BADGE: Record<string, { label: string; className: string }> = {
+  branding: { label: "Branding", className: "bg-rose-pale text-primary" },
+  instagram: { label: "Instagram", className: "bg-purple-100 text-purple-700" },
+  linkedin: { label: "LinkedIn", className: "bg-blue-100 text-blue-700" },
+  pinterest: { label: "Pinterest", className: "bg-red-50 text-red-600" },
+  site_web: { label: "Site web", className: "bg-teal-100 text-teal-700" },
+};
 
 export default function PlanPage() {
   const { user } = useAuth();
-  const [planStartDate, setPlanStartDate] = useState<string | null>(null);
-  const [planTasks, setPlanTasks] = useState<PlanTaskRow[]>([]);
+  const { toast } = useToast();
+  const [missions, setMissions] = useState<MissionRow[]>([]);
+  const [history, setHistory] = useState<{ week_start: string; total: number; done: number }[]>([]);
+  const [progress, setProgress] = useState({ global: 0, branding: 0, profilInsta: 0, contenu: 0, engagement: 0, siteWeb: 0 });
   const [loading, setLoading] = useState(true);
-  const [showConfetti, setShowConfetti] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
-  // Initialize plan on first visit
+  const weekStart = useMemo(() => getMonday(new Date()).toISOString().split("T")[0], []);
+
   useEffect(() => {
     if (!user) return;
-    const init = async () => {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("plan_start_date")
-        .eq("user_id", user.id)
-        .single();
-
-      if (profile?.plan_start_date) {
-        setPlanStartDate(profile.plan_start_date);
-      } else {
-        const today = new Date().toISOString().split("T")[0];
-        await supabase
-          .from("profiles")
-          .update({ plan_start_date: today })
-          .eq("user_id", user.id);
-        setPlanStartDate(today);
-      }
-
-      await fetchTasks();
-      setLoading(false);
-    };
     init();
   }, [user]);
 
-  const fetchTasks = async () => {
+  const init = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("plan_tasks")
+    setLoading(true);
+
+    // 1. Fetch app state and compute progress
+    const state = await fetchAppState(user.id);
+    setProgress(computeProgress(state));
+
+    // 2. Check if missions exist for this week
+    const { data: existingMissions } = await supabase
+      .from("weekly_missions")
       .select("*")
       .eq("user_id", user.id)
-      .order("week_number")
-      .order("task_index");
-    if (data) setPlanTasks(data as PlanTaskRow[]);
-  };
+      .eq("week_start", weekStart)
+      .order("created_at");
 
-  const currentWeek = useMemo(() => {
-    if (!planStartDate) return 1;
-    const start = new Date(planStartDate);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    return Math.floor(diffDays / 7) + 1;
-  }, [planStartDate]);
-
-  const toggleTask = async (weekNumber: number, taskIndex: number) => {
-    if (!user) return;
-    const existing = planTasks.find(
-      (t) => t.week_number === weekNumber && t.task_index === taskIndex
-    );
-
-    if (existing) {
-      const newCompleted = !existing.is_completed;
-      await supabase
-        .from("plan_tasks")
-        .update({
-          is_completed: newCompleted,
-          completed_at: newCompleted ? new Date().toISOString() : null,
-        })
-        .eq("id", existing.id);
+    if (existingMissions && existingMissions.length > 0) {
+      setMissions(existingMissions as MissionRow[]);
     } else {
-      await supabase.from("plan_tasks").insert({
-        user_id: user.id,
-        week_number: weekNumber,
-        task_index: taskIndex,
-        is_completed: true,
-        completed_at: new Date().toISOString(),
-      });
+      // Generate new missions
+      const defs = generateMissions(state);
+      if (defs.length > 0) {
+        const toInsert = defs.map((d) => ({
+          user_id: user.id,
+          week_start: weekStart,
+          mission_key: d.mission_key,
+          title: d.title,
+          description: d.description,
+          priority: d.priority,
+          module: d.module,
+          route: d.route,
+          estimated_minutes: d.estimated_minutes,
+        }));
+        const { data: inserted } = await supabase.from("weekly_missions").insert(toInsert).select();
+        if (inserted) setMissions(inserted as MissionRow[]);
+      }
     }
-    await fetchTasks();
+
+    // 3. Load history (past weeks)
+    const { data: allMissions } = await supabase
+      .from("weekly_missions")
+      .select("week_start, is_done")
+      .eq("user_id", user.id)
+      .lt("week_start", weekStart)
+      .order("week_start", { ascending: false });
+
+    if (allMissions) {
+      const weekMap = new Map<string, { total: number; done: number }>();
+      allMissions.forEach((m: any) => {
+        const w = m.week_start;
+        if (!weekMap.has(w)) weekMap.set(w, { total: 0, done: 0 });
+        const entry = weekMap.get(w)!;
+        entry.total++;
+        if (m.is_done) entry.done++;
+      });
+      setHistory(
+        Array.from(weekMap.entries())
+          .map(([week_start, counts]) => ({ week_start, ...counts }))
+          .slice(0, 8)
+      );
+    }
+
+    setLoading(false);
   };
 
-  const isTaskCompleted = (weekNumber: number, taskIndex: number) => {
-    return planTasks.some(
-      (t) => t.week_number === weekNumber && t.task_index === taskIndex && t.is_completed
+  const completeMission = async (mission: MissionRow) => {
+    await supabase
+      .from("weekly_missions")
+      .update({ is_done: true, completed_at: new Date().toISOString() })
+      .eq("id", mission.id);
+    setMissions((prev) =>
+      prev.map((m) => (m.id === mission.id ? { ...m, is_done: true, completed_at: new Date().toISOString() } : m))
     );
+    toast({ title: "Mission accomplie ! 🎉" });
   };
 
-  const getWeekCompletedCount = (weekNumber: number) => {
-    return planTasks.filter((t) => t.week_number === weekNumber && t.is_completed).length;
-  };
-
-  const isWeekCompleted = (weekNumber: number) => {
-    const week = PLAN_WEEKS.find((w) => w.weekNumber === weekNumber);
-    if (!week) return false;
-    return getWeekCompletedCount(weekNumber) >= week.tasks.length;
-  };
-
-  const programCompleted = currentWeek > 12 && PLAN_WEEKS.every((w) => isWeekCompleted(w.weekNumber));
-
-  const resetProgram = async () => {
-    if (!user) return;
-    await supabase.from("plan_tasks").delete().eq("user_id", user.id);
-    const today = new Date().toISOString().split("T")[0];
-    await supabase.from("profiles").update({ plan_start_date: today }).eq("user_id", user.id);
-    setPlanStartDate(today);
-    setPlanTasks([]);
-  };
+  const doneMissions = missions.filter((m) => m.is_done).length;
+  const allDone = missions.length > 0 && doneMissions === missions.length;
 
   if (loading) {
     return (
@@ -140,125 +148,182 @@ export default function PlanPage() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      {showConfetti && <Confetti />}
       <main className="mx-auto max-w-[800px] px-6 py-8 max-md:px-4">
-        <div className="mb-8">
-          <h1 className="font-display text-[26px] font-bold text-foreground">
-            Ton programme com'
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Un plan progressif pour structurer ta visibilité sur les réseaux. Semaine par semaine, à ton rythme.
+        <div className="mb-6">
+          <h1 className="font-display text-[26px] font-bold text-foreground">Mon plan</h1>
+          <p className="mt-1 text-[15px] text-muted-foreground">
+            Tes missions de la semaine, adaptées à ton avancement. L'outil regarde où tu en es et te dit quoi faire.
           </p>
         </div>
 
-        {/* Program completed */}
-        {programCompleted ? (
-          <div className="rounded-2xl border border-primary/30 bg-card p-8 text-center mb-8">
-            <h2 className="font-display text-2xl font-bold text-foreground mb-3">
-              Tu as terminé le programme !
-            </h2>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              12 semaines de com', c'est pas rien. Tu as posé tes bases, trouvé ton rythme, et affirmé ta voix. Maintenant, tu continues en autonomie : l'atelier et le calendrier sont toujours là pour toi.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button onClick={resetProgram} variant="outline" className="gap-2">
-                <RotateCcw className="h-4 w-4" />
-                Recommencer le programme
-              </Button>
-              <Button asChild className="gap-2">
-                <Link to="/dashboard">
-                  Continuer en freestyle
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
+        {/* SECTION 1: Overview */}
+        <section className="mb-8">
+          <div className="rounded-2xl border border-border bg-card p-5 mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-bold text-foreground">🚀 Ton avancement global</p>
+              <span className="text-lg font-bold text-primary">{progress.global}%</span>
+            </div>
+            <Progress value={progress.global} className="h-2.5 mb-5" />
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <ProgressIndicator label="Branding" value={progress.branding} route="/branding" />
+              <ProgressIndicator label="Profil Insta" value={progress.profilInsta} route="/instagram" />
+              <ProgressIndicator label="Contenu" value={progress.contenu} route="/calendrier" />
+              <ProgressIndicator label="Engagement" value={progress.engagement} route="/instagram/engagement" />
+              <ProgressIndicator label="Site web" value={progress.siteWeb} route="/site" />
             </div>
           </div>
-        ) : (
-          <>
-            {/* Weekly recap */}
-            <WeeklyRecap currentWeek={currentWeek} planTasks={planTasks} />
+        </section>
 
-            {/* Timeline */}
-            <div className="relative mt-8">
-              {PHASES.map((phase) => (
-                <div key={phase.number}>
-                  {/* Phase header */}
-                  <div className="mb-4 ml-7 rounded-xl bg-[hsl(var(--jaune-lumiere)/0.3)] px-4 py-2">
-                    <span className="text-sm font-bold text-foreground">
-                      Phase {phase.number} : {phase.title}
-                    </span>
-                  </div>
+        {/* SECTION 2: Weekly missions */}
+        <section className="mb-8">
+          <h2 className="font-display text-xl font-bold text-foreground mb-1">🎯 Tes missions cette semaine</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Semaine du {formatDate(weekStart)} au {formatDate(addDays(weekStart, 6))}
+          </p>
 
-                  {/* Weeks in this phase */}
-                  {phase.weeks.map((weekNum) => {
-                    const week = PLAN_WEEKS.find((w) => w.weekNumber === weekNum)!;
-                    const isCurrent = weekNum === Math.min(currentWeek, 12);
-                    const isPast = weekNum < currentWeek;
-                    const isFuture = weekNum > currentWeek;
-                    const weeksUntil = weekNum - currentWeek;
-                    const completed = isWeekCompleted(weekNum);
-
-                    return (
-                      <div key={weekNum} className="relative flex gap-4 pb-6 last:pb-0">
-                        {/* Vertical line */}
-                        <div className="flex flex-col items-center">
-                          <TimelineDot
-                            isCurrent={isCurrent}
-                            isPast={isPast}
-                            completed={completed}
-                          />
-                          {weekNum < 12 && (
-                            <div className="w-[2px] flex-1 bg-[hsl(var(--rose-doux))]" />
-                          )}
-                        </div>
-
-                        {/* Week card */}
-                        <div className="flex-1 pb-2">
-                          <WeekCard
-                            week={week}
-                            isCurrent={isCurrent}
-                            isPast={isPast}
-                            isFuture={isFuture}
-                            weeksUntil={weeksUntil}
-                            completed={completed}
-                            completedCount={getWeekCompletedCount(weekNum)}
-                            isTaskCompleted={isTaskCompleted}
-                            onToggleTask={toggleTask}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+          {allDone ? (
+            <div className="rounded-2xl border border-primary/30 bg-card p-6 text-center">
+              <p className="text-3xl mb-3">🎉</p>
+              <p className="font-display text-lg font-bold text-foreground mb-2">
+                Toutes tes missions de la semaine sont faites.
+              </p>
+              <p className="text-sm text-muted-foreground mb-1">Bravo, c'est énorme.</p>
+              <div className="text-sm text-muted-foreground mt-4 space-y-1 text-left max-w-sm mx-auto">
+                <p>Tu peux :</p>
+                <p>• <Link to="/atelier" className="text-primary hover:underline">Aller générer des idées dans l'atelier</Link></p>
+                <p>• <Link to="/branding" className="text-primary hover:underline">Avancer sur une section bonus de ton branding</Link></p>
+                <p>• Ou tout simplement souffler. Tu l'as mérité.</p>
+              </div>
+              <p className="text-xs text-muted-foreground mt-4 italic">On se retrouve lundi avec tes nouvelles missions.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {missions.map((mission) => (
+                <MissionCard
+                  key={mission.id}
+                  mission={mission}
+                  onComplete={() => completeMission(mission)}
+                />
               ))}
             </div>
-          </>
+          )}
+        </section>
+
+        {/* SECTION 3: History */}
+        {history.length > 0 && (
+          <section className="mb-8">
+            <button
+              onClick={() => setHistoryOpen(!historyOpen)}
+              className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
+            >
+              {historyOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              Mes semaines précédentes
+            </button>
+            {historyOpen && (
+              <div className="mt-3 space-y-2">
+                {history.map((h) => (
+                  <div key={h.week_start} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+                    <span className="text-sm text-muted-foreground">Semaine du {formatDate(h.week_start)}</span>
+                    <span className="ml-auto text-sm font-medium text-foreground">
+                      {h.done}/{h.total} missions {h.done === h.total ? "🎉" : "✅"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         )}
       </main>
     </div>
   );
 }
 
-function TimelineDot({ isCurrent, isPast, completed }: { isCurrent: boolean; isPast: boolean; completed: boolean }) {
-  if (isCurrent) {
-    return (
-      <div className="relative flex h-5 w-5 items-center justify-center">
-        <div className="absolute h-5 w-5 rounded-full bg-primary/30 animate-ping" style={{ animationDuration: "2s" }} />
-        <div className="relative h-3 w-3 rounded-full bg-primary" />
+/* ─── Sub-components ─── */
+
+function ProgressIndicator({ label, value, route }: { label: string; value: number; route: string }) {
+  return (
+    <Link to={route} className="rounded-xl border border-border bg-muted/30 p-3 text-center hover:border-primary/40 transition-colors">
+      <p className="text-xs text-muted-foreground mb-1">{label}</p>
+      <p className="text-lg font-bold text-foreground">{value}%</p>
+      <div className="h-1.5 w-full rounded-full bg-muted mt-1.5 overflow-hidden">
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${value}%` }} />
       </div>
-    );
-  }
-  if (isPast && completed) {
-    return (
-      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary">
-        <svg className="h-3 w-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
+    </Link>
+  );
+}
+
+function MissionCard({ mission, onComplete }: { mission: MissionRow; onComplete: () => void }) {
+  const priorityBadge = PRIORITY_BADGE[mission.priority] || PRIORITY_BADGE.important;
+  const moduleBadge = mission.module ? MODULE_BADGE[mission.module] : null;
+
+  return (
+    <div className={`rounded-2xl border bg-card p-5 transition-all ${mission.is_done ? "opacity-50 border-border" : "border-border hover:border-primary/30"}`}>
+      {/* Badges */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${priorityBadge.className}`}>
+          {priorityBadge.label}
+        </span>
+        {moduleBadge && (
+          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${moduleBadge.className}`}>
+            {moduleBadge.label}
+          </span>
+        )}
       </div>
-    );
-  }
-  if (isPast) {
-    return <div className="h-3 w-3 rounded-full bg-primary/50 mt-1" />;
-  }
-  return <div className="h-3 w-3 rounded-full border-2 border-muted-foreground/30 mt-1" />;
+
+      {/* Title */}
+      <h3 className={`font-display text-lg font-bold mb-2 ${mission.is_done ? "line-through text-muted-foreground" : "text-foreground"}`}>
+        {mission.title}
+      </h3>
+
+      {/* Description */}
+      {mission.description && (
+        <p className="text-sm text-muted-foreground leading-relaxed mb-3">{mission.description}</p>
+      )}
+
+      {/* Meta + actions */}
+      <div className="flex flex-wrap items-center gap-3">
+        {mission.estimated_minutes && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" /> ~{mission.estimated_minutes} min
+          </span>
+        )}
+        {mission.route && mission.module && (
+          <span className="text-xs text-muted-foreground">
+            📍 {MODULE_BADGE[mission.module]?.label || mission.module}
+          </span>
+        )}
+        <div className="flex gap-2 ml-auto">
+          {mission.route && !mission.is_done && (
+            <Button size="sm" variant="outline" asChild className="rounded-pill gap-1.5 text-xs">
+              <Link to={mission.route}>
+                <ArrowRight className="h-3.5 w-3.5" /> Y aller
+              </Link>
+            </Button>
+          )}
+          {!mission.is_done && (
+            <Button size="sm" onClick={onComplete} className="rounded-pill gap-1.5 text-xs">
+              <Check className="h-3.5 w-3.5" /> C'est fait
+            </Button>
+          )}
+          {mission.is_done && (
+            <span className="text-xs text-primary font-medium flex items-center gap-1">
+              <Check className="h-3.5 w-3.5" /> Fait
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Helpers ─── */
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
 }

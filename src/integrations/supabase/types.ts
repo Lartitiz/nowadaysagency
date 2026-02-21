@@ -1600,6 +1600,57 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_missions: {
+        Row: {
+          auto_completed: boolean
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          estimated_minutes: number | null
+          id: string
+          is_done: boolean
+          mission_key: string
+          module: string | null
+          priority: string
+          route: string | null
+          title: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          auto_completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          estimated_minutes?: number | null
+          id?: string
+          is_done?: boolean
+          mission_key: string
+          module?: string | null
+          priority?: string
+          route?: string | null
+          title: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          auto_completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          estimated_minutes?: number | null
+          id?: string
+          is_done?: boolean
+          mission_key?: string
+          module?: string | null
+          priority?: string
+          route?: string | null
+          title?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
