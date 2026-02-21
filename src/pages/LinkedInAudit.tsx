@@ -450,20 +450,26 @@ export default function LinkedInAudit() {
     ] as const;
 
     return (
-      <div className="space-y-8">
-        {/* Global score */}
-        <div className="rounded-2xl border border-border bg-card p-6 text-center">
-          <h2 className="text-lg font-bold text-foreground mb-1">🔍 Ton Audit LinkedIn</h2>
-          <p className={`text-4xl font-bold ${g.color}`}>{result.score_global}/100</p>
-          <Progress value={result.score_global} className="mt-3 h-3" />
+      <div className="space-y-8 animate-fade-in">
+        {/* ─── Global Score ─── */}
+        <div className="rounded-2xl border-l-[3px] border-l-primary bg-rose-pale p-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+              🔍 Ton Audit LinkedIn
+            </h2>
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-pill text-sm font-bold ${g.bg} ${g.color}`}>
+              {g.emoji} {result.score_global}/100
+            </span>
+          </div>
+          <Progress value={result.score_global} className="h-2.5 mb-3" />
           {previousScore !== null && previousScore !== result.score_global && (
-            <p className="text-sm text-muted-foreground mt-2">
+            <p className="text-sm text-muted-foreground">
               Audit précédent : {previousScore}/100 → {result.score_global > previousScore ? `+${result.score_global - previousScore} points 🎉` : `${result.score_global - previousScore} points`}
             </p>
           )}
         </div>
 
-        {/* Section scores */}
+        {/* ─── Section scores ─── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {sections.map(({ key, label }) => {
             const s = result.sections[key];
@@ -478,28 +484,40 @@ export default function LinkedInAudit() {
           })}
         </div>
 
-        {/* Top 5 priorities */}
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <h3 className="text-lg font-bold text-foreground mb-4">🎯 Tes 5 priorités</h3>
-          <div className="space-y-4">
-            {result.top_5_priorities?.map((p) => (
-              <div key={p.rank} className="flex gap-3 items-start">
-                <span className="text-lg">{impactEmoji(p.impact)}</span>
+        {/* ─── Top 5 priorities as cards ─── */}
+        <div className="space-y-3">
+          <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui">
+            🎯 Tes 5 priorités
+          </h3>
+          {result.top_5_priorities?.map((p) => (
+            <div key={p.rank} className="bg-card border border-border rounded-xl p-5 space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center">
+                  {p.rank}
+                </span>
                 <div className="flex-1">
-                  <p className="text-sm font-bold text-foreground">{p.rank}. {p.title}</p>
-                  <p className="text-sm text-muted-foreground">{p.why}</p>
-                  {p.action_route && (
-                    <Link to={p.action_route} className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium mt-1">
-                      ✨ {p.action_label} <ChevronRight className="h-3 w-3" />
-                    </Link>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-[15px] font-semibold text-foreground leading-tight">{p.title}</h4>
+                    <span className="text-xs">{impactEmoji(p.impact)}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">{p.why}</p>
                 </div>
               </div>
-            ))}
-          </div>
+              {p.action_route && (
+                <div className="pl-10">
+                  <Link
+                    to={p.action_route}
+                    className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium bg-rose-pale px-3 py-1.5 rounded-pill"
+                  >
+                    ✨ {p.action_label} <ChevronRight className="h-3 w-3" />
+                  </Link>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
-        {/* Detail accordions */}
+        {/* ─── Detail accordions ─── */}
         <Accordion type="multiple" className="space-y-2">
           {sections.map(({ key, label }) => {
             const s = result.sections[key];
@@ -518,14 +536,18 @@ export default function LinkedInAudit() {
                     {s.elements?.map((el, i) => {
                       const statusIcon = el.status === "good" ? "✅" : el.status === "warning" ? "⚠️" : "❌";
                       return (
-                        <div key={i} className="border-l-2 border-l-primary/20 pl-3">
+                        <div key={i} className="bg-card border border-border rounded-xl p-4 space-y-2">
                           <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium text-foreground">{statusIcon} {el.name}</p>
-                            <span className="text-xs text-muted-foreground font-mono">{el.score}/{el.max_score}</span>
+                            <p className="text-sm font-semibold text-foreground">{statusIcon} {el.name}</p>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-pill ${getScoreInfo(Math.round((el.score / el.max_score) * 100)).bg} ${getScoreInfo(Math.round((el.score / el.max_score) * 100)).color}`}>
+                              {el.score}/{el.max_score}
+                            </span>
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">{el.feedback}</p>
+                          <p className="text-sm text-muted-foreground leading-relaxed">{el.feedback}</p>
                           {el.recommendation && (
-                            <p className="text-sm text-primary/80 mt-1 italic">→ {el.recommendation}</p>
+                            <div className="bg-accent/30 border-l-[3px] border-l-accent rounded-r-lg px-4 py-2">
+                              <p className="text-sm text-foreground/80 italic">💡 {el.recommendation}</p>
+                            </div>
                           )}
                         </div>
                       );
@@ -537,7 +559,7 @@ export default function LinkedInAudit() {
           })}
         </Accordion>
 
-        {/* Actions */}
+        {/* ─── Actions ─── */}
         <div className="flex flex-col sm:flex-row gap-3">
           <Button onClick={() => { setStep(0); setResult(null); }} variant="outline" className="gap-2 rounded-pill">
             <RotateCcw className="h-4 w-4" /> Refaire l'audit
