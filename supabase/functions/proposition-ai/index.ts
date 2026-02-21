@@ -193,6 +193,69 @@ Réponds en JSON :
 }`;
       userPrompt = "Génère les 6 versions de ma proposition de valeur.";
 
+    } else if (type === "generate-recap") {
+      const d = proposition_data || {};
+      const per = persona || {};
+      const t = tone || {};
+
+      const personaBlock = per.step_1_frustrations
+        ? `- Frustrations cible : "${per.step_1_frustrations}"\n- Transformation rêvée : "${per.step_2_transformation || ""}"`
+        : "";
+
+      const combatBlock = [
+        t.combat_cause ? `- Cause : ${t.combat_cause}` : "",
+        t.combat_fights ? `- Combats : ${t.combat_fights}` : "",
+        t.combat_refusals ? `- Refus : ${t.combat_refusals}` : "",
+      ].filter(Boolean).join("\n");
+
+      systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+
+À partir de cette proposition de valeur, génère une synthèse structurée pour une fiche récap visuelle.
+
+PROPOSITION DE VALEUR :
+- Ce que je fais (what) : "${d.step_1_what || ""}"
+- Comment (process) : "${d.step_2a_process || ""}"
+- Valeurs : "${d.step_2b_values || ""}"
+- Retours clients : "${d.step_2c_feedback || ""}"
+- Ce que je refuse : "${d.step_2d_refuse || ""}"
+- Pour qui : "${d.step_3_for_whom || ""}"
+
+VERSIONS GÉNÉRÉES :
+- Bio : "${d.version_bio || ""}"
+- Pitch naturel : "${d.version_pitch_naturel || ""}"
+- Site web : "${d.version_site_web || ""}"
+- Engagée : "${d.version_engagee || ""}"
+
+${personaBlock ? `PERSONA :\n${personaBlock}` : ""}
+
+${combatBlock ? `COMBATS :\n${combatBlock}` : ""}
+
+PROFIL :
+${profileBlock}
+
+Génère en JSON STRICT (pas de markdown, pas de commentaires) :
+{
+  "what_i_do": ["...", "...", "..."],
+  "what_i_dont": ["...", "...", "..."],
+  "for_whom": "...",
+  "for_whom_tags": ["...", "...", "..."],
+  "how": ["...", "...", "..."],
+  "differentiator": "..."
+}
+
+RÈGLES :
+- "what_i_do" : 3-4 points CONCRETS de ce qu'elle propose. Verbes d'action. Courts (max 6 mots chaque).
+- "what_i_dont" : 3 points de ce qu'elle NE fait PAS. Déduis du positionnement et des combats. En miroir du positif.
+- "for_whom" : Description du persona cible en 2-3 lignes fluides.
+- "for_whom_tags" : 3-6 tags des secteurs ou profils cibles. Courts (1-3 mots).
+- "how" : 3-4 points de sa méthode/approche. Concrets.
+- "differentiator" : 1-2 phrases max. Ce qui la rend unique par rapport aux autres.
+- Tout doit être ULTRA CONCIS (fiche visuelle, pas un essai)
+- Écriture inclusive avec point médian
+- JAMAIS de tiret cadratin (—)
+- Réponds UNIQUEMENT avec le JSON, rien d'autre`;
+      userPrompt = "Génère la synthèse structurée de ma proposition de valeur.";
+
     } else {
       return new Response(JSON.stringify({ error: "Type non reconnu" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
