@@ -31,9 +31,46 @@ export default function TonStyleRecapPage() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle().then(({ data: d }) => {
+    supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle().then(async ({ data: d }) => {
       setData(d);
       setLoading(false);
+      // Auto-generate recap if data exists but no summary yet
+      if (d && !d.recap_summary) {
+        setGenerating(true);
+        try {
+          const stratRes = await supabase.from("brand_strategy").select("creative_concept").eq("user_id", user.id).maybeSingle();
+          const { data: fnData, error } = await supabase.functions.invoke("niche-ai", {
+            body: {
+              type: "generate-tone-recap",
+              tone_data: {
+                voice_description: d.voice_description,
+                tone_register: d.tone_register,
+                tone_level: d.tone_level,
+                tone_style: d.tone_style,
+                tone_humor: d.tone_humor,
+                tone_engagement: d.tone_engagement,
+                key_expressions: d.key_expressions,
+                things_to_avoid: d.things_to_avoid,
+                target_verbatims: d.target_verbatims,
+                combat_cause: d.combat_cause,
+                combat_fights: d.combat_fights,
+                combat_refusals: d.combat_refusals,
+                combat_alternative: d.combat_alternative,
+              },
+              creative_concept: stratRes.data?.creative_concept || "",
+            },
+          });
+          if (!error) {
+            const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+            const parsed = JSON.parse(raw);
+            await supabase.from("brand_profile").update({ recap_summary: parsed } as any).eq("id", d.id);
+            setData({ ...d, recap_summary: parsed });
+          }
+        } catch (e) {
+          console.error("Auto-generate recap failed:", e);
+        }
+        setGenerating(false);
+      }
     });
   }, [user]);
 
@@ -152,15 +189,47 @@ export default function TonStyleRecapPage() {
           </Button>
         </div>
 
-        {/* Prompt to generate */}
+        {/* Fallback: show raw data while generating */}
         {!summary && (
-          <div className="rounded-2xl bg-[hsl(var(--rose-pale))] border border-border p-8 text-center mb-6">
-            <p className="text-foreground text-[15px] mb-4">
-              ✨ Clique sur "Générer la synthèse" pour créer ta fiche récap visuelle.
-            </p>
-            <Button onClick={generateRecap} disabled={generating} className="rounded-pill">
-              {generating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Génération...</> : "✨ Générer ma fiche"}
-            </Button>
+          <div className="rounded-2xl bg-white border border-[hsl(var(--border))] shadow-[var(--shadow-card)] overflow-hidden p-6 sm:p-8 mb-6">
+            <h2 className="font-display text-[20px] font-bold mb-4" style={{ color: "#1a1a2e" }}>🎨 Mon ton & mes combats</h2>
+
+            {data?.voice_description && (
+              <div className="mb-4">
+                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "#6B5E7B" }}>Ma voix</p>
+                <p className="font-body text-[14px] leading-relaxed" style={{ color: "#1a1a2e" }}>{data.voice_description}</p>
+              </div>
+            )}
+
+            {data?.key_expressions && (
+              <div className="mb-4">
+                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "#6B5E7B" }}>Mes expressions</p>
+                <p className="font-body text-[14px] leading-relaxed" style={{ color: "#1a1a2e" }}>{data.key_expressions}</p>
+              </div>
+            )}
+
+            {data?.combat_cause && (
+              <div className="mb-4">
+                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "#6B5E7B" }}>Mes combats</p>
+                <p className="font-body text-[14px] leading-relaxed" style={{ color: "#1a1a2e" }}>{data.combat_cause}</p>
+                {data.combat_fights && <p className="font-body text-[13px] mt-1" style={{ color: "#1a1a2e" }}>{data.combat_fights}</p>}
+              </div>
+            )}
+
+            {generating && (
+              <div className="mt-4 p-4 rounded-xl" style={{ backgroundColor: "#FFF4F8" }}>
+                <p className="text-[13px] flex items-center gap-2" style={{ color: "#1a1a2e" }}>
+                  <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#fb3d80" }} />
+                  ✨ Ta fiche synthétique est en cours de génération...
+                </p>
+              </div>
+            )}
+
+            {!generating && (
+              <Button onClick={generateRecap} className="rounded-pill mt-4">
+                ✨ Générer ma fiche
+              </Button>
+            )}
           </div>
         )}
 
