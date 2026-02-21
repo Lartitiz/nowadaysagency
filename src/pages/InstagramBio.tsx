@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Copy, Check, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import SubPageHeader from "@/components/SubPageHeader";
+import AuditInsight from "@/components/AuditInsight";
 
 interface BioVersion {
   nom_profil: string;
@@ -107,6 +108,7 @@ export default function InstagramBio() {
         <p className="mt-2 text-sm text-muted-foreground mb-8">
           Ta bio, c'est ta première impression. Elle doit montrer en quelques mots : à qui tu t'adresses, ce que tu proposes, ce qui te rend unique, et où cliquer.
         </p>
+        <AuditInsight section="bio" />
 
         {/* Tip */}
         <div className="rounded-2xl border-l-4 border-l-primary bg-rose-pale p-5 mb-8">

@@ -8,35 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Copy, Check, Loader2 } from "lucide-react";
-
+import AuditInsight from "@/components/AuditInsight";
 export default function InstagramProfileNom() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [auditScore, setAuditScore] = useState<number | null>(null);
-  const [auditReco, setAuditReco] = useState<string>("");
   const [currentName, setCurrentName] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
   const [checklist, setChecklist] = useState({ keyword: false, under30: false, searchable: false });
-
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("instagram_audit")
-      .select("score_nom, details")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setAuditScore(data.score_nom);
-          const det = data.details as any;
-          setAuditReco(det?.sections?.nom?.diagnostic || "");
-        }
-      });
-  }, [user]);
 
   const handleGenerate = async () => {
     if (!user) return;
@@ -78,12 +58,7 @@ export default function InstagramProfileNom() {
           Ton nom de profil est ta première chance d'être trouvée en recherche. Ajoute un mot-clé lié à ton activité.
         </p>
 
-        {auditScore !== null && (
-          <div className="rounded-xl bg-rose-pale p-4 mb-6">
-            <p className="text-sm font-medium">🔍 Score actuel : <strong>{auditScore}/100</strong></p>
-            {auditReco && <p className="text-sm text-muted-foreground mt-1">{auditReco}</p>}
-          </div>
-        )}
+        <AuditInsight section="nom" />
 
         <div className="space-y-6">
           <div>

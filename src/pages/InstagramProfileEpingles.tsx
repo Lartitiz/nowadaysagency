@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Copy, Check, Loader2, CalendarDays } from "lucide-react";
+import AuditInsight from "@/components/AuditInsight";
 
 interface PinnedPost {
   id?: string;
@@ -42,14 +43,12 @@ export default function InstagramProfileEpingles() {
   );
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-  const [auditScore, setAuditScore] = useState<number | null>(null);
 
   useEffect(() => {
     if (!user) return;
     const loadData = async () => {
-      const [pinnedRes, auditRes] = await Promise.all([
+      const [pinnedRes] = await Promise.all([
         supabase.from("instagram_pinned_posts").select("*").eq("user_id", user.id),
-        supabase.from("instagram_audit").select("score_epingles").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
       if (pinnedRes.data && pinnedRes.data.length > 0) {
         setPosts(POST_TYPES.map(t => {
@@ -69,7 +68,6 @@ export default function InstagramProfileEpingles() {
           };
         }));
       }
-      if (auditRes.data) setAuditScore(auditRes.data.score_epingles);
     };
     loadData();
   }, [user]);
@@ -174,13 +172,7 @@ export default function InstagramProfileEpingles() {
           Tes 3 posts épinglés, c'est ta vitrine. C'est la première chose que voit quelqu'un qui arrive sur ton profil.
         </p>
 
-        {auditScore !== null && (
-          <div className="rounded-xl bg-rose-pale p-4 mb-6">
-            <p className="text-sm font-medium">🔍 Score actuel : <strong>{auditScore}/100</strong></p>
-          </div>
-        )}
-
-        {/* Guide */}
+        <AuditInsight section="epingles" />
         <div className="rounded-2xl border border-border bg-card p-5 mb-6">
           <span className="inline-block font-mono-ui text-[11px] font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-3 py-1 rounded-pill mb-3">
             📖 Stratégie recommandée
