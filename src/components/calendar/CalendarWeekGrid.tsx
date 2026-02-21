@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Plus, GripVertical, CalendarIcon } from "lucide-react";
 import { DndContext, DragOverlay, closestCenter, type DragStartEvent, type DragEndEvent, useDroppable, useDraggable } from "@dnd-kit/core";
-import { statusStyles, CANAL_COLORS, type CalendarPost } from "@/lib/calendar-constants";
-import { ObjectifBadge } from "./ObjectifBadge";
+import { type CalendarPost } from "@/lib/calendar-constants";
+import { CalendarContentCard } from "./CalendarContentCard";
+import { WeekRecapBar } from "./WeekRecapBar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
@@ -19,8 +20,8 @@ interface Props {
   onMovePost?: (postId: string, newDate: string) => void;
 }
 
-/* ── Draggable post chip ── */
-function DraggableWeekChip({ post, onClick }: { post: CalendarPost; onClick: () => void }) {
+/* ── Draggable content card ── */
+function DraggableWeekCard({ post, onClick }: { post: CalendarPost; onClick: () => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id });
   const style: React.CSSProperties = {
     transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
@@ -38,14 +39,9 @@ function DraggableWeekChip({ post, onClick }: { post: CalendarPost; onClick: () 
       >
         <GripVertical className="h-3 w-3 text-muted-foreground" />
       </span>
-      <button
-        onClick={onClick}
-        className={`flex-1 text-left rounded-md border px-2 py-1 text-xs font-medium flex items-center gap-1 ${statusStyles[post.status] || statusStyles.idea}`}
-      >
-        <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${CANAL_COLORS[post.canal] || "bg-muted-foreground"}`} />
-        <span className="truncate flex-1">{post.theme}</span>
-        <ObjectifBadge objectif={post.objectif} size="sm" />
-      </button>
+      <div className="flex-1 min-w-0">
+        <CalendarContentCard post={post} onClick={onClick} variant="detailed" />
+      </div>
     </div>
   );
 }
@@ -81,7 +77,7 @@ function DroppableWeekDay({
       </div>
       <div className="space-y-1">
         {posts.map((p) => (
-          <DraggableWeekChip key={p.id} post={p} onClick={() => onEditPost(p)} />
+          <DraggableWeekCard key={p.id} post={p} onClick={() => onEditPost(p)} />
         ))}
       </div>
     </div>
@@ -118,18 +114,14 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
       </div>
       <div className="space-y-1">
         {posts.map((p) => (
-          <button
+          <div
             key={p.id}
-            onClick={() => onEditPost(p)}
             onTouchStart={() => handleTouchStart(p)}
             onTouchEnd={() => handleTouchEnd(p.id)}
             onTouchCancel={() => handleTouchEnd(p.id)}
-            className={`w-full text-left rounded-md border px-1.5 py-0.5 text-[11px] font-medium flex items-center gap-1 ${statusStyles[p.status] || statusStyles.idea}`}
           >
-            <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${CANAL_COLORS[p.canal] || "bg-muted-foreground"}`} />
-            <span className="truncate flex-1">{p.theme}</span>
-            <ObjectifBadge objectif={p.objectif} size="sm" />
-          </button>
+            <CalendarContentCard post={p} onClick={() => onEditPost(p)} variant="compact" />
+          </div>
         ))}
       </div>
     </div>
@@ -143,6 +135,7 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
   const [moveDate, setMoveDate] = useState<Date | undefined>();
 
   const allPosts = Object.values(postsByDate).flat();
+  const weekAllPosts = weekDays.flatMap((d) => postsByDate[d.toISOString().split("T")[0]] || []);
 
   const handleDragStart = (event: DragStartEvent) => {
     const post = allPosts.find((p) => p.id === event.active.id);
@@ -217,30 +210,36 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
   }
 
   return (
-    <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="rounded-2xl bg-card border border-border overflow-hidden">
-        <div className="flex">
-          {weekDays.map((d) => {
-            const dateStr = d.toISOString().split("T")[0];
-            const dayPosts = postsByDate[dateStr] || [];
-            return (
-              <DroppableWeekDay
-                key={dateStr} date={d} dateStr={dateStr}
-                isToday={dateStr === todayStr} posts={dayPosts}
-                onCreatePost={() => onCreatePost(dateStr)}
-                onEditPost={onEditPost}
-              />
-            );
-          })}
-        </div>
-      </div>
-      <DragOverlay>
-        {activePost ? (
-          <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg text-xs font-medium max-w-[180px]">
-            <span className="truncate block">{activePost.theme}</span>
+    <>
+      <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="rounded-2xl bg-card border border-border overflow-hidden">
+          <div className="flex">
+            {weekDays.map((d) => {
+              const dateStr = d.toISOString().split("T")[0];
+              const dayPosts = postsByDate[dateStr] || [];
+              return (
+                <DroppableWeekDay
+                  key={dateStr} date={d} dateStr={dateStr}
+                  isToday={dateStr === todayStr} posts={dayPosts}
+                  onCreatePost={() => onCreatePost(dateStr)}
+                  onEditPost={onEditPost}
+                />
+              );
+            })}
           </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+        </div>
+        <DragOverlay>
+          {activePost ? (
+            <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg text-xs font-medium max-w-[180px]">
+              <span className="truncate block">{activePost.content_type_emoji || ""} {activePost.theme}</span>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+
+      {weekAllPosts.length > 0 && (
+        <WeekRecapBar posts={weekAllPosts} compact={false} />
+      )}
+    </>
   );
 }
