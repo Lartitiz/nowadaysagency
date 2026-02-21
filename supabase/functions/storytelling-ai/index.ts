@@ -161,6 +161,41 @@ Réponds en JSON :
 {"short": "...", "medium": "...", "long": "..."}`;
       userPrompt = "Génère mes 3 pitchs.";
 
+    } else if (type === "generate-recap") {
+      const fullStory = storytelling || "";
+      systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+
+À partir de ce storytelling, génère une synthèse structurée pour une fiche récap visuelle.
+
+STORYTELLING COMPLET :
+"""
+${fullStory}
+"""
+
+PROFIL :
+${profileBlock}
+
+Génère en JSON STRICT (pas de markdown, pas de commentaires) :
+{
+  "before": "[Résumé en 2-3 lignes max de la situation de départ. Concret, factuel.]",
+  "trigger": "[Résumé en 2-3 lignes du moment décisif, le déclic. L'émotion clé.]",
+  "after": "[Résumé en 2-3 lignes de la transformation et la mission actuelle.]",
+  "values": ["valeur 1", "valeur 2", "valeur 3"],
+  "unique": ["point 1", "point 2", "point 3"],
+  "mistakes": ["erreur 1", "erreur 2"]
+}
+
+RÈGLES :
+- Chaque résumé doit être CONCIS (pas de phrases longues) et VISUEL (lisible en 3 secondes)
+- Les valeurs et points uniques sont des mots ou expressions courtes (pas des phrases)
+- 3-5 valeurs clés
+- 3-4 éléments différenciants
+- 2-3 erreurs/apprentissages formulés positivement
+- Écriture inclusive avec point médian
+- JAMAIS de tiret cadratin (—)
+- Réponds UNIQUEMENT avec le JSON, rien d'autre`;
+      userPrompt = "Génère la synthèse structurée de mon storytelling.";
+
     } else {
       return new Response(JSON.stringify({ error: "Type non reconnu" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
