@@ -2032,6 +2032,126 @@ export type Database = {
         }
         Relationships: []
       }
+      reels_metrics: {
+        Row: {
+          ai_insight: string | null
+          avg_engagement_rate: number | null
+          best_reel_retention: number | null
+          best_reel_subject: string | null
+          best_reel_views: number | null
+          created_at: string
+          id: string
+          reels_published: number | null
+          total_follows_gained: number | null
+          total_saves: number | null
+          total_shares: number | null
+          total_views: number | null
+          updated_at: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          ai_insight?: string | null
+          avg_engagement_rate?: number | null
+          best_reel_retention?: number | null
+          best_reel_subject?: string | null
+          best_reel_views?: number | null
+          created_at?: string
+          id?: string
+          reels_published?: number | null
+          total_follows_gained?: number | null
+          total_saves?: number | null
+          total_shares?: number | null
+          total_views?: number | null
+          updated_at?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          ai_insight?: string | null
+          avg_engagement_rate?: number | null
+          best_reel_retention?: number | null
+          best_reel_subject?: string | null
+          best_reel_views?: number | null
+          created_at?: string
+          id?: string
+          reels_published?: number | null
+          total_follows_gained?: number | null
+          total_saves?: number | null
+          total_shares?: number | null
+          total_views?: number | null
+          updated_at?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
+      reels_scripts: {
+        Row: {
+          alt_text: string | null
+          caption: string | null
+          cover_text: string | null
+          created_at: string
+          duree_cible: string | null
+          face_cam: string | null
+          format_type: string | null
+          hashtags: Json | null
+          hook_text: string | null
+          hook_type: string | null
+          id: string
+          is_launch: boolean | null
+          objective: string | null
+          published: boolean | null
+          published_at: string | null
+          script_result: Json | null
+          subject: string | null
+          time_available: string | null
+          user_id: string
+        }
+        Insert: {
+          alt_text?: string | null
+          caption?: string | null
+          cover_text?: string | null
+          created_at?: string
+          duree_cible?: string | null
+          face_cam?: string | null
+          format_type?: string | null
+          hashtags?: Json | null
+          hook_text?: string | null
+          hook_type?: string | null
+          id?: string
+          is_launch?: boolean | null
+          objective?: string | null
+          published?: boolean | null
+          published_at?: string | null
+          script_result?: Json | null
+          subject?: string | null
+          time_available?: string | null
+          user_id: string
+        }
+        Update: {
+          alt_text?: string | null
+          caption?: string | null
+          cover_text?: string | null
+          created_at?: string
+          duree_cible?: string | null
+          face_cam?: string | null
+          format_type?: string | null
+          hashtags?: Json | null
+          hook_text?: string | null
+          hook_type?: string | null
+          id?: string
+          is_launch?: boolean | null
+          objective?: string | null
+          published?: boolean | null
+          published_at?: string | null
+          script_result?: Json | null
+          subject?: string | null
+          time_available?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       routine_completions: {
         Row: {
           completed_at: string

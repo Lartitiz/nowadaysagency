@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.linkedin-audit-ai]
 verify_jwt = false
+
+[functions.reels-ai]
+verify_jwt = false

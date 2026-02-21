@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
-import { ArrowLeft, User, Sparkles, Lightbulb, PenLine, CalendarDays, Rocket, Heart } from "lucide-react";
+import { ArrowLeft, User, Sparkles, Lightbulb, PenLine, CalendarDays, Rocket, Heart, Video } from "lucide-react";
 
 interface CardDef {
   icon: React.ElementType;
@@ -19,6 +19,7 @@ const CARDS: CardDef[] = [
   { icon: Sparkles, emoji: "✨", title: "M'inspirer", desc: "Colle un contenu qui t'a plu. L'IA t'explique pourquoi ça marche et te crée ta version.", to: "/instagram/inspirer", tag: "Analyser · Adapter · Poster" },
   { icon: Lightbulb, emoji: "💡", title: "Trouver des idées", desc: "Direction l'atelier.", to: "/atelier?canal=instagram", tag: "IA" },
   { icon: PenLine, emoji: "✏️", title: "Rédiger un contenu", desc: "L'IA t'aide à rédiger un post complet.", to: "/atelier?canal=instagram&mode=rediger", tag: "Rédaction IA" },
+  { icon: Video, emoji: "🎬", title: "Créer un Reel", desc: "Génère un script complet avec hook, structure et CTA. Prêt à filmer.", to: "/instagram/reels", tag: "Script · Hook · CTA" },
   { icon: Heart, emoji: "📱", title: "Mes Stories", desc: "Crée des séquences stories complètes avec le bon sticker et le bon CTA.", to: "/instagram/stories", tag: "Stories · Séquences · Stickers" },
   { icon: CalendarDays, emoji: "📅", title: "Mon calendrier", desc: "Planifie tes posts.", to: "/calendrier?canal=instagram", tag: "Planning" },
   { icon: Rocket, emoji: "🚀", title: "Mon lancement", desc: "Plan de lancement guidé.", to: "/instagram/lancement", tag: "Template + IA" },
