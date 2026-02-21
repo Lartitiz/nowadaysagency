@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageCircle, Trash2, Plus, StickyNote } from "lucide-react";
+import { Trash2, Plus, StickyNote, ExternalLink } from "lucide-react";
 
 export interface Contact {
   id: string;
@@ -47,6 +47,18 @@ const FILTERS = [
   { value: "stale", label: "⚠️ Inactifs" },
 ];
 
+function cleanPseudo(input: string): string {
+  return input
+    .replace(/^@/, '')
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//, '')
+    .replace(/\/$/, '')
+    .trim();
+}
+
+function getInstagramUrl(pseudo: string): string {
+  return `https://www.instagram.com/${cleanPseudo(pseudo)}/`;
+}
+
 function daysSince(dateStr?: string) {
   if (!dateStr) return Infinity;
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
@@ -67,9 +79,15 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
 
   const handleAdd = () => {
     if (!newPseudo.trim()) return;
-    onAdd(newPseudo.startsWith("@") ? newPseudo : `@${newPseudo}`, newTag);
+    const cleaned = cleanPseudo(newPseudo);
+    onAdd(cleaned, newTag);
     setNewPseudo("");
     setAdding(false);
+  };
+
+  const handleGoComment = (contact: Contact) => {
+    window.open(getInstagramUrl(contact.pseudo), '_blank');
+    onInteract(contact.id);
   };
 
   return (
@@ -99,13 +117,21 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
         {filtered.map(c => {
           const stale = daysSince(c.last_interaction) > 7;
           const isEditingThis = editingNotes === c.id;
+          const displayPseudo = cleanPseudo(c.pseudo);
 
           return (
             <div key={c.id} className={`rounded-lg border p-3 space-y-1.5 ${stale ? "border-amber-300 bg-amber-50/30" : "border-border"}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-sm font-bold text-foreground">{c.pseudo}</span>
+                    <a
+                      href={getInstagramUrl(c.pseudo)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-sm font-bold text-primary hover:underline"
+                    >
+                      @{displayPseudo}
+                    </a>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full ${TAG_COLORS[c.tag] || "bg-muted text-foreground"}`}>
                       {TAG_LABELS[c.tag] || c.tag}
                     </span>
@@ -122,8 +148,15 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
                   )}
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onInteract(c.id)} title="Marquer interaction">
-                    <MessageCircle className="h-3.5 w-3.5" />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 gap-1 px-2 text-[11px]"
+                    onClick={() => handleGoComment(c)}
+                    title="Aller commenter sur Instagram"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    <span className="hidden sm:inline">Commenter</span>
                   </Button>
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => {
                     if (isEditingThis) { onUpdateNotes(c.id, tempNotes); setEditingNotes(null); }
@@ -154,24 +187,29 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
 
       {/* Add contact */}
       {adding ? (
-        <div className="flex gap-2 items-end">
-          <Input
-            placeholder="@pseudo"
-            value={newPseudo}
-            onChange={e => setNewPseudo(e.target.value)}
-            className="flex-1 h-8 text-sm"
-          />
-          <select
-            value={newTag}
-            onChange={e => setNewTag(e.target.value)}
-            className="h-8 text-xs rounded-md border border-input bg-card px-2"
-          >
-            {Object.entries(TAG_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
-          <Button size="sm" onClick={handleAdd}>Ajouter</Button>
-          <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>✕</Button>
+        <div className="space-y-2">
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <Input
+                placeholder="pseudo (ex: thegoodgoods.fr)"
+                value={newPseudo}
+                onChange={e => setNewPseudo(e.target.value)}
+                className="h-8 text-sm"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">💡 Juste le pseudo, sans le https://</p>
+            </div>
+            <select
+              value={newTag}
+              onChange={e => setNewTag(e.target.value)}
+              className="h-8 text-xs rounded-md border border-input bg-card px-2"
+            >
+              {Object.entries(TAG_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+            <Button size="sm" onClick={handleAdd}>Ajouter</Button>
+            <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>✕</Button>
+          </div>
         </div>
       ) : (
         <Button size="sm" variant="outline" onClick={() => setAdding(true)} disabled={contacts.length >= 25}>
