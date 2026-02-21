@@ -19,6 +19,7 @@ export interface AppState {
   strategy: any;
   storytelling: any;
   rhythm: any;
+  editorialLine: any;
   // Counts
   postsThisWeek: number;
   postsTarget: number;
@@ -37,7 +38,7 @@ export async function fetchAppState(userId: string): Promise<AppState> {
   const [
     profileRes, brandRes, propRes, personaRes, stratRes, storyRes,
     rhythmRes, postsRes, engRes, hlRes, ideasRes,
-    liRes, pintRes, webRes,
+    liRes, pintRes, webRes, editoRes,
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_profile").select("*").eq("user_id", userId).maybeSingle(),
@@ -53,10 +54,20 @@ export async function fetchAppState(userId: string): Promise<AppState> {
     supabase.from("linkedin_profile").select("*").eq("user_id", userId).maybeSingle(),
     supabase.from("pinterest_profile").select("*").eq("user_id", userId).maybeSingle(),
     supabase.from("website_homepage").select("*").eq("user_id", userId).maybeSingle(),
+    supabase.from("instagram_editorial_line").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const rhythm = rhythmRes.data;
-  const postsTarget = rhythm?.posts_per_week ? Number(rhythm.posts_per_week) : 2;
+  const edito = editoRes.data;
+  // Use editorial line posts frequency if available, fallback to rhythm
+  let postsTarget = rhythm?.posts_per_week ? Number(rhythm.posts_per_week) : 2;
+  if (edito?.posts_frequency) {
+    const freq = edito.posts_frequency as string;
+    if (freq === "1x/semaine") postsTarget = 1;
+    else if (freq === "2x/semaine") postsTarget = 2;
+    else if (freq === "3x/semaine") postsTarget = 3;
+    else if (freq === "4-5x/semaine") postsTarget = 5;
+  }
 
   return {
     profile: profileRes.data,
@@ -66,6 +77,7 @@ export async function fetchAppState(userId: string): Promise<AppState> {
     strategy: stratRes.data,
     storytelling: storyRes.data,
     rhythm,
+    editorialLine: edito,
     postsThisWeek: postsRes.data?.length || 0,
     postsTarget,
     engagementDone: engRes.data?.total_done || 0,
@@ -230,7 +242,37 @@ export function generateMissions(state: AppState): MissionDef[] {
     });
   }
 
-  // ── PRIORITY 3: Bonus ──
+  // ── Editorial line coherence missions ──
+  const edito = state.editorialLine;
+  if (edito) {
+    const estimated = edito.estimated_weekly_minutes as number | null;
+    const budget = edito.time_budget_minutes as number | null;
+    if (estimated && budget && estimated > budget) {
+      important.push({
+        mission_key: "adjust_rhythm",
+        title: "Ton rythme dépasse ton temps dispo",
+        description: `Tu as estimé ~${Math.round(estimated / 60)}h/semaine mais tu n'as que ~${Math.round(budget / 60)}h. Réajuste ta ligne éditoriale pour un rythme tenable.`,
+        priority: "important",
+        module: "instagram",
+        route: "/instagram/profil/edito",
+        estimated_minutes: 10,
+      });
+    }
+  }
+
+  if (!edito) {
+    important.push({
+      mission_key: "create_editorial_line",
+      title: "Définis ta ligne éditoriale Instagram",
+      description: "Choisis ton rythme, tes formats et tes piliers pour structurer ta création de contenu.",
+      priority: "important",
+      module: "instagram",
+      route: "/instagram/profil/edito",
+      estimated_minutes: 15,
+    });
+  }
+
+
   if (!state.strategy || !state.strategy.completed) {
     bonus.push({
       mission_key: "complete_strategy",
