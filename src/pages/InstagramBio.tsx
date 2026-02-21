@@ -102,7 +102,7 @@ export default function InstagramBio() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Optimiser ma bio" />
+        <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Optimiser ma bio" />
 
         <h1 className="font-display text-[26px] font-bold text-foreground">✍️ Optimiser ma bio</h1>
         <p className="mt-2 text-sm text-muted-foreground mb-8">
