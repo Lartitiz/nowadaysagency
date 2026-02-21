@@ -396,6 +396,75 @@ export type Database = {
           },
         ]
       }
+      engagement_checklist_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          items_checked: Json | null
+          items_total: number | null
+          log_date: string
+          streak_maintained: boolean | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          items_checked?: Json | null
+          items_total?: number | null
+          log_date: string
+          streak_maintained?: boolean | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          items_checked?: Json | null
+          items_total?: number | null
+          log_date?: string
+          streak_maintained?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      engagement_contacts: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          last_interaction: string | null
+          notes: string | null
+          pseudo: string
+          sort_order: number | null
+          tag: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          last_interaction?: string | null
+          notes?: string | null
+          pseudo: string
+          sort_order?: number | null
+          tag?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          last_interaction?: string | null
+          notes?: string | null
+          pseudo?: string
+          sort_order?: number | null
+          tag?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       engagement_exercise: {
         Row: {
           completed: boolean | null
@@ -443,6 +512,96 @@ export type Database = {
           follower_5_done?: boolean | null
           follower_5_name?: string | null
           id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      engagement_metrics: {
+        Row: {
+          ai_insight: string | null
+          avg_likes: number | null
+          avg_reach: number | null
+          avg_saves: number | null
+          created_at: string | null
+          dm_received: number | null
+          followers: number | null
+          id: string
+          launch_dm: number | null
+          launch_link_clicks: number | null
+          launch_signups: number | null
+          launch_story_views: number | null
+          link_clicks: number | null
+          profile_visits: number | null
+          updated_at: string | null
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          ai_insight?: string | null
+          avg_likes?: number | null
+          avg_reach?: number | null
+          avg_saves?: number | null
+          created_at?: string | null
+          dm_received?: number | null
+          followers?: number | null
+          id?: string
+          launch_dm?: number | null
+          launch_link_clicks?: number | null
+          launch_signups?: number | null
+          launch_story_views?: number | null
+          link_clicks?: number | null
+          profile_visits?: number | null
+          updated_at?: string | null
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          ai_insight?: string | null
+          avg_likes?: number | null
+          avg_reach?: number | null
+          avg_saves?: number | null
+          created_at?: string | null
+          dm_received?: number | null
+          followers?: number | null
+          id?: string
+          launch_dm?: number | null
+          launch_link_clicks?: number | null
+          launch_signups?: number | null
+          launch_story_views?: number | null
+          link_clicks?: number | null
+          profile_visits?: number | null
+          updated_at?: string | null
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
+      engagement_streaks: {
+        Row: {
+          best_streak: number | null
+          created_at: string | null
+          current_streak: number | null
+          id: string
+          last_check_date: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          best_streak?: number | null
+          created_at?: string | null
+          current_streak?: number | null
+          id?: string
+          last_check_date?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          best_streak?: number | null
+          created_at?: string | null
+          current_streak?: number | null
+          id?: string
+          last_check_date?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []

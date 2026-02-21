@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.launch-plan-ai]
 verify_jwt = false
+
+[functions.engagement-insight]
+verify_jwt = false
