@@ -254,25 +254,56 @@ export default function RedactionPage() {
         {step === 1 && (
           <div className="space-y-4 animate-fade-in">
             <div className="rounded-2xl border border-border bg-card p-6">
-              <h2 className="font-display text-lg font-bold mb-3">Structure du format "{format}"</h2>
-              <p className="text-sm text-muted-foreground mb-4">
-                Voici le plan détaillé que tu vas suivre pour rédiger ton contenu. C'est ton guide.
-              </p>
-              {loadingStructure ? (
-                <div className="flex gap-1 py-4 justify-center">
-                  <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce-dot" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} />
-                  <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
-                </div>
+              {!format ? (
+                <>
+                  <h2 className="font-display text-lg font-bold mb-3">Quel format pour ce contenu ?</h2>
+                  <p className="text-sm text-muted-foreground mb-4">Choisis un format avant de commencer la rédaction.</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      { id: "post_carrousel", label: "📑 Carrousel" },
+                      { id: "reel", label: "🎬 Reel" },
+                      { id: "post_photo", label: "🖼️ Post" },
+                      { id: "stories", label: "📱 Stories" },
+                    ].map((f) => (
+                      <button
+                        key={f.id}
+                        onClick={() => {
+                          const params = new URLSearchParams(searchParams);
+                          params.set("format", f.id);
+                          navigate(`/atelier/rediger?${params.toString()}`, { replace: true });
+                        }}
+                        className="p-4 border border-border rounded-xl hover:border-primary hover:bg-rose-pale transition text-center text-sm font-medium"
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
               ) : (
-                <div className="whitespace-pre-wrap text-sm text-foreground bg-muted/30 rounded-xl p-4 leading-relaxed">
-                  {structure}
-                </div>
+                <>
+                  <h2 className="font-display text-lg font-bold mb-3">Structure du format "{format}"</h2>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Voici le plan détaillé que tu vas suivre pour rédiger ton contenu. C'est ton guide.
+                  </p>
+                  {loadingStructure ? (
+                    <div className="flex gap-1 py-4 justify-center">
+                      <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce-dot" />
+                      <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} />
+                      <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
+                    </div>
+                  ) : (
+                    <div className="whitespace-pre-wrap text-sm text-foreground bg-muted/30 rounded-xl p-4 leading-relaxed">
+                      {structure}
+                    </div>
+                  )}
+                </>
               )}
             </div>
-            <Button onClick={() => setStep(2)} className="rounded-pill">
-              Étape suivante : Accroches →
-            </Button>
+            {format && (
+              <Button onClick={() => setStep(2)} className="rounded-pill">
+                Étape suivante : Accroches →
+              </Button>
+            )}
           </div>
         )}
 
