@@ -57,4 +57,13 @@ export interface CalendarPost {
   objective?: string | null;
   angle_suggestion?: string | null;
   launch_id?: string | null;
+  format?: string | null;
+  // Stories-specific
+  stories_count?: number | null;
+  stories_objective?: string | null;
+  stories_structure?: string | null;
+  stories_sequence_id?: string | null;
+  stories_timing?: Record<string, string> | null;
+  story_sequence_detail?: any;
+  amplification_stories?: any;
 }

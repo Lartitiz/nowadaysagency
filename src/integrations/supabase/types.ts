@@ -254,6 +254,7 @@ export type Database = {
       calendar_posts: {
         Row: {
           accroche: string | null
+          amplification_stories: Json | null
           angle: string | null
           angle_suggestion: string | null
           audience_phase: string | null
@@ -273,6 +274,11 @@ export type Database = {
           objectif: string | null
           objective: string | null
           status: string
+          stories_count: number | null
+          stories_objective: string | null
+          stories_sequence_id: string | null
+          stories_structure: string | null
+          stories_timing: Json | null
           story_sequence_detail: Json | null
           theme: string
           updated_at: string
@@ -280,6 +286,7 @@ export type Database = {
         }
         Insert: {
           accroche?: string | null
+          amplification_stories?: Json | null
           angle?: string | null
           angle_suggestion?: string | null
           audience_phase?: string | null
@@ -299,6 +306,11 @@ export type Database = {
           objectif?: string | null
           objective?: string | null
           status?: string
+          stories_count?: number | null
+          stories_objective?: string | null
+          stories_sequence_id?: string | null
+          stories_structure?: string | null
+          stories_timing?: Json | null
           story_sequence_detail?: Json | null
           theme: string
           updated_at?: string
@@ -306,6 +318,7 @@ export type Database = {
         }
         Update: {
           accroche?: string | null
+          amplification_stories?: Json | null
           angle?: string | null
           angle_suggestion?: string | null
           audience_phase?: string | null
@@ -325,6 +338,11 @@ export type Database = {
           objectif?: string | null
           objective?: string | null
           status?: string
+          stories_count?: number | null
+          stories_objective?: string | null
+          stories_sequence_id?: string | null
+          stories_structure?: string | null
+          stories_timing?: Json | null
           story_sequence_detail?: Json | null
           theme?: string
           updated_at?: string
@@ -336,6 +354,13 @@ export type Database = {
             columns: ["launch_id"]
             isOneToOne: false
             referencedRelation: "launches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_posts_stories_sequence_id_fkey"
+            columns: ["stories_sequence_id"]
+            isOneToOne: false
+            referencedRelation: "stories_sequences"
             referencedColumns: ["id"]
           },
         ]
