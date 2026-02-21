@@ -630,6 +630,7 @@ export type Database = {
           details: Json | null
           id: string
           main_objective: string | null
+          profile_url: string | null
           resume: string | null
           score_bio: number | null
           score_edito: number | null
@@ -638,6 +639,8 @@ export type Database = {
           score_global: number | null
           score_nom: number | null
           score_stories: number | null
+          successful_content_notes: string | null
+          unsuccessful_content_notes: string | null
           user_id: string
           worst_content: string | null
         }
@@ -648,6 +651,7 @@ export type Database = {
           details?: Json | null
           id?: string
           main_objective?: string | null
+          profile_url?: string | null
           resume?: string | null
           score_bio?: number | null
           score_edito?: number | null
@@ -656,6 +660,8 @@ export type Database = {
           score_global?: number | null
           score_nom?: number | null
           score_stories?: number | null
+          successful_content_notes?: string | null
+          unsuccessful_content_notes?: string | null
           user_id: string
           worst_content?: string | null
         }
@@ -666,6 +672,7 @@ export type Database = {
           details?: Json | null
           id?: string
           main_objective?: string | null
+          profile_url?: string | null
           resume?: string | null
           score_bio?: number | null
           score_edito?: number | null
@@ -674,6 +681,8 @@ export type Database = {
           score_global?: number | null
           score_nom?: number | null
           score_stories?: number | null
+          successful_content_notes?: string | null
+          unsuccessful_content_notes?: string | null
           user_id?: string
           worst_content?: string | null
         }
