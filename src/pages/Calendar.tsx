@@ -12,6 +12,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CANAL_FILTERS, type CalendarPost } from "@/lib/calendar-constants";
 import { BalanceGauge } from "@/components/calendar/BalanceGauge";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
+import { CalendarWeekGrid } from "@/components/calendar/CalendarWeekGrid";
 import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
 
 export default function CalendarPage() {
@@ -22,6 +23,7 @@ export default function CalendarPage() {
   const isInstagramRoute = location.pathname.startsWith("/instagram/");
   const [searchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<"month" | "week">("month");
   const [posts, setPosts] = useState<CalendarPost[]>([]);
   const [canalFilter, setCanalFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -48,10 +50,29 @@ export default function CalendarPage() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
+  // Week helpers
+  const getWeekStart = (d: Date) => {
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
+    return new Date(d.getFullYear(), d.getMonth(), diff);
+  };
+  const weekStart = useMemo(() => getWeekStart(currentDate), [currentDate]);
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    return d;
+  }), [weekStart]);
+
   const fetchPosts = async () => {
     if (!user) return;
-    const startDate = new Date(year, month, 1).toISOString().split("T")[0];
-    const endDate = new Date(year, month + 1, 0).toISOString().split("T")[0];
+    let startDate: string, endDate: string;
+    if (viewMode === "week") {
+      startDate = weekDays[0].toISOString().split("T")[0];
+      endDate = weekDays[6].toISOString().split("T")[0];
+    } else {
+      startDate = new Date(year, month, 1).toISOString().split("T")[0];
+      endDate = new Date(year, month + 1, 0).toISOString().split("T")[0];
+    }
     const { data } = await supabase
       .from("calendar_posts")
       .select("*")
@@ -62,7 +83,7 @@ export default function CalendarPage() {
     if (data) setPosts(data as CalendarPost[]);
   };
 
-  useEffect(() => { fetchPosts(); }, [user, year, month]);
+  useEffect(() => { fetchPosts(); }, [user, year, month, viewMode, weekStart]);
 
   const calendarDays = useMemo(() => {
     const firstDay = new Date(year, month, 1);
@@ -151,9 +172,12 @@ export default function CalendarPage() {
     }
   };
 
+  const prevWeek = () => setCurrentDate(new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() - 7));
+  const nextWeek = () => setCurrentDate(new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 7));
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
   const todayStr = new Date().toISOString().split("T")[0];
+  const weekLabel = `${weekDays[0].toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} – ${weekDays[6].toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}`;
   const monthName = currentDate.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
   return (
@@ -196,26 +220,56 @@ export default function CalendarPage() {
 
         <BalanceGauge posts={filteredPosts} />
 
-        {/* Navigation */}
+        {/* View toggle + Navigation */}
         <div className="flex items-center justify-between mb-6">
-          <Button variant="outline" size="icon" onClick={prevMonth} className="rounded-full">
+          <Button variant="outline" size="icon" onClick={viewMode === "month" ? prevMonth : prevWeek} className="rounded-full">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="font-display text-lg font-bold capitalize">{monthName}</span>
-          <Button variant="outline" size="icon" onClick={nextMonth} className="rounded-full">
+          <div className="flex items-center gap-3">
+            <div className="flex rounded-full border border-border overflow-hidden">
+              <button
+                onClick={() => setViewMode("month")}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Mois
+              </button>
+              <button
+                onClick={() => setViewMode("week")}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "week" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Semaine
+              </button>
+            </div>
+            <span className="font-display text-lg font-bold capitalize">
+              {viewMode === "month" ? monthName : weekLabel}
+            </span>
+          </div>
+          <Button variant="outline" size="icon" onClick={viewMode === "month" ? nextMonth : nextWeek} className="rounded-full">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 
-        <CalendarGrid
-          calendarDays={calendarDays}
-          postsByDate={postsByDate}
-          todayStr={todayStr}
-          isMobile={isMobile}
-          onCreatePost={openCreateDialog}
-          onEditPost={openEditDialog}
-          onMovePost={handleMovePost}
-        />
+        {viewMode === "month" ? (
+          <CalendarGrid
+            calendarDays={calendarDays}
+            postsByDate={postsByDate}
+            todayStr={todayStr}
+            isMobile={isMobile}
+            onCreatePost={openCreateDialog}
+            onEditPost={openEditDialog}
+            onMovePost={handleMovePost}
+          />
+        ) : (
+          <CalendarWeekGrid
+            weekDays={weekDays}
+            postsByDate={postsByDate}
+            todayStr={todayStr}
+            isMobile={isMobile}
+            onCreatePost={openCreateDialog}
+            onEditPost={openEditDialog}
+            onMovePost={handleMovePost}
+          />
+        )}
 
         <CalendarPostDialog
           open={dialogOpen}
