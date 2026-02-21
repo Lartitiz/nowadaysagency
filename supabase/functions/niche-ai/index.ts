@@ -1,10 +1,25 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+// Subset of writing rules relevant to niche/branding formulations (not full content)
+const NICHE_WRITING_RULES = `
+RÈGLES D'ÉCRITURE :
+- Écriture inclusive avec point médian (créateur·ice, entrepreneur·se)
+- JAMAIS de tiret cadratin (—). Utilise : ou ;
+- Expressions orales naturelles : "bon", "en vrai", "franchement", "j'avoue", "le truc c'est que", "du coup", "sauf que"
+- Alterner phrases longues fluides et phrases courtes qui claquent
+- Apartés entre parenthèses : "(Oui, même toi.)", "(Pas besoin d'être parfaite pour ça.)"
+- JAMAIS de jargon marketing (funnel, lead magnet, ROI) → Langage humain
+- Pas de promesses irréalistes
+- Pas de superlatifs creux
+- Le texte doit passer le TEST DU CAFÉ : est-ce qu'on peut le dire à voix haute sans avoir l'air d'un robot ?
+`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -49,6 +64,13 @@ serve(async (req) => {
     if (type === "combats") {
       systemPrompt = `Tu es expert·e en branding engagé pour des solopreneuses créatives et éthiques.
 
+${NICHE_WRITING_RULES}
+
+PRINCIPES DE COPY ÉTHIQUE :
+- IDENTIFICATION plutôt que MANIPULATION : le lecteur doit se reconnaître, pas se sentir coupable.
+- PERMISSION plutôt que PRESSION : donner le droit de, pas forcer à.
+- VULNÉRABILITÉ COMME ENSEIGNEMENT : partager ses galères pour éclairer, pas pour apitoyer.
+
 L'UTILISATRICE A DÉCRIT :
 
 Sa cause :
@@ -68,14 +90,14 @@ Génère 3 à 5 combats structurés :
 Pour chaque combat :
 1. "Ce que je refuse" (formulé en une phrase tranchée mais pas agressive)
 2. "Ce que je propose à la place" (formulé positivement)
-3. "Phrase manifeste" (une phrase percutante, réutilisable en post ou en story, qui incarne ce combat. Ton engagé, direct, humain.)
+3. "Phrase manifeste" (une phrase percutante, réutilisable en post ou en story, qui incarne ce combat. Ton engagé, direct, humain. Doit passer le test du café.)
 4. "Idée de contenu" (un sujet de post concret inspiré de ce combat)
 
 RÈGLES :
 - Ton engagé mais jamais donneur·se de leçons
 - Phrases complètes et fluides
-- Écriture inclusive avec point médian
-- JAMAIS de tiret cadratin (—)
+- Les phrases manifestes doivent être partageables : le genre de phrase qu'on screenshote et qu'on envoie à une amie
+- Utiliser les mots et expressions de l'utilisatrice quand possible
 
 Réponds en JSON :
 [
@@ -89,7 +111,11 @@ Réponds en JSON :
       userPrompt = "Formule mes combats et mon manifeste.";
 
     } else if (type === "limits") {
-      systemPrompt = `L'UTILISATRICE DÉCRIT CE QU'ELLE NE VEUT PLUS :
+      systemPrompt = `Tu es expert·e en positionnement de marque pour des solopreneuses créatives et éthiques.
+
+${NICHE_WRITING_RULES}
+
+L'UTILISATRICE DÉCRIT CE QU'ELLE NE VEUT PLUS :
 "${body.step_2 || ""}"
 
 PROFIL :
@@ -98,7 +124,7 @@ PROFIL :
 Structure ses refus en 2 colonnes :
 
 Pour chaque refus :
-1. "Ce que je refuse" (formulé clairement)
+1. "Ce que je refuse" (formulé clairement, ton direct mais pas agressif)
 2. "Ce que ça dit de ma niche" (en quoi ce refus éclaire son positionnement)
 
 Génère 5 à 7 refus structurés. Ton empathique et direct.
@@ -133,6 +159,14 @@ Réponds en JSON :
 
       systemPrompt = `Tu es expert·e en positionnement de marque pour des solopreneuses créatives et éthiques.
 
+${NICHE_WRITING_RULES}
+
+PRINCIPES DE COPY ÉTHIQUE :
+- IDENTIFICATION plutôt que MANIPULATION
+- PERMISSION plutôt que PRESSION
+- DÉSIR NATUREL plutôt qu'URGENCE ARTIFICIELLE
+- CTA COMME CONVERSATION : ouvrir un dialogue, pas fermer une vente
+
 TOUT LE BRANDING DE L'UTILISATRICE :
 
 ${propBlock}
@@ -156,18 +190,17 @@ VERSION DESCRIPTIVE (2-3 phrases) :
 Claire, factuelle, complète. Explique ce qu'elle fait, pour qui, comment, et ce qui la différencie.
 
 VERSION PITCH (1 phrase percutante, max 20 mots) :
-Ultra-courte, mémorisable, utilisable en networking ou en bio.
+Ultra-courte, mémorisable, utilisable en networking ou en bio. Doit passer le test du café.
 
 VERSION MANIFESTE (3-4 phrases engagées) :
-Inclut le combat, la vision, le drapeau. Plus militante, plus émotionnelle. Le genre de texte qu'on met en page À propos ou en intro de newsletter.
+Inclut le combat, la vision, le drapeau. Plus militante, plus émotionnelle. Le genre de texte qu'on met en page À propos ou en intro de newsletter. Doit donner envie de le screenshoter.
 
 RÈGLES :
 - Ton humain, sincère, engagé
 - Chaque version doit être immédiatement compréhensible
 - Pas de jargon, pas de superlatifs creux
 - Utiliser les mots et expressions de l'utilisatrice quand possible
-- Écriture inclusive avec point médian
-- JAMAIS de tiret cadratin (—)
+- Alterner phrases longues et courtes qui claquent
 
 Réponds en JSON :
 {
