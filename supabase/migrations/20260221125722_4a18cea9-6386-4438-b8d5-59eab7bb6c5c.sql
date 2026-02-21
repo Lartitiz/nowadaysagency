@@ -1,0 +1,1 @@
+ALTER TABLE public.storytelling ADD COLUMN IF NOT EXISTS recap_summary JSONB;

@@ -1652,6 +1652,7 @@ export type Database = {
           pitch_long: string | null
           pitch_medium: string | null
           pitch_short: string | null
+          recap_summary: Json | null
           source: string | null
           step_1_raw: string | null
           step_2_location: string | null
@@ -1675,6 +1676,7 @@ export type Database = {
           pitch_long?: string | null
           pitch_medium?: string | null
           pitch_short?: string | null
+          recap_summary?: Json | null
           source?: string | null
           step_1_raw?: string | null
           step_2_location?: string | null
@@ -1698,6 +1700,7 @@ export type Database = {
           pitch_long?: string | null
           pitch_medium?: string | null
           pitch_short?: string | null
+          recap_summary?: Json | null
           source?: string | null
           step_1_raw?: string | null
           step_2_location?: string | null
