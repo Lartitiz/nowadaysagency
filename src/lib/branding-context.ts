@@ -5,13 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
  * Returns a string to inject BEFORE any specific AI prompt.
  */
 export async function buildBrandingContext(userId: string): Promise<string> {
-  const [stRes, perRes, toneRes, profRes, propRes, stratRes] = await Promise.all([
+  const [stRes, perRes, toneRes, profRes, propRes, stratRes, editoRes] = await Promise.all([
     supabase.from("storytelling").select("step_7_polished").eq("user_id", userId).maybeSingle(),
     supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq("user_id", userId).maybeSingle(),
     supabase.from("profiles").select("activite, offre, mission, cible").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_proposition").select("version_final, version_complete").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept").eq("user_id", userId).maybeSingle(),
+    supabase.from("instagram_editorial_line").select("main_objective, objective_details, posts_frequency, stories_frequency, time_available, pillars, preferred_formats, do_more, stop_doing, free_notes").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const lines: string[] = ["CONTEXTE DE LA MARQUE (généré à partir du module Branding) :\n"];
@@ -75,6 +76,27 @@ export async function buildBrandingContext(userId: string): Promise<string> {
     if (minors.length) sLines.push(`- Piliers mineurs : ${minors.join(", ")}`);
     if (s.creative_concept) sLines.push(`- Concept créatif : ${s.creative_concept}`);
     if (sLines.length) lines.push(`STRATÉGIE DE CONTENU :\n${sLines.join("\n")}\n`);
+  }
+
+  // Editorial line
+  const e = editoRes.data;
+  if (e) {
+    const eLines: string[] = [];
+    if (e.main_objective) eLines.push(`- Objectif principal : ${e.main_objective}`);
+    if (e.posts_frequency) eLines.push(`- Rythme : ${e.posts_frequency} posts/semaine${e.stories_frequency ? ` + stories ${e.stories_frequency}` : ""}`);
+    const pillars = e.pillars as any[];
+    if (pillars?.length) {
+      eLines.push(`- Piliers :`);
+      pillars.forEach((p: any) => {
+        eLines.push(`  • ${p.name} : ${p.percentage}%${p.description ? ` — ${p.description}` : ""}`);
+      });
+    }
+    const formats = e.preferred_formats as string[];
+    if (formats?.length) eLines.push(`- Formats préférés : ${formats.join(", ")}`);
+    if (e.do_more) eLines.push(`- Faire plus de : ${e.do_more}`);
+    if (e.stop_doing) eLines.push(`- Arrêter de : ${e.stop_doing}`);
+    if (e.free_notes) eLines.push(`- Notes : ${e.free_notes}`);
+    if (eLines.length) lines.push(`LIGNE ÉDITORIALE INSTAGRAM :\n${eLines.join("\n")}\n`);
   }
 
   if (lines.length <= 1) {

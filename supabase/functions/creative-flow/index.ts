@@ -7,12 +7,13 @@ const corsHeaders = {
 };
 
 async function buildBrandingContext(supabase: any, userId: string): Promise<string> {
-  const [stRes, perRes, toneRes, propRes, stratRes] = await Promise.all([
+  const [stRes, perRes, toneRes, propRes, stratRes, editoRes] = await Promise.all([
     supabase.from("storytelling").select("step_7_polished").eq("user_id", userId).maybeSingle(),
     supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_proposition").select("version_final, version_bio").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept").eq("user_id", userId).maybeSingle(),
+    supabase.from("instagram_editorial_line").select("main_objective, objective_details, posts_frequency, stories_frequency, time_available, pillars, preferred_formats, do_more, stop_doing, free_notes").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const lines: string[] = [];
@@ -61,6 +62,27 @@ async function buildBrandingContext(supabase: any, userId: string): Promise<stri
     if (minors.length) sl.push(`- Piliers mineurs : ${minors.join(", ")}`);
     if (s.creative_concept) sl.push(`- Concept créatif : ${s.creative_concept}`);
     if (sl.length) lines.push(`STRATÉGIE DE CONTENU :\n${sl.join("\n")}`);
+  }
+
+  // Editorial line
+  const e = editoRes.data;
+  if (e) {
+    const el: string[] = [];
+    if (e.main_objective) el.push(`- Objectif principal : ${e.main_objective}`);
+    if (e.posts_frequency) el.push(`- Rythme : ${e.posts_frequency} posts/semaine${e.stories_frequency ? ` + stories ${e.stories_frequency}` : ""}`);
+    const pillars = e.pillars as any[];
+    if (pillars?.length) {
+      el.push(`- Piliers :`);
+      pillars.forEach((pi: any) => {
+        el.push(`  • ${pi.name} : ${pi.percentage}%${pi.description ? ` — ${pi.description}` : ""}`);
+      });
+    }
+    const formats = e.preferred_formats as string[];
+    if (formats?.length) el.push(`- Formats préférés : ${formats.join(", ")}`);
+    if (e.do_more) el.push(`- Faire plus de : ${e.do_more}`);
+    if (e.stop_doing) el.push(`- Arrêter de : ${e.stop_doing}`);
+    if (e.free_notes) el.push(`- Notes : ${e.free_notes}`);
+    if (el.length) lines.push(`LIGNE ÉDITORIALE INSTAGRAM :\n${el.join("\n")}`);
   }
 
   if (!lines.length) return "";

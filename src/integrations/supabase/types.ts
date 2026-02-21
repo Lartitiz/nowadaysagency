@@ -692,36 +692,57 @@ export type Database = {
         Row: {
           created_at: string
           do_more: string | null
+          free_notes: string | null
           id: string
           main_objective: string | null
+          objective_details: string | null
           pillar_distribution: Json | null
+          pillars: Json | null
+          posts_frequency: string | null
           preferred_formats: Json | null
           recommended_rhythm: string | null
+          source: string | null
           stop_doing: string | null
+          stories_frequency: string | null
+          time_available: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           do_more?: string | null
+          free_notes?: string | null
           id?: string
           main_objective?: string | null
+          objective_details?: string | null
           pillar_distribution?: Json | null
+          pillars?: Json | null
+          posts_frequency?: string | null
           preferred_formats?: Json | null
           recommended_rhythm?: string | null
+          source?: string | null
           stop_doing?: string | null
+          stories_frequency?: string | null
+          time_available?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           do_more?: string | null
+          free_notes?: string | null
           id?: string
           main_objective?: string | null
+          objective_details?: string | null
           pillar_distribution?: Json | null
+          pillars?: Json | null
+          posts_frequency?: string | null
           preferred_formats?: Json | null
           recommended_rhythm?: string | null
+          source?: string | null
           stop_doing?: string | null
+          stories_frequency?: string | null
+          time_available?: string | null
           updated_at?: string
           user_id?: string
         }
