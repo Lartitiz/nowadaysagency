@@ -26,6 +26,7 @@ export type Database = {
           key_expressions: string | null
           mission: string | null
           offer: string | null
+          recap_summary: Json | null
           target_beliefs: string | null
           target_description: string | null
           target_problem: string | null
@@ -51,6 +52,7 @@ export type Database = {
           key_expressions?: string | null
           mission?: string | null
           offer?: string | null
+          recap_summary?: Json | null
           target_beliefs?: string | null
           target_description?: string | null
           target_problem?: string | null
@@ -76,6 +78,7 @@ export type Database = {
           key_expressions?: string | null
           mission?: string | null
           offer?: string | null
+          recap_summary?: Json | null
           target_beliefs?: string | null
           target_description?: string | null
           target_problem?: string | null
