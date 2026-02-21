@@ -904,6 +904,8 @@ export type Database = {
           pitch_long: string | null
           pitch_medium: string | null
           pitch_short: string | null
+          portrait: Json | null
+          portrait_prenom: string | null
           starting_point: string | null
           step_1_frustrations: string | null
           step_2_transformation: string | null
@@ -926,6 +928,8 @@ export type Database = {
           pitch_long?: string | null
           pitch_medium?: string | null
           pitch_short?: string | null
+          portrait?: Json | null
+          portrait_prenom?: string | null
           starting_point?: string | null
           step_1_frustrations?: string | null
           step_2_transformation?: string | null
@@ -948,6 +952,8 @@ export type Database = {
           pitch_long?: string | null
           pitch_medium?: string | null
           pitch_short?: string | null
+          portrait?: Json | null
+          portrait_prenom?: string | null
           starting_point?: string | null
           step_1_frustrations?: string | null
           step_2_transformation?: string | null
