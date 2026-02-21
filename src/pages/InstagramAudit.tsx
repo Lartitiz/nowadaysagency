@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -271,6 +271,28 @@ export default function InstagramAudit() {
   // Results
   const [auditResult, setAuditResult] = useState<any>(null);
   const [auditId, setAuditId] = useState<string | null>(null);
+  const [auditDate, setAuditDate] = useState<string | null>(null);
+  const [loadingExisting, setLoadingExisting] = useState(true);
+
+  // Load existing audit on mount
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("instagram_audit")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data && (data.content_analysis || data.content_dna || data.editorial_recommendations)) {
+          setAuditResult(data);
+          setAuditId(data.id);
+          setAuditDate(data.created_at);
+        }
+        setLoadingExisting(false);
+      });
+  }, [user]);
 
   // Speech recognition
   const successSpeech = useSpeechRecognition((t) => setSuccessNotes((prev) => prev + " " + t));
@@ -491,6 +513,16 @@ export default function InstagramAudit() {
     }
   };
 
+  // Loading existing audit
+  if (loadingExisting) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+      </div>
+    );
+  }
+
   // If we have results, show them
   if (auditResult) {
     return (
@@ -498,7 +530,14 @@ export default function InstagramAudit() {
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Audit" />
-          <h1 className="font-display text-[26px] font-bold text-foreground mb-6">🔍 Résultat de ton audit</h1>
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
+            <h1 className="font-display text-[26px] font-bold text-foreground">🔍 Résultat de ton audit</h1>
+            {auditDate && (
+              <span className="text-xs text-muted-foreground">
+                {new Date(auditDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+              </span>
+            )}
+          </div>
 
           {/* Content analysis section */}
           {(auditResult.content_analysis || auditResult.content_dna) && (
@@ -512,7 +551,7 @@ export default function InstagramAudit() {
           )}
 
           <div className="flex flex-wrap gap-3 mt-8">
-            <Button variant="outline" onClick={() => { setAuditResult(null); setAuditId(null); }} className="rounded-pill gap-2">
+            <Button variant="outline" onClick={() => { setAuditResult(null); setAuditId(null); setAuditDate(null); }} className="rounded-pill gap-2">
               🔄 Refaire l'audit
             </Button>
             <Button onClick={() => navigate("/instagram/profil")} className="rounded-pill gap-2">

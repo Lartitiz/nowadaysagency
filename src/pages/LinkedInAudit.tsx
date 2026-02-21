@@ -105,6 +105,8 @@ export default function LinkedInAudit() {
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AuditResult | null>(null);
   const [previousScore, setPreviousScore] = useState<number | null>(null);
+  const [auditDate, setAuditDate] = useState<string | null>(null);
+  const [loadingExisting, setLoadingExisting] = useState(true);
 
   // Step 1 data
   const [screenshots, setScreenshots] = useState<ScreenshotFile[]>([]);
@@ -132,19 +134,31 @@ export default function LinkedInAudit() {
 
   const fileInputRefs = useRef<Record<ScreenshotType, HTMLInputElement | null>>({} as any);
 
-  // Load previous audit
+  // Load existing audit on mount
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("linkedin_audit")
-      .select("score_global")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.score_global) setPreviousScore(data.score_global);
-      });
+    const loadExisting = async () => {
+      const { data: audits } = await supabase
+        .from("linkedin_audit")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(2);
+
+      if (audits && audits.length > 0) {
+        const latest = audits[0];
+        if (latest.audit_result) {
+          setResult(latest.audit_result as unknown as AuditResult);
+          setAuditDate(latest.created_at);
+          setStep(5);
+        }
+        if (audits.length > 1 && audits[1].score_global) {
+          setPreviousScore(audits[1].score_global);
+        }
+      }
+      setLoadingExisting(false);
+    };
+    loadExisting();
   }, [user]);
 
   const sanitizeFileName = (fileName: string): string => {
@@ -452,14 +466,21 @@ export default function LinkedInAudit() {
     return (
       <div className="space-y-8 animate-fade-in">
         {/* ─── Global Score ─── */}
-        <div className="rounded-2xl border-l-[3px] border-l-primary bg-rose-pale p-6">
+         <div className="rounded-2xl border-l-[3px] border-l-primary bg-rose-pale p-6">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
               🔍 Ton Audit LinkedIn
             </h2>
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-pill text-sm font-bold ${g.bg} ${g.color}`}>
-              {g.emoji} {result.score_global}/100
-            </span>
+            <div className="flex items-center gap-3">
+              {auditDate && (
+                <span className="text-xs text-muted-foreground">
+                  {new Date(auditDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                </span>
+              )}
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-pill text-sm font-bold ${g.bg} ${g.color}`}>
+                {g.emoji} {result.score_global}/100
+              </span>
+            </div>
           </div>
           <Progress value={result.score_global} className="h-2.5 mb-3" />
           {previousScore !== null && previousScore !== result.score_global && (
@@ -561,7 +582,7 @@ export default function LinkedInAudit() {
 
         {/* ─── Actions ─── */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <Button onClick={() => { setStep(0); setResult(null); }} variant="outline" className="gap-2 rounded-pill">
+          <Button onClick={() => { setPreviousScore(result?.score_global ?? null); setStep(0); setResult(null); setAuditDate(null); }} variant="outline" className="gap-2 rounded-pill">
             <RotateCcw className="h-4 w-4" /> Refaire l'audit
           </Button>
           <Button onClick={() => navigate("/linkedin")} className="gap-2 rounded-pill">
@@ -583,6 +604,12 @@ export default function LinkedInAudit() {
           L'IA analyse ton profil, ton contenu, ta stratégie et ton réseau pour te donner un score et des priorités d'action.
         </p>
 
+        {loadingExisting ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : (
+        <>
         {/* Stepper */}
         {step < 5 && (
           <div className="flex items-center gap-1 mb-8">
@@ -626,6 +653,8 @@ export default function LinkedInAudit() {
               )}
             </Button>
           </div>
+        )}
+        </>
         )}
       </main>
     </div>
