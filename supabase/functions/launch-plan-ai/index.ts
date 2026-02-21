@@ -60,7 +60,7 @@ DONNÉES DU LANCEMENT :
 - Lead magnet : "${launch?.free_resource || "aucun"}"
 - Contenus prévus par l'utilisatrice : ${(launch?.selected_contents || []).join(", ") || "aucun"}
 
-TEMPLATE CHOISI : ${template_type || "classique"}
+TEMPLATE CHOISI : ${template_type || "moyen"}
 PHASES :
 ${phasesStr}
 
@@ -87,11 +87,11 @@ RÈGLES :
    - 5-6h/sem → max 6-7 contenus/semaine
    - 7h+/sem → max 8-10 contenus/semaine
 
-2. Chaque phase a un MIX de catégories adapté :
-   - Pré-teasing / planification / distribution : 60% visibilité, 30% confiance, 10% vente
-   - Teasing / captation : 30% visibilité, 50% confiance, 20% vente
-   - Vente / événement : 10% visibilité, 30% confiance, 60% vente
-   - Post-lancement : 0% visibilité, 70% confiance, 30% vente
+2. Chaque phase a un MIX valeur/vente adapté au moment du lancement :
+   - Phases de préparation/pré-lancement : 80-100% valeur, 0-20% vente
+   - Phases de chauffage/teasing : 50-70% valeur, 30-50% vente
+   - Phases de vente/révélation : 20-30% valeur, 70-80% vente
+   - Phases de closing : 10-20% valeur, 80-90% vente
 
 3. INTÈGRE les contenus prévus par l'utilisatrice dans le plan aux bons moments.
 
@@ -104,11 +104,35 @@ RÈGLES :
 7. L'angle_suggestion est une phrase courte qui donne une direction créative,
    pas un texte à publier.
 
+8. Pour chaque slot, indique ratio_category "valeur" ou "vente" pour permettre
+   le calcul visuel du ratio valeur/vente par phase.
+
+9. Pour le plan long (6-8 sem), intègre une MINI-FICTION en 5 chapitres :
+   - Chapitre 1 "Elle patauge" (phase problème)
+   - Chapitre 2 "Elle découvre" (phase solution)
+   - Chapitre 3 "Elle doute" (phase teasing)
+   - Chapitre 4 "Elle se projette" (phase révélation)
+   - Chapitre 5 "Elle passe à l'action" (phase closing)
+
+GARDE-FOUS ÉTHIQUES — OBLIGATOIRES :
+- PAS de fausse urgence ("Plus que X places !!!" sans raison logistique réelle)
+  → Alternative : "Les inscriptions ferment vendredi parce qu'on démarre lundi"
+- PAS de shaming ("Si tu n'investis pas en toi...")
+  → Alternative : "C'est ok de prendre le temps de décider"
+- PAS de promesses de résultats garantis ("Tu vas doubler ton CA")
+  → Alternative : "Voici ce que [prénom] a obtenu en 3 mois"
+- PAS de CTA agressifs ("ACHÈTE MAINTENANT")
+  → Alternative : "Si ça te parle, je t'envoie les détails en DM"
+- PAS de FOMO artificiel
+  → Alternative : vrais chiffres, vrais témoignages
+- L'urgence vient de la logistique, pas de la manipulation
+- Chaque contenu a de la valeur même pour celles qui n'achètent pas
+
 TYPES DE CONTENU DISPONIBLES :
-Visibilité : coup_de_gueule_doux (🔥), conseil_contre_intuitif (💡), enigme_teaser (🧩), tendance (📈)
-Confiance : storytelling_personnel (📖), coulisses (👀), educatif_autorite (🎓), question_engagement (💬), valeurs_combat (🌱)
-Vente : annonce_revelation (🚀), presentation_offre (🎁), objections_faq (🛡️), preuve_sociale (🏆), pour_qui (🎯), derniere_chance (⏰), bonus_early_bird (📦)
-Post-lancement : remerciement (🙏), bilan (📊)
+Visibilité : coup_de_gueule_doux (🔥), conseil_contre_intuitif (💡), enigme_teaser (🧩), tendance (📈), diagnostic (🔍)
+Confiance : storytelling_personnel (📖), coulisses (👀), educatif_autorite (🎓), question_engagement (💬), valeurs_combat (🌱), live_qa (🎤), comparatif (⚖️), mini_fiction (📖)
+Vente : annonce_revelation (🚀), presentation_offre (🎁), objections_faq (🛡️), preuve_sociale (🏆), pour_qui (🎯), derniere_chance (⏰), bonus_early_bird (📦), story_sequence_vente (📱), story_sequence_faq (❓), story_sequence_temoignage (💬), story_sequence_objection (🛡️), story_sequence_last_call (⏰), dm_strategiques (💌)
+Post-lancement : remerciement (🙏), bilan (📊), story_sequence_bienvenue (🎉)
 
 FORMATS : post_carrousel, post_photo, reel, story_serie, story, live
 
@@ -130,7 +154,10 @@ Réponds UNIQUEMENT en JSON :
           "content_type_emoji": "<emoji>",
           "category": "<visibilite|confiance|vente|post_lancement>",
           "objective": "<1 phrase>",
-          "angle_suggestion": "<1 phrase courte>"
+          "angle_suggestion": "<1 phrase courte>",
+          "ratio_category": "<valeur|vente>",
+          "chapter": <number|null>,
+          "chapter_label": "<string|null>"
         }
       ]
     }
@@ -155,6 +182,16 @@ Réponds UNIQUEMENT en JSON :
 
     if (!res.ok) {
       const errText = await res.text();
+      if (res.status === 429) {
+        return new Response(JSON.stringify({ error: "Trop de requêtes, réessaie dans quelques instants." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (res.status === 402) {
+        return new Response(JSON.stringify({ error: "Crédits IA épuisés. Ajoute des crédits dans les paramètres." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       throw new Error(`AI API error: ${res.status} ${errText}`);
     }
 

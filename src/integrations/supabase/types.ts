@@ -255,8 +255,11 @@ export type Database = {
         Row: {
           angle: string | null
           angle_suggestion: string | null
+          audience_phase: string | null
           canal: string
           category: string | null
+          chapter: number | null
+          chapter_label: string | null
           content_type: string | null
           content_type_emoji: string | null
           created_at: string
@@ -267,6 +270,7 @@ export type Database = {
           objectif: string | null
           objective: string | null
           status: string
+          story_sequence_detail: Json | null
           theme: string
           updated_at: string
           user_id: string
@@ -274,8 +278,11 @@ export type Database = {
         Insert: {
           angle?: string | null
           angle_suggestion?: string | null
+          audience_phase?: string | null
           canal?: string
           category?: string | null
+          chapter?: number | null
+          chapter_label?: string | null
           content_type?: string | null
           content_type_emoji?: string | null
           created_at?: string
@@ -286,6 +293,7 @@ export type Database = {
           objectif?: string | null
           objective?: string | null
           status?: string
+          story_sequence_detail?: Json | null
           theme: string
           updated_at?: string
           user_id: string
@@ -293,8 +301,11 @@ export type Database = {
         Update: {
           angle?: string | null
           angle_suggestion?: string | null
+          audience_phase?: string | null
           canal?: string
           category?: string | null
+          chapter?: number | null
+          chapter_label?: string | null
           content_type?: string | null
           content_type_emoji?: string | null
           created_at?: string
@@ -305,6 +316,7 @@ export type Database = {
           objectif?: string | null
           objective?: string | null
           status?: string
+          story_sequence_detail?: Json | null
           theme?: string
           updated_at?: string
           user_id?: string
@@ -947,7 +959,11 @@ export type Database = {
           accroche: string | null
           added_to_calendar: boolean | null
           angle_suggestion: string | null
+          audience_phase: string | null
+          audience_phase_emoji: string | null
           category: string | null
+          chapter: number | null
+          chapter_label: string | null
           content_date: string
           content_type: string | null
           content_type_emoji: string | null
@@ -960,8 +976,10 @@ export type Database = {
           objectif: string | null
           objective: string | null
           phase: string
+          ratio_category: string | null
           sent_to_calendar: boolean | null
           sort_order: number | null
+          story_sequence_detail: Json | null
           tip: string | null
           updated_at: string
           user_id: string
@@ -970,7 +988,11 @@ export type Database = {
           accroche?: string | null
           added_to_calendar?: boolean | null
           angle_suggestion?: string | null
+          audience_phase?: string | null
+          audience_phase_emoji?: string | null
           category?: string | null
+          chapter?: number | null
+          chapter_label?: string | null
           content_date: string
           content_type?: string | null
           content_type_emoji?: string | null
@@ -983,8 +1005,10 @@ export type Database = {
           objectif?: string | null
           objective?: string | null
           phase: string
+          ratio_category?: string | null
           sent_to_calendar?: boolean | null
           sort_order?: number | null
+          story_sequence_detail?: Json | null
           tip?: string | null
           updated_at?: string
           user_id: string
@@ -993,7 +1017,11 @@ export type Database = {
           accroche?: string | null
           added_to_calendar?: boolean | null
           angle_suggestion?: string | null
+          audience_phase?: string | null
+          audience_phase_emoji?: string | null
           category?: string | null
+          chapter?: number | null
+          chapter_label?: string | null
           content_date?: string
           content_type?: string | null
           content_type_emoji?: string | null
@@ -1006,8 +1034,10 @@ export type Database = {
           objectif?: string | null
           objective?: string | null
           phase?: string
+          ratio_category?: string | null
           sent_to_calendar?: boolean | null
           sort_order?: number | null
+          story_sequence_detail?: Json | null
           tip?: string | null
           updated_at?: string
           user_id?: string
@@ -1024,16 +1054,24 @@ export type Database = {
       }
       launches: {
         Row: {
+          audience_size: string | null
+          checklist_post: Json | null
+          checklist_pre: Json | null
           created_at: string
           extra_weekly_hours: number | null
           free_resource: string | null
           id: string
+          launch_model: string | null
           name: string
           objections: string | null
+          offer_type: string | null
           phases: Json | null
           plan_generated: boolean | null
           plan_sent_to_calendar: boolean | null
+          price_range: string | null
           promise: string | null
+          recurrence: string | null
+          retrospective: Json | null
           sale_end: string | null
           sale_start: string | null
           selected_contents: string[] | null
@@ -1045,16 +1083,24 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          audience_size?: string | null
+          checklist_post?: Json | null
+          checklist_pre?: Json | null
           created_at?: string
           extra_weekly_hours?: number | null
           free_resource?: string | null
           id?: string
+          launch_model?: string | null
           name?: string
           objections?: string | null
+          offer_type?: string | null
           phases?: Json | null
           plan_generated?: boolean | null
           plan_sent_to_calendar?: boolean | null
+          price_range?: string | null
           promise?: string | null
+          recurrence?: string | null
+          retrospective?: Json | null
           sale_end?: string | null
           sale_start?: string | null
           selected_contents?: string[] | null
@@ -1066,16 +1112,24 @@ export type Database = {
           user_id: string
         }
         Update: {
+          audience_size?: string | null
+          checklist_post?: Json | null
+          checklist_pre?: Json | null
           created_at?: string
           extra_weekly_hours?: number | null
           free_resource?: string | null
           id?: string
+          launch_model?: string | null
           name?: string
           objections?: string | null
+          offer_type?: string | null
           phases?: Json | null
           plan_generated?: boolean | null
           plan_sent_to_calendar?: boolean | null
+          price_range?: string | null
           promise?: string | null
+          recurrence?: string | null
+          retrospective?: Json | null
           sale_end?: string | null
           sale_start?: string | null
           selected_contents?: string[] | null
