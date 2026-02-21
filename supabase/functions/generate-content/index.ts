@@ -408,17 +408,32 @@ Score global = moyenne pondérée : Bio 25%, Stories 20%, Épinglés 15%, Nom 10
 
 Sois directe mais bienveillante. Compare TOUJOURS avec le branding.
 
+IMPORTANT : Pour CHAQUE section, retourne un format STRUCTURÉ avec :
+- "score" : note /100
+- "summary" : { "positives": ["1 à 2 phrases courtes max"], "improvements": ["1 à 2 phrases courtes max"] }
+- "recommendations" : tableau de { "number": 1, "title": "max 8 mots", "explanation": "1-2 phrases max", "example": "exemple concret optionnel" }
+- "proposed_version" : (optionnel, surtout pour bio et nom) texte proposé prêt à copier
+
+RÈGLES STRICTES pour les sections :
+- "title" dans recommendations : MAX 8 mots. Court et clair.
+- "explanation" : MAX 2 phrases. Pas de pavé.
+- "example" : 1 exemple concret, pas une liste.
+- "summary.positives" : MAX 2 items, 1 phrase chacun.
+- "summary.improvements" : MAX 2 items, 1 phrase chacun.
+- "recommendations" : MAX 5 items par section.
+- PAS de markdown (**gras**, *italique*) dans le JSON. Texte brut uniquement.
+
 Réponds en JSON :
 {
   "score_global": 62,
   "resume": "...",
   "sections": {
-    "nom": {"score": 70, "diagnostic": "...", "recommandations": ["..."], "comparaison_branding": "..."},
-    "bio": {"score": 0, "diagnostic": "...", "recommandations": ["..."]},
-    "stories": {"score": 0, "diagnostic": "...", "recommandations": ["..."]},
-    "epingles": {"score": 0, "diagnostic": "...", "recommandations": ["..."]},
-    "feed": {"score": 0, "diagnostic": "...", "recommandations": ["..."]},
-    "edito": {"score": 0, "diagnostic": "...", "recommandations": ["..."]}
+    "nom": {"score": 70, "summary": {"positives": ["..."], "improvements": ["..."]}, "recommendations": [{"number": 1, "title": "...", "explanation": "...", "example": "..."}], "proposed_version": "..."},
+    "bio": {"score": 0, "summary": {"positives": ["..."], "improvements": ["..."]}, "recommendations": [{"number": 1, "title": "...", "explanation": "...", "example": "..."}], "proposed_version": "..."},
+    "stories": {"score": 0, "summary": {"positives": ["..."], "improvements": ["..."]}, "recommendations": [{"number": 1, "title": "...", "explanation": "...", "example": "..."}]},
+    "epingles": {"score": 0, "summary": {"positives": ["..."], "improvements": ["..."]}, "recommendations": [{"number": 1, "title": "...", "explanation": "...", "example": "..."}]},
+    "feed": {"score": 0, "summary": {"positives": ["..."], "improvements": ["..."]}, "recommendations": [{"number": 1, "title": "...", "explanation": "...", "example": "..."}]},
+    "edito": {"score": 0, "summary": {"positives": ["..."], "improvements": ["..."]}, "recommendations": [{"number": 1, "title": "...", "explanation": "...", "example": "..."}]}
   },
   "content_analysis": {
     "patterns_positifs": [
