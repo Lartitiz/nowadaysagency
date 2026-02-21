@@ -408,20 +408,17 @@ Score global = moyenne pondérée : Bio 25%, Stories 20%, Épinglés 15%, Nom 10
 
 Sois directe mais bienveillante. Compare TOUJOURS avec le branding.
 
-IMPORTANT : Pour CHAQUE section, retourne un format STRUCTURÉ avec :
-- "score" : note /100
-- "summary" : { "positives": ["1 à 2 phrases courtes max"], "improvements": ["1 à 2 phrases courtes max"] }
-- "recommendations" : tableau de { "number": 1, "title": "max 8 mots", "explanation": "1-2 phrases max", "example": "exemple concret optionnel" }
-- "proposed_version" : (optionnel, surtout pour bio et nom) texte proposé prêt à copier
+RETOURNE UNIQUEMENT du JSON valide. Pas de texte avant ni après. Pas de backticks markdown.
 
-RÈGLES STRICTES pour les sections :
-- "title" dans recommendations : MAX 8 mots. Court et clair.
-- "explanation" : MAX 2 phrases. Pas de pavé.
-- "example" : 1 exemple concret, pas une liste.
-- "summary.positives" : MAX 2 items, 1 phrase chacun.
-- "summary.improvements" : MAX 2 items, 1 phrase chacun.
-- "recommendations" : MAX 5 items par section.
-- PAS de markdown (**gras**, *italique*) dans le JSON. Texte brut uniquement.
+RÈGLES STRICTES ABSOLUES :
+- CHAQUE section DOIT contenir "score", "summary" et "recommendations". JAMAIS de champs "diagnostic" ou "recommandations" (ancien format).
+- "summary" : { "positives": ["1 phrase courte"], "improvements": ["1 phrase courte"] }. MAX 2 items chacun.
+- "recommendations" : tableau de objets { "number": 1, "title": "max 8 mots court et clair", "explanation": "1-2 phrases max pas de pavé", "example": "1 exemple concret optionnel" }. MAX 5 items par section.
+- "proposed_version" : (optionnel, surtout pour bio et nom) texte proposé prêt à copier.
+- NE JAMAIS utiliser de markdown dans le JSON : pas de **gras**, pas de *italique*, pas de backticks. Texte brut UNIQUEMENT.
+- "title" : MAX 8 mots. Court et percutant.
+- "explanation" : MAX 2 phrases. Concis.
+- "example" : 1 seul exemple concret, pas une liste.
 
 Réponds en JSON :
 {

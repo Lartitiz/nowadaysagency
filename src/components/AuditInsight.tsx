@@ -11,13 +11,19 @@ interface AuditInsightProps {
   section: AuditSection;
 }
 
+interface StructuredRec {
+  number: number;
+  title: string;
+  explanation: string;
+  example?: string;
+}
+
 interface SectionData {
   score: number | null;
   diagnostic: string;
   recommandations: string[];
-  // structured fields (new format)
   summary?: { positives: string[]; improvements: string[] };
-  structuredRecommendations?: { number: number; title: string; explanation: string; example?: string }[];
+  structuredRecommendations?: StructuredRec[];
   proposed_version?: string;
 }
 
@@ -34,6 +40,44 @@ function getScoreColor(score: number) {
   if (score >= 70) return { bg: "bg-green-100", text: "text-green-700", emoji: "🟢" };
   if (score >= 40) return { bg: "bg-amber-100", text: "text-amber-700", emoji: "🟡" };
   return { bg: "bg-red-100", text: "text-red-700", emoji: "🔴" };
+}
+
+/** Strip markdown bold/italic markers from text */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")  // **bold**
+    .replace(/\*(.+?)\*/g, "$1")       // *italic*
+    .replace(/__(.+?)__/g, "$1")       // __bold__
+    .replace(/_(.+?)_/g, "$1")         // _italic_
+    .replace(/`(.+?)`/g, "$1")         // `code`
+    .trim();
+}
+
+/**
+ * Convert legacy plain-text recommendations (bullet points with markdown)
+ * into structured recommendation cards.
+ */
+function parseLegacyRecommendations(recs: string[]): StructuredRec[] {
+  return recs.map((raw, i) => {
+    const cleaned = stripMarkdown(raw);
+    // Try to split on ":" to extract a title
+    const colonIdx = cleaned.indexOf(":");
+    if (colonIdx > 0 && colonIdx < 60) {
+      const title = cleaned.slice(0, colonIdx).trim();
+      const explanation = cleaned.slice(colonIdx + 1).trim();
+      return { number: i + 1, title, explanation };
+    }
+    // If no colon, use first ~8 words as title
+    const words = cleaned.split(/\s+/);
+    if (words.length > 8) {
+      return {
+        number: i + 1,
+        title: words.slice(0, 6).join(" ") + "…",
+        explanation: cleaned,
+      };
+    }
+    return { number: i + 1, title: cleaned, explanation: "" };
+  });
 }
 
 export function useAuditInsight(section: AuditSection) {
@@ -55,12 +99,31 @@ export function useAuditInsight(section: AuditSection) {
         const det = row.details as any;
         const sectionData = det?.sections?.[section];
         if (!sectionData && score === null) return;
+
+        // Get structured recommendations (new format)
+        let structuredRecs = sectionData?.recommendations as StructuredRec[] | undefined;
+
+        // Legacy fallback: convert old recommandations to structured cards
+        const legacyRecs: string[] = sectionData?.recommandations || [];
+        if ((!structuredRecs || structuredRecs.length === 0) && legacyRecs.length > 0) {
+          structuredRecs = parseLegacyRecommendations(legacyRecs);
+        }
+
+        // Build summary: prefer structured, fallback from diagnostic
+        let summary = sectionData?.summary;
+        if (!summary && sectionData?.diagnostic) {
+          summary = {
+            positives: [] as string[],
+            improvements: [stripMarkdown(sectionData.diagnostic)],
+          };
+        }
+
         setData({
           score,
-          diagnostic: sectionData?.diagnostic || "",
-          recommandations: sectionData?.recommandations || [],
-          summary: sectionData?.summary,
-          structuredRecommendations: sectionData?.recommendations,
+          diagnostic: sectionData?.diagnostic ? stripMarkdown(sectionData.diagnostic) : "",
+          recommandations: legacyRecs.map(stripMarkdown),
+          summary,
+          structuredRecommendations: structuredRecs,
           proposed_version: sectionData?.proposed_version,
         });
       });
@@ -72,7 +135,7 @@ export function useAuditInsight(section: AuditSection) {
 export default function AuditInsight({ section }: AuditInsightProps) {
   const data = useAuditInsight(section);
 
-  if (!data || (data.score === null && !data.diagnostic)) return null;
+  if (!data || (data.score === null && !data.diagnostic && !data.summary)) return null;
 
   const scoreColor = data.score !== null ? getScoreColor(data.score) : null;
   const hasStructured = data.structuredRecommendations && data.structuredRecommendations.length > 0;
@@ -100,10 +163,10 @@ export default function AuditInsight({ section }: AuditInsightProps) {
         {data.summary ? (
           <>
             {data.summary.positives?.map((p, i) => (
-              <p key={`pos-${i}`} className="text-sm text-foreground leading-relaxed">✅ {p}</p>
+              <p key={`pos-${i}`} className="text-sm text-foreground leading-relaxed">✅ {stripMarkdown(p)}</p>
             ))}
             {data.summary.improvements?.map((imp, i) => (
-              <p key={`imp-${i}`} className="text-sm text-muted-foreground leading-relaxed">⚠️ {imp}</p>
+              <p key={`imp-${i}`} className="text-sm text-muted-foreground leading-relaxed">⚠️ {stripMarkdown(imp)}</p>
             ))}
           </>
         ) : data.diagnostic ? (
@@ -112,7 +175,7 @@ export default function AuditInsight({ section }: AuditInsightProps) {
       </div>
 
       {/* ─── Zone 2: Recommendation Cards ─── */}
-      {hasStructured ? (
+      {hasStructured && (
         <div className="space-y-3">
           <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui">
             📋 Recommandations
@@ -123,28 +186,20 @@ export default function AuditInsight({ section }: AuditInsightProps) {
                 <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center">
                   {rec.number}
                 </span>
-                <h4 className="text-[15px] font-semibold text-foreground leading-tight">{rec.title}</h4>
+                <h4 className="text-[15px] font-semibold text-foreground leading-tight">{stripMarkdown(rec.title)}</h4>
               </div>
-              <p className="text-sm text-muted-foreground leading-relaxed pl-10">{rec.explanation}</p>
+              {rec.explanation && (
+                <p className="text-sm text-muted-foreground leading-relaxed pl-10">{stripMarkdown(rec.explanation)}</p>
+              )}
               {rec.example && (
                 <div className="ml-10 bg-accent/30 border-l-[3px] border-l-accent rounded-r-lg px-4 py-3">
-                  <p className="text-sm text-foreground/80 italic">💡 {rec.example}</p>
+                  <p className="text-sm text-foreground/80 italic">💡 {stripMarkdown(rec.example)}</p>
                 </div>
               )}
             </div>
           ))}
         </div>
-      ) : data.recommandations.length > 0 ? (
-        /* Legacy list format */
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <p className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui mb-2">📋 Recommandations</p>
-          <ul className="space-y-2">
-            {data.recommandations.map((r, i) => (
-              <li key={i} className="text-sm text-muted-foreground leading-relaxed">• {r}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      )}
 
       {/* ─── Proposed version (if available) ─── */}
       {data.proposed_version && (
