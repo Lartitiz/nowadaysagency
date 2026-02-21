@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Save, PenLine, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+import CreativeFlow from "@/components/CreativeFlow";
 import {
   OBJECTIFS, FORMATS, CANAUX,
   getRecommendedFormats, formatIdToGuideKey,
@@ -277,17 +278,43 @@ export default function AtelierPage() {
           />
         </div>
 
-        {/* ── Generate button ── */}
-        <Button
-          onClick={handleGenerate}
-          disabled={generating || !profile}
-          className="rounded-pill gap-2 mb-8"
-        >
-          <Sparkles className="h-4 w-4" />
-          {generating ? "Génération en cours..." : "Générer 5 idées"}
-        </Button>
+        {/* ── Creative Flow ── */}
+        <CreativeFlow
+          contentType={`post_${canal}`}
+          context={[
+            selectedFormatLabel && `Format : ${selectedFormatLabel}`,
+            objectif && `Objectif : ${objectif}`,
+            sujetLibre && `Sujet : ${sujetLibre}`,
+          ].filter(Boolean).join(". ") || `Idées de contenu ${canal}`}
+          profile={mergedProfile || undefined}
+          showQuickMode={true}
+          quickModeLabel="Générer 5 idées"
+          quickModeAction={handleGenerate}
+          quickModeLoading={generating}
+          onSaveToIdeas={(content, meta) => {
+            if (!user) return;
+            supabase.from("saved_ideas").insert({
+              user_id: user.id,
+              titre: meta.accroche || content.slice(0, 60),
+              format: meta.format || selectedFormatLabel || "post",
+              angle: content.slice(0, 120),
+              canal,
+              objectif: meta.objectif || objectif || null,
+            }).then(() => toast({ title: "Idée enregistrée !" }));
+          }}
+          onAddToCalendar={(content, meta) => {
+            const params = new URLSearchParams({
+              canal,
+              format: meta.format || selectedFormatLabel || "",
+              theme: meta.accroche || content.slice(0, 60),
+              angle: content.slice(0, 120),
+              ...(objectif ? { objectif } : {}),
+            });
+            navigate(`/calendrier?${params.toString()}`);
+          }}
+        />
 
-        {/* ── Loading ── */}
+        {/* ── Quick mode results (existing ideas flow) ── */}
         {generating && (
           <div className="flex items-center gap-3 py-8 justify-center animate-fade-in">
             <div className="flex gap-1">
@@ -299,7 +326,6 @@ export default function AtelierPage() {
           </div>
         )}
 
-        {/* ── Results ── */}
         {ideas.length > 0 && !generating && (
           <div className="space-y-4 animate-fade-in">
             <h2 className="font-display text-xl font-bold">Tes idées</h2>
@@ -315,12 +341,10 @@ export default function AtelierPage() {
                   </span>
                 </div>
 
-                {/* Accroches */}
                 {idea.accroches && idea.accroches.length > 0 && (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Accroches</p>
-                      {/* Toggle short/long if accroches are objects */}
                       {typeof idea.accroches[0] === "object" && (
                         <div className="flex gap-0.5 bg-muted rounded-lg p-0.5">
                           <button
@@ -328,17 +352,13 @@ export default function AtelierPage() {
                             className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
                               (accrocheMode[idx] || "short") === "short" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
                             }`}
-                          >
-                            Courte
-                          </button>
+                          >Courte</button>
                           <button
                             onClick={() => setAccrocheMode(prev => ({ ...prev, [idx]: "long" }))}
                             className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
                               accrocheMode[idx] === "long" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
                             }`}
-                          >
-                            Longue
-                          </button>
+                          >Longue</button>
                         </div>
                       )}
                     </div>
@@ -355,24 +375,12 @@ export default function AtelierPage() {
                   </div>
                 )}
 
-                {/* Actions */}
                 <div className="flex flex-wrap gap-2 pt-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => saveIdea(idea, idx)}
-                    disabled={savingIdx === idx}
-                    className="rounded-pill gap-1.5"
-                  >
+                  <Button variant="outline" size="sm" onClick={() => saveIdea(idea, idx)} disabled={savingIdx === idx} className="rounded-pill gap-1.5">
                     <Save className="h-3.5 w-3.5" />
                     {savingIdx === idx ? "Enregistré !" : "Enregistrer"}
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => goToRedaction(idea)}
-                    className="rounded-pill gap-1.5"
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => goToRedaction(idea)} className="rounded-pill gap-1.5">
                     <PenLine className="h-3.5 w-3.5" />
                     Rédiger ce contenu
                   </Button>
