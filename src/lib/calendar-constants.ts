@@ -6,6 +6,7 @@ export const ANGLES = [
 
 export const STATUSES = [
   { id: "idea", label: "Idée" },
+  { id: "a_rediger", label: "À rédiger" },
   { id: "drafting", label: "En rédaction" },
   { id: "ready", label: "Prêt à publier" },
   { id: "published", label: "Publié" },
@@ -28,6 +29,7 @@ export const OBJECTIFS = [
 
 export const statusStyles: Record<string, string> = {
   idea: "bg-cal-idea border-cal-idea-border text-foreground",
+  a_rediger: "bg-cal-idea border-dashed border-cal-idea-border text-foreground",
   drafting: "bg-cal-drafting border-cal-drafting-border text-foreground",
   ready: "bg-cal-ready border-cal-ready-border text-foreground",
   published: "bg-cal-published border-cal-published-border text-foreground line-through",
@@ -49,4 +51,10 @@ export interface CalendarPost {
   notes: string | null;
   canal: string;
   objectif: string | null;
+  content_type?: string | null;
+  content_type_emoji?: string | null;
+  category?: string | null;
+  objective?: string | null;
+  angle_suggestion?: string | null;
+  launch_id?: string | null;
 }

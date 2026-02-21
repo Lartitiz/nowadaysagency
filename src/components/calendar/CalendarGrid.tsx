@@ -40,9 +40,11 @@ function DraggablePostChip({ post, onClick }: { post: CalendarPost; onClick: () 
       </span>
       <button
         onClick={onClick}
-        className={`flex-1 text-left rounded-md border px-1.5 py-0.5 text-[11px] font-medium flex items-center gap-1 ${statusStyles[post.status] || statusStyles.idea}`}
+        className={`flex-1 text-left rounded-md border px-1.5 py-0.5 text-[11px] font-medium flex items-center gap-1 ${post.launch_id ? "border-dashed" : ""} ${statusStyles[post.status] || statusStyles.idea}`}
       >
         <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${CANAL_COLORS[post.canal] || "bg-muted-foreground"}`} />
+        {post.launch_id && <span className="shrink-0">🚀</span>}
+        {post.content_type_emoji && <span className="shrink-0">{post.content_type_emoji}</span>}
         <span className="truncate flex-1">{post.theme}</span>
         <ObjectifBadge objectif={post.objectif} size="sm" />
       </button>
