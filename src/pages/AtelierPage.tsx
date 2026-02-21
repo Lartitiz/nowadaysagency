@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, Save, PenLine, ArrowLeft } from "lucide-react";
+import { Sparkles, Save, PenLine, ArrowLeft, CalendarDays } from "lucide-react";
 import { Link } from "react-router-dom";
 import CreativeFlow from "@/components/CreativeFlow";
 import {
@@ -31,13 +31,17 @@ interface IdeaResult {
 }
 
 export default function AtelierPage() {
-  // Track which accroche view mode per idea: "short" or "long"
   const [accrocheMode, setAccrocheMode] = useState<Record<string, "short" | "long">>({});
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const urlCanal = searchParams.get("canal");
+
+  // Calendar context
+  const calendarData = location.state as any;
+  const fromCalendar = calendarData?.fromCalendar === true;
 
   // State
   const [canal, setCanal] = useState(urlCanal || "instagram");
@@ -49,6 +53,22 @@ export default function AtelierPage() {
   const [profile, setProfile] = useState<any>(null);
   const [brandProfile, setBrandProfile] = useState<any>(null);
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
+  const [showRecapEdit, setShowRecapEdit] = useState(false);
+
+  // Pre-fill from calendar data
+  useEffect(() => {
+    if (fromCalendar && calendarData) {
+      if (calendarData.objectif) setObjectif(calendarData.objectif);
+      if (calendarData.theme) setSujetLibre(calendarData.theme);
+      // Map calendar angle (free text) to atelier format id
+      if (calendarData.angle) {
+        const matchedFormat = FORMATS.find(
+          (f) => f.label.toLowerCase() === calendarData.angle?.toLowerCase()
+        );
+        if (matchedFormat) setSelectedFormat(matchedFormat.id);
+      }
+    }
+  }, []);
 
   // Load profile + brand_profile
   useEffect(() => {
@@ -79,6 +99,55 @@ export default function AtelierPage() {
   const { recommended, others } = getRecommendedFormats(objectif);
   const selectedFormatLabel = FORMATS.find((f) => f.id === selectedFormat)?.label || "";
   const formatReco = selectedFormat ? getInstagramFormatReco(formatIdToGuideKey(selectedFormat)) : null;
+
+  // Build calendar context for CreativeFlow
+  const calendarContext = fromCalendar
+    ? {
+        calendarPostId: calendarData.calendarPostId,
+        theme: calendarData.theme,
+        objectif: calendarData.objectif,
+        angle: calendarData.angle,
+        format: calendarData.format,
+        notes: calendarData.notes,
+        postDate: calendarData.postDate,
+        existingContent: calendarData.existingContent,
+        // Launch
+        launchId: calendarData.launchId,
+        contentType: calendarData.contentType,
+        contentTypeEmoji: calendarData.contentTypeEmoji,
+        category: calendarData.category,
+        objective: calendarData.objective,
+        angleSuggestion: calendarData.angleSuggestion,
+        chapter: calendarData.chapter,
+        chapterLabel: calendarData.chapterLabel,
+        audiencePhase: calendarData.audiencePhase,
+      }
+    : undefined;
+
+  // Save generated content back to calendar
+  const handleSaveToCalendar = async (content: string, meta: any) => {
+    if (!calendarData?.calendarPostId) return;
+    const accroche = content.split("\n")[0]
+      ?.replace(/^(Slide 1\s*:|Hook\s*:|Accroche\s*:)/i, "")
+      .trim();
+
+    const { error } = await supabase
+      .from("calendar_posts")
+      .update({
+        content_draft: content,
+        accroche: accroche || null,
+        status: "drafting",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", calendarData.calendarPostId);
+
+    if (error) {
+      toast({ title: "Erreur de sauvegarde", variant: "destructive" });
+    } else {
+      toast({ title: "Contenu sauvegardé dans ton calendrier !" });
+      navigate("/calendrier?canal=" + canal);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!mergedProfile) return;
@@ -146,14 +215,70 @@ export default function AtelierPage() {
 
   const isInstagramContext = urlCanal === "instagram";
 
+  // Format date for recap banner
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr + "T00:00:00").toLocaleDateString("fr-FR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const objLabel = calendarData?.objectif
+    ? OBJECTIFS.find((o) => o.id === calendarData.objectif)?.label
+    : null;
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
-        {isInstagramContext && (
+        {/* Calendar recap banner */}
+        {fromCalendar && (
+          <div className="rounded-2xl border border-primary/20 bg-rose-pale p-4 mb-6 animate-fade-in">
+            <button
+              onClick={() => navigate("/calendrier?canal=" + canal)}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Retour au calendrier
+            </button>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+              {calendarData.postDate && (
+                <span className="inline-flex items-center gap-1">
+                  <CalendarDays className="h-3.5 w-3.5 text-primary" />
+                  {formatDate(calendarData.postDate)}
+                </span>
+              )}
+              {objLabel && <span>· {calendarData.objectif === "visibilite" ? "👀" : calendarData.objectif === "confiance" ? "🤝" : calendarData.objectif === "vente" ? "💰" : "🏆"} {objLabel}</span>}
+              {calendarData.angle && <span>· 📖 {calendarData.angle}</span>}
+              {calendarData.format && <span>· 📑 {calendarData.format}</span>}
+            </div>
+            {calendarData.notes && (
+              <p className="text-xs text-muted-foreground italic mt-1.5 truncate">📝 {calendarData.notes}</p>
+            )}
+            {calendarData.angleSuggestion && (
+              <p className="text-xs text-muted-foreground italic mt-1">💡 {calendarData.angleSuggestion}</p>
+            )}
+            {!showRecapEdit && (
+              <button
+                onClick={() => setShowRecapEdit(true)}
+                className="text-xs text-primary hover:underline mt-2"
+              >
+                ✏️ Modifier ces infos
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Standard nav for non-calendar */}
+        {!fromCalendar && isInstagramContext && (
           <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Trouver des idées" />
         )}
-        {!isInstagramContext && (
+        {!fromCalendar && !isInstagramContext && (
           <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
             <ArrowLeft className="h-4 w-4" />
             Retour au hub
@@ -161,122 +286,127 @@ export default function AtelierPage() {
         )}
 
         <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground mb-1">
-          💡 Atelier d'idées
+          {fromCalendar ? "✨ Rédiger un contenu" : "💡 Atelier d'idées"}
         </h1>
         <p className="text-sm text-muted-foreground mb-4">
-          Trouve des idées de contenu adaptées à ton activité et ta cible.
+          {fromCalendar
+            ? "Crée ton contenu avec l'aide de l'IA, en mode co-création."
+            : "Trouve des idées de contenu adaptées à ton activité et ta cible."}
         </p>
 
         <BrandingPrompt section="global" />
 
-        {/* ── Canal selector ── */}
-        <div className="mb-6">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Canal</label>
-          <div className="flex flex-wrap gap-2">
-            {CANAUX.map((c) => (
-              <button
-                key={c.id}
-                disabled={!c.enabled}
-                onClick={() => c.enabled && setCanal(c.id)}
-                className={`rounded-pill px-4 py-2 text-sm font-medium border transition-all ${
-                  canal === c.id
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : c.enabled
-                      ? "bg-card text-foreground border-border hover:border-primary/40"
-                      : "bg-muted text-muted-foreground border-border opacity-50 cursor-not-allowed"
-                }`}
-              >
-                {c.label}
-                {!c.enabled && <span className="ml-1 text-[10px]">(Bientôt)</span>}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Hide selectors when coming from calendar (unless user wants to edit) */}
+        {(!fromCalendar || showRecapEdit) && (
+          <>
+            {/* ── Canal selector ── */}
+            <div className="mb-6">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Canal</label>
+              <div className="flex flex-wrap gap-2">
+                {CANAUX.map((c) => (
+                  <button
+                    key={c.id}
+                    disabled={!c.enabled}
+                    onClick={() => c.enabled && setCanal(c.id)}
+                    className={`rounded-pill px-4 py-2 text-sm font-medium border transition-all ${
+                      canal === c.id
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : c.enabled
+                          ? "bg-card text-foreground border-border hover:border-primary/40"
+                          : "bg-muted text-muted-foreground border-border opacity-50 cursor-not-allowed"
+                    }`}
+                  >
+                    {c.label}
+                    {!c.enabled && <span className="ml-1 text-[10px]">(Bientôt)</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        {/* ── Objectif selector ── */}
-        <div className="mb-6">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">
-            Tu veux quoi avec ce contenu ?
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {OBJECTIFS.map((o) => (
-              <button
-                key={o.id}
-                onClick={() => setObjectif(objectif === o.id ? null : o.id)}
-                className={`rounded-pill px-4 py-2 text-sm font-medium border transition-all ${
-                  objectif === o.id
-                    ? o.color + " border-current"
-                    : "bg-card text-foreground border-border hover:border-primary/40"
-                }`}
-              >
-                {o.emoji} {o.label}
-                <span className="ml-1 text-[10px] text-muted-foreground hidden sm:inline">({o.desc})</span>
-              </button>
-            ))}
-          </div>
-          {objectif && RECO_EXPLAIN[objectif] && (
-            <p className="mt-2 text-xs text-muted-foreground italic animate-fade-in">
-              💡 {RECO_EXPLAIN[objectif]}
-            </p>
-          )}
-        </div>
+            {/* ── Objectif selector ── */}
+            <div className="mb-6">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">
+                Tu veux quoi avec ce contenu ?
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {OBJECTIFS.map((o) => (
+                  <button
+                    key={o.id}
+                    onClick={() => setObjectif(objectif === o.id ? null : o.id)}
+                    className={`rounded-pill px-4 py-2 text-sm font-medium border transition-all ${
+                      objectif === o.id
+                        ? o.color + " border-current"
+                        : "bg-card text-foreground border-border hover:border-primary/40"
+                    }`}
+                  >
+                    {o.emoji} {o.label}
+                    <span className="ml-1 text-[10px] text-muted-foreground hidden sm:inline">({o.desc})</span>
+                  </button>
+                ))}
+              </div>
+              {objectif && RECO_EXPLAIN[objectif] && (
+                <p className="mt-2 text-xs text-muted-foreground italic animate-fade-in">
+                  💡 {RECO_EXPLAIN[objectif]}
+                </p>
+              )}
+            </div>
 
-        {/* ── Format selector ── */}
-        <div className="mb-6">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">
-            Format / angle
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {/* Recommended first */}
-            {recommended.map((f) => (
-              <button
-                key={f.id}
-                onClick={() => setSelectedFormat(selectedFormat === f.id ? null : f.id)}
-                className={`rounded-pill px-3 py-1.5 text-sm font-medium border transition-all ${
-                  selectedFormat === f.id
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-card text-foreground border-border hover:border-primary/40"
-                }`}
-              >
-                {f.label}
-                <span className="ml-1.5 text-[9px] font-bold bg-accent text-accent-foreground px-1.5 py-0.5 rounded-md">
-                  Recommandé
-                </span>
-              </button>
-            ))}
-            {others.map((f) => (
-              <button
-                key={f.id}
-                onClick={() => setSelectedFormat(selectedFormat === f.id ? null : f.id)}
-                className={`rounded-pill px-3 py-1.5 text-sm font-medium border transition-all ${
-                  selectedFormat === f.id
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-card text-foreground border-border hover:border-primary/40"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-          {/* Format technique reco */}
-          {formatReco && canal === "instagram" && (
-            <p className="mt-2 text-xs text-muted-foreground animate-fade-in">
-              📐 {formatReco}
-            </p>
-          )}
-        </div>
+            {/* ── Format selector ── */}
+            <div className="mb-6">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">
+                Format / angle
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {recommended.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setSelectedFormat(selectedFormat === f.id ? null : f.id)}
+                    className={`rounded-pill px-3 py-1.5 text-sm font-medium border transition-all ${
+                      selectedFormat === f.id
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card text-foreground border-border hover:border-primary/40"
+                    }`}
+                  >
+                    {f.label}
+                    <span className="ml-1.5 text-[9px] font-bold bg-accent text-accent-foreground px-1.5 py-0.5 rounded-md">
+                      Recommandé
+                    </span>
+                  </button>
+                ))}
+                {others.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setSelectedFormat(selectedFormat === f.id ? null : f.id)}
+                    className={`rounded-pill px-3 py-1.5 text-sm font-medium border transition-all ${
+                      selectedFormat === f.id
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card text-foreground border-border hover:border-primary/40"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              {formatReco && canal === "instagram" && (
+                <p className="mt-2 text-xs text-muted-foreground animate-fade-in">
+                  📐 {formatReco}
+                </p>
+              )}
+            </div>
 
-        {/* ── Sujet libre ── */}
-        <div className="mb-6">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">
-            Sujet libre (optionnel)
-          </label>
-          <Input
-            value={sujetLibre}
-            onChange={(e) => setSujetLibre(e.target.value)}
-            placeholder="Un mot-clé, un thème, une question..."
-          />
-        </div>
+            {/* ── Sujet libre ── */}
+            <div className="mb-6">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">
+                Sujet libre (optionnel)
+              </label>
+              <Input
+                value={sujetLibre}
+                onChange={(e) => setSujetLibre(e.target.value)}
+                placeholder="Un mot-clé, un thème, une question..."
+              />
+            </div>
+          </>
+        )}
 
         {/* ── Creative Flow ── */}
         <CreativeFlow
@@ -287,7 +417,9 @@ export default function AtelierPage() {
             sujetLibre && `Sujet : ${sujetLibre}`,
           ].filter(Boolean).join(". ") || `Idées de contenu ${canal}`}
           profile={mergedProfile || undefined}
-          showQuickMode={true}
+          calendarContext={calendarContext}
+          skipToQuestions={fromCalendar && !!calendarData?.objectif && !!calendarData?.angle}
+          showQuickMode={!fromCalendar}
           quickModeLabel="Générer 5 idées"
           quickModeAction={handleGenerate}
           quickModeLoading={generating}
@@ -302,7 +434,8 @@ export default function AtelierPage() {
               objectif: meta.objectif || objectif || null,
             }).then(() => toast({ title: "Idée enregistrée !" }));
           }}
-          onAddToCalendar={(content, meta) => {
+          onSaveToCalendar={fromCalendar ? handleSaveToCalendar : undefined}
+          onAddToCalendar={!fromCalendar ? (content, meta) => {
             const params = new URLSearchParams({
               canal,
               format: meta.format || selectedFormatLabel || "",
@@ -311,7 +444,7 @@ export default function AtelierPage() {
               ...(objectif ? { objectif } : {}),
             });
             navigate(`/calendrier?${params.toString()}`);
-          }}
+          } : undefined}
         />
 
         {/* ── Quick mode results (existing ideas flow) ── */}

@@ -131,11 +131,30 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const body = await req.json();
-    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment } = body;
+    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext } = body;
 
     const profileBlock = profile ? buildProfileBlock(profile) : "";
     const brandingContext = await buildBrandingContext(supabase, user.id);
     const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "");
+
+    // Build calendar context block
+    let calendarBlock = "";
+    if (calendarContext) {
+      const cl: string[] = [];
+      if (calendarContext.postDate) cl.push(`- Date de publication prévue : ${calendarContext.postDate}`);
+      if (calendarContext.theme) cl.push(`- Thème/sujet : "${calendarContext.theme}"`);
+      if (calendarContext.notes) cl.push(`- Notes de l'utilisatrice : "${calendarContext.notes}"`);
+      if (calendarContext.angleSuggestion) cl.push(`- Angle suggéré : "${calendarContext.angleSuggestion}"`);
+      if (calendarContext.launchId) {
+        cl.push(`\nCONTEXTE LANCEMENT :`);
+        if (calendarContext.contentType) cl.push(`- Type de contenu : ${calendarContext.contentTypeEmoji || ""} ${calendarContext.contentType}`);
+        if (calendarContext.category) cl.push(`- Catégorie : ${calendarContext.category}`);
+        if (calendarContext.chapter) cl.push(`- Chapitre narratif : ${calendarContext.chapter}. ${calendarContext.chapterLabel || ""}`);
+        if (calendarContext.audiencePhase) cl.push(`- Phase mentale de l'audience : ${calendarContext.audiencePhase}`);
+        if (calendarContext.objective) cl.push(`- Objectif de ce contenu : "${calendarContext.objective}"`);
+      }
+      if (cl.length) calendarBlock = `\nCONTEXTE DU POST (depuis le calendrier) :\n${cl.join("\n")}\n`;
+    }
 
     let systemPrompt = "";
     let userPrompt = "";
@@ -151,6 +170,7 @@ CONTEXTE : ${context}
 
 PROFIL DE L'UTILISATRICE :
 ${fullContext}
+${calendarBlock}
 
 Propose exactement 3 angles éditoriaux DIFFÉRENTS.
 
@@ -193,6 +213,7 @@ L'utilisatrice a choisi cet angle pour son contenu :
 
 PROFIL DE L'UTILISATRICE :
 ${fullContext}
+${calendarBlock}
 
 Pose exactement 3 questions pour récupérer SA matière première. Ces questions doivent extraire des anecdotes, des réflexions, des émotions PERSONNELLES qui rendront le contenu unique et impossible à reproduire par une IA seule.
 
@@ -262,6 +283,7 @@ ${followUpBlock}
 
 PROFIL DE L'UTILISATRICE :
 ${fullContext}
+${calendarBlock}
 
 Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
 

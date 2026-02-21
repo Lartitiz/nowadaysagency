@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
@@ -34,12 +34,35 @@ interface GeneratedContent {
   objectif?: string;
 }
 
+interface CalendarContext {
+  calendarPostId?: string;
+  theme?: string;
+  objectif?: string;
+  angle?: string;
+  format?: string;
+  notes?: string;
+  postDate?: string;
+  existingContent?: string;
+  launchId?: string;
+  contentType?: string;
+  contentTypeEmoji?: string;
+  category?: string;
+  objective?: string;
+  angleSuggestion?: string;
+  chapter?: number;
+  chapterLabel?: string;
+  audiencePhase?: string;
+}
+
 interface CreativeFlowProps {
   contentType: string;
   context: string;
   profile?: any;
+  calendarContext?: CalendarContext;
+  skipToQuestions?: boolean;
   onContentGenerated?: (content: string, meta: GeneratedContent) => void;
   onSaveToIdeas?: (content: string, meta: GeneratedContent) => void;
+  onSaveToCalendar?: (content: string, meta: GeneratedContent) => void;
   onAddToCalendar?: (content: string, meta: GeneratedContent) => void;
   showQuickMode?: boolean;
   quickModeLabel?: string;
@@ -104,8 +127,11 @@ export default function CreativeFlow({
   contentType,
   context,
   profile,
+  calendarContext,
+  skipToQuestions,
   onContentGenerated,
   onSaveToIdeas,
+  onSaveToCalendar,
   onAddToCalendar,
   showQuickMode = true,
   quickModeLabel,
@@ -113,7 +139,8 @@ export default function CreativeFlow({
   quickModeLoading,
 }: CreativeFlowProps) {
   const { toast } = useToast();
-  const [step, setStep] = useState<FlowStep>("choose-mode");
+  const [step, setStep] = useState<FlowStep>(skipToQuestions ? "angles" : "choose-mode");
+  const [autoStarted, setAutoStarted] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Angles
@@ -145,12 +172,21 @@ export default function CreativeFlow({
         contentType,
         context,
         profile: profile || {},
+        calendarContext: calendarContext || undefined,
         ...extra,
       },
     });
     if (res.error) throw new Error(res.error.message);
     return res.data;
-  }, [contentType, context, profile]);
+  }, [contentType, context, profile, calendarContext]);
+
+  // Auto-start creative flow when coming from calendar
+  useEffect(() => {
+    if (skipToQuestions && !autoStarted) {
+      setAutoStarted(true);
+      generateAngles();
+    }
+  }, [skipToQuestions, autoStarted]);
 
   /* ── Step handlers ── */
   const generateAngles = async () => {
@@ -574,6 +610,15 @@ export default function CreativeFlow({
                 className="rounded-pill gap-1.5"
               >
                 <Save className="h-3.5 w-3.5" /> Sauvegarder
+              </Button>
+            )}
+            {onSaveToCalendar && (
+              <Button
+                size="sm"
+                onClick={() => onSaveToCalendar(editedContent, result)}
+                className="rounded-pill gap-1.5 bg-primary text-primary-foreground hover:bg-bordeaux"
+              >
+                <Save className="h-3.5 w-3.5" /> Sauvegarder dans le calendrier
               </Button>
             )}
             {onAddToCalendar && (
