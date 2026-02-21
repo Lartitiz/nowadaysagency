@@ -16,6 +16,7 @@ import Calendar from "./pages/Calendar";
 import PlanPage from "./pages/PlanPage";
 import BrandingPage from "./pages/BrandingPage";
 import TonStylePage from "./pages/TonStylePage";
+import TonStyleRecapPage from "./pages/TonStyleRecapPage";
 import StorytellingPage from "./pages/StorytellingPage";
 import StorytellingRecapPage from "./pages/StorytellingRecapPage";
 import StorytellingListPage from "./pages/StorytellingListPage";
@@ -80,6 +81,7 @@ const App = () => (
             <Route path="/idees" element={<ProtectedRoute><IdeasPage /></ProtectedRoute>} />
             <Route path="/branding" element={<ProtectedRoute><BrandingPage /></ProtectedRoute>} />
             <Route path="/branding/ton" element={<ProtectedRoute><TonStylePage /></ProtectedRoute>} />
+            <Route path="/branding/ton/recap" element={<ProtectedRoute><TonStyleRecapPage /></ProtectedRoute>} />
             <Route path="/branding/storytelling" element={<ProtectedRoute><StorytellingListPage /></ProtectedRoute>} />
             <Route path="/branding/storytelling/new" element={<ProtectedRoute><StorytellingPage /></ProtectedRoute>} />
             <Route path="/branding/storytelling/import" element={<ProtectedRoute><StorytellingImportPage /></ProtectedRoute>} />

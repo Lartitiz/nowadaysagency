@@ -1,0 +1,318 @@
+import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Link } from "react-router-dom";
+import AppHeader from "@/components/AppHeader";
+import SubPageHeader from "@/components/SubPageHeader";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Copy, FileText, Loader2, RefreshCw, Pencil } from "lucide-react";
+
+interface RecapSummary {
+  voice_oneliner: string;
+  register_tags: string[];
+  i_am: string[];
+  i_am_not: string[];
+  my_expressions: string[];
+  forbidden_words: string[];
+  verbatims: string[];
+  major_fight: { name: string; description: string };
+  minor_fights: string[];
+}
+
+export default function TonStyleRecapPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const recapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle().then(({ data: d }) => {
+      setData(d);
+      setLoading(false);
+    });
+  }, [user]);
+
+  const summary: RecapSummary | null = data?.recap_summary as any;
+
+  const generateRecap = async () => {
+    if (!data) return;
+    setGenerating(true);
+    try {
+      const [stratRes] = await Promise.all([
+        supabase.from("brand_strategy").select("creative_concept").eq("user_id", user!.id).maybeSingle(),
+      ]);
+
+      const { data: fnData, error } = await supabase.functions.invoke("niche-ai", {
+        body: {
+          type: "generate-tone-recap",
+          tone_data: {
+            voice_description: data.voice_description,
+            tone_register: data.tone_register,
+            tone_level: data.tone_level,
+            tone_style: data.tone_style,
+            tone_humor: data.tone_humor,
+            tone_engagement: data.tone_engagement,
+            key_expressions: data.key_expressions,
+            things_to_avoid: data.things_to_avoid,
+            target_verbatims: data.target_verbatims,
+            combat_cause: data.combat_cause,
+            combat_fights: data.combat_fights,
+            combat_refusals: data.combat_refusals,
+            combat_alternative: data.combat_alternative,
+          },
+          creative_concept: stratRes.data?.creative_concept || "",
+        },
+      });
+      if (error) throw error;
+
+      const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      const parsed = JSON.parse(raw);
+
+      await supabase.from("brand_profile").update({ recap_summary: parsed } as any).eq("id", data.id);
+      setData({ ...data, recap_summary: parsed });
+      toast({ title: "Synthèse générée !" });
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+    }
+    setGenerating(false);
+  };
+
+  const copyText = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+    toast({ title: "Copié !" });
+  };
+
+  const exportPDF = async () => {
+    if (!recapRef.current) return;
+    setExporting(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const jsPDF = (await import("jspdf")).default;
+      const canvas = await html2canvas(recapRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const imgWidth = pageWidth - 20;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
+      pdf.save("mon-ton-et-combats.pdf");
+    } catch (e: any) {
+      toast({ title: "Erreur export", description: e.message, variant: "destructive" });
+    }
+    setExporting(false);
+  };
+
+  if (loading) return (
+    <div className="min-h-screen bg-background">
+      <AppHeader />
+      <div className="flex justify-center py-20"><p className="text-muted-foreground">Chargement...</p></div>
+    </div>
+  );
+
+  if (!data) return (
+    <div className="min-h-screen bg-background">
+      <AppHeader />
+      <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
+        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Mon ton & mes combats" />
+        <div className="rounded-2xl bg-[hsl(var(--rose-pale))] border border-border p-6 text-center">
+          <p className="text-foreground text-[15px] mb-4">🎨 Complète d'abord ton ton & tes combats pour voir ta fiche récap.</p>
+          <Link to="/branding/ton"><Button className="rounded-pill">Commencer →</Button></Link>
+        </div>
+      </main>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-background">
+      <AppHeader />
+      <main className="mx-auto max-w-[780px] px-6 py-8 max-md:px-4">
+        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Mon ton & mes combats" />
+
+        {/* Action bar */}
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <Link to="/branding/ton">
+              <Button variant="outline" size="sm" className="rounded-pill text-xs">
+                <Pencil className="h-3 w-3 mr-1" /> Modifier
+              </Button>
+            </Link>
+            <Button variant="outline" size="sm" className="rounded-pill text-xs" onClick={generateRecap} disabled={generating}>
+              {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+              {summary ? "Regénérer" : "Générer la synthèse"}
+            </Button>
+          </div>
+          <Button variant="outline" size="sm" className="rounded-pill text-xs" onClick={exportPDF} disabled={exporting || !summary}>
+            {exporting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <FileText className="h-3 w-3 mr-1" />}
+            Exporter PDF
+          </Button>
+        </div>
+
+        {/* Prompt to generate */}
+        {!summary && (
+          <div className="rounded-2xl bg-[hsl(var(--rose-pale))] border border-border p-8 text-center mb-6">
+            <p className="text-foreground text-[15px] mb-4">
+              ✨ Clique sur "Générer la synthèse" pour créer ta fiche récap visuelle.
+            </p>
+            <Button onClick={generateRecap} disabled={generating} className="rounded-pill">
+              {generating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Génération...</> : "✨ Générer ma fiche"}
+            </Button>
+          </div>
+        )}
+
+        {/* === RECAP CARD === */}
+        {summary && (
+          <div ref={recapRef} id="ton-recap" className="bg-white rounded-2xl border border-[hsl(var(--border))] shadow-[var(--shadow-card)] overflow-hidden">
+
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4 sm:px-8 sm:pt-8">
+              <h1 className="font-display text-[22px] sm:text-[26px] font-bold" style={{ color: "#1a1a2e" }}>
+                🎨 Mon ton & mes combats
+              </h1>
+            </div>
+
+            {/* Ma voix en une phrase */}
+            <div className="mx-6 sm:mx-8 mb-6 rounded-xl p-5 border-l-4 text-center" style={{ backgroundColor: "#FFF4F8", borderLeftColor: "#fb3d80" }}>
+              <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>
+                Ma voix en une phrase
+              </p>
+              <p className="font-body text-[18px] italic leading-relaxed" style={{ color: "#1a1a2e" }}>
+                "{summary.voice_oneliner}"
+              </p>
+            </div>
+
+            {/* Mon registre - tags */}
+            <div className="px-6 sm:px-8 mb-5">
+              <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>
+                Mon registre
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {summary.register_tags.map((tag, i) => (
+                  <span key={i} className="px-3 py-1.5 rounded-pill text-[11px] font-semibold uppercase tracking-wide" style={{ backgroundColor: "#fb3d80", color: "#ffffff" }}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Je suis / Je ne suis pas */}
+            <div className="px-6 sm:px-8 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="rounded-xl border p-4" style={{ borderColor: "#bbf7d0", backgroundColor: "#f0fdf4" }}>
+                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>
+                  ✅ Je suis
+                </p>
+                <ul className="space-y-1.5">
+                  {summary.i_am.map((item, i) => (
+                    <li key={i} className="font-body text-[13px] leading-relaxed flex items-start gap-2" style={{ color: "#1a1a2e" }}>
+                      <span style={{ color: "#22c55e" }} className="mt-0.5">•</span> {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-xl border p-4" style={{ borderColor: "#fecaca", backgroundColor: "#fef2f2" }}>
+                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>
+                  🚫 Je ne suis pas
+                </p>
+                <ul className="space-y-1.5">
+                  {summary.i_am_not.map((item, i) => (
+                    <li key={i} className="font-body text-[13px] leading-relaxed flex items-start gap-2" style={{ color: "#1a1a2e" }}>
+                      <span style={{ color: "#f87171" }} className="mt-0.5">•</span> {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Expressions / Mots interdits */}
+            <div className="px-6 sm:px-8 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="rounded-xl p-4" style={{ backgroundColor: "#f0fdf4" }}>
+                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>
+                  💬 Mes expressions
+                </p>
+                <div className="space-y-1.5">
+                  {summary.my_expressions.map((expr, i) => (
+                    <p key={i} className="font-body text-[13px] italic leading-relaxed" style={{ color: "#1a1a2e" }}>"{expr}"</p>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-xl p-4" style={{ backgroundColor: "#fef2f2" }}>
+                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>
+                  ⛔ Mes mots interdits
+                </p>
+                <div className="space-y-1.5">
+                  {summary.forbidden_words.map((word, i) => (
+                    <p key={i} className="font-body text-[13px] italic leading-relaxed line-through" style={{ color: "#1a1a2e", textDecorationColor: "#fca5a5" }}>"{word}"</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Verbatims */}
+            {summary.verbatims && summary.verbatims.length > 0 && (
+              <div className="mx-6 sm:mx-8 mb-5 rounded-xl p-5" style={{ backgroundColor: "#F8F4FF" }}>
+                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>
+                  🗣️ Verbatims de mon persona
+                </p>
+                <div className="space-y-2">
+                  {summary.verbatims.map((v, i) => (
+                    <p key={i} className="font-body text-[14px] italic leading-relaxed" style={{ color: "#1a1a2e" }}>"{v}"</p>
+                  ))}
+                </div>
+                <p className="text-[11px] italic mt-3" style={{ color: "#9CA3AF" }}>
+                  Les mots exacts de ta cliente. Réutilise-les dans tes contenus pour qu'elle se reconnaisse.
+                </p>
+              </div>
+            )}
+
+            {/* Combats */}
+            <div className="px-6 sm:px-8 mb-5">
+              <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-4" style={{ color: "#6B5E7B" }}>
+                ✊ Mes combats
+              </p>
+
+              {/* Combat majeur */}
+              {summary.major_fight && (
+                <div className="rounded-xl p-5 border-l-4 mb-4" style={{ backgroundColor: "#FFF4F8", borderLeftColor: "#fb3d80" }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span>🔥</span>
+                    <p className="font-display text-[15px] font-bold" style={{ color: "#1a1a2e" }}>{summary.major_fight.name}</p>
+                  </div>
+                  <p className="font-body text-[13px] leading-relaxed" style={{ color: "#1a1a2e" }}>{summary.major_fight.description}</p>
+                </div>
+              )}
+
+              {/* Combats secondaires */}
+              {summary.minor_fights && summary.minor_fights.length > 0 && (
+                <div className="flex flex-wrap gap-3">
+                  {summary.minor_fights.map((fight, i) => (
+                    <div key={i} className="rounded-xl border px-4 py-3 flex items-center gap-2" style={{ borderColor: "#E5E0EB", backgroundColor: "#ffffff" }}>
+                      <span>🌱</span>
+                      <p className="font-body text-[13px] font-medium" style={{ color: "#1a1a2e" }}>{fight}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 sm:px-8 py-4 border-t border-[hsl(var(--border))]">
+              <p className="text-center font-mono-ui text-[10px] uppercase tracking-wider" style={{ color: "#6B5E7B" }}>
+                L'Assistant Com' × Nowadays Agency
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6">
+          <Link to="/branding" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+            ← Retour au Branding
+          </Link>
+        </div>
+      </main>
+    </div>
+  );
+}

@@ -210,6 +210,58 @@ Réponds en JSON :
 }`;
       userPrompt = "Génère les 3 formulations de ma niche.";
 
+    } else if (type === "generate-tone-recap") {
+      const td = body.tone_data || {};
+      const cc = body.creative_concept || "";
+
+      systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+
+À partir du ton, style et combats de cette marque, génère une synthèse structurée pour une fiche récap visuelle.
+
+TON & STYLE :
+- Description de la voix : "${td.voice_description || ""}"
+- Registre : ${td.tone_register || ""}, Niveau : ${td.tone_level || ""}, Style : ${td.tone_style || ""}, Humour : ${td.tone_humor || ""}, Engagement : ${td.tone_engagement || ""}
+- Expressions à utiliser : "${td.key_expressions || ""}"
+- Ce qu'elle évite : "${td.things_to_avoid || ""}"
+- Verbatims du persona : "${td.target_verbatims || ""}"
+
+COMBATS :
+- Cause principale : "${td.combat_cause || ""}"
+- Combats : "${td.combat_fights || ""}"
+- Ce qu'elle refuse : "${td.combat_refusals || ""}"
+- Ce qu'elle propose à la place : "${td.combat_alternative || ""}"
+
+${cc ? `CONCEPT CRÉATIF :\n"${cc}"` : ""}
+
+Génère en JSON STRICT (pas de markdown, pas de commentaires) :
+{
+  "voice_oneliner": "...",
+  "register_tags": ["...", "...", "..."],
+  "i_am": ["...", "...", "...", "...", "..."],
+  "i_am_not": ["...", "...", "...", "...", "..."],
+  "my_expressions": ["...", "..."],
+  "forbidden_words": ["...", "..."],
+  "verbatims": ["...", "..."],
+  "major_fight": {"name": "...", "description": "..."},
+  "minor_fights": ["...", "...", "..."]
+}
+
+RÈGLES :
+- "voice_oneliner" : Si le concept créatif existe, utilise-le. Sinon, crée une formule mémorable type "X rencontre Y". Max 15 mots.
+- "register_tags" : 3-6 adjectifs courts (1-2 mots chaque) qui définissent le registre.
+- "i_am" : 4-6 points positifs nuancés (ex: "Directe mais douce"). Max 5 mots chaque.
+- "i_am_not" : 4-6 points en MIROIR/CONTRASTE de "i_am". Extraits des choses à éviter + déduits.
+- "my_expressions" : Les expressions à utiliser, max 10.
+- "forbidden_words" : Les mots/expressions à ne jamais utiliser, max 10.
+- "verbatims" : Les verbatims du persona, phrases exactes, max 5. Si pas de verbatims, tableau vide.
+- "major_fight" : Le combat principal. Nom court + description 1-2 phrases.
+- "minor_fights" : Les combats secondaires. Noms courts uniquement. Max 4.
+- Tout doit être ULTRA CONCIS (fiche visuelle)
+- Écriture inclusive avec point médian
+- JAMAIS de tiret cadratin (—)
+- Réponds UNIQUEMENT avec le JSON, rien d'autre`;
+      userPrompt = "Génère la synthèse structurée de mon ton et mes combats.";
+
     } else {
       return new Response(JSON.stringify({ error: "Type non reconnu" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
