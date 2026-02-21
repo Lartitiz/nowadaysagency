@@ -25,6 +25,7 @@ import InstagramHub from "./pages/InstagramHub";
 import InstagramBio from "./pages/InstagramBio";
 import InstagramHighlights from "./pages/InstagramHighlights";
 import InstagramInspiration from "./pages/InstagramInspiration";
+import InstagramInspirer from "./pages/InstagramInspirer";
 import InstagramLaunch from "./pages/InstagramLaunch";
 import InstagramRythme from "./pages/InstagramRythme";
 import InstagramEngagement from "./pages/InstagramEngagement";
@@ -146,6 +147,9 @@ const App = () => (
             } />
             <Route path="/instagram/inspiration" element={
               <ProtectedRoute><InstagramInspiration /></ProtectedRoute>
+            } />
+            <Route path="/instagram/inspirer" element={
+              <ProtectedRoute><InstagramInspirer /></ProtectedRoute>
             } />
             <Route path="/instagram/lancement" element={
               <ProtectedRoute><InstagramLaunch /></ProtectedRoute>
