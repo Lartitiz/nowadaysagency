@@ -130,11 +130,22 @@ export default function InstagramAudit() {
   const bestSpeech = useSpeechRecognition((t) => setBestContent((prev) => prev + " " + t));
   const worstSpeech = useSpeechRecognition((t) => setWorstContent((prev) => prev + " " + t));
 
+  const sanitizeFileName = (fileName: string): string => {
+    const ext = fileName.split('.').pop()?.toLowerCase() || 'png';
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 8);
+    return `upload-${timestamp}-${randomId}.${ext}`;
+  };
+
   const uploadFiles = async (files: File[], prefix: string) => {
     const urls: string[] = [];
     for (const file of files) {
-      const path = `${user!.id}/${prefix}-${Date.now()}-${file.name}`;
-      const { error } = await supabase.storage.from("audit-screenshots").upload(path, file);
+      const safeName = sanitizeFileName(file.name);
+      const path = `${user!.id}/${prefix}-${safeName}`;
+      const { error } = await supabase.storage.from("audit-screenshots").upload(path, file, {
+        contentType: file.type,
+        upsert: false,
+      });
       if (error) throw error;
       const { data } = supabase.storage.from("audit-screenshots").getPublicUrl(path);
       urls.push(data.publicUrl);
