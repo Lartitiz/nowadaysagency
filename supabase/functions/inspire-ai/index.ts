@@ -37,10 +37,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { source_text } = await req.json();
-    if (!source_text || source_text.trim().length < 20) {
+    const body = await req.json();
+    const { source_text, source_type, images, context } = body;
+
+    const isScreenshot = source_type === "screenshot";
+
+    if (!isScreenshot && (!source_text || source_text.trim().length < 20)) {
       return new Response(
         JSON.stringify({ error: "Contenu trop court (min 20 caractères)" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (isScreenshot && (!images || images.length === 0)) {
+      return new Response(
+        JSON.stringify({ error: "Aucun screenshot fourni" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -78,14 +89,29 @@ BRANDING DE L'UTILISATRICE :
 - Concept créatif : ${strat?.creative_concept || "Non renseigné"}
 `.trim();
 
+    let sourceBlock: string;
+    if (isScreenshot) {
+      sourceBlock = `CONTENU SOURCE : Screenshots uploadés par l'utilisatrice.
+${context ? `Contexte ajouté par l'utilisatrice : "${context}"` : "Pas de contexte supplémentaire."}
+
+IMPORTANT : Analyse le contenu VISIBLE sur les images :
+- Lis le texte visible (caption, slides de carrousel, texte sur les visuels)
+- Analyse la mise en page et le format (carrousel, reel, post photo, story)
+- Identifie le sujet, l'accroche, la structure
+- Si c'est un carrousel : analyse chaque slide visible
+- Si c'est un reel : analyse la miniature et le texte visible`;
+    } else {
+      sourceBlock = `CONTENU SOURCE (celui que l'utilisatrice a aimé) :
+"""
+${source_text}
+"""`;
+    }
+
     const systemPrompt = `Tu es experte en stratégie de contenu Instagram pour des solopreneuses créatives et éthiques.
 
 ${brandingContext}
 
-CONTENU SOURCE (celui que l'utilisatrice a aimé) :
-"""
-${source_text}
-"""
+${sourceBlock}
 
 ÉTAPE 1 : ANALYSE (courte et percutante)
 
@@ -143,6 +169,25 @@ Réponds UNIQUEMENT en JSON valide :
       });
     }
 
+    // Build messages: for screenshots, use vision model with image content parts
+    let messages: any[];
+    if (isScreenshot) {
+      const contentParts: any[] = [{ type: "text", text: systemPrompt }];
+      for (const img of images) {
+        // img is a data URL like "data:image/png;base64,..."
+        contentParts.push({
+          type: "image_url",
+          image_url: { url: img },
+        });
+      }
+      messages = [{ role: "user", content: contentParts }];
+    } else {
+      messages = [{ role: "user", content: systemPrompt }];
+    }
+
+    // Use a vision-capable model for screenshots
+    const model = isScreenshot ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash";
+
     const aiRes = await fetch("https://api.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -150,8 +195,8 @@ Réponds UNIQUEMENT en JSON valide :
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [{ role: "user", content: systemPrompt }],
+        model,
+        messages,
         temperature: 0.8,
       }),
     });

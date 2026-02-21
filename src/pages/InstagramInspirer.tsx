@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { Sparkles, Copy, Save, RefreshCw, ChevronDown, Eye, Trash2, Link2 } from "lucide-react";
+import { Sparkles, Copy, Save, RefreshCw, ChevronDown, Eye, Trash2, Link2, Upload, X, Mic, MicOff } from "lucide-react";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 
 interface Analysis {
   accroche: string;
@@ -41,6 +42,17 @@ interface HistoryItem {
   created_at: string;
 }
 
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_FILES = 5;
+
+function sanitizeFileName(fileName: string): string {
+  const ext = fileName.split(".").pop()?.toLowerCase() || "png";
+  const timestamp = Date.now();
+  const randomId = Math.random().toString(36).substring(2, 8);
+  return `upload-${timestamp}-${randomId}.${ext}`;
+}
+
 export default function InstagramInspirer() {
   const { user } = useAuth();
   const [tab, setTab] = useState("text");
@@ -53,6 +65,17 @@ export default function InstagramInspirer() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [viewingHistory, setViewingHistory] = useState<HistoryItem | null>(null);
+
+  // Screenshot state
+  const [files, setFiles] = useState<File[]>([]);
+  const [screenshotContext, setScreenshotContext] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Speech recognition for context field
+  const { isListening, isSupported, toggle: toggleMic } = useSpeechRecognition((text) => {
+    setScreenshotContext((prev) => (prev ? prev + " " + text : text));
+  });
 
   // Load history
   useEffect(() => {
@@ -91,17 +114,88 @@ export default function InstagramInspirer() {
     }
   };
 
-  const analyze = useCallback(async () => {
-    if (!user || !sourceText.trim() || sourceText.trim().length < 20) {
-      toast.error("Colle au moins 20 caractères de contenu.");
-      return;
+  // File handling
+  const addFiles = (newFiles: FileList | File[]) => {
+    const valid: File[] = [];
+    for (const f of Array.from(newFiles)) {
+      if (!ACCEPTED_TYPES.includes(f.type)) {
+        toast.error(`Format non accepté : ${f.name}`);
+        continue;
+      }
+      if (f.size > MAX_FILE_SIZE) {
+        toast.error(`Fichier trop lourd (max 10 Mo) : ${f.name}`);
+        continue;
+      }
+      valid.push(f);
     }
+    setFiles((prev) => {
+      const combined = [...prev, ...valid].slice(0, MAX_FILES);
+      if (prev.length + valid.length > MAX_FILES) {
+        toast.error(`Maximum ${MAX_FILES} fichiers.`);
+      }
+      return combined;
+    });
+  };
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files);
+  };
+
+  // Convert file to base64 data URL
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const analyze = useCallback(async () => {
+    const isScreenshot = tab === "screenshot";
+
+    if (isScreenshot) {
+      if (files.length === 0) {
+        toast.error("Ajoute au moins un screenshot.");
+        return;
+      }
+    } else {
+      if (!user || !sourceText.trim() || sourceText.trim().length < 20) {
+        toast.error("Colle au moins 20 caractères de contenu.");
+        return;
+      }
+    }
+
     setLoading(true);
     setResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("inspire-ai", {
-        body: { source_text: sourceText.trim() },
-      });
+      let body: any;
+
+      if (isScreenshot) {
+        // Convert images to base64
+        const imageData: string[] = [];
+        for (const f of files) {
+          if (f.type.startsWith("image/")) {
+            const b64 = await fileToBase64(f);
+            imageData.push(b64);
+          }
+        }
+        body = {
+          source_type: "screenshot",
+          images: imageData,
+          context: screenshotContext.trim() || undefined,
+        };
+      } else {
+        body = { source_text: sourceText.trim() };
+      }
+
+      const { data, error } = await supabase.functions.invoke("inspire-ai", { body });
       if (error || data?.error) {
         toast.error(data?.error || "Erreur lors de l'analyse");
         return;
@@ -114,8 +208,10 @@ export default function InstagramInspirer() {
       const { data: saved } = await supabase
         .from("instagram_inspirations")
         .insert({
-          user_id: user.id,
-          source_text: sourceText.trim(),
+          user_id: user!.id,
+          source_text: isScreenshot
+            ? `[Screenshots: ${files.map((f) => f.name).join(", ")}]${screenshotContext ? ` — ${screenshotContext}` : ""}`
+            : sourceText.trim(),
           source_url: sourceUrl.trim() || null,
           analysis: r.analysis as any,
           adapted_content: r.adapted_content,
@@ -134,7 +230,7 @@ export default function InstagramInspirer() {
     } finally {
       setLoading(false);
     }
-  }, [user, sourceText, sourceUrl]);
+  }, [user, sourceText, sourceUrl, tab, files, screenshotContext]);
 
   const copyContent = () => {
     navigator.clipboard.writeText(editedContent);
@@ -185,6 +281,11 @@ export default function InstagramInspirer() {
     }
   };
 
+  const canAnalyze =
+    tab === "screenshot"
+      ? files.length > 0
+      : sourceText.trim().length >= 20;
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -203,6 +304,7 @@ export default function InstagramInspirer() {
               <TabsList className="mb-4">
                 <TabsTrigger value="text">📝 Coller un texte</TabsTrigger>
                 <TabsTrigger value="link">🔗 Coller un lien</TabsTrigger>
+                <TabsTrigger value="screenshot">📸 Screenshot</TabsTrigger>
               </TabsList>
 
               <TabsContent value="text">
@@ -234,13 +336,98 @@ export default function InstagramInspirer() {
                   {fetchingLink ? "Récupération..." : "Récupérer le contenu"}
                 </Button>
               </TabsContent>
+
+              <TabsContent value="screenshot">
+                {/* Drop zone */}
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
+                    dragging
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/40"
+                  }`}
+                >
+                  <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm font-medium text-foreground">
+                    Glisse tes screenshots ici
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Post, carrousel, reel, story… (max {MAX_FILES} fichiers, 10 Mo chacun)
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    JPG, PNG, WebP, PDF
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp,.pdf"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
+                  />
+                </div>
+
+                {/* File previews */}
+                {files.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {files.map((f, i) => (
+                      <div key={i} className="relative group">
+                        {f.type.startsWith("image/") ? (
+                          <img
+                            src={URL.createObjectURL(f)}
+                            alt={f.name}
+                            className="h-20 w-20 rounded-lg object-cover border border-border"
+                          />
+                        ) : (
+                          <div className="h-20 w-20 rounded-lg border border-border bg-muted flex items-center justify-center text-xs text-muted-foreground">
+                            PDF
+                          </div>
+                        )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Context textarea */}
+                <div className="mt-3 relative">
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                    Contexte (optionnel)
+                  </label>
+                  <Textarea
+                    className="min-h-[80px]"
+                    placeholder="C'est un carrousel d'une créatrice bijoux, il a eu 500 likes..."
+                    value={screenshotContext}
+                    onChange={(e) => setScreenshotContext(e.target.value)}
+                  />
+                  {isSupported && (
+                    <button
+                      type="button"
+                      onClick={toggleMic}
+                      className={`absolute right-3 bottom-3 p-1.5 rounded-lg transition-colors ${
+                        isListening ? "bg-primary text-primary-foreground animate-pulse" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    </button>
+                  )}
+                </div>
+              </TabsContent>
             </Tabs>
 
             <Button
               className="mt-4 w-full"
               size="lg"
               onClick={analyze}
-              disabled={loading || sourceText.trim().length < 20}
+              disabled={loading || !canAnalyze}
             >
               <Sparkles className="h-4 w-4 mr-2" />
               {loading ? "Analyse en cours..." : "Analyser et adapter à mon univers"}
@@ -276,15 +463,9 @@ export default function InstagramInspirer() {
                   onChange={(e) => setEditedContent(e.target.value)}
                 />
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  {result.format && (
-                    <Badge variant="secondary">Format : {result.format}</Badge>
-                  )}
-                  {result.objective && (
-                    <Badge variant="secondary">Objectif : {result.objective}</Badge>
-                  )}
-                  {result.pillar && (
-                    <Badge variant="secondary">Pilier : {result.pillar}</Badge>
-                  )}
+                  {result.format && <Badge variant="secondary">Format : {result.format}</Badge>}
+                  {result.objective && <Badge variant="secondary">Objectif : {result.objective}</Badge>}
+                  {result.pillar && <Badge variant="secondary">Pilier : {result.pillar}</Badge>}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -294,12 +475,7 @@ export default function InstagramInspirer() {
                   <Button variant="outline" size="sm" onClick={saveToIdeas}>
                     <Save className="h-4 w-4 mr-1" /> Sauvegarder dans mes idées
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={analyze}
-                    disabled={loading}
-                  >
+                  <Button variant="outline" size="sm" onClick={analyze} disabled={loading}>
                     <RefreshCw className="h-4 w-4 mr-1" /> Regénérer
                   </Button>
                 </div>
@@ -317,10 +493,7 @@ export default function InstagramInspirer() {
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-3 space-y-2">
               {history.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between rounded-lg border border-border bg-card p-3"
-                >
+                <div key={item.id} className="flex items-center justify-between rounded-lg border border-border bg-card p-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">
                       {new Date(item.created_at).toLocaleDateString("fr-FR")}
@@ -330,30 +503,18 @@ export default function InstagramInspirer() {
                     </p>
                   </div>
                   <div className="flex gap-1 ml-3 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => viewHistoryItem(item)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => viewHistoryItem(item)}>
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        if (item.adapted_content) {
-                          navigator.clipboard.writeText(item.adapted_content);
-                          toast.success("Copié !");
-                        }
-                      }}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      if (item.adapted_content) {
+                        navigator.clipboard.writeText(item.adapted_content);
+                        toast.success("Copié !");
+                      }
+                    }}>
                       <Copy className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => deleteHistoryItem(item.id)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => deleteHistoryItem(item.id)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
