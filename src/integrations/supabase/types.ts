@@ -733,6 +733,68 @@ export type Database = {
         }
         Relationships: []
       }
+      launch_plan_contents: {
+        Row: {
+          accroche: string | null
+          added_to_calendar: boolean | null
+          content_date: string
+          contenu: string | null
+          created_at: string
+          format: string | null
+          id: string
+          is_edited: boolean | null
+          launch_id: string
+          objectif: string | null
+          phase: string
+          sort_order: number | null
+          tip: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accroche?: string | null
+          added_to_calendar?: boolean | null
+          content_date: string
+          contenu?: string | null
+          created_at?: string
+          format?: string | null
+          id?: string
+          is_edited?: boolean | null
+          launch_id: string
+          objectif?: string | null
+          phase: string
+          sort_order?: number | null
+          tip?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accroche?: string | null
+          added_to_calendar?: boolean | null
+          content_date?: string
+          contenu?: string | null
+          created_at?: string
+          format?: string | null
+          id?: string
+          is_edited?: boolean | null
+          launch_id?: string
+          objectif?: string | null
+          phase?: string
+          sort_order?: number | null
+          tip?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "launch_plan_contents_launch_id_fkey"
+            columns: ["launch_id"]
+            isOneToOne: false
+            referencedRelation: "launches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       launches: {
         Row: {
           created_at: string

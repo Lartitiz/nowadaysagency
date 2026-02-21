@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Copy, Sparkles } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
@@ -112,6 +113,7 @@ function DateField({ label, value, onChange }: { label: string; value: string | 
 
 export default function InstagramLaunch() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [launch, setLaunch] = useState<LaunchData>({ ...EMPTY_LAUNCH });
   const [saving, setSaving] = useState(false);
@@ -475,7 +477,7 @@ export default function InstagramLaunch() {
               Suivant <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           ) : (
-            <Button onClick={async () => { const newLaunch = { ...launch, status: "active" }; setLaunch(newLaunch); setSaving(true); try { const payload = { user_id: user!.id, name: newLaunch.name, promise: newLaunch.promise, objections: newLaunch.objections, free_resource: newLaunch.free_resource, teasing_start: newLaunch.teasing_start, teasing_end: newLaunch.teasing_end, sale_start: newLaunch.sale_start, sale_end: newLaunch.sale_end, selected_contents: newLaunch.selected_contents, status: "active" }; if (newLaunch.id) { await supabase.from("launches").update(payload).eq("id", newLaunch.id); } else { const { data } = await supabase.from("launches").insert(payload).select().single(); if (data) setLaunch(prev => ({ ...prev, id: data.id })); } toast.success("Lancement activé ! 🚀"); } catch { toast.error("Erreur lors de la sauvegarde"); } finally { setSaving(false); } }}>
+            <Button onClick={async () => { const newLaunch = { ...launch, status: "active" }; setLaunch(newLaunch); setSaving(true); try { const payload = { user_id: user!.id, name: newLaunch.name, promise: newLaunch.promise, objections: newLaunch.objections, free_resource: newLaunch.free_resource, teasing_start: newLaunch.teasing_start, teasing_end: newLaunch.teasing_end, sale_start: newLaunch.sale_start, sale_end: newLaunch.sale_end, selected_contents: newLaunch.selected_contents, status: "active" }; if (newLaunch.id) { await supabase.from("launches").update(payload).eq("id", newLaunch.id); } else { const { data } = await supabase.from("launches").insert(payload).select().single(); if (data) setLaunch(prev => ({ ...prev, id: data.id })); } navigate("/instagram/lancement/plan"); } catch { toast.error("Erreur lors de la sauvegarde"); } finally { setSaving(false); } }}>
               🚀 Lancer
             </Button>
           )}
