@@ -34,6 +34,7 @@ import InstagramProfileEdito from "./pages/InstagramProfileEdito";
 import InstagramInspirer from "./pages/InstagramInspirer";
 import InstagramLaunch from "./pages/InstagramLaunch";
 import InstagramLaunchPlan from "./pages/InstagramLaunchPlan";
+import InstagramLaunchRecommendation from "./pages/InstagramLaunchRecommendation";
 import InstagramRythme from "./pages/InstagramRythme";
 import InstagramEngagement from "./pages/InstagramEngagement";
 import AtelierPage from "./pages/AtelierPage";
@@ -114,6 +115,7 @@ const App = () => (
             <Route path="/instagram/inspirer" element={<ProtectedRoute><InstagramInspirer /></ProtectedRoute>} />
             <Route path="/instagram/lancement" element={<ProtectedRoute><InstagramLaunch /></ProtectedRoute>} />
             <Route path="/instagram/lancement/plan" element={<ProtectedRoute><InstagramLaunchPlan /></ProtectedRoute>} />
+            <Route path="/instagram/lancement/recommandation" element={<ProtectedRoute><InstagramLaunchRecommendation /></ProtectedRoute>} />
             <Route path="/instagram/rythme" element={<ProtectedRoute><InstagramRythme /></ProtectedRoute>} />
             <Route path="/instagram/engagement" element={<ProtectedRoute><InstagramEngagement /></ProtectedRoute>} />
             {/* Redirects from old routes */}
