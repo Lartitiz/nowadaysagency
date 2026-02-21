@@ -37,8 +37,6 @@ export default function InstagramBio() {
   const [generating, setGenerating] = useState(false);
   const [bioResult, setBioResult] = useState<BioResult | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"guide" | "generator">("guide");
-  const [guideOption, setGuideOption] = useState<"structured" | "creative">("structured");
 
   useEffect(() => {
     if (!user) return;
@@ -72,7 +70,7 @@ export default function InstagramBio() {
         else throw new Error("Format de réponse inattendu");
       }
       setBioResult(parsed);
-      setActiveTab("generator");
+      
     } catch (e: any) {
       toast({ title: "Erreur", description: e.message, variant: "destructive" });
     } finally {
@@ -110,181 +108,22 @@ export default function InstagramBio() {
           Ta bio, c'est ta première impression. Elle doit montrer en quelques mots : à qui tu t'adresses, ce que tu proposes, ce qui te rend unique, et où cliquer.
         </p>
 
-        {/* Tabs */}
-        <div className="flex gap-1 rounded-pill bg-rose-pale p-1 mb-8 w-fit">
-          <button
-            onClick={() => setActiveTab("guide")}
-            className={`rounded-pill px-5 py-2 text-sm font-medium transition-all ${
-              activeTab === "guide" ? "bg-card text-foreground shadow-sm" : "text-foreground hover:bg-secondary"
-            }`}
-          >
-            Le guide
-          </button>
-          <button
-            onClick={() => setActiveTab("generator")}
-            className={`rounded-pill px-5 py-2 text-sm font-medium transition-all ${
-              activeTab === "generator" ? "bg-card text-foreground shadow-sm" : "text-foreground hover:bg-secondary"
-            }`}
-          >
-            Le générateur
-          </button>
+        {/* Tip */}
+        <div className="rounded-2xl border-l-4 border-l-primary bg-rose-pale p-5 mb-8">
+          <span className="inline-block font-mono-ui text-[11px] font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-3 py-1 rounded-pill mb-2">
+            📖 Guide
+          </span>
+          <p className="text-sm text-foreground leading-relaxed">
+            💡 Une bonne bio Instagram tient en 4 lignes :<br />
+            1. Ce que tu proposes<br />
+            2. Ce qui te rend unique<br />
+            3. Pour qui<br />
+            4. Un appel à l'action (lien, DM, inscription...)
+          </p>
         </div>
 
-        {/* GUIDE TAB */}
-        {activeTab === "guide" && (
-          <div className="space-y-6 animate-fade-in">
-            {/* Option selector */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setGuideOption("structured")}
-                className={`flex-1 rounded-2xl border p-5 text-left transition-all ${
-                  guideOption === "structured"
-                    ? "border-primary bg-rose-pale shadow-sm"
-                    : "border-border bg-card hover:border-primary/40"
-                }`}
-              >
-                <h3 className="font-display text-lg font-bold text-foreground">Bio structurée & claire</h3>
-                <p className="text-sm text-muted-foreground mt-1">Un format ligne par ligne, efficace et lisible.</p>
-              </button>
-              <button
-                onClick={() => setGuideOption("creative")}
-                className={`flex-1 rounded-2xl border p-5 text-left transition-all ${
-                  guideOption === "creative"
-                    ? "border-primary bg-rose-pale shadow-sm"
-                    : "border-border bg-card hover:border-primary/40"
-                }`}
-              >
-                <h3 className="font-display text-lg font-bold text-foreground">Bio créative & incarnée</h3>
-                <p className="text-sm text-muted-foreground mt-1">Un ton plus libre, poétique, avec de la personnalité.</p>
-              </button>
-            </div>
-
-            {/* Guide content */}
-            {guideOption === "structured" ? (
-              <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
-                <span className="inline-block font-mono-ui text-[11px] font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-3 py-1 rounded-pill mb-1">
-                  📖 Guide — Ceci est un exemple, pas un formulaire
-                </span>
-                <h3 className="font-display text-xl font-bold">Le format structuré</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  👇 Voici un exemple de bio bien structurée. Chaque ligne a un rôle précis. Inspire-toi de ce modèle pour écrire la tienne dans le générateur ci-dessous.
-                </p>
-
-                <div className="space-y-4">
-                  <BioGuideLine
-                    label="Nom du profil"
-                    explanation="Ajoute un mot-clé à côté de ton prénom pour être trouvée en recherche."
-                    example='Lucie | Céramique slow & solaire'
-                  />
-                  <BioGuideLine
-                    label="Ligne 1 : Ce que tu proposes"
-                    explanation="Décris ton offre ou ta mission principale. Commence par un emoji."
-                    example='🌿 Objets du quotidien en céramique artisanale'
-                  />
-                  <BioGuideLine
-                    label="Ligne 2 : Ce qui te rend unique"
-                    explanation="Ton positionnement, tes valeurs, ta différence."
-                    example='🌞 Faits main en Bourgogne, pièces uniques & durables'
-                  />
-                  <BioGuideLine
-                    label="Ligne 3 : Appel à l'action"
-                    explanation="Dis à ta visiteuse quoi faire : cliquer, s'inscrire, découvrir."
-                    example='📦 Nouvelle collection en ligne ⤵️'
-                  />
-                </div>
-
-                {/* Visual preview */}
-                <div className="mt-6">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Aperçu visuel</p>
-                  <BioPreview
-                    nom="Lucie | Céramique slow & solaire"
-                    lines={[
-                      "🌿 Objets du quotidien en céramique artisanale",
-                      "🌞 Faits main en Bourgogne, pièces uniques & durables",
-                      "📦 Nouvelle collection en ligne ⤵️",
-                    ]}
-                  />
-                </div>
-
-                {/* CTA to write */}
-                <button
-                  onClick={() => setActiveTab("generator")}
-                  className="w-full text-center text-sm font-semibold text-primary hover:underline mt-4"
-                >
-                  ✍️ Maintenant, écris la tienne →
-                </button>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
-                <span className="inline-block font-mono-ui text-[11px] font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-3 py-1 rounded-pill mb-1">
-                  📖 Guide — Ceci est un exemple, pas un formulaire
-                </span>
-                <h3 className="font-display text-xl font-bold">Le format créatif</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  👇 Voici un exemple de bio créative. Même structure de fond, mais avec un ton plus personnel. Inspire-toi de ce modèle pour écrire la tienne dans le générateur.
-                </p>
-
-                <div className="space-y-4">
-                  <BioGuideLine
-                    label="Nom du profil"
-                    explanation="Joue avec les mots ou utilise un titre décalé."
-                    example='Lucie 🌻 celle qui fait parler la terre'
-                  />
-                  <BioGuideLine
-                    label="Ligne 1 : Ta promesse poétique"
-                    explanation="Décris ce que tu fais avec tes mots à toi, pas un pitch corporate."
-                    example='Je transforme la terre en petits bonheurs du matin'
-                  />
-                  <BioGuideLine
-                    label="Ligne 2 : Ta touche perso"
-                    explanation="Un détail qui montre qui tu es : humour, valeur, anecdote."
-                    example='Accro au café, allergique au plastique'
-                  />
-                  <BioGuideLine
-                    label="Ligne 3 : Invitation douce"
-                    explanation="Un appel à l'action qui donne envie sans forcer."
-                    example={"✨ Rejoins la liste d\u2019attente ⤵️"}
-                  />
-                </div>
-
-                <div className="mt-6">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Aperçu visuel</p>
-                  <BioPreview
-                    nom="Lucie 🌻 celle qui fait parler la terre"
-                    lines={[
-                      "Je transforme la terre en petits bonheurs du matin",
-                      "Accro au café, allergique au plastique",
-                      "✨ Rejoins la liste d\u2019attente ⤵️",
-                    ]}
-                  />
-                </div>
-
-                <button
-                  onClick={() => setActiveTab("generator")}
-                  className="w-full text-center text-sm font-semibold text-primary hover:underline mt-4"
-                >
-                  ✍️ Maintenant, écris la tienne →
-                </button>
-              </div>
-            )}
-
-            {/* CTA to generator */}
-            <div className="rounded-2xl border-l-4 border-l-primary bg-rose-pale p-5 flex items-center justify-between gap-4 flex-wrap">
-              <div>
-                <p className="text-sm font-medium text-foreground">Envie qu'on t'écrive ta bio ?</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Le générateur utilise ton profil pour créer 2 versions personnalisées.</p>
-              </div>
-              <Button onClick={handleGenerate} disabled={generating} className="rounded-pill gap-2 shrink-0">
-                <Sparkles className="h-4 w-4" />
-                {generating ? "Génération..." : "Générer ma bio"}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* GENERATOR TAB */}
-        {activeTab === "generator" && (
-          <div className="space-y-6 animate-fade-in">
+        {/* GENERATOR */}
+        <div className="space-y-6 animate-fade-in">
             {!bioResult && !generating && (
               <div className="rounded-2xl border border-border bg-card p-8 text-center">
                 <Sparkles className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
@@ -365,27 +204,11 @@ export default function InstagramBio() {
               </div>
             )}
           </div>
-        )}
       </main>
     </div>
   );
 }
 
-function BioGuideLine({ label, explanation, example }: { label: string; explanation: string; example: string }) {
-  return (
-    <div className="rounded-xl bg-muted/50 p-4">
-      <p className="text-sm font-bold text-foreground">{label}</p>
-      <p className="text-sm text-muted-foreground mt-1">{explanation}</p>
-      <p
-        className="text-sm mt-2 italic text-[#6B5E7B] bg-rose-pale border-l-[3px] border-l-primary rounded-r-lg px-4 py-3 cursor-default select-text"
-        style={{ pointerEvents: "none" }}
-      >
-        <span className="not-italic font-mono-ui text-[10px] uppercase text-muted-foreground mr-1.5">Ex :</span>
-        {example}
-      </p>
-    </div>
-  );
-}
 
 function BioPreview({ nom, lines }: { nom: string; lines: string[] }) {
   return (
