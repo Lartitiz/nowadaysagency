@@ -336,7 +336,43 @@ Réponds en JSON :
         userPrompt = "Rédige le post complet.";
 
       } else if (type === "instagram-audit") {
-        const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, successNotes: sn, failNotes: fn, profileUrl: pu } = body;
+        const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, successNotes: sn, failNotes: fn, profileUrl: pu, successPostsData, failPostsData } = body;
+
+        // Build structured post descriptions for AI
+        let successPostsBlock = "";
+        if (successPostsData && successPostsData.length > 0) {
+          successPostsBlock = "\nPOSTS QUI MARCHENT (données structurées) :\n" + successPostsData.map((p: any, i: number) => {
+            const parts = [`Post ${i + 1}`];
+            if (p.format) parts.push(`Format : ${p.format}`);
+            if (p.subject) parts.push(`Sujet : "${p.subject}"`);
+            const stats = [];
+            if (p.likes) stats.push(`likes: ${p.likes}`);
+            if (p.saves) stats.push(`saves: ${p.saves}`);
+            if (p.shares) stats.push(`partages: ${p.shares}`);
+            if (p.comments) stats.push(`commentaires: ${p.comments}`);
+            if (p.reach) stats.push(`reach: ${p.reach}`);
+            if (stats.length) parts.push(`Stats : ${stats.join(", ")}`);
+            return `- ${parts.join(" · ")}`;
+          }).join("\n");
+        }
+
+        let failPostsBlock = "";
+        if (failPostsData && failPostsData.length > 0) {
+          failPostsBlock = "\nPOSTS QUI NE MARCHENT PAS (données structurées) :\n" + failPostsData.map((p: any, i: number) => {
+            const parts = [`Post ${i + 1}`];
+            if (p.format) parts.push(`Format : ${p.format}`);
+            if (p.subject) parts.push(`Sujet : "${p.subject}"`);
+            const stats = [];
+            if (p.likes) stats.push(`likes: ${p.likes}`);
+            if (p.saves) stats.push(`saves: ${p.saves}`);
+            if (p.shares) stats.push(`partages: ${p.shares}`);
+            if (p.comments) stats.push(`commentaires: ${p.comments}`);
+            if (p.reach) stats.push(`reach: ${p.reach}`);
+            if (stats.length) parts.push(`Stats : ${stats.join(", ")}`);
+            return `- ${parts.join(" · ")}`;
+          }).join("\n");
+        }
+
         systemPrompt = `${CORE_PRINCIPLES}
 
 RÉPONSES DE L'UTILISATRICE :
@@ -348,11 +384,11 @@ ${pu ? `- URL du profil : ${pu}` : ""}
 
 CONTENUS QUI ONT BIEN MARCHÉ :
 Commentaire de l'utilisatrice : "${sn || "non renseigné"}"
-(Des screenshots/PDF de ces contenus ont été fournis en pièces jointes si disponibles)
+${successPostsBlock}
 
 CONTENUS QUI N'ONT PAS MARCHÉ :
 Commentaire de l'utilisatrice : "${fn || "non renseigné"}"
-(Des screenshots/PDF de ces contenus ont été fournis en pièces jointes si disponibles)
+${failPostsBlock}
 
 ${brandingContext}
 
@@ -360,20 +396,54 @@ Analyse le profil Instagram et compare avec le branding. Pour chaque section, do
 
 SECTIONS : nom, bio, stories (à la une), epingles (posts épinglés), feed (cohérence visuelle), edito (ligne éditoriale).
 
-ANALYSE DES CONTENUS PERFORMANTS :
+ANALYSE DE PERFORMANCE DES CONTENUS :
 - Identifie les POINTS COMMUNS des contenus qui marchent (format, sujet, ton, accroche, présence de visage, longueur...)
 - Identifie les POINTS COMMUNS des contenus qui ne marchent pas
 - Compare avec les piliers de contenu et le ton définis dans le branding
-- Déduis des recommandations concrètes : "Fais plus de [X], arrête [Y], transforme [Z] en [W]"
-Intègre cette analyse dans la section "edito" de l'audit.
+- Calcule les taux d'engagement si les stats sont fournies
+- Identifie minimum 2-3 patterns positifs et 1-2 patterns négatifs
+- Le "combo gagnant" est LA combinaison format × angle qui performe le mieux
 
 Score global = moyenne pondérée : Bio 25%, Stories 20%, Épinglés 15%, Nom 10%, Feed 15%, Édito 15%.
 
 Sois directe mais bienveillante. Compare TOUJOURS avec le branding.
 
 Réponds en JSON :
-{"score_global": 62, "resume": "...", "sections": {"nom": {"score": 70, "diagnostic": "...", "recommandations": ["..."], "comparaison_branding": "..."}, "bio": {...}, "stories": {...}, "epingles": {...}, "feed": {...}, "edito": {...}}}`;
-        userPrompt = "Analyse mon profil Instagram et donne-moi un audit complet.";
+{
+  "score_global": 62,
+  "resume": "...",
+  "sections": {
+    "nom": {"score": 70, "diagnostic": "...", "recommandations": ["..."], "comparaison_branding": "..."},
+    "bio": {"score": 0, "diagnostic": "...", "recommandations": ["..."]},
+    "stories": {"score": 0, "diagnostic": "...", "recommandations": ["..."]},
+    "epingles": {"score": 0, "diagnostic": "...", "recommandations": ["..."]},
+    "feed": {"score": 0, "diagnostic": "...", "recommandations": ["..."]},
+    "edito": {"score": 0, "diagnostic": "...", "recommandations": ["..."]}
+  },
+  "content_analysis": {
+    "patterns_positifs": [
+      {"number": 1, "title": "...", "explanation": "...", "metric_highlight": "...", "posts_concerned": ["..."]}
+    ],
+    "patterns_negatifs": [
+      {"number": 1, "title": "...", "explanation": "...", "alternative": "..."}
+    ]
+  },
+  "content_dna": [
+    {"type": "Storytelling perso", "emoji": "📖", "rating": 5, "verdict": "ton_arme"},
+    {"type": "Carrousel", "emoji": "📑", "rating": 4, "verdict": "continue"}
+  ],
+  "combo_gagnant": "Carrousel + Storytelling perso",
+  "editorial_recommendations": {
+    "recommended_mix": {"storytelling": 40, "opinion": 30, "coulisses": 20, "educatif": 10},
+    "best_format": "carrousel",
+    "best_angle": "storytelling_personnel",
+    "best_content_types": ["storytelling", "prise_de_position"],
+    "worst_content_types": ["educatif_liste"],
+    "reel_advice": "...",
+    "general_advice": "..."
+  }
+}`;
+        userPrompt = "Analyse mon profil Instagram et donne-moi un audit complet avec analyse de performance des contenus.";
 
       } else if (type === "instagram-nom") {
         systemPrompt = `${CORE_PRINCIPLES}\n\n${brandingContext}\n\nPropose exactement 3 noms de profil Instagram optimisés pour cette utilisatrice. Chaque nom doit contenir un mot-clé lié à son activité pour la recherche (Instagram SEO).\n\nFormats :\n1. [Prénom] | [Activité mot-clé]\n2. [Prénom] | [Bénéfice principal]\n3. [Nom de marque] | [Activité]\n\nRéponds UNIQUEMENT en JSON : ["nom 1", "nom 2", "nom 3"]`;

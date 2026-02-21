@@ -840,9 +840,13 @@ export type Database = {
       instagram_audit: {
         Row: {
           best_content: string | null
+          combo_gagnant: string | null
+          content_analysis: Json | null
+          content_dna: Json | null
           created_at: string
           current_rhythm: string | null
           details: Json | null
+          editorial_recommendations: Json | null
           id: string
           main_objective: string | null
           profile_url: string | null
@@ -861,9 +865,13 @@ export type Database = {
         }
         Insert: {
           best_content?: string | null
+          combo_gagnant?: string | null
+          content_analysis?: Json | null
+          content_dna?: Json | null
           created_at?: string
           current_rhythm?: string | null
           details?: Json | null
+          editorial_recommendations?: Json | null
           id?: string
           main_objective?: string | null
           profile_url?: string | null
@@ -882,9 +890,13 @@ export type Database = {
         }
         Update: {
           best_content?: string | null
+          combo_gagnant?: string | null
+          content_analysis?: Json | null
+          content_dna?: Json | null
           created_at?: string
           current_rhythm?: string | null
           details?: Json | null
+          editorial_recommendations?: Json | null
           id?: string
           main_objective?: string | null
           profile_url?: string | null
@@ -903,8 +915,71 @@ export type Database = {
         }
         Relationships: []
       }
+      instagram_audit_posts: {
+        Row: {
+          ai_analysis: string | null
+          audit_id: string | null
+          comments: number | null
+          created_at: string
+          format: string | null
+          id: string
+          likes: number | null
+          performance: string
+          reach: number | null
+          saves: number | null
+          screenshot_url: string | null
+          shares: number | null
+          subject: string | null
+          user_explanation: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_analysis?: string | null
+          audit_id?: string | null
+          comments?: number | null
+          created_at?: string
+          format?: string | null
+          id?: string
+          likes?: number | null
+          performance?: string
+          reach?: number | null
+          saves?: number | null
+          screenshot_url?: string | null
+          shares?: number | null
+          subject?: string | null
+          user_explanation?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_analysis?: string | null
+          audit_id?: string | null
+          comments?: number | null
+          created_at?: string
+          format?: string | null
+          id?: string
+          likes?: number | null
+          performance?: string
+          reach?: number | null
+          saves?: number | null
+          screenshot_url?: string | null
+          shares?: number | null
+          subject?: string | null
+          user_explanation?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_audit_posts_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "instagram_audit"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instagram_editorial_line: {
         Row: {
+          content_insights: Json | null
           created_at: string
           do_more: string | null
           estimated_weekly_minutes: number | null
@@ -926,6 +1001,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          content_insights?: Json | null
           created_at?: string
           do_more?: string | null
           estimated_weekly_minutes?: number | null
@@ -947,6 +1023,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          content_insights?: Json | null
           created_at?: string
           do_more?: string | null
           estimated_weekly_minutes?: number | null
