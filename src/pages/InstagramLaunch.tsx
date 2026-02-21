@@ -475,7 +475,7 @@ export default function InstagramLaunch() {
               Suivant <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           ) : (
-            <Button onClick={() => { update("status", "active"); save(); }}>
+            <Button onClick={async () => { const newLaunch = { ...launch, status: "active" }; setLaunch(newLaunch); setSaving(true); try { const payload = { user_id: user!.id, name: newLaunch.name, promise: newLaunch.promise, objections: newLaunch.objections, free_resource: newLaunch.free_resource, teasing_start: newLaunch.teasing_start, teasing_end: newLaunch.teasing_end, sale_start: newLaunch.sale_start, sale_end: newLaunch.sale_end, selected_contents: newLaunch.selected_contents, status: "active" }; if (newLaunch.id) { await supabase.from("launches").update(payload).eq("id", newLaunch.id); } else { const { data } = await supabase.from("launches").insert(payload).select().single(); if (data) setLaunch(prev => ({ ...prev, id: data.id })); } toast.success("Lancement activé ! 🚀"); } catch { toast.error("Erreur lors de la sauvegarde"); } finally { setSaving(false); } }}>
               🚀 Lancer
             </Button>
           )}
