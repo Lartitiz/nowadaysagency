@@ -177,10 +177,26 @@ Réponds UNIQUEMENT en JSON valide :
     if (isScreenshot) {
       const contentParts: any[] = [{ type: "text", text: systemPrompt }];
       for (const img of images) {
-        contentParts.push({
-          type: "image_url",
-          image_url: { url: img },
-        });
+        // Support both old format (string) and new format ({data, type})
+        const imgUrl = typeof img === "string" ? img : img.data;
+        const mediaType = typeof img === "string" ? undefined : img.type;
+
+        if (mediaType === "application/pdf") {
+          // Extract base64 data from data URL
+          const base64Data = imgUrl.includes(",") ? imgUrl.split(",")[1] : imgUrl;
+          contentParts.push({
+            type: "file",
+            file: {
+              filename: "document.pdf",
+              file_data: `data:application/pdf;base64,${base64Data}`,
+            },
+          });
+        } else {
+          contentParts.push({
+            type: "image_url",
+            image_url: { url: imgUrl },
+          });
+        }
       }
       messages = [{ role: "user", content: contentParts }];
     } else {
