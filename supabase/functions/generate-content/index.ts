@@ -386,6 +386,21 @@ Réponds en JSON :
         systemPrompt = `Tu es experte en stratégie de contenu Instagram pour des solopreneuses éthiques.\n\n${brandingContext}\n\nCrée une ligne éditoriale personnalisée. Réponds en JSON :\n{"main_objective": "...", "recommended_rhythm": "X posts/semaine + Y stories/semaine", "pillar_distribution": {"pilier1": 40, "pilier2": 25, "pilier3": 20, "Perso/coulisses": 15}, "preferred_formats": ["carrousel éducatif", "reel coulisses", "post storytelling"], "stop_doing": "...", "do_more": "..."}\n\nÉcriture inclusive, JAMAIS de tiret cadratin.`;
         userPrompt = "Crée ma ligne éditoriale Instagram personnalisée.";
 
+      } else if (type === "instagram-edito-pillars") {
+        const p = profile;
+        systemPrompt = `Tu es experte en stratégie de contenu Instagram.\n\nObjectif : ${p?.objective || "?"}\nRythme : ${p?.posts_frequency || "?"}\nPiliers actuels : ${(p?.pillars || []).join(", ") || "aucun"}\n\nPropose une répartition optimale des piliers de contenu. Réponds UNIQUEMENT en JSON :\n{"pillars": [{"name": "...", "description": "...", "percentage": 40, "is_major": true}, ...]}\n\nLe total doit faire 100%. Maximum 5 piliers.`;
+        userPrompt = "Suggère une répartition de piliers.";
+
+      } else if (type === "instagram-edito-formats") {
+        const p = profile;
+        systemPrompt = `Tu es experte en stratégie de contenu Instagram.\n\nObjectif : ${p?.objective || "?"}\nPiliers : ${(p?.pillars || []).join(", ") || "?"}\nRythme : ${p?.posts_frequency || "?"}\n\nRecommande les formats les plus pertinents parmi cette liste : Carrousel éducatif, Post photo + caption longue, Post photo + caption courte, Reel face cam, Reel montage/transitions, Reel coulisses, Story face cam, Story texte/sondage, Live, Collaboration / post invité.\n\nRéponds UNIQUEMENT en JSON :\n{"formats": ["format1", "format2", ...]}`;
+        userPrompt = "Suggère des formats.";
+
+      } else if (type === "instagram-rhythm-adapt") {
+        const p = profile;
+        systemPrompt = `Tu es experte en organisation de contenu Instagram pour solopreneuses.\n\nL'utilisatrice a ${p?.time_available || "?"} par semaine (${p?.available_minutes || 0} minutes).\nSon rythme actuel : ${p?.current_posts || "?"} posts + stories ${p?.current_stories || "?"}.\nFormats préférés : ${(p?.preferred_formats || []).join(", ") || "aucun"}.\nTemps estimé actuel : ~${p?.estimated_minutes || 0} minutes/semaine.\n\nPropose un rythme RÉALISTE qui tient dans son temps disponible.\n\nRéponds en JSON :\n{"suggestion": "Texte lisible avec le plan concret (quels jours, combien de temps par session)", "posts_frequency": "Xx/semaine", "stories_frequency": "label exact parmi: Tous les jours, 3-4x/semaine, 1-2x/semaine, Quand j'ai envie"}`;
+        userPrompt = "Adapte mon rythme à mon temps disponible.";
+
       } else {
         return new Response(
           JSON.stringify({ error: "Type de requête non reconnu" }),

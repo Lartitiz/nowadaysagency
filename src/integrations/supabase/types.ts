@@ -692,6 +692,7 @@ export type Database = {
         Row: {
           created_at: string
           do_more: string | null
+          estimated_weekly_minutes: number | null
           free_notes: string | null
           id: string
           main_objective: string | null
@@ -705,12 +706,14 @@ export type Database = {
           stop_doing: string | null
           stories_frequency: string | null
           time_available: string | null
+          time_budget_minutes: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           do_more?: string | null
+          estimated_weekly_minutes?: number | null
           free_notes?: string | null
           id?: string
           main_objective?: string | null
@@ -724,12 +727,14 @@ export type Database = {
           stop_doing?: string | null
           stories_frequency?: string | null
           time_available?: string | null
+          time_budget_minutes?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           do_more?: string | null
+          estimated_weekly_minutes?: number | null
           free_notes?: string | null
           id?: string
           main_objective?: string | null
@@ -743,6 +748,7 @@ export type Database = {
           stop_doing?: string | null
           stories_frequency?: string | null
           time_available?: string | null
+          time_budget_minutes?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -1469,11 +1475,13 @@ export type Database = {
           prenom: string
           probleme_principal: string
           style_communication: string[]
+          time_distribution: Json | null
           tons: string[]
           type_activite: string
           updated_at: string
           user_id: string
           verbatims: string
+          weekly_time_available: number | null
         }
         Insert: {
           activite?: string
@@ -1492,11 +1500,13 @@ export type Database = {
           prenom?: string
           probleme_principal?: string
           style_communication?: string[]
+          time_distribution?: Json | null
           tons?: string[]
           type_activite?: string
           updated_at?: string
           user_id: string
           verbatims?: string
+          weekly_time_available?: number | null
         }
         Update: {
           activite?: string
@@ -1515,11 +1525,13 @@ export type Database = {
           prenom?: string
           probleme_principal?: string
           style_communication?: string[]
+          time_distribution?: Json | null
           tons?: string[]
           type_activite?: string
           updated_at?: string
           user_id?: string
           verbatims?: string
+          weekly_time_available?: number | null
         }
         Relationships: []
       }

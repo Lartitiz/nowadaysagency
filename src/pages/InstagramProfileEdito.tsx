@@ -32,6 +32,8 @@ interface EditorialLine {
   stop_doing: string;
   free_notes: string;
   source: string;
+  estimated_weekly_minutes?: number;
+  time_budget_minutes?: number;
 }
 
 const EMPTY_LINE: EditorialLine = {
@@ -64,6 +66,7 @@ const TIME_OPTIONS = ["1h", "2h", "3h", "4h+"];
 const FORMATS = [
   "Carrousel éducatif",
   "Post photo + caption longue",
+  "Post photo + caption courte",
   "Reel face cam",
   "Reel montage/transitions",
   "Reel coulisses",
@@ -72,6 +75,100 @@ const FORMATS = [
   "Live",
   "Collaboration / post invité",
 ];
+
+/* ─── Time estimation engine ─── */
+const FORMAT_MINUTES: Record<string, number> = {
+  "Post photo + caption courte": 20,
+  "Post photo + caption longue": 40,
+  "Carrousel éducatif": 60,
+  "Reel face cam": 30,
+  "Reel montage/transitions": 90,
+  "Reel coulisses": 30,
+  "Story face cam": 20,
+  "Story texte/sondage": 10,
+  "Live": 60,
+  "Collaboration / post invité": 45,
+};
+
+function parsePostsPerWeek(freq: string): number {
+  if (freq === "1x/semaine") return 1;
+  if (freq === "2x/semaine") return 2;
+  if (freq === "3x/semaine") return 3;
+  if (freq === "4-5x/semaine") return 4.5;
+  return 0;
+}
+
+function parseStoriesPerWeek(freq: string): number {
+  if (freq === "Tous les jours") return 7;
+  if (freq === "3-4x/semaine") return 3.5;
+  if (freq === "1-2x/semaine") return 1.5;
+  if (freq === "Quand j'ai envie") return 1;
+  return 0;
+}
+
+function parseTimeAvailableMinutes(time: string): number {
+  if (time === "1h") return 60;
+  if (time === "2h") return 120;
+  if (time === "3h") return 180;
+  if (time === "4h+") return 270;
+  return 0;
+}
+
+function estimateWeeklyMinutes(
+  postsFreq: string,
+  storiesFreq: string,
+  formats: string[],
+): number {
+  const postsPerWeek = parsePostsPerWeek(postsFreq);
+  const storiesPerWeek = parseStoriesPerWeek(storiesFreq);
+
+  // Average time per post based on selected formats (feed formats only)
+  const feedFormats = formats.filter(
+    (f) => !f.startsWith("Story") && f !== "Live"
+  );
+  let avgPostMinutes = 35; // default
+  if (feedFormats.length > 0) {
+    avgPostMinutes = Math.round(
+      feedFormats.reduce((s, f) => s + (FORMAT_MINUTES[f] || 35), 0) / feedFormats.length
+    );
+  }
+
+  // Average time per story session
+  const storyFormats = formats.filter((f) => f.startsWith("Story"));
+  let avgStoryMinutes = 15;
+  if (storyFormats.length > 0) {
+    avgStoryMinutes = Math.round(
+      storyFormats.reduce((s, f) => s + (FORMAT_MINUTES[f] || 15), 0) / storyFormats.length
+    );
+  }
+
+  // Engagement time: ~15 min/day × 5 days
+  const engagementMinutes = 75;
+
+  return Math.round(
+    postsPerWeek * avgPostMinutes +
+    storiesPerWeek * avgStoryMinutes +
+    engagementMinutes
+  );
+}
+
+type CoherenceLevel = "ok" | "tight" | "over" | null;
+
+function getCoherenceLevel(estimated: number, available: number): CoherenceLevel {
+  if (!estimated || !available) return null;
+  const ratio = estimated / available;
+  if (ratio <= 0.8) return "ok";
+  if (ratio <= 1.0) return "tight";
+  return "over";
+}
+
+function formatMinutes(m: number): string {
+  const h = Math.floor(m / 60);
+  const min = m % 60;
+  if (h === 0) return `${min}min`;
+  if (min === 0) return `${h}h`;
+  return `${h}h${min.toString().padStart(2, "0")}`;
+}
 
 /* ─── Helpers ─── */
 function MicBtn({ onResult }: { onResult: (t: string) => void }) {
@@ -106,37 +203,6 @@ function Chip({ label, selected, onClick }: { label: string; selected: boolean; 
   );
 }
 
-function getTimeTip(time: string, posts: string): string | null {
-  if (!time || !posts) return null;
-  const tips: Record<string, Record<string, string>> = {
-    "1h": {
-      "1x/semaine": "Avec 1h/semaine, 1 post + stories 1-2x c'est tenable. Mieux vaut un rythme régulier que des rafales suivies de silence.",
-      "2x/semaine": "2 posts avec 1h/semaine c'est ambitieux. Privilégie 1 post bien travaillé.",
-      "3x/semaine": "3 posts en 1h c'est très serré. Réduis à 1-2 posts pour la qualité.",
-      "4-5x/semaine": "4-5 posts en 1h c'est irréaliste. Commence par 1 post/semaine bien fait.",
-    },
-    "2h": {
-      "1x/semaine": "Avec 2h/semaine, 1 post + stories 3-4x c'est confortable. Tu peux soigner tes visuels.",
-      "2x/semaine": "2 posts + stories régulières avec 2h, c'est le sweet spot.",
-      "3x/semaine": "3 posts en 2h ça se tient si tu batch tes contenus.",
-      "4-5x/semaine": "4-5 posts en 2h c'est serré. Essaie 3 posts pour commencer.",
-    },
-    "3h": {
-      "1x/semaine": "3h pour 1 post c'est luxueux. Profites-en pour des formats ambitieux (carrousels, reels montés).",
-      "2x/semaine": "2 posts + stories quotidiennes avec 3h, c'est très confortable.",
-      "3x/semaine": "3 posts + stories avec 3h, c'est un bon rythme pro.",
-      "4-5x/semaine": "4-5 posts en 3h c'est faisable si tu batch tout en une session.",
-    },
-    "4h+": {
-      "1x/semaine": "Avec 4h+ pour 1 post, tu peux créer du contenu premium et batché sur plusieurs semaines.",
-      "2x/semaine": "2 posts avec 4h+, tu as le temps de tester des formats variés.",
-      "3x/semaine": "3 posts + stories régulières avec 4h+, c'est un rythme de créatrice pro.",
-      "4-5x/semaine": "4-5 posts avec 4h+ c'est ambitieux mais faisable. Organise tes sessions de batch.",
-    },
-  };
-  return tips[time]?.[posts] || null;
-}
-
 /* ─── Main ─── */
 export default function InstagramProfileEdito() {
   const { user } = useAuth();
@@ -146,6 +212,8 @@ export default function InstagramProfileEdito() {
   const [loaded, setLoaded] = useState(false);
   const [suggestingPillars, setSuggestingPillars] = useState(false);
   const [suggestingFormats, setSuggestingFormats] = useState(false);
+  const [suggestingRhythm, setSuggestingRhythm] = useState(false);
+  const [rhythmSuggestion, setRhythmSuggestion] = useState<string | null>(null);
 
   // Load existing data + branding pillars
   useEffect(() => {
@@ -172,6 +240,8 @@ export default function InstagramProfileEdito() {
           stop_doing: d.stop_doing || "",
           free_notes: (d as any).free_notes || "",
           source: (d as any).source || "manual",
+          estimated_weekly_minutes: (d as any).estimated_weekly_minutes || undefined,
+          time_budget_minutes: (d as any).time_budget_minutes || undefined,
         });
       } else {
         // Pre-fill from branding strategy
@@ -201,7 +271,14 @@ export default function InstagramProfileEdito() {
   }, [user]);
 
   const totalPercent = useMemo(() => editorial.pillars.reduce((s, p) => s + p.percentage, 0), [editorial.pillars]);
-  const timeTip = getTimeTip(editorial.time_available, editorial.posts_frequency);
+
+  // Time coherence calculation
+  const estimatedMinutes = useMemo(
+    () => estimateWeeklyMinutes(editorial.posts_frequency, editorial.stories_frequency, editorial.preferred_formats),
+    [editorial.posts_frequency, editorial.stories_frequency, editorial.preferred_formats]
+  );
+  const availableMinutes = parseTimeAvailableMinutes(editorial.time_available);
+  const coherence = getCoherenceLevel(estimatedMinutes, availableMinutes);
 
   const updateField = <K extends keyof EditorialLine>(key: K, value: EditorialLine[K]) =>
     setEditorial((prev) => ({ ...prev, [key]: value }));
@@ -254,6 +331,8 @@ export default function InstagramProfileEdito() {
         stop_doing: editorial.stop_doing,
         free_notes: editorial.free_notes,
         source: editorial.source,
+        estimated_weekly_minutes: estimatedMinutes,
+        time_budget_minutes: availableMinutes || null,
         // Keep legacy fields in sync
         recommended_rhythm: `${editorial.posts_frequency} posts, stories ${editorial.stories_frequency}`,
         pillar_distribution: editorial.pillars.reduce((acc: Record<string, number>, p) => {
@@ -338,6 +417,56 @@ export default function InstagramProfileEdito() {
     }
   };
 
+  const suggestAdaptedRhythm = async () => {
+    if (!user) return;
+    setSuggestingRhythm(true);
+    setRhythmSuggestion(null);
+    try {
+      const res = await supabase.functions.invoke("generate-content", {
+        body: {
+          type: "instagram-rhythm-adapt",
+          profile: {
+            time_available: editorial.time_available,
+            available_minutes: availableMinutes,
+            current_posts: editorial.posts_frequency,
+            current_stories: editorial.stories_frequency,
+            preferred_formats: editorial.preferred_formats,
+            estimated_minutes: estimatedMinutes,
+          },
+        },
+      });
+      if (res.error) throw new Error(res.error.message);
+      const content = res.data?.content || "";
+      let parsed: any;
+      try { parsed = JSON.parse(content); } catch {
+        const m = content.match(/\{[\s\S]*\}/);
+        if (m) parsed = JSON.parse(m[0]); else { setRhythmSuggestion(content); return; }
+      }
+      const text = parsed.suggestion || parsed.text || content;
+      setRhythmSuggestion(text);
+      // Store parsed recommendations for "Apply" button
+      if (parsed.posts_frequency) (window as any).__rhythmSuggestion = parsed;
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+    } finally {
+      setSuggestingRhythm(false);
+    }
+  };
+
+  const applyRhythmSuggestion = () => {
+    const s = (window as any).__rhythmSuggestion;
+    if (s) {
+      setEditorial((prev) => ({
+        ...prev,
+        posts_frequency: s.posts_frequency || prev.posts_frequency,
+        stories_frequency: s.stories_frequency || prev.stories_frequency,
+      }));
+      setRhythmSuggestion(null);
+      delete (window as any).__rhythmSuggestion;
+      toast({ title: "Rythme mis à jour !" });
+    }
+  };
+
   if (!loaded) return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -416,9 +545,50 @@ export default function InstagramProfileEdito() {
                 </div>
               </div>
 
-              {timeTip && (
-                <div className="rounded-xl bg-rose-pale p-3">
-                  <p className="text-sm text-foreground">💡 {timeTip}</p>
+              {coherence === "ok" && editorial.posts_frequency && editorial.time_available && (
+                <div className="rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3">
+                  <p className="text-sm text-green-800 dark:text-green-300">
+                    ✅ Ton rythme est tenable. Temps estimé : ~{formatMinutes(estimatedMinutes)}/semaine pour {editorial.posts_frequency} posts + stories {editorial.stories_frequency}. Tu as {editorial.time_available} de dispo. C'est bon.
+                  </p>
+                </div>
+              )}
+
+              {coherence === "tight" && (
+                <div className="rounded-xl bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 p-3">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                    ⚠️ C'est faisable, mais serré. Temps estimé : ~{formatMinutes(estimatedMinutes)}/semaine. Tu as {editorial.time_available}. Astuce : batch ton contenu (prépare tout en une session) pour gagner du temps.
+                  </p>
+                </div>
+              )}
+
+              {coherence === "over" && (
+                <div className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 space-y-2">
+                  <p className="text-sm text-red-800 dark:text-red-300">
+                    🔴 Attention, ce rythme dépasse ton temps disponible. Temps estimé : ~{formatMinutes(estimatedMinutes)}/semaine. Tu n'as que {editorial.time_available}.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={suggestAdaptedRhythm}
+                    disabled={suggestingRhythm}
+                    className="gap-1 text-xs border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/30"
+                  >
+                    {suggestingRhythm ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                    ✨ Adapter mon rythme à mon temps
+                  </Button>
+                </div>
+              )}
+
+              {rhythmSuggestion && (
+                <div className="rounded-xl bg-muted/50 border border-border p-4 space-y-3">
+                  <p className="text-sm text-foreground whitespace-pre-line">{rhythmSuggestion}</p>
+                  <Button
+                    size="sm"
+                    onClick={applyRhythmSuggestion}
+                    className="gap-1 text-xs"
+                  >
+                    ✅ Appliquer cette suggestion
+                  </Button>
                 </div>
               )}
             </div>
