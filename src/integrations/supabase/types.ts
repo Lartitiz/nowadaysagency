@@ -2138,6 +2138,45 @@ export type Database = {
           },
         ]
       }
+      stories_metrics: {
+        Row: {
+          best_story: string | null
+          completion_rate: number | null
+          created_at: string | null
+          dm_replies: number | null
+          id: string
+          sequences_published: number | null
+          stickers_used: Json | null
+          updated_at: string | null
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          best_story?: string | null
+          completion_rate?: number | null
+          created_at?: string | null
+          dm_replies?: number | null
+          id?: string
+          sequences_published?: number | null
+          stickers_used?: Json | null
+          updated_at?: string | null
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          best_story?: string | null
+          completion_rate?: number | null
+          created_at?: string | null
+          dm_replies?: number | null
+          id?: string
+          sequences_published?: number | null
+          stickers_used?: Json | null
+          updated_at?: string | null
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       stories_sequences: {
         Row: {
           created_at: string

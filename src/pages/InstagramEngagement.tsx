@@ -9,6 +9,7 @@ import DailyChecklist, { getDefaultItems } from "@/components/engagement/DailyCh
 import MetricsSection from "@/components/engagement/MetricsSection";
 import ContactsSection, { type Contact } from "@/components/engagement/ContactsSection";
 import TipsSection from "@/components/engagement/TipsSection";
+import StoriesMetricsSection from "@/components/engagement/StoriesMetricsSection";
 import Confetti from "@/components/Confetti";
 
 function getMonday(d: Date) {
@@ -51,6 +52,16 @@ export default function InstagramEngagement() {
   // Contacts
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactFilter, setContactFilter] = useState("all");
+
+  // Stories metrics
+  const [storiesMetrics, setStoriesMetrics] = useState({
+    sequences_published: 0,
+    completion_rate: null as number | null,
+    dm_replies: 0,
+    best_story: "",
+    stickers_used: [] as string[],
+  });
+  const [storiesMetricsId, setStoriesMetricsId] = useState<string | null>(null);
 
   const today = useMemo(() => getTodayStr(), []);
   const todayIndex = useMemo(() => getDayIndex(), []);
@@ -159,6 +170,24 @@ export default function InstagramEngagement() {
         notes: c.notes,
         last_interaction: c.last_interaction,
       })));
+
+      // Stories metrics
+      const { data: sm } = await supabase
+        .from("stories_metrics" as any)
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("week_start", monday)
+        .maybeSingle();
+      if (sm) {
+        setStoriesMetricsId((sm as any).id);
+        setStoriesMetrics({
+          sequences_published: (sm as any).sequences_published || 0,
+          completion_rate: (sm as any).completion_rate ?? null,
+          dm_replies: (sm as any).dm_replies || 0,
+          best_story: (sm as any).best_story || "",
+          stickers_used: (sm as any).stickers_used || [],
+        });
+      }
     };
     load();
   }, [user, today, monday]);
@@ -308,6 +337,27 @@ export default function InstagramEngagement() {
     setContacts(prev => prev.map(c => c.id === id ? { ...c, notes } : c));
   };
 
+  const saveStoriesMetrics = async () => {
+    if (!user) return;
+    const payload: any = {
+      user_id: user.id,
+      week_start: monday,
+      sequences_published: storiesMetrics.sequences_published,
+      completion_rate: storiesMetrics.completion_rate,
+      dm_replies: storiesMetrics.dm_replies,
+      best_story: storiesMetrics.best_story,
+      stickers_used: storiesMetrics.stickers_used,
+      updated_at: new Date().toISOString(),
+    };
+    if (storiesMetricsId) {
+      await supabase.from("stories_metrics" as any).update(payload).eq("id", storiesMetricsId);
+    } else {
+      const { data: ins } = await supabase.from("stories_metrics" as any).insert(payload).select("id").single();
+      if (ins) setStoriesMetricsId((ins as any).id);
+    }
+    toast({ title: "💾 Stats stories sauvegardées" });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -342,6 +392,12 @@ export default function InstagramEngagement() {
           onGenerateInsight={generateInsight}
           isGenerating={isGenerating}
           onChange={onMetricChange}
+        />
+
+        <StoriesMetricsSection
+          data={storiesMetrics}
+          onChange={setStoriesMetrics}
+          onSave={saveStoriesMetrics}
         />
 
         <ContactsSection

@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Sparkles } from "luc
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import StickerGuide from "@/components/engagement/StickerGuide";
 
 // Types
 interface StorySticker {
@@ -83,6 +84,7 @@ export default function InstagramStories() {
   const [faceCam, setFaceCam] = useState("");
   const [subject, setSubject] = useState("");
   const [isLaunch, setIsLaunch] = useState(false);
+  const [showStickerGuide, setShowStickerGuide] = useState(false);
 
   // Pre-fill from highlights navigation
   useEffect(() => {
@@ -337,14 +339,30 @@ export default function InstagramStories() {
           Crée des séquences stories complètes avec le bon sticker et le bon CTA.
         </p>
 
-        {/* Quick daily button */}
-        <button
-          onClick={() => handleGenerate(true)}
-          className="w-full mb-8 rounded-2xl border border-dashed border-primary/30 bg-rose-pale p-4 text-left hover:border-primary transition-colors"
-        >
-          <p className="font-display text-sm font-bold text-primary">🆘 Pas d'inspi aujourd'hui ?</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Génère 5 stories du quotidien personnalisées en 1 clic</p>
-        </button>
+        {/* Sticker guide toggle */}
+        {showStickerGuide ? (
+          <div className="mb-8 rounded-2xl border border-border bg-card p-5">
+            <StickerGuide onClose={() => setShowStickerGuide(false)} />
+          </div>
+        ) : (
+          <>
+            {/* Quick buttons row */}
+            <div className="flex flex-wrap gap-3 mb-8">
+              <button
+                onClick={() => handleGenerate(true)}
+                className="flex-1 min-w-[200px] rounded-2xl border border-dashed border-primary/30 bg-rose-pale p-4 text-left hover:border-primary transition-colors"
+              >
+                <p className="font-display text-sm font-bold text-primary">🆘 Pas d'inspi aujourd'hui ?</p>
+                <p className="text-xs text-muted-foreground mt-0.5">5 stories du quotidien en 1 clic</p>
+              </button>
+              <button
+                onClick={() => setShowStickerGuide(true)}
+                className="flex-1 min-w-[200px] rounded-2xl border border-dashed border-primary/30 bg-rose-pale p-4 text-left hover:border-primary transition-colors"
+              >
+                <p className="font-display text-sm font-bold text-primary">🎯 Quel sticker utiliser ?</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Guide interactif par objectif</p>
+              </button>
+            </div>
 
         {/* Step 1: Objective */}
         <div className="mb-8">
@@ -459,6 +477,8 @@ export default function InstagramStories() {
               <Sparkles className="h-4 w-4" /> Générer ma séquence stories
             </Button>
           </div>
+        )}
+          </>
         )}
       </main>
     </div>
