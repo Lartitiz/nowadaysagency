@@ -98,16 +98,32 @@ export default function InstagramInspirer() {
       const { data, error } = await supabase.functions.invoke("fetch-instagram-post", {
         body: { url: sourceUrl.trim() },
       });
-      if (error || data?.error) {
-        toast.info("Instagram bloque la récupération automatique. Colle le texte du post directement 👇");
+
+      if (error) {
+        toast.info("Le lien n'a pas fonctionné. Colle le texte du post directement 👇");
         setTab("text");
-      } else if (data?.caption) {
+        return;
+      }
+
+      if (data?.error) {
+        toast.info(data.message || "Le lien n'a pas fonctionné. Colle le texte du post directement 👇");
+        setTab("text");
+        return;
+      }
+
+      if (data?.caption) {
         setSourceText(data.caption);
+        if (data.author) {
+          setScreenshotContext(`Post de @${data.author}`);
+        }
         setTab("text");
         toast.success("Contenu récupéré ! Tu peux le modifier avant d'analyser.");
+      } else {
+        toast.info("On a trouvé le post mais pas de texte. Colle la caption manuellement ou envoie un screenshot 👇");
+        setTab("text");
       }
     } catch {
-      toast.error("Erreur réseau. Colle le texte directement.");
+      toast.info("Erreur réseau. Colle le texte directement 👇");
       setTab("text");
     } finally {
       setFetchingLink(false);
@@ -178,13 +194,11 @@ export default function InstagramInspirer() {
       let body: any;
 
       if (isScreenshot) {
-        // Convert images to base64
-        const imageData: string[] = [];
+        // Convert all files (images + PDFs) to base64
+        const imageData: { data: string; type: string }[] = [];
         for (const f of files) {
-          if (f.type.startsWith("image/")) {
-            const b64 = await fileToBase64(f);
-            imageData.push(b64);
-          }
+          const b64 = await fileToBase64(f);
+          imageData.push({ data: b64, type: f.type });
         }
         body = {
           source_type: "screenshot",

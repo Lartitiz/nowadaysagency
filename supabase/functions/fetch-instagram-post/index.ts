@@ -6,7 +6,7 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
@@ -14,54 +14,75 @@ Deno.serve(async (req) => {
 
     if (!url || !url.includes("instagram.com")) {
       return new Response(
-        JSON.stringify({ error: "Lien Instagram invalide." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: true, message: "Lien Instagram invalide." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      },
-    });
+    // Clean URL (remove query params)
+    const cleanUrl = url.split("?")[0];
 
-    const html = await response.text();
+    // Try Instagram oEmbed API first
+    const oembedUrl = `https://api.instagram.com/oembed/?url=${encodeURIComponent(cleanUrl)}&maxwidth=658`;
 
-    // Try og:description first, then description meta
-    const descMatch =
-      html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/) ||
-      html.match(/<meta\s+name="description"\s+content="([^"]*)"/);
+    try {
+      const response = await fetch(oembedUrl, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible)" },
+      });
 
-    const caption = descMatch ? descMatch[1] : null;
-
-    if (!caption || caption.length < 10) {
-      return new Response(
-        JSON.stringify({
-          error: "Impossible de récupérer le contenu. Colle le texte directement.",
-        }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (response.ok) {
+        const data = await response.json();
+        return new Response(
+          JSON.stringify({
+            caption: data.title || null,
+            author: data.author_name || null,
+            thumbnail: data.thumbnail_url || null,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        );
+      }
+    } catch (e) {
+      console.log("oEmbed failed, trying fallback:", e);
     }
 
-    // Decode HTML entities
-    const decoded = caption
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'");
+    // Fallback: noembed.com
+    try {
+      const noembedUrl = `https://noembed.com/embed?url=${encodeURIComponent(cleanUrl)}`;
+      const fallbackResponse = await fetch(noembedUrl);
 
-    return new Response(JSON.stringify({ caption: decoded }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+      if (fallbackResponse.ok) {
+        const fallbackData = await fallbackResponse.json();
+        if (fallbackData.title || fallbackData.author_name) {
+          return new Response(
+            JSON.stringify({
+              caption: fallbackData.title || null,
+              author: fallbackData.author_name || null,
+              thumbnail: fallbackData.thumbnail_url || null,
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+          );
+        }
+      }
+    } catch (e) {
+      console.log("noembed fallback failed:", e);
+    }
+
+    // Both failed — return graceful error (status 200 to avoid CORS issues)
+    return new Response(
+      JSON.stringify({
+        error: true,
+        message: "Impossible de récupérer ce post. Colle le texte directement.",
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+    );
   } catch (error) {
     console.error("Fetch error:", error);
     return new Response(
       JSON.stringify({
-        error: "Lien invalide ou post privé. Colle le texte directement.",
+        error: true,
+        message: "Impossible de récupérer ce post. Colle le texte directement.",
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
