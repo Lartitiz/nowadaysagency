@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { ExternalLink, ArrowRight } from "lucide-react";
 import RoutinesPanel from "@/components/RoutinesPanel";
 import { getMonday } from "@/lib/mission-engine";
+import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 
 export interface UserProfile {
   prenom: string;
@@ -173,34 +174,23 @@ function badgeClass(variant: "available" | "soon" | "external") {
 export default function Dashboard() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [brandingScore, setBrandingScore] = useState(0);
+  const [brandingCompletion, setBrandingCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 });
   const [missionsDone, setMissionsDone] = useState(0);
   const [missionsTotal, setMissionsTotal] = useState(0);
 
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
-      const [profRes, bpRes] = await Promise.all([
+      const [profRes, brandingData] = await Promise.all([
         supabase
           .from("profiles")
           .select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date")
           .eq("user_id", user.id)
           .single(),
-        supabase
-          .from("brand_profile")
-          .select("mission, offer, target_description, target_problem, target_beliefs, target_verbatims, tone_register, key_expressions, things_to_avoid")
-          .eq("user_id", user.id)
-          .maybeSingle(),
+        fetchBrandingData(user.id),
       ]);
       if (profRes.data) setProfile(profRes.data as UserProfile);
-      if (bpRes.data) {
-        const fields = [
-          bpRes.data.mission, bpRes.data.offer, bpRes.data.target_description,
-          bpRes.data.target_problem, bpRes.data.target_beliefs, bpRes.data.tone_register,
-          bpRes.data.key_expressions, bpRes.data.things_to_avoid, bpRes.data.target_verbatims,
-        ];
-        setBrandingScore(fields.filter((f) => f && String(f).trim().length > 0).length);
-      }
+      setBrandingCompletion(calculateBrandingCompletion(brandingData));
 
       // Fetch missions summary
       const weekStart = getMonday(new Date()).toISOString().split("T")[0];
@@ -271,7 +261,7 @@ export default function Dashboard() {
         {/* Module grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           {MODULES.map((mod) => (
-            <ModuleCardComponent key={mod.id} mod={mod} brandingScore={mod.id === "branding" ? brandingScore : undefined} />
+            <ModuleCardComponent key={mod.id} mod={mod} brandingCompletion={mod.id === "branding" ? brandingCompletion : undefined} />
           ))}
         </div>
 
@@ -293,8 +283,16 @@ export default function Dashboard() {
 }
 
 /* ─── Module Card ─── */
-function ModuleCardComponent({ mod, brandingScore }: { mod: ModuleCard; brandingScore?: number }) {
+function ModuleCardComponent({ mod, brandingCompletion }: { mod: ModuleCard; brandingCompletion?: BrandingCompletion }) {
   const isActive = mod.id === "branding";
+
+  const sectionBadges = brandingCompletion ? [
+    { emoji: "👑", label: "Histoire", score: brandingCompletion.storytelling },
+    { emoji: "👩‍💻", label: "Persona", score: brandingCompletion.persona },
+    { emoji: "❤️", label: "Proposition", score: brandingCompletion.proposition },
+    { emoji: "🎨", label: "Ton", score: brandingCompletion.tone },
+    { emoji: "🍒", label: "Stratégie", score: brandingCompletion.strategy },
+  ] : null;
 
   const inner = (
     <div
@@ -340,12 +338,31 @@ function ModuleCardComponent({ mod, brandingScore }: { mod: ModuleCard; branding
       </div>
 
       {/* Branding progress */}
-      {brandingScore !== undefined && (
+      {brandingCompletion && (
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1">
-            <span className="font-mono-ui text-[11px] text-muted-foreground">{brandingScore} / 9 champs complétés</span>
+            <span className="font-mono-ui text-[11px] text-muted-foreground">Branding : {brandingCompletion.total}% complété</span>
+            {brandingCompletion.total === 100 && (
+              <span className="font-mono-ui text-[10px] font-semibold text-[#2E7D32] bg-[#E8F5E9] px-1.5 py-0.5 rounded">✅ Complet</span>
+            )}
           </div>
-          <Progress value={(brandingScore / 9) * 100} className="h-2" />
+          <Progress value={brandingCompletion.total} className="h-2 mb-2" />
+          <div className="flex flex-wrap gap-1.5">
+            {sectionBadges?.map((s) => (
+              <span
+                key={s.label}
+                className={`font-mono-ui text-[9px] font-semibold px-1.5 py-0.5 rounded ${
+                  s.score === 100
+                    ? "bg-[#E8F5E9] text-[#2E7D32]"
+                    : s.score > 0
+                      ? "bg-accent text-accent-foreground"
+                      : "bg-secondary text-muted-foreground"
+                }`}
+              >
+                {s.emoji} {s.score === 100 ? "✅" : s.score > 0 ? `${s.score}%` : "À faire"}
+              </span>
+            ))}
+          </div>
         </div>
       )}
 

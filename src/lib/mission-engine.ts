@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchBrandingData, calculateBrandingCompletion } from "@/lib/branding-completion";
 
 export interface MissionDef {
   mission_key: string;
@@ -332,16 +333,11 @@ export function getMonday(d: Date): Date {
 }
 
 /** Compute progress percentages for the overview section */
-export function computeProgress(state: AppState) {
-  // Branding: average of 5 modules
-  const brandingSections = [
-    state.storytelling?.completed ? 100 : state.storytelling ? 50 : 0,
-    state.persona?.completed ? 100 : state.persona ? 50 : 0,
-    state.proposition?.completed ? 100 : state.proposition ? 50 : 0,
-    state.brandProfile ? Math.min(100, countFilledFields(state.brandProfile, ["tone_register", "voice_description", "combat_cause", "mission", "offer", "key_expressions"]) / 6 * 100) : 0,
-    state.strategy?.completed ? 100 : state.strategy ? 50 : 0,
-  ];
-  const branding = Math.round(brandingSections.reduce((a, b) => a + b, 0) / brandingSections.length);
+export async function computeProgress(state: AppState, userId: string) {
+  // Branding: use centralized calculation
+  const brandingData = await fetchBrandingData(userId);
+  const brandingCompletion = calculateBrandingCompletion(brandingData);
+  const branding = brandingCompletion.total;
 
   // Instagram profile
   const instaChecks = [
