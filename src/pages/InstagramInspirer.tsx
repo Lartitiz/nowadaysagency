@@ -99,7 +99,7 @@ export default function InstagramInspirer() {
         body: { url: sourceUrl.trim() },
       });
       if (error || data?.error) {
-        toast.error(data?.error || "Impossible de récupérer le contenu. Colle le texte directement.");
+        toast.info("Instagram bloque la récupération automatique. Colle le texte du post directement 👇");
         setTab("text");
       } else if (data?.caption) {
         setSourceText(data.caption);
