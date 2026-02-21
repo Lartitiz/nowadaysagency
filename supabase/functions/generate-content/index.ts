@@ -335,7 +335,7 @@ Réponds en JSON :
         userPrompt = "Rédige le post complet.";
 
       } else if (type === "instagram-audit") {
-        const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj } = body;
+        const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, successNotes: sn, failNotes: fn, profileUrl: pu } = body;
         systemPrompt = `Tu es experte en stratégie Instagram pour des solopreneuses créatives et éthiques. Tu réalises un audit complet d'un profil Instagram.
 
 RÉPONSES DE L'UTILISATRICE :
@@ -343,12 +343,28 @@ RÉPONSES DE L'UTILISATRICE :
 - Contenus qui ne marchent pas : "${wc || "non renseigné"}"
 - Rythme actuel : "${rh || "non renseigné"}"
 - Objectif principal : "${obj || "non renseigné"}"
+${pu ? `- URL du profil : ${pu}` : ""}
+
+CONTENUS QUI ONT BIEN MARCHÉ :
+Commentaire de l'utilisatrice : "${sn || "non renseigné"}"
+(Des screenshots/PDF de ces contenus ont été fournis en pièces jointes si disponibles)
+
+CONTENUS QUI N'ONT PAS MARCHÉ :
+Commentaire de l'utilisatrice : "${fn || "non renseigné"}"
+(Des screenshots/PDF de ces contenus ont été fournis en pièces jointes si disponibles)
 
 ${brandingContext}
 
 Analyse le profil Instagram et compare avec le branding. Pour chaque section, donne un score /100 et des recommandations CONCRÈTES.
 
 SECTIONS : nom, bio, stories (à la une), epingles (posts épinglés), feed (cohérence visuelle), edito (ligne éditoriale).
+
+ANALYSE DES CONTENUS PERFORMANTS :
+- Identifie les POINTS COMMUNS des contenus qui marchent (format, sujet, ton, accroche, présence de visage, longueur...)
+- Identifie les POINTS COMMUNS des contenus qui ne marchent pas
+- Compare avec les piliers de contenu et le ton définis dans le branding
+- Déduis des recommandations concrètes : "Fais plus de [X], arrête [Y], transforme [Z] en [W]"
+Intègre cette analyse dans la section "edito" de l'audit.
 
 Score global = moyenne pondérée : Bio 25%, Stories 20%, Épinglés 15%, Nom 10%, Feed 15%, Édito 15%.
 
