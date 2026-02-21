@@ -254,12 +254,18 @@ export type Database = {
       calendar_posts: {
         Row: {
           angle: string | null
+          angle_suggestion: string | null
           canal: string
+          category: string | null
+          content_type: string | null
+          content_type_emoji: string | null
           created_at: string
           date: string
           id: string
+          launch_id: string | null
           notes: string | null
           objectif: string | null
+          objective: string | null
           status: string
           theme: string
           updated_at: string
@@ -267,12 +273,18 @@ export type Database = {
         }
         Insert: {
           angle?: string | null
+          angle_suggestion?: string | null
           canal?: string
+          category?: string | null
+          content_type?: string | null
+          content_type_emoji?: string | null
           created_at?: string
           date: string
           id?: string
+          launch_id?: string | null
           notes?: string | null
           objectif?: string | null
+          objective?: string | null
           status?: string
           theme: string
           updated_at?: string
@@ -280,18 +292,32 @@ export type Database = {
         }
         Update: {
           angle?: string | null
+          angle_suggestion?: string | null
           canal?: string
+          category?: string | null
+          content_type?: string | null
+          content_type_emoji?: string | null
           created_at?: string
           date?: string
           id?: string
+          launch_id?: string | null
           notes?: string | null
           objectif?: string | null
+          objective?: string | null
           status?: string
           theme?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "calendar_posts_launch_id_fkey"
+            columns: ["launch_id"]
+            isOneToOne: false
+            referencedRelation: "launches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       content_drafts: {
         Row: {
@@ -920,7 +946,11 @@ export type Database = {
         Row: {
           accroche: string | null
           added_to_calendar: boolean | null
+          angle_suggestion: string | null
+          category: string | null
           content_date: string
+          content_type: string | null
+          content_type_emoji: string | null
           contenu: string | null
           created_at: string
           format: string | null
@@ -928,7 +958,9 @@ export type Database = {
           is_edited: boolean | null
           launch_id: string
           objectif: string | null
+          objective: string | null
           phase: string
+          sent_to_calendar: boolean | null
           sort_order: number | null
           tip: string | null
           updated_at: string
@@ -937,7 +969,11 @@ export type Database = {
         Insert: {
           accroche?: string | null
           added_to_calendar?: boolean | null
+          angle_suggestion?: string | null
+          category?: string | null
           content_date: string
+          content_type?: string | null
+          content_type_emoji?: string | null
           contenu?: string | null
           created_at?: string
           format?: string | null
@@ -945,7 +981,9 @@ export type Database = {
           is_edited?: boolean | null
           launch_id: string
           objectif?: string | null
+          objective?: string | null
           phase: string
+          sent_to_calendar?: boolean | null
           sort_order?: number | null
           tip?: string | null
           updated_at?: string
@@ -954,7 +992,11 @@ export type Database = {
         Update: {
           accroche?: string | null
           added_to_calendar?: boolean | null
+          angle_suggestion?: string | null
+          category?: string | null
           content_date?: string
+          content_type?: string | null
+          content_type_emoji?: string | null
           contenu?: string | null
           created_at?: string
           format?: string | null
@@ -962,7 +1004,9 @@ export type Database = {
           is_edited?: boolean | null
           launch_id?: string
           objectif?: string | null
+          objective?: string | null
           phase?: string
+          sent_to_calendar?: boolean | null
           sort_order?: number | null
           tip?: string | null
           updated_at?: string
@@ -981,10 +1025,14 @@ export type Database = {
       launches: {
         Row: {
           created_at: string
+          extra_weekly_hours: number | null
           free_resource: string | null
           id: string
           name: string
           objections: string | null
+          phases: Json | null
+          plan_generated: boolean | null
+          plan_sent_to_calendar: boolean | null
           promise: string | null
           sale_end: string | null
           sale_start: string | null
@@ -992,15 +1040,20 @@ export type Database = {
           status: string
           teasing_end: string | null
           teasing_start: string | null
+          template_type: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          extra_weekly_hours?: number | null
           free_resource?: string | null
           id?: string
           name?: string
           objections?: string | null
+          phases?: Json | null
+          plan_generated?: boolean | null
+          plan_sent_to_calendar?: boolean | null
           promise?: string | null
           sale_end?: string | null
           sale_start?: string | null
@@ -1008,15 +1061,20 @@ export type Database = {
           status?: string
           teasing_end?: string | null
           teasing_start?: string | null
+          template_type?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          extra_weekly_hours?: number | null
           free_resource?: string | null
           id?: string
           name?: string
           objections?: string | null
+          phases?: Json | null
+          plan_generated?: boolean | null
+          plan_sent_to_calendar?: boolean | null
           promise?: string | null
           sale_end?: string | null
           sale_start?: string | null
@@ -1024,6 +1082,7 @@ export type Database = {
           status?: string
           teasing_end?: string | null
           teasing_start?: string | null
+          template_type?: string | null
           updated_at?: string
           user_id?: string
         }

@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.creative-flow]
 verify_jwt = false
+
+[functions.launch-plan-ai]
+verify_jwt = false
