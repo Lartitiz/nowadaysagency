@@ -244,6 +244,84 @@ IMPORTANT : Réponds UNIQUEMENT en JSON :
         systemPrompt = `Tu es expert·e en stratégie de lancement Instagram pour des solopreneuses éthiques.\n\nPROFIL :\n${fullContext}\n\nLANCEMENT :\n- Nom : ${(profile || {}).launch_name || ""}\n- Promesse : ${(profile || {}).launch_promise || ""}\n- Objections anticipées : ${(profile || {}).launch_objections || ""}\n\nCONTENUS SÉLECTIONNÉS : ${((profile || {}).launch_selected_contents || []).join(", ")}\n\nPour chaque contenu sélectionné, propose :\n- 1 accroche (hook) percutante\n- 1 suggestion de CTA\n- Le format recommandé\n\nTon direct, chaleureux, oral assumé. Écriture inclusive avec point médian.\n\nRéponds UNIQUEMENT en JSON :\n[{"content_type": "...", "hook": "...", "cta": "...", "format": "..."}]`;
         userPrompt = "Génère des idées de contenu pour mon lancement.";
 
+      } else if (type === "launch-plan") {
+        const lp = profile || {};
+        systemPrompt = `Tu es experte en stratégie de lancement Instagram pour des solopreneuses créatives et éthiques.
+
+DONNÉES DU LANCEMENT :
+- Offre : "${lp.launch_name || ""}"
+- Promesse : "${lp.launch_promise || ""}"
+- Objections anticipées : "${lp.launch_objections || ""}"
+- Lead magnet : "${lp.launch_free_resource || "aucun"}"
+- Période de teasing : ${lp.launch_teasing_start || "?"} → ${lp.launch_teasing_end || "?"}
+- Période de vente : ${lp.launch_sale_start || "?"} → ${lp.launch_sale_end || "?"}
+- Contenus déjà prévus par l'utilisatrice : ${(lp.launch_selected_contents || []).join(", ") || "aucun"}
+
+${brandingContext}
+
+Génère un plan de lancement Instagram en 4 phases :
+
+PHASE 1 : PRÉ-TEASING (1 semaine avant le début du teasing)
+- 3-4 contenus
+- Objectif : poser le problème, créer la curiosité
+- Ne PAS mentionner l'offre
+
+PHASE 2 : TEASING (du ${lp.launch_teasing_start || "?"} au ${lp.launch_teasing_end || "?"})
+- 5-7 contenus (mix posts feed + stories)
+- Objectif : créer l'attente, donner des indices, engager
+
+PHASE 3 : LANCEMENT / VENTE (du ${lp.launch_sale_start || "?"} au ${lp.launch_sale_end || "?"})
+- 7-10 contenus (posts + stories + 1 live si pertinent)
+- Objectif : présenter, rassurer, convertir
+- INTÉGRER les contenus déjà prévus par l'utilisatrice
+- Traiter CHAQUE objection dans au moins 1 contenu
+
+PHASE 4 : POST-LANCEMENT (1 semaine après la fin de la vente)
+- 3-4 contenus
+- Objectif : remercier, partager les résultats, relancer
+
+Pour CHAQUE contenu :
+1. date : la date précise (YYYY-MM-DD)
+2. phase : "pre_teasing" / "teasing" / "vente" / "post_lancement"
+3. format : "post_carrousel" / "post_photo" / "reel" / "story" / "story_serie" / "live"
+4. accroche : la première phrase (hook percutant)
+5. contenu : le texte COMPLET prêt à copier-coller (min 100 mots pour les posts)
+6. objectif : ce que ce contenu doit provoquer (1 phrase)
+7. tip : un conseil de création ou de timing (1 phrase)
+
+RÈGLES :
+- Écriture inclusive avec point médian
+- JAMAIS de tiret cadratin. Utilise : ou ;
+- Le ton doit correspondre au ton & style de l'utilisatrice
+- Les objections doivent être traitées naturellement
+- Alterner les formats
+- Les stories séries : penser en 5-8 stories
+- Le live doit inclure un script/structure
+- Si un contenu était prévu par l'utilisatrice, rédiger le contenu correspondant
+
+Réponds en JSON :
+{
+  "phases": [
+    {
+      "name": "pre_teasing",
+      "label": "Pré-teasing",
+      "start_date": "YYYY-MM-DD",
+      "end_date": "YYYY-MM-DD",
+      "contents": [
+        {
+          "date": "YYYY-MM-DD",
+          "format": "...",
+          "accroche": "...",
+          "contenu": "...",
+          "objectif": "...",
+          "tip": "..."
+        }
+      ]
+    }
+  ]
+}`;
+        userPrompt = "Génère mon plan de lancement complet avec tous les contenus.";
+
       } else if (type === "redaction-structure") {
         systemPrompt = `Tu es un·e expert·e en création de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nFORMAT CHOISI : ${format}\nSUJET DU POST : ${sujet}\n\nPropose une STRUCTURE DÉTAILLÉE pour ce post, étape par étape.\n\nPour chaque étape/slide, donne :\n- Le rôle de cette partie\n- Ce qu'il faut y mettre concrètement\n- Un exemple\n\nSois concrète et actionnable. Écriture inclusive avec point médian.\n\nRéponds en texte structuré lisible.`;
         userPrompt = `Propose-moi une structure détaillée pour un post "${format}" sur : "${sujet}"`;
