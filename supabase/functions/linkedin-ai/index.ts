@@ -118,6 +118,11 @@ serve(async (req) => {
       systemPrompt = `${LINKEDIN_PRINCIPLES}\n\nPour : ${person_name}\nType de collaboration : ${collab_type}\nCe qu'on veut mettre en avant : ${highlights}\n\nRédige un brouillon (150-200 mots) du point de vue de la personne qui recommande.\nSincère, concret, facilement personnalisable.\n\nRéponds avec le brouillon uniquement.`;
       userPrompt = "Rédige un brouillon de recommandation.";
 
+    } else if (action === "analyze-resume") {
+      const { existing_resume } = params;
+      systemPrompt = `${LINKEDIN_PRINCIPLES}\n\n${context}\n\nTu es experte en optimisation de profils LinkedIn pour des solopreneuses créatives et engagées.\n\nRÉSUMÉ LINKEDIN ACTUEL DE L'UTILISATRICE :\n"""\n${existing_resume}\n"""\n\nANALYSE le résumé selon les 5 éléments d'un bon résumé LinkedIn :\n\n1. HOOK (les 3 premières lignes) : accrocheur ? donne envie de cliquer "voir plus" ?\n2. PASSION : explique pourquoi elle fait ce métier ?\n3. PARCOURS : d'où elle vient, en 2-3 phrases max ?\n4. PROPOSITION : pour qui elle travaille, quel résultat concret ?\n5. CTA : invitation à passer à l'action ?\n\nRETOURNE UNIQUEMENT un JSON valide, pas de texte avant ou après :\n{\n  "score": 55,\n  "summary": {\n    "positives": ["max 2 items, 1 phrase chacun"],\n    "improvements": ["max 2 items, 1 phrase chacun"]\n  },\n  "recommendations": [\n    {\n      "number": 1,\n      "title": "Hook : manquant",\n      "status": "missing",\n      "explanation": "1-2 phrases max.",\n      "example": "Exemple concret optionnel"\n    }\n  ],\n  "proposed_version": "Version améliorée complète du résumé..."\n}\n\nRÈGLES :\n- "title" : MAX 8 mots.\n- "status" : "good", "partial" ou "missing"\n- "explanation" : MAX 2 phrases.\n- "example" : 1 exemple concret si status != "good".\n- "recommendations" : exactement 5 items (un par élément).\n- "proposed_version" : résumé complet amélioré, 1500-2000 caractères.\n- Pas de markdown dans le JSON.\n- Utilise le branding pour personnaliser.`;
+      userPrompt = "Analyse et améliore mon résumé LinkedIn existant.";
+
     } else {
       return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

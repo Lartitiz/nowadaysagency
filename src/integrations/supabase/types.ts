@@ -1517,6 +1517,11 @@ export type Database = {
           custom_url: string | null
           id: string
           photo_done: boolean | null
+          resume_analysis: Json | null
+          resume_current: string | null
+          resume_generated: string | null
+          resume_score: number | null
+          resume_updated_at: string | null
           summary_final: string | null
           summary_pro: string | null
           summary_storytelling: string | null
@@ -1532,6 +1537,11 @@ export type Database = {
           custom_url?: string | null
           id?: string
           photo_done?: boolean | null
+          resume_analysis?: Json | null
+          resume_current?: string | null
+          resume_generated?: string | null
+          resume_score?: number | null
+          resume_updated_at?: string | null
           summary_final?: string | null
           summary_pro?: string | null
           summary_storytelling?: string | null
@@ -1547,6 +1557,11 @@ export type Database = {
           custom_url?: string | null
           id?: string
           photo_done?: boolean | null
+          resume_analysis?: Json | null
+          resume_current?: string | null
+          resume_generated?: string | null
+          resume_score?: number | null
+          resume_updated_at?: string | null
           summary_final?: string | null
           summary_pro?: string | null
           summary_storytelling?: string | null
