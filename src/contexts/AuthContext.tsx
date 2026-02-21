@@ -35,20 +35,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!initialSessionHandled) return;
 
         if (event === "SIGNED_IN" && session?.user) {
-          // Fresh sign-in from login page
-          setTimeout(async () => {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("onboarding_completed")
-              .eq("user_id", session.user.id)
-              .maybeSingle();
+          // Only redirect if on login/landing page (fresh sign-in), not on tab switch
+          const path = window.location.pathname;
+          if (path === "/" || path === "/login" || path === "/connexion") {
+            setTimeout(async () => {
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("onboarding_completed")
+                .eq("user_id", session.user.id)
+                .maybeSingle();
 
-            if (!profile || !profile.onboarding_completed) {
-              navigate("/onboarding");
-            } else {
-              navigate("/dashboard");
-            }
-          }, 0);
+              if (!profile || !profile.onboarding_completed) {
+                navigate("/onboarding");
+              } else {
+                navigate("/dashboard");
+              }
+            }, 0);
+          }
         }
 
         if (event === "SIGNED_OUT") {
