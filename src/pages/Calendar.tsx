@@ -145,16 +145,16 @@ export default function CalendarPage() {
     setDialogOpen(true);
   };
 
-  const handleSave = async (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null }) => {
+  const handleSave = async (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format?: string | null; content_draft?: string | null; accroche?: string | null }) => {
     if (!user || !selectedDate) return;
+    const payload: any = {
+      theme: data.theme, angle: data.angle, status: data.status, notes: data.notes || null, canal: data.canal, objectif: data.objectif || null,
+      format: data.format || null, content_draft: data.content_draft || null, accroche: data.accroche || null,
+    };
     if (editingPost) {
-      await supabase.from("calendar_posts").update({
-        theme: data.theme, angle: data.angle, status: data.status, notes: data.notes || null, canal: data.canal, objectif: data.objectif || null,
-      }).eq("id", editingPost.id);
+      await supabase.from("calendar_posts").update(payload).eq("id", editingPost.id);
     } else {
-      await supabase.from("calendar_posts").insert({
-        user_id: user.id, date: selectedDate, theme: data.theme, angle: data.angle, status: data.status, notes: data.notes || null, canal: data.canal, objectif: data.objectif || null,
-      });
+      await supabase.from("calendar_posts").insert({ ...payload, user_id: user.id, date: selectedDate });
     }
     setDialogOpen(false);
     fetchPosts();
