@@ -16,6 +16,7 @@ import { CalendarWeekGrid } from "@/components/calendar/CalendarWeekGrid";
 import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
 import { CalendarLegend } from "@/components/calendar/CalendarLegend";
 import { CalendarCategoryFilters } from "@/components/calendar/CalendarCategoryFilters";
+import { StoriesMixBanner } from "@/components/calendar/StoriesMixBanner";
 
 export default function CalendarPage() {
   const { user } = useAuth();
@@ -276,15 +277,18 @@ export default function CalendarPage() {
             onMovePost={handleMovePost}
           />
         ) : (
-          <CalendarWeekGrid
-            weekDays={weekDays}
-            postsByDate={postsByDate}
-            todayStr={todayStr}
-            isMobile={isMobile}
-            onCreatePost={openCreateDialog}
-            onEditPost={openEditDialog}
-            onMovePost={handleMovePost}
-          />
+          <>
+            <StoriesMixBanner weekDays={weekDays} />
+            <CalendarWeekGrid
+              weekDays={weekDays}
+              postsByDate={postsByDate}
+              todayStr={todayStr}
+              isMobile={isMobile}
+              onCreatePost={openCreateDialog}
+              onEditPost={openEditDialog}
+              onMovePost={handleMovePost}
+            />
+          </>
         )}
 
         <CalendarPostDialog

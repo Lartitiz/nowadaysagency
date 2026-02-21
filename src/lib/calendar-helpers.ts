@@ -5,6 +5,7 @@ export const CATEGORY_CARD_COLORS: Record<string, { bg: string; borderLeft: stri
   confiance: { bg: "hsl(271, 81%, 96%)", borderLeft: "hsl(271, 81%, 56%)" },
   vente: { bg: "hsl(45, 100%, 94%)", borderLeft: "hsl(38, 92%, 50%)" },
   post_lancement: { bg: "hsl(142, 76%, 94%)", borderLeft: "hsl(142, 71%, 45%)" },
+  stories: { bg: "hsl(263, 70%, 96%)", borderLeft: "hsl(263, 70%, 50%)" },
 };
 
 export const FORMAT_EMOJIS: Record<string, string> = {

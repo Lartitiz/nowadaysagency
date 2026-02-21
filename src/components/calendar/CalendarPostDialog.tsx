@@ -166,6 +166,16 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     });
   };
 
+  const handleViewStoriesSequence = () => {
+    if (editingPost?.stories_sequence_id) {
+      navigate("/instagram/stories", {
+        state: { viewSequenceId: editingPost.stories_sequence_id },
+      });
+    }
+  };
+
+  const isStoriesPost = !!(editingPost?.stories_count || editingPost?.stories_sequence_id || editingPost?.stories_structure);
+
   const contentPreview = contentDraft && contentDraft.length > 200 && !showFullContent
     ? contentDraft.slice(0, 200) + "..."
     : contentDraft;
@@ -175,9 +185,65 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display">
-            {editingPost ? "Modifier le post" : "Ajouter un post"}
+            {isStoriesPost ? "📱 Séquence Stories" : editingPost ? "Modifier le post" : "Ajouter un post"}
           </DialogTitle>
         </DialogHeader>
+
+        {/* Stories-specific view */}
+        {isStoriesPost && editingPost ? (
+          <div className="space-y-4 mt-2">
+            <div className="rounded-xl border border-border bg-card p-3">
+              <p className="text-sm font-medium text-foreground mb-1">
+                {editingPost.stories_structure || editingPost.theme} · {editingPost.stories_count || "?"} stories
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Objectif : {editingPost.stories_objective || editingPost.objectif || "—"}
+              </p>
+              {editingPost.stories_timing && (
+                <div className="mt-2 space-y-1">
+                  {Object.entries(editingPost.stories_timing).map(([k, v]) => {
+                    const emoji = k === "matin" ? "🌅" : k === "midi" ? "☀️" : "🌙";
+                    return (
+                      <p key={k} className="text-xs text-muted-foreground">
+                        {emoji} <span className="capitalize">{k}</span> : {v as string}
+                      </p>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Status */}
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Statut</label>
+              <div className="flex flex-wrap gap-1.5">
+                {STATUSES.map((s) => (
+                  <button key={s.id} onClick={() => setStatus(s.id)}
+                    className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${status === s.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {editingPost.stories_sequence_id && (
+                <Button variant="outline" size="sm" onClick={handleViewStoriesSequence} className="rounded-pill text-xs gap-1.5">
+                  👁️ Voir la séquence
+                </Button>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button onClick={() => onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche })} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux">
+                Enregistrer
+              </Button>
+              <Button variant="outline" size="icon" onClick={onDelete} className="rounded-full text-destructive hover:bg-destructive/10">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ) : (
         <div className="space-y-4 mt-2">
           {/* Theme */}
           <div>
@@ -354,6 +420,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             )}
           </div>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );

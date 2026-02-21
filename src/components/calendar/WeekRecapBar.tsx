@@ -16,10 +16,15 @@ export function WeekRecapBar({ posts, compact = true }: Props) {
     statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
   });
 
+  // Count stories posts
+  const storiesCount = posts.filter((p) => !!(p.stories_count || p.stories_sequence_id || p.stories_structure)).length;
+  const feedCount = posts.length - storiesCount;
+
   if (compact) {
     return (
       <div className="text-[10px] text-muted-foreground px-1.5 py-1 flex items-center gap-2 flex-wrap">
-        <span className="font-medium">{posts.length} contenus</span>
+        <span className="font-medium">{feedCount} contenus</span>
+        {storiesCount > 0 && <span>📱{storiesCount} stories</span>}
         {catCounts.visibilite && <span>👁️{catCounts.visibilite}</span>}
         {catCounts.confiance && <span>🤝{catCounts.confiance}</span>}
         {catCounts.vente && <span>💰{catCounts.vente}</span>}
@@ -30,7 +35,8 @@ export function WeekRecapBar({ posts, compact = true }: Props) {
 
   return (
     <div className="text-xs text-muted-foreground bg-card border border-border rounded-xl px-4 py-2.5 mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
-      <span className="font-medium text-foreground">📊 Cette semaine : {posts.length} contenus</span>
+      <span className="font-medium text-foreground">📊 Cette semaine : {feedCount} contenus</span>
+      {storiesCount > 0 && <span className="font-medium text-foreground">· 📱 {storiesCount} séq. stories</span>}
       {catCounts.visibilite && <span>👁️ Visibilité : {catCounts.visibilite}</span>}
       {catCounts.confiance && <span>🤝 Confiance : {catCounts.confiance}</span>}
       {catCounts.vente && <span>💰 Vente : {catCounts.vente}</span>}
