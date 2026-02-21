@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { LINKEDIN_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -91,30 +92,30 @@ serve(async (req) => {
     let userPrompt = "";
 
     if (action === "title") {
-      systemPrompt = `Tu es expert·e en personal branding LinkedIn pour des solopreneuses créatives et éthiques.\n\n${context}\n\nGénère 3 options de titre LinkedIn :\n\nOPTION 1 : Format proposition de valeur\n"J'aide [qui] à [quoi] grâce à [comment]"\n\nOPTION 2 : Format poste + mots-clés\n"[Poste] : [Spécialité] : [Secteur]"\n\nOPTION 3 : Format hybride\n"[Proposition courte] | [Poste] | [Preuve sociale]"\n\nChaque titre doit :\n- Faire max 220 caractères\n- Contenir des mots-clés pertinents pour le SEO LinkedIn\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["titre 1", "titre 2", "titre 3"]`;
+      systemPrompt = `${LINKEDIN_PRINCIPLES}\n\n${context}\n\nGénère 3 options de titre LinkedIn :\n\nOPTION 1 : Format proposition de valeur\n"J'aide [qui] à [quoi] grâce à [comment]"\n\nOPTION 2 : Format poste + mots-clés\n"[Poste] : [Spécialité] : [Secteur]"\n\nOPTION 3 : Format hybride\n"[Proposition courte] | [Poste] | [Preuve sociale]"\n\nChaque titre doit :\n- Faire max 220 caractères\n- Contenir des mots-clés pertinents pour le SEO LinkedIn\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["titre 1", "titre 2", "titre 3"]`;
       userPrompt = "Génère 3 options de titre LinkedIn pour moi.";
 
     } else if (action === "summary") {
       const { passion, parcours, offre, cta } = params;
-      systemPrompt = `Tu es expert·e en personal branding LinkedIn.\n\n${context}\n\nÉLÉMENTS FOURNIS :\n- Sa passion : "${passion || ""}"\n- Son parcours : "${parcours || ""}"\n- Ce qu'elle propose : "${offre || ""}"\n- Son appel à l'action : "${cta || ""}"\n\nGénère 2 versions du résumé LinkedIn :\n\nVERSION STORYTELLING :\n- Hook percutant, parcours narratif, proposition de valeur naturelle, CTA clair\n- 200-300 mots\n${branding.storytelling?.step_7_polished ? "- Utilise le storytelling comme base narrative" : ""}\n\nVERSION PRO :\n- Plus structurée, factuelle\n- 150-200 mots\n\nRÈGLES :\n- Ton professionnel mais humain\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"storytelling": "...", "pro": "..."}`;
+      systemPrompt = `${LINKEDIN_PRINCIPLES}\n\n${context}\n\nÉLÉMENTS FOURNIS :\n- Sa passion : "${passion || ""}"\n- Son parcours : "${parcours || ""}"\n- Ce qu'elle propose : "${offre || ""}"\n- Son appel à l'action : "${cta || ""}"\n\nGénère 2 versions du résumé LinkedIn :\n\nVERSION STORYTELLING :\n- Hook percutant, parcours narratif, proposition de valeur naturelle, CTA clair\n- 200-300 mots\n${branding.storytelling?.step_7_polished ? "- Utilise le storytelling comme base narrative" : ""}\n\nVERSION PRO :\n- Plus structurée, factuelle\n- 150-200 mots\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"storytelling": "...", "pro": "..."}`;
       userPrompt = "Génère 2 versions de résumé LinkedIn.";
 
     } else if (action === "optimize-experience") {
       const { job_title, company, description } = params;
-      systemPrompt = `Tu reformules des expériences LinkedIn.\n\nReformule cette expérience :\n1. Contexte (1-2 phrases)\n2. Problématique (1 phrase)\n3. Solution (2-3 phrases)\n4. Résultats (1-2 phrases)\n\nTon professionnel, engageant, concret. Écriture inclusive avec point médian. JAMAIS de tiret cadratin.\n\nRéponds UNIQUEMENT avec le texte reformulé.`;
+      systemPrompt = `${LINKEDIN_PRINCIPLES}\n\nReformule cette expérience :\n1. Contexte (1-2 phrases)\n2. Problématique (1 phrase)\n3. Solution (2-3 phrases)\n4. Résultats (1-2 phrases)\n\nTon professionnel, engageant, concret.\n\nRéponds UNIQUEMENT avec le texte reformulé.`;
       userPrompt = `Intitulé : ${job_title}\nEntreprise : ${company}\nDescription : ${description}`;
 
     } else if (action === "suggest-skills") {
-      systemPrompt = `Tu es expert·e en personal branding LinkedIn.\n\n${context}\n\nSuggère 10 compétences LinkedIn pertinentes :\n- 5 compétences techniques\n- 5 compétences comportementales\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"techniques": ["...", ...], "comportementales": ["...", ...]}`;
+      systemPrompt = `${LINKEDIN_PRINCIPLES}\n\n${context}\n\nSuggère 10 compétences LinkedIn pertinentes :\n- 5 compétences techniques\n- 5 compétences comportementales\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"techniques": ["...", ...], "comportementales": ["...", ...]}`;
       userPrompt = "Suggère des compétences LinkedIn.";
 
     } else if (action === "personalize-message") {
-      systemPrompt = `Tu es expert·e en communication LinkedIn.\n\n${context}\n\nPersonnalise ce message de demande de recommandation en 3 variantes adaptées au ton de l'utilisatrice.\n\nChaque variante : sincère, chaleureuse, 3-4 phrases.\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["variante 1", "variante 2", "variante 3"]`;
+      systemPrompt = `${LINKEDIN_PRINCIPLES}\n\n${context}\n\nPersonnalise ce message de demande de recommandation en 3 variantes adaptées au ton de l'utilisatrice.\n\nChaque variante : sincère, chaleureuse, 3-4 phrases.\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["variante 1", "variante 2", "variante 3"]`;
       userPrompt = "Personnalise mon message de demande de recommandation LinkedIn.";
 
     } else if (action === "draft-recommendation") {
       const { person_name, collab_type, highlights } = params;
-      systemPrompt = `Tu rédiges un brouillon de recommandation LinkedIn.\n\n${context}\n\nPour : ${person_name}\nType de collaboration : ${collab_type}\nCe qu'on veut mettre en avant : ${highlights}\n\nRédige un brouillon (150-200 mots) du point de vue de la personne qui recommande.\nSincère, concret, facilement personnalisable.\n\nRéponds avec le brouillon uniquement.`;
+      systemPrompt = `${LINKEDIN_PRINCIPLES}\n\nPour : ${person_name}\nType de collaboration : ${collab_type}\nCe qu'on veut mettre en avant : ${highlights}\n\nRédige un brouillon (150-200 mots) du point de vue de la personne qui recommande.\nSincère, concret, facilement personnalisable.\n\nRéponds avec le brouillon uniquement.`;
       userPrompt = "Rédige un brouillon de recommandation.";
 
     } else {
