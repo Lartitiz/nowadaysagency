@@ -1,0 +1,1 @@
+ALTER TABLE brand_strategy ADD COLUMN IF NOT EXISTS recap_summary JSONB;

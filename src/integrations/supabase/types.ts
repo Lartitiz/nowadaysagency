@@ -196,6 +196,7 @@ export type Database = {
           pillar_minor_1: string | null
           pillar_minor_2: string | null
           pillar_minor_3: string | null
+          recap_summary: Json | null
           step_1_hidden_facets: string | null
           updated_at: string | null
           user_id: string
@@ -219,6 +220,7 @@ export type Database = {
           pillar_minor_1?: string | null
           pillar_minor_2?: string | null
           pillar_minor_3?: string | null
+          recap_summary?: Json | null
           step_1_hidden_facets?: string | null
           updated_at?: string | null
           user_id: string
@@ -242,6 +244,7 @@ export type Database = {
           pillar_minor_1?: string | null
           pillar_minor_2?: string | null
           pillar_minor_3?: string | null
+          recap_summary?: Json | null
           step_1_hidden_facets?: string | null
           updated_at?: string | null
           user_id?: string
