@@ -622,6 +622,102 @@ export type Database = {
         }
         Relationships: []
       }
+      instagram_audit: {
+        Row: {
+          best_content: string | null
+          created_at: string
+          current_rhythm: string | null
+          details: Json | null
+          id: string
+          main_objective: string | null
+          resume: string | null
+          score_bio: number | null
+          score_edito: number | null
+          score_epingles: number | null
+          score_feed: number | null
+          score_global: number | null
+          score_nom: number | null
+          score_stories: number | null
+          user_id: string
+          worst_content: string | null
+        }
+        Insert: {
+          best_content?: string | null
+          created_at?: string
+          current_rhythm?: string | null
+          details?: Json | null
+          id?: string
+          main_objective?: string | null
+          resume?: string | null
+          score_bio?: number | null
+          score_edito?: number | null
+          score_epingles?: number | null
+          score_feed?: number | null
+          score_global?: number | null
+          score_nom?: number | null
+          score_stories?: number | null
+          user_id: string
+          worst_content?: string | null
+        }
+        Update: {
+          best_content?: string | null
+          created_at?: string
+          current_rhythm?: string | null
+          details?: Json | null
+          id?: string
+          main_objective?: string | null
+          resume?: string | null
+          score_bio?: number | null
+          score_edito?: number | null
+          score_epingles?: number | null
+          score_feed?: number | null
+          score_global?: number | null
+          score_nom?: number | null
+          score_stories?: number | null
+          user_id?: string
+          worst_content?: string | null
+        }
+        Relationships: []
+      }
+      instagram_editorial_line: {
+        Row: {
+          created_at: string
+          do_more: string | null
+          id: string
+          main_objective: string | null
+          pillar_distribution: Json | null
+          preferred_formats: Json | null
+          recommended_rhythm: string | null
+          stop_doing: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          do_more?: string | null
+          id?: string
+          main_objective?: string | null
+          pillar_distribution?: Json | null
+          preferred_formats?: Json | null
+          recommended_rhythm?: string | null
+          stop_doing?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          do_more?: string | null
+          id?: string
+          main_objective?: string | null
+          pillar_distribution?: Json | null
+          preferred_formats?: Json | null
+          recommended_rhythm?: string | null
+          stop_doing?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       instagram_highlights: {
         Row: {
           created_at: string
@@ -729,6 +825,48 @@ export type Database = {
           saved_to_ideas?: boolean | null
           source_text?: string | null
           source_url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      instagram_pinned_posts: {
+        Row: {
+          created_at: string
+          existing_description: string | null
+          generated_accroche: string | null
+          generated_content: string | null
+          generated_format: string | null
+          has_existing: boolean | null
+          id: string
+          is_pinned: boolean | null
+          post_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          existing_description?: string | null
+          generated_accroche?: string | null
+          generated_content?: string | null
+          generated_format?: string | null
+          has_existing?: boolean | null
+          id?: string
+          is_pinned?: boolean | null
+          post_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          existing_description?: string | null
+          generated_accroche?: string | null
+          generated_content?: string | null
+          generated_format?: string | null
+          has_existing?: boolean | null
+          id?: string
+          is_pinned?: boolean | null
+          post_type?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

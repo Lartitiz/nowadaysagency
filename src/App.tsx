@@ -22,9 +22,14 @@ import StorytellingListPage from "./pages/StorytellingListPage";
 import StorytellingImportPage from "./pages/StorytellingImportPage";
 import StorytellingEditPage from "./pages/StorytellingEditPage";
 import InstagramHub from "./pages/InstagramHub";
+import InstagramProfile from "./pages/InstagramProfile";
+import InstagramAudit from "./pages/InstagramAudit";
 import InstagramBio from "./pages/InstagramBio";
 import InstagramHighlights from "./pages/InstagramHighlights";
-import InstagramInspiration from "./pages/InstagramInspiration";
+import InstagramProfileNom from "./pages/InstagramProfileNom";
+import InstagramProfileEpingles from "./pages/InstagramProfileEpingles";
+import InstagramProfileFeed from "./pages/InstagramProfileFeed";
+import InstagramProfileEdito from "./pages/InstagramProfileEdito";
 import InstagramInspirer from "./pages/InstagramInspirer";
 import InstagramLaunch from "./pages/InstagramLaunch";
 import InstagramLaunchPlan from "./pages/InstagramLaunchPlan";
@@ -70,158 +75,70 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/connexion" element={<LoginPage />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/onboarding" element={
-              <ProtectedRoute><Onboarding /></ProtectedRoute>
-            } />
-            <Route path="/dashboard" element={
-              <ProtectedRoute><Dashboard /></ProtectedRoute>
-            } />
-            <Route path="/idees" element={
-              <ProtectedRoute><IdeasPage /></ProtectedRoute>
-            } />
-            <Route path="/branding" element={
-              <ProtectedRoute><BrandingPage /></ProtectedRoute>
-            } />
-            <Route path="/branding/ton" element={
-              <ProtectedRoute><TonStylePage /></ProtectedRoute>
-            } />
-            <Route path="/branding/storytelling" element={
-              <ProtectedRoute><StorytellingListPage /></ProtectedRoute>
-            } />
-            <Route path="/branding/storytelling/new" element={
-              <ProtectedRoute><StorytellingPage /></ProtectedRoute>
-            } />
-            <Route path="/branding/storytelling/import" element={
-              <ProtectedRoute><StorytellingImportPage /></ProtectedRoute>
-            } />
-            <Route path="/branding/storytelling/:id" element={
-              <ProtectedRoute><StorytellingPage /></ProtectedRoute>
-            } />
-            <Route path="/branding/storytelling/:id/recap" element={
-              <ProtectedRoute><StorytellingRecapPage /></ProtectedRoute>
-            } />
-            <Route path="/branding/storytelling/:id/edit" element={
-              <ProtectedRoute><StorytellingEditPage /></ProtectedRoute>
-            } />
-            <Route path="/branding/storytelling/recap" element={
-              <ProtectedRoute><StorytellingRecapPage /></ProtectedRoute>
-            } />
-            <Route path="/branding/persona" element={
-              <ProtectedRoute><PersonaPage /></ProtectedRoute>
-            } />
-            <Route path="/branding/persona/recap" element={
-              <ProtectedRoute><PersonaRecapPage /></ProtectedRoute>
-            } />
-            <Route path="/branding/proposition" element={
-              <ProtectedRoute><PropositionPage /></ProtectedRoute>
-            } />
-            <Route path="/branding/proposition/recap" element={
-              <ProtectedRoute><PropositionRecapPage /></ProtectedRoute>
-            } />
-            {/* Redirect old niche routes to ton */}
+            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/idees" element={<ProtectedRoute><IdeasPage /></ProtectedRoute>} />
+            <Route path="/branding" element={<ProtectedRoute><BrandingPage /></ProtectedRoute>} />
+            <Route path="/branding/ton" element={<ProtectedRoute><TonStylePage /></ProtectedRoute>} />
+            <Route path="/branding/storytelling" element={<ProtectedRoute><StorytellingListPage /></ProtectedRoute>} />
+            <Route path="/branding/storytelling/new" element={<ProtectedRoute><StorytellingPage /></ProtectedRoute>} />
+            <Route path="/branding/storytelling/import" element={<ProtectedRoute><StorytellingImportPage /></ProtectedRoute>} />
+            <Route path="/branding/storytelling/:id" element={<ProtectedRoute><StorytellingPage /></ProtectedRoute>} />
+            <Route path="/branding/storytelling/:id/recap" element={<ProtectedRoute><StorytellingRecapPage /></ProtectedRoute>} />
+            <Route path="/branding/storytelling/:id/edit" element={<ProtectedRoute><StorytellingEditPage /></ProtectedRoute>} />
+            <Route path="/branding/storytelling/recap" element={<ProtectedRoute><StorytellingRecapPage /></ProtectedRoute>} />
+            <Route path="/branding/persona" element={<ProtectedRoute><PersonaPage /></ProtectedRoute>} />
+            <Route path="/branding/persona/recap" element={<ProtectedRoute><PersonaRecapPage /></ProtectedRoute>} />
+            <Route path="/branding/proposition" element={<ProtectedRoute><PropositionPage /></ProtectedRoute>} />
+            <Route path="/branding/proposition/recap" element={<ProtectedRoute><PropositionRecapPage /></ProtectedRoute>} />
             <Route path="/branding/niche" element={<Navigate to="/branding/ton" replace />} />
             <Route path="/branding/niche/recap" element={<Navigate to="/branding/ton" replace />} />
-            <Route path="/branding/strategie" element={
-              <ProtectedRoute><StrategiePage /></ProtectedRoute>
-            } />
-            <Route path="/branding/strategie/recap" element={
-              <ProtectedRoute><StrategieRecapPage /></ProtectedRoute>
-            } />
-            <Route path="/plan" element={
-              <ProtectedRoute><PlanPage /></ProtectedRoute>
-            } />
-            <Route path="/profil" element={
-              <ProtectedRoute><Profile /></ProtectedRoute>
-            } />
-            <Route path="/parametres" element={
-              <ProtectedRoute><SettingsPage /></ProtectedRoute>
-            } />
+            <Route path="/branding/strategie" element={<ProtectedRoute><StrategiePage /></ProtectedRoute>} />
+            <Route path="/branding/strategie/recap" element={<ProtectedRoute><StrategieRecapPage /></ProtectedRoute>} />
+            <Route path="/plan" element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />
+            <Route path="/profil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/parametres" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             {/* Instagram module */}
-            <Route path="/instagram" element={
-              <ProtectedRoute><InstagramHub /></ProtectedRoute>
-            } />
-            <Route path="/instagram/bio" element={
-              <ProtectedRoute><InstagramBio /></ProtectedRoute>
-            } />
-            <Route path="/instagram/highlights" element={
-              <ProtectedRoute><InstagramHighlights /></ProtectedRoute>
-            } />
-            <Route path="/instagram/inspiration" element={
-              <ProtectedRoute><InstagramInspiration /></ProtectedRoute>
-            } />
-            <Route path="/instagram/inspirer" element={
-              <ProtectedRoute><InstagramInspirer /></ProtectedRoute>
-            } />
-            <Route path="/instagram/lancement" element={
-              <ProtectedRoute><InstagramLaunch /></ProtectedRoute>
-            } />
-            <Route path="/instagram/lancement/plan" element={
-              <ProtectedRoute><InstagramLaunchPlan /></ProtectedRoute>
-            } />
-            <Route path="/instagram/rythme" element={
-              <ProtectedRoute><InstagramRythme /></ProtectedRoute>
-            } />
-            <Route path="/instagram/engagement" element={
-              <ProtectedRoute><InstagramEngagement /></ProtectedRoute>
-            } />
+            <Route path="/instagram" element={<ProtectedRoute><InstagramHub /></ProtectedRoute>} />
+            <Route path="/instagram/profil" element={<ProtectedRoute><InstagramProfile /></ProtectedRoute>} />
+            <Route path="/instagram/profil/audit" element={<ProtectedRoute><InstagramAudit /></ProtectedRoute>} />
+            <Route path="/instagram/profil/nom" element={<ProtectedRoute><InstagramProfileNom /></ProtectedRoute>} />
+            <Route path="/instagram/profil/bio" element={<ProtectedRoute><InstagramBio /></ProtectedRoute>} />
+            <Route path="/instagram/profil/stories" element={<ProtectedRoute><InstagramHighlights /></ProtectedRoute>} />
+            <Route path="/instagram/profil/epingles" element={<ProtectedRoute><InstagramProfileEpingles /></ProtectedRoute>} />
+            <Route path="/instagram/profil/feed" element={<ProtectedRoute><InstagramProfileFeed /></ProtectedRoute>} />
+            <Route path="/instagram/profil/edito" element={<ProtectedRoute><InstagramProfileEdito /></ProtectedRoute>} />
+            <Route path="/instagram/inspirer" element={<ProtectedRoute><InstagramInspirer /></ProtectedRoute>} />
+            <Route path="/instagram/lancement" element={<ProtectedRoute><InstagramLaunch /></ProtectedRoute>} />
+            <Route path="/instagram/lancement/plan" element={<ProtectedRoute><InstagramLaunchPlan /></ProtectedRoute>} />
+            <Route path="/instagram/rythme" element={<ProtectedRoute><InstagramRythme /></ProtectedRoute>} />
+            <Route path="/instagram/engagement" element={<ProtectedRoute><InstagramEngagement /></ProtectedRoute>} />
+            {/* Redirects from old routes */}
+            <Route path="/instagram/bio" element={<Navigate to="/instagram/profil/bio" replace />} />
+            <Route path="/instagram/highlights" element={<Navigate to="/instagram/profil/stories" replace />} />
+            <Route path="/instagram/inspiration" element={<Navigate to="/instagram/inspirer" replace />} />
             {/* Transversal routes */}
-            <Route path="/atelier" element={
-              <ProtectedRoute><AtelierPage /></ProtectedRoute>
-            } />
-            <Route path="/atelier/rediger" element={
-              <ProtectedRoute><RedactionPage /></ProtectedRoute>
-            } />
+            <Route path="/atelier" element={<ProtectedRoute><AtelierPage /></ProtectedRoute>} />
+            <Route path="/atelier/rediger" element={<ProtectedRoute><RedactionPage /></ProtectedRoute>} />
             {/* LinkedIn module */}
-            <Route path="/linkedin" element={
-              <ProtectedRoute><LinkedInHub /></ProtectedRoute>
-            } />
-            <Route path="/linkedin/profil" element={
-              <ProtectedRoute><LinkedInProfil /></ProtectedRoute>
-            } />
-            <Route path="/linkedin/resume" element={
-              <ProtectedRoute><LinkedInResume /></ProtectedRoute>
-            } />
-            <Route path="/linkedin/parcours" element={
-              <ProtectedRoute><LinkedInParcours /></ProtectedRoute>
-            } />
-            <Route path="/linkedin/recommandations" element={
-              <ProtectedRoute><LinkedInRecommandations /></ProtectedRoute>
-            } />
-            <Route path="/linkedin/engagement" element={
-              <ProtectedRoute><LinkedInEngagement /></ProtectedRoute>
-            } />
+            <Route path="/linkedin" element={<ProtectedRoute><LinkedInHub /></ProtectedRoute>} />
+            <Route path="/linkedin/profil" element={<ProtectedRoute><LinkedInProfil /></ProtectedRoute>} />
+            <Route path="/linkedin/resume" element={<ProtectedRoute><LinkedInResume /></ProtectedRoute>} />
+            <Route path="/linkedin/parcours" element={<ProtectedRoute><LinkedInParcours /></ProtectedRoute>} />
+            <Route path="/linkedin/recommandations" element={<ProtectedRoute><LinkedInRecommandations /></ProtectedRoute>} />
+            <Route path="/linkedin/engagement" element={<ProtectedRoute><LinkedInEngagement /></ProtectedRoute>} />
             {/* Pinterest module */}
-            <Route path="/pinterest" element={
-              <ProtectedRoute><PinterestHub /></ProtectedRoute>
-            } />
-            <Route path="/pinterest/compte" element={
-              <ProtectedRoute><PinterestCompte /></ProtectedRoute>
-            } />
-            <Route path="/pinterest/tableaux" element={
-              <ProtectedRoute><PinterestTableaux /></ProtectedRoute>
-            } />
-            <Route path="/pinterest/mots-cles" element={
-              <ProtectedRoute><PinterestMotsCles /></ProtectedRoute>
-            } />
-            <Route path="/pinterest/epingles" element={
-              <ProtectedRoute><PinterestEpingles /></ProtectedRoute>
-            } />
-            <Route path="/pinterest/routine" element={
-              <ProtectedRoute><PinterestRoutine /></ProtectedRoute>
-            } />
-            <Route path="/calendrier" element={
-              <ProtectedRoute><Calendar /></ProtectedRoute>
-            } />
+            <Route path="/pinterest" element={<ProtectedRoute><PinterestHub /></ProtectedRoute>} />
+            <Route path="/pinterest/compte" element={<ProtectedRoute><PinterestCompte /></ProtectedRoute>} />
+            <Route path="/pinterest/tableaux" element={<ProtectedRoute><PinterestTableaux /></ProtectedRoute>} />
+            <Route path="/pinterest/mots-cles" element={<ProtectedRoute><PinterestMotsCles /></ProtectedRoute>} />
+            <Route path="/pinterest/epingles" element={<ProtectedRoute><PinterestEpingles /></ProtectedRoute>} />
+            <Route path="/pinterest/routine" element={<ProtectedRoute><PinterestRoutine /></ProtectedRoute>} />
+            <Route path="/calendrier" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
             {/* Site Web module */}
-            <Route path="/site" element={
-              <ProtectedRoute><SiteHub /></ProtectedRoute>
-            } />
-            <Route path="/site/accueil" element={
-              <ProtectedRoute><SiteAccueil /></ProtectedRoute>
-            } />
-            <Route path="/site/accueil/recap" element={
-              <ProtectedRoute><SiteAccueilRecap /></ProtectedRoute>
-            } />
+            <Route path="/site" element={<ProtectedRoute><SiteHub /></ProtectedRoute>} />
+            <Route path="/site/accueil" element={<ProtectedRoute><SiteAccueil /></ProtectedRoute>} />
+            <Route path="/site/accueil/recap" element={<ProtectedRoute><SiteAccueilRecap /></ProtectedRoute>} />
             {/* Redirects from old routes */}
             <Route path="/instagram/idees" element={<Navigate to="/atelier?canal=instagram" replace />} />
             <Route path="/instagram/calendrier" element={<Navigate to="/calendrier?canal=instagram" replace />} />
