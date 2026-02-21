@@ -135,6 +135,22 @@ export default function CalendarPage() {
     toast({ title: "Post supprimé" });
   };
 
+  const handleMovePost = async (postId: string, newDate: string) => {
+    // Optimistic update
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, date: newDate } : p)));
+    const { error } = await supabase
+      .from("calendar_posts")
+      .update({ date: newDate, updated_at: new Date().toISOString() })
+      .eq("id", postId);
+    if (error) {
+      toast({ title: "Erreur lors du déplacement", variant: "destructive" });
+      fetchPosts();
+    } else {
+      const formatted = new Date(newDate + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+      toast({ title: `Contenu déplacé au ${formatted}` });
+    }
+  };
+
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
   const todayStr = new Date().toISOString().split("T")[0];
@@ -198,6 +214,7 @@ export default function CalendarPage() {
           isMobile={isMobile}
           onCreatePost={openCreateDialog}
           onEditPost={openEditDialog}
+          onMovePost={handleMovePost}
         />
 
         <CalendarPostDialog
