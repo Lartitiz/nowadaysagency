@@ -5,6 +5,92 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function buildProfileBlock(p: any) {
+  return [
+    p.activite ? `- Activité : ${p.activite}` : "",
+    p.mission ? `- Mission : ${p.mission}` : "",
+    p.offer ? `- Offre : ${p.offer}` : "",
+    p.target_description ? `- Cible : ${p.target_description}` : "",
+    p.tone_register ? `- Registre : ${p.tone_register}` : "",
+    p.voice_description ? `- Ton & style : ${p.voice_description}` : "",
+    p.target_verbatims ? `- Verbatims : ${p.target_verbatims}` : "",
+    p.combat_cause ? `- Combats : ${p.combat_cause}` : "",
+  ].filter(Boolean).join("\n");
+}
+
+function buildPortraitPrompt(d: any, p: any): string {
+  const profileBlock = buildProfileBlock(p);
+  return `Tu es experte en marketing persona pour des solopreneuses créatives et éthiques.
+
+DONNÉES DU PERSONA :
+- Frustrations (étape 1) : "${d.step_1_frustrations || ""}"
+- Transformation / bénéfices (étape 2) : "${d.step_2_transformation || ""}"
+- Objections / freins (étape 3a) : "${d.step_3a_objections || ""}"
+- Clichés à déconstruire (étape 3b) : "${d.step_3b_cliches || ""}"
+- Direction visuelle (étape 4) : ce qu'elle trouve beau "${d.step_4_beautiful || ""}", ce qui l'inspire "${d.step_4_inspiring || ""}"
+- Plan d'actions (étape 5) : "${d.step_5_actions || ""}"
+
+BRANDING (si rempli) :
+${profileBlock}
+
+Génère une fiche portrait de la cliente idéale avec ces éléments :
+
+1. PRÉNOM : Un prénom fictif représentatif de la cible (français, courant, qui sonne "vraie personne")
+
+2. PHRASE SIGNATURE : 1 phrase qui résume son état d'esprit actuel. Comme si elle pensait à voix haute. Entre guillemets.
+
+3. QUI ELLE EST : 5 lignes max
+- Âge (tranche)
+- Métier / activité
+- Situation (seule ? petite équipe ? depuis combien de temps ?)
+- CA approximatif si pertinent
+- Temps disponible pour la com'
+
+4. CE QUI LA FRUSTRE : Les 3 frustrations les plus fortes, formulées en phrases courtes et percutantes.
+
+5. CE QU'ELLE VEUT : Les 3 objectifs/transformations les plus importants. Formulés positivement, concrets.
+
+6. CE QUI LA BLOQUE : Les 3 objections ou croyances limitantes principales. Entre guillemets (pensées intérieures).
+
+7. COMMENT LUI PARLER :
+- Ton recommandé (1 phrase)
+- Canal préféré
+- Ce qui la convainc (1 phrase)
+- Les mots qui la font fuir (3-4 termes)
+
+8. SES MOTS À ELLE : 3 citations courtes, entre guillemets, comme si elle parlait.
+
+RÈGLES :
+- Court et percutant
+- Pas de jargon marketing
+- Écriture inclusive avec point médian
+- JAMAIS de tiret cadratin (—)
+- C'est une VRAIE PERSONNE, pas un profil marketing
+
+Réponds en JSON :
+{
+  "prenom": "...",
+  "phrase_signature": "...",
+  "qui_elle_est": {
+    "age": "...",
+    "metier": "...",
+    "situation": "...",
+    "ca": "...",
+    "temps_com": "..."
+  },
+  "frustrations": ["...", "...", "..."],
+  "objectifs": ["...", "...", "..."],
+  "blocages": ["...", "...", "..."],
+  "comment_parler": {
+    "ton": "...",
+    "canal": "...",
+    "convainc": "...",
+    "fuir": ["...", "...", "..."]
+  },
+  "ses_mots": ["...", "...", "..."]
+}`;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -23,20 +109,17 @@ serve(async (req) => {
     const p = profile || {};
     const d = persona || {};
 
-    const profileBlock = [
-      p.activite ? `- Activité : ${p.activite}` : "",
-      p.mission ? `- Mission : ${p.mission}` : "",
-      p.offer ? `- Offre : ${p.offer}` : "",
-      p.target_description ? `- Cible : ${p.target_description}` : "",
-      p.tone_register ? `- Registre : ${p.tone_register}` : "",
-    ].filter(Boolean).join("\n");
-
+    const profileBlock = buildProfileBlock(p);
     const startingPointLabel = d.starting_point === "existing" ? "un·e client·e existant·e" : "un persona imaginé";
 
     let systemPrompt = "";
     let userPrompt = "Génère le contenu demandé.";
 
     switch (type) {
+      case "portrait":
+        systemPrompt = buildPortraitPrompt(d, p);
+        break;
+
       case "frustrations":
         systemPrompt = `Tu es expert·e en stratégie de marque pour des solopreneuses créatives et éthiques.
 
@@ -193,16 +276,13 @@ ${profileBlock}
 
 Génère 3 versions d'un pitch décrivant la cliente idéale :
 
-VERSION COURTE (2-3 phrases) : pour une bio Instagram ou du networking. Qui est-elle, quel est son problème, ce qu'elle cherche.
-
-VERSION MOYENNE (4-5 phrases) : pour une page de vente. Son portrait + ses frustrations + la transformation qu'elle désire.
-
-VERSION LONGUE (1 paragraphe) : pour une page À propos. Portrait complet et nuancé.
+VERSION COURTE (2-3 phrases) : pour une bio Instagram ou du networking.
+VERSION MOYENNE (4-5 phrases) : pour une page de vente.
+VERSION LONGUE (1 paragraphe) : pour une page À propos.
 
 RÈGLES :
 - On parle d'ELLE (3e personne), pas de l'offre
 - Ton empathique, précis, pas caricatural
-- Utiliser les mots et émotions du persona
 - Écriture inclusive avec point médian
 - JAMAIS de tiret cadratin (—)
 
