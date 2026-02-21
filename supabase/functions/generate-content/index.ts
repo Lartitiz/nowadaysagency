@@ -334,6 +334,42 @@ Réponds en JSON :
         systemPrompt = `Tu es un·e expert·e en création de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nFORMAT : ${format}\nSUJET : ${sujet}\n${structureInput ? `STRUCTURE :\n${structureInput}` : ""}\n${accrocheInput ? `ACCROCHE CHOISIE :\n${accrocheInput}` : ""}\n${angleInput ? `ANGLE :\n${angleInput}` : ""}\n\nRédige le post complet, prêt à être publié.\n\nRÈGLES :\n- Écriture inclusive avec point médian\n- Pas de tiret cadratin\n- Le ton doit correspondre au style de l'utilisatrice\n- Si elle a des expressions clés, utilise-les naturellement\n\nRéponds avec le texte du post uniquement.`;
         userPrompt = "Rédige le post complet.";
 
+      } else if (type === "instagram-audit") {
+        const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj } = body;
+        systemPrompt = `Tu es experte en stratégie Instagram pour des solopreneuses créatives et éthiques. Tu réalises un audit complet d'un profil Instagram.
+
+RÉPONSES DE L'UTILISATRICE :
+- Contenus qui marchent le mieux : "${bc || "non renseigné"}"
+- Contenus qui ne marchent pas : "${wc || "non renseigné"}"
+- Rythme actuel : "${rh || "non renseigné"}"
+- Objectif principal : "${obj || "non renseigné"}"
+
+${brandingContext}
+
+Analyse le profil Instagram et compare avec le branding. Pour chaque section, donne un score /100 et des recommandations CONCRÈTES.
+
+SECTIONS : nom, bio, stories (à la une), epingles (posts épinglés), feed (cohérence visuelle), edito (ligne éditoriale).
+
+Score global = moyenne pondérée : Bio 25%, Stories 20%, Épinglés 15%, Nom 10%, Feed 15%, Édito 15%.
+
+RÈGLES : Sois directe mais bienveillante. Compare TOUJOURS avec le branding. Écriture inclusive avec point médian. JAMAIS de tiret cadratin.
+
+Réponds en JSON :
+{"score_global": 62, "resume": "...", "sections": {"nom": {"score": 70, "diagnostic": "...", "recommandations": ["..."], "comparaison_branding": "..."}, "bio": {...}, "stories": {...}, "epingles": {...}, "feed": {...}, "edito": {...}}}`;
+        userPrompt = "Analyse mon profil Instagram et donne-moi un audit complet.";
+
+      } else if (type === "instagram-nom") {
+        systemPrompt = `Tu es experte en personal branding Instagram.\n\n${brandingContext}\n\nPropose exactement 3 noms de profil Instagram optimisés pour cette utilisatrice. Chaque nom doit contenir un mot-clé lié à son activité pour la recherche.\n\nFormats :\n1. [Prénom] | [Activité mot-clé]\n2. [Prénom] | [Bénéfice principal]\n3. [Nom de marque] | [Activité]\n\nRéponds UNIQUEMENT en JSON : ["nom 1", "nom 2", "nom 3"]`;
+        userPrompt = "Propose 3 noms de profil Instagram optimisés.";
+
+      } else if (type === "instagram-pinned") {
+        systemPrompt = `Tu es experte en stratégie Instagram pour des solopreneuses éthiques.\n\n${brandingContext}\n\nGénère 3 posts épinglés stratégiques :\n\nPOST 1 : MON HISTOIRE - Basé sur le storytelling, crée un lien émotionnel.\nPOST 2 : MON OFFRE - Basé sur la proposition de valeur, donne envie.\nPOST 3 : PREUVE SOCIALE - Témoignage ou résultats concrets.\n\nPour chaque post : accroche + contenu complet + format + objectif.\nÉcriture inclusive, JAMAIS de tiret cadratin.\n\nRéponds en JSON :\n{"post_histoire": {"accroche": "...", "contenu": "...", "format": "...", "objectif": "..."}, "post_offre": {...}, "post_preuve": {...}}`;
+        userPrompt = "Génère mes 3 posts épinglés stratégiques.";
+
+      } else if (type === "instagram-edito") {
+        systemPrompt = `Tu es experte en stratégie de contenu Instagram pour des solopreneuses éthiques.\n\n${brandingContext}\n\nCrée une ligne éditoriale personnalisée. Réponds en JSON :\n{"main_objective": "...", "recommended_rhythm": "X posts/semaine + Y stories/semaine", "pillar_distribution": {"pilier1": 40, "pilier2": 25, "pilier3": 20, "Perso/coulisses": 15}, "preferred_formats": ["carrousel éducatif", "reel coulisses", "post storytelling"], "stop_doing": "...", "do_more": "..."}\n\nÉcriture inclusive, JAMAIS de tiret cadratin.`;
+        userPrompt = "Crée ma ligne éditoriale Instagram personnalisée.";
+
       } else {
         return new Response(
           JSON.stringify({ error: "Type de requête non reconnu" }),
