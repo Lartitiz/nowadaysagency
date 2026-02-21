@@ -140,23 +140,28 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const handleOpenAtelier = () => {
     // Save current state first, then navigate
     handleSave();
-    navigate("/instagram/atelier", {
+    navigate("/atelier?canal=" + (postCanal || "instagram"), {
       state: {
         fromCalendar: true,
         calendarPostId: editingPost?.id,
-        prefilled: {
-          theme,
-          objectif,
-          angle,
-          format,
-          notes,
-          existingContent: contentDraft,
-          launchId: editingPost?.launch_id,
-          contentType: editingPost?.content_type,
-          chapter: (editingPost as any)?.chapter,
-          audiencePhase: (editingPost as any)?.audience_phase,
-          angleSuggestion: editingPost?.angle_suggestion,
-        },
+        theme,
+        objectif,
+        angle,
+        format,
+        notes,
+        postDate: selectedDate,
+        existingContent: contentDraft,
+        existingAccroche: accroche,
+        // Launch context
+        launchId: editingPost?.launch_id,
+        contentType: editingPost?.content_type,
+        contentTypeEmoji: editingPost?.content_type_emoji,
+        category: editingPost?.category,
+        objective: editingPost?.objective,
+        angleSuggestion: editingPost?.angle_suggestion,
+        chapter: (editingPost as any)?.chapter,
+        chapterLabel: (editingPost as any)?.chapter_label,
+        audiencePhase: (editingPost as any)?.audience_phase,
       },
     });
   };
