@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
-import { ArrowLeft, User, PenLine, Briefcase, Star, MessageCircle, Lightbulb, CalendarDays } from "lucide-react";
+import { ArrowLeft, User, PenLine, Briefcase, Star, MessageCircle, Lightbulb, CalendarDays, Search } from "lucide-react";
 
 interface CardDef {
   icon: React.ElementType;
@@ -15,6 +15,7 @@ interface CardDef {
 }
 
 const CARDS: CardDef[] = [
+  { icon: Search, emoji: "🔍", title: "Auditer mon compte", desc: "Score complet et priorités d'action.", to: "/linkedin/audit", tag: "IA" },
   { icon: User, emoji: "👤", title: "Optimiser mon profil", desc: "Titre, photo, bannière, URL.", to: "/linkedin/profil", tag: "Checklist" },
   { icon: PenLine, emoji: "✍️", title: "Mon résumé (À propos)", desc: "Rédige un résumé qui donne envie.", to: "/linkedin/resume", tag: "Guide + IA" },
   { icon: Briefcase, emoji: "💼", title: "Mon parcours", desc: "Expériences, formations, compétences.", to: "/linkedin/parcours", tag: "Guide + IA" },
@@ -83,13 +84,14 @@ export default function LinkedInHub() {
 
   const getProgressLabel = (index: number): string | null => {
     switch (index) {
-      case 0: return `${progress.profileSteps}/4 éléments`;
-      case 1: return progress.summaryDone ? "✓ Rédigé" : "À faire";
-      case 2: return `${progress.experienceCount} expérience${progress.experienceCount !== 1 ? "s" : ""}`;
-      case 3: return `${progress.recoCount}/5 reçues`;
-      case 4: return progress.engagementWeekly;
-      case 5: return `${progress.ideasCount} idée${progress.ideasCount !== 1 ? "s" : ""}`;
-      case 6: return `${progress.calendarCount} post${progress.calendarCount !== 1 ? "s" : ""} ce mois`;
+      case 0: return null; // audit - no progress
+      case 1: return `${progress.profileSteps}/4 éléments`;
+      case 2: return progress.summaryDone ? "✓ Rédigé" : "À faire";
+      case 3: return `${progress.experienceCount} expérience${progress.experienceCount !== 1 ? "s" : ""}`;
+      case 4: return `${progress.recoCount}/5 reçues`;
+      case 5: return progress.engagementWeekly;
+      case 6: return `${progress.ideasCount} idée${progress.ideasCount !== 1 ? "s" : ""}`;
+      case 7: return `${progress.calendarCount} post${progress.calendarCount !== 1 ? "s" : ""} ce mois`;
       default: return null;
     }
   };

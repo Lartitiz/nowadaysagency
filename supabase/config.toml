@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.engagement-insight]
 verify_jwt = false
+
+[functions.linkedin-audit-ai]
+verify_jwt = false

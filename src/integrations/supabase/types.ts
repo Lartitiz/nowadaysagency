@@ -1310,6 +1310,96 @@ export type Database = {
         }
         Relationships: []
       }
+      linkedin_audit: {
+        Row: {
+          acceptance_policy: string | null
+          accroche_style: string | null
+          audit_result: Json | null
+          avg_views: string | null
+          connection_types: Json | null
+          connections_count: string | null
+          content_types: Json | null
+          created_at: string
+          current_rhythm: string | null
+          engagement_type: string | null
+          id: string
+          inbound_requests: string | null
+          objective: string | null
+          proactive_requests: string | null
+          profile_url: string | null
+          publication_org: string | null
+          recommendations_count: string | null
+          recycling: string | null
+          score_contenu: number | null
+          score_global: number | null
+          score_profil: number | null
+          score_reseau: number | null
+          score_strategie: number | null
+          screenshots: Json | null
+          top_priorities: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          acceptance_policy?: string | null
+          accroche_style?: string | null
+          audit_result?: Json | null
+          avg_views?: string | null
+          connection_types?: Json | null
+          connections_count?: string | null
+          content_types?: Json | null
+          created_at?: string
+          current_rhythm?: string | null
+          engagement_type?: string | null
+          id?: string
+          inbound_requests?: string | null
+          objective?: string | null
+          proactive_requests?: string | null
+          profile_url?: string | null
+          publication_org?: string | null
+          recommendations_count?: string | null
+          recycling?: string | null
+          score_contenu?: number | null
+          score_global?: number | null
+          score_profil?: number | null
+          score_reseau?: number | null
+          score_strategie?: number | null
+          screenshots?: Json | null
+          top_priorities?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          acceptance_policy?: string | null
+          accroche_style?: string | null
+          audit_result?: Json | null
+          avg_views?: string | null
+          connection_types?: Json | null
+          connections_count?: string | null
+          content_types?: Json | null
+          created_at?: string
+          current_rhythm?: string | null
+          engagement_type?: string | null
+          id?: string
+          inbound_requests?: string | null
+          objective?: string | null
+          proactive_requests?: string | null
+          profile_url?: string | null
+          publication_org?: string | null
+          recommendations_count?: string | null
+          recycling?: string | null
+          score_contenu?: number | null
+          score_global?: number | null
+          score_profil?: number | null
+          score_reseau?: number | null
+          score_strategie?: number | null
+          screenshots?: Json | null
+          top_priorities?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       linkedin_experiences: {
         Row: {
           company: string | null

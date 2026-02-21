@@ -46,6 +46,7 @@ import PropositionRecapPage from "./pages/PropositionRecapPage";
 import StrategiePage from "./pages/StrategiePage";
 import StrategieRecapPage from "./pages/StrategieRecapPage";
 import LinkedInHub from "./pages/LinkedInHub";
+import LinkedInAudit from "./pages/LinkedInAudit";
 import LinkedInProfil from "./pages/LinkedInProfil";
 import LinkedInResume from "./pages/LinkedInResume";
 import LinkedInParcours from "./pages/LinkedInParcours";
@@ -127,6 +128,7 @@ const App = () => (
             <Route path="/atelier/rediger" element={<ProtectedRoute><RedactionPage /></ProtectedRoute>} />
             {/* LinkedIn module */}
             <Route path="/linkedin" element={<ProtectedRoute><LinkedInHub /></ProtectedRoute>} />
+            <Route path="/linkedin/audit" element={<ProtectedRoute><LinkedInAudit /></ProtectedRoute>} />
             <Route path="/linkedin/profil" element={<ProtectedRoute><LinkedInProfil /></ProtectedRoute>} />
             <Route path="/linkedin/resume" element={<ProtectedRoute><LinkedInResume /></ProtectedRoute>} />
             <Route path="/linkedin/parcours" element={<ProtectedRoute><LinkedInParcours /></ProtectedRoute>} />
