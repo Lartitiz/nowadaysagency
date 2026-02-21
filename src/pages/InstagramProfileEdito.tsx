@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Save, Loader2, Sparkles, Mic, MicOff, Plus, X } from "lucide-react";
+import AuditInsight from "@/components/AuditInsight";
 
 /* ─── Types ─── */
 interface Pillar {
@@ -486,6 +487,8 @@ export default function InstagramProfileEdito() {
         <p className="mt-2 text-sm text-muted-foreground mb-8">
           Définis ton rythme, tes formats et la répartition de tes contenus par pilier.
         </p>
+
+        <AuditInsight section="edito" />
 
         <div className="space-y-8">
           {/* ── Section A: Objectif ── */}

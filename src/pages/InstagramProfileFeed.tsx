@@ -1,15 +1,11 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Link } from "react-router-dom";
+import AuditInsight from "@/components/AuditInsight";
 
 export default function InstagramProfileFeed() {
-  const { user } = useAuth();
-  const [auditScore, setAuditScore] = useState<number | null>(null);
-  const [auditRecos, setAuditRecos] = useState<string[]>([]);
   const [checklist, setChecklist] = useState({
     formats: false,
     variety: false,
@@ -17,24 +13,6 @@ export default function InstagramProfileFeed() {
     colors: false,
     readable: false,
   });
-
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("instagram_audit")
-      .select("score_feed, details")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setAuditScore(data.score_feed);
-          const det = data.details as any;
-          setAuditRecos(det?.sections?.feed?.recommandations || []);
-        }
-      });
-  }, [user]);
 
   const toggle = (key: keyof typeof checklist) => {
     setChecklist(prev => ({ ...prev, [key]: !prev[key] }));
@@ -51,18 +29,7 @@ export default function InstagramProfileFeed() {
           La cohérence visuelle de ton feed renforce ta crédibilité. Voici les points à vérifier.
         </p>
 
-        {auditScore !== null && (
-          <div className="rounded-xl bg-rose-pale p-4 mb-6">
-            <p className="text-sm font-medium">🔍 Score actuel : <strong>{auditScore}/100</strong></p>
-            {auditRecos.length > 0 && (
-              <ul className="mt-2 space-y-1">
-                {auditRecos.map((r, i) => (
-                  <li key={i} className="text-sm text-muted-foreground">• {r}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
+        <AuditInsight section="feed" />
 
         <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
           <p className="text-sm font-bold text-foreground">Checklist cohérence visuelle</p>

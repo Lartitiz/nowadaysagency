@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Check, Copy, Save, Sparkles, X, GripVertical, Mic, MicOff, Loader2 } from "lucide-react";
+import AuditInsight from "@/components/AuditInsight";
 
 interface StoryItem {
   content: string;
@@ -285,6 +286,8 @@ export default function InstagramHighlights() {
         <p className="mt-2 text-[15px] text-muted-foreground italic mb-6">
           C'est la première chose qu'une nouvelle visiteuse regarde après ta bio. On va les structurer comme un vrai parcours client.
         </p>
+
+        <AuditInsight section="stories" />
 
         {/* Intro box */}
         <div className="rounded-xl bg-rose-pale border-l-[3px] border-l-primary p-5 mb-8">
