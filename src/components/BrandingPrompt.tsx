@@ -51,7 +51,7 @@ export default function BrandingPrompt({ section = "global", message, linkText, 
     strategie: {
       msg: "🍒 L'équilibre recommandé sera personnalisé quand tu auras posé ta stratégie de contenu.",
       link: "Poser ma stratégie →",
-      to: "/branding",
+      to: "/branding/strategie",
     },
   };
 
