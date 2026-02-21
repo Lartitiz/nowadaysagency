@@ -1,247 +1,320 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, Copy, Check, Loader2, CalendarDays } from "lucide-react";
+import { Sparkles, Check, Save } from "lucide-react";
 import AuditInsight from "@/components/AuditInsight";
 
-interface PinnedPost {
-  id?: string;
-  post_type: string;
-  has_existing: boolean;
-  existing_description: string;
-  generated_accroche: string;
-  generated_content: string;
-  generated_format: string;
-  is_pinned: boolean;
+interface PinnedSlot {
+  type: "histoire" | "offre" | "preuve";
+  status: "done" | "todo";
+  description: string;
 }
 
-const POST_TYPES = [
-  { type: "histoire", emoji: "📖", label: "Ton histoire", desc: "Un post qui raconte qui tu es et pourquoi tu fais ce que tu fais. C'est ton storytelling condensé." },
-  { type: "offre", emoji: "🎁", label: "Ton offre", desc: "Un post qui présente clairement ce que tu proposes. C'est ta vitrine produit/service." },
-  { type: "preuve", emoji: "⭐", label: "La preuve sociale", desc: "Un témoignage, un avant/après, un résultat concret. C'est la réassurance." },
+const SLOTS = [
+  {
+    type: "histoire" as const,
+    emoji: "📖",
+    label: "Qui tu es",
+    explanation:
+      "Un post qui te présente. Storytelling personnel, parcours, valeurs. La personne qui découvre ton profil doit se dire « ah, c'est une vraie personne, j'ai envie de la suivre ».",
+    formats: "📑 Carrousel storytelling · 🎬 Reel face cam",
+    atelierPreset: {
+      objectif: "confiance",
+      angle: "storytelling",
+      format: "post_carrousel",
+      notes:
+        "Post destiné à être épinglé en position 1 : présentation personnelle, parcours, valeurs.",
+    },
+  },
+  {
+    type: "offre" as const,
+    emoji: "🎁",
+    label: "Ce que tu fais (ton expertise)",
+    explanation:
+      "Un post qui montre ta compétence. Contenu éducatif, décryptage, conseil actionnable. La personne doit se dire « elle sait de quoi elle parle ».",
+    formats: "📑 Carrousel éducatif · 📑 Carrousel enquête",
+    atelierPreset: {
+      objectif: "credibilite",
+      angle: "enquete_decryptage",
+      format: "post_carrousel",
+      notes:
+        "Post destiné à être épinglé en position 2 : montrer mon expertise et ma compétence.",
+    },
+  },
+  {
+    type: "preuve" as const,
+    emoji: "⭐",
+    label: "Tes résultats (preuve sociale)",
+    explanation:
+      "Un post qui montre que ça marche. Témoignage, before/after, étude de cas, résultat chiffré. La personne doit se dire « ça marche pour de vrai ».",
+    formats: "📑 Carrousel before/after · 📑 Carrousel témoignage",
+    atelierPreset: {
+      objectif: "vente",
+      angle: "before_after",
+      format: "post_carrousel",
+      notes:
+        "Post destiné à être épinglé en position 3 : preuve sociale, témoignage, résultats concrets.",
+    },
+  },
 ];
 
 export default function InstagramProfileEpingles() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [posts, setPosts] = useState<PinnedPost[]>(
-    POST_TYPES.map(t => ({
-      post_type: t.type,
-      has_existing: false,
-      existing_description: "",
-      generated_accroche: "",
-      generated_content: "",
-      generated_format: "",
-      is_pinned: false,
-    }))
+  const navigate = useNavigate();
+  const [slots, setSlots] = useState<PinnedSlot[]>(
+    SLOTS.map((s) => ({ type: s.type, status: "todo", description: "" }))
   );
-  const [generating, setGenerating] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
-    const loadData = async () => {
-      const [pinnedRes] = await Promise.all([
-        supabase.from("instagram_pinned_posts").select("*").eq("user_id", user.id),
-      ]);
-      if (pinnedRes.data && pinnedRes.data.length > 0) {
-        setPosts(POST_TYPES.map(t => {
-          const existing = pinnedRes.data.find((p: any) => p.post_type === t.type);
-          return existing ? {
-            id: existing.id,
-            post_type: existing.post_type,
-            has_existing: existing.has_existing ?? false,
-            existing_description: existing.existing_description ?? "",
-            generated_accroche: existing.generated_accroche ?? "",
-            generated_content: existing.generated_content ?? "",
-            generated_format: existing.generated_format ?? "",
-            is_pinned: existing.is_pinned ?? false,
-          } : {
-            post_type: t.type, has_existing: false, existing_description: "",
-            generated_accroche: "", generated_content: "", generated_format: "", is_pinned: false,
-          };
-        }));
+    const load = async () => {
+      const { data } = await supabase
+        .from("instagram_pinned_posts")
+        .select("*")
+        .eq("user_id", user.id);
+      if (data && data.length > 0) {
+        setSlots(
+          SLOTS.map((s) => {
+            const existing = data.find((p: any) => p.post_type === s.type);
+            if (existing) {
+              return {
+                type: s.type,
+                status: existing.has_existing ? "done" : "todo",
+                description: existing.existing_description || "",
+              };
+            }
+            return { type: s.type, status: "todo" as const, description: "" };
+          })
+        );
       }
     };
-    loadData();
+    load();
   }, [user]);
 
-  const handleGenerateAll = async () => {
+  const updateSlot = (idx: number, updates: Partial<PinnedSlot>) => {
+    setSlots((prev) => prev.map((s, i) => (i === idx ? { ...s, ...updates } : s)));
+  };
+
+  const handleSave = async () => {
     if (!user) return;
-    setGenerating(true);
+    setSaving(true);
     try {
-      const res = await supabase.functions.invoke("generate-content", {
-        body: { type: "instagram-pinned", profile: {} },
-      });
-      if (res.error) throw new Error(res.error.message);
-      const content = res.data?.content || "";
-      let parsed: any;
-      try {
-        parsed = JSON.parse(content);
-      } catch {
-        const match = content.match(/\{[\s\S]*\}/);
-        if (match) parsed = JSON.parse(match[0]);
-        else throw new Error("Format inattendu");
-      }
-
-      const mapping: Record<string, string> = { post_histoire: "histoire", post_offre: "offre", post_preuve: "preuve" };
-      const updated = posts.map(p => {
-        const key = Object.keys(mapping).find(k => mapping[k] === p.post_type);
-        const gen = key ? parsed[key] : null;
-        if (gen) {
-          return {
-            ...p,
-            generated_accroche: gen.accroche || "",
-            generated_content: gen.contenu || "",
-            generated_format: gen.format || "",
-          };
-        }
-        return p;
-      });
-      setPosts(updated);
-
-      // Save to DB
-      for (const p of updated) {
-        if (p.id) {
-          await supabase.from("instagram_pinned_posts").update({
-            generated_accroche: p.generated_accroche,
-            generated_content: p.generated_content,
-            generated_format: p.generated_format,
-          }).eq("id", p.id);
+      for (const slot of slots) {
+        const row = {
+          user_id: user.id,
+          post_type: slot.type,
+          has_existing: slot.status === "done",
+          existing_description: slot.description,
+          is_pinned: slot.status === "done",
+        };
+        const { data: existing } = await supabase
+          .from("instagram_pinned_posts")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("post_type", slot.type)
+          .maybeSingle();
+        if (existing) {
+          await supabase
+            .from("instagram_pinned_posts")
+            .update(row)
+            .eq("id", existing.id);
         } else {
-          const { data } = await supabase.from("instagram_pinned_posts").insert({
-            user_id: user.id, ...p,
-          }).select("id").single();
-          if (data) p.id = data.id;
+          await supabase.from("instagram_pinned_posts").insert(row);
         }
       }
-
-      toast({ title: "Posts épinglés générés !" });
+      toast({ title: "Sauvegardé !" });
     } catch (e: any) {
       toast({ title: "Erreur", description: e.message, variant: "destructive" });
     } finally {
-      setGenerating(false);
+      setSaving(false);
     }
   };
 
-  const copyText = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 2000);
-  };
-
-  const togglePinned = async (idx: number) => {
-    if (!user) return;
-    const updated = [...posts];
-    updated[idx].is_pinned = !updated[idx].is_pinned;
-    setPosts(updated);
-    if (updated[idx].id) {
-      await supabase.from("instagram_pinned_posts").update({ is_pinned: updated[idx].is_pinned }).eq("id", updated[idx].id);
-    }
-  };
-
-  const addToCalendar = async (post: PinnedPost) => {
-    if (!user) return;
-    const { error } = await supabase.from("calendar_posts").insert({
-      user_id: user.id,
-      canal: "instagram",
-      date: new Date().toISOString().split("T")[0],
-      theme: `Post épinglé : ${post.post_type}`,
-      angle: post.generated_accroche,
-      notes: post.generated_content,
-      status: "idea",
+  const handleCreateAtAtelier = (slotType: string) => {
+    const slot = SLOTS.find((s) => s.type === slotType);
+    if (!slot) return;
+    navigate("/atelier?canal=instagram", {
+      state: {
+        fromPinnedPosts: true,
+        pinType: slotType,
+        ...slot.atelierPreset,
+      },
     });
-    if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    else toast({ title: "Ajouté au calendrier !" });
   };
+
+  const doneCount = slots.filter((s) => s.status === "done").length;
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Posts épinglés" />
+        <SubPageHeader
+          parentLabel="Mon profil"
+          parentTo="/instagram/profil"
+          currentLabel="Posts épinglés"
+        />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground">📌 Mes posts épinglés</h1>
+        <h1 className="font-display text-[26px] font-bold text-foreground">
+          📌 Tes 3 posts épinglés
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground mb-6">
-          Tes 3 posts épinglés, c'est ta vitrine. C'est la première chose que voit quelqu'un qui arrive sur ton profil.
+          Les 3 premiers posts de ton feed sont les plus vus après ta bio. C'est
+          ta vitrine : en 3 posts, un·e visiteur·se doit comprendre qui tu es, ce
+          que tu fais, et pourquoi te suivre.
         </p>
 
         <AuditInsight section="epingles" />
-        <div className="rounded-2xl border border-border bg-card p-5 mb-6">
-          <span className="inline-block font-mono-ui text-[11px] font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-3 py-1 rounded-pill mb-3">
-            📖 Stratégie recommandée
-          </span>
-          <div className="space-y-3">
-            {POST_TYPES.map(t => (
-              <div key={t.type} className="flex gap-3">
-                <span className="text-lg">{t.emoji}</span>
-                <div>
-                  <p className="text-sm font-bold text-foreground">{t.label}</p>
-                  <p className="text-xs text-muted-foreground">{t.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+
+        {/* Règle des 3 */}
+        <div className="rounded-2xl border-l-[3px] border-primary bg-rose-pale p-5 mb-8">
+          <p className="text-sm font-semibold text-foreground mb-1">
+            💡 La règle des 3 :
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Un post qui montre <strong>TOI</strong>, un post qui montre{" "}
+            <strong>TON EXPERTISE</strong>, un post qui montre{" "}
+            <strong>TES RÉSULTATS</strong>.
+          </p>
         </div>
 
-        <Button onClick={handleGenerateAll} disabled={generating} className="w-full rounded-pill gap-2 mb-6">
-          {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {generating ? "Génération..." : "✨ Créer mes 3 posts épinglés"}
-        </Button>
+        {/* 3 emplacements */}
+        <div className="space-y-4 mb-8">
+          {SLOTS.map((slot, idx) => {
+            const current = slots[idx];
+            const isDone = current.status === "done";
 
-        {/* Posts */}
-        <div className="space-y-4">
-          {posts.map((post, idx) => {
-            const typeInfo = POST_TYPES.find(t => t.type === post.post_type)!;
             return (
-              <div key={post.post_type} className="rounded-2xl border border-border bg-card p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-lg">{typeInfo.emoji}</span>
-                  <h3 className="font-display text-base font-bold text-foreground">{typeInfo.label}</h3>
+              <div
+                key={slot.type}
+                className="rounded-2xl border border-border bg-card p-5 space-y-4"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center">
+                    {idx + 1}
+                  </span>
+                  <div>
+                    <h3 className="font-display text-base font-bold text-foreground">
+                      {slot.emoji} {slot.label}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                      {slot.explanation}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Formats recommandés : {slot.formats}
+                    </p>
+                  </div>
                 </div>
 
-                {post.generated_content ? (
-                  <div className="space-y-3">
-                    <div className="rounded-xl bg-muted/50 p-4">
-                      <p className="text-xs font-mono-ui uppercase text-muted-foreground mb-1">Accroche</p>
-                      <p className="text-sm font-medium text-foreground">{post.generated_accroche}</p>
-                    </div>
-                    <div className="rounded-xl bg-muted/50 p-4">
-                      <p className="text-xs font-mono-ui uppercase text-muted-foreground mb-1">Contenu</p>
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{post.generated_content}</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">📌 Format : {post.generated_format}</p>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button
-                        variant="outline" size="sm"
-                        onClick={() => copyText(post.generated_accroche + "\n\n" + post.generated_content, post.post_type)}
-                        className="rounded-pill gap-1.5"
-                      >
-                        {copied === post.post_type ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                        {copied === post.post_type ? "Copié" : "Copier"}
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => addToCalendar(post)} className="rounded-pill gap-1.5">
-                        <CalendarDays className="h-3.5 w-3.5" /> Calendrier
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">Clique sur "Créer mes 3 posts" pour générer ce contenu.</p>
-                )}
+                {/* Choice: already have it or need to create */}
+                <div className="ml-11 space-y-3">
+                  {/* Option 1: Already have */}
+                  <label className="flex items-start gap-2 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name={`pin-${slot.type}`}
+                      checked={isDone}
+                      onChange={() => updateSlot(idx, { status: "done" })}
+                      className="mt-1 accent-[hsl(var(--primary))]"
+                    />
+                    <span className="text-sm text-foreground">
+                      J'ai déjà ce post →{" "}
+                      <span className="text-muted-foreground">je note lequel :</span>
+                    </span>
+                  </label>
+                  {isDone && (
+                    <Input
+                      placeholder={'Ex : Mon post "Ce jour-là, j\'ai tout lâché..."'}
+                      value={current.description}
+                      onChange={(e) =>
+                        updateSlot(idx, { description: e.target.value })
+                      }
+                      className="ml-6 text-sm"
+                    />
+                  )}
 
-                <label className="flex items-center gap-2 mt-3 cursor-pointer">
-                  <Checkbox checked={post.is_pinned} onCheckedChange={() => togglePinned(idx)} />
-                  <span className="text-sm text-foreground">C'est épinglé sur mon profil</span>
-                </label>
+                  {/* Option 2: Need to create */}
+                  <label className="flex items-start gap-2 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name={`pin-${slot.type}`}
+                      checked={!isDone}
+                      onChange={() =>
+                        updateSlot(idx, { status: "todo", description: "" })
+                      }
+                      className="mt-1 accent-[hsl(var(--primary))]"
+                    />
+                    <span className="text-sm text-foreground">Il me manque</span>
+                  </label>
+                  {!isDone && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="ml-6 rounded-pill gap-1.5"
+                      onClick={() => handleCreateAtAtelier(slot.type)}
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Créer ce post à l'atelier
+                    </Button>
+                  )}
+                </div>
               </div>
             );
           })}
+        </div>
+
+        {/* Récap */}
+        <div className="rounded-2xl border border-border bg-card p-5 space-y-3 mb-6">
+          <h3 className="font-display text-base font-bold text-foreground">
+            ✅ Récap de tes épingles
+          </h3>
+          <div className="space-y-2">
+            {SLOTS.map((slot, idx) => {
+              const current = slots[idx];
+              return (
+                <div key={slot.type} className="flex items-center gap-2 text-sm">
+                  <span>📌 {idx + 1}. {slot.label} :</span>
+                  {current.status === "done" ? (
+                    <span className="text-primary flex items-center gap-1">
+                      <Check className="h-3.5 w-3.5" />
+                      {current.description
+                        ? `"${current.description}"`
+                        : "Fait"}
+                    </span>
+                  ) : (
+                    <span className="text-destructive">⚠️ À créer</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-xs text-muted-foreground italic mt-2">
+            💡 Une fois que tu as tes 3 posts, va dans ton feed Instagram et
+            épingle-les (appui long → « Épingler »). L'ordre compte : le premier
+            est le plus vu.
+          </p>
+
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-xs text-muted-foreground">
+              {doneCount}/3 épingles prêtes
+            </span>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-pill gap-1.5"
+            >
+              <Save className="h-4 w-4" />
+              {saving ? "Sauvegarde..." : "Sauvegarder"}
+            </Button>
+          </div>
         </div>
       </main>
     </div>
