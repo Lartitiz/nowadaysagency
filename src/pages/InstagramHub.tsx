@@ -18,7 +18,7 @@ const CARDS: CardDef[] = [
   { icon: User, emoji: "👤", title: "Mon profil", desc: "Audit + bio + stories à la une + posts épinglés + feed + nom.", to: "/instagram/profil", tag: "Audit + Optimisations" },
   { icon: Sparkles, emoji: "✨", title: "M'inspirer", desc: "Colle un contenu qui t'a plu. L'IA t'explique pourquoi ça marche et te crée ta version.", to: "/instagram/inspirer", tag: "Analyser · Adapter · Poster" },
   { icon: Lightbulb, emoji: "💡", title: "Trouver des idées", desc: "Direction l'atelier.", to: "/atelier?canal=instagram", tag: "IA" },
-  { icon: PenLine, emoji: "✏️", title: "Rédiger un contenu", desc: "L'IA t'aide à rédiger un post complet.", to: "/atelier/rediger?canal=instagram", tag: "Rédaction IA" },
+  { icon: PenLine, emoji: "✏️", title: "Rédiger un contenu", desc: "L'IA t'aide à rédiger un post complet.", to: "/atelier?canal=instagram&mode=rediger", tag: "Rédaction IA" },
   { icon: CalendarDays, emoji: "📅", title: "Mon calendrier", desc: "Planifie tes posts.", to: "/calendrier?canal=instagram", tag: "Planning" },
   { icon: Rocket, emoji: "🚀", title: "Mon lancement", desc: "Plan de lancement guidé.", to: "/instagram/lancement", tag: "Template + IA" },
   { icon: Heart, emoji: "📊", title: "Mon engagement", desc: "Crée du lien avec ta communauté. Exercice guidé + checklist hebdo.", to: "/instagram/engagement", tag: "Exercice + Suivi" },
