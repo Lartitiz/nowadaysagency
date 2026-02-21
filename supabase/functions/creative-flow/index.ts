@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES } from "../_shared/copywriting-prompts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -140,7 +141,10 @@ serve(async (req) => {
     let userPrompt = "";
 
     if (step === "angles") {
-      systemPrompt = `Tu es directrice de création dans une agence de communication éthique. Tu proposes des ANGLES ÉDITORIAUX, pas du contenu rédigé. Tu penses en termes de direction créative.
+      // SECTION 1 (principes) + SECTION 2 (frameworks) + branding
+      systemPrompt = `${CORE_PRINCIPLES}
+
+${FRAMEWORK_SELECTION}
 
 TYPE DE CONTENU : ${contentType}
 CONTEXTE : ${context}
@@ -153,17 +157,16 @@ Propose exactement 3 angles éditoriaux DIFFÉRENTS.
 Pour chaque angle :
 1. TITRE : 2-5 mots, évocateur (pas "Option 1")
 2. PITCH : 2-3 phrases qui expliquent l'approche et pourquoi ça fonctionne
-3. STRUCTURE : le squelette du contenu en 4-5 étapes
+3. STRUCTURE : le squelette du contenu en 4-5 étapes (utilise les structures par format si le format est connu)
 4. TON : l'énergie et le registre émotionnel de cet angle
 
 RÈGLES :
 - Les 3 angles doivent être VRAIMENT différents (pas 3 variations du même)
+- Chaque angle est basé sur un framework narratif DIFFÉRENT, traduit en angle créatif lisible
 - Un angle peut être surprenant ou inattendu
 - Pense à des angles que l'utilisatrice n'aurait pas trouvés seule
 - Reste cohérent avec son ton & style
 - Ne rédige RIEN. Pas d'exemple de phrases. Juste la direction.
-- Écriture inclusive avec point médian
-- JAMAIS de tiret cadratin
 
 Réponds UNIQUEMENT en JSON :
 {
@@ -179,7 +182,10 @@ Réponds UNIQUEMENT en JSON :
       userPrompt = `Propose-moi 3 angles éditoriaux pour : ${context}`;
 
     } else if (step === "questions") {
-      systemPrompt = `L'utilisatrice a choisi cet angle pour son contenu :
+      // SECTION 1 (principes) seulement
+      systemPrompt = `${CORE_PRINCIPLES}
+
+L'utilisatrice a choisi cet angle pour son contenu :
 - Type : ${contentType}
 - Angle : ${angle.title}
 - Structure : ${(angle.structure || []).join(" → ")}
@@ -197,8 +203,6 @@ RÈGLES :
 - Une question peut demander une opinion tranchée ou une conviction
 - Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment)
 - Chaque question a un placeholder qui donne un mini-exemple de réponse pour inspirer
-- Écriture inclusive avec point médian
-- JAMAIS de tiret cadratin
 
 Réponds UNIQUEMENT en JSON :
 {
@@ -213,17 +217,14 @@ Réponds UNIQUEMENT en JSON :
 
     } else if (step === "follow-up") {
       const answersBlock = answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n");
-      systemPrompt = `L'utilisatrice a répondu à ces questions :
+      systemPrompt = `${CORE_PRINCIPLES}
+
+L'utilisatrice a répondu à ces questions :
 ${answersBlock}
 
 Lis ses réponses. Identifie le détail le plus intéressant, le plus singulier, ou le plus émotionnel. Pose 1-2 questions de suivi pour creuser CE détail spécifique.
 
 Le but : aller chercher le truc que personne d'autre ne pourrait dire. L'anecdote, le ressenti, la conviction qui rend ce contenu UNIQUE.
-
-RÈGLES :
-- Écriture inclusive avec point médian
-- JAMAIS de tiret cadratin
-- Ton chaleureux et curieux
 
 Réponds UNIQUEMENT en JSON :
 {
@@ -238,12 +239,19 @@ Réponds UNIQUEMENT en JSON :
       userPrompt = "Pose-moi des questions d'approfondissement basées sur mes réponses.";
 
     } else if (step === "generate") {
+      // SECTION 1 (principes) + SECTION 3 (structures) + SECTION 4 (banques) + branding
       const answersBlock = answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n");
       const followUpBlock = followUpAnswers?.length
         ? "\n\nQUESTIONS D'APPROFONDISSEMENT :\n" + followUpAnswers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
         : "";
 
-      systemPrompt = `ANGLE CHOISI :
+      systemPrompt = `${CORE_PRINCIPLES}
+
+${FORMAT_STRUCTURES}
+
+${WRITING_RESOURCES}
+
+ANGLE CHOISI :
 - Titre : ${angle.title}
 - Structure : ${(angle.structure || []).join(" → ")}
 - Ton : ${angle.tone}
@@ -255,17 +263,10 @@ ${followUpBlock}
 PROFIL DE L'UTILISATRICE :
 ${fullContext}
 
-Rédige le contenu en suivant ces règles :
+Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
 
-1. UTILISE SES MOTS : reprends les expressions exactes de ses réponses. Si elle dit "j'ai flippé", écris "j'ai flippé", pas "j'ai ressenti de l'appréhension"
-2. SUIS LA STRUCTURE de l'angle choisi
-3. ÉCRIS DANS SON TON (registre, expressions clés, ce qu'elle évite)
-4. L'ACCROCHE doit être un hook fort qui arrête le scroll
-5. Le contenu doit être PRÊT À POSTER (pas un brouillon)
-6. Longueur adaptée au format recommandé
-
-Écriture inclusive avec point médian.
-JAMAIS de tiret cadratin (—). Utilise : ou ;
+Le contenu doit être PRÊT À POSTER (pas un brouillon).
+Longueur adaptée au format recommandé.
 
 Réponds UNIQUEMENT en JSON :
 {
@@ -278,7 +279,9 @@ Réponds UNIQUEMENT en JSON :
       userPrompt = "Rédige mon contenu à partir de mes réponses et de l'angle choisi.";
 
     } else if (step === "adjust") {
-      systemPrompt = `CONTENU ACTUEL :
+      systemPrompt = `${CORE_PRINCIPLES}
+
+CONTENU ACTUEL :
 """
 ${currentContent}
 """
@@ -289,9 +292,6 @@ PROFIL DE L'UTILISATRICE :
 ${fullContext}
 
 Réécris le contenu avec l'ajustement demandé. Garde la structure, les anecdotes et les mots de l'utilisatrice. Change UNIQUEMENT ce qui est lié à l'ajustement.
-
-Écriture inclusive avec point médian.
-JAMAIS de tiret cadratin.
 
 Réponds UNIQUEMENT en JSON :
 {
@@ -334,7 +334,6 @@ Réponds UNIQUEMENT en JSON :
     const result = await response.json();
     const rawContent = result.choices?.[0]?.message?.content || "";
 
-    // Try to parse JSON from the response
     let parsed;
     try {
       parsed = JSON.parse(rawContent);

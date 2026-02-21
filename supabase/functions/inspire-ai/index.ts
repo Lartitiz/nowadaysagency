@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { CORE_PRINCIPLES, FORMAT_STRUCTURES, WRITING_RESOURCES } from "../_shared/copywriting-prompts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -107,7 +108,10 @@ ${source_text}
 """`;
     }
 
-    const systemPrompt = `Tu es experte en stratégie de contenu Instagram pour des solopreneuses créatives et éthiques.
+    // SECTION 1 (principes) + SECTION 4 (banques pour la rédaction de l'adaptation)
+    const systemPrompt = `${CORE_PRINCIPLES}
+
+${WRITING_RESOURCES}
 
 ${brandingContext}
 
@@ -132,6 +136,8 @@ Génère 1 contenu complet adapté à l'utilisatrice :
 - Utilise les frustrations ou la transformation de SON persona
 - Si elle a un concept créatif, intègre-le
 - L'accroche doit être aussi forte que l'originale mais avec ses mots à elle
+- Intègre naturellement 2-3 BUCKET BRIGADES pour relancer la lecture
+- Termine par un CTA ÉTHIQUE adapté
 
 Le contenu doit être PRÊT À POSTER. Pas un brouillon. Un vrai post.
 
@@ -141,10 +147,8 @@ Ajoute à la fin :
 - Le pilier de contenu correspondant (si les piliers sont remplis)
 
 RÈGLES :
-- Écriture inclusive avec point médian
-- JAMAIS de tiret cadratin. Utilise : ou ;
-- Le contenu adapté doit faire la même longueur que l'original (pas plus court, pas plus long)
-- L'inspiration doit être évidente mais le contenu ne doit PAS être un copié-collé reformulé. C'est un nouveau contenu qui utilise la même mécanique.
+- Le contenu adapté doit faire la même longueur que l'original
+- L'inspiration doit être évidente mais le contenu ne doit PAS être un copié-collé reformulé
 - Si le contenu source est en anglais, la version adaptée est en français
 
 Réponds UNIQUEMENT en JSON valide :
@@ -169,12 +173,10 @@ Réponds UNIQUEMENT en JSON valide :
       });
     }
 
-    // Build messages: for screenshots, use vision model with image content parts
     let messages: any[];
     if (isScreenshot) {
       const contentParts: any[] = [{ type: "text", text: systemPrompt }];
       for (const img of images) {
-        // img is a data URL like "data:image/png;base64,..."
         contentParts.push({
           type: "image_url",
           image_url: { url: img },
@@ -185,10 +187,9 @@ Réponds UNIQUEMENT en JSON valide :
       messages = [{ role: "user", content: systemPrompt }];
     }
 
-    // Use a vision-capable model for screenshots
-    const model = isScreenshot ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash";
+    const model = "google/gemini-2.5-flash";
 
-    const aiRes = await fetch("https://api.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -202,6 +203,12 @@ Réponds UNIQUEMENT en JSON valide :
     });
 
     if (!aiRes.ok) {
+      if (aiRes.status === 429) {
+        return new Response(JSON.stringify({ error: "Trop de requêtes, réessaie dans un moment." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      if (aiRes.status === 402) {
+        return new Response(JSON.stringify({ error: "Crédits IA épuisés." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       const err = await aiRes.text();
       console.error("AI API error:", err);
       return new Response(JSON.stringify({ error: "Erreur IA" }), {
@@ -212,7 +219,6 @@ Réponds UNIQUEMENT en JSON valide :
 
     const aiData = await aiRes.json();
     let raw = aiData.choices?.[0]?.message?.content || "";
-    // Clean markdown fences
     raw = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
 
     let result;

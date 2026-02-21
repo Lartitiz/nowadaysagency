@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { WEBSITE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -79,44 +80,42 @@ serve(async (req) => {
     let systemPrompt = "";
     let userPrompt = "";
 
-    const rules = `\nRÈGLES :\n- Ton humain, sincère, engageant\n- Pas de jargon marketing\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—)\n- Utiliser les expressions et le ton de l'utilisatrice`;
-
     if (action === "generate-all") {
-      systemPrompt = `Tu es expert·e en copywriting de pages de vente pour des solopreneuses créatives et éthiques.\n\n${context}\n\nGénère les textes complets pour une page d'accueil, section par section :\n\nSECTION 1 — TITRE (HOOK)\n- 1 titre principal (max 12 mots, percutant, bénéfice client)\n- 1 sous-titre (1-2 phrases)\n\nSECTION 2 — LE PROBLÈME\n- 3 phrases max : accroche empathique + mission + promesse\n\nSECTION 3 — LES BÉNÉFICES\n- 3 phrases max : vision + objectif incarné + promesse\n\nSECTION 4 — L'OFFRE\n- Titre engageant + 4-6 points clés\n\nSECTION 5 — QUI TU ES\n- 3-4 phrases basées sur le storytelling\n\nSECTION 6 — FAQ\n- 6 questions/réponses\n\nSECTION 7 — CTA\n- 3 suggestions${rules}\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"titre": "...", "sous_titre": "...", "probleme": "...", "benefices": "...", "offre": "...", "presentation": "...", "faq": [{"question": "...", "reponse": "..."}, ...], "cta": ["...", "...", "..."]}`;
+      systemPrompt = `${WEBSITE_PRINCIPLES}\n\n${context}\n\nGénère les textes complets pour une page d'accueil, section par section :\n\nSECTION 1 — TITRE (HOOK)\n- 1 titre principal (max 12 mots, percutant, bénéfice client)\n- 1 sous-titre (1-2 phrases)\n\nSECTION 2 — LE PROBLÈME\n- 3 phrases max : accroche empathique + mission + promesse\n\nSECTION 3 — LES BÉNÉFICES\n- 3 phrases max : vision + objectif incarné + promesse\n\nSECTION 4 — L'OFFRE\n- Titre engageant + 4-6 points clés\n\nSECTION 5 — QUI TU ES\n- 3-4 phrases basées sur le storytelling\n\nSECTION 6 — FAQ\n- 6 questions/réponses\n\nSECTION 7 — CTA\n- 3 suggestions\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"titre": "...", "sous_titre": "...", "probleme": "...", "benefices": "...", "offre": "...", "presentation": "...", "faq": [{"question": "...", "reponse": "..."}, ...], "cta": ["...", "...", "..."]}`;
       userPrompt = "Génère toute ma page d'accueil.";
 
     } else if (action === "titles") {
-      systemPrompt = `Tu es expert·e en copywriting.\n\n${context}\n\nGénère 5 titres punchline pour une page d'accueil. Max 10-12 mots chacun.${rules}\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["titre 1", "titre 2", "titre 3", "titre 4", "titre 5"]`;
+      systemPrompt = `${WEBSITE_PRINCIPLES}\n\n${context}\n\nGénère 5 titres punchline pour une page d'accueil. Max 10-12 mots chacun.\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["titre 1", "titre 2", "titre 3", "titre 4", "titre 5"]`;
       userPrompt = "Génère 5 titres pour ma page d'accueil.";
 
     } else if (action === "subtitles") {
       const { title } = params;
-      systemPrompt = `Tu es expert·e en copywriting.\n\nTITRE CHOISI : "${title}"\n\n${context}\n\nGénère 3 sous-titres (1-2 phrases chacun).${rules}\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["sous-titre 1", "sous-titre 2", "sous-titre 3"]`;
+      systemPrompt = `${WEBSITE_PRINCIPLES}\n\nTITRE CHOISI : "${title}"\n\n${context}\n\nGénère 3 sous-titres (1-2 phrases chacun).\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["sous-titre 1", "sous-titre 2", "sous-titre 3"]`;
       userPrompt = "Génère 3 sous-titres.";
 
     } else if (action === "problem") {
-      systemPrompt = `Tu es expert·e en copywriting.\n\n${context}\n\nGénère 2 versions du bloc "problème" :\nVERSION EMPATHIQUE et VERSION DIRECTE\nChacune 3 phrases max.${rules}\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"empathique": "...", "directe": "..."}`;
+      systemPrompt = `${WEBSITE_PRINCIPLES}\n\n${context}\n\nGénère 2 versions du bloc "problème" :\nVERSION EMPATHIQUE et VERSION DIRECTE\nChacune 3 phrases max.\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"empathique": "...", "directe": "..."}`;
       userPrompt = "Génère le bloc problème.";
 
     } else if (action === "benefits") {
-      systemPrompt = `Tu es expert·e en copywriting.\n\n${context}\n\nGénère le bloc "bénéfices" : 3 phrases max.${rules}\n\nRéponds avec le texte seul.`;
+      systemPrompt = `${WEBSITE_PRINCIPLES}\n\n${context}\n\nGénère le bloc "bénéfices" : 3 phrases max.\n\nRéponds avec le texte seul.`;
       userPrompt = "Génère le bloc bénéfices.";
 
     } else if (action === "offer") {
-      systemPrompt = `Tu es expert·e en copywriting.\n\n${context}\n\nGénère une présentation claire : titre engageant + 4-6 points clés.${rules}\n\nRéponds avec le texte structuré.`;
+      systemPrompt = `${WEBSITE_PRINCIPLES}\n\n${context}\n\nGénère une présentation claire : titre engageant + 4-6 points clés.\n\nRéponds avec le texte structuré.`;
       userPrompt = "Génère la présentation de mon offre.";
 
     } else if (action === "presentation") {
-      systemPrompt = `Tu es expert·e en copywriting.\n\n${context}\n\nCondense le storytelling en 3-4 phrases pour la page d'accueil.${rules}\n\nRéponds avec le texte seul.`;
+      systemPrompt = `${WEBSITE_PRINCIPLES}\n\n${context}\n\nCondense le storytelling en 3-4 phrases pour la page d'accueil.\n\nRéponds avec le texte seul.`;
       userPrompt = "Génère ma présentation personnelle.";
 
     } else if (action === "faq") {
-      systemPrompt = `Tu es expert·e en copywriting.\n\n${context}\n\nGénère 8-10 questions/réponses pour une FAQ. Transparentes, humaines.${rules}\n\nRéponds UNIQUEMENT en JSON sans backticks :\n[{"question": "...", "reponse": "..."}, ...]`;
+      systemPrompt = `${WEBSITE_PRINCIPLES}\n\n${context}\n\nGénère 8-10 questions/réponses pour une FAQ. Transparentes, humaines.\n\nRéponds UNIQUEMENT en JSON sans backticks :\n[{"question": "...", "reponse": "..."}, ...]`;
       userPrompt = "Génère ma FAQ.";
 
     } else if (action === "cta") {
       const { objective } = params;
-      systemPrompt = `Tu es expert·e en copywriting.\n\nOBJECTIF : ${objective}\n\n${context}\n\nGénère 5 CTA (verbe à l'indicatif, direct).${rules}\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["cta 1", "cta 2", "cta 3", "cta 4", "cta 5"]`;
+      systemPrompt = `${WEBSITE_PRINCIPLES}\n\nOBJECTIF : ${objective}\n\n${context}\n\nGénère 5 CTA (verbe à l'indicatif, direct, comme une invitation pas une pression).\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["cta 1", "cta 2", "cta 3", "cta 4", "cta 5"]`;
       userPrompt = "Génère mes CTA.";
 
     } else {

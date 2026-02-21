@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { CORE_PRINCIPLES, FORMAT_STRUCTURES } from "../_shared/copywriting-prompts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -72,7 +73,10 @@ BRANDING DE L'UTILISATRICE :
     let userPrompt = "";
 
     if (type === "generate") {
-      systemPrompt = `Tu es expert·e en stratégie Instagram pour des solopreneuses créatives et éthiques.
+      // SECTION 1 (principes) + SECTION 3 (structures stories)
+      systemPrompt = `${CORE_PRINCIPLES}
+
+${FORMAT_STRUCTURES}
 
 ${brandingBlock}
 
@@ -91,11 +95,9 @@ Pour chaque catégorie :
 RÈGLES :
 - Les catégories doivent couvrir le parcours client complet : découverte → confiance → achat → fidélisation
 - Au minimum inclure : une catégorie "qui suis-je/mon histoire", une catégorie "offre/produit", une catégorie "preuve sociale/avis"
-- Les autres catégories sont personnalisées selon l'activité (coulisses, FAQ, valeurs, processus, before/after, etc.)
-- Les titres doivent être courts et mémorables (pas de phrases, des mots-clés)
+- Les autres catégories sont personnalisées selon l'activité
+- Les titres doivent être courts et mémorables
 - Le ton des stories doit correspondre au ton & style de l'utilisatrice
-- Écriture inclusive avec point médian
-- JAMAIS de tiret cadratin (—)
 
 Réponds UNIQUEMENT en JSON valide, sans texte avant ni après :
 [
@@ -116,7 +118,7 @@ Réponds UNIQUEMENT en JSON valide, sans texte avant ni après :
 
     } else if (type === "refine") {
       const { categories, questions } = body;
-      systemPrompt = `Tu es expert·e en stratégie Instagram pour des solopreneuses créatives et éthiques.
+      systemPrompt = `${CORE_PRINCIPLES}
 
 ${brandingBlock}
 
@@ -133,7 +135,6 @@ En te basant sur ses réponses, affine les catégories :
 - Ajoute une catégorie si ses réponses révèlent un besoin non couvert
 - Supprime ou fusionne des catégories si c'est plus pertinent
 - Personnalise les exemples avec des détails concrets tirés de ses réponses
-- Si elle fait déjà du contenu récurrent en stories, intègre-le dans la bonne catégorie
 
 Même format JSON que précédemment. Réponds UNIQUEMENT en JSON valide, sans texte avant ni après.`;
       userPrompt = "Affine mes catégories avec mes réponses.";

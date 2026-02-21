@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES } from "../_shared/copywriting-prompts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -156,7 +157,7 @@ serve(async (req) => {
 
     // Handle "raw" type early - no profile block needed
     if (type === "raw") {
-      systemPrompt = "Tu es une assistante créative et bienveillante spécialisée dans le personal branding pour des solopreneuses éthiques et créatives. Écriture inclusive avec point médian.";
+      systemPrompt = `${CORE_PRINCIPLES}`;
       userPrompt = rawPrompt || "";
     } else {
       const canalLabel = canal === "linkedin" ? "LinkedIn" : canal === "blog" ? "un article de blog" : canal === "pinterest" ? "Pinterest" : "Instagram";
@@ -168,10 +169,11 @@ serve(async (req) => {
         const objectifInstruction = objectif
           ? `L'objectif choisi est : ${objectif}. Oriente les sujets en conséquence.`
           : "";
-        systemPrompt = `Tu es un·e expert·e en stratégie de contenu ${canalLabel} pour des solopreneuses éthiques.\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\n${objectifInstruction}\n\nPropose exactement 5 idées de sujets de posts ${canalLabel}, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.\n\nVarie les angles : un sujet éducatif, un storytelling, un sujet engagé, un sujet pratique, un sujet inspirant.\n\nRéponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans tiret, sans explication.`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\n${objectifInstruction}\n\nPropose exactement 5 idées de sujets de posts ${canalLabel}, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.\n\nVarie les angles : un sujet éducatif, un storytelling, un sujet engagé, un sujet pratique, un sujet inspirant.\n\nRéponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans tiret, sans explication.`;
         userPrompt = `Propose-moi 5 sujets de posts ${canalLabel}.`;
 
       } else if (type === "ideas") {
+        // SECTION 1 (principes) + SECTION 2 (frameworks pour les accroches)
         const formatInstruction = format
           ? `FORMAT SÉLECTIONNÉ : ${format}`
           : "FORMAT SÉLECTIONNÉ : aucun, propose le format le plus adapté pour chaque idée";
@@ -195,7 +197,9 @@ serve(async (req) => {
           ? `4. 3 ACCROCHES avec chacune 2 versions :\n   - Version COURTE (max 15 mots)\n   - Version LONGUE (2-4 phrases)`
           : "";
 
-        systemPrompt = `Tu es un·e expert·e en stratégie de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.
+        systemPrompt = `${CORE_PRINCIPLES}
+
+${FRAMEWORK_SELECTION}
 
 PROFIL DE L'UTILISATRICE :
 ${fullContext}
@@ -219,11 +223,9 @@ ${accrocheRulePart}
 
 RÈGLES :
 - Varie les formats
-- Varie les angles
+- Varie les angles (chaque idée basée sur un framework différent, sans nommer le framework)
 - Les idées doivent être SPÉCIFIQUES à son activité
 - Le ton doit correspondre au style de communication
-- Écriture inclusive avec point médian
-- Pas de tiret cadratin
 - Pas d'emojis dans les accroches
 
 IMPORTANT : Réponds UNIQUEMENT en JSON :
@@ -237,16 +239,22 @@ IMPORTANT : Réponds UNIQUEMENT en JSON :
         userPrompt = `Propose-moi 5 idées de posts ${canalLabel}.`;
 
       } else if (type === "bio") {
-        systemPrompt = `Tu es un·e expert·e en personal branding Instagram pour des solopreneuses éthiques et créatives.\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONSIGNE :\nGénère exactement 2 versions de bio Instagram pour cette utilisatrice.\n\nVERSION 1 : Bio structurée & claire\nFormat strict ligne par ligne :\n- Ligne "nom_profil" : Prénom + mot-clé de l'activité\n- Ligne 1 : Ce qu'elle propose (commence par un emoji pertinent)\n- Ligne 2 : Ce qui la rend unique (commence par un emoji pertinent)\n- Ligne 3 : Appel à l'action (commence par un emoji pertinent, termine par ⤵️)\n\nVERSION 2 : Bio créative & incarnée\nMême structure mais avec un ton plus libre, poétique, avec de l'humour ou de la personnalité.\n\nRÈGLES :\n- Maximum 150 caractères par ligne\n- Écriture inclusive avec point médian\n- Pas de hashtags dans la bio\n- Pas de tiret cadratin\n\nIMPORTANT : Réponds UNIQUEMENT en JSON :\n{"structured": {"nom_profil": "...", "ligne1": "...", "ligne2": "...", "ligne3": "..."}, "creative": {"nom_profil": "...", "ligne1": "...", "ligne2": "...", "ligne3": "..."}}`;
+        // SECTION 1 (règles d'écriture uniquement via CORE_PRINCIPLES)
+        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONSIGNE :\nGénère exactement 2 versions de bio Instagram pour cette utilisatrice.\n\nVERSION 1 : Bio structurée & claire\nFormat strict ligne par ligne :\n- Ligne "nom_profil" : Prénom + mot-clé de l'activité\n- Ligne 1 : Ce qu'elle propose (commence par un emoji pertinent)\n- Ligne 2 : Ce qui la rend unique (commence par un emoji pertinent)\n- Ligne 3 : Appel à l'action (commence par un emoji pertinent, termine par ⤵️)\n\nVERSION 2 : Bio créative & incarnée\nMême structure mais avec un ton plus libre, poétique, avec de l'humour ou de la personnalité.\n\nRÈGLES :\n- Maximum 150 caractères par ligne\n- Pas de hashtags dans la bio\n\nIMPORTANT : Réponds UNIQUEMENT en JSON :\n{"structured": {"nom_profil": "...", "ligne1": "...", "ligne2": "...", "ligne3": "..."}, "creative": {"nom_profil": "...", "ligne1": "...", "ligne2": "...", "ligne3": "..."}}`;
         userPrompt = "Génère 2 versions de bio Instagram pour moi.";
 
       } else if (type === "launch-ideas") {
-        systemPrompt = `Tu es expert·e en stratégie de lancement Instagram pour des solopreneuses éthiques.\n\nPROFIL :\n${fullContext}\n\nLANCEMENT :\n- Nom : ${(profile || {}).launch_name || ""}\n- Promesse : ${(profile || {}).launch_promise || ""}\n- Objections anticipées : ${(profile || {}).launch_objections || ""}\n\nCONTENUS SÉLECTIONNÉS : ${((profile || {}).launch_selected_contents || []).join(", ")}\n\nPour chaque contenu sélectionné, propose :\n- 1 accroche (hook) percutante\n- 1 suggestion de CTA\n- Le format recommandé\n\nTon direct, chaleureux, oral assumé. Écriture inclusive avec point médian.\n\nRéponds UNIQUEMENT en JSON :\n[{"content_type": "...", "hook": "...", "cta": "...", "format": "..."}]`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL :\n${fullContext}\n\nLANCEMENT :\n- Nom : ${(profile || {}).launch_name || ""}\n- Promesse : ${(profile || {}).launch_promise || ""}\n- Objections anticipées : ${(profile || {}).launch_objections || ""}\n\nCONTENUS SÉLECTIONNÉS : ${((profile || {}).launch_selected_contents || []).join(", ")}\n\nPour chaque contenu sélectionné, propose :\n- 1 accroche (hook) percutante\n- 1 suggestion de CTA éthique\n- Le format recommandé\n\nRéponds UNIQUEMENT en JSON :\n[{"content_type": "...", "hook": "...", "cta": "...", "format": "..."}]`;
         userPrompt = "Génère des idées de contenu pour mon lancement.";
 
       } else if (type === "launch-plan") {
+        // SECTION 1 + SECTION 3 (structures) + SECTION 4 (banques pour rédaction)
         const lp = profile || {};
-        systemPrompt = `Tu es experte en stratégie de lancement Instagram pour des solopreneuses créatives et éthiques.
+        systemPrompt = `${CORE_PRINCIPLES}
+
+${FORMAT_STRUCTURES}
+
+${WRITING_RESOURCES}
 
 DONNÉES DU LANCEMENT :
 - Offre : "${lp.launch_name || ""}"
@@ -284,20 +292,10 @@ Pour CHAQUE contenu :
 1. date : la date précise (YYYY-MM-DD)
 2. phase : "pre_teasing" / "teasing" / "vente" / "post_lancement"
 3. format : "post_carrousel" / "post_photo" / "reel" / "story" / "story_serie" / "live"
-4. accroche : la première phrase (hook percutant)
-5. contenu : le texte COMPLET prêt à copier-coller (min 100 mots pour les posts)
+4. accroche : la première phrase (hook percutant, utilise les techniques du moteur copywriting)
+5. contenu : le texte COMPLET prêt à copier-coller (min 100 mots pour les posts, avec bucket brigades et CTA éthique)
 6. objectif : ce que ce contenu doit provoquer (1 phrase)
 7. tip : un conseil de création ou de timing (1 phrase)
-
-RÈGLES :
-- Écriture inclusive avec point médian
-- JAMAIS de tiret cadratin. Utilise : ou ;
-- Le ton doit correspondre au ton & style de l'utilisatrice
-- Les objections doivent être traitées naturellement
-- Alterner les formats
-- Les stories séries : penser en 5-8 stories
-- Le live doit inclure un script/structure
-- Si un contenu était prévu par l'utilisatrice, rédiger le contenu correspondant
 
 Réponds en JSON :
 {
@@ -323,20 +321,23 @@ Réponds en JSON :
         userPrompt = "Génère mon plan de lancement complet avec tous les contenus.";
 
       } else if (type === "redaction-structure") {
-        systemPrompt = `Tu es un·e expert·e en création de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nFORMAT CHOISI : ${format}\nSUJET DU POST : ${sujet}\n\nPropose une STRUCTURE DÉTAILLÉE pour ce post, étape par étape.\n\nPour chaque étape/slide, donne :\n- Le rôle de cette partie\n- Ce qu'il faut y mettre concrètement\n- Un exemple\n\nSois concrète et actionnable. Écriture inclusive avec point médian.\n\nRéponds en texte structuré lisible.`;
+        // SECTION 1 + SECTION 3 (structures par format)
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nFORMAT CHOISI : ${format}\nSUJET DU POST : ${sujet}\n\nPropose une STRUCTURE DÉTAILLÉE pour ce post, étape par étape. Utilise les structures par format ci-dessus comme base.\n\nPour chaque étape/slide, donne :\n- Le rôle de cette partie\n- Ce qu'il faut y mettre concrètement\n- Un exemple\n\nSois concrète et actionnable.\n\nRéponds en texte structuré lisible.`;
         userPrompt = `Propose-moi une structure détaillée pour un post "${format}" sur : "${sujet}"`;
 
       } else if (type === "redaction-accroches") {
-        systemPrompt = `Tu es un·e expert·e en copywriting ${canalLabel} pour des solopreneuses éthiques et créatives.\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nFORMAT : ${format}\nSUJET : ${sujet}\n${objectif ? `OBJECTIF : ${objectif}` : ""}\n\nPropose exactement 3 accroches différentes pour ce post.\n\nVarie les styles :\n- Une accroche percutante/polarisante\n- Une accroche storytelling/émotionnelle\n- Une accroche question/identification\n\nRÈGLES :\n- Écriture inclusive avec point médian\n- Pas de tiret cadratin\n- Pas d'emojis\n\nRéponds UNIQUEMENT en JSON :\n["accroche 1", "accroche 2", "accroche 3"]`;
+        // SECTION 1 + SECTION 2 (frameworks pour varier les accroches)
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${FRAMEWORK_SELECTION}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nFORMAT : ${format}\nSUJET : ${sujet}\n${objectif ? `OBJECTIF : ${objectif}` : ""}\n\nPropose exactement 3 accroches différentes pour ce post. Inspire-toi des exemples d'accroches du moteur copywriting mais adapte avec les mots de l'utilisatrice.\n\nVarie les styles :\n- Une accroche percutante/polarisante\n- Une accroche storytelling/émotionnelle\n- Une accroche question/identification\n\nRÈGLES :\n- Pas d'emojis\n- Les accroches doivent tenir dans les 125 premiers caractères\n\nRéponds UNIQUEMENT en JSON :\n["accroche 1", "accroche 2", "accroche 3"]`;
         userPrompt = `Propose 3 accroches pour un post "${format}" sur "${sujet}".`;
 
       } else if (type === "redaction-draft") {
-        systemPrompt = `Tu es un·e expert·e en création de contenu ${canalLabel} pour des solopreneuses éthiques et créatives.\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nFORMAT : ${format}\nSUJET : ${sujet}\n${structureInput ? `STRUCTURE :\n${structureInput}` : ""}\n${accrocheInput ? `ACCROCHE CHOISIE :\n${accrocheInput}` : ""}\n${angleInput ? `ANGLE :\n${angleInput}` : ""}\n\nRédige le post complet, prêt à être publié.\n\nRÈGLES :\n- Écriture inclusive avec point médian\n- Pas de tiret cadratin\n- Le ton doit correspondre au style de l'utilisatrice\n- Si elle a des expressions clés, utilise-les naturellement\n\nRéponds avec le texte du post uniquement.`;
+        // SECTION 1 + SECTION 3 + SECTION 4 (rédaction complète)
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}\n\n${WRITING_RESOURCES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nFORMAT : ${format}\nSUJET : ${sujet}\n${structureInput ? `STRUCTURE :\n${structureInput}` : ""}\n${accrocheInput ? `ACCROCHE CHOISIE :\n${accrocheInput}` : ""}\n${angleInput ? `ANGLE :\n${angleInput}` : ""}\n\nRédige le post complet, prêt à être publié. Suis les INSTRUCTIONS DE RÉDACTION FINALE du moteur copywriting.\n\nRéponds avec le texte du post uniquement.`;
         userPrompt = "Rédige le post complet.";
 
       } else if (type === "instagram-audit") {
         const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, successNotes: sn, failNotes: fn, profileUrl: pu } = body;
-        systemPrompt = `Tu es experte en stratégie Instagram pour des solopreneuses créatives et éthiques. Tu réalises un audit complet d'un profil Instagram.
+        systemPrompt = `${CORE_PRINCIPLES}
 
 RÉPONSES DE L'UTILISATRICE :
 - Contenus qui marchent le mieux : "${bc || "non renseigné"}"
@@ -368,37 +369,38 @@ Intègre cette analyse dans la section "edito" de l'audit.
 
 Score global = moyenne pondérée : Bio 25%, Stories 20%, Épinglés 15%, Nom 10%, Feed 15%, Édito 15%.
 
-RÈGLES : Sois directe mais bienveillante. Compare TOUJOURS avec le branding. Écriture inclusive avec point médian. JAMAIS de tiret cadratin.
+Sois directe mais bienveillante. Compare TOUJOURS avec le branding.
 
 Réponds en JSON :
 {"score_global": 62, "resume": "...", "sections": {"nom": {"score": 70, "diagnostic": "...", "recommandations": ["..."], "comparaison_branding": "..."}, "bio": {...}, "stories": {...}, "epingles": {...}, "feed": {...}, "edito": {...}}}`;
         userPrompt = "Analyse mon profil Instagram et donne-moi un audit complet.";
 
       } else if (type === "instagram-nom") {
-        systemPrompt = `Tu es experte en personal branding Instagram.\n\n${brandingContext}\n\nPropose exactement 3 noms de profil Instagram optimisés pour cette utilisatrice. Chaque nom doit contenir un mot-clé lié à son activité pour la recherche.\n\nFormats :\n1. [Prénom] | [Activité mot-clé]\n2. [Prénom] | [Bénéfice principal]\n3. [Nom de marque] | [Activité]\n\nRéponds UNIQUEMENT en JSON : ["nom 1", "nom 2", "nom 3"]`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${brandingContext}\n\nPropose exactement 3 noms de profil Instagram optimisés pour cette utilisatrice. Chaque nom doit contenir un mot-clé lié à son activité pour la recherche (Instagram SEO).\n\nFormats :\n1. [Prénom] | [Activité mot-clé]\n2. [Prénom] | [Bénéfice principal]\n3. [Nom de marque] | [Activité]\n\nRéponds UNIQUEMENT en JSON : ["nom 1", "nom 2", "nom 3"]`;
         userPrompt = "Propose 3 noms de profil Instagram optimisés.";
 
       } else if (type === "instagram-pinned") {
-        systemPrompt = `Tu es experte en stratégie Instagram pour des solopreneuses éthiques.\n\n${brandingContext}\n\nGénère 3 posts épinglés stratégiques :\n\nPOST 1 : MON HISTOIRE - Basé sur le storytelling, crée un lien émotionnel.\nPOST 2 : MON OFFRE - Basé sur la proposition de valeur, donne envie.\nPOST 3 : PREUVE SOCIALE - Témoignage ou résultats concrets.\n\nPour chaque post : accroche + contenu complet + format + objectif.\nÉcriture inclusive, JAMAIS de tiret cadratin.\n\nRéponds en JSON :\n{"post_histoire": {"accroche": "...", "contenu": "...", "format": "...", "objectif": "..."}, "post_offre": {...}, "post_preuve": {...}}`;
+        // SECTION 1 + SECTION 4 (CTA éthiques pour les posts)
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${WRITING_RESOURCES}\n\n${brandingContext}\n\nGénère 3 posts épinglés stratégiques :\n\nPOST 1 : MON HISTOIRE - Basé sur le storytelling, crée un lien émotionnel. (Framework BAB/Storytelling)\nPOST 2 : MON OFFRE - Basé sur la proposition de valeur, donne envie. (Framework PASTOR/AIDA éthique)\nPOST 3 : PREUVE SOCIALE - Témoignage ou résultats concrets. (Framework avant/après)\n\nPour chaque post : accroche forte (125 premiers caractères) + contenu complet avec bucket brigades + CTA éthique + format + objectif.\n\nRéponds en JSON :\n{"post_histoire": {"accroche": "...", "contenu": "...", "format": "...", "objectif": "..."}, "post_offre": {...}, "post_preuve": {...}}`;
         userPrompt = "Génère mes 3 posts épinglés stratégiques.";
 
       } else if (type === "instagram-edito") {
-        systemPrompt = `Tu es experte en stratégie de contenu Instagram pour des solopreneuses éthiques.\n\n${brandingContext}\n\nCrée une ligne éditoriale personnalisée. Réponds en JSON :\n{"main_objective": "...", "recommended_rhythm": "X posts/semaine + Y stories/semaine", "pillar_distribution": {"pilier1": 40, "pilier2": 25, "pilier3": 20, "Perso/coulisses": 15}, "preferred_formats": ["carrousel éducatif", "reel coulisses", "post storytelling"], "stop_doing": "...", "do_more": "..."}\n\nÉcriture inclusive, JAMAIS de tiret cadratin.`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${brandingContext}\n\nCrée une ligne éditoriale personnalisée. Utilise les recommandations du moteur copywriting sur le mix de contenu (4 visibilité + 4 confiance + 2 vente sur 10 posts).\n\nRéponds en JSON :\n{"main_objective": "...", "recommended_rhythm": "X posts/semaine + Y stories/semaine", "pillar_distribution": {"pilier1": 40, "pilier2": 25, "pilier3": 20, "Perso/coulisses": 15}, "preferred_formats": ["carrousel éducatif", "reel coulisses", "post storytelling"], "stop_doing": "...", "do_more": "..."}`;
         userPrompt = "Crée ma ligne éditoriale Instagram personnalisée.";
 
       } else if (type === "instagram-edito-pillars") {
         const p = profile;
-        systemPrompt = `Tu es experte en stratégie de contenu Instagram.\n\nObjectif : ${p?.objective || "?"}\nRythme : ${p?.posts_frequency || "?"}\nPiliers actuels : ${(p?.pillars || []).join(", ") || "aucun"}\n\nPropose une répartition optimale des piliers de contenu. Réponds UNIQUEMENT en JSON :\n{"pillars": [{"name": "...", "description": "...", "percentage": 40, "is_major": true}, ...]}\n\nLe total doit faire 100%. Maximum 5 piliers.`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\nObjectif : ${p?.objective || "?"}\nRythme : ${p?.posts_frequency || "?"}\nPiliers actuels : ${(p?.pillars || []).join(", ") || "aucun"}\n\nPropose une répartition optimale des piliers de contenu. Le total doit faire 100%. Maximum 5 piliers.\n\nRéponds UNIQUEMENT en JSON :\n{"pillars": [{"name": "...", "description": "...", "percentage": 40, "is_major": true}, ...]}`;
         userPrompt = "Suggère une répartition de piliers.";
 
       } else if (type === "instagram-edito-formats") {
         const p = profile;
-        systemPrompt = `Tu es experte en stratégie de contenu Instagram.\n\nObjectif : ${p?.objective || "?"}\nPiliers : ${(p?.pillars || []).join(", ") || "?"}\nRythme : ${p?.posts_frequency || "?"}\n\nRecommande les formats les plus pertinents parmi cette liste : Carrousel éducatif, Post photo + caption longue, Post photo + caption courte, Reel face cam, Reel montage/transitions, Reel coulisses, Story face cam, Story texte/sondage, Live, Collaboration / post invité.\n\nRéponds UNIQUEMENT en JSON :\n{"formats": ["format1", "format2", ...]}`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\nObjectif : ${p?.objective || "?"}\nPiliers : ${(p?.pillars || []).join(", ") || "?"}\nRythme : ${p?.posts_frequency || "?"}\n\nRecommande les formats les plus pertinents parmi cette liste : Carrousel éducatif, Post photo + caption longue, Post photo + caption courte, Reel face cam, Reel montage/transitions, Reel coulisses, Story face cam, Story texte/sondage, Live, Collaboration / post invité.\n\nRéponds UNIQUEMENT en JSON :\n{"formats": ["format1", "format2", ...]}`;
         userPrompt = "Suggère des formats.";
 
       } else if (type === "instagram-rhythm-adapt") {
         const p = profile;
-        systemPrompt = `Tu es experte en organisation de contenu Instagram pour solopreneuses.\n\nL'utilisatrice a ${p?.time_available || "?"} par semaine (${p?.available_minutes || 0} minutes).\nSon rythme actuel : ${p?.current_posts || "?"} posts + stories ${p?.current_stories || "?"}.\nFormats préférés : ${(p?.preferred_formats || []).join(", ") || "aucun"}.\nTemps estimé actuel : ~${p?.estimated_minutes || 0} minutes/semaine.\n\nPropose un rythme RÉALISTE qui tient dans son temps disponible.\n\nRéponds en JSON :\n{"suggestion": "Texte lisible avec le plan concret (quels jours, combien de temps par session)", "posts_frequency": "Xx/semaine", "stories_frequency": "label exact parmi: Tous les jours, 3-4x/semaine, 1-2x/semaine, Quand j'ai envie"}`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\nL'utilisatrice a ${p?.time_available || "?"} par semaine (${p?.available_minutes || 0} minutes).\nSon rythme actuel : ${p?.current_posts || "?"} posts + stories ${p?.current_stories || "?"}.\nFormats préférés : ${(p?.preferred_formats || []).join(", ") || "aucun"}.\nTemps estimé actuel : ~${p?.estimated_minutes || 0} minutes/semaine.\n\nPropose un rythme RÉALISTE qui tient dans son temps disponible.\n\nRéponds en JSON :\n{"suggestion": "Texte lisible avec le plan concret (quels jours, combien de temps par session)", "posts_frequency": "Xx/semaine", "stories_frequency": "label exact parmi: Tous les jours, 3-4x/semaine, 1-2x/semaine, Quand j'ai envie"}`;
         userPrompt = "Adapte mon rythme à mon temps disponible.";
 
       } else {
