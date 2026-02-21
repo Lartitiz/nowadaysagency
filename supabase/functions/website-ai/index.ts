@@ -118,6 +118,12 @@ serve(async (req) => {
       systemPrompt = `${WEBSITE_PRINCIPLES}\n\nOBJECTIF : ${objective}\n\n${context}\n\nGénère 5 CTA (verbe à l'indicatif, direct, comme une invitation pas une pression).\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["cta 1", "cta 2", "cta 3", "cta 4", "cta 5"]`;
       userPrompt = "Génère mes CTA.";
 
+    } else if (action === "about-page") {
+      const { angle } = params;
+      const angleDesc = angle === "lettre" ? "Ton intimiste, comme une lettre ouverte à ta future cliente" : angle === "manifeste" ? "Ton engagé, tes convictions d'abord, un manifeste" : "Ton narratif chronologique, ton parcours";
+      systemPrompt = `${WEBSITE_PRINCIPLES}\n\n${context}\n\nTu rédiges une page "À propos" pour un site web. Ce n'est pas un CV, c'est une page qui crée une CONNEXION avec la visiteuse.\n\nANGLE CHOISI : ${angleDesc}\n\nRédige la page à propos :\n\n1. TITRE D'ACCROCHE : une phrase qui résume la conviction, pas "À propos de moi"\n2. MON HISTOIRE : version web du storytelling (plus fluide qu'un post, plus courte qu'un article). 150-250 mots.\n3. MES VALEURS : 3-4 blocs. Chaque bloc = titre court + 2-3 phrases.\n4. MON APPROCHE : ce qui rend sa méthode unique. 100-150 mots.\n5. POUR QUI : description chaleureuse de sa cliente idéale. 50-100 mots.\n6. CTA : invitation douce à prendre contact ou découvrir l'offre.\n\nRÈGLES :\n- Écriture inclusive point médian\n- JAMAIS de tiret cadratin\n- Ton aligné avec le branding\n- La page doit sonner HUMAIN, pas corporate\n- Elle doit donner envie de travailler avec cette personne\n- Chaque section est autonome\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"title": "...", "story": "...", "values": [{"title": "...", "description": "..."}, ...], "approach": "...", "for_whom": "...", "cta": "..."}`;
+      userPrompt = "Génère ma page à propos.";
+
     } else {
       return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
