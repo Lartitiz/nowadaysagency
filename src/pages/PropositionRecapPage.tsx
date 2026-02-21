@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
@@ -6,22 +6,25 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Pencil } from "lucide-react";
+import { Copy, FileText, Loader2, RefreshCw, Pencil } from "lucide-react";
 
-const VERSION_CARDS = [
-  { key: "version_pitch_naturel", icon: "☕", label: "Pitch naturel", usage: "Pour expliquer ton métier à une amie" },
-  { key: "version_bio", icon: "📱", label: "Bio", usage: "Pour Instagram, LinkedIn, partout" },
-  { key: "version_networking", icon: "🎤", label: "Pitch networking", usage: "Quand on te demande \"tu fais quoi ?\"" },
-  { key: "version_site_web", icon: "🌐", label: "Site web", usage: "Pour ta page d'accueil" },
-  { key: "version_engagee", icon: "🔥", label: "Engagée", usage: "Post LinkedIn, newsletter, page À propos" },
-  { key: "version_one_liner", icon: "✨", label: "One-liner", usage: "Signature email, sticker, tote bag" },
-];
+interface RecapSummary {
+  what_i_do: string[];
+  what_i_dont: string[];
+  for_whom: string;
+  for_whom_tags: string[];
+  how: string[];
+  differentiator: string;
+}
 
 export default function PropositionRecapPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const recapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -31,9 +34,64 @@ export default function PropositionRecapPage() {
     });
   }, [user]);
 
+  const summary: RecapSummary | null = data?.recap_summary as any;
+
+  const generateRecap = async () => {
+    if (!data) return;
+    setGenerating(true);
+    try {
+      const [profRes, bpRes, perRes] = await Promise.all([
+        supabase.from("profiles").select("activite, prenom").eq("user_id", user!.id).single(),
+        supabase.from("brand_profile").select("mission, offer, combat_cause, combat_fights, combat_refusals").eq("user_id", user!.id).maybeSingle(),
+        supabase.from("persona").select("step_1_frustrations, step_2_transformation").eq("user_id", user!.id).maybeSingle(),
+      ]);
+
+      const { data: fnData, error } = await supabase.functions.invoke("proposition-ai", {
+        body: {
+          type: "generate-recap",
+          proposition_data: data,
+          profile: { ...(profRes.data || {}), ...(bpRes.data || {}) },
+          persona: perRes.data || {},
+          tone: bpRes.data || {},
+        },
+      });
+      if (error) throw error;
+
+      const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      const parsed = JSON.parse(raw);
+
+      await supabase.from("brand_proposition").update({ recap_summary: parsed } as any).eq("id", data.id);
+      setData({ ...data, recap_summary: parsed });
+      toast({ title: "Synthèse générée !" });
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+    }
+    setGenerating(false);
+  };
+
   const copyText = async (text: string) => {
     await navigator.clipboard.writeText(text);
     toast({ title: "Copié !" });
+  };
+
+  const exportPDF = async () => {
+    if (!recapRef.current) return;
+    setExporting(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const jsPDF = (await import("jspdf")).default;
+      const canvas = await html2canvas(recapRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const imgWidth = pageWidth - 20;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
+      pdf.save("ma-proposition-de-valeur.pdf");
+    } catch (e: any) {
+      toast({ title: "Erreur export", description: e.message, variant: "destructive" });
+    }
+    setExporting(false);
   };
 
   if (loading) return (
@@ -43,93 +101,206 @@ export default function PropositionRecapPage() {
     </div>
   );
 
-  const finalVersion = data?.version_final || "";
-  const otherVersions = VERSION_CARDS
-    .map(v => ({ ...v, text: data?.[v.key] }))
-    .filter(v => v.text && v.text !== finalVersion);
-
-  return (
+  if (!data) return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Ma proposition de valeur" />
-
-        <h1 className="font-display text-[26px] font-bold text-foreground mb-6">Ta proposition de valeur</h1>
-
-        {/* Main card - version finale */}
-        {finalVersion && (
-          <div className="rounded-2xl bg-card border border-border p-6 shadow-card mb-6">
-            <p className="font-mono-ui text-[10px] font-semibold text-muted-foreground mb-3">MA VERSION FINALE</p>
-            <p className="font-display text-[18px] text-foreground leading-[1.8] whitespace-pre-line">
-              {finalVersion}
-            </p>
-            <div className="flex gap-2 mt-4 pt-4 border-t border-border">
-              <Button variant="outline" size="sm" onClick={() => copyText(finalVersion)} className="rounded-pill text-xs">
-                <Copy className="h-3 w-3 mr-1" /> Copier
-              </Button>
-              <Link to="/branding/proposition">
-                <Button variant="outline" size="sm" className="rounded-pill text-xs">
-                  <Pencil className="h-3 w-3 mr-1" /> Modifier
-                </Button>
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {!finalVersion && (
-          <div className="rounded-2xl bg-card border border-border p-6 shadow-card mb-6">
-            <p className="text-muted-foreground italic">Aucune version finale sélectionnée.</p>
-            <Link to="/branding/proposition" className="text-sm text-primary hover:underline mt-2 inline-block">
-              Aller créer ma proposition →
-            </Link>
-          </div>
-        )}
-
-        {/* All versions */}
-        {otherVersions.length > 0 && (
-          <>
-            <h2 className="font-display text-lg font-bold text-foreground mb-3">Toutes les versions</h2>
-            <div className="space-y-3 mb-8">
-              {otherVersions.map((v, i) => (
-                <div key={i} className="rounded-xl bg-card border border-border p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span>{v.icon}</span>
-                    <p className="font-mono-ui text-[11px] font-bold text-foreground">{v.label}</p>
-                  </div>
-                  <p className="font-mono-ui text-[10px] text-muted-foreground mb-2">{v.usage}</p>
-                  <p className="text-[14px] text-foreground leading-relaxed mb-3">{v.text}</p>
-                  <Button variant="outline" size="sm" onClick={() => copyText(v.text!)} className="rounded-pill text-[11px]">
-                    <Copy className="h-3 w-3 mr-1" /> Copier
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Encouragement */}
-        <div className="rounded-xl bg-rose-pale border-l-4 border-primary p-5 mb-6">
-          <p className="text-[14px] text-foreground leading-relaxed mb-3">
-            🎉 <strong>Tu viens de passer un point charnière dans ton projet.</strong>
-          </p>
-          <p className="text-[14px] text-foreground leading-relaxed mb-3">
-            Ta proposition de valeur, c'est ton socle. Elle va maintenant te servir partout :
-          </p>
-          <ul className="text-[14px] text-foreground leading-relaxed space-y-1 mb-3">
-            <li>✅ Sur ton site web (dès la première phrase)</li>
-            <li>✅ Dans ta bio Instagram ou LinkedIn</li>
-            <li>✅ En pitch, en entretien, en présentation</li>
-            <li>✅ Dans tes newsletters, tes pages de vente, tes stories</li>
-          </ul>
-          <p className="text-[13px] text-muted-foreground italic">
-            Avant chaque action, pose-toi cette question : "Est-ce que ce que je m'apprête à dire reflète vraiment ce que je veux apporter au monde ?"
-          </p>
+        <div className="rounded-2xl bg-[hsl(var(--rose-pale))] border border-border p-6 text-center">
+          <p className="text-foreground text-[15px] mb-4">💎 Complète d'abord ta proposition de valeur pour voir ta fiche récap.</p>
+          <Link to="/branding/proposition"><Button className="rounded-pill">Commencer →</Button></Link>
         </div>
-
-        <Link to="/branding" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
-          ← Retour au Branding
-        </Link>
       </main>
     </div>
+  );
+
+  const versions = [
+    { emoji: "🪪", label: "Bio Instagram / LinkedIn", text: data.version_bio },
+    { emoji: "🎤", label: "Pitch oral / networking", text: data.version_pitch_naturel },
+    { emoji: "🌐", label: "Page d'accueil site web", text: data.version_site_web },
+    { emoji: "🔥", label: "Accroche engagée", text: data.version_engagee },
+    { emoji: "✨", label: "One-liner mémorable", text: data.version_one_liner },
+  ].filter(v => v.text);
+
+  return (
+    <div className="min-h-screen bg-background">
+      <AppHeader />
+      <main className="mx-auto max-w-[780px] px-6 py-8 max-md:px-4">
+        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Ma proposition de valeur" />
+
+        {/* Action bar */}
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <Link to="/branding/proposition">
+              <Button variant="outline" size="sm" className="rounded-pill text-xs">
+                <Pencil className="h-3 w-3 mr-1" /> Modifier
+              </Button>
+            </Link>
+            <Button variant="outline" size="sm" className="rounded-pill text-xs" onClick={generateRecap} disabled={generating}>
+              {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+              {summary ? "Regénérer" : "Générer la synthèse"}
+            </Button>
+          </div>
+          <Button variant="outline" size="sm" className="rounded-pill text-xs" onClick={exportPDF} disabled={exporting || !summary}>
+            {exporting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <FileText className="h-3 w-3 mr-1" />}
+            Exporter PDF
+          </Button>
+        </div>
+
+        {/* Prompt to generate if no summary */}
+        {!summary && (
+          <div className="rounded-2xl bg-[hsl(var(--rose-pale))] border border-border p-8 text-center mb-6">
+            <p className="text-foreground text-[15px] mb-4">
+              ✨ Clique sur "Générer la synthèse" pour créer ta fiche récap visuelle.
+            </p>
+            <Button onClick={generateRecap} disabled={generating} className="rounded-pill">
+              {generating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Génération...</> : "✨ Générer ma fiche"}
+            </Button>
+          </div>
+        )}
+
+        {/* === RECAP CARD === */}
+        {summary && (
+          <div ref={recapRef} id="proposition-recap" className="bg-white rounded-2xl border border-[hsl(var(--border))] shadow-[var(--shadow-card)] overflow-hidden">
+
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4 sm:px-8 sm:pt-8">
+              <h1 className="font-display text-[22px] sm:text-[26px] font-bold" style={{ color: "#1a1a2e" }}>
+                💎 Ma proposition de valeur
+              </h1>
+            </div>
+
+            {/* En une phrase */}
+            {data.version_bio && (
+              <div className="mx-6 sm:mx-8 mb-6 rounded-xl p-5 border-l-4" style={{ backgroundColor: "#FFF4F8", borderLeftColor: "#fb3d80" }}>
+                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>
+                  En une phrase
+                </p>
+                <p className="font-body text-[18px] italic leading-relaxed mb-3" style={{ color: "#1a1a2e" }}>
+                  "{data.version_bio}"
+                </p>
+                <div className="flex justify-end">
+                  <CopyBtn onClick={() => copyText(data.version_bio)} />
+                </div>
+              </div>
+            )}
+
+            {/* Ce que je fais / Ce que je ne fais pas */}
+            <div className="px-6 sm:px-8 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <ListCard emoji="✅" title="Ce que je fais" items={summary.what_i_do} dotColor="#22c55e" />
+              <ListCard emoji="🚫" title="Ce que je ne fais pas" items={summary.what_i_dont} dotColor="#f87171" />
+            </div>
+
+            {/* Pour qui / Comment */}
+            <div className="px-6 sm:px-8 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="rounded-xl p-4" style={{ backgroundColor: "#F8F4FF" }}>
+                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>
+                  🎯 Pour qui
+                </p>
+                <p className="font-body text-[13px] leading-relaxed mb-3" style={{ color: "#1a1a2e" }}>
+                  {summary.for_whom}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {summary.for_whom_tags.map((tag, i) => (
+                    <span key={i} className="px-2.5 py-0.5 rounded-pill text-[11px] font-semibold" style={{ backgroundColor: "#EDE8F5", color: "#6B5E7B" }}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-xl p-4" style={{ backgroundColor: "#F8F4FF" }}>
+                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>
+                  🛠️ Comment
+                </p>
+                <ul className="space-y-1.5">
+                  {summary.how.map((item, i) => (
+                    <li key={i} className="font-body text-[13px] leading-relaxed flex items-start gap-2" style={{ color: "#1a1a2e" }}>
+                      <span style={{ color: "#8b5cf6" }} className="mt-0.5">•</span> {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Différenciation */}
+            <div className="mx-6 sm:mx-8 mb-6 rounded-xl p-5 text-center" style={{ backgroundColor: "#FFF4F8" }}>
+              <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>
+                🔥 Ce qui me rend différente
+              </p>
+              <p className="font-body text-[16px] italic leading-relaxed" style={{ color: "#1a1a2e" }}>
+                "{summary.differentiator}"
+              </p>
+            </div>
+
+            {/* Versions prêtes à l'emploi */}
+            {versions.length > 0 && (
+              <div className="mx-6 sm:mx-8 mb-6 rounded-xl p-5" style={{ backgroundColor: "#F8F4FF" }}>
+                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-4" style={{ color: "#6B5E7B" }}>
+                  Mes versions prêtes à l'emploi
+                </p>
+                <div className="space-y-0">
+                  {versions.map((v, i) => (
+                    <div key={i}>
+                      {i > 0 && <div className="border-t border-dashed my-4" style={{ borderColor: "#D8D0E5" }} />}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: "#6B5E7B" }}>
+                            {v.emoji} {v.label}
+                          </p>
+                          <p className="font-body text-[14px] italic leading-relaxed" style={{ color: "#1a1a2e" }}>
+                            "{v.text}"
+                          </p>
+                        </div>
+                        <CopyBtn onClick={() => copyText(v.text!)} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="px-6 sm:px-8 py-4 border-t border-[hsl(var(--border))]">
+              <p className="text-center font-mono-ui text-[10px] uppercase tracking-wider" style={{ color: "#6B5E7B" }}>
+                L'Assistant Com' × Nowadays Agency
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6">
+          <Link to="/branding" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+            ← Retour au Branding
+          </Link>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+/* ─── Sub-components ─── */
+
+function ListCard({ emoji, title, items, dotColor }: { emoji: string; title: string; items: string[]; dotColor: string }) {
+  return (
+    <div className="rounded-xl border p-4" style={{ borderColor: "#E5E0EB", backgroundColor: "#ffffff" }}>
+      <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>
+        {emoji} {title}
+      </p>
+      <ul className="space-y-1.5">
+        {items.map((item, i) => (
+          <li key={i} className="font-body text-[13px] leading-relaxed flex items-start gap-2" style={{ color: "#1a1a2e" }}>
+            <span style={{ color: dotColor }} className="mt-0.5">•</span> {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function CopyBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold hover:opacity-70 transition-opacity" style={{ color: "#fb3d80" }}>
+      <Copy className="h-3 w-3" /> Copier
+    </button>
   );
 }

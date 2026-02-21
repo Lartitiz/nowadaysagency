@@ -98,6 +98,7 @@ export type Database = {
           created_at: string | null
           current_step: number | null
           id: string
+          recap_summary: Json | null
           step_1_what: string | null
           step_2a_process: string | null
           step_2b_values: string | null
@@ -123,6 +124,7 @@ export type Database = {
           created_at?: string | null
           current_step?: number | null
           id?: string
+          recap_summary?: Json | null
           step_1_what?: string | null
           step_2a_process?: string | null
           step_2b_values?: string | null
@@ -148,6 +150,7 @@ export type Database = {
           created_at?: string | null
           current_step?: number | null
           id?: string
+          recap_summary?: Json | null
           step_1_what?: string | null
           step_2a_process?: string | null
           step_2b_values?: string | null

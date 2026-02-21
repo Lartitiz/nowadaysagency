@@ -1,0 +1,1 @@
+ALTER TABLE public.brand_proposition ADD COLUMN IF NOT EXISTS recap_summary JSONB;
