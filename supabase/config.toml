@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.website-ai]
 verify_jwt = false
+
+[functions.inspire-ai]
+verify_jwt = false
+
+[functions.fetch-instagram-post]
+verify_jwt = false

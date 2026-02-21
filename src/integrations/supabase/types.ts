@@ -691,6 +691,48 @@ export type Database = {
         }
         Relationships: []
       }
+      instagram_inspirations: {
+        Row: {
+          adapted_content: string | null
+          analysis: Json | null
+          created_at: string
+          id: string
+          objective: string | null
+          pillar: string | null
+          recommended_format: string | null
+          saved_to_ideas: boolean | null
+          source_text: string | null
+          source_url: string | null
+          user_id: string
+        }
+        Insert: {
+          adapted_content?: string | null
+          analysis?: Json | null
+          created_at?: string
+          id?: string
+          objective?: string | null
+          pillar?: string | null
+          recommended_format?: string | null
+          saved_to_ideas?: boolean | null
+          source_text?: string | null
+          source_url?: string | null
+          user_id: string
+        }
+        Update: {
+          adapted_content?: string | null
+          analysis?: Json | null
+          created_at?: string
+          id?: string
+          objective?: string | null
+          pillar?: string | null
+          recommended_format?: string | null
+          saved_to_ideas?: boolean | null
+          source_text?: string | null
+          source_url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       launches: {
         Row: {
           created_at: string

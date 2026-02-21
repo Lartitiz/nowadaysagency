@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
-import { ArrowLeft, PenLine, Star, Search, Lightbulb, CalendarDays, Rocket, Clock, Heart } from "lucide-react";
+import { ArrowLeft, PenLine, Star, Search, Lightbulb, CalendarDays, Rocket, Clock, Heart, Sparkles } from "lucide-react";
 
 interface CardDef {
   icon: React.ElementType;
@@ -17,7 +17,8 @@ interface CardDef {
 const CARDS: CardDef[] = [
   { icon: PenLine, emoji: "✍️", title: "Optimiser ma bio", desc: "Première impression parfaite.", to: "/instagram/bio", tag: "Guide + IA" },
   { icon: Star, emoji: "⭐", title: "Stories à la une", desc: "Organise tes highlights.", to: "/instagram/highlights", tag: "Checklist" },
-  { icon: Search, emoji: "🔍", title: "M'inspirer", desc: "Observe et apprends.", to: "/instagram/inspiration", tag: "Exercice" },
+  { icon: Search, emoji: "🔍", title: "Observer des comptes", desc: "Observe et apprends.", to: "/instagram/inspiration", tag: "Exercice" },
+  { icon: Sparkles, emoji: "✨", title: "M'inspirer", desc: "Colle un contenu qui t'a plu. L'IA t'explique pourquoi ça marche et te crée ta version.", to: "/instagram/inspirer", tag: "Analyser · Adapter · Poster" },
   { icon: Lightbulb, emoji: "💡", title: "Trouver des idées", desc: "Direction l'atelier.", to: "/atelier?canal=instagram", tag: "IA" },
   { icon: CalendarDays, emoji: "📅", title: "Mon calendrier Insta", desc: "Planifie tes posts.", to: "/calendrier?canal=instagram", tag: "Planning" },
   { icon: Rocket, emoji: "🚀", title: "Préparer un lancement", desc: "Plan de lancement guidé.", to: "/instagram/lancement", tag: "Template + IA" },
@@ -30,6 +31,7 @@ interface ProgressData {
   bioCount: number;
   highlightSteps: number;
   inspirationCount: number;
+  inspirerCount: number;
   ideasCount: number;
   calendarCount: number;
   launchCount: number;
@@ -41,7 +43,7 @@ interface ProgressData {
 export default function InstagramHub() {
   const { user } = useAuth();
   const [progress, setProgress] = useState<ProgressData>({
-    bioCount: 0, highlightSteps: 0, inspirationCount: 0,
+    bioCount: 0, highlightSteps: 0, inspirationCount: 0, inspirerCount: 0,
     ideasCount: 0, calendarCount: 0, launchCount: 0,
     rhythmDone: false, engagementWeekly: "0/0", savedIdeasCount: 0,
   });
@@ -57,10 +59,11 @@ export default function InstagramHub() {
       mondayDate.setDate(now.getDate() - day + (day === 0 ? -6 : 1));
       const monday = mondayDate.toISOString().split("T")[0];
 
-      const [bioRes, highlightRes, inspoRes, ideasRes, calRes, launchRes, rhythmRes, weeklyRes, savedRes] = await Promise.all([
+      const [bioRes, highlightRes, inspoRes, inspirerRes, ideasRes, calRes, launchRes, rhythmRes, weeklyRes, savedRes] = await Promise.all([
         supabase.from("generated_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("highlight_categories").select("id, added_to_profile").eq("user_id", user.id),
         supabase.from("inspiration_accounts").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+        supabase.from("instagram_inspirations").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("saved_ideas").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("canal", "instagram"),
         supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("canal", "instagram").gte("date", monthStart).lte("date", monthEnd),
         supabase.from("launches").select("id", { count: "exact", head: true }).eq("user_id", user.id),
@@ -78,6 +81,7 @@ export default function InstagramHub() {
         bioCount: bioRes.count || 0,
         highlightSteps: completedSteps,
         inspirationCount: inspoRes.count || 0,
+        inspirerCount: inspirerRes.count || 0,
         ideasCount: ideasRes.count || 0,
         calendarCount: calRes.count || 0,
         launchCount: launchRes.count || 0,
@@ -94,12 +98,13 @@ export default function InstagramHub() {
       case 0: return progress.bioCount > 0 ? "✓ Faite" : "À faire";
       case 1: return `${progress.highlightSteps}/4 étapes`;
       case 2: return `${progress.inspirationCount}/3 comptes`;
-      case 3: return `${progress.ideasCount} idée${progress.ideasCount !== 1 ? "s" : ""}`;
-      case 4: return `${progress.calendarCount} post${progress.calendarCount !== 1 ? "s" : ""} ce mois`;
-      case 5: return `${progress.launchCount} lancement${progress.launchCount !== 1 ? "s" : ""}`;
-      case 6: return progress.rhythmDone ? "✓ Défini" : "À faire";
-      case 7: return progress.engagementWeekly;
-      case 8: return `${progress.savedIdeasCount} idée${progress.savedIdeasCount !== 1 ? "s" : ""}`;
+      case 3: return progress.inspirerCount > 0 ? `${progress.inspirerCount} analyse${progress.inspirerCount !== 1 ? "s" : ""}` : null;
+      case 4: return `${progress.ideasCount} idée${progress.ideasCount !== 1 ? "s" : ""}`;
+      case 5: return `${progress.calendarCount} post${progress.calendarCount !== 1 ? "s" : ""} ce mois`;
+      case 6: return `${progress.launchCount} lancement${progress.launchCount !== 1 ? "s" : ""}`;
+      case 7: return progress.rhythmDone ? "✓ Défini" : "À faire";
+      case 8: return progress.engagementWeekly;
+      case 9: return `${progress.savedIdeasCount} idée${progress.savedIdeasCount !== 1 ? "s" : ""}`;
       default: return null;
     }
   };
