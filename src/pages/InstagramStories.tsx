@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -72,6 +72,8 @@ const FACECAM_OPTIONS = [
 export default function InstagramStories() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const highlightState = location.state as any;
 
   // Form state
   const [step, setStep] = useState(1);
@@ -81,6 +83,19 @@ export default function InstagramStories() {
   const [faceCam, setFaceCam] = useState("");
   const [subject, setSubject] = useState("");
   const [isLaunch, setIsLaunch] = useState(false);
+
+  // Pre-fill from highlights navigation
+  useEffect(() => {
+    if (highlightState?.fromHighlights) {
+      if (highlightState.objective) setObjective(highlightState.objective);
+      if (highlightState.price_range) setPriceRange(highlightState.price_range);
+      if (highlightState.time_available) setTimeAvailable(highlightState.time_available);
+      if (highlightState.face_cam) setFaceCam(highlightState.face_cam);
+      if (highlightState.subject) setSubject(highlightState.subject);
+      // Jump to step 3 (context) since most is pre-filled
+      setStep(3);
+    }
+  }, []);
 
   // Result state
   const [loading, setLoading] = useState(false);
