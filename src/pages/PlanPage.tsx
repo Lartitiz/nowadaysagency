@@ -60,7 +60,7 @@ export default function PlanPage() {
 
     // 1. Fetch app state and compute progress
     const state = await fetchAppState(user.id);
-    setProgress(computeProgress(state));
+    setProgress(await computeProgress(state, user.id));
 
     // 2. Check if missions exist for this week
     const { data: existingMissions } = await supabase
