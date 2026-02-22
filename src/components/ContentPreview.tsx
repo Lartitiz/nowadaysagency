@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 
 interface ContentPreviewProps {
   contentData: any;
@@ -30,11 +31,12 @@ export function ContentPreview({ contentData, contentType, contentDraft, compact
 
   const detectedType = contentType || detectType(data);
 
-  if (detectedType === "reel") return <ReelPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />;
-  if (detectedType === "stories") return <StoriesPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />;
-  if (detectedType === "post_instagram" || detectedType === "post_linkedin") return <PostPreview data={data} editable={editable} onContentChange={onContentChange} />;
+  const preview = detectedType === "reel" ? <ReelPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />
+    : detectedType === "stories" ? <StoriesPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />
+    : (detectedType === "post_instagram" || detectedType === "post_linkedin") ? <PostPreview data={data} editable={editable} onContentChange={onContentChange} />
+    : <FallbackPreview data={data} editable={editable} onContentChange={onContentChange} />;
 
-  return <FallbackPreview data={data} editable={editable} onContentChange={onContentChange} />;
+  return <>{preview}<AiGeneratedMention /></>;
 }
 
 /* ─── Inline Editable Text ─── */

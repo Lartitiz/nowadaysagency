@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield } from "lucide-react";
+import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -167,6 +168,37 @@ export default function SettingsPage() {
               checked={notifReminders}
               onCheckedChange={(v) => togglePref("pref_notif_reminders", v, setNotifReminders)}
             />
+          </div>
+        </Section>
+
+        {/* ─── AI section ─── */}
+        <Section icon={<Bot className="h-4 w-4" />} title="Intelligence artificielle">
+          <div className="space-y-3 text-sm text-foreground leading-relaxed">
+            <p>
+              Cet outil utilise l'IA pour t'aider à structurer et rédiger tes contenus de communication.
+            </p>
+            <div>
+              <p className="font-semibold mb-1">Ce que l'IA fait :</p>
+              <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
+                <li>Propose des structures, accroches, scripts et textes</li>
+                <li>Analyse ton profil et ton branding pour personnaliser</li>
+                <li>Suggère des améliorations et des angles</li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-semibold mb-1">Ce que l'IA ne fait pas :</p>
+              <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
+                <li>Ne publie rien à ta place</li>
+                <li>Ne remplace pas ta voix ni ton expertise</li>
+                <li>Ne stocke pas tes données hors de l'app</li>
+              </ul>
+            </div>
+            <p className="text-muted-foreground">
+              Tes données sont utilisées uniquement pour personnaliser les générations dans l'app. Elles ne sont pas partagées avec des tiers.
+            </p>
+            <Link to="/legal-ia" className="text-primary text-xs font-medium hover:underline">
+              En savoir plus →
+            </Link>
           </div>
         </Section>
 
