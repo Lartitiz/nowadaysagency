@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag } from "lucide-react";
+import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { STRIPE_PLANS } from "@/lib/stripe-config";
+import { useUserPlan } from "@/hooks/use-user-plan";
 import PurchaseHistory from "@/components/settings/PurchaseHistory";
+import PromoCodeInput from "@/components/PromoCodeInput";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +27,7 @@ import {
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const { plan, isPaid, isStudio, refresh: refreshPlan } = useUserPlan();
 
   // Password change
   const [newPassword, setNewPassword] = useState("");
@@ -39,7 +42,7 @@ export default function SettingsPage() {
   const [deleting, setDeleting] = useState(false);
 
   // Subscription state
-  const [subInfo, setSubInfo] = useState<{ plan: string; status: string; current_period_end?: string; cancel_at?: string } | null>(null);
+  const [subInfo, setSubInfo] = useState<{ plan: string; status: string; current_period_end?: string; cancel_at?: string; source?: string } | null>(null);
   const [loadingSub, setLoadingSub] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
 
@@ -95,6 +98,20 @@ export default function SettingsPage() {
     setPortalLoading(false);
   };
 
+  const handleCheckoutOutil = async () => {
+    setPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: { priceId: STRIPE_PLANS.outil.priceId, mode: "subscription" },
+      });
+      if (error) throw error;
+      if (data?.url) window.location.href = data.url;
+    } catch {
+      toast({ title: "Erreur", description: "Impossible d'ouvrir le paiement.", variant: "destructive" });
+    }
+    setPortalLoading(false);
+  };
+
   const handleDeleteAccount = async () => {
     setDeleting(true);
     if (user) {
@@ -143,34 +160,77 @@ export default function SettingsPage() {
               <Loader2 className="h-4 w-4 animate-spin" /> Chargement...
             </div>
           ) : (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Plan actuel : <span className="text-primary font-semibold">{planLabel}</span></p>
-                  {subInfo?.current_period_end && subInfo.plan !== "free" && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Prochain renouvellement : {new Date(subInfo.current_period_end).toLocaleDateString("fr-FR")}
-                    </p>
-                  )}
-                  {subInfo?.cancel_at && (
-                    <p className="text-xs text-destructive mt-0.5">
-                      Annulation prévue le {new Date(subInfo.cancel_at).toLocaleDateString("fr-FR")}
-                    </p>
-                  )}
-                </div>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium">
+                  Plan actuel :{" "}
+                  <span className="text-primary font-semibold">
+                    {subInfo?.source === "promo" ? "💎 " : ""}{planLabel}
+                    {subInfo?.source === "promo" && " · Accès beta"}
+                  </span>
+                </p>
+                {subInfo?.source === "promo" && subInfo?.current_period_end && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    🎁 Expire le {new Date(subInfo.current_period_end).toLocaleDateString("fr-FR")}
+                  </p>
+                )}
+                {subInfo?.source !== "promo" && subInfo?.current_period_end && subInfo.plan !== "free" && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Prochain renouvellement : {new Date(subInfo.current_period_end).toLocaleDateString("fr-FR")}
+                  </p>
+                )}
+                {subInfo?.cancel_at && (
+                  <p className="text-xs text-destructive mt-0.5">
+                    Annulation prévue le {new Date(subInfo.cancel_at).toLocaleDateString("fr-FR")}
+                  </p>
+                )}
               </div>
-              {subInfo?.plan !== "free" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full"
-                  onClick={handleManageSubscription}
-                  disabled={portalLoading}
-                >
-                  {portalLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Gérer mon abonnement
-                </Button>
-              )}
+
+              {/* Actions based on plan */}
+              <div className="flex flex-wrap gap-2">
+                {subInfo?.plan === "free" && (
+                  <>
+                    <Button size="sm" className="rounded-full" onClick={handleCheckoutOutil} disabled={portalLoading}>
+                      {portalLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      💎 Passer au plan Outil (39€/mois)
+                    </Button>
+                    <Button size="sm" variant="outline" className="rounded-full" asChild>
+                      <Link to="/studio/discover">🌟 Découvrir le Now Studio</Link>
+                    </Button>
+                  </>
+                )}
+                {subInfo?.plan === "outil" && subInfo?.source !== "promo" && (
+                  <>
+                    <Button size="sm" variant="outline" className="rounded-full" onClick={handleManageSubscription} disabled={portalLoading}>
+                      {portalLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Gérer mon abonnement
+                    </Button>
+                    <Button size="sm" variant="outline" className="rounded-full" asChild>
+                      <Link to="/studio/discover">🌟 Upgrader vers le Now Studio</Link>
+                    </Button>
+                  </>
+                )}
+                {subInfo?.source === "promo" && (
+                  <Button size="sm" className="rounded-full" onClick={handleCheckoutOutil} disabled={portalLoading}>
+                    💎 S'abonner pour garder l'accès
+                  </Button>
+                )}
+                {subInfo?.plan === "studio" && (
+                  <Button size="sm" variant="outline" className="rounded-full" onClick={handleManageSubscription} disabled={portalLoading}>
+                    {portalLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Gérer mon abonnement
+                  </Button>
+                )}
+              </div>
+
+              <Link to="/pricing" className="flex items-center gap-1 text-xs text-primary font-medium hover:underline">
+                📋 Voir tous les plans <ArrowRight className="h-3 w-3" />
+              </Link>
+
+              {/* Promo code */}
+              <div className="pt-3 border-t border-border">
+                <PromoCodeInput />
+              </div>
             </div>
           )}
         </Section>
