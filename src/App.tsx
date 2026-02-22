@@ -96,6 +96,8 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/connexion" element={<LoginPage />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/plan" element={<Navigate to="/pricing" replace />} />
+            <Route path="/now-studio" element={<Navigate to="/studio/discover" replace />} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/idees" element={<ProtectedRoute><IdeasPage /></ProtectedRoute>} />
@@ -130,7 +132,7 @@ const App = () => (
             <Route path="/profil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/parametres" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/legal-ia" element={<ProtectedRoute><LegalAiPage /></ProtectedRoute>} />
-            <Route path="/payment/success" element={<ProtectedRoute><PaymentSuccessPage /></ProtectedRoute>} />
+            <Route path="/payment/success" element={<PaymentSuccessPage />} />
             {/* Instagram module */}
             <Route path="/instagram" element={<ProtectedRoute><InstagramHub /></ProtectedRoute>} />
             <Route path="/instagram/profil" element={<ProtectedRoute><InstagramProfile /></ProtectedRoute>} />

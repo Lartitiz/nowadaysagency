@@ -258,8 +258,8 @@ export default function LandingPage() {
           <span className="font-display text-xl font-bold text-bordeaux tracking-tight">Nowadays</span>
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" onClick={scrollTo("features")} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Fonctionnalités</a>
-            <Link to="/plan" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
-            <Link to="/now-studio" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Now Studio</Link>
+            <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
+            <Link to="/studio/discover" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Now Studio</Link>
           </div>
           <div className="hidden md:flex items-center gap-3">
             <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Se connecter</Link>
@@ -274,8 +274,8 @@ export default function LandingPage() {
         {mobileNav && (
           <div className="md:hidden border-t border-border bg-card px-4 py-4 space-y-3 animate-fade-in">
             <a href="#features" onClick={scrollTo("features")} className="block text-sm font-medium">Fonctionnalités</a>
-            <Link to="/plan" className="block text-sm font-medium">Pricing</Link>
-            <Link to="/now-studio" className="block text-sm font-medium">Now Studio</Link>
+            <Link to="/pricing" className="block text-sm font-medium">Pricing</Link>
+            <Link to="/studio/discover" className="block text-sm font-medium">Now Studio</Link>
             <Link to="/login" className="block text-sm font-medium text-muted-foreground">Se connecter</Link>
             <a href="#signup-section" onClick={scrollTo("signup-section")} className="block text-center rounded-pill bg-primary text-primary-foreground py-2.5 text-sm font-medium shadow-cta">
               Commencer gratuitement
@@ -604,14 +604,14 @@ export default function LandingPage() {
                 <p className="text-primary font-bold text-xl mt-1">250€<span className="text-sm font-normal text-muted-foreground">/mois</span></p>
                 <p className="text-sm text-muted-foreground mt-1 mb-6">L'outil + l'accompagnement humain</p>
                 <div className="flex-1" />
-                <Link to="/now-studio" className="block text-center rounded-pill border border-border py-2.5 font-medium text-foreground hover:bg-secondary transition-colors text-sm">
+                <Link to="/studio/discover" className="block text-center rounded-pill border border-border py-2.5 font-medium text-foreground hover:bg-secondary transition-colors text-sm">
                   En savoir plus
                 </Link>
               </div>
             </Reveal>
           </div>
           <Reveal delay={0.3}>
-            <Link to="/plan" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline mt-8">
+            <Link to="/pricing" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline mt-8">
               Voir le détail des plans <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </Reveal>
@@ -666,8 +666,8 @@ export default function LandingPage() {
               <h4 className="font-semibold text-sm mb-3">Navigation</h4>
               <nav className="flex flex-col gap-2 text-sm text-background/60">
                 <a href="#features" onClick={scrollTo("features")} className="hover:text-background transition-colors">Fonctionnalités</a>
-                <Link to="/plan" className="hover:text-background transition-colors">Pricing</Link>
-                <Link to="/now-studio" className="hover:text-background transition-colors">Now Studio</Link>
+                <Link to="/pricing" className="hover:text-background transition-colors">Pricing</Link>
+                <Link to="/studio/discover" className="hover:text-background transition-colors">Now Studio</Link>
                 <a href="#faq" onClick={scrollTo("faq")} className="hover:text-background transition-colors">FAQ</a>
               </nav>
             </div>
