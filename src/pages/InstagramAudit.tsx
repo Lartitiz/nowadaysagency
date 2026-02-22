@@ -324,7 +324,7 @@ export default function InstagramAudit() {
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-          <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Audit" />
+          <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Audit" useFromParam />
           <h1 className="font-display text-[26px] font-bold text-foreground mb-2">🔍 Audit de ton profil Instagram</h1>
 
           <div className="rounded-2xl border border-border bg-card p-6 mt-6">
@@ -375,7 +375,7 @@ export default function InstagramAudit() {
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-          <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Résultats audit" />
+          <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Résultats audit" useFromParam />
           <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
             <h1 className="font-display text-[26px] font-bold text-foreground">🔍 Résultat de ton audit</h1>
             {auditDate && (
@@ -518,7 +518,7 @@ export default function InstagramAudit() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel={hasExistingAudit ? "Refaire l'audit" : "Audit"} />
+        <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel={hasExistingAudit ? "Refaire l'audit" : "Audit"} useFromParam />
         <h1 className="font-display text-[26px] font-bold text-foreground">
           {hasExistingAudit ? "🔄 Refaire l'audit" : "🔍 Audit de ton profil Instagram"}
         </h1>

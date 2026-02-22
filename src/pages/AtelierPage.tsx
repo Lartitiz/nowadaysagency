@@ -278,14 +278,15 @@ export default function AtelierPage() {
         )}
 
         {/* Standard nav for non-calendar */}
-        {!fromCalendar && isInstagramContext && (
-          <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Trouver des idées" />
-        )}
-        {!fromCalendar && !isInstagramContext && (
-          <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
-            <ArrowLeft className="h-4 w-4" />
-            Retour au hub
-          </Link>
+        {!fromCalendar && (
+          <SubPageHeader
+            breadcrumbs={[
+              { label: "Dashboard", to: "/dashboard" },
+              { label: "Créer", to: "/instagram/creer" },
+            ]}
+            currentLabel="Atelier d'idées"
+            useFromParam
+          />
         )}
 
         <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground mb-1">

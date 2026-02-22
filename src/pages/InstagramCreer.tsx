@@ -23,11 +23,11 @@ interface FormatOption {
 }
 
 const ALL_FORMAT_OPTIONS: FormatOption[] = [
-  { id: "post", emoji: "📝", label: "Post", desc: "Carrousel, image ou texte", route: "/atelier?canal=instagram", channel: "instagram" },
+  { id: "post", emoji: "📝", label: "Post", desc: "Carrousel, image ou texte", route: "/atelier?canal=instagram&from=/instagram/creer", channel: "instagram" },
   { id: "carousel", emoji: "🎠", label: "Carrousel", desc: "Slides visuelles", route: "", comingSoon: true, channel: "instagram" },
-  { id: "reel", emoji: "🎬", label: "Reel", desc: "Script complet avec hook", route: "/instagram/reels", channel: "instagram" },
-  { id: "story", emoji: "📱", label: "Story", desc: "Séquence avec stickers", route: "/instagram/stories", channel: "instagram" },
-  { id: "linkedin", emoji: "💼", label: "LinkedIn", desc: "Post LinkedIn", route: "/linkedin/post", channel: "linkedin" },
+  { id: "reel", emoji: "🎬", label: "Reel", desc: "Script complet avec hook", route: "/instagram/reels?from=/instagram/creer", channel: "instagram" },
+  { id: "story", emoji: "📱", label: "Story", desc: "Séquence avec stickers", route: "/instagram/stories?from=/instagram/creer", channel: "instagram" },
+  { id: "linkedin", emoji: "💼", label: "LinkedIn", desc: "Post LinkedIn", route: "/linkedin/post?from=/instagram/creer", channel: "linkedin" },
   { id: "pinterest", emoji: "📌", label: "Pinterest", desc: "Épingle optimisée", route: "", comingSoon: true, channel: "pinterest" },
   { id: "newsletter", emoji: "📧", label: "Newsletter", desc: "Email engageant", route: "", comingSoon: true, channel: "newsletter" },
 ];
@@ -109,7 +109,7 @@ export default function InstagramCreer() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-2xl px-4 py-8 animate-fade-in">
-        <SubPageHeader parentLabel="Mon Instagram" parentTo="/instagram" currentLabel="Créer un contenu" />
+        <SubPageHeader parentLabel="Dashboard" parentTo="/dashboard" currentLabel="Créer un contenu" />
 
         <div className="mb-8">
           <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground">✨ Créer un contenu</h1>
