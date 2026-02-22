@@ -13,6 +13,7 @@ import IdeasPage from "./pages/IdeasPage";
 import Profile from "./pages/Profile";
 import SettingsPage from "./pages/SettingsPage";
 import Calendar from "./pages/Calendar";
+import CommPlanPage from "./pages/CommPlanPage";
 import PlanPage from "./pages/PlanPage";
 import BrandingPage from "./pages/BrandingPage";
 import TonStylePage from "./pages/TonStylePage";
@@ -119,6 +120,7 @@ const App = () => (
             <Route path="/branding/offres" element={<ProtectedRoute><OffersPage /></ProtectedRoute>} />
             <Route path="/branding/offres/:id" element={<ProtectedRoute><OfferWorkshopPage /></ProtectedRoute>} />
             <Route path="/plan" element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />
+            <Route path="/mon-plan" element={<ProtectedRoute><CommPlanPage /></ProtectedRoute>} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/studio" element={<ProtectedRoute><StudioDashboard /></ProtectedRoute>} />
             <Route path="/studio/discover" element={<NowStudioSalesPage />} />

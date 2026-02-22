@@ -422,6 +422,57 @@ export type Database = {
           },
         ]
       }
+      communication_plans: {
+        Row: {
+          active_days: Json | null
+          channels: Json | null
+          created_at: string | null
+          daily_time: number | null
+          id: string
+          instagram_posts_week: number | null
+          instagram_reels_month: number | null
+          instagram_stories_week: number | null
+          linkedin_posts_week: number | null
+          monthly_goal: string | null
+          monthly_goal_detail: string | null
+          newsletter_frequency: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          active_days?: Json | null
+          channels?: Json | null
+          created_at?: string | null
+          daily_time?: number | null
+          id?: string
+          instagram_posts_week?: number | null
+          instagram_reels_month?: number | null
+          instagram_stories_week?: number | null
+          linkedin_posts_week?: number | null
+          monthly_goal?: string | null
+          monthly_goal_detail?: string | null
+          newsletter_frequency?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          active_days?: Json | null
+          channels?: Json | null
+          created_at?: string | null
+          daily_time?: number | null
+          id?: string
+          instagram_posts_week?: number | null
+          instagram_reels_month?: number | null
+          instagram_stories_week?: number | null
+          linkedin_posts_week?: number | null
+          monthly_goal?: string | null
+          monthly_goal_detail?: string | null
+          newsletter_frequency?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       community_comments: {
         Row: {
           content: string
@@ -3273,27 +3324,43 @@ export type Database = {
           completed_at: string
           created_at: string
           id: string
+          month: string | null
           period_start: string
+          routine_task_id: string | null
           task_id: string
           user_id: string
+          week: string | null
         }
         Insert: {
           completed_at?: string
           created_at?: string
           id?: string
+          month?: string | null
           period_start: string
+          routine_task_id?: string | null
           task_id: string
           user_id: string
+          week?: string | null
         }
         Update: {
           completed_at?: string
           created_at?: string
           id?: string
+          month?: string | null
           period_start?: string
+          routine_task_id?: string | null
           task_id?: string
           user_id?: string
+          week?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "routine_completions_routine_task_id_fkey"
+            columns: ["routine_task_id"]
+            isOneToOne: false
+            referencedRelation: "routine_tasks"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "routine_completions_task_id_fkey"
             columns: ["task_id"]
@@ -3302,6 +3369,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      routine_tasks: {
+        Row: {
+          channel: string | null
+          created_at: string | null
+          day_of_week: string | null
+          duration_minutes: number | null
+          id: string
+          is_active: boolean | null
+          is_auto_generated: boolean | null
+          linked_context: Json | null
+          linked_module: string | null
+          recurrence: string | null
+          sort_order: number | null
+          task_type: string
+          title: string
+          user_id: string
+          week_of_month: number | null
+        }
+        Insert: {
+          channel?: string | null
+          created_at?: string | null
+          day_of_week?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_auto_generated?: boolean | null
+          linked_context?: Json | null
+          linked_module?: string | null
+          recurrence?: string | null
+          sort_order?: number | null
+          task_type?: string
+          title: string
+          user_id: string
+          week_of_month?: number | null
+        }
+        Update: {
+          channel?: string | null
+          created_at?: string | null
+          day_of_week?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_auto_generated?: boolean | null
+          linked_context?: Json | null
+          linked_module?: string | null
+          recurrence?: string | null
+          sort_order?: number | null
+          task_type?: string
+          title?: string
+          user_id?: string
+          week_of_month?: number | null
+        }
+        Relationships: []
       }
       saved_ideas: {
         Row: {
