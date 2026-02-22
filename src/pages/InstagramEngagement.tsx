@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import UpgradeGate from "@/components/UpgradeGate";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -246,19 +247,23 @@ export default function InstagramEngagement() {
           </TabsContent>
 
           <TabsContent value="contacts" className="mt-4">
-            <ContactsSection
-              contacts={contacts}
-              filter={contactFilter}
-              onFilterChange={setContactFilter}
-              onInteract={interactContact}
-              onDelete={deleteContact}
-              onAdd={addContact}
-              onUpdateNotes={updateContactNotes}
-            />
+            <UpgradeGate feature="contacts_strategiques">
+              <ContactsSection
+                contacts={contacts}
+                filter={contactFilter}
+                onFilterChange={setContactFilter}
+                onInteract={interactContact}
+                onDelete={deleteContact}
+                onAdd={addContact}
+                onUpdateNotes={updateContactNotes}
+              />
+            </UpgradeGate>
           </TabsContent>
 
           <TabsContent value="prospection" className="mt-4">
-            <ProspectionSection />
+            <UpgradeGate feature="prospection">
+              <ProspectionSection />
+            </UpgradeGate>
           </TabsContent>
         </Tabs>
       </main>

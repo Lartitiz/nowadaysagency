@@ -34,6 +34,16 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+    // Check plan limits
+    const { checkAndIncrementUsage } = await import("../_shared/plan-limiter.ts");
+    const usageCheck = await checkAndIncrementUsage(supabase, user.id, "generation");
+    if (!usageCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Fetch full context server-side
     const { getUserContext, formatContextForAI, CONTEXT_PRESETS } = await import("../_shared/user-context.ts");
     const ctx = await getUserContext(supabase, user.id);
