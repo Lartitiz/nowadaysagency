@@ -55,6 +55,8 @@ serve(async (req) => {
     if (type === "daily") {
       const systemPrompt = `Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées.
 
+ANTI-SLOP : JAMAIS de "Dans un monde où", "N'hésitez pas", "Plongeons dans", "En outre", "Cela étant dit", "Force est de constater", "Il convient de", tirets cadratins. SI DÉTECTÉ, RÉÉCRIRE.
+
 ${branding_context || ""}
 
 Génère 5 stories du quotidien personnalisées. Aujourd'hui on est ${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}.
@@ -110,6 +112,10 @@ RÈGLES :
     const launchBlock = is_launch ? "\n- Phase : LANCEMENT (orienter vers vente + preuve sociale)" : "\n- Phase : croisière";
 
     const systemPrompt = `Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées (mode, artisanat, bien-être, design, coaching).
+
+ANTI-SLOP : JAMAIS de "Dans un monde où", "N'hésitez pas", "Plongeons dans", "En outre", "Cela étant dit", "Force est de constater", "Il convient de", tirets cadratins (—). SI DÉTECTÉ, RÉÉCRIRE.
+
+AVANT DE RÉDIGER, RÉFLÉCHIS EN INTERNE (ne montre PAS) : Quel est le problème ? Quelle émotion ? Quelle accroche est la MEILLEURE ? Mon output a-t-il du slop ?
 
 ${branding_context || ""}
 

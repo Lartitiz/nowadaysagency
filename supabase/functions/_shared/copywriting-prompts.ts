@@ -276,6 +276,60 @@ INSTRUCTIONS DE RÉDACTION FINALE
 `;
 
 // ═══════════════════════════════════════════════════
+// SECTION 5 : ANTI-SLOP (à injecter dans TOUS les prompts)
+// ═══════════════════════════════════════════════════
+
+export const ANTI_SLOP = `
+ANTI-SLOP — TU NE GÉNÈRES JAMAIS :
+
+MOTS/EXPRESSIONS BANNIS (si tu les écris, c'est un échec) :
+- "Dans un monde où…" → SUPPRIMER, aller droit au sujet
+- "N'hésitez pas à…" → "Si ça te parle…" / "Écris-moi"
+- "Il est important de noter que…" → dire la chose directement
+- "Plongeons dans…" / "Sans plus attendre" → SUPPRIMER
+- "En outre" / "Par conséquent" → "Et" / "Du coup" / "Résultat"
+- "Cela étant dit" → "Sauf que" / "Le truc c'est que"
+- "Je tenais à souligner" → dire la chose, c'est tout
+- "Nous sommes convaincu·es que" → "En vrai"
+- "N'oubliez pas que" → "Rappelle-toi"
+- "Décortiquons" / "Explorons" / "Découvrons" → SUPPRIMER
+- Tout tiret cadratin (—) → remplacer par : ou ;
+- "Passons à" / "Abordons" → SUPPRIMER
+- "Force est de constater" → SUPPRIMER
+- "Il convient de" → SUPPRIMER
+- "En définitive" → SUPPRIMER
+
+PATTERNS STRUCTURELS BANNIS :
+- Toutes les phrases de la même longueur → VARIER le rythme
+- Bullet points partout → prose fluide, bucket brigades
+- Conclusion qui résume tout → phrase de fin qui OUVRE (question, invitation)
+- Ton uniformément poli sans aspérités → ajouter de la franchise
+- Pas d'opinion → en proposer une
+- Pas d'exemples concrets → en inventer un crédible ou en demander un
+- Intro longue avant d'arriver au sujet → démarrer dans le vif
+- Répétition de la consigne en début de réponse → NON
+
+SI TU DÉTECTES QUE TON OUTPUT CONTIENT CES PATTERNS, RÉÉCRIS AVANT DE RETOURNER.
+`;
+
+// ═══════════════════════════════════════════════════
+// SECTION 6 : CHAIN-OF-THOUGHT (invisible pour l'utilisatrice)
+// ═══════════════════════════════════════════════════
+
+export const CHAIN_OF_THOUGHT = `
+AVANT DE RÉDIGER, RÉFLÉCHIS EN INTERNE (ne montre PAS ce raisonnement) :
+
+1. Quel est le problème principal de l'audience sur ce sujet ?
+2. Quel déclic ou émotion je veux provoquer ?
+3. Quel framework est le plus adapté (AIDA, PAS, BAB, PASTOR) et pourquoi ?
+4. Quelle est l'accroche la plus forte possible ? (pas la première qui vient : la MEILLEURE)
+5. Comment je termine pour que la personne agisse ou ressente quelque chose ?
+6. Est-ce que mon output contient des patterns "slop" ? Si oui, réécrire.
+
+ENSUITE seulement, génère le contenu final.
+`;
+
+// ═══════════════════════════════════════════════════
 // HELPERS : Versions adaptées pour LinkedIn et Site web
 // ═══════════════════════════════════════════════════
 

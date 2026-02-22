@@ -2507,6 +2507,48 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_profile: {
+        Row: {
+          banned_expressions: Json | null
+          created_at: string
+          formatting_habits: Json | null
+          id: string
+          sample_texts: Json | null
+          signature_expressions: Json | null
+          structure_patterns: Json | null
+          tone_patterns: Json | null
+          updated_at: string
+          user_id: string
+          voice_summary: string | null
+        }
+        Insert: {
+          banned_expressions?: Json | null
+          created_at?: string
+          formatting_habits?: Json | null
+          id?: string
+          sample_texts?: Json | null
+          signature_expressions?: Json | null
+          structure_patterns?: Json | null
+          tone_patterns?: Json | null
+          updated_at?: string
+          user_id: string
+          voice_summary?: string | null
+        }
+        Update: {
+          banned_expressions?: Json | null
+          created_at?: string
+          formatting_habits?: Json | null
+          id?: string
+          sample_texts?: Json | null
+          signature_expressions?: Json | null
+          structure_patterns?: Json | null
+          tone_patterns?: Json | null
+          updated_at?: string
+          user_id?: string
+          voice_summary?: string | null
+        }
+        Relationships: []
+      }
       website_about: {
         Row: {
           angle: string | null
