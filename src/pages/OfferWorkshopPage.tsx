@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Sparkles, Check, Pencil, Loader2, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAutoSave, SaveIndicator } from "@/hooks/use-auto-save";
 
 const STEPS = [
   { num: 1, label: "Bases" },
@@ -46,6 +47,51 @@ export default function OfferWorkshopPage() {
 
   // Form fields per step
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const formDataRef = useRef(formData);
+  formDataRef.current = formData;
+
+  // Map formData keys to DB columns for auto-save
+  const getDbFields = useCallback(() => {
+    const fd = formDataRef.current;
+    return {
+      offer_type: fd.offer_type,
+      name: fd.name,
+      description_short: fd.description_short,
+      price_text: fd.price_text,
+      url_sales_page: fd.url_sales_page,
+      url_booking: fd.url_booking,
+      problem_surface: fd.problem_surface,
+      problem_deep: fd.problem_deep,
+      promise: fd.promise,
+      features: fd.features_text ? fd.features_text.split("\n").filter((f: string) => f.trim()) : [],
+      target_ideal: fd.target_ideal,
+      target_not_for: fd.target_not_for,
+      objections: fd.objections_text
+        ? fd.objections_text.split("\n").filter((o: string) => o.trim()).map((o: string) => ({ objection: o, response: "" }))
+        : [],
+      testimonials: fd.testimonials || [],
+    };
+  }, []);
+
+  const autoSaveFn = useCallback(async () => {
+    if (!id || !user) return;
+    const fields = getDbFields();
+    await supabase.from("offers").update({
+      ...fields,
+      updated_at: new Date().toISOString(),
+    }).eq("id", id);
+  }, [id, user, getDbFields]);
+
+  const { saved, saving: autoSaving, triggerSave } = useAutoSave(autoSaveFn, 1000);
+
+  // Wrap setFormData to trigger auto-save on every change
+  const updateFormData = useCallback((updater: (prev: Record<string, any>) => Record<string, any>) => {
+    setFormData(prev => {
+      const next = updater(prev);
+      return next;
+    });
+    triggerSave();
+  }, [triggerSave]);
 
   useEffect(() => {
     if (!user || !id) return;
@@ -221,13 +267,13 @@ export default function OfferWorkshopPage() {
         </div>
 
         {/* Step content */}
-        {step === 1 && <Step1 formData={formData} setFormData={setFormData} />}
-        {step === 2 && <Step2 formData={formData} setFormData={setFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(2, formData.problem_surface)} />}
-        {step === 3 && <Step3 formData={formData} setFormData={setFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(3, formData.promise)} />}
-        {step === 4 && <Step4 formData={formData} setFormData={setFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(4, formData.features_text)} />}
-        {step === 5 && <Step5 formData={formData} setFormData={setFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(5, formData.target_ideal)} />}
-        {step === 6 && <Step6 formData={formData} setFormData={setFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(6, formData.objections_text)} />}
-        {step === 7 && <Step7 formData={formData} setFormData={setFormData} aiResponse={aiResponse} aiLoading={aiLoading} offer={offer} onAskAI={() => askAI(7, "")} />}
+        {step === 1 && <Step1 formData={formData} setFormData={updateFormData} saved={saved} autoSaving={autoSaving} />}
+        {step === 2 && <Step2 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(2, formData.problem_surface)} saved={saved} autoSaving={autoSaving} />}
+        {step === 3 && <Step3 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(3, formData.promise)} saved={saved} autoSaving={autoSaving} />}
+        {step === 4 && <Step4 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(4, formData.features_text)} saved={saved} autoSaving={autoSaving} />}
+        {step === 5 && <Step5 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(5, formData.target_ideal)} saved={saved} autoSaving={autoSaving} />}
+        {step === 6 && <Step6 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(6, formData.objections_text)} saved={saved} autoSaving={autoSaving} />}
+        {step === 7 && <Step7 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} offer={offer} onAskAI={() => askAI(7, "")} />}
 
         {/* Navigation */}
         <div className="flex items-center justify-between mt-8 pt-4 border-t border-border">
@@ -244,11 +290,14 @@ export default function OfferWorkshopPage() {
 
 // ── STEP COMPONENTS ──────────────────────────
 
-function Step1({ formData, setFormData }: any) {
+function Step1({ formData, setFormData, saved, autoSaving }: any) {
   const update = (k: string, v: any) => setFormData((p: any) => ({ ...p, [k]: v }));
   return (
     <div className="space-y-5">
-      <h2 className="font-display text-xl font-bold">① Les bases de ton offre</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-bold">① Les bases de ton offre</h2>
+        <SaveIndicator saved={saved} saving={autoSaving} />
+      </div>
       <div>
         <label className="text-sm font-semibold text-foreground mb-2 block">Type d'offre</label>
         <div className="flex gap-2 flex-wrap">
@@ -295,11 +344,14 @@ function Step1({ formData, setFormData }: any) {
   );
 }
 
-function Step2({ formData, setFormData, aiResponse, aiLoading, onAskAI }: any) {
+function Step2({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, autoSaving }: any) {
   const update = (k: string, v: any) => setFormData((p: any) => ({ ...p, [k]: v }));
   return (
     <div className="space-y-5">
-      <h2 className="font-display text-xl font-bold">② Le problème que ton offre résout</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-bold">② Le problème que ton offre résout</h2>
+        <SaveIndicator saved={saved} saving={autoSaving} />
+      </div>
       <p className="text-sm text-muted-foreground">Quel problème ta cliente a AVANT de travailler avec toi ?</p>
       <Textarea value={formData.problem_surface} onChange={(e) => update("problem_surface", e.target.value)} placeholder="Elle ne sait pas communiquer, elle est invisible..." rows={3} />
       
@@ -339,11 +391,14 @@ function Step2({ formData, setFormData, aiResponse, aiLoading, onAskAI }: any) {
   );
 }
 
-function Step3({ formData, setFormData, aiResponse, aiLoading, onAskAI }: any) {
+function Step3({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, autoSaving }: any) {
   const update = (k: string, v: any) => setFormData((p: any) => ({ ...p, [k]: v }));
   return (
     <div className="space-y-5">
-      <h2 className="font-display text-xl font-bold">③ Ta promesse</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-bold">③ Ta promesse</h2>
+        <SaveIndicator saved={saved} saving={autoSaving} />
+      </div>
       <p className="text-sm text-muted-foreground">Si ta cliente devait résumer ce qu'elle obtient en 1 phrase, ce serait quoi ?</p>
       <Textarea value={formData.promise} onChange={(e) => update("promise", e.target.value)} placeholder="Un système de communication complet posé en 6 mois" rows={2} />
 
@@ -385,11 +440,14 @@ function Step3({ formData, setFormData, aiResponse, aiLoading, onAskAI }: any) {
   );
 }
 
-function Step4({ formData, setFormData, aiResponse, aiLoading, onAskAI }: any) {
+function Step4({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, autoSaving }: any) {
   const update = (k: string, v: any) => setFormData((p: any) => ({ ...p, [k]: v }));
   return (
     <div className="space-y-5">
-      <h2 className="font-display text-xl font-bold">④ Ce que ta cliente obtient</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-bold">④ Ce que ta cliente obtient</h2>
+        <SaveIndicator saved={saved} saving={autoSaving} />
+      </div>
       <p className="text-sm text-muted-foreground">Liste ce que ton offre INCLUT (les features), une par ligne :</p>
       <Textarea value={formData.features_text} onChange={(e) => update("features_text", e.target.value)} placeholder={"6 mois d'accompagnement\n6 modules\n1 session individuelle par mois\nCommunauté WhatsApp\nTemplates Canva"} rows={5} />
 
@@ -429,11 +487,14 @@ function Step4({ formData, setFormData, aiResponse, aiLoading, onAskAI }: any) {
   );
 }
 
-function Step5({ formData, setFormData, aiResponse, aiLoading, onAskAI }: any) {
+function Step5({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, autoSaving }: any) {
   const update = (k: string, v: any) => setFormData((p: any) => ({ ...p, [k]: v }));
   return (
     <div className="space-y-5">
-      <h2 className="font-display text-xl font-bold">⑤ Pour qui c'est fait</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-bold">⑤ Pour qui c'est fait</h2>
+        <SaveIndicator saved={saved} saving={autoSaving} />
+      </div>
       <div>
         <label className="text-sm font-semibold text-foreground mb-1 block">Ta cliente idéale pour cette offre :</label>
         <Textarea value={formData.target_ideal} onChange={(e) => update("target_ideal", e.target.value)} placeholder="Solopreneuse créative dans la mode éthique, artisanat, bien-être..." rows={3} />
@@ -465,7 +526,7 @@ function Step5({ formData, setFormData, aiResponse, aiLoading, onAskAI }: any) {
   );
 }
 
-function Step6({ formData, setFormData, aiResponse, aiLoading, onAskAI }: any) {
+function Step6({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, autoSaving }: any) {
   const update = (k: string, v: any) => setFormData((p: any) => ({ ...p, [k]: v }));
 
   const addTestimonial = () => {
@@ -485,7 +546,10 @@ function Step6({ formData, setFormData, aiResponse, aiLoading, onAskAI }: any) {
 
   return (
     <div className="space-y-5">
-      <h2 className="font-display text-xl font-bold">⑥ Les objections</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-bold">⑥ Les objections</h2>
+        <SaveIndicator saved={saved} saving={autoSaving} />
+      </div>
       <p className="text-sm text-muted-foreground">Quand quelqu'un hésite, elle dit quoi ? (une objection par ligne)</p>
       <Textarea value={formData.objections_text} onChange={(e) => update("objections_text", e.target.value)} placeholder={"J'ai pas le budget\nJ'ai pas le temps\nJe peux trouver ça gratuitement"} rows={4} />
 
