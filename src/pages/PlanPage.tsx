@@ -1,139 +1,331 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Link } from "react-router-dom";
-import { Check, Clock, ArrowRight, ChevronDown, ChevronRight, Sparkles } from "lucide-react";
-import { fetchAppState, generateMissions, computeProgress, getMonday, type MissionDef } from "@/lib/mission-engine";
-import { useToast } from "@/hooks/use-toast";
+import {
+  Check, Clock, ArrowRight, Lock, Settings, ChevronDown, ChevronRight, Sparkles,
+} from "lucide-react";
+import { computePlan, GOAL_LABELS, TIME_LABELS, type PlanData, type PlanConfig, type PlanPhase, type PlanStep, type StepStatus } from "@/lib/plan-engine";
 
-interface MissionRow {
-  id: string;
-  mission_key: string;
-  title: string;
-  description: string | null;
-  priority: string;
-  module: string | null;
-  route: string | null;
-  estimated_minutes: number | null;
-  is_done: boolean;
-  auto_completed: boolean;
-  completed_at: string | null;
-  week_start: string;
+/* ═══════════════════════════════════════════════════════════════
+   PLAN CONFIG SETUP (first visit questionnaire)
+   ═══════════════════════════════════════════════════════════════ */
+
+const TIME_OPTIONS = [
+  { value: "less_2h", label: "Moins de 2h" },
+  { value: "2_5h", label: "2 à 5h" },
+  { value: "5_10h", label: "5 à 10h" },
+  { value: "more_10h", label: "Plus de 10h" },
+];
+
+const CHANNEL_OPTIONS = [
+  { value: "instagram", label: "Instagram" },
+  { value: "linkedin", label: "LinkedIn" },
+  { value: "newsletter", label: "Newsletter / Emailing" },
+  { value: "site", label: "Site web / Blog" },
+  { value: "pinterest", label: "Pinterest" },
+  { value: "seo", label: "SEO" },
+];
+
+const GOAL_OPTIONS = [
+  { value: "start", label: "Poser les bases de ma com' (je démarre)" },
+  { value: "visibility", label: "Être plus visible sur les réseaux" },
+  { value: "launch", label: "Lancer une offre / un produit" },
+  { value: "clients", label: "Trouver des client·es" },
+  { value: "structure", label: "Structurer ce que je fais déjà" },
+];
+
+function PlanSetupForm({ initial, onSave }: { initial?: PlanConfig | null; onSave: (c: PlanConfig) => void }) {
+  const [weeklyTime, setWeeklyTime] = useState(initial?.weekly_time || "");
+  const [channels, setChannels] = useState<string[]>(initial?.channels || []);
+  const [mainGoal, setMainGoal] = useState(initial?.main_goal || "");
+
+  const toggleChannel = (ch: string) =>
+    setChannels((prev) => (prev.includes(ch) ? prev.filter((c) => c !== ch) : [...prev, ch]));
+
+  const canSubmit = weeklyTime && channels.length > 0 && mainGoal;
+
+  return (
+    <div className="rounded-2xl border-2 border-primary/20 bg-card p-6 md:p-8 max-w-2xl mx-auto animate-fade-in">
+      <h2 className="font-display text-2xl font-bold text-foreground mb-2">
+        📋 {initial ? "Modifier ton plan" : "Configurons ton plan"}
+      </h2>
+      <p className="text-sm text-muted-foreground mb-6">
+        Pour te proposer un parcours adapté, dis-moi :
+      </p>
+
+      {/* Time */}
+      <fieldset className="mb-6">
+        <legend className="text-sm font-semibold text-foreground mb-3">
+          ⏰ Combien de temps par semaine tu peux consacrer à ta com' ?
+        </legend>
+        <div className="grid grid-cols-2 gap-2">
+          {TIME_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              onClick={() => setWeeklyTime(o.value)}
+              className={`rounded-xl border-2 px-4 py-3 text-sm text-left transition-all ${
+                weeklyTime === o.value
+                  ? "border-primary bg-secondary text-foreground font-medium"
+                  : "border-border bg-card text-muted-foreground hover:border-primary/40"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      {/* Channels */}
+      <fieldset className="mb-6">
+        <legend className="text-sm font-semibold text-foreground mb-3">
+          📱 Quels canaux tu utilises ou tu veux utiliser ?
+        </legend>
+        <div className="grid grid-cols-2 gap-2">
+          {CHANNEL_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              onClick={() => toggleChannel(o.value)}
+              className={`rounded-xl border-2 px-4 py-3 text-sm text-left transition-all ${
+                channels.includes(o.value)
+                  ? "border-primary bg-secondary text-foreground font-medium"
+                  : "border-border bg-card text-muted-foreground hover:border-primary/40"
+              }`}
+            >
+              {channels.includes(o.value) ? "✅ " : ""}{o.label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      {/* Goal */}
+      <fieldset className="mb-8">
+        <legend className="text-sm font-semibold text-foreground mb-3">
+          🎯 C'est quoi ton objectif principal en ce moment ?
+        </legend>
+        <div className="space-y-2">
+          {GOAL_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              onClick={() => setMainGoal(o.value)}
+              className={`w-full rounded-xl border-2 px-4 py-3 text-sm text-left transition-all ${
+                mainGoal === o.value
+                  ? "border-primary bg-secondary text-foreground font-medium"
+                  : "border-border bg-card text-muted-foreground hover:border-primary/40"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <Button
+        onClick={() => canSubmit && onSave({ weekly_time: weeklyTime, channels, main_goal: mainGoal })}
+        disabled={!canSubmit}
+        className="w-full rounded-xl h-12 text-base gap-2"
+      >
+        <Sparkles className="h-4 w-4" />
+        {initial ? "Mettre à jour mon plan" : "Générer mon plan"}
+      </Button>
+    </div>
+  );
 }
 
-const PRIORITY_BADGE: Record<string, { label: string; className: string }> = {
-  urgent: { label: "🔴 Urgent", className: "bg-red-100 text-red-700" },
-  important: { label: "🟡 Important", className: "bg-amber-100 text-amber-700" },
-  bonus: { label: "🟢 Bonus", className: "bg-emerald-100 text-emerald-700" },
+/* ═══════════════════════════════════════════════════════════════
+   STEP & PHASE COMPONENTS
+   ═══════════════════════════════════════════════════════════════ */
+
+const STATUS_ICON: Record<StepStatus, React.ReactNode> = {
+  done: <span className="text-primary">✅</span>,
+  in_progress: <span>🟡</span>,
+  todo: <span className="text-muted-foreground">🔲</span>,
+  locked: <Lock className="h-4 w-4 text-muted-foreground/50" />,
 };
 
-const MODULE_BADGE: Record<string, { label: string; className: string }> = {
-  branding: { label: "Branding", className: "bg-rose-pale text-primary" },
-  instagram: { label: "Instagram", className: "bg-purple-100 text-purple-700" },
-  linkedin: { label: "LinkedIn", className: "bg-blue-100 text-blue-700" },
-  pinterest: { label: "Pinterest", className: "bg-red-50 text-red-600" },
-  site_web: { label: "Site web", className: "bg-teal-100 text-teal-700" },
+const STATUS_LABEL: Record<StepStatus, string> = {
+  done: "Fait ✓",
+  in_progress: "En cours",
+  todo: "À faire",
+  locked: "Bloqué",
 };
+
+function StepCard({ step }: { step: PlanStep }) {
+  const isLocked = step.status === "locked";
+  const isDone = step.status === "done";
+
+  return (
+    <div
+      className={`rounded-xl border px-5 py-4 transition-all ${
+        isDone
+          ? "border-primary/20 bg-primary/5"
+          : isLocked
+          ? "border-border/50 bg-muted/30 opacity-60"
+          : "border-border bg-card hover:border-primary/30"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 shrink-0">{STATUS_ICON[step.status]}</div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h4
+              className={`font-display text-[15px] font-bold ${
+                isDone ? "line-through text-muted-foreground" : "text-foreground"
+              }`}
+            >
+              {step.label}
+            </h4>
+            {step.comingSoon && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                🔜 Bientôt
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
+          {step.detail && (
+            <p className="text-xs text-primary font-medium mt-1">{step.detail}</p>
+          )}
+          {step.recommendation && (
+            <p className="text-xs text-amber-600 mt-1">{step.recommendation}</p>
+          )}
+        </div>
+        <div className="shrink-0 flex flex-col items-end gap-2">
+          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+            <Clock className="h-3 w-3" /> {step.duration} min
+          </span>
+          <span className={`text-[11px] font-medium ${isDone ? "text-primary" : "text-muted-foreground"}`}>
+            {STATUS_LABEL[step.status]}
+          </span>
+        </div>
+      </div>
+
+      {/* Action button */}
+      {!step.comingSoon && (
+        <div className="mt-3 flex justify-end">
+          {isLocked ? (
+            <span className="text-[11px] italic text-muted-foreground">
+              Termine d'abord tes fondations (branding + cible)
+            </span>
+          ) : (
+            <Button size="sm" variant={isDone ? "ghost" : "outline"} asChild className="rounded-full gap-1.5 text-xs h-8">
+              <Link to={step.route}>
+                <ArrowRight className="h-3 w-3" />
+                {isDone ? "Voir / Modifier" : step.status === "in_progress" ? "Continuer" : "Commencer"}
+              </Link>
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PhaseSection({ phase }: { phase: PlanPhase }) {
+  const [open, setOpen] = useState(!phase.locked);
+  const doneCount = phase.steps.filter((s) => s.status === "done").length;
+  const total = phase.steps.length;
+  const allDone = doneCount === total;
+
+  const statusLabel = allDone
+    ? "✅ Terminé"
+    : phase.locked
+    ? "🔒 Après l'étape 1"
+    : doneCount > 0
+    ? "🟡 En cours"
+    : "🔲 À faire";
+
+  return (
+    <section className="mb-6">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-3 rounded-xl bg-muted/50 border border-border px-5 py-3 hover:bg-muted/80 transition-colors text-left"
+      >
+        <span className="text-lg">{phase.emoji}</span>
+        <span className="font-display text-base font-bold text-foreground flex-1">
+          {phase.title}
+        </span>
+        <span className="text-xs text-muted-foreground mr-2">{doneCount}/{total}</span>
+        <span className="text-[11px] font-medium text-muted-foreground">{statusLabel}</span>
+        {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-3 pl-2">
+          {phase.steps.map((step) => (
+            <StepCard key={step.id} step={step} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN PAGE
+   ═══════════════════════════════════════════════════════════════ */
 
 export default function PlanPage() {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [missions, setMissions] = useState<MissionRow[]>([]);
-  const [history, setHistory] = useState<{ week_start: string; total: number; done: number }[]>([]);
-  const [progress, setProgress] = useState({ global: 0, branding: 0, profilInsta: 0, contenu: 0, engagement: 0, siteWeb: 0 });
-  const [loading, setLoading] = useState(true);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [planData, setPlanData] = useState<PlanData | null>(null);
+  const [config, setConfig] = useState<PlanConfig | null>(null);
+  const [hasConfig, setHasConfig] = useState<boolean | null>(null); // null = loading
+  const [editing, setEditing] = useState(false);
 
-  const weekStart = useMemo(() => getMonday(new Date()).toISOString().split("T")[0], []);
-
-  useEffect(() => {
+  const loadConfig = useCallback(async () => {
     if (!user) return;
-    init();
-  }, [user]);
-
-  const init = async () => {
-    if (!user) return;
-    setLoading(true);
-
-    // 1. Fetch app state and compute progress
-    const state = await fetchAppState(user.id);
-    setProgress(await computeProgress(state, user.id));
-
-    // 2. Check if missions exist for this week
-    const { data: existingMissions } = await supabase
-      .from("weekly_missions")
+    const { data } = await supabase
+      .from("user_plan_config")
       .select("*")
       .eq("user_id", user.id)
-      .eq("week_start", weekStart)
-      .order("created_at");
+      .maybeSingle();
 
-    if (existingMissions && existingMissions.length > 0) {
-      setMissions(existingMissions as MissionRow[]);
+    if (data) {
+      const c: PlanConfig = {
+        weekly_time: data.weekly_time || "2_5h",
+        channels: (data.channels as string[]) || [],
+        main_goal: data.main_goal || "start",
+      };
+      setConfig(c);
+      setHasConfig(true);
+      const plan = await computePlan(user.id, c);
+      setPlanData(plan);
     } else {
-      // Generate new missions
-      const defs = generateMissions(state);
-      if (defs.length > 0) {
-        const toInsert = defs.map((d) => ({
-          user_id: user.id,
-          week_start: weekStart,
-          mission_key: d.mission_key,
-          title: d.title,
-          description: d.description,
-          priority: d.priority,
-          module: d.module,
-          route: d.route,
-          estimated_minutes: d.estimated_minutes,
-        }));
-        const { data: inserted } = await supabase.from("weekly_missions").insert(toInsert).select();
-        if (inserted) setMissions(inserted as MissionRow[]);
-      }
+      setHasConfig(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
+
+  const saveConfig = async (c: PlanConfig) => {
+    if (!user) return;
+    const payload = {
+      user_id: user.id,
+      weekly_time: c.weekly_time,
+      channels: c.channels,
+      main_goal: c.main_goal,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (hasConfig) {
+      await supabase.from("user_plan_config").update(payload).eq("user_id", user.id);
+    } else {
+      await supabase.from("user_plan_config").insert(payload);
     }
 
-    // 3. Load history (past weeks)
-    const { data: allMissions } = await supabase
-      .from("weekly_missions")
-      .select("week_start, is_done")
-      .eq("user_id", user.id)
-      .lt("week_start", weekStart)
-      .order("week_start", { ascending: false });
-
-    if (allMissions) {
-      const weekMap = new Map<string, { total: number; done: number }>();
-      allMissions.forEach((m: any) => {
-        const w = m.week_start;
-        if (!weekMap.has(w)) weekMap.set(w, { total: 0, done: 0 });
-        const entry = weekMap.get(w)!;
-        entry.total++;
-        if (m.is_done) entry.done++;
-      });
-      setHistory(
-        Array.from(weekMap.entries())
-          .map(([week_start, counts]) => ({ week_start, ...counts }))
-          .slice(0, 8)
-      );
-    }
-
-    setLoading(false);
+    setConfig(c);
+    setHasConfig(true);
+    setEditing(false);
+    const plan = await computePlan(user.id, c);
+    setPlanData(plan);
   };
 
-  const completeMission = async (mission: MissionRow) => {
-    await supabase
-      .from("weekly_missions")
-      .update({ is_done: true, completed_at: new Date().toISOString() })
-      .eq("id", mission.id);
-    setMissions((prev) =>
-      prev.map((m) => (m.id === mission.id ? { ...m, is_done: true, completed_at: new Date().toISOString() } : m))
-    );
-    toast({ title: "Mission accomplie ! 🎉" });
-  };
-
-  const doneMissions = missions.filter((m) => m.is_done).length;
-  const allDone = missions.length > 0 && doneMissions === missions.length;
-
-  if (loading) {
+  // Loading
+  if (hasConfig === null) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex gap-1">
@@ -145,185 +337,114 @@ export default function PlanPage() {
     );
   }
 
+  // No config yet → show setup
+  if (!hasConfig || editing) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-[800px] px-6 py-8 max-md:px-4">
+          {editing && (
+            <button
+              onClick={() => setEditing(false)}
+              className="text-sm text-muted-foreground hover:text-foreground mb-4 flex items-center gap-1"
+            >
+              ← Retour au plan
+            </button>
+          )}
+          <PlanSetupForm initial={editing ? config : null} onSave={saveConfig} />
+        </main>
+      </div>
+    );
+  }
+
+  if (!planData || !config) return null;
+
+  const timeEstimate = formatTimeEstimate(planData.totalMinutesRemaining, config.weekly_time);
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[800px] px-6 py-8 max-md:px-4">
-        <div className="mb-6">
-          <h1 className="font-display text-[26px] font-bold text-foreground">Mon plan</h1>
-          <p className="mt-1 text-[15px] text-muted-foreground">
-            Tes missions de la semaine, adaptées à ton avancement. L'outil regarde où tu en es et te dit quoi faire.
-          </p>
+        {/* Header */}
+        <div className="flex items-start justify-between mb-2">
+          <h1 className="font-display text-[26px] font-bold text-foreground">📋 Mon plan</h1>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditing(true)}
+            className="text-xs gap-1.5 text-muted-foreground"
+          >
+            <Settings className="h-3.5 w-3.5" /> Modifier
+          </Button>
         </div>
 
-        {/* SECTION 1: Overview */}
-        <section className="mb-8">
-          <div className="rounded-2xl border border-border bg-card p-5 mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-bold text-foreground">🚀 Ton avancement global</p>
-              <span className="text-lg font-bold text-primary">{progress.global}%</span>
-            </div>
-            <Progress value={progress.global} className="h-2.5 mb-5" />
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <ProgressIndicator label="Branding" value={progress.branding} route="/branding" />
-              <ProgressIndicator label="Profil Insta" value={progress.profilInsta} route="/instagram" />
-              <ProgressIndicator label="Contenu" value={progress.contenu} route="/calendrier" />
-              <ProgressIndicator label="Engagement" value={progress.engagement} route="/instagram/engagement" />
-              <ProgressIndicator label="Site web" value={progress.siteWeb} route="/site" />
-            </div>
+        {/* Config summary */}
+        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mb-4">
+          <span className="bg-muted px-2.5 py-1 rounded-full">🎯 {GOAL_LABELS[config.main_goal] || config.main_goal}</span>
+          <span className="bg-muted px-2.5 py-1 rounded-full">⏰ {TIME_LABELS[config.weekly_time] || config.weekly_time} / semaine</span>
+          <span className="bg-muted px-2.5 py-1 rounded-full">📱 {config.channels.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(", ")}</span>
+        </div>
+
+        {/* Global progress */}
+        <div className="rounded-2xl border border-border bg-card p-5 mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-bold text-foreground">Progression globale</p>
+            <span className="text-lg font-bold text-primary">{planData.progressPercent}%</span>
           </div>
-        </section>
+          <Progress value={planData.progressPercent} className="h-2.5 mb-3" />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>{planData.completedCount}/{planData.totalCount} étapes terminées</span>
+            <span>{timeEstimate}</span>
+          </div>
+        </div>
 
-        {/* SECTION 2: Weekly missions */}
-        <section className="mb-8">
-          <h2 className="font-display text-xl font-bold text-foreground mb-1">🎯 Tes missions cette semaine</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Semaine du {formatDate(weekStart)} au {formatDate(addDays(weekStart, 6))}
-          </p>
-
-          {allDone ? (
-            <div className="rounded-2xl border border-primary/30 bg-card p-6 text-center">
-              <p className="text-3xl mb-3">🎉</p>
-              <p className="font-display text-lg font-bold text-foreground mb-2">
-                Toutes tes missions de la semaine sont faites.
-              </p>
-              <p className="text-sm text-muted-foreground mb-1">Bravo, c'est énorme.</p>
-              <div className="text-sm text-muted-foreground mt-4 space-y-1 text-left max-w-sm mx-auto">
-                <p>Tu peux :</p>
-                <p>• <Link to="/atelier" className="text-primary hover:underline">Aller générer des idées dans l'atelier</Link></p>
-                <p>• <Link to="/branding" className="text-primary hover:underline">Avancer sur une section bonus de ton branding</Link></p>
-                <p>• Ou tout simplement souffler. Tu l'as mérité.</p>
+        {/* Recommended next step */}
+        {(() => {
+          const next = planData.phases
+            .flatMap((p) => p.steps)
+            .find((s) => s.status === "in_progress" || s.status === "todo");
+          if (!next || next.status === "locked") return null;
+          return (
+            <div className="rounded-2xl border-2 border-primary/30 bg-secondary/30 p-4 mb-6 flex items-center gap-3">
+              <Sparkles className="h-5 w-5 text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground">💡 Prochaine étape recommandée</p>
+                <p className="text-sm font-bold text-foreground">{next.label}</p>
               </div>
-              <p className="text-xs text-muted-foreground mt-4 italic">On se retrouve lundi avec tes nouvelles missions.</p>
+              <Button size="sm" asChild className="rounded-full gap-1.5 text-xs shrink-0">
+                <Link to={next.route}>
+                  <ArrowRight className="h-3 w-3" /> {next.status === "in_progress" ? "Continuer" : "Commencer"}
+                </Link>
+              </Button>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {missions.map((mission) => (
-                <MissionCard
-                  key={mission.id}
-                  mission={mission}
-                  onComplete={() => completeMission(mission)}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+          );
+        })()}
 
-        {/* SECTION 3: History */}
-        {history.length > 0 && (
-          <section className="mb-8">
-            <button
-              onClick={() => setHistoryOpen(!historyOpen)}
-              className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
-            >
-              {historyOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              Mes semaines précédentes
-            </button>
-            {historyOpen && (
-              <div className="mt-3 space-y-2">
-                {history.map((h) => (
-                  <div key={h.week_start} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-                    <span className="text-sm text-muted-foreground">Semaine du {formatDate(h.week_start)}</span>
-                    <span className="ml-auto text-sm font-medium text-foreground">
-                      {h.done}/{h.total} missions {h.done === h.total ? "🎉" : "✅"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
+        {/* Phases */}
+        {planData.phases.map((phase) => (
+          <PhaseSection key={phase.id} phase={phase} />
+        ))}
       </main>
     </div>
   );
 }
 
-/* ─── Sub-components ─── */
-
-function ProgressIndicator({ label, value, route }: { label: string; value: number; route: string }) {
-  return (
-    <Link to={route} className="rounded-xl border border-border bg-muted/30 p-3 text-center hover:border-primary/40 transition-colors">
-      <p className="text-xs text-muted-foreground mb-1">{label}</p>
-      <p className="text-lg font-bold text-foreground">{value}%</p>
-      <div className="h-1.5 w-full rounded-full bg-muted mt-1.5 overflow-hidden">
-        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${value}%` }} />
-      </div>
-    </Link>
-  );
-}
-
-function MissionCard({ mission, onComplete }: { mission: MissionRow; onComplete: () => void }) {
-  const priorityBadge = PRIORITY_BADGE[mission.priority] || PRIORITY_BADGE.important;
-  const moduleBadge = mission.module ? MODULE_BADGE[mission.module] : null;
-
-  return (
-    <div className={`rounded-2xl border bg-card p-5 transition-all ${mission.is_done ? "opacity-50 border-border" : "border-border hover:border-primary/30"}`}>
-      {/* Badges */}
-      <div className="flex flex-wrap gap-2 mb-3">
-        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${priorityBadge.className}`}>
-          {priorityBadge.label}
-        </span>
-        {moduleBadge && (
-          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${moduleBadge.className}`}>
-            {moduleBadge.label}
-          </span>
-        )}
-      </div>
-
-      {/* Title */}
-      <h3 className={`font-display text-lg font-bold mb-2 ${mission.is_done ? "line-through text-muted-foreground" : "text-foreground"}`}>
-        {mission.title}
-      </h3>
-
-      {/* Description */}
-      {mission.description && (
-        <p className="text-sm text-muted-foreground leading-relaxed mb-3">{mission.description}</p>
-      )}
-
-      {/* Meta + actions */}
-      <div className="flex flex-wrap items-center gap-3">
-        {mission.estimated_minutes && (
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Clock className="h-3.5 w-3.5" /> ~{mission.estimated_minutes} min
-          </span>
-        )}
-        {mission.route && mission.module && (
-          <span className="text-xs text-muted-foreground">
-            📍 {MODULE_BADGE[mission.module]?.label || mission.module}
-          </span>
-        )}
-        <div className="flex gap-2 ml-auto">
-          {mission.route && !mission.is_done && (
-            <Button size="sm" variant="outline" asChild className="rounded-pill gap-1.5 text-xs">
-              <Link to={mission.route}>
-                <ArrowRight className="h-3.5 w-3.5" /> Y aller
-              </Link>
-            </Button>
-          )}
-          {!mission.is_done && (
-            <Button size="sm" onClick={onComplete} className="rounded-pill gap-1.5 text-xs">
-              <Check className="h-3.5 w-3.5" /> C'est fait
-            </Button>
-          )}
-          {mission.is_done && (
-            <span className="text-xs text-primary font-medium flex items-center gap-1">
-              <Check className="h-3.5 w-3.5" /> Fait
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ─── Helpers ─── */
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-}
 
-function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0];
+function formatTimeEstimate(minutes: number, weeklyTime: string): string {
+  if (minutes <= 0) return "🎉 Plan terminé !";
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  const timeStr = hours > 0 ? `~${hours}h${mins > 0 ? mins.toString().padStart(2, "0") : ""}` : `~${mins} min`;
+
+  const weeklyMinutes: Record<string, number> = {
+    less_2h: 90,
+    "2_5h": 210,
+    "5_10h": 450,
+    more_10h: 720,
+  };
+  const available = weeklyMinutes[weeklyTime] || 210;
+  const weeks = Math.ceil(minutes / available);
+
+  return `${timeStr} restantes · ~${weeks} semaine${weeks > 1 ? "s" : ""}`;
 }
