@@ -34,7 +34,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { objective, price_range, time_available, face_cam, subject, is_launch, branding_context, type } = await req.json();
+    const { objective, price_range, time_available, face_cam, subject, is_launch, branding_context, type, pre_gen_answers } = await req.json();
 
     // Check recent sale sequences for garde-fou
     let gardeFouAlerte: string | null = null;
@@ -53,11 +53,39 @@ serve(async (req) => {
 
     // Quick daily stories
     if (type === "daily") {
-      const systemPrompt = `Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées.
+      const systemPrompt = buildDailyPrompt(branding_context);
+      const response = await callAI(LOVABLE_API_KEY, systemPrompt, "Génère mes 5 stories du quotidien.");
+      return new Response(JSON.stringify({ content: response }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Main generation
+    const systemPrompt = buildMainPrompt({ objective, price_range, time_available, face_cam, subject, is_launch, branding_context, gardeFouAlerte, pre_gen_answers });
+    const response = await callAI(LOVABLE_API_KEY, systemPrompt, "Génère ma séquence stories.");
+    return new Response(JSON.stringify({ content: response }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
+  } catch (e) {
+    console.error("stories-ai error:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
+
+// ───────────────────────────────────────────────
+// PROMPTS
+// ───────────────────────────────────────────────
+
+function buildDailyPrompt(brandingContext: string): string {
+  return `Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées.
 
 ANTI-SLOP : JAMAIS de "Dans un monde où", "N'hésitez pas", "Plongeons dans", "En outre", "Cela étant dit", "Force est de constater", "Il convient de", tirets cadratins. SI DÉTECTÉ, RÉÉCRIRE.
 
-${branding_context || ""}
+${brandingContext || ""}
 
 Génère 5 stories du quotidien personnalisées. Aujourd'hui on est ${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}.
 
@@ -68,6 +96,12 @@ Les 5 stories suivent cette structure :
 4. 🌙 Le conseil : un tip actionnable en 1 story (valeur)
 5. 🌙 La clôture : mot de fin ou teaser demain (continuité)
 
+HOOK STORY 1 — RÈGLES :
+La story 1 décide de TOUT. 24% de l'audience part après.
+Le hook doit arrêter le swipe en 1-2 secondes.
+- Hook principal : 8-15 mots max, 1 phrase, pas 2
+- Doit créer l'identification OU la curiosité immédiate
+
 Réponds en JSON strict :
 {
   "structure_type": "quotidien",
@@ -76,6 +110,7 @@ Réponds en JSON strict :
   "estimated_time": "10 min",
   "stickers_used": ["..."],
   "garde_fou_alerte": null,
+  "personal_tip": null,
   "stories": [
     {
       "number": 1,
@@ -85,6 +120,7 @@ Réponds en JSON strict :
       "format": "texte_fond",
       "format_label": "📝 Texte sur fond coloré",
       "text": "...",
+      "hook_options": null,
       "sticker": null,
       "tip": "...",
       "face_cam": false,
@@ -100,30 +136,73 @@ RÈGLES :
 - Hook fort sur la story 1
 - JAMAIS de jargon marketing
 - Réponds UNIQUEMENT avec le JSON`;
+}
 
-      const response = await callAI(LOVABLE_API_KEY, systemPrompt, "Génère mes 5 stories du quotidien.");
-      return new Response(JSON.stringify({ content: response }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+interface MainPromptParams {
+  objective: string;
+  price_range?: string;
+  time_available: string;
+  face_cam: string;
+  subject?: string;
+  is_launch: boolean;
+  branding_context?: string;
+  gardeFouAlerte: string | null;
+  pre_gen_answers?: { vecu?: string; energy?: string; message_cle?: string };
+}
 
-    // Main generation
-    const priceBlock = objective === "vente" && price_range ? `\n- Gamme de prix : ${price_range}` : "";
-    const launchBlock = is_launch ? "\n- Phase : LANCEMENT (orienter vers vente + preuve sociale)" : "\n- Phase : croisière";
+function buildMainPrompt(p: MainPromptParams): string {
+  const priceBlock = p.objective === "vente" && p.price_range ? `\n- Gamme de prix : ${p.price_range}` : "";
+  const launchBlock = p.is_launch ? "\n- Phase : LANCEMENT (orienter vers vente + preuve sociale)" : "\n- Phase : croisière";
 
-    const systemPrompt = `Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées (mode, artisanat, bien-être, design, coaching).
+  // Pre-gen answers integration
+  let preGenBlock = "";
+  if (p.pre_gen_answers && (p.pre_gen_answers.vecu || p.pre_gen_answers.energy || p.pre_gen_answers.message_cle)) {
+    preGenBlock = `
+
+L'UTILISATRICE A PARTAGÉ :
+${p.pre_gen_answers.vecu ? `- Vécu récent : "${p.pre_gen_answers.vecu}"` : ""}
+${p.pre_gen_answers.energy ? `- Énergie souhaitée : ${p.pre_gen_answers.energy}` : ""}
+${p.pre_gen_answers.message_cle ? `- Message clé : "${p.pre_gen_answers.message_cle}"` : ""}
+
+INTÈGRE dans la séquence stories :
+- Le vécu récent est PARFAIT pour la story 1 (hook) ou la story 2 (identification). C'est du contenu ultra-authentique.
+- L'énergie guide le ton de TOUTE la séquence :
+  🔥 Punchy = phrases courtes, affirmations, rythme rapide
+  🫶 Intime = face cam, ton doux, confidence
+  📚 Pédago = structure claire, tips concrets
+  😄 Drôle = auto-dérision, observations du quotidien
+  😤 Coup de gueule doux = position affirmée mais bienveillante
+- Le message clé doit apparaître dans la story 4 ou 5 (le climax ou la conclusion), formulé dans ses mots à elle
+- NE CHANGE PAS le sens de ses mots, juste la structure si nécessaire
+`;
+  } else {
+    preGenBlock = `
+
+L'utilisatrice n'a pas fourni d'éléments personnels.
+Génère normalement. Ajoute un champ "personal_tip" dans le JSON :
+"Tes stories seront 10x plus engageantes avec un truc vécu. Ajoute un moment perso dans la story 1 ou 2 avant de publier."
+`;
+  }
+
+  return `Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées (mode, artisanat, bien-être, design, coaching).
 
 ANTI-SLOP : JAMAIS de "Dans un monde où", "N'hésitez pas", "Plongeons dans", "En outre", "Cela étant dit", "Force est de constater", "Il convient de", tirets cadratins (—). SI DÉTECTÉ, RÉÉCRIRE.
 
 AVANT DE RÉDIGER, RÉFLÉCHIS EN INTERNE (ne montre PAS) : Quel est le problème ? Quelle émotion ? Quelle accroche est la MEILLEURE ? Mon output a-t-il du slop ?
 
-${branding_context || ""}
+ANALOGIES VISUELLES :
+Intègre au moins 1 analogie visuelle concrète dans la séquence.
+L'analogie doit être du QUOTIDIEN (cuisine, maison, route, nature, objets courants).
+Pas d'analogies abstraites. L'audience doit pouvoir "voir" l'image mentalement.
+
+${p.branding_context || ""}
+${preGenBlock}
 
 DEMANDE :
-- Objectif : ${objective}${priceBlock}
-- Temps disponible : ${time_available}
-- Face cam : ${face_cam}
-- Sujet : ${subject || "au choix selon la ligne éditoriale"}${launchBlock}
+- Objectif : ${p.objective}${priceBlock}
+- Temps disponible : ${p.time_available}
+- Face cam : ${p.face_cam}
+- Sujet : ${p.subject || "au choix selon la ligne éditoriale"}${launchBlock}
 
 STRUCTURES DISPONIBLES (choisis la plus adaptée) :
 - journal_bord : Connexion, 3-5 stories
@@ -135,18 +214,53 @@ STRUCTURES DISPONIBLES (choisis la plus adaptée) :
 - micro_masterclass : Éducation, 6-10 stories
 - teasing : Amplification, 3-5 stories
 
-CORRESPONDANCE objectif × temps :
+CORRESPONDANCE objectif x temps :
 - Connexion + 5min → journal_bord | + 15min → build_in_public | + 30min → storytime
 - Éducation + 5min → 1-2 stories astuce | + 15min → probleme_solution | + 30min → micro_masterclass
 - Vente + 5min → 1-2 stories mention | + 15min → vente_douce | + 30min → séquence complète 7-10
 - Engagement + 5min → sondage+question 2 stories | + 15min → quiz+question 3-5
 - Amplification + 5min → repartage+question 2 | + 15min → teasing 3-5
 
-${objective === "vente" ? getVenteInstructions(price_range) : ""}
+${p.objective === "vente" ? getVenteInstructions(p.price_range) : ""}
+
+HOOK STORY 1 — RÈGLES :
+
+La story 1 décide de TOUT. 24% de l'audience part après.
+Le hook doit arrêter le swipe en 1-2 secondes.
+
+SELON LE FORMAT DE LA STORY 1 :
+
+Si format = texte sur fond :
+- Hook principal : 8-15 mots max
+- 1 phrase. Pas 2.
+- Doit créer l'identification OU la curiosité immédiate
+- Le sondage/sticker complète le hook (pas l'inverse)
+
+Si format = face cam :
+- Hook oral : 5-10 mots max
+- Dicible en 2 secondes sans reprendre sa respiration
+- Ton conversationnel : "Bon, faut qu'on parle de..."
+- Sous-titres OBLIGATOIRES (60-80% regardent sans le son)
+
+Si format = visuel/photo :
+- Text overlay : 3-8 mots en gros
+- L'image fait le travail visuel, le texte fait l'accroche
+
+POUR LA STORY 1, GÉNÈRE 2 OPTIONS DE HOOK dans le champ "hook_options" :
+- Option A : hook court (le plus percutant, 5-10 mots)
+- Option B : hook développé (pour celles qui préfèrent contextualiser, 10-15 mots)
+
+TYPES DE HOOKS STORIES :
+1. Interpellation directe : "Toi qui postes sans stratégie."
+2. Confidence : "Faut que je te parle d'un truc."
+3. Question qui pique : "Tu sais pourquoi personne like ?"
+4. Constat choc : "3 likes et ta mère."
+5. Teaser : "Ce que j'ai appris la semaine dernière."
+6. Analogie flash : "Ta com' ressemble à un CV sans photo."
 
 GARDE-FOUS OBLIGATOIRES :
 1. Max 10 stories par séquence
-2. TOUJOURS au moins 1 sticker interactif (DM⭐⭐⭐⭐, sondage⭐⭐⭐, slider⭐⭐, lien⭐)
+2. TOUJOURS au moins 1 sticker interactif (DM>Question>Sondage>Slider>Lien)
 3. Sticker lien JAMAIS sur story 1 ou 2, toujours avant-dernière ou dernière
 4. JAMAIS de CTA agressif. Toujours en mode permission : "si ça te parle", "écris-moi"
 5. Si face cam → TOUJOURS mentionner sous-titres
@@ -166,7 +280,8 @@ Réponds en JSON strict :
   "total_stories": N,
   "estimated_time": "X min",
   "stickers_used": ["sondage", "question_ouverte"],
-  "garde_fou_alerte": ${gardeFouAlerte ? `"${gardeFouAlerte}"` : "null"},
+  "garde_fou_alerte": ${p.gardeFouAlerte ? `"${p.gardeFouAlerte}"` : "null"},
+  "personal_tip": null,
   "stories": [
     {
       "number": 1,
@@ -176,6 +291,18 @@ Réponds en JSON strict :
       "format": "texte_fond",
       "format_label": "📝 Texte sur fond coloré",
       "text": "...",
+      "hook_options": {
+        "option_a": {
+          "text": "[hook court 5-10 mots]",
+          "word_count": 7,
+          "label": "Court et percutant"
+        },
+        "option_b": {
+          "text": "[hook développé 10-15 mots]",
+          "word_count": 13,
+          "label": "Contextualisé"
+        }
+      },
       "sticker": {
         "type": "sondage",
         "label": "Sondage",
@@ -189,21 +316,13 @@ Réponds en JSON strict :
   ]
 }
 
+IMPORTANT :
+- Seule la story 1 a "hook_options". Les autres stories ont "hook_options": null
+- Le champ "text" de la story 1 contient le hook option_a par défaut
+- Pas de markdown dans les valeurs JSON
+
 Réponds UNIQUEMENT avec le JSON, rien d'autre.`;
-
-    const response = await callAI(LOVABLE_API_KEY, systemPrompt, "Génère ma séquence stories.");
-    return new Response(JSON.stringify({ content: response }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-
-  } catch (e) {
-    console.error("stories-ai error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-});
+}
 
 function getVenteInstructions(priceRange?: string): string {
   const instructions: Record<string, string> = {
@@ -253,7 +372,7 @@ async function callAI(apiKey: string, systemPrompt: string, userPrompt: string):
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

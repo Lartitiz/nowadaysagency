@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Sparkles, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -18,6 +18,12 @@ interface StorySticker {
   placement?: string;
 }
 
+interface HookOption {
+  text: string;
+  word_count: number;
+  label: string;
+}
+
 interface StoryItem {
   number: number;
   timing: string;
@@ -26,6 +32,7 @@ interface StoryItem {
   format: string;
   format_label: string;
   text: string;
+  hook_options?: { option_a: HookOption; option_b: HookOption } | null;
   sticker: StorySticker | null;
   tip: string;
   face_cam: boolean;
@@ -39,6 +46,7 @@ interface SequenceResult {
   estimated_time: string;
   stickers_used: string[];
   garde_fou_alerte: string | null;
+  personal_tip: string | null;
   stories: StoryItem[];
 }
 
@@ -71,6 +79,14 @@ const FACECAM_OPTIONS = [
   { id: "mixte", emoji: "🔀", label: "Mixte", desc: "Les deux" },
 ];
 
+const ENERGY_OPTIONS = [
+  { id: "punchy", emoji: "🔥", label: "Punchy" },
+  { id: "intime", emoji: "🫶", label: "Intime" },
+  { id: "pedago", emoji: "📚", label: "Pédago" },
+  { id: "drole", emoji: "😄", label: "Drôle" },
+  { id: "coup_de_gueule", emoji: "😤", label: "Coup de gueule doux" },
+];
+
 export default function InstagramStories() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -87,6 +103,14 @@ export default function InstagramStories() {
   const [isLaunch, setIsLaunch] = useState(false);
   const [showStickerGuide, setShowStickerGuide] = useState(false);
 
+  // Pre-gen questions
+  const [preGenVecu, setPreGenVecu] = useState("");
+  const [preGenEnergy, setPreGenEnergy] = useState("");
+  const [preGenMessage, setPreGenMessage] = useState("");
+
+  // Hook selection for story 1
+  const [selectedHookOption, setSelectedHookOption] = useState<"a" | "b" | null>(null);
+
   // Pre-fill from highlights navigation
   useEffect(() => {
     if (highlightState?.fromHighlights) {
@@ -95,7 +119,6 @@ export default function InstagramStories() {
       if (highlightState.time_available) setTimeAvailable(highlightState.time_available);
       if (highlightState.face_cam) setFaceCam(highlightState.face_cam);
       if (highlightState.subject) setSubject(highlightState.subject);
-      // Jump to step 3 (context) since most is pre-filled
       setStep(3);
     }
   }, []);
@@ -109,7 +132,12 @@ export default function InstagramStories() {
     setLoading(true);
 
     try {
-      // Build branding context on client side to pass
+      const preGenAnswers = (preGenVecu || preGenEnergy || preGenMessage) ? {
+        vecu: preGenVecu || undefined,
+        energy: preGenEnergy || undefined,
+        message_cle: preGenMessage || undefined,
+      } : undefined;
+
       const { data: brandRes } = await supabase.functions.invoke("stories-ai", {
         body: {
           type: isDaily ? "daily" : "generate",
@@ -120,6 +148,7 @@ export default function InstagramStories() {
           subject,
           is_launch: isLaunch,
           branding_context: await fetchBrandingContext(),
+          pre_gen_answers: isDaily ? undefined : preGenAnswers,
         },
       });
 
@@ -130,10 +159,10 @@ export default function InstagramStories() {
       }
 
       const raw = brandRes?.content || "";
-      // Extract JSON from potential markdown code blocks
       const jsonStr = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
       const parsed: SequenceResult = JSON.parse(jsonStr);
       setResult(parsed);
+      setSelectedHookOption(null);
 
       // Save to DB
       const { error: saveError } = await supabase.from("stories_sequences" as any).insert({
@@ -150,7 +179,7 @@ export default function InstagramStories() {
       });
 
       if (saveError) console.error("Save error:", saveError);
-      setStep(5); // Results step
+      setStep(6); // Results step
     } catch (e) {
       console.error(e);
       toast.error("Erreur lors de la génération. Réessaie.");
@@ -226,6 +255,18 @@ export default function InstagramStories() {
     toast.success("Séquence copiée !");
   };
 
+  const handleSelectHook = (option: "a" | "b") => {
+    if (!result) return;
+    setSelectedHookOption(option);
+    const hookOpts = result.stories[0]?.hook_options;
+    if (hookOpts) {
+      const newText = option === "a" ? hookOpts.option_a.text : hookOpts.option_b.text;
+      const updatedStories = [...result.stories];
+      updatedStories[0] = { ...updatedStories[0], text: newText };
+      setResult({ ...result, stories: updatedStories });
+    }
+  };
+
   const timingColor = (timing: string) => {
     switch (timing) {
       case "matin": return "bg-rose-pale text-primary";
@@ -235,7 +276,7 @@ export default function InstagramStories() {
     }
   };
 
-  // Render steps
+  // Render loading
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -248,13 +289,16 @@ export default function InstagramStories() {
     );
   }
 
-  // Results
-  if (step === 5 && result) {
+  // Results step
+  if (step === 6 && result) {
+    const story1 = result.stories[0];
+    const hasHookOptions = story1?.hook_options?.option_a && story1?.hook_options?.option_b;
+
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-          <button onClick={() => { setStep(1); setResult(null); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
+          <button onClick={() => { setStep(1); setResult(null); setPreGenVecu(""); setPreGenEnergy(""); setPreGenMessage(""); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
             <ArrowLeft className="h-4 w-4" /> Nouvelle séquence
           </button>
 
@@ -271,6 +315,32 @@ export default function InstagramStories() {
           {result.garde_fou_alerte && (
             <div className="mb-6 rounded-xl border border-primary/30 bg-rose-pale p-4 text-sm text-foreground">
               {result.garde_fou_alerte}
+            </div>
+          )}
+
+          {/* Hook options for story 1 */}
+          {hasHookOptions && !selectedHookOption && (
+            <div className="mb-6 rounded-2xl border border-primary/30 bg-card p-5">
+              <h2 className="font-display text-base font-bold text-foreground mb-1">🎬 Story 1 · Choisis ton accroche</h2>
+              <p className="text-xs text-muted-foreground mb-4">La story 1, c'est l'apéro. Pas le plat principal. Moins tu en dis, plus on veut la suite.</p>
+              <div className="space-y-3">
+                <button
+                  onClick={() => handleSelectHook("a")}
+                  className="w-full rounded-xl border border-border bg-background p-4 text-left hover:border-primary transition-colors"
+                >
+                  <p className="text-xs font-semibold text-primary mb-1">Option A : {story1.hook_options!.option_a.label}</p>
+                  <p className="text-[15px] font-medium text-foreground">"{story1.hook_options!.option_a.text}"</p>
+                  <p className="text-xs text-muted-foreground mt-1">{story1.hook_options!.option_a.word_count} mots · {story1.format_label}</p>
+                </button>
+                <button
+                  onClick={() => handleSelectHook("b")}
+                  className="w-full rounded-xl border border-border bg-background p-4 text-left hover:border-primary transition-colors"
+                >
+                  <p className="text-xs font-semibold text-primary mb-1">Option B : {story1.hook_options!.option_b.label}</p>
+                  <p className="text-[15px] font-medium text-foreground">"{story1.hook_options!.option_b.text}"</p>
+                  <p className="text-xs text-muted-foreground mt-1">{story1.hook_options!.option_b.word_count} mots · {story1.format_label}</p>
+                </button>
+              </div>
             </div>
           )}
 
@@ -310,6 +380,21 @@ export default function InstagramStories() {
             ))}
           </div>
 
+          {/* Post-generation micro-copy */}
+          <div className="mt-6 rounded-2xl border border-dashed border-primary/30 bg-rose-pale p-5">
+            <p className="font-display text-sm font-bold text-foreground mb-2">🚲 Séquence prête. Maintenant fais-la sonner comme toi.</p>
+            <div className="space-y-1.5 text-sm text-muted-foreground">
+              <p>□ Ajoute un truc vécu (story 1 ou 2)</p>
+              <p>□ Dis le face cam avec TES mots (pas au mot près)</p>
+              <p>□ Vérifie que le hook arrête le swipe</p>
+              <p>□ Ajoute les sous-titres sur les face cam</p>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground italic">L'IA structure. Toi, tu incarnes.</p>
+            {result.personal_tip && (
+              <p className="mt-2 text-xs text-primary font-medium">💡 {result.personal_tip}</p>
+            )}
+          </div>
+
           {/* Checklist */}
           <div className="mt-6">
             <StoryChecklist
@@ -336,7 +421,7 @@ export default function InstagramStories() {
     );
   }
 
-  // Steps 1-4 form
+  // Steps 1-5 form
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -378,7 +463,7 @@ export default function InstagramStories() {
         {/* Step 1: Objective */}
         <div className="mb-8">
           <h2 className="font-display text-lg font-bold text-foreground mb-3">
-            {step >= 1 ? "1. " : ""}Quel est ton objectif ?
+            1. Quel est ton objectif ?
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {OBJECTIVES.map((o) => (
@@ -484,9 +569,74 @@ export default function InstagramStories() {
               </div>
             </div>
 
-            <Button onClick={() => handleGenerate(false)} className="mt-4 w-full" disabled={!objective || !timeAvailable || !faceCam}>
-              <Sparkles className="h-4 w-4" /> Générer ma séquence stories
+            <Button onClick={() => setStep(4)} className="mt-4 w-full" disabled={!objective || !timeAvailable || !faceCam}>
+              Continuer
             </Button>
+          </div>
+        )}
+
+        {/* Step 4: Pre-gen questions */}
+        {step >= 4 && (
+          <div className="mb-8 rounded-2xl border border-primary/20 bg-card p-5">
+            <h2 className="font-display text-lg font-bold text-foreground mb-1">💬 Avant de créer ta séquence</h2>
+            <p className="text-xs text-muted-foreground mb-5">(Tu peux passer, mais tes stories sonneront plus toi si tu réponds.)</p>
+
+            <div className="space-y-5">
+              {/* Question 1 */}
+              <div>
+                <label className="text-sm font-medium text-foreground block mb-1.5">
+                  1. T'as vécu un truc récemment en lien avec ce sujet ?
+                </label>
+                <p className="text-xs text-muted-foreground mb-2">(un truc client, un moment de ta journée, une galère)</p>
+                <Textarea
+                  value={preGenVecu}
+                  onChange={(e) => setPreGenVecu(e.target.value)}
+                  placeholder="Ce matin une cliente m'a dit que..."
+                  className="min-h-[60px]"
+                />
+              </div>
+
+              {/* Question 2 */}
+              <div>
+                <label className="text-sm font-medium text-foreground block mb-2">
+                  2. Tu veux que ta séquence donne quelle énergie ?
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {ENERGY_OPTIONS.map((en) => (
+                    <button
+                      key={en.id}
+                      onClick={() => setPreGenEnergy(en.id)}
+                      className={`rounded-full border px-3 py-1.5 text-sm transition-all ${preGenEnergy === en.id ? "border-primary bg-rose-pale font-bold" : "border-border bg-background hover:border-primary/50"}`}
+                    >
+                      {en.emoji} {en.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Question 3 */}
+              <div>
+                <label className="text-sm font-medium text-foreground block mb-1.5">
+                  3. Un message que tu veux faire passer ?
+                </label>
+                <p className="text-xs text-muted-foreground mb-2">(la phrase que tu veux que les gens retiennent)</p>
+                <Textarea
+                  value={preGenMessage}
+                  onChange={(e) => setPreGenMessage(e.target.value)}
+                  placeholder="La visibilité, c'est pas de la vanité..."
+                  className="min-h-[60px]"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <Button onClick={() => handleGenerate(false)} className="flex-1">
+                <Sparkles className="h-4 w-4" /> Générer avec mes réponses
+              </Button>
+              <Button variant="outline" onClick={() => { setPreGenVecu(""); setPreGenEnergy(""); setPreGenMessage(""); handleGenerate(false); }}>
+                ⏭️ Passer
+              </Button>
+            </div>
           </div>
         )}
           </>
