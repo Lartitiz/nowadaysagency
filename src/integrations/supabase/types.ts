@@ -1562,6 +1562,30 @@ export type Database = {
         }
         Relationships: []
       }
+      linkedin_comment_strategy: {
+        Row: {
+          accounts: Json | null
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accounts?: Json | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accounts?: Json | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       linkedin_experiences: {
         Row: {
           company: string | null
