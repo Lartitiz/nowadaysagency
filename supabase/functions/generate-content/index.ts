@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES } from "../_shared/copywriting-prompts.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,67 +28,7 @@ function buildProfileBlock(profile: any): string {
   return lines.join("\n");
 }
 
-async function buildBrandingContext(supabase: any, userId: string): Promise<string> {
-  const [stRes, perRes, toneRes, propRes, stratRes] = await Promise.all([
-    supabase.from("storytelling").select("step_7_polished").eq("user_id", userId).maybeSingle(),
-    supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_proposition").select("version_final, version_bio").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept").eq("user_id", userId).maybeSingle(),
-  ]);
-
-  const lines: string[] = [];
-
-  const story = stRes.data?.step_7_polished;
-  if (story) lines.push(`HISTOIRE :\n${story}`);
-
-  const p = perRes.data;
-  if (p) {
-    const pl: string[] = [];
-    if (p.step_1_frustrations) pl.push(`- Frustrations : ${p.step_1_frustrations}`);
-    if (p.step_2_transformation) pl.push(`- Transformation rêvée : ${p.step_2_transformation}`);
-    if (p.step_3a_objections) pl.push(`- Objections : ${p.step_3a_objections}`);
-    if (p.step_3b_cliches) pl.push(`- Clichés : ${p.step_3b_cliches}`);
-    if (pl.length) lines.push(`CLIENTE IDÉALE :\n${pl.join("\n")}`);
-  }
-
-  const propValue = propRes.data?.version_final || propRes.data?.version_bio;
-  if (propValue) lines.push(`PROPOSITION DE VALEUR :\n${propValue}`);
-
-  const t = toneRes.data;
-  if (t) {
-    const tl: string[] = [];
-    if (t.voice_description) tl.push(`- Comment elle parle : ${t.voice_description}`);
-    const reg = [t.tone_register, t.tone_level, t.tone_style].filter(Boolean).join(" - ");
-    if (reg) tl.push(`- Registre : ${reg}`);
-    if (t.tone_humor) tl.push(`- Humour : ${t.tone_humor}`);
-    if (t.tone_engagement) tl.push(`- Engagement : ${t.tone_engagement}`);
-    if (t.key_expressions) tl.push(`- Expressions clés : ${t.key_expressions}`);
-    if (t.things_to_avoid) tl.push(`- Ce qu'on évite : ${t.things_to_avoid}`);
-    if (t.target_verbatims) tl.push(`- Verbatims de la cible : ${t.target_verbatims}`);
-    if (tl.length) lines.push(`TON & STYLE :\n${tl.join("\n")}`);
-
-    const cl: string[] = [];
-    if (t.combat_cause) cl.push(`- Sa cause : ${t.combat_cause}`);
-    if (t.combat_fights) cl.push(`- Ses combats : ${t.combat_fights}`);
-    if (t.combat_alternative) cl.push(`- Ce qu'elle propose à la place : ${t.combat_alternative}`);
-    if (t.combat_refusals) cl.push(`- Ce qu'elle refuse : ${t.combat_refusals}`);
-    if (cl.length) lines.push(`COMBATS & LIMITES :\n${cl.join("\n")}`);
-  }
-
-  const s = stratRes.data;
-  if (s) {
-    const sl: string[] = [];
-    if (s.pillar_major) sl.push(`- Pilier majeur : ${s.pillar_major}`);
-    const minors = [s.pillar_minor_1, s.pillar_minor_2, s.pillar_minor_3].filter(Boolean);
-    if (minors.length) sl.push(`- Piliers mineurs : ${minors.join(", ")}`);
-    if (s.creative_concept) sl.push(`- Concept créatif : ${s.creative_concept}`);
-    if (sl.length) lines.push(`STRATÉGIE DE CONTENU :\n${sl.join("\n")}`);
-  }
-
-  if (!lines.length) return "";
-  return `\nCONTEXTE DE LA MARQUE :\n${lines.join("\n\n")}\n`;
-}
+// buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
 const ACCROCHE_BANK: Record<string, string[]> = {
   visibilite: [
@@ -162,7 +103,8 @@ serve(async (req) => {
     } else {
       const canalLabel = canal === "linkedin" ? "LinkedIn" : canal === "blog" ? "un article de blog" : canal === "pinterest" ? "Pinterest" : "Instagram";
       const profileBlock = buildProfileBlock(profile || {});
-      const brandingContext = await buildBrandingContext(supabase, user.id);
+      const ctx = await getUserContext(supabase, user.id);
+      const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
       const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "");
 
       if (type === "suggest") {

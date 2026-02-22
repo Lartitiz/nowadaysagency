@@ -1,4 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,12 +11,36 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Authentification requise" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Authentification invalide" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const { type, objective, face_cam, subject, time_available, is_launch, branding_context, selected_hook, pre_gen_answers, image_urls, inspiration_context } = await req.json();
+    // Fetch full context server-side
+    const ctx = await getUserContext(supabase, user.id);
+    const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.reels);
 
-    const systemPrompt = buildSystemPrompt(branding_context || "");
+    const { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context } = await req.json();
+
+    const systemPrompt = buildSystemPrompt(brandingContext);
 
     let userPrompt = "";
     let messages: any[] = [];
