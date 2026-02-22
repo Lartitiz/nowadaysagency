@@ -46,7 +46,7 @@ Pour t'aider :
 👉 'Ce qu'elle cherche au fond, c'est...'
 
 Exemples :
-Mode éthique : Avoir une garde-robe belle, durable et éthique sans prise de tête. Porter des vêtements qui reflètent ses valeurs.
+Mode : Avoir une garde-robe belle, durable et éthique sans prise de tête. Porter des vêtements qui reflètent ses valeurs.
 
 Bien-être : Se réveiller avec de l'énergie. Se sentir bien dans son corps, sans obsession. Avoir des repères simples.`,
     aiButtonLabel: "✨ Formuler 10 bénéfices concrets",
@@ -68,11 +68,12 @@ Sous-section B : Les clichés qu'elle a en tête
 - Ce qu'elle redoute parce qu'elle a entendu des généralités
 - Ce qu'elle croit savoir mais qui est faux`,
     examples: `Exemples d'objections :
-Mode éthique : 'C'est trop cher pour moi' / 'Je ne suis pas sûre que ça m'aille'
+Mode : 'C'est trop cher pour moi' / 'Je ne suis pas sûre que ça m'aille'
 Bien-être : 'Je vais encore abandonner' / 'Je n'ai pas la discipline'
+Coaching : 'Je peux trouver ça gratuitement en ligne' / 'Ce n'est pas le bon moment'
 
 Exemples de clichés :
-Mode éthique : 'La mode éthique c'est moche ou beige' / 'C'est forcément hors de prix'
+Mode : 'La mode éthique c'est moche ou beige' / 'C'est forcément hors de prix'
 Bien-être : 'Manger sain = peser tout et cuisiner H24' / 'Changer = plus de plaisir'`,
     aiButtonLabel: "✨ Approfondir ses freins et clichés",
     aiType: "barriers",

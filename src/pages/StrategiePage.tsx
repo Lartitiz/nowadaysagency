@@ -293,9 +293,9 @@ export default function StrategiePage() {
 
             <div className="rounded-xl bg-rose-pale p-4 text-[13px] text-foreground leading-relaxed mb-5">
               <p className="font-semibold mb-1">Exemples :</p>
-              <p>• Une créatrice de vêtements éthiques qui parle aussi de ses lectures féministes</p>
-              <p>• Une coach en reconversion qui partage ses routines bien-être + ses galères d'auto-entrepreneure</p>
-              <p>• Une créatrice slow qui raconte sa vie de maman sans filtre</p>
+              <p>• Une graphiste freelance qui parle aussi de ses lectures sur le design engagé</p>
+               <p>• Une coach en reconversion qui partage ses routines bien-être + ses galères d'auto-entrepreneure</p>
+               <p>• Une consultante en communication qui raconte sa vie de maman sans filtre</p>
             </div>
 
             <div className="relative mb-5">
@@ -378,7 +378,7 @@ export default function StrategiePage() {
               <Input
                 value={data.pillar_major}
                 onChange={(e) => updateField("pillar_major", e.target.value)}
-                placeholder="La féminité libre et inclusive / L'artisanat comme acte politique..."
+                placeholder="La communication authentique / L'entrepreneuriat engagé / Le bien-être accessible..."
               />
             </div>
 

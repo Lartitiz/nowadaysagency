@@ -78,16 +78,15 @@ const TESTIMONIALS = [
 ];
 
 const FOR_YOU = [
-  "Tu es créatrice, artisane, coach ou thérapeute",
-  "Tu veux une com' alignée avec tes valeurs",
-  "Tu es prête à t'investir pendant 6 mois",
-  "Tu veux des résultats concrets, pas juste de l'inspiration",
+  "Tu es solopreneuse, freelance, créatrice ou coach",
+  "Tu portes un projet qui a du sens (éthique, engagé, artisanal, créatif, humain)",
+  "Tu veux te rendre visible sans trahir tes valeurs",
+  "Tu es prête à passer à l'action pendant 6 mois",
 ];
 const NOT_FOR_YOU = [
-  "Tu cherches une solution miracle sans effort",
-  "Tu veux faire du marketing agressif",
-  "Tu n'es pas prête à remettre en question ta com'",
-  "Tu veux déléguer sans comprendre",
+  "Tu cherches du growth hacking ou des hacks viraux",
+  "Tu veux déléguer ta com' sans apprendre",
+  "Tu n'as pas 2h/semaine à consacrer au programme",
 ];
 
 const OBJECTIONS = [
@@ -97,7 +96,7 @@ const OBJECTIONS = [
   { q: "Et si ça ne marche pas ?", a: "Le Now Studio est satisfait ou remboursé. Si tu appliques tout et que tu n'as pas de résultats, on te rembourse." },
   { q: "Je peux juste prendre l'outil à 39€ ?", a: "Bien sûr ! L'outil seul est déjà très complet. Le Now Studio ajoute l'accompagnement humain pour aller plus vite et plus loin." },
   { q: "6 mois c'est un engagement long", a: "C'est le temps qu'il faut pour poser des fondations solides. Pas de raccourci, mais des résultats durables." },
-  { q: "Qu'est-ce qui te différencie des autres ?", a: "10 ans d'expérience, enseignante en école de com', spécialisée créatrices éthiques. Et un outil IA sur-mesure — pas un Google Doc." },
+  { q: "Qu'est-ce qui te différencie des autres ?", a: "10 ans d'expérience, enseignante en école de com', spécialisée solopreneuses engagées. Et un outil IA sur-mesure — pas un Google Doc." },
 ];
 
 export default function NowStudioSalesPage() {
@@ -331,12 +330,12 @@ export default function NowStudioSalesPage() {
             Je suis Laetitia
           </h2>
           <p className="text-muted-foreground text-sm leading-relaxed max-w-lg mx-auto mb-5">
-            J'accompagne les créatrices éthiques depuis 10 ans à devenir visibles
+            J'accompagne les solopreneuses engagées depuis 10 ans à devenir visibles
             sans trahir leurs valeurs. J'ai créé Nowadays pour que chacune ait
             accès à des outils de com' de qualité — sans budget d'agence.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
-            {["Enseignante ENSAD-PSL, Sup de Pub, ISCPA", "50+ créatrices accompagnées", "Citée dans L'ADN, Capital, e-marketing"].map((item) => (
+            {["Enseignante ENSAD-PSL, Sup de Pub, Bureau du Design", "+150 projets accompagnés", "Citée dans L'ADN, Capital, e-marketing"].map((item) => (
               <span
                 key={item}
                 className="text-xs bg-secondary text-foreground px-3 py-1.5 rounded-pill font-medium"

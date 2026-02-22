@@ -109,7 +109,7 @@ export default function LinkedInCommentStrategy() {
         {/* Tips */}
         <div className="rounded-xl bg-rose-pale p-5 text-sm space-y-2 mb-6">
           <p className="font-semibold">💡 Choisis 10-15 comptes dans ta niche :</p>
-          <p className="text-muted-foreground">ESS, coopératives, com' responsable, enseignement, design, artisanat, entrepreneuriat éthique.</p>
+          <p className="text-muted-foreground">ESS, coopératives, com' responsable, enseignement, design, coaching, freelances, entrepreneuriat engagé.</p>
         </div>
 
         {/* Rules */}

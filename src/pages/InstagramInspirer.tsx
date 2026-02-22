@@ -418,7 +418,7 @@ export default function InstagramInspirer() {
                   </label>
                   <Textarea
                     className="min-h-[80px]"
-                    placeholder="C'est un carrousel d'une créatrice bijoux, il a eu 500 likes..."
+                    placeholder="C'est un carrousel d'une coach bien-être, il a eu 500 likes..."
                     value={screenshotContext}
                     onChange={(e) => setScreenshotContext(e.target.value)}
                   />
