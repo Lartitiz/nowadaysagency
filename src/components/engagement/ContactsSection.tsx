@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Plus, StickyNote, ExternalLink } from "lucide-react";
+import { Trash2, Plus, StickyNote, ExternalLink, MessageSquare } from "lucide-react";
 import InstagramLink, { cleanPseudo } from "@/components/InstagramLink";
+import CommentGenerator from "./CommentGenerator";
 
 export interface Contact {
   id: string;
@@ -22,6 +23,7 @@ interface ContactsSectionProps {
   onDelete: (id: string) => void;
   onAdd: (pseudo: string, tag: string) => void;
   onUpdateNotes: (id: string, notes: string) => void;
+  prospectUsernames?: string[];
 }
 
 const TAG_LABELS: Record<string, string> = {
@@ -48,21 +50,18 @@ const FILTERS = [
   { value: "stale", label: "⚠️ Inactifs" },
 ];
 
-// cleanPseudo is now imported from InstagramLink
-
-// Removed openInstagramProfile - now using InstagramLink component
-
 function daysSince(dateStr?: string) {
   if (!dateStr) return Infinity;
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
 }
 
-export default function ContactsSection({ contacts, filter, onFilterChange, onInteract, onDelete, onAdd, onUpdateNotes }: ContactsSectionProps) {
+export default function ContactsSection({ contacts, filter, onFilterChange, onInteract, onDelete, onAdd, onUpdateNotes, prospectUsernames = [] }: ContactsSectionProps) {
   const [adding, setAdding] = useState(false);
   const [newPseudo, setNewPseudo] = useState("");
   const [newTag, setNewTag] = useState("paire");
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [tempNotes, setTempNotes] = useState("");
+  const [commentContact, setCommentContact] = useState<Contact | null>(null);
 
   const filtered = contacts.filter(c => {
     if (filter === "all") return true;
@@ -79,8 +78,12 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
   };
 
   const handleGoComment = (contact: Contact) => {
-    // Interaction is tracked; link opening handled by InstagramLink <a> tag
     onInteract(contact.id);
+  };
+
+  const isProspect = (pseudo: string) => {
+    const clean = cleanPseudo(pseudo).toLowerCase();
+    return prospectUsernames.some(p => p.toLowerCase() === clean);
   };
 
   return (
@@ -111,6 +114,7 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
           const stale = daysSince(c.last_interaction) > 7;
           const isEditingThis = editingNotes === c.id;
           const displayPseudo = cleanPseudo(c.pseudo);
+          const hasProspect = isProspect(c.pseudo);
 
           return (
             <div key={c.id} className={`rounded-lg border p-3 space-y-1.5 ${stale ? "border-amber-300 bg-amber-50/30" : "border-border"}`}>
@@ -126,6 +130,9 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
                     <span className={`text-[10px] px-2 py-0.5 rounded-full ${TAG_COLORS[c.tag] || "bg-muted text-foreground"}`}>
                       {TAG_LABELS[c.tag] || c.tag}
                     </span>
+                    {hasProspect && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/30 text-accent-foreground">🎯 Prospect</span>
+                    )}
                     {stale && <span className="text-[10px]">⚠️</span>}
                   </div>
                   {c.description && <p className="text-[11px] text-muted-foreground mt-0.5">{c.description}</p>}
@@ -139,15 +146,18 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
                   )}
                 </div>
                 <div className="flex gap-1 shrink-0">
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => setCommentContact(c)} title="Commenter un post">
+                    <MessageSquare className="h-3 w-3" />
+                    <span className="hidden sm:inline ml-1">Commenter</span>
+                  </Button>
                   <InstagramLink
-                      username={c.pseudo}
-                      className="inline-flex items-center gap-1 h-7 px-2 text-[11px] rounded-md hover:bg-accent text-foreground"
-                      onClick={() => handleGoComment(c)}
-                      showCopy
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      <span className="hidden sm:inline">Commenter</span>
-                    </InstagramLink>
+                    username={c.pseudo}
+                    className="inline-flex items-center gap-1 h-7 px-2 text-[11px] rounded-md hover:bg-accent text-foreground"
+                    onClick={() => handleGoComment(c)}
+                    showCopy
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </InstagramLink>
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => {
                     if (isEditingThis) { onUpdateNotes(c.id, tempNotes); setEditingNotes(null); }
                     else { setEditingNotes(c.id); setTempNotes(c.notes || ""); }
@@ -209,6 +219,19 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
 
       {contacts.length >= 20 && (
         <p className="text-[10px] text-muted-foreground italic">💡 15-25 contacts, c'est l'idéal. Au-delà, tu risques de ne plus suivre.</p>
+      )}
+
+      {/* Comment Generator Dialog */}
+      {commentContact && (
+        <CommentGenerator
+          contact={commentContact}
+          open={!!commentContact}
+          onOpenChange={(open) => { if (!open) setCommentContact(null); }}
+          onCommentPosted={(contactId) => {
+            onInteract(contactId);
+            setCommentContact(null);
+          }}
+        />
       )}
     </div>
   );
