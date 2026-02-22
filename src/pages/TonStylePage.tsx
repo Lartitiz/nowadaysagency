@@ -10,6 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import SaveButton from "@/components/SaveButton";
+import UnsavedChangesDialog from "@/components/UnsavedChangesDialog";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 
 /* ─── Types ─── */
 interface ToneProfile {
@@ -89,16 +92,18 @@ export default function TonStylePage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<Omit<ToneProfile, "user_id">>(EMPTY);
+  const [savedProfile, setSavedProfile] = useState<Omit<ToneProfile, "user_id">>(EMPTY);
   const [existingId, setExistingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [aiCombats, setAiCombats] = useState<any>(null);
   const [aiLimits, setAiLimits] = useState<any>(null);
   const [helpOpen, setHelpOpen] = useState<Record<string, boolean>>({});
   const [activeField, setActiveField] = useState("voice_description");
-  const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hasChanges = JSON.stringify(profile) !== JSON.stringify(savedProfile);
+  const blocker = useUnsavedChanges(hasChanges);
 
   const { isListening, isSupported, toggle: toggleMic } = useSpeechRecognition((text) => {
     const cur = (profile as any)[activeField] || "";
@@ -110,40 +115,37 @@ export default function TonStylePage() {
     supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
       if (data) {
         setExistingId(data.id);
-        const { id, user_id, created_at, updated_at, mission, offer, target_description, target_problem, target_beliefs, ...rest } = data as any;
-        setProfile({ ...EMPTY, ...rest });
+        const { id, user_id, created_at, updated_at, mission, offer, target_description, target_problem, target_beliefs, recap_summary, ...rest } = data as any;
+        const loaded = { ...EMPTY, ...rest };
+        setProfile(loaded);
+        setSavedProfile(loaded);
       }
       setLoading(false);
     });
   }, [user]);
 
-  const debouncedSave = useCallback(
-    (data: Omit<ToneProfile, "user_id">) => {
-      if (saveTimeout.current) clearTimeout(saveTimeout.current);
-      saveTimeout.current = setTimeout(async () => {
-        if (!user) return;
-        setSaving(true);
-        try {
-          if (existingId) {
-            await supabase.from("brand_profile").update(data as any).eq("id", existingId);
-          } else {
-            const { data: inserted } = await supabase.from("brand_profile").insert({ ...data, user_id: user.id } as any).select("id").single();
-            if (inserted) setExistingId(inserted.id);
-          }
-          setLastSaved(new Date());
-        } catch {
-          toast({ title: "Erreur de sauvegarde", variant: "destructive" });
-        }
-        setSaving(false);
-      }, 2000);
-    },
-    [user, existingId, toast]
-  );
-
   const updateField = (field: string, value: string | string[]) => {
-    const updated = { ...profile, [field]: value };
-    setProfile(updated);
-    debouncedSave(updated);
+    setProfile((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = async () => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      if (existingId) {
+        const { error } = await supabase.from("brand_profile").update(profile as any).eq("id", existingId);
+        if (error) throw error;
+      } else {
+        const { data: inserted, error } = await supabase.from("brand_profile").insert({ ...profile, user_id: user.id } as any).select("id").single();
+        if (error) throw error;
+        if (inserted) setExistingId(inserted.id);
+      }
+      setSavedProfile({ ...profile });
+      toast({ title: "✅ Modifications enregistrées" });
+    } catch (e: any) {
+      toast({ title: "Erreur de sauvegarde", description: e.message, variant: "destructive" });
+    }
+    setSaving(false);
   };
 
   const handleAiVoice = async () => {
@@ -346,7 +348,8 @@ Réponds avec le texte seul, 3-4 phrases.`);
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
+      <UnsavedChangesDialog blocker={blocker} />
+      <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4 pb-28">
         <Link to="/branding" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ArrowLeft className="h-4 w-4" />
           Retour au Branding
@@ -361,9 +364,6 @@ Réponds avec le texte seul, 3-4 phrases.`);
         <div className="rounded-2xl border border-border bg-card p-5 mb-8">
           <div className="flex items-center justify-between mb-2">
             <span className="font-mono-ui text-[12px] font-semibold text-muted-foreground">{score} / {TOTAL_SECTIONS} sections complétées</span>
-            <span className="text-[12px] text-muted-foreground flex items-center gap-1">
-              {saving ? "Sauvegarde..." : lastSaved ? <><Check className="h-3 w-3 text-green-600" />Sauvegardé</> : null}
-            </span>
           </div>
           <Progress value={(score / TOTAL_SECTIONS) * 100} className="h-2.5" />
         </div>
@@ -599,7 +599,7 @@ Réponds avec le texte seul, 3-4 phrases.`);
                 key={val}
                 type="button"
                 onClick={() => {
-                  const next = selected ? profile.channels.filter((c) => c !== val) : [...profile.channels, val];
+                  const next = selected ? profile.channels.filter((c: string) => c !== val) : [...profile.channels, val];
                   updateField("channels", next);
                 }}
                 className={`font-mono-ui text-[12px] font-medium px-3 py-1.5 rounded-pill border transition-all ${
@@ -619,6 +619,13 @@ Réponds avec le texte seul, 3-4 phrases.`);
           </Link>
         </div>
       </main>
+
+      {/* Sticky save button */}
+      <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border p-4 z-40">
+        <div className="mx-auto max-w-[640px]">
+          <SaveButton hasChanges={hasChanges} saving={saving} onSave={handleSave} />
+        </div>
+      </div>
     </div>
   );
 }
