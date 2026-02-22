@@ -45,7 +45,7 @@ export default function ReelInspirationUpload({ onAnalysisComplete }: Props) {
 
   useEffect(() => {
     if (user) fetchSavedInspirations();
-  }, [user]);
+  }, [user?.id]);
 
   const fetchSavedInspirations = async () => {
     if (!user) return;

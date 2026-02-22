@@ -75,7 +75,7 @@ export default function PropositionPage() {
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !loading) return;
     Promise.all([
       supabase.from("brand_proposition").select("*").eq("user_id", user.id).maybeSingle(),
       supabase.from("profiles").select("activite, prenom, mission").eq("user_id", user.id).single(),
@@ -98,7 +98,7 @@ export default function PropositionPage() {
       }
       setLoading(false);
     });
-  }, [user]);
+  }, [user?.id]);
 
   const saveNow = useCallback(async (updated: PropositionData) => {
     if (!user) return;

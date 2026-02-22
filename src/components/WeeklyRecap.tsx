@@ -82,7 +82,7 @@ export default function WeeklyRecap({ currentWeek, planTasks }: WeeklyRecapProps
       calculateStreak();
     };
     fetchStats();
-  }, [user]);
+  }, [user?.id]);
 
   const calculateStreak = async () => {
     if (!user) return;

@@ -84,7 +84,7 @@ export default function InstagramProfile() {
       setLoading(false);
     };
     fetchData();
-  }, [user]);
+  }, [user?.id]);
 
   const getScore = (key: string): number | null => {
     if (!audit) return null;

@@ -45,7 +45,7 @@ export default function StrategieRecapPage() {
         if (d?.recap_summary) setSummary(d.recap_summary as unknown as RecapSummary);
         setLoading(false);
       });
-  }, [user]);
+  }, [user?.id]);
 
   const saveRecapField = async (path: string[], value: string) => {
     if (!data || !summary) return;

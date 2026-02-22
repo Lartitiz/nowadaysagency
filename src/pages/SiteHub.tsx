@@ -42,7 +42,7 @@ export default function SiteHub() {
       setLoading(false);
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const saveCms = async (value: string) => {
     if (!user) return;

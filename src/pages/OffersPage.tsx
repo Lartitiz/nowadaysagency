@@ -31,7 +31,7 @@ export default function OffersPage() {
         setOffers(data || []);
         setLoading(false);
       });
-  }, [user]);
+  }, [user?.id]);
 
   const createOffer = async (type: string) => {
     if (!user) return;

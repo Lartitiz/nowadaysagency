@@ -119,7 +119,7 @@ export default function LinkedInResume() {
       setLoadingInit(false);
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   // Analyze existing resume
   const analyzeResume = async () => {

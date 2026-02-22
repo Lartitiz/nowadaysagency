@@ -33,7 +33,7 @@ export default function PropositionRecapPage() {
       setData(d);
       setLoading(false);
     });
-  }, [user]);
+  }, [user?.id]);
 
   const summary: RecapSummary | null = data?.recap_summary as any;
 

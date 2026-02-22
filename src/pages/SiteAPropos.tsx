@@ -56,7 +56,7 @@ export default function SiteAPropos() {
         }
         setLoading(false);
       });
-  }, [user]);
+  }, [user?.id]);
 
   const generate = async (angle: string) => {
     if (!user) return;

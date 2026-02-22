@@ -210,7 +210,7 @@ export default function Dashboard() {
       }
     };
     fetchData();
-  }, [user]);
+  }, [user?.id]);
 
   const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
   const conseil = CONSEILS[dayOfYear % CONSEILS.length];

@@ -44,7 +44,7 @@ export default function LinkedInParcours() {
     supabase.from("linkedin_experiences").select("*").eq("user_id", user.id).order("sort_order").then(({ data }) => {
       if (data && data.length > 0) setExperiences(data.map(d => ({ id: d.id, job_title: d.job_title || "", company: d.company || "", description_raw: d.description_raw || "", description_optimized: d.description_optimized || "" })));
     });
-  }, [user]);
+  }, [user?.id]);
 
   const addExperience = () => {
     setExperiences(prev => [...prev, { job_title: "", company: "", description_raw: "", description_optimized: "" }]);

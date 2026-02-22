@@ -150,7 +150,7 @@ export default function InstagramLaunch() {
         }
         setLoaded(true);
       });
-  }, [user]);
+  }, [user?.id]);
 
   // Fetch profile for AI prompts
   useEffect(() => {
@@ -158,7 +158,7 @@ export default function InstagramLaunch() {
     supabase.from("profiles").select("*").eq("user_id", user.id).single().then(({ data }) => {
       if (data) setProfile(data);
     });
-  }, [user]);
+  }, [user?.id]);
 
   const update = (field: keyof LaunchData, value: any) => setLaunch((prev) => ({ ...prev, [field]: value }));
 

@@ -42,7 +42,7 @@ export default function PinterestHub() {
       });
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const getLabel = (i: number): string | null => {
     switch (i) {

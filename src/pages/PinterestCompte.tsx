@@ -56,7 +56,7 @@ export default function PinterestCompte() {
       if (propRes.data) setPropValue(propRes.data.version_short || propRes.data.version_final || null);
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const save = async () => {
     if (!user) return;

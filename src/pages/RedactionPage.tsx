@@ -69,7 +69,7 @@ export default function RedactionPage() {
       if (profRes.data) setProfile(profRes.data);
       if (bpRes.data) setBrandProfile(bpRes.data);
     });
-  }, [user]);
+  }, [user?.id]);
 
   const mergedProfile = profile
     ? {

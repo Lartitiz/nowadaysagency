@@ -42,7 +42,7 @@ export default function LivesPage() {
 
   useEffect(() => {
     loadData();
-  }, [user]);
+  }, [user?.id]);
 
   const loadData = async () => {
     setLoading(true);

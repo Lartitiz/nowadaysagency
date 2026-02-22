@@ -136,8 +136,8 @@ export default function InstagramStories() {
 
   // Pre-fetch branding context for SubjectPicker
   useEffect(() => {
-    fetchBrandingContext().then(setBrandingCtx);
-  }, [user]);
+    if (user && !brandingCtx) fetchBrandingContext().then(setBrandingCtx);
+  }, [user?.id]);
 
   // Result state
   const [loading, setLoading] = useState(false);

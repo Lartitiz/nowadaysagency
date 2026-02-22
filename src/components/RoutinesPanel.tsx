@@ -74,7 +74,7 @@ export default function RoutinesPanel() {
     ]);
     if (tasksRes.data) setTasks(tasksRes.data);
     if (compRes.data) setCompletions(compRes.data);
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchAll();

@@ -49,7 +49,7 @@ export default function PersonaRecapPage() {
       }
       setLoading(false);
     });
-  }, [user]);
+  }, [user?.id]);
 
   const canGenerate = data?.step_1_frustrations && data?.step_2_transformation;
 

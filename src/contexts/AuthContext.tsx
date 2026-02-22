@@ -104,8 +104,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.auth.getSession().then(({ data: { session: refreshedSession } }) => {
           if (!mounted) return;
           if (refreshedSession) {
+            // Only update session token, avoid creating new user reference
+            // to prevent cascading useEffect re-runs across all form pages
             setSession(refreshedSession);
-            setUser(refreshedSession.user);
+            setUser(prev => {
+              if (prev?.id === refreshedSession.user?.id) return prev;
+              return refreshedSession.user;
+            });
           }
           // Do NOT redirect if session is null here — let onAuthStateChange handle SIGNED_OUT
         });

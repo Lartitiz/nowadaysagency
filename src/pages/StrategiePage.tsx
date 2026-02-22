@@ -57,7 +57,7 @@ export default function StrategiePage() {
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !loading) return;
     Promise.all([
       supabase.from("brand_strategy").select("*").eq("user_id", user.id).maybeSingle(),
       supabase.from("profiles").select("activite, prenom, mission").eq("user_id", user.id).single(),
@@ -80,7 +80,7 @@ export default function StrategiePage() {
       setTone(toneRes.data || null);
       setLoading(false);
     });
-  }, [user]);
+  }, [user?.id]);
 
   const saveNow = useCallback(async (updated: StrategyData) => {
     if (!user) return;

@@ -295,7 +295,7 @@ export default function PlanPage() {
     } else {
       setHasConfig(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     loadConfig();

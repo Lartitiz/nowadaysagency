@@ -69,7 +69,7 @@ export default function StorytellingListPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchItems(); }, [user]);
+  useEffect(() => { fetchItems(); }, [user?.id]);
 
   const setPrimary = async (id: string) => {
     await supabase.from("storytelling").update({ is_primary: true } as any).eq("id", id);

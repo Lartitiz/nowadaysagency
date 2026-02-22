@@ -80,7 +80,7 @@ export default function LinkedInHub() {
       });
     };
     fetch();
-  }, [user]);
+  }, [user?.id]);
 
   const getProgressLabel = (index: number): string | null => {
     switch (index) {

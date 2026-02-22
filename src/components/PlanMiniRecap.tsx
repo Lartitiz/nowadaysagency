@@ -62,7 +62,7 @@ export default function PlanMiniRecap() {
       }
     };
     fetch();
-  }, [user]);
+  }, [user?.id]);
 
   const weekTitle = PLAN_WEEKS.find((w) => w.weekNumber === currentWeek)?.title || "";
 

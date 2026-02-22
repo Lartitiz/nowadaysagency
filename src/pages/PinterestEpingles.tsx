@@ -38,7 +38,7 @@ export default function PinterestEpingles() {
       if (pRes.data) setPins(pRes.data.map((d: any) => ({ id: d.id, subject: d.subject || "", board_id: d.board_id || "", link_url: d.link_url || "", title: d.title || "", description: d.description || "", variant_type: d.variant_type || "seo" })));
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const generatePin = async () => {
     if (!subject.trim()) return;
