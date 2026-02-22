@@ -1180,6 +1180,68 @@ export type Database = {
         }
         Relationships: []
       }
+      generated_carousels: {
+        Row: {
+          calendar_post_id: string | null
+          caption: string | null
+          carousel_type: string
+          created_at: string
+          hashtags: Json | null
+          hook_text: string | null
+          id: string
+          objective: string | null
+          quality_score: number | null
+          slide_count: number | null
+          slides: Json | null
+          status: string
+          subject: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calendar_post_id?: string | null
+          caption?: string | null
+          carousel_type: string
+          created_at?: string
+          hashtags?: Json | null
+          hook_text?: string | null
+          id?: string
+          objective?: string | null
+          quality_score?: number | null
+          slide_count?: number | null
+          slides?: Json | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calendar_post_id?: string | null
+          caption?: string | null
+          carousel_type?: string
+          created_at?: string
+          hashtags?: Json | null
+          hook_text?: string | null
+          id?: string
+          objective?: string | null
+          quality_score?: number | null
+          slide_count?: number | null
+          slides?: Json | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_carousels_calendar_post_id_fkey"
+            columns: ["calendar_post_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       generated_posts: {
         Row: {
           added_to_plan: boolean
