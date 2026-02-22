@@ -404,9 +404,7 @@ ${failPostsBlock}
 
 ${brandingContext}
 
-Analyse le profil Instagram et compare avec le branding. Pour chaque section, donne un score /100 et des recommandations CONCRÈTES.
-
-SECTIONS : nom, bio, stories (à la une), epingles (posts épinglés), feed (cohérence visuelle), edito (ligne éditoriale).
+Audite ce profil Instagram. Pour CHAQUE élément, retourne un verdict visuel.
 
 ANALYSE DE PERFORMANCE DES CONTENUS :
 - Identifie les POINTS COMMUNS des contenus qui marchent (format, sujet, ton, accroche, présence de visage, longueur...)
@@ -414,28 +412,115 @@ ANALYSE DE PERFORMANCE DES CONTENUS :
 - Compare avec les piliers de contenu et le ton définis dans le branding
 - Calcule les taux d'engagement si les stats sont fournies
 - Identifie minimum 2-3 patterns positifs et 1-2 patterns négatifs
-- Le "combo gagnant" est LA combinaison format × angle qui performe le mieux
+- Le "combo gagnant" est LA combinaison format x angle qui performe le mieux
 
-Score global = moyenne pondérée : Bio 25%, Stories 20%, Épinglés 15%, Nom 10%, Feed 15%, Édito 15%.
+Score global = moyenne pondérée (photo 10, nom 10, bio 25, feed 15, highlights 15, posts epingles 10, CTA 10, lien 5).
 
 Sois directe mais bienveillante. Compare TOUJOURS avec le branding.
 
-RETOURNE UNIQUEMENT du JSON valide. Pas de texte avant ni après. Pas de backticks markdown.
+RETOURNE UNIQUEMENT du JSON valide. Pas de texte avant ni apres. Pas de backticks markdown.
 
-RÈGLES STRICTES ABSOLUES :
-- CHAQUE section DOIT contenir "score", "summary" et "recommendations". JAMAIS de champs "diagnostic" ou "recommandations" (ancien format).
-- "summary" : { "positives": ["1 phrase courte"], "improvements": ["1 phrase courte"] }. MAX 2 items chacun.
-- "recommendations" : tableau de objets { "number": 1, "title": "max 8 mots court et clair", "explanation": "1-2 phrases max pas de pavé", "example": "1 exemple concret optionnel" }. MAX 5 items par section.
-- "proposed_version" : (optionnel, surtout pour bio et nom) texte proposé prêt à copier.
+REGLES STRICTES :
 - NE JAMAIS utiliser de markdown dans le JSON : pas de **gras**, pas de *italique*, pas de backticks. Texte brut UNIQUEMENT.
-- "title" : MAX 8 mots. Court et percutant.
-- "explanation" : MAX 2 phrases. Concis.
-- "example" : 1 seul exemple concret, pas une liste.
+- Pour la bio, analyse LIGNE PAR LIGNE avec un status par ligne.
+- Pour chaque element "improve" ou "critical", donne TOUJOURS un conseil concret et actionnable.
+- Pour la bio et le nom, donne TOUJOURS une proposition complete prete a copier.
+- Identifie la priorite n1 : l'element qui aura le plus d'impact si ameliore.
 
-Réponds en JSON :
+Reponds en JSON :
 {
-  "score_global": 62,
-  "resume": "...",
+  "score_global": 71,
+  "resume": "phrase resume de l'audit",
+  "visual_audit": {
+    "elements": [
+      {
+        "element": "photo_profil",
+        "label": "Photo de profil",
+        "status": "ok",
+        "current": "Description de ce que tu vois",
+        "verdict": "Ton visage est visible, souriant, fond coherent.",
+        "conseil": null,
+        "proposition": null
+      },
+      {
+        "element": "nom",
+        "label": "Nom d'affichage",
+        "status": "improve",
+        "current": "Le nom actuel",
+        "verdict": "Pas optimise pour la recherche Instagram.",
+        "conseil": "Ajouter un mot-cle metier dans le nom.",
+        "proposition": "Prenom | Activite mot-cle"
+      },
+      {
+        "element": "bio",
+        "label": "Bio",
+        "status": "improve",
+        "current": "La bio complete",
+        "verdict": "Positionnement OK mais promesse floue et pas de CTA.",
+        "lignes": [
+          {"texte": "Premiere ligne de la bio", "status": "ok", "commentaire": "Positionnement clair."},
+          {"texte": "Deuxieme ligne", "status": "improve", "commentaire": "Remplace par ta promesse concrete."},
+          {"texte": "(absent)", "status": "critical", "commentaire": "Il manque un CTA avec emoji pointant vers le lien."}
+        ],
+        "conseil": "Ajouter une ligne avec benefice client et CTA.",
+        "proposition": "Ligne 1\nLigne 2\nLigne 3\nLigne 4 CTA"
+      },
+      {
+        "element": "feed",
+        "label": "Coherence visuelle du feed",
+        "status": "ok",
+        "current": "Description du feed",
+        "verdict": "Identite visuelle forte et reconnaissable.",
+        "conseil": "Alterner avec plus de photos de toi (visages = +38% likes).",
+        "proposition": null
+      },
+      {
+        "element": "highlights",
+        "label": "Stories a la une",
+        "status": "critical",
+        "current": "Liste des highlights actuels",
+        "verdict": "Il manque des highlights strategiques.",
+        "conseil": "Ajouter : Qui je suis, Temoignages, Mes offres, Coulisses, Tips.",
+        "proposition": null
+      },
+      {
+        "element": "posts_epingles",
+        "label": "Posts epingles",
+        "status": "improve",
+        "current": "Description",
+        "verdict": "Tu rates ta vitrine.",
+        "conseil": "3 posts : expertise + resultat + storytelling perso.",
+        "proposition": null
+      },
+      {
+        "element": "cta",
+        "label": "Call to action",
+        "status": "improve",
+        "current": "Description du CTA actuel",
+        "verdict": "Le lien existe mais rien ne donne envie de cliquer.",
+        "conseil": "Ajouter une ligne avec emoji et benefice.",
+        "proposition": null
+      },
+      {
+        "element": "lien",
+        "label": "Lien en bio",
+        "status": "ok",
+        "current": "Le lien actuel",
+        "verdict": "Le lien est present et fonctionnel.",
+        "conseil": null,
+        "proposition": null
+      }
+    ],
+    "priorite_1": {
+      "element": "highlights",
+      "message": "Tes stories a la une sont le plus gros levier d'amelioration."
+    },
+    "resume": {
+      "ok_count": 3,
+      "improve_count": 4,
+      "critical_count": 1
+    }
+  },
   "sections": {
     "nom": {"score": 70, "summary": {"positives": ["..."], "improvements": ["..."]}, "recommendations": [{"number": 1, "title": "...", "explanation": "...", "example": "..."}], "proposed_version": "..."},
     "bio": {"score": 0, "summary": {"positives": ["..."], "improvements": ["..."]}, "recommendations": [{"number": 1, "title": "...", "explanation": "...", "example": "..."}], "proposed_version": "..."},
@@ -453,8 +538,8 @@ Réponds en JSON :
     ]
   },
   "content_dna": [
-    {"type": "Storytelling perso", "emoji": "📖", "rating": 5, "verdict": "ton_arme"},
-    {"type": "Carrousel", "emoji": "📑", "rating": 4, "verdict": "continue"}
+    {"type": "Storytelling perso", "emoji": "...", "rating": 5, "verdict": "ton_arme"},
+    {"type": "Carrousel", "emoji": "...", "rating": 4, "verdict": "continue"}
   ],
   "combo_gagnant": "Carrousel + Storytelling perso",
   "editorial_recommendations": {
@@ -467,7 +552,7 @@ Réponds en JSON :
     "general_advice": "..."
   }
 }`;
-        userPrompt = "Analyse mon profil Instagram et donne-moi un audit complet avec analyse de performance des contenus.";
+        userPrompt = "Analyse mon profil Instagram et donne-moi un audit complet avec audit visuel annote et analyse de performance des contenus.";
 
       } else if (type === "instagram-nom") {
         systemPrompt = `${CORE_PRINCIPLES}\n\n${brandingContext}\n\nPropose exactement 3 noms de profil Instagram optimisés pour cette utilisatrice. Chaque nom doit contenir un mot-clé lié à son activité pour la recherche (Instagram SEO).\n\nFormats :\n1. [Prénom] | [Activité mot-clé]\n2. [Prénom] | [Bénéfice principal]\n3. [Nom de marque] | [Activité]\n\nRéponds UNIQUEMENT en JSON : ["nom 1", "nom 2", "nom 3"]`;

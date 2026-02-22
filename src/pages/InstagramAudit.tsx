@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import ContentAnalysisResults from "@/components/audit/ContentAnalysisResults";
 import StoriesPerformanceSection, { type StoryPerformanceEntry } from "@/components/audit/StoriesPerformanceSection";
+import AuditVisualResult, { type AuditVisualData, type AuditEvolution } from "@/components/audit/AuditVisualResult";
 
 const RHYTHM_OPTIONS = ["Tous les jours", "3-4x/semaine", "1-2x/semaine", "Moins d'1x/semaine", "Irrégulier"];
 const OBJECTIVE_OPTIONS = ["Vendre", "Me faire connaître", "Créer une communauté", "Rediriger vers mon site", "Trouver des partenaires"];
@@ -278,6 +279,7 @@ export default function InstagramAudit() {
   const [auditId, setAuditId] = useState<string | null>(null);
   const [auditDate, setAuditDate] = useState<string | null>(null);
   const [loadingExisting, setLoadingExisting] = useState(true);
+  const [previousAudit, setPreviousAudit] = useState<any>(null);
 
   // Load existing audit on mount
   useEffect(() => {
@@ -287,13 +289,18 @@ export default function InstagramAudit() {
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data && (data.content_analysis || data.content_dna || data.editorial_recommendations)) {
-          setAuditResult(data);
-          setAuditId(data.id);
-          setAuditDate(data.created_at);
+      .limit(2)
+      .then(({ data: rows }) => {
+        if (rows && rows.length > 0) {
+          const latest = rows[0];
+          if (latest.content_analysis || latest.content_dna || latest.editorial_recommendations || latest.details) {
+            setAuditResult(latest.details || latest);
+            setAuditId(latest.id);
+            setAuditDate(latest.created_at);
+          }
+          if (rows.length > 1) {
+            setPreviousAudit(rows[1]);
+          }
         }
         setLoadingExisting(false);
       });
@@ -530,7 +537,73 @@ export default function InstagramAudit() {
   }
 
   // If we have results, show them
+  // Build visual audit data and evolution
+  const buildVisualData = (): AuditVisualData | null => {
+    if (!auditResult?.visual_audit) return null;
+    const va = auditResult.visual_audit;
+    // Add link_to for actionable elements
+    const elements = (va.elements || []).map((el: any) => ({
+      ...el,
+      link_to: el.element === "highlights" ? "/instagram/profil/stories" :
+               el.element === "posts_epingles" ? "/instagram/profil/epingles" :
+               el.element === "bio" ? "/instagram/profil/bio" :
+               el.element === "nom" ? "/instagram/profil/nom" :
+               el.element === "feed" ? "/instagram/profil/feed" : undefined,
+      link_label: el.element === "highlights" ? "📖 Voir le guide highlights" :
+                  el.element === "posts_epingles" ? "📌 Choisir mes posts épinglés" :
+                  el.element === "bio" ? "✏️ Modifier ma bio" :
+                  el.element === "nom" ? "✏️ Modifier mon nom" :
+                  el.element === "feed" ? "🎨 Mes recommandations" : undefined,
+    }));
+    return {
+      score_global: auditResult.score_global || va.resume?.ok_count ? Math.round(
+        ((va.resume?.ok_count || 0) * 100 + (va.resume?.improve_count || 0) * 50) / 
+        Math.max(1, (va.resume?.ok_count || 0) + (va.resume?.improve_count || 0) + (va.resume?.critical_count || 0))
+      ) : auditResult.score_global || 0,
+      elements,
+      priorite_1: va.priorite_1,
+      resume: va.resume || { ok_count: 0, improve_count: 0, critical_count: 0 },
+    };
+  };
+
+  const buildEvolution = (): AuditEvolution | null => {
+    if (!previousAudit || !auditResult) return null;
+    const prevDetails = previousAudit.details as any;
+    const prevVisual = prevDetails?.visual_audit;
+    if (!prevVisual?.elements) return null;
+    
+    const currentElements = auditResult.visual_audit?.elements || [];
+    const prevElements = prevVisual.elements || [];
+    
+    const statusLabel = (s: string) => s === "ok" ? "🟢" : s === "improve" ? "🟡" : "🔴";
+    const improved: AuditEvolution["improved"] = [];
+    const unchanged: AuditEvolution["unchanged"] = [];
+    
+    for (const cur of currentElements) {
+      const prev = prevElements.find((p: any) => p.element === cur.element);
+      if (!prev) continue;
+      if (prev.status !== cur.status) {
+        const statusOrder = { critical: 0, improve: 1, ok: 2 };
+        if ((statusOrder[cur.status as keyof typeof statusOrder] || 0) > (statusOrder[prev.status as keyof typeof statusOrder] || 0)) {
+          improved.push({ label: cur.label, from: statusLabel(prev.status), to: statusLabel(cur.status) });
+        }
+      } else {
+        unchanged.push({ label: cur.label, status: statusLabel(cur.status) });
+      }
+    }
+    
+    return {
+      previous_score: prevDetails?.score_global || previousAudit.score_global || 0,
+      previous_date: previousAudit.created_at,
+      improved,
+      unchanged,
+    };
+  };
+
   if (auditResult) {
+    const visualData = buildVisualData();
+    const evolution = buildEvolution();
+    
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
@@ -545,15 +618,26 @@ export default function InstagramAudit() {
             )}
           </div>
 
-          {/* Content analysis section */}
-          {(auditResult.content_analysis || auditResult.content_dna) && (
-            <ContentAnalysisResults
-              contentAnalysis={auditResult.content_analysis}
-              contentDna={auditResult.content_dna}
-              comboGagnant={auditResult.combo_gagnant}
-              editorialRecommendations={auditResult.editorial_recommendations}
-              onSaveToEditorial={handleSaveToEditorial}
+          {/* Visual annotated audit */}
+          {visualData && (
+            <AuditVisualResult
+              data={visualData}
+              evolution={evolution}
+              onRegenerate={() => { setAuditResult(null); setAuditId(null); setAuditDate(null); }}
             />
+          )}
+
+          {/* Content analysis section (unchanged) */}
+          {(auditResult.content_analysis || auditResult.content_dna) && (
+            <div className="mt-8">
+              <ContentAnalysisResults
+                contentAnalysis={auditResult.content_analysis}
+                contentDna={auditResult.content_dna}
+                comboGagnant={auditResult.combo_gagnant}
+                editorialRecommendations={auditResult.editorial_recommendations}
+                onSaveToEditorial={handleSaveToEditorial}
+              />
+            </div>
           )}
 
           <div className="flex flex-wrap gap-3 mt-8">
