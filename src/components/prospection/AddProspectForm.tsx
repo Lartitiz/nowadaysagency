@@ -52,7 +52,7 @@ export default function AddProspectForm({ onAdd, onCancel }: AddProspectFormProp
         className="text-sm"
       />
       <Input
-        placeholder="Activité (ex: Créatrice bijoux éthiques)"
+        placeholder="Activité (ex: Coach bien-être, Graphiste freelance…)"
         value={activity}
         onChange={e => setActivity(e.target.value)}
         className="text-sm"

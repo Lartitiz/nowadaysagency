@@ -21,8 +21,9 @@ const TONS = ["Chaleureux", "Expert·e", "Drôle", "Engagé·e", "Poétique", "D
 
 const ACTIVITY_TYPES = [
   { id: "creatrice", label: "Créatrice / Artisane" },
-  { id: "prestataire", label: "Prestataire de services" },
-  { id: "accompagnante", label: "Accompagnante / Coach" },
+  { id: "freelance", label: "Freelance" },
+  { id: "prestataire", label: "Prestataire / Consultante" },
+  { id: "accompagnante", label: "Coach / Formatrice" },
   { id: "autre", label: "Autre" },
 ];
 
@@ -185,7 +186,7 @@ export default function Profile() {
           <div>
             <label className="text-sm font-medium mb-1.5 block">Ta cliente idéale</label>
             <Textarea value={current.cible} onChange={(e) => update("cible", e.target.value)} className="rounded-[10px] min-h-[80px]" placeholder="Qui est-elle ? Quel âge, quel style de vie ?" />
-            <HelpToggle fieldKey="cible" openHelp={openHelp} setOpenHelp={setOpenHelp} text="Ex : Femmes 30-45 ans, urbaines, sensibles à l'artisanat et au fait-main, qui cherchent des pièces uniques pour leur intérieur." />
+            <HelpToggle fieldKey="cible" openHelp={openHelp} setOpenHelp={setOpenHelp} text="Ex : Femmes 30-45 ans, entrepreneures, qui cherchent à structurer leur communication pour gagner en visibilité." />
           </div>
 
           {/* Problème */}

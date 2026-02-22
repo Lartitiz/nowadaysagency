@@ -198,7 +198,7 @@ const PAIN_POINTS = [
 ];
 
 const TARGET_LIST = [
-  "Tu es créatrice, artisane, coach ou solopreneuse",
+  "Tu es solopreneuse, freelance, créatrice, coach ou prestataire de services",
   "Tu veux te rendre visible sans trahir tes valeurs",
   "Tu en as marre du marketing agressif et tu cherches une approche qui te ressemble",
   "Tu as besoin de structure sans te sentir enfermée",
@@ -213,8 +213,8 @@ const ROADMAP = {
 };
 
 const FAQ_DATA = [
-  { q: "C'est quoi la différence avec Canva / Later / ChatGPT ?", a: "Ces outils font une chose. Nous on couvre toute ta com' avec une méthode pensée pour les créatrices éthiques. Pas des templates génériques." },
-  { q: "Est-ce que ça marche pour mon secteur ?", a: "Si tu es dans la mode éthique, l'artisanat, le bien-être, le design, la food, la culture ou le coaching : oui. L'outil s'adapte à ton activité." },
+  { q: "C'est quoi la différence avec Canva / Later / ChatGPT ?", a: "Ces outils font une chose. Nous on couvre toute ta com' avec une méthode pensée pour les solopreneuses engagées. Pas des templates génériques." },
+  { q: "Est-ce que ça marche pour mon secteur ?", a: "Si tu es dans la mode, l'artisanat, le bien-être, le design, la food, la culture, le coaching, la communication, le graphisme ou n'importe quel métier de service : oui. L'outil s'adapte à ton activité, quel que soit ton secteur." },
   { q: "Je suis débutante, c'est pour moi ?", a: "Surtout pour toi. L'outil est pensé pour celles qui ne savent pas par où commencer." },
   { q: "C'est quoi le Now Studio ?", a: "Un accompagnement de 6 mois avec Laetitia. L'outil + des coachings individuels + une communauté premium. Pour celles qui veulent aller plus loin." },
   { q: "Je peux annuler quand je veux ?", a: "Le plan Outil est sans engagement. Tu annules en 1 clic." },
@@ -414,7 +414,7 @@ export default function LandingPage() {
           <Reveal>
             <div className="text-center mb-14">
               <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">Pas un outil générique. Une vraie méthode dedans.</h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">L'outil est construit sur la méthode Nowadays : 10 ans d'expérience en communication éthique, +50 créatrices accompagnées, des cours dans les plus grandes écoles.</p>
+              <p className="text-muted-foreground max-w-2xl mx-auto">L'outil est construit sur la méthode Nowadays : 10 ans d'expérience en communication éthique, +150 projets accompagnés, des cours dans les plus grandes écoles.</p>
             </div>
           </Reveal>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -448,8 +448,8 @@ export default function LandingPage() {
               <div>
                 <h2 className="font-display text-2xl sm:text-[28px] font-bold mb-6">Moi c'est Laetitia.</h2>
                 <div className="space-y-4 text-muted-foreground leading-relaxed text-[15px]">
-                  <p>Depuis 10 ans, j'accompagne les créatrices éthiques à se rendre visibles sans trahir leurs valeurs.</p>
-                  <p>J'ai enseigné la communication à l'<strong className="text-foreground">École des Arts Décoratifs (ENSAD-PSL)</strong>, <strong className="text-foreground">Sup de Pub</strong>, <strong className="text-foreground">ISCPA</strong>, et j'ai accompagné +50 solopreneuses dans la mode éthique, l'artisanat, le bien-être et le design.</p>
+                  <p>Depuis 10 ans, j'accompagne les solopreneuses engagées à se rendre visibles sans trahir leurs valeurs.</p>
+                  <p>J'ai enseigné la communication à l'<strong className="text-foreground">École des Arts Décoratifs (ENSAD-PSL)</strong>, <strong className="text-foreground">Sup de Pub</strong>, <strong className="text-foreground">Bureau du Design, de la Mode et des Métiers d'Art</strong>, et j'ai accompagné +150 solopreneuses : créatrices, artisanes, coachs, freelances en communication, consultantes…</p>
                   <p>J'ai créé cet outil parce que je voyais toujours le même problème : <strong className="text-foreground">des projets magnifiques, invisibles.</strong> Et des femmes qui croyaient que c'était de leur faute.</p>
                   <p className="font-display font-bold text-foreground text-lg">Spoiler : c'est pas toi le problème.</p>
                 </div>
@@ -475,9 +475,9 @@ export default function LandingPage() {
           </Reveal>
           <BrandMarquee />
           <Reveal delay={0.2}>
-            <p className="text-sm text-muted-foreground mt-8 mb-6">+ des dizaines de créatrices, artisanes, coachs et solopreneuses accompagnées depuis 2017.</p>
+            <p className="text-sm text-muted-foreground mt-8 mb-6">+ des dizaines de créatrices, coachs, freelances et solopreneuses accompagnées depuis 2017.</p>
             <p className="text-xs text-muted-foreground">
-              <strong className="text-foreground">Enseignante :</strong> ENSAD-PSL · Sup de Pub · ISCPA · CESACOM
+              <strong className="text-foreground">Enseignante :</strong> ENSAD-PSL · Sup de Pub · Bureau du Design, de la Mode et des Métiers d'Art · CESACOM
               <br />
               <strong className="text-foreground">Citée dans :</strong> L'ADN · Capital · e-marketing.fr · Le Bonbon
             </p>
@@ -660,7 +660,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-8">
             <div className="sm:col-span-2">
               <span className="font-display text-xl font-bold">Nowadays</span>
-              <p className="text-sm text-background/60 mt-2 max-w-xs">L'outil de communication pour les solopreneures éthiques qui veulent se rendre visibles sans trahir leurs valeurs.</p>
+              <p className="text-sm text-background/60 mt-2 max-w-xs">L'outil de communication pour les solopreneuses et freelances qui veulent se rendre visibles sans trahir leurs valeurs.</p>
             </div>
             <div>
               <h4 className="font-semibold text-sm mb-3">Navigation</h4>

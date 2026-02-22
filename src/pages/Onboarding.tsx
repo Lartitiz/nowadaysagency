@@ -10,8 +10,9 @@ import Confetti from "@/components/Confetti";
 
 const ACTIVITY_TYPES = [
   { id: "creatrice", label: "Créatrice / Artisane", desc: "Tu fabriques des produits" },
-  { id: "prestataire", label: "Prestataire de services", desc: "Tu vends ton expertise" },
-  { id: "accompagnante", label: "Accompagnante / Coach", desc: "Tu guides des personnes" },
+  { id: "freelance", label: "Freelance", desc: "Graphisme, com', photo, rédaction…" },
+  { id: "prestataire", label: "Prestataire / Consultante", desc: "Tu vends ton expertise" },
+  { id: "accompagnante", label: "Coach / Formatrice", desc: "Tu guides des personnes" },
   { id: "autre", label: "Autre", desc: "Aucune case ne te va" },
 ];
 
