@@ -112,21 +112,13 @@ export default function InstagramHub() {
 
         {/* ─── ZONE 3 : ENGAGER ─── */}
         <ZoneSection emoji="💬" title="Engager">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <HubCard
-              to="/instagram/engagement"
-              emoji="💬"
-              title="Stratégie commentaires"
-              desc="Tes comptes à commenter + bonnes pratiques pour créer du lien."
-              badge={progress.engagementWeekly}
-            />
-            <HubCard
-              to="/instagram/engagement"
-              emoji="✅"
-              title="Checklist hebdo"
-              desc="Exercice guidé pour créer du lien chaque semaine."
-            />
-          </div>
+          <HubCard
+            to="/instagram/routine"
+            emoji="💬"
+            title="Routine d'engagement"
+            desc="Tes actions hebdo pour créer du lien avec ta communauté."
+            badge={progress.engagementWeekly}
+          />
         </ZoneSection>
 
         {/* ─── ZONE 4 : PLANIFIER ─── */}
