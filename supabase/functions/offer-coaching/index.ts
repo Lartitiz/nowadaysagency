@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
+import { callAnthropicSimple } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -171,35 +172,11 @@ IMPORTANT : chaque question doit être SPÉCIFIQUE à la réponse de l'utilisatr
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    // Anthropic API key checked in shared helper
 
     const userPrompt = stepPrompts[step] || `L'utilisatrice a répondu "${answer}" à l'étape ${step}. Analyse sa réponse et donne un feedback personnalisé. Retourne un JSON avec "reaction" (string).`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`AI API error: ${response.status} ${errorText}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "{}";
+    const content = await callAnthropicSimple("claude-opus-4-6", systemPrompt, userPrompt, 0.7, 2000) || "{}";
     
     let parsed;
     try {

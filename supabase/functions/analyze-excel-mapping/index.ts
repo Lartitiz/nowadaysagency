@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAnthropicSimple } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,8 +31,7 @@ serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    // Anthropic API key checked in shared helper
 
     const { sheets } = await req.json();
     // sheets: [{ name: string, headers: string[], sampleRows: any[][] }]
@@ -96,29 +96,12 @@ Règles :
 - Choisis la feuille qui contient le plus de données de suivi (pas une feuille "OLD" ou vide)
 - confidence: "high" si headers clairs, "medium" si ambigus, "low" si très incertain`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: "Tu es un expert en analyse de fichiers Excel. Tu retournes UNIQUEMENT du JSON valide, sans markdown, sans commentaires." },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.1,
-      }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`AI API error: ${response.status} - ${errText}`);
-    }
-
-    const aiData = await response.json();
-    let content = aiData.choices?.[0]?.message?.content || "";
+    let content = await callAnthropicSimple(
+      "claude-sonnet-4-5-20250929",
+      "Tu es un expert en analyse de fichiers Excel. Tu retournes UNIQUEMENT du JSON valide, sans markdown, sans commentaires.",
+      prompt,
+      0.1
+    );
 
     // Clean markdown wrapping if any
     content = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();

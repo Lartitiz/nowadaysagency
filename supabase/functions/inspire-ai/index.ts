@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, FORMAT_STRUCTURES, WRITING_RESOURCES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
+import { callAnthropic } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -145,14 +146,6 @@ Réponds UNIQUEMENT en JSON valide :
   "pillar": "..."
 }`;
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: "Clé API manquante" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     let messages: any[];
     if (isScreenshot) {
       const contentParts: any[] = [{ type: "text", text: systemPrompt }];
@@ -163,45 +156,29 @@ Réponds UNIQUEMENT en JSON valide :
         if (mediaType === "application/pdf") {
           const base64Data = imgUrl.includes(",") ? imgUrl.split(",")[1] : imgUrl;
           contentParts.push({
-            type: "file",
-            file: {
-              filename: "document.pdf",
-              file_data: `data:application/pdf;base64,${base64Data}`,
-            },
+            type: "document",
+            source: { type: "base64", media_type: "application/pdf", data: base64Data },
           });
         } else {
+          // For Anthropic, images need base64 format
+          const base64Data = imgUrl.includes(",") ? imgUrl.split(",")[1] : imgUrl;
+          const imgMediaType = mediaType || "image/png";
           contentParts.push({
-            type: "image_url",
-            image_url: { url: imgUrl },
+            type: "image",
+            source: { type: "base64", media_type: imgMediaType, data: base64Data },
           });
         }
       }
-      messages = [{ role: "user", content: contentParts }];
+      messages = [{ role: "user" as const, content: contentParts }];
     } else {
-      messages = [{ role: "user", content: systemPrompt }];
+      messages = [{ role: "user" as const, content: systemPrompt }];
     }
 
-    const model = "google/gemini-2.5-flash";
-
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ model, messages, temperature: 0.8 }),
+    let raw = await callAnthropic({
+      model: "claude-opus-4-6",
+      messages,
+      temperature: 0.8,
     });
-
-    if (!aiRes.ok) {
-      if (aiRes.status === 429) return new Response(JSON.stringify({ error: "Trop de requêtes, réessaie dans un moment." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (aiRes.status === 402) return new Response(JSON.stringify({ error: "Crédits IA épuisés." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      const err = await aiRes.text();
-      console.error("AI API error:", err);
-      return new Response(JSON.stringify({ error: "Erreur IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const aiData = await aiRes.json();
-    let raw = aiData.choices?.[0]?.message?.content || "";
     raw = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
 
     let result;
