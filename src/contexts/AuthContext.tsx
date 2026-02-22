@@ -21,30 +21,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // We only want to redirect on explicit SIGNED_IN from login, not on session restore.
-    // getSession handles initial load; onAuthStateChange handles subsequent events.
+    let mounted = true;
     let initialSessionHandled = false;
 
+    // 1. Listen to auth state changes FIRST (per Supabase docs)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+      async (event, currentSession) => {
+        if (!mounted) return;
 
-        // Skip the first SIGNED_IN that fires right after getSession (session restore)
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+
+        // Only set loading false on INITIAL_SESSION or if initial load already done
+        if (event === 'INITIAL_SESSION' || initialSessionHandled) {
+          setLoading(false);
+        }
+
+        // Skip redirect logic until initial session is resolved
         if (!initialSessionHandled) return;
 
-        if (event === "SIGNED_IN" && session?.user) {
-          // Only redirect if on login/landing page (fresh sign-in), not on tab switch
+        if (event === "SIGNED_IN" && currentSession?.user) {
           const path = window.location.pathname;
           if (path === "/" || path === "/login" || path === "/connexion") {
             setTimeout(async () => {
+              if (!mounted) return;
               const { data: profile } = await supabase
                 .from("profiles")
                 .select("onboarding_completed")
-                .eq("user_id", session.user.id)
+                .eq("user_id", currentSession.user.id)
                 .maybeSingle();
 
+              if (!mounted) return;
               if (!profile || !profile.onboarding_completed) {
                 navigate("/onboarding");
               } else {
@@ -54,28 +61,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        // Only redirect on explicit sign out, NOT on token refresh failures
         if (event === "SIGNED_OUT") {
           navigate("/login");
         }
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    // 2. Get initial session
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      if (!mounted) return;
+
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
       setLoading(false);
 
-      // After initial session is handled, allow future auth events to trigger redirects
-      if (session?.user) {
-        // Check onboarding only if user is on the landing/login page
+      if (initialSession?.user) {
         const path = window.location.pathname;
         if (path === "/" || path === "/login" || path === "/connexion") {
           supabase
             .from("profiles")
             .select("onboarding_completed")
-            .eq("user_id", session.user.id)
+            .eq("user_id", initialSession.user.id)
             .maybeSingle()
             .then(({ data: profile }) => {
+              if (!mounted) return;
               if (!profile || !profile.onboarding_completed) {
                 navigate("/onboarding");
               } else {
@@ -83,14 +93,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               }
             });
         }
-        // Otherwise, stay on current page (deep link / tab switch preservation)
       }
 
-      // Mark initial load as done so future onAuthStateChange events can redirect
       initialSessionHandled = true;
     });
 
-    return () => subscription.unsubscribe();
+    // 3. Silently refresh session when tab becomes visible again
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        supabase.auth.getSession().then(({ data: { session: refreshedSession } }) => {
+          if (!mounted) return;
+          if (refreshedSession) {
+            setSession(refreshedSession);
+            setUser(refreshedSession.user);
+          }
+          // Do NOT redirect if session is null here — let onAuthStateChange handle SIGNED_OUT
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [navigate]);
 
   const signUp = async (email: string, password: string) => {
