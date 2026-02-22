@@ -6,6 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Lightbulb, PenLine, CalendarDays, Trash2, Copy, ChevronDown, X, ExternalLink } from "lucide-react";
+import { ContentPreview } from "@/components/ContentPreview";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -25,6 +26,9 @@ interface SavedIdea {
   type: string | null;
   status: string | null;
   content_draft: string | null;
+  content_data: any | null;
+  source_module: string | null;
+  personal_elements: any | null;
   accroche_short: string | null;
   accroche_long: string | null;
   format_technique: string | null;
@@ -291,12 +295,17 @@ export default function IdeasPage() {
                   <p className="text-[13px] text-muted-foreground">Format : {idea.format}</p>
 
                   {/* Preview */}
-                  {idea.content_draft && (
-                    <p className="text-[13px] text-foreground/70 mt-2 line-clamp-2">{idea.content_draft}</p>
-                  )}
-                  {idea.accroche_short && !idea.content_draft && (
+                  {idea.content_data ? (
+                    <div className="mt-2">
+                      <ContentPreview contentData={idea.content_data} contentType={idea.format === "reel" ? "reel" : idea.format === "story_serie" ? "stories" : undefined} compact />
+                    </div>
+                  ) : idea.content_draft ? (
+                    <div className="mt-2">
+                      <ContentPreview contentData={null} contentDraft={idea.content_draft} contentType={idea.format === "reel" ? "reel" : idea.format === "story_serie" ? "stories" : undefined} compact />
+                    </div>
+                  ) : idea.accroche_short ? (
                     <p className="text-[13px] text-foreground/70 mt-2 line-clamp-1 italic">🎣 {idea.accroche_short}</p>
-                  )}
+                  ) : null}
 
                   {/* Date + planned */}
                   <div className="flex items-center gap-3 mt-2">
@@ -381,12 +390,16 @@ export default function IdeasPage() {
                   </div>
                 )}
 
-                {/* Draft */}
-                {selectedIdea.content_draft && (
+                {/* Draft / Content */}
+                {(selectedIdea.content_data || selectedIdea.content_draft) && (
                   <div className="mt-4">
-                    <p className="text-xs font-mono-ui font-semibold text-muted-foreground mb-1">BROUILLON</p>
-                    <div className="rounded-xl bg-rose-pale p-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap max-h-[300px] overflow-y-auto">
-                      {selectedIdea.content_draft}
+                    <p className="text-xs font-mono-ui font-semibold text-muted-foreground mb-1">CONTENU</p>
+                    <div className="rounded-xl bg-rose-pale p-3 max-h-[400px] overflow-y-auto">
+                      <ContentPreview
+                        contentData={selectedIdea.content_data}
+                        contentDraft={selectedIdea.content_draft}
+                        contentType={selectedIdea.format === "reel" ? "reel" : selectedIdea.format === "story_serie" ? "stories" : undefined}
+                      />
                     </div>
                   </div>
                 )}
@@ -419,9 +432,12 @@ export default function IdeasPage() {
                     <PenLine className="h-4 w-4" /> Continuer la rédaction
                   </Button>
                   <PlanifierPopover idea={selectedIdea} onPlan={handlePlan} fullWidth />
-                  {selectedIdea.content_draft && (
+                  {(selectedIdea.content_draft || selectedIdea.content_data) && !selectedIdea.content_data?.script && (
                     <Button variant="outline" className="rounded-pill gap-2 w-full" onClick={async () => {
-                      await navigator.clipboard.writeText(selectedIdea.content_draft || "");
+                      const text = selectedIdea.content_draft && !selectedIdea.content_draft.startsWith("{")
+                        ? selectedIdea.content_draft
+                        : "Contenu copié depuis le composant de prévisualisation.";
+                      await navigator.clipboard.writeText(text);
                       toast({ title: "Copié !" });
                     }}>
                       <Copy className="h-4 w-4" /> Copier le contenu
