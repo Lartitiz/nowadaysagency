@@ -18,6 +18,11 @@ interface AuditData {
   resume: string;
 }
 
+interface ValidationStatus {
+  section: string;
+  status: string;
+}
+
 const SECTIONS = [
   { key: "nom", emoji: "📝", label: "Mon nom", icon: PenLine, route: "/instagram/profil/nom" },
   { key: "bio", emoji: "✍️", label: "Ma bio", icon: PenLine, route: "/instagram/profil/bio" },
@@ -39,21 +44,29 @@ export default function InstagramProfile() {
   const { user } = useAuth();
   const [audit, setAudit] = useState<AuditData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [validations, setValidations] = useState<ValidationStatus[]>([]);
 
   useEffect(() => {
     if (!user) return;
-    const fetch = async () => {
-      const { data } = await supabase
-        .from("instagram_audit")
-        .select("score_global, score_nom, score_bio, score_stories, score_epingles, score_feed, score_edito, resume")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (data) setAudit(data as AuditData);
+    const fetchData = async () => {
+      const [{ data: auditData }, { data: valData }] = await Promise.all([
+        supabase
+          .from("instagram_audit")
+          .select("score_global, score_nom, score_bio, score_stories, score_epingles, score_feed, score_edito, resume")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("audit_validations" as any)
+          .select("section, status")
+          .eq("user_id", user.id),
+      ]);
+      if (auditData) setAudit(auditData as AuditData);
+      if (valData) setValidations(valData as unknown as ValidationStatus[]);
       setLoading(false);
     };
-    fetch();
+    fetchData();
   }, [user]);
 
   const getScore = (key: string): number | null => {
@@ -68,6 +81,13 @@ export default function InstagramProfile() {
       default: return null;
     }
   };
+
+  const getValidationStatus = (key: string): string | null => {
+    const v = validations.find(v => v.section === key);
+    return v?.status || null;
+  };
+
+  const validatedCount = validations.filter(v => v.status === "validated").length;
 
   if (loading) {
     return (
@@ -122,12 +142,18 @@ export default function InstagramProfile() {
                 {scoreBadge(audit.score_global).label}
               </span>
             </div>
+            {validatedCount > 0 && (
+              <p className="text-center text-xs text-muted-foreground mb-3">
+                {validatedCount}/{SECTIONS.length} sections validées
+              </p>
+            )}
             <div className="flex flex-wrap justify-center gap-3 mb-4">
               {SECTIONS.map(s => {
                 const sc = getScore(s.key);
+                const vs = getValidationStatus(s.key);
                 return (
                   <span key={s.key} className="text-xs text-muted-foreground">
-                    {s.emoji} {s.label.replace("Mon ", "").replace("Ma ", "")}: <strong>{sc ?? "?"}</strong>
+                    {vs === "validated" ? "✅" : s.emoji} {s.label.replace("Mon ", "").replace("Ma ", "")}: <strong>{sc ?? "?"}</strong>
                   </span>
                 );
               })}
@@ -150,6 +176,7 @@ export default function InstagramProfile() {
           {SECTIONS.map(s => {
             const sc = getScore(s.key);
             const badge = scoreBadge(sc);
+            const vs = getValidationStatus(s.key);
             return (
               <Link
                 key={s.key}
@@ -158,18 +185,25 @@ export default function InstagramProfile() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <span className="text-2xl">{s.emoji}</span>
-                  {sc !== null && (
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-pill ${badge.color}`}>
-                      {sc}/100
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {vs === "validated" && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-green-100 text-green-700">
+                        ✅
+                      </span>
+                    )}
+                    {sc !== null && (
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-pill ${badge.color}`}>
+                        {sc}/100
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
                   {s.label}
                 </h3>
                 {sc !== null && (
                   <p className={`text-xs mt-1 font-medium ${sc >= 80 ? "text-green-600" : sc >= 50 ? "text-orange-600" : sc > 0 ? "text-red-600" : "text-muted-foreground"}`}>
-                    {badge.label === "Bien" ? "✅" : badge.label === "À améliorer" ? "⚠️" : badge.label === "Prioritaire" ? "🔴" : "⬜"} {badge.label}
+                    {vs === "validated" ? "✅ Validé" : badge.label === "Bien" ? "✅" : badge.label === "À améliorer" ? "⚠️" : badge.label === "Prioritaire" ? "🔴" : "⬜"} {vs === "validated" ? "" : badge.label}
                   </p>
                 )}
               </Link>
