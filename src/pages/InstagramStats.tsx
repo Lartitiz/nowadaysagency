@@ -440,22 +440,50 @@ export default function InstagramStats() {
 
   // Excel import — robust French date parsing
   const parseMonthDate = (value: any, rowIndex: number, prevDate: Date | null): Date | null => {
-    // Date object (SheetJS parsed Excel serial date)
+    if (!value && value !== 0) return null;
+
+    // Case 1: Date object (SheetJS with cellDates: true)
     if (value instanceof Date && !isNaN(value.getTime())) {
       return new Date(value.getFullYear(), value.getMonth(), 1);
     }
-    // Excel serial number
+
+    // Case 2: Excel serial number (number like 45347)
     if (typeof value === "number") {
+      if (value > 40000 && value < 60000) {
+        const d = new Date((value - 25569) * 86400 * 1000);
+        if (!isNaN(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), 1);
+      }
       try {
         const parsed = XLSX.SSF.parse_date_code(value) as any;
         if (parsed) return new Date(parsed.y, parsed.m - 1, 1);
       } catch { /* fall through */ }
       return null;
     }
+
     if (typeof value !== "string") return null;
-
     const text = value.trim().toLowerCase().replace(/['']/g, "'");
+    if (!text) return null;
 
+    // Case 3: ISO string "2024-02-24" or "2024-02-24T00:00:00.000Z"
+    if (text.match(/^\d{4}-\d{2}-\d{2}/)) {
+      const d = new Date(text);
+      if (!isNaN(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), 1);
+    }
+
+    // Case 4: French date "24/02/2024"
+    const frMatch = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (frMatch) {
+      const d = new Date(parseInt(frMatch[3]), parseInt(frMatch[2]) - 1, 1);
+      if (!isNaN(d.getTime())) return d;
+    }
+
+    // Case 5: Try standard Date parse for other patterns
+    if (/\d{4}/.test(value.trim())) {
+      const iso = new Date(value.trim());
+      if (!isNaN(iso.getTime())) return new Date(iso.getFullYear(), iso.getMonth(), 1);
+    }
+
+    // Case 6: French month name ("Août 24", "Sept", "Novembre", etc.)
     const monthMap: Record<string, number> = {
       janvier: 0, jan: 0, janv: 0,
       "février": 1, fevrier: 1, fev: 1, "fév": 1,
@@ -471,25 +499,13 @@ export default function InstagramStats() {
       "décembre": 11, decembre: 11, dec: 11, "déc": 11,
     };
 
-    // Try ISO / standard date first
-    const iso = new Date(value.trim());
-    if (!isNaN(iso.getTime()) && /\d{4}/.test(value)) {
-      return new Date(iso.getFullYear(), iso.getMonth(), 1);
-    }
-
-    // Find French month name
     let foundMonth: number | null = null;
-    // Sort keys longest first to avoid partial matches ("mar" before "mars")
     const sortedKeys = Object.keys(monthMap).sort((a, b) => b.length - a.length);
     for (const name of sortedKeys) {
-      if (text.startsWith(name)) {
-        foundMonth = monthMap[name];
-        break;
-      }
+      if (text.startsWith(name)) { foundMonth = monthMap[name]; break; }
     }
     if (foundMonth === null) return null;
 
-    // Extract year from text
     const yearMatch = text.match(/(\d{2,4})/);
     let foundYear: number | null = null;
     if (yearMatch) {
@@ -498,9 +514,7 @@ export default function InstagramStats() {
       foundYear = y;
     }
 
-    // Deduce year from previous row's date if missing
     if (foundYear === null && prevDate) {
-      // If month <= previous month, we likely rolled over to next year
       if (foundMonth <= prevDate.getMonth()) {
         foundYear = prevDate.getFullYear() + 1;
       } else {
@@ -508,9 +522,8 @@ export default function InstagramStats() {
       }
     }
 
-    // Fallback heuristic based on row position
     if (foundYear === null) {
-      foundYear = rowIndex <= 12 ? 2024 : 2025;
+      foundYear = rowIndex <= 12 ? 2024 : rowIndex <= 24 ? 2025 : 2026;
     }
 
     return new Date(foundYear, foundMonth, 1);
@@ -521,39 +534,58 @@ export default function InstagramStats() {
     if (!file || !user) return;
     try {
       const ab = await file.arrayBuffer();
-      const wb = XLSX.read(ab, { type: "array", cellDates: true });
+      const wb = XLSX.read(ab, {
+        type: "array",
+        cellDates: true,
+        dateNF: "dd/mm/yyyy",
+      });
       // Prefer sheet named "Bon suivi KPI"
       const sheetName = wb.SheetNames.find(n => n.toLowerCase().includes("bon suivi")) || wb.SheetNames[0];
       const ws = wb.Sheets[sheetName];
-      const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+      const rows: any[][] = XLSX.utils.sheet_to_json(ws, {
+        header: 1,
+        defval: null,
+        raw: false,
+        dateNF: "yyyy-mm-dd",
+      });
+
+      console.log(`[Excel Import] Sheet: "${sheetName}", ${rows.length} rows (incl. header)`);
+      if (rows.length > 0) console.log("[Excel Import] Header:", rows[0]);
+      if (rows.length > 1) console.log("[Excel Import] Row 2 sample:", rows[1]);
 
       const importedRows: { monthDate: string; payload: any }[] = [];
       const skippedRows: { row: number; value: any; reason: string }[] = [];
       let prevDate: Date | null = null;
 
       const safeNum = (val: any): number | null => {
-        if (val == null || val === "" || val === "-" || val === "/" || val === "__" || val === "—") return null;
+        if (val == null || val === "" || val === "-" || val === "/" || val === "__" || val === "—" || val === "--") return null;
         if (typeof val === "number") return isNaN(val) ? null : val;
         if (typeof val === "string") {
-          const cleaned = val.replace(/[^\d.\-]/g, "");
-          const n = parseFloat(cleaned);
-          return isNaN(n) ? null : n;
+          // Handle cases like "86500 (pub)\n31000 (sans pub)" — take first number
+          const match = val.match(/[\d\s.,]+/);
+          if (match) {
+            const cleaned = match[0].replace(/[\s.]/g, "").replace(",", ".");
+            const n = parseFloat(cleaned);
+            return isNaN(n) ? null : n;
+          }
+          return null;
         }
         return null;
       };
-      const txt = (val: any) => (val != null && val !== "" && val !== "__") ? String(val) : null;
+      const txt = (val: any) => (val != null && val !== "" && val !== "__" && val !== "--") ? String(val) : null;
 
       for (let i = 1; i < rows.length; i++) {
         const r = rows[i];
         if (!r || r.every((c: any) => c == null || c === "")) continue;
-        if (!r[0] && !r[1]) continue; // skip fully empty rows
+        // Don't skip rows where col A is empty but other cols have data — just skip if truly empty
+        if (!r[0] && !r[1] && !r[2]) continue;
 
         const md = parseMonthDate(r[0], i, prevDate);
         if (!md) {
           if (r[0] != null && String(r[0]).trim() !== "") {
             skippedRows.push({ row: i + 1, value: r[0], reason: "Date non reconnue" });
           }
-          continue;
+          continue; // ← CONTINUE, never break
         }
         prevDate = md;
 
@@ -577,6 +609,31 @@ export default function InstagramStats() {
         importedRows.push({ monthDate: monthKey(md), payload });
       }
 
+      // Fix year sequence gaps (e.g. dec 2024 → jan 2026 should be jan 2025)
+      importedRows.sort((a, b) => a.monthDate.localeCompare(b.monthDate));
+      const corrections: string[] = [];
+      for (let i = 1; i < importedRows.length; i++) {
+        const prevD = new Date(importedRows[i - 1].monthDate);
+        const currD = new Date(importedRows[i].monthDate);
+        const monthDiff = (currD.getFullYear() - prevD.getFullYear()) * 12 + (currD.getMonth() - prevD.getMonth());
+        if (monthDiff > 6) {
+          const expectedMonth = (prevD.getMonth() + 1) % 12;
+          const expectedYear = prevD.getMonth() + 1 > 11 ? prevD.getFullYear() + 1 : prevD.getFullYear();
+          const correctedDate = new Date(expectedYear, expectedMonth, 1);
+          const oldKey = importedRows[i].monthDate;
+          const newKey = monthKey(correctedDate);
+          importedRows[i].monthDate = newKey;
+          importedRows[i].payload.month_date = newKey;
+          corrections.push(`${monthLabel(oldKey)} → ${monthLabel(newKey)}`);
+          // Re-sort after correction and re-check from this index
+        }
+      }
+      if (corrections.length > 0) {
+        console.log("[Excel Import] Year corrections:", corrections);
+        // Re-sort after all corrections
+        importedRows.sort((a, b) => a.monthDate.localeCompare(b.monthDate));
+      }
+
       // Batch upsert
       let imported = 0;
       for (const row of importedRows) {
@@ -586,14 +643,15 @@ export default function InstagramStats() {
 
       const firstMonth = importedRows.length > 0 ? monthLabel(importedRows[0].monthDate) : "";
       const lastMonth = importedRows.length > 0 ? monthLabel(importedRows[importedRows.length - 1].monthDate) : "";
-      const skippedMsg = skippedRows.length > 0
-        ? `\n${skippedRows.length} ligne(s) ignorée(s) : ${skippedRows.map(s => `L${s.row} "${s.value}"`).join(", ")}`
-        : "";
+      let description = imported > 0 ? `De ${firstMonth} à ${lastMonth}` : "Aucune donnée trouvée dans le fichier.";
+      if (corrections.length > 0) {
+        description += `\n⚠️ ${corrections.length} correction(s) d'année automatique(s).`;
+      }
+      if (skippedRows.length > 0) {
+        description += `\n${skippedRows.length} ligne(s) ignorée(s) : ${skippedRows.map(s => `L${s.row} "${s.value}"`).join(", ")}`;
+      }
 
-      toast({
-        title: `✅ ${imported} mois importés`,
-        description: imported > 0 ? `De ${firstMonth} à ${lastMonth}${skippedMsg}` : "Aucune donnée trouvée dans le fichier.",
-      });
+      toast({ title: `✅ ${imported} mois importés`, description });
       loadStats();
     } catch (err) {
       console.error("Import error:", err);
