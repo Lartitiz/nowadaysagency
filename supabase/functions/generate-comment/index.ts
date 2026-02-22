@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     if (!user) throw new Error("Non authentifié");
 
     const body = await req.json();
-    const { target_username, post_caption, user_intent, angle, branding_context } = body;
+    const { target_username, post_caption, user_intent, angle, branding_context, screenshot_base64, screenshot_media_type } = body;
 
     if (!post_caption?.trim()) throw new Error("La légende du post est requise.");
 
@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
       ? `ANGLE DEMANDÉ : ${angle} — Génère uniquement ce type de commentaire, mais propose quand même 4 variantes avec des tons différents.`
       : `Génère les 4 types : value (apport de valeur), question (question pertinente), remarkable (court et remarquable), expertise (expertise subtile).`;
 
-    const prompt = `${CORE_PRINCIPLES}
+    const textPrompt = `${CORE_PRINCIPLES}
 
 ${ANTI_SLOP}
 
@@ -46,6 +46,7 @@ ${branding_context || "Pas de contexte de marque disponible."}
 LE POST :
 - Compte : @${target_username}
 - Légende : "${post_caption}"
+${screenshot_base64 ? "- Un screenshot du post est joint ci-dessus. Analyse le visuel (couleurs, mise en page, contenu visible) pour rendre tes commentaires encore plus spécifiques." : ""}
 
 ${user_intent ? `CE QUE L'UTILISATRICE VOUDRAIT DIRE : "${user_intent}"` : ""}
 
@@ -81,6 +82,22 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
   ]
 }`;
 
+    // Build message content: multimodal if screenshot provided
+    let messageContent: any;
+    if (screenshot_base64) {
+      messageContent = [
+        {
+          type: "image_url",
+          image_url: {
+            url: `data:${screenshot_media_type || "image/png"};base64,${screenshot_base64}`,
+          },
+        },
+        { type: "text", text: textPrompt },
+      ];
+    } else {
+      messageContent = textPrompt;
+    }
+
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -92,7 +109,7 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: messageContent }],
         temperature: 0.8,
       }),
     });
