@@ -27,15 +27,23 @@ const STUDIO_FEATURES: Feature[] = [
   "coaching", "studio_space", "laetitia_validation", "studio_lives", "direct_channel", "binome",
 ];
 
+export type AiCategory = "content" | "audit" | "dm_comment" | "bio_profile" | "suggestion" | "import" | "adaptation";
+
+export interface CategoryUsage {
+  used: number;
+  limit: number;
+}
+
 interface UserPlanState {
   plan: Plan;
   loading: boolean;
-  usage: { generations: number; audits: number };
+  usage: Record<string, CategoryUsage>;
   canUseFeature: (feature: Feature) => boolean;
-  canGenerate: () => boolean;
+  canGenerate: (category?: AiCategory) => boolean;
   canAudit: () => boolean;
-  remainingGenerations: () => number;
+  remainingGenerations: (category?: AiCategory) => number;
   remainingAudits: () => number;
+  remainingTotal: () => number;
   isPaid: boolean;
   isStudio: boolean;
   refresh: () => Promise<void>;
@@ -44,7 +52,7 @@ interface UserPlanState {
 export function useUserPlan(): UserPlanState {
   const { user } = useAuth();
   const [plan, setPlan] = useState<Plan>("free");
-  const [usage, setUsage] = useState({ generations: 0, audits: 0 });
+  const [usage, setUsage] = useState<Record<string, CategoryUsage>>({});
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -57,10 +65,9 @@ export function useUserPlan(): UserPlanState {
       const { data, error } = await supabase.functions.invoke("check-subscription");
       if (!error && data) {
         setPlan((data.plan as Plan) || "free");
-        setUsage({
-          generations: data.ai_usage?.generation_count || 0,
-          audits: data.ai_usage?.audit_count || 0,
-        });
+        if (data.ai_usage && typeof data.ai_usage === "object") {
+          setUsage(data.ai_usage);
+        }
       }
     } catch {
       // fallback to free
@@ -83,25 +90,33 @@ export function useUserPlan(): UserPlanState {
     [plan]
   );
 
-  const canGenerate = useCallback(() => {
-    if (plan !== "free") return true;
-    return usage.generations < 3;
-  }, [plan, usage.generations]);
+  const canGenerate = useCallback((category: AiCategory = "content") => {
+    const cat = usage[category];
+    const total = usage.total;
+    if (!cat || !total) return true; // No data yet, allow
+    if (cat.limit === 0) return false; // Not available on this plan
+    return cat.used < cat.limit && total.used < total.limit;
+  }, [usage]);
 
   const canAudit = useCallback(() => {
-    if (plan !== "free") return true;
-    return usage.audits < 1;
-  }, [plan, usage.audits]);
+    return canGenerate("audit");
+  }, [canGenerate]);
 
-  const remainingGenerations = useCallback(() => {
-    if (plan !== "free") return Infinity;
-    return Math.max(0, 3 - usage.generations);
-  }, [plan, usage.generations]);
+  const remainingGenerations = useCallback((category: AiCategory = "content") => {
+    const cat = usage[category];
+    if (!cat) return Infinity;
+    return Math.max(0, cat.limit - cat.used);
+  }, [usage]);
 
   const remainingAudits = useCallback(() => {
-    if (plan !== "free") return Infinity;
-    return Math.max(0, 1 - usage.audits);
-  }, [plan, usage.audits]);
+    return remainingGenerations("audit");
+  }, [remainingGenerations]);
+
+  const remainingTotal = useCallback(() => {
+    const total = usage.total;
+    if (!total) return Infinity;
+    return Math.max(0, total.limit - total.used);
+  }, [usage]);
 
   return {
     plan,
@@ -112,6 +127,7 @@ export function useUserPlan(): UserPlanState {
     canAudit,
     remainingGenerations,
     remainingAudits,
+    remainingTotal,
     isPaid: plan !== "free",
     isStudio: plan === "studio",
     refresh: load,

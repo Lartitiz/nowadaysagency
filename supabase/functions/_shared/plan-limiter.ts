@@ -1,75 +1,197 @@
 /**
- * Server-side plan checking and AI usage tracking.
- * Used by all AI edge functions to enforce freemium limits.
+ * Server-side AI quota management.
+ * Checks per-category and total monthly limits, logs usage after success.
  */
 
-interface UsageCheckResult {
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+export const PLAN_LIMITS: Record<string, Record<string, number>> = {
+  free: {
+    total: 10,
+    content: 5,
+    audit: 1,
+    dm_comment: 3,
+    bio_profile: 1,
+    suggestion: 0,
+    import: 0,
+    adaptation: 0,
+  },
+  outil: {
+    total: 100,
+    content: 50,
+    audit: 5,
+    dm_comment: 25,
+    bio_profile: 5,
+    suggestion: 10,
+    import: 3,
+    adaptation: 10,
+  },
+  studio: {
+    total: 300,
+    content: 150,
+    audit: 15,
+    dm_comment: 60,
+    bio_profile: 15,
+    suggestion: 30,
+    import: 10,
+    adaptation: 30,
+  },
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  content: "contenus",
+  audit: "audits",
+  dm_comment: "DM et commentaires",
+  bio_profile: "bios et profils",
+  suggestion: "suggestions",
+  import: "imports",
+  adaptation: "adaptations",
+};
+
+export interface QuotaResult {
   allowed: boolean;
-  remaining?: number;
   plan: string;
-  error?: string;
+  remaining?: number;
+  remaining_total?: number;
+  reason?: "category" | "total" | "not_available";
+  message?: string;
+  usage?: Record<string, { used: number; limit: number }>;
 }
 
-export async function getUserPlan(supabase: any, userId: string): Promise<string> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("current_plan")
-    .eq("user_id", userId)
-    .single();
-  return data?.current_plan || "free";
-}
-
-export async function checkAndIncrementUsage(
-  supabase: any,
-  userId: string,
-  type: "generation" | "audit" = "generation"
-): Promise<UsageCheckResult> {
-  const plan = await getUserPlan(supabase, userId);
-
-  // Paid plans have unlimited usage
-  if (plan !== "free") {
-    return { allowed: true, plan };
-  }
-
-  const month = new Date().toISOString().slice(0, 7); // "2026-02"
-  const field = type === "generation" ? "generation_count" : "audit_count";
-  const limit = type === "generation" ? 3 : 1;
-
-  // Use service role to read/write ai_usage
-  const serviceSupabase = (await import("jsr:@supabase/supabase-js@2")).createClient(
+function getServiceClient() {
+  return createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
+}
 
-  const { data } = await serviceSupabase
-    .from("ai_usage")
-    .select("*")
+async function getUserPlan(userId: string): Promise<string> {
+  const sb = getServiceClient();
+  const { data } = await sb
+    .from("subscriptions")
+    .select("plan")
     .eq("user_id", userId)
-    .eq("month", month)
     .single();
+  return data?.plan || "free";
+}
 
-  const current = data?.[field] || 0;
+function getMonthStart(): string {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+}
 
-  if (current >= limit) {
+export async function checkQuota(
+  userId: string,
+  category: string
+): Promise<QuotaResult> {
+  const plan = await getUserPlan(userId);
+  const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+
+  // Check if category is available for this plan
+  if ((limits[category] ?? 0) === 0) {
+    const planLabel = plan === "free" ? "Outil" : "Now Studio";
     return {
       allowed: false,
-      remaining: 0,
       plan,
-      error: type === "generation"
-        ? "Tu as atteint ta limite de 3 générations IA gratuites ce mois-ci. Passe au plan Outil pour des générations illimitées !"
-        : "Tu as déjà utilisé ton audit gratuit ce mois-ci. Passe au plan Outil pour des audits illimités !",
+      reason: "not_available",
+      message: `Cette fonctionnalité est disponible à partir du plan ${planLabel}.`,
     };
   }
 
-  // Upsert usage
-  await serviceSupabase.from("ai_usage").upsert(
-    {
-      user_id: userId,
-      month,
-      [field]: current + 1,
-    },
-    { onConflict: "user_id,month" }
-  );
+  const sb = getServiceClient();
+  const monthStart = getMonthStart();
 
-  return { allowed: true, remaining: limit - current - 1, plan };
+  // Get all usage this month in one query
+  const { data: usageRows } = await sb
+    .from("ai_usage")
+    .select("category")
+    .eq("user_id", userId)
+    .gte("created_at", monthStart);
+
+  const rows = usageRows || [];
+  const totalUsed = rows.length;
+  const categoryUsed = rows.filter((r: any) => r.category === category).length;
+
+  // Build usage map
+  const usageMap: Record<string, { used: number; limit: number }> = {};
+  for (const cat of Object.keys(limits)) {
+    if (cat === "total") continue;
+    const used = rows.filter((r: any) => r.category === cat).length;
+    usageMap[cat] = { used, limit: limits[cat] };
+  }
+  usageMap.total = { used: totalUsed, limit: limits.total };
+
+  // Check total limit
+  if (totalUsed >= limits.total) {
+    const nextMonth = new Date();
+    nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
+    const monthLabel = nextMonth.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+    return {
+      allowed: false,
+      plan,
+      reason: "total",
+      remaining: 0,
+      remaining_total: 0,
+      usage: usageMap,
+      message: `Tu as utilisé tes ${limits.total} générations IA ce mois. Tes crédits se renouvellent le ${monthLabel}.`,
+    };
+  }
+
+  // Check category limit
+  if (categoryUsed >= limits[category]) {
+    const label = CATEGORY_LABELS[category] || category;
+    const nextMonth = new Date();
+    nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
+    const monthLabel = nextMonth.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+    return {
+      allowed: false,
+      plan,
+      reason: "category",
+      remaining: 0,
+      remaining_total: limits.total - totalUsed,
+      usage: usageMap,
+      message: `Tu as utilisé tes ${limits[category]} ${label} ce mois. Tes crédits se renouvellent le ${monthLabel}.`,
+    };
+  }
+
+  return {
+    allowed: true,
+    plan,
+    remaining: limits[category] - categoryUsed - 1,
+    remaining_total: limits.total - totalUsed - 1,
+    usage: usageMap,
+  };
+}
+
+export async function logUsage(
+  userId: string,
+  category: string,
+  actionType: string,
+  tokensUsed?: number,
+  modelUsed?: string
+): Promise<void> {
+  const sb = getServiceClient();
+  await sb.from("ai_usage").insert({
+    user_id: userId,
+    category,
+    action_type: actionType,
+    tokens_used: tokensUsed || null,
+    model_used: modelUsed || null,
+  });
+}
+
+/** @deprecated Use checkQuota + logUsage instead */
+export async function checkAndIncrementUsage(
+  _supabase: any,
+  userId: string,
+  type: "generation" | "audit" = "generation"
+): Promise<{ allowed: boolean; remaining?: number; plan: string; error?: string }> {
+  const category = type === "audit" ? "audit" : "content";
+  const result = await checkQuota(userId, category);
+  if (!result.allowed) {
+    return { allowed: false, plan: result.plan, error: result.message };
+  }
+  // Log immediately for backward compat
+  await logUsage(userId, category, type === "audit" ? "audit_instagram" : "content_generic");
+  return { allowed: true, remaining: result.remaining, plan: result.plan };
 }

@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LINKEDIN_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
@@ -35,11 +35,11 @@ serve(async (req) => {
     // Anthropic API key checked in shared helper
 
     // Check plan limits (audit type)
-    const usageCheck = await checkAndIncrementUsage(supabase, user.id, "audit");
-    if (!usageCheck.allowed) {
+    const quotaCheck = await checkQuota(user.id, "audit");
+    if (!quotaCheck.allowed) {
       return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0, category: quotaCheck.reason }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -148,6 +148,8 @@ Réponds UNIQUEMENT en JSON sans backticks :
       messages: [{ role: "user", content: userContent }],
       temperature: 0.7,
     });
+
+    await logUsage(user.id, "audit", "audit_linkedin");
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

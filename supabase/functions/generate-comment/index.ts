@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, ANTI_SLOP, ETHICAL_GUARDRAILS } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, AnthropicError } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
@@ -27,11 +27,11 @@ Deno.serve(async (req) => {
     if (!user) throw new Error("Non authentifié");
 
     // Check plan limits
-    const usageCheck = await checkAndIncrementUsage(supabaseClient, user.id, "generation");
-    if (!usageCheck.allowed) {
+    const quotaCheck = await checkQuota(user.id, "dm_comment");
+    if (!quotaCheck.allowed) {
       return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0, category: quotaCheck.reason }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -123,6 +123,8 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
     if (!jsonMatch) throw new Error("Failed to parse AI response");
 
     const result = JSON.parse(jsonMatch[0]);
+
+    await logUsage(user.id, "dm_comment", "comment");
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

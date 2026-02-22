@@ -7,6 +7,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { Link } from "react-router-dom";
 import { STRIPE_PLANS } from "@/lib/stripe-config";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -235,6 +236,11 @@ export default function SettingsPage() {
           )}
         </Section>
 
+        {/* ─── AI Quota ─── */}
+        <Section icon={<Sparkles className="h-4 w-4" />} title={`Mes crédits IA · ${new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}`}>
+          <AiQuotaDisplay />
+        </Section>
+
         {/* ─── Purchases ─── */}
         <Section icon={<ShoppingBag className="h-4 w-4" />} title="Mes achats">
           <PurchaseHistory />
@@ -348,6 +354,58 @@ function PrefRow({ icon, label, description, checked, onCheckedChange }: { icon:
         </div>
       </div>
       <Switch checked={checked} onCheckedChange={onCheckedChange} />
+    </div>
+  );
+}
+
+const QUOTA_CATEGORIES = [
+  { key: "content", emoji: "📝", label: "Contenus" },
+  { key: "audit", emoji: "🔍", label: "Audits" },
+  { key: "dm_comment", emoji: "📩", label: "DM / Commentaires" },
+  { key: "bio_profile", emoji: "👤", label: "Bio / Profil" },
+  { key: "suggestion", emoji: "💡", label: "Suggestions" },
+  { key: "import", emoji: "📄", label: "Imports" },
+  { key: "adaptation", emoji: "🔄", label: "Adaptations" },
+];
+
+function AiQuotaDisplay() {
+  const { plan, usage, isPaid } = useUserPlan();
+  const planLabel = plan === "studio" ? "Now Studio (250€/mois)" : plan === "outil" ? "Outil (39€/mois)" : "Gratuit";
+  const total = usage.total;
+  const nextMonth = new Date();
+  nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm font-medium">Plan : <span className="text-primary font-semibold">{planLabel}</span></p>
+      <div className="space-y-3">
+        {QUOTA_CATEGORIES.map(({ key, emoji, label }) => {
+          const cat = usage[key];
+          if (!cat || cat.limit === 0) return null;
+          const pct = Math.round((cat.used / cat.limit) * 100);
+          return (
+            <div key={key} className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span>{emoji} {label}</span>
+                <span className="text-muted-foreground">{cat.used}/{cat.limit} <span className="text-xs">({pct}%)</span></span>
+              </div>
+              <Progress value={pct} className="h-2" />
+            </div>
+          );
+        })}
+      </div>
+      {total && (
+        <div className="pt-2 border-t border-border flex justify-between text-sm font-medium">
+          <span>Total</span>
+          <span>{total.used}/{total.limit}</span>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">Renouvellement : {nextMonth.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
+      {!isPaid && (
+        <Link to="/pricing" className="inline-flex items-center gap-1 text-sm text-primary font-medium hover:underline">
+          ⬆️ Voir les plans pour plus de crédits <ArrowRight className="h-3 w-3" />
+        </Link>
+      )}
     </div>
   );
 }

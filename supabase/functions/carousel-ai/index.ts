@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
@@ -33,19 +33,20 @@ serve(async (req) => {
       });
     }
 
-    const usageCheck = await checkAndIncrementUsage(supabase, user.id, "generation");
-    if (!usageCheck.allowed) {
+    const body = await req.json();
+    const { type } = body;
+
+    const category = type === "suggest_topics" ? "suggestion" : "content";
+    const quotaCheck = await checkQuota(user.id, category);
+    if (!quotaCheck.allowed) {
       return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0, category: quotaCheck.reason }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const ctx = await getUserContext(supabase, user.id);
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.posts);
-
-    const body = await req.json();
-    const { type } = body;
 
     let systemPrompt = buildSystemPrompt(brandingContext);
     let userPrompt = "";
@@ -68,6 +69,8 @@ serve(async (req) => {
       messages: [{ role: "user", content: userPrompt }],
       max_tokens: 8192,
     });
+
+    await logUsage(user.id, category, `carousel_${type}`);
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
