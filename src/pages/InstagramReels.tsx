@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 
 // ── Types ──
 interface Hook {
@@ -135,6 +136,7 @@ export default function InstagramReels() {
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [showDurationGuide, setShowDurationGuide] = useState(false);
+  const [showCalendarDialog, setShowCalendarDialog] = useState(false);
 
   // Random tip
   const [tipIndex] = useState(() => Math.floor(Math.random() * REELS_TIPS.length));
@@ -278,20 +280,42 @@ export default function InstagramReels() {
     toast.success("Caption copiée !");
   };
 
-  const handleAddToCalendar = async () => {
+  const handleAddToCalendar = async (dateStr: string) => {
     if (!user || !scriptResult) return;
-    const today = new Date().toISOString().split("T")[0];
     const { error } = await supabase.from("calendar_posts").insert({
       user_id: user.id,
-      date: today,
-      theme: `🎬 Reel : ${subject || scriptResult.format_label}`,
+      date: dateStr,
+      theme: subject || `Reel : ${scriptResult.format_label}`,
       canal: "instagram",
       format: "reel",
       objectif: objective,
       content_draft: scriptResult.script.map(s => `[${s.timing}] ${s.texte_parle}`).join("\n\n"),
       accroche: selectedHook?.text || "",
-      status: "idea",
+      status: "ready",
+      story_sequence_detail: {
+        type: "reel",
+        format_type: scriptResult.format_type,
+        format_label: scriptResult.format_label,
+        duree_cible: scriptResult.duree_cible,
+        script: scriptResult.script,
+        caption: scriptResult.caption,
+        hashtags: scriptResult.hashtags,
+        cover_text: scriptResult.cover_text,
+        alt_text: scriptResult.alt_text,
+        amplification_stories: scriptResult.amplification_stories,
+        hook: selectedHook ? {
+          text: selectedHook.text,
+          type: selectedHook.type,
+          type_label: selectedHook.type_label,
+          text_overlay: selectedHook.text_overlay,
+        } : null,
+        personal_elements: preGenAnswers ? {
+          vecu: preGenAnswers.anecdote || null,
+          punchline: preGenAnswers.conviction || null,
+        } : null,
+      } as any,
     });
+    setShowCalendarDialog(false);
     if (error) toast.error("Erreur lors de l'ajout");
     else toast.success("Reel ajouté au calendrier !");
   };
@@ -448,8 +472,16 @@ export default function InstagramReels() {
             <Button variant="outline" size="sm" onClick={handleCopyScript}><Copy className="h-4 w-4" /> Copier le script</Button>
             <Button variant="outline" size="sm" onClick={handleCopyCaption}><Copy className="h-4 w-4" /> Copier la caption</Button>
             <Button variant="outline" size="sm" onClick={() => { setScriptResult(null); setStep(6); }}><RefreshCw className="h-4 w-4" /> Rechoisir le hook</Button>
-            <Button size="sm" onClick={handleAddToCalendar}><CalendarDays className="h-4 w-4" /> Ajouter au calendrier</Button>
+            <Button size="sm" onClick={() => setShowCalendarDialog(true)}><CalendarDays className="h-4 w-4" /> Ajouter au calendrier</Button>
           </div>
+
+          <AddToCalendarDialog
+            open={showCalendarDialog}
+            onOpenChange={setShowCalendarDialog}
+            onConfirm={handleAddToCalendar}
+            contentLabel={`🎬 Reel · ${scriptResult.duree_cible} · ${subject || scriptResult.format_label}`}
+            contentEmoji="🎬"
+          />
 
           {/* Feedback loop for script */}
           <div className="mt-6">
