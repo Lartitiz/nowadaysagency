@@ -676,7 +676,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-8">
             <div className="sm:col-span-2">
               <span className="font-display text-xl font-bold">Nowadays</span>
-              <p className="text-sm text-background/60 mt-2 max-w-xs">L'outil de communication pour les créatrices qui veulent se rendre visibles sans trahir leurs valeurs.</p>
+              <p className="text-sm text-background/60 mt-2 max-w-xs">L'outil de communication pour les solopreneures éthiques qui veulent se rendre visibles sans trahir leurs valeurs.</p>
             </div>
             <div>
               <h4 className="font-semibold text-sm mb-3">Navigation</h4>
