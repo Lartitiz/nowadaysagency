@@ -10,6 +10,7 @@ import ContentRecycling from "@/components/ContentRecycling";
 import ContentWorkshop from "@/components/ContentWorkshop";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useActiveChannels } from "@/hooks/use-active-channels";
 
 interface FormatOption {
   id: string;
@@ -18,16 +19,17 @@ interface FormatOption {
   desc: string;
   route: string;
   comingSoon?: boolean;
+  channel: string; // which channel this format belongs to
 }
 
-const FORMAT_OPTIONS: FormatOption[] = [
-  { id: "post", emoji: "📝", label: "Post", desc: "Carrousel, image ou texte", route: "/atelier?canal=instagram" },
-  { id: "carousel", emoji: "🎠", label: "Carrousel", desc: "Slides visuelles", route: "", comingSoon: true },
-  { id: "reel", emoji: "🎬", label: "Reel", desc: "Script complet avec hook", route: "/instagram/reels" },
-  { id: "story", emoji: "📱", label: "Story", desc: "Séquence avec stickers", route: "/instagram/stories" },
-  { id: "linkedin", emoji: "💼", label: "LinkedIn", desc: "Post LinkedIn", route: "/linkedin/post" },
-  { id: "pinterest", emoji: "📌", label: "Pinterest", desc: "Épingle optimisée", route: "", comingSoon: true },
-  { id: "newsletter", emoji: "📧", label: "Newsletter", desc: "Email engageant", route: "", comingSoon: true },
+const ALL_FORMAT_OPTIONS: FormatOption[] = [
+  { id: "post", emoji: "📝", label: "Post", desc: "Carrousel, image ou texte", route: "/atelier?canal=instagram", channel: "instagram" },
+  { id: "carousel", emoji: "🎠", label: "Carrousel", desc: "Slides visuelles", route: "", comingSoon: true, channel: "instagram" },
+  { id: "reel", emoji: "🎬", label: "Reel", desc: "Script complet avec hook", route: "/instagram/reels", channel: "instagram" },
+  { id: "story", emoji: "📱", label: "Story", desc: "Séquence avec stickers", route: "/instagram/stories", channel: "instagram" },
+  { id: "linkedin", emoji: "💼", label: "LinkedIn", desc: "Post LinkedIn", route: "/linkedin/post", channel: "linkedin" },
+  { id: "pinterest", emoji: "📌", label: "Pinterest", desc: "Épingle optimisée", route: "", comingSoon: true, channel: "pinterest" },
+  { id: "newsletter", emoji: "📧", label: "Newsletter", desc: "Email engageant", route: "", comingSoon: true, channel: "newsletter" },
 ];
 
 interface FormatSuggestion {
@@ -43,6 +45,8 @@ export default function InstagramCreer() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { channels: activeChannels } = useActiveChannels();
+  const FORMAT_OPTIONS = ALL_FORMAT_OPTIONS.filter(f => activeChannels.includes(f.channel as any));
   const [ideaText, setIdeaText] = useState("");
   const [suggesting, setSuggesting] = useState(false);
   const [suggestion, setSuggestion] = useState<FormatSuggestion | null>(null);

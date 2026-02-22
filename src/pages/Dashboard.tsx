@@ -13,6 +13,7 @@ import StudioWidget from "@/components/dashboard/StudioWidget";
 import ServicesWidget from "@/components/dashboard/ServicesWidget";
 import { getMonday } from "@/lib/mission-engine";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
+import { useActiveChannels } from "@/hooks/use-active-channels";
 
 export interface UserProfile {
   prenom: string;
@@ -264,12 +265,8 @@ export default function Dashboard() {
           </Link>
         )}
 
-        {/* Module grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {MODULES.map((mod) => (
-            <ModuleCardComponent key={mod.id} mod={mod} brandingCompletion={mod.id === "branding" ? brandingCompletion : undefined} />
-          ))}
-        </div>
+        {/* Module grid — filtered by active channels */}
+        <ChannelFilteredModules brandingCompletion={brandingCompletion} />
 
         {/* Routines */}
         <div className="mb-8">
@@ -292,6 +289,34 @@ export default function Dashboard() {
           <p className="text-sm text-foreground leading-relaxed italic">"{conseil}"</p>
         </div>
       </main>
+    </div>
+  );
+}
+
+/* ─── Channel-filtered modules ─── */
+function ChannelFilteredModules({ brandingCompletion }: { brandingCompletion: BrandingCompletion }) {
+  const { hasInstagram, hasLinkedin, hasPinterest, hasWebsite, loading } = useActiveChannels();
+
+  // Channel-to-module mapping
+  const CHANNEL_MODULES = new Set<string>();
+  // Always show these
+  CHANNEL_MODULES.add("branding");
+  if (hasInstagram) CHANNEL_MODULES.add("instagram");
+  if (hasLinkedin) CHANNEL_MODULES.add("linkedin");
+  if (hasPinterest) CHANNEL_MODULES.add("pinterest");
+  if (hasWebsite) { CHANNEL_MODULES.add("siteweb"); }
+  // Always show these universal modules
+  CHANNEL_MODULES.add("seo");
+  CHANNEL_MODULES.add("emailing");
+  CHANNEL_MODULES.add("presse");
+
+  const filtered = loading ? MODULES : MODULES.filter(m => CHANNEL_MODULES.has(m.id));
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+      {filtered.map((mod) => (
+        <ModuleCardComponent key={mod.id} mod={mod} brandingCompletion={mod.id === "branding" ? brandingCompletion : undefined} />
+      ))}
     </div>
   );
 }
@@ -320,7 +345,6 @@ function ModuleCardComponent({ mod, brandingCompletion }: { mod: ModuleCard; bra
           : "border-border"
       }`}
     >
-      {/* Top row: number + badge */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-2xl">{mod.emoji}</span>
         <span className={`font-mono-ui text-[11px] font-semibold px-2 py-0.5 rounded-md ${badgeClass(mod.badge.variant)}`}>
@@ -328,11 +352,9 @@ function ModuleCardComponent({ mod, brandingCompletion }: { mod: ModuleCard; bra
         </span>
       </div>
 
-      {/* Title */}
       <h3 className="font-display text-lg font-bold text-foreground mb-1">{mod.title}</h3>
       <p className="text-[13px] text-muted-foreground leading-relaxed mb-3">{mod.description}</p>
 
-      {/* Chips */}
       <div className="flex flex-wrap gap-1.5 mb-4">
         {mod.chips.map((chip) => (
           <span
@@ -346,7 +368,6 @@ function ModuleCardComponent({ mod, brandingCompletion }: { mod: ModuleCard; bra
         ))}
       </div>
 
-      {/* Branding progress */}
       {brandingCompletion && (
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1">
@@ -375,7 +396,6 @@ function ModuleCardComponent({ mod, brandingCompletion }: { mod: ModuleCard; bra
         </div>
       )}
 
-      {/* CTA */}
       <p className={`text-sm font-semibold ${mod.disabled ? "text-muted-foreground" : "text-primary"}`}>
         {mod.cta}
       </p>

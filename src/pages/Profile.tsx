@@ -6,9 +6,10 @@ import AppHeader from "@/components/AppHeader";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
-import { HelpCircle, ArrowRight } from "lucide-react";
+import { HelpCircle, ArrowRight, Info } from "lucide-react";
 import SaveButton from "@/components/SaveButton";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import { useActiveChannels, ALL_CHANNELS, type ChannelId } from "@/hooks/use-active-channels";
 
 const PILIERS = [
   "Coulisses / fabrication", "Éducation / pédagogie", "Valeurs / engagements",
@@ -220,6 +221,9 @@ export default function Profile() {
               ))}
             </div>
           </div>
+
+          {/* ─── Canaux ─── */}
+          <ChannelSelector />
         </div>
       </main>
 
@@ -229,6 +233,72 @@ export default function Profile() {
           <SaveButton hasChanges={hasChanges} saving={saving} onSave={handleSave} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function ChannelSelector() {
+  const { channels, setChannels, loading } = useActiveChannels();
+  const { toast } = useToast();
+  const [showComingSoon, setShowComingSoon] = useState<string | null>(null);
+
+  if (loading) return null;
+
+  const toggle = async (id: ChannelId) => {
+    const isActive = channels.includes(id);
+    if (isActive && channels.length <= 1) {
+      toast({ title: "Au moins 1 canal requis", variant: "destructive" });
+      return;
+    }
+    const next = isActive ? channels.filter(c => c !== id) : [...channels, id];
+    const ch = ALL_CHANNELS.find(c => c.id === id);
+    if (ch?.comingSoon && !isActive) {
+      setShowComingSoon(id);
+      setTimeout(() => setShowComingSoon(null), 3000);
+    }
+    await setChannels(next as ChannelId[]);
+    toast({ title: isActive ? `${ch?.label} retiré` : `${ch?.label} ajouté ✅` });
+  };
+
+  return (
+    <div className="pt-2">
+      <label className="text-sm font-medium mb-2 block">📱 Mes canaux de communication</label>
+      <p className="text-xs text-muted-foreground mb-3">
+        Sélectionne les canaux que tu utilises ou que tu veux développer. L'outil s'adapte.
+      </p>
+      <div className="space-y-2">
+        {ALL_CHANNELS.map((ch) => {
+          const active = channels.includes(ch.id);
+          return (
+            <button
+              key={ch.id}
+              onClick={() => toggle(ch.id)}
+              className={`w-full flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left text-sm font-medium transition-all ${
+                active
+                  ? "border-primary bg-secondary"
+                  : "border-border hover:border-primary/40"
+              }`}
+            >
+              <span className="text-lg">{ch.emoji}</span>
+              <span className="flex-1">{ch.label}</span>
+              {ch.comingSoon && (
+                <span className="text-[10px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">🔜</span>
+              )}
+              <span className={`text-xs font-semibold ${active ? "text-primary" : "text-muted-foreground"}`}>
+                {active ? "✅" : ""}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {showComingSoon && (
+        <p className="mt-2 text-xs text-muted-foreground flex items-center gap-1 animate-fade-in">
+          <Info className="h-3 w-3" /> Ce canal sera disponible prochainement. On te préviendra !
+        </p>
+      )}
+      <p className="mt-3 text-xs text-muted-foreground">
+        💡 Tu pourras modifier tes canaux à tout moment.
+      </p>
     </div>
   );
 }
