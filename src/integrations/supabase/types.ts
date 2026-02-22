@@ -2347,12 +2347,16 @@ export type Database = {
       profiles: {
         Row: {
           activite: string
+          bio_cta_text: string | null
+          bio_cta_type: string | null
           bio_generator_answers: Json | null
           canaux: string[]
           ce_quon_evite: string
           cible: string
           created_at: string
           croyances_limitantes: string
+          differentiation_text: string | null
+          differentiation_type: string | null
           expressions_cles: string
           id: string
           mission: string
@@ -2375,12 +2379,16 @@ export type Database = {
         }
         Insert: {
           activite?: string
+          bio_cta_text?: string | null
+          bio_cta_type?: string | null
           bio_generator_answers?: Json | null
           canaux?: string[]
           ce_quon_evite?: string
           cible?: string
           created_at?: string
           croyances_limitantes?: string
+          differentiation_text?: string | null
+          differentiation_type?: string | null
           expressions_cles?: string
           id?: string
           mission?: string
@@ -2403,12 +2411,16 @@ export type Database = {
         }
         Update: {
           activite?: string
+          bio_cta_text?: string | null
+          bio_cta_type?: string | null
           bio_generator_answers?: Json | null
           canaux?: string[]
           ce_quon_evite?: string
           cible?: string
           created_at?: string
           croyances_limitantes?: string
+          differentiation_text?: string | null
+          differentiation_type?: string | null
           expressions_cles?: string
           id?: string
           mission?: string
