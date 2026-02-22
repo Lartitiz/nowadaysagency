@@ -11,6 +11,7 @@ import { ANGLES, STATUSES, OBJECTIFS, type CalendarPost } from "@/lib/calendar-c
 import { FORMAT_EMOJIS, FORMAT_LABELS } from "@/lib/calendar-helpers";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const FORMAT_OPTIONS = [
   { id: "post_carrousel", emoji: "📑", label: "Carrousel" },
@@ -46,6 +47,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showFullContent, setShowFullContent] = useState(false);
+  const [showContentViewer, setShowContentViewer] = useState(false);
 
   useEffect(() => {
     if (editingPost) {
@@ -175,22 +177,85 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const isStoriesPost = !!(editingPost?.stories_count || editingPost?.stories_sequence_id || editingPost?.stories_structure);
+  const isReelPost = editingPost?.format === "reel" && editingPost?.story_sequence_detail;
+  const reelData = isReelPost ? (editingPost.story_sequence_detail as any) : null;
+  const storiesData = isStoriesPost && editingPost?.story_sequence_detail ? (editingPost.story_sequence_detail as any) : null;
 
   const contentPreview = contentDraft && contentDraft.length > 200 && !showFullContent
     ? contentDraft.slice(0, 200) + "..."
     : contentDraft;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display">
-            {isStoriesPost ? "📱 Séquence Stories" : editingPost ? "Modifier le post" : "Ajouter un post"}
+            {isReelPost ? "🎬 Script Reel" : isStoriesPost ? "📱 Séquence Stories" : editingPost ? "Modifier le post" : "Ajouter un post"}
           </DialogTitle>
         </DialogHeader>
 
-        {/* Stories-specific view */}
-        {isStoriesPost && editingPost ? (
+        {/* Reel-specific view */}
+        {isReelPost && editingPost ? (
+          <div className="space-y-4 mt-2">
+            <div className="rounded-xl border border-border bg-card p-3">
+              <p className="text-sm font-medium text-foreground mb-1">
+                🎬 {editingPost.theme}
+              </p>
+              {reelData?.duree_cible && (
+                <p className="text-xs text-muted-foreground">Durée : {reelData.duree_cible}</p>
+              )}
+              {editingPost.accroche && (
+                <p className="text-xs text-muted-foreground mt-1 italic">Hook : "{editingPost.accroche}"</p>
+              )}
+            </div>
+
+            {/* Status */}
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Statut</label>
+              <div className="flex flex-wrap gap-1.5">
+                {STATUSES.map((s) => (
+                  <button key={s.id} onClick={() => setStatus(s.id)}
+                    className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${status === s.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowContentViewer(true)} className="rounded-pill text-xs gap-1.5">
+                👁️ Voir le script
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => {
+                if (reelData?.script) {
+                  const text = reelData.script.map((s: any) => `[${s.timing}] ${s.section?.toUpperCase()}\n"${s.texte_parle}"${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n───\n\n");
+                  navigator.clipboard.writeText(text);
+                  toast({ title: "Script copié !" });
+                }
+              }} className="rounded-pill text-xs gap-1.5">
+                <Copy className="h-3 w-3" /> Script
+              </Button>
+              {reelData?.caption && (
+                <Button variant="outline" size="sm" onClick={() => {
+                  navigator.clipboard.writeText(`${reelData.caption.text}\n\n${reelData.caption.cta}\n\n${reelData.hashtags?.join(" ") || ""}`);
+                  toast({ title: "Caption copiée !" });
+                }} className="rounded-pill text-xs gap-1.5">
+                  <Copy className="h-3 w-3" /> Caption
+                </Button>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button onClick={() => onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche })} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux">
+                Enregistrer
+              </Button>
+              <Button variant="outline" size="icon" onClick={onDelete} className="rounded-full text-destructive hover:bg-destructive/10">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ) : isStoriesPost && editingPost ? (
           <div className="space-y-4 mt-2">
             <div className="rounded-xl border border-border bg-card p-3">
               <p className="text-sm font-medium text-foreground mb-1">
@@ -227,9 +292,23 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {editingPost.stories_sequence_id && (
+              {storiesData?.stories && (
+                <Button variant="outline" size="sm" onClick={() => setShowContentViewer(true)} className="rounded-pill text-xs gap-1.5">
+                  👁️ Voir la séquence
+                </Button>
+              )}
+              {editingPost.stories_sequence_id && !storiesData?.stories && (
                 <Button variant="outline" size="sm" onClick={handleViewStoriesSequence} className="rounded-pill text-xs gap-1.5">
                   👁️ Voir la séquence
+                </Button>
+              )}
+              {storiesData?.stories && (
+                <Button variant="outline" size="sm" onClick={() => {
+                  const text = storiesData.stories.map((s: any) => `${s.timing_emoji || ""} STORY ${s.number} · ${s.role}\n${s.format_label || s.format}\n\n${s.text}${s.sticker ? `\n🎯 ${s.sticker.label}${s.sticker.options ? ` → ${s.sticker.options.join(" / ")}` : ""}` : ""}`).join("\n\n───\n\n");
+                  navigator.clipboard.writeText(text);
+                  toast({ title: "Séquence copiée !" });
+                }} className="rounded-pill text-xs gap-1.5">
+                  <Copy className="h-3 w-3" /> Copier tout
                 </Button>
               )}
             </div>
@@ -423,5 +502,117 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         )}
       </DialogContent>
     </Dialog>
+
+    {/* Content Viewer Sheet */}
+    <Sheet open={showContentViewer} onOpenChange={setShowContentViewer}>
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="font-display">
+            {isReelPost ? "🎬 Script complet" : "📱 Séquence complète"}
+          </SheetTitle>
+        </SheetHeader>
+
+        <div className="mt-4 space-y-4">
+          {/* Reel content viewer */}
+          {isReelPost && reelData && (
+            <>
+              {reelData.hook && (
+                <div className="rounded-xl border border-primary/20 bg-rose-pale p-3">
+                  <p className="text-xs font-semibold text-primary mb-1">🪝 HOOK</p>
+                  <p className="text-sm font-medium text-foreground">"{reelData.hook.text}"</p>
+                  {reelData.hook.text_overlay && (
+                    <p className="text-xs text-muted-foreground mt-1">📝 Overlay : {reelData.hook.text_overlay}</p>
+                  )}
+                </div>
+              )}
+
+              {reelData.script?.map((section: any, idx: number) => (
+                <div key={idx} className="rounded-xl border border-border bg-card p-4 space-y-2">
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-accent/20 text-accent-foreground">
+                    {section.section?.toUpperCase()} · {section.timing}
+                  </span>
+                  <p className="text-xs text-muted-foreground">{section.format_visuel}</p>
+                  <p className="text-sm text-foreground whitespace-pre-line">"{section.texte_parle}"</p>
+                  {section.texte_overlay && (
+                    <div className="border-l-[3px] border-accent bg-accent/20 rounded-r-lg px-3 py-1.5">
+                      <p className="text-xs font-bold text-accent-foreground">📝 {section.texte_overlay}</p>
+                    </div>
+                  )}
+                  {section.cut && (
+                    <p className="text-xs text-muted-foreground italic">✂️ CUT → {section.cut}</p>
+                  )}
+                </div>
+              ))}
+
+              {reelData.caption && (
+                <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground">📝 CAPTION</p>
+                  <p className="text-sm text-foreground whitespace-pre-line">{reelData.caption.text}</p>
+                  <p className="text-sm text-primary font-medium">{reelData.caption.cta}</p>
+                  {reelData.hashtags && (
+                    <p className="text-xs text-muted-foreground">{reelData.hashtags.join(" ")}</p>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => {
+                  const text = reelData.script?.map((s: any) => `[${s.timing}] ${s.section?.toUpperCase()}\n"${s.texte_parle}"${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n───\n\n") || "";
+                  navigator.clipboard.writeText(text);
+                  toast({ title: "Script copié !" });
+                }} className="rounded-pill text-xs gap-1.5">
+                  <Copy className="h-3 w-3" /> Copier le script
+                </Button>
+                {reelData.caption && (
+                  <Button variant="outline" size="sm" onClick={() => {
+                    navigator.clipboard.writeText(`${reelData.caption.text}\n\n${reelData.caption.cta}\n\n${reelData.hashtags?.join(" ") || ""}`);
+                    toast({ title: "Caption copiée !" });
+                  }} className="rounded-pill text-xs gap-1.5">
+                    <Copy className="h-3 w-3" /> Copier la caption
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Stories content viewer */}
+          {isStoriesPost && storiesData?.stories && (
+            <>
+              {storiesData.stories.map((story: any) => (
+                <div key={story.number} className="rounded-xl border border-border bg-card p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-accent/20 text-accent-foreground">
+                      {story.timing_emoji} Story {story.number} · {story.role}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{story.format_label || story.format}</p>
+                  <p className="text-sm text-foreground whitespace-pre-line">{story.text}</p>
+                  {story.sticker && (
+                    <div className="rounded-lg border border-primary/20 bg-rose-pale p-2">
+                      <p className="text-xs font-semibold text-primary">🎯 {story.sticker.label}</p>
+                      {story.sticker.options && (
+                        <p className="text-xs text-muted-foreground">{story.sticker.options.join(" / ")}</p>
+                      )}
+                    </div>
+                  )}
+                  {story.tip && (
+                    <p className="text-xs text-muted-foreground italic">💡 {story.tip}</p>
+                  )}
+                </div>
+              ))}
+
+              <Button variant="outline" size="sm" onClick={() => {
+                const text = storiesData.stories.map((s: any) => `${s.timing_emoji || ""} STORY ${s.number} · ${s.role}\n${s.format_label || s.format}\n\n${s.text}${s.sticker ? `\n🎯 ${s.sticker.label}${s.sticker.options ? ` → ${s.sticker.options.join(" / ")}` : ""}` : ""}`).join("\n\n───\n\n");
+                navigator.clipboard.writeText(text);
+                toast({ title: "Séquence copiée !" });
+              }} className="rounded-pill text-xs gap-1.5">
+                <Copy className="h-3 w-3" /> Copier tout
+              </Button>
+            </>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+    </>
   );
 }

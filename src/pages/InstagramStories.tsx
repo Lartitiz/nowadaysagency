@@ -10,6 +10,7 @@ import SubjectPicker, { type SubjectPickerResult } from "@/components/stories/Su
 import { toast } from "sonner";
 import StickerGuide from "@/components/engagement/StickerGuide";
 import StoryChecklist from "@/components/stories/StoryChecklist";
+import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 
 // Types
 interface StorySticker {
@@ -117,6 +118,7 @@ export default function InstagramStories() {
 
   // Hook selection for story 1
   const [selectedHookOption, setSelectedHookOption] = useState<"a" | "b" | null>(null);
+  const [showCalendarDialog, setShowCalendarDialog] = useState(false);
 
   // Pre-fill from highlights navigation
   useEffect(() => {
@@ -241,20 +243,30 @@ export default function InstagramStories() {
     return lines.length ? `CONTEXTE BRANDING :\n${lines.join("\n")}` : "";
   };
 
-  const handleAddToCalendar = async () => {
+  const handleAddToCalendar = async (dateStr: string) => {
     if (!user || !result) return;
-    const today = new Date().toISOString().split("T")[0];
     const { error } = await supabase.from("calendar_posts").insert({
       user_id: user.id,
-      date: today,
-      theme: `Stories : ${result.structure_label} (${result.total_stories} stories)`,
+      date: dateStr,
+      theme: subject || `Stories : ${result.structure_label}`,
       canal: "instagram",
-      format: "stories",
+      format: "story_serie",
       objectif: objective,
+      stories_count: result.total_stories,
+      stories_structure: result.structure_label,
+      stories_objective: objective,
       content_draft: result.stories.map((s) => `Story ${s.number} (${s.role}) : ${s.text}`).join("\n\n"),
-      status: "idea",
-      story_sequence_detail: result as any,
+      status: "ready",
+      story_sequence_detail: {
+        ...result,
+        personal_elements: {
+          vecu: preGenVecu || null,
+          energy: preGenEnergy || null,
+          message_cle: preGenMessage || null,
+        },
+      } as any,
     });
+    setShowCalendarDialog(false);
     if (error) {
       toast.error("Erreur lors de l'ajout au calendrier");
     } else {
@@ -428,10 +440,18 @@ export default function InstagramStories() {
             <Button variant="outline" size="sm" onClick={() => { setResult(null); setStep(1); }}>
               <RefreshCw className="h-4 w-4" /> Regénérer
             </Button>
-            <Button size="sm" onClick={handleAddToCalendar}>
+            <Button size="sm" onClick={() => setShowCalendarDialog(true)}>
               <CalendarDays className="h-4 w-4" /> Ajouter au calendrier
             </Button>
           </div>
+
+          <AddToCalendarDialog
+            open={showCalendarDialog}
+            onOpenChange={setShowCalendarDialog}
+            onConfirm={handleAddToCalendar}
+            contentLabel={`📱 ${result.total_stories} stories · ${result.structure_label}`}
+            contentEmoji="📱"
+          />
         </main>
       </div>
     );

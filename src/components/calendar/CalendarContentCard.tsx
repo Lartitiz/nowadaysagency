@@ -15,16 +15,25 @@ interface Props {
 
 /** Check if a post is a stories entry */
 function isStoriesPost(post: CalendarPost): boolean {
-  return !!(post.stories_count || post.stories_sequence_id || post.stories_structure);
+  return !!(post.stories_count || post.stories_sequence_id || post.stories_structure) && post.format !== "reel";
+}
+
+function isReelPost(post: CalendarPost): boolean {
+  return post.format === "reel";
 }
 
 /** Compact category-colored content card for calendar cells */
 export function CalendarContentCard({ post, onClick, variant = "compact" }: Props) {
   const isStories = isStoriesPost(post);
+  const isReel = isReelPost(post);
   const cat = isStories
     ? "stories"
-    : post.category || (post.objectif === "vente" ? "vente" : post.objectif === "visibilite" ? "visibilite" : "confiance");
-  const colors = CATEGORY_CARD_COLORS[cat] || CATEGORY_CARD_COLORS.confiance;
+    : isReel
+      ? "visibilite"
+      : post.category || (post.objectif === "vente" ? "vente" : post.objectif === "visibilite" ? "visibilite" : "confiance");
+  const colors = isReel
+    ? { bg: "hsl(217, 91%, 96%)", borderLeft: "hsl(217, 91%, 60%)" }
+    : CATEGORY_CARD_COLORS[cat] || CATEGORY_CARD_COLORS.confiance;
 
   const typeLabel = post.content_type ? (TYPE_SHORT_LABELS[post.content_type] || post.content_type) : null;
   const typeEmoji = post.content_type_emoji || "";
@@ -126,7 +135,11 @@ export function CalendarContentCard({ post, onClick, variant = "compact" }: Prop
     >
       {isLaunch && <span className="float-right text-[9px] leading-none">🚀</span>}
 
-      {isStories ? (
+      {isReel ? (
+        <p className="font-medium text-foreground truncate text-[11px] leading-tight">
+          🎬 {post.theme}
+        </p>
+      ) : isStories ? (
         <p className="font-medium text-foreground truncate text-[11px] leading-tight">
           📱 {post.stories_count || ""} stories
         </p>
