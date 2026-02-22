@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { callAnthropicSimple } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,8 +12,7 @@ serve(async (req) => {
   try {
     const { currentWeek, history } = await req.json();
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    // Anthropic API key checked in shared helper
 
     const prevWeek = history?.[0];
 
@@ -45,30 +45,11 @@ Génère 1-2 phrases d'insight :
 - Max 2 phrases courtes
 - Ne commence PAS par "Tes" systématiquement, varie les tournures`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: "Tu réponds en français. Tu es directe et concrète. Max 2 phrases." },
-          { role: "user", content: prompt },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const status = response.status;
-      if (status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (status === 402) return new Response(JSON.stringify({ error: "Payment required" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      throw new Error(`AI gateway error: ${status}`);
-    }
-
-    const data = await response.json();
-    const insight = data.choices?.[0]?.message?.content?.trim() || "";
+    const insight = (await callAnthropicSimple(
+      "claude-sonnet-4-5-20250929",
+      "Tu réponds en français. Tu es directe et concrète. Max 2 phrases.",
+      prompt
+    )).trim();
 
     return new Response(JSON.stringify({ insight }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

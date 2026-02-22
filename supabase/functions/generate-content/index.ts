@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
+import { callAnthropicSimple, AnthropicError } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -88,8 +89,7 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    // Anthropic API key checked in shared helper
 
     // Check plan limits for generation
     const usageCheck = await checkAndIncrementUsage(supabase, user.id, "generation");
@@ -624,36 +624,10 @@ Reponds en JSON :
       }
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.8,
-      }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Trop de requêtes, réessaie dans un moment." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Crédits épuisés, ajoute des crédits pour continuer." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      const errText = await response.text();
-      console.error("AI gateway error:", response.status, errText);
-      throw new Error("Oups, l'IA n'a pas pu générer. Réessaie dans un instant.");
-    }
-
-    const result = await response.json();
-    const content = result.choices?.[0]?.message?.content || "";
+    // Use claude-opus-4-6 for creative content, claude-sonnet for audit/analysis
+    const isAnalysis = type === "instagram-audit" || type === "bio-audit";
+    const model = isAnalysis ? "claude-sonnet-4-5-20250929" as const : "claude-opus-4-6" as const;
+    const content = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.8, 4096);
 
     return new Response(
       JSON.stringify({ content }),

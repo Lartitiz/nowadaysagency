@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAnthropicSimple, AnthropicError } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,8 +32,7 @@ serve(async (req) => {
     }
     const userId = user.id;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    // Anthropic API key checked in shared helper
 
     // Check plan limits
     const { checkAndIncrementUsage } = await import("../_shared/plan-limiter.ts");
@@ -84,7 +84,7 @@ RETOURNE un JSON strict :
   ]
 }
 Réponds UNIQUEMENT avec le JSON.`;
-      const response = await callAI(LOVABLE_API_KEY, systemPrompt, `Idée brute : "${body.raw_idea}"`);
+      const response = await callAnthropicSimple("claude-opus-4-6", systemPrompt, `Idée brute : "${body.raw_idea}"`);
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -106,7 +106,7 @@ Chaque sujet doit être :
 RETOURNE un JSON strict :
 { "suggestions": ["sujet 1", "sujet 2", "sujet 3", "sujet 4", "sujet 5"] }
 Réponds UNIQUEMENT avec le JSON.`;
-      const response = await callAI(LOVABLE_API_KEY, systemPrompt, "Propose-moi 5 sujets de stories.");
+      const response = await callAnthropicSimple("claude-opus-4-6", systemPrompt, "Propose-moi 5 sujets de stories.");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -130,7 +130,7 @@ Réponds UNIQUEMENT avec le JSON.`;
     // Quick daily stories
     if (type === "daily") {
       const systemPrompt = buildDailyPrompt(branding_context);
-      const response = await callAI(LOVABLE_API_KEY, systemPrompt, "Génère mes 5 stories du quotidien.");
+      const response = await callAnthropicSimple("claude-opus-4-6", systemPrompt, "Génère mes 5 stories du quotidien.");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -151,7 +151,7 @@ Réponds UNIQUEMENT avec le JSON.`;
 
     // Main generation
     const systemPrompt = buildMainPrompt({ objective, price_range, time_available, face_cam, subject: enrichedSubject, is_launch, branding_context, gardeFouAlerte, pre_gen_answers });
-    const response = await callAI(LOVABLE_API_KEY, systemPrompt, "Génère ma séquence stories.");
+    const response = await callAnthropicSimple("claude-opus-4-6", systemPrompt, "Génère ma séquence stories.");
     return new Response(JSON.stringify({ content: response }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -452,30 +452,4 @@ function getVenteInstructions(priceRange?: string): string {
   return instructions[priceRange || ""] || "";
 }
 
-async function callAI(apiKey: string, systemPrompt: string, userPrompt: string): Promise<string> {
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    if (response.status === 429) throw new Error("Trop de requêtes, réessaie dans un moment.");
-    if (response.status === 402) throw new Error("Crédits épuisés, ajoute des crédits pour continuer.");
-    const t = await response.text();
-    console.error("AI gateway error:", response.status, t);
-    throw new Error("Erreur du service IA");
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || "";
-}
+// callAI now uses shared Anthropic helper (imported at top)
