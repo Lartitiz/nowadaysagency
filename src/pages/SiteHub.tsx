@@ -18,6 +18,7 @@ const CMS_OPTIONS = [
 const CARDS = [
   { emoji: "🏠", title: "Ma page d'accueil", desc: "Rédige les textes de ta page d'accueil section par section.", to: "/site/accueil", tag: "IA + Guide" },
   { emoji: "👋", title: "Ma page À propos", desc: "Raconte ton histoire pour créer du lien.", to: "/site/a-propos", tag: "IA + Guide", disabled: false },
+  { emoji: "💬", title: "Mes témoignages", desc: "Récolte et structure des témoignages qui convertissent.", to: "/site/temoignages", tag: "IA + Guide", disabled: false },
   { emoji: "💚", title: "Mes pages produits", desc: "Des fiches produits qui donnent envie d'acheter.", to: "/site/produits", tag: "Bientôt", disabled: true },
   { emoji: "⚙️", title: "Autres optimisations", desc: "SEO, vitesse, accessibilité, mentions légales.", to: "/site/optimisations", tag: "Bientôt", disabled: true },
 ];

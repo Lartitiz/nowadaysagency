@@ -2687,7 +2687,11 @@ export type Database = {
           cta_primary: string | null
           cta_secondary: string | null
           current_step: number | null
+          failure_block: string | null
           faq: Json | null
+          framework: string | null
+          guarantee_text: string | null
+          guarantee_type: string | null
           hook_image_done: boolean | null
           hook_subtitle: string | null
           hook_title: string | null
@@ -2695,9 +2699,11 @@ export type Database = {
           layout_done: boolean | null
           layout_notes: string | null
           offer_block: string | null
+          plan_steps: Json | null
           presentation_block: string | null
           problem_block: string | null
           social_proof_done: boolean | null
+          storybrand_data: Json | null
           updated_at: string | null
           user_id: string
         }
@@ -2709,7 +2715,11 @@ export type Database = {
           cta_primary?: string | null
           cta_secondary?: string | null
           current_step?: number | null
+          failure_block?: string | null
           faq?: Json | null
+          framework?: string | null
+          guarantee_text?: string | null
+          guarantee_type?: string | null
           hook_image_done?: boolean | null
           hook_subtitle?: string | null
           hook_title?: string | null
@@ -2717,9 +2727,11 @@ export type Database = {
           layout_done?: boolean | null
           layout_notes?: string | null
           offer_block?: string | null
+          plan_steps?: Json | null
           presentation_block?: string | null
           problem_block?: string | null
           social_proof_done?: boolean | null
+          storybrand_data?: Json | null
           updated_at?: string | null
           user_id: string
         }
@@ -2731,7 +2743,11 @@ export type Database = {
           cta_primary?: string | null
           cta_secondary?: string | null
           current_step?: number | null
+          failure_block?: string | null
           faq?: Json | null
+          framework?: string | null
+          guarantee_text?: string | null
+          guarantee_type?: string | null
           hook_image_done?: boolean | null
           hook_subtitle?: string | null
           hook_title?: string | null
@@ -2739,9 +2755,11 @@ export type Database = {
           layout_done?: boolean | null
           layout_notes?: string | null
           offer_block?: string | null
+          plan_steps?: Json | null
           presentation_block?: string | null
           problem_block?: string | null
           social_proof_done?: boolean | null
+          storybrand_data?: Json | null
           updated_at?: string | null
           user_id?: string
         }

@@ -494,4 +494,25 @@ PRINCIPES :
 - Empathie avant argumentation
 - Résultats honnêtes, pas de promesses irréalistes
 - Le texte doit sonner comme une conversation, pas comme une pub
+
+NIVEAU DE LANGAGE :
+Les pages rédigées en langage simple (niveau CM2-5e) convertissent 2x mieux (Unbounce 2024).
+- Phrases courtes et claires (max 20 mots en moyenne)
+- Mots de tous les jours, pas de vocabulaire soutenu
+- Si un mot a un synonyme plus simple, utiliser le plus simple : "utiliser" > "employer", "aider" > "faciliter", "montrer" > "démontrer"
+- Une idée par phrase
+- Pas de subordonnées complexes imbriquées
+- Lire à voix haute : si ça sonne naturel à l'oral, c'est le bon niveau
+- Ça ne veut pas dire infantiliser. Ça veut dire exprimer des idées profondes avec des mots simples.
 `;
+
+export const WEBSITE_LANDING_TIPS = [
+  { text: "Le trafic email convertit le mieux. Ta newsletter est ton meilleur levier pour remplir tes pages de vente.", source: "Unbounce 2024" },
+  { text: "Instagram Ads convertit à 17,9% en moyenne sur les landing pages : le meilleur canal social payant.", source: "Unbounce 2024" },
+  { text: "LinkedIn Ads ne convertit qu'à 3,1% en volume, mais l'audience est souvent plus qualifiée pour du B2B.", source: "Unbounce 2024" },
+  { text: "Pour une offre à 1 740€ (type Academy), un taux de 2-5% sur la page de vente est réaliste. 5%+ est excellent.", source: "Benchmarks high-ticket" },
+  { text: "Les pages avec un 'Plan en 3 étapes' convertissent mieux : ça réduit la complexité perçue et rassure.", source: "StoryBrand / Donald Miller" },
+  { text: "L'élément 'échec' (ce qui se passe si on ne fait rien) est puissant mais à utiliser comme du sel : une pincée suffit.", source: "StoryBrand" },
+  { text: "Le top 10% des popups de sortie convertissent à 42%. Mais seulement si elles apportent de la vraie valeur, pas du shaming.", source: "Wisepops 2025" },
+  { text: "Une page de vente 10x plus longue que l'originale a converti 363% mieux. Pour les offres >500€, la longueur rassure.", source: "SolidGigs 2025" },
+];
