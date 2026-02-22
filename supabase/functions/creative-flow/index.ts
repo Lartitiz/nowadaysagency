@@ -54,7 +54,8 @@ serve(async (req) => {
     const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat } = body;
 
     const profileBlock = profile ? buildProfileBlock(profile) : "";
-    const brandingContext = await buildBrandingContext(supabase, user.id);
+    const ctx = await getUserContext(supabase, user.id);
+    const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
     
     // Fetch voice profile
     const { data: voiceData } = await supabase.from("voice_profile").select("*").eq("user_id", user.id).maybeSingle();

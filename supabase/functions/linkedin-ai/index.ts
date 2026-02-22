@@ -1,74 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LINKEDIN_PRINCIPLES, LINKEDIN_TEMPLATES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS } from "../_shared/copywriting-prompts.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function fetchBrandingData(supabase: any, userId: string) {
-  const [profRes, propRes, stRes, perRes, toneRes, voiceRes] = await Promise.all([
-    supabase.from("profiles").select("prenom, activite, type_activite, cible, mission, offre").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_proposition").select("version_final, version_bio, step_1_what, step_2a_process, step_2b_values, step_3_for_whom").eq("user_id", userId).maybeSingle(),
-    supabase.from("storytelling").select("step_7_polished").eq("user_id", userId).eq("is_primary", true).maybeSingle(),
-    supabase.from("persona").select("step_1_frustrations, step_2_transformation").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims").eq("user_id", userId).maybeSingle(),
-    supabase.from("voice_profile").select("structure_patterns, tone_patterns, signature_expressions, banned_expressions, voice_summary").eq("user_id", userId).maybeSingle(),
-  ]);
-  return {
-    profile: profRes.data,
-    proposition: propRes.data,
-    storytelling: stRes.data,
-    persona: perRes.data,
-    tone: toneRes.data,
-    voice: voiceRes.data,
-  };
-}
-
-function buildContext(data: any): string {
-  const lines: string[] = [];
-  const p = data.profile;
-  if (p) {
-    lines.push("PROFIL :");
-    if (p.activite) lines.push(`- Activité : ${p.activite}`);
-    if (p.mission) lines.push(`- Mission : ${p.mission}`);
-    if (p.offre) lines.push(`- Offre : ${p.offre}`);
-    if (p.cible) lines.push(`- Cible : ${p.cible}`);
-  }
-  const prop = data.proposition;
-  if (prop) {
-    if (prop.version_final) lines.push(`\nPROPOSITION DE VALEUR : ${prop.version_final}`);
-    if (prop.step_1_what) lines.push(`- Ce qu'elle fait : ${prop.step_1_what}`);
-    if (prop.step_3_for_whom) lines.push(`- Pour qui : ${prop.step_3_for_whom}`);
-  }
-  if (data.storytelling?.step_7_polished) lines.push(`\nSTORYTELLING :\n${data.storytelling.step_7_polished}`);
-  const per = data.persona;
-  if (per) {
-    if (per.step_1_frustrations) lines.push(`\nFRUSTRATIONS CIBLE : ${per.step_1_frustrations}`);
-    if (per.step_2_transformation) lines.push(`TRANSFORMATION RÊVÉE : ${per.step_2_transformation}`);
-  }
-  const t = data.tone;
-  if (t) {
-    const tl: string[] = [];
-    if (t.voice_description) tl.push(`- Comment elle parle : ${t.voice_description}`);
-    const reg = [t.tone_register, t.tone_level, t.tone_style].filter(Boolean).join(" - ");
-    if (reg) tl.push(`- Registre : ${reg}`);
-    if (t.key_expressions) tl.push(`- Expressions clés : ${t.key_expressions}`);
-    if (t.things_to_avoid) tl.push(`- Ce qu'on évite : ${t.things_to_avoid}`);
-    if (tl.length) lines.push(`\nTON & STYLE :\n${tl.join("\n")}`);
-    if (t.combat_cause) lines.push(`\nCOMBATS : ${t.combat_cause}`);
-  }
-  // Voice profile
-  const v = data.voice;
-  if (v) {
-    lines.push("\nPROFIL DE VOIX :");
-    if (v.signature_expressions) lines.push(`- Expressions signature : ${JSON.stringify(v.signature_expressions)}`);
-    if (v.banned_expressions) lines.push(`- Expressions interdites : ${JSON.stringify(v.banned_expressions)}`);
-    if (v.voice_summary) lines.push(`- Style résumé : ${v.voice_summary}`);
-  }
-  return lines.join("\n");
-}
+// Voice profile is fetched by getUserContext now
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -94,9 +34,10 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const { action, ...params } = await req.json();
-    const branding = await fetchBrandingData(supabase, user.id);
-    const context = buildContext(branding);
+    const ctx = await getUserContext(supabase, user.id);
+    const context = formatContextForAI(ctx, CONTEXT_PRESETS.linkedin);
     const qualityBlocks = `${ANTI_SLOP}\n\n${ETHICAL_GUARDRAILS}\n\n${ANTI_BIAS}\n\n${CHAIN_OF_THOUGHT}`;
+    const branding = { storytelling: ctx.storytelling };
 
     let systemPrompt = "";
     let userPrompt = "";

@@ -1,63 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { WEBSITE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
-
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function fetchFullBranding(supabase: any, userId: string) {
-  const [profRes, propRes, perRes, stRes, toneRes, stratRes] = await Promise.all([
-    supabase.from("profiles").select("prenom, activite, type_activite, cible, mission, offre").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_proposition").select("version_final, version_bio, version_site_web").eq("user_id", userId).maybeSingle(),
-    supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches").eq("user_id", userId).maybeSingle(),
-    supabase.from("storytelling").select("step_7_polished, pitch_short").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, tone_register, tone_level, tone_style, key_expressions, things_to_avoid, target_verbatims, mission, offer").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, creative_concept").eq("user_id", userId).maybeSingle(),
-  ]);
-  return { profile: profRes.data, proposition: propRes.data, persona: perRes.data, storytelling: stRes.data, tone: toneRes.data, strategy: stratRes.data };
-}
-
-function buildContext(d: any): string {
-  const l: string[] = [];
-  const p = d.profile;
-  if (p) {
-    if (p.activite) l.push(`Activite : ${p.activite}`);
-    if (p.offre) l.push(`Offre : ${p.offre}`);
-    if (p.cible) l.push(`Cible : ${p.cible}`);
-    if (p.mission) l.push(`Mission : ${p.mission}`);
-  }
-  const prop = d.proposition;
-  if (prop?.version_final) l.push(`Proposition de valeur : ${prop.version_final}`);
-  else if (prop?.version_site_web) l.push(`Proposition site web : ${prop.version_site_web}`);
-  else if (prop?.version_bio) l.push(`Proposition courte : ${prop.version_bio}`);
-  const per = d.persona;
-  if (per) {
-    if (per.step_1_frustrations) l.push(`Frustrations cible : ${per.step_1_frustrations}`);
-    if (per.step_2_transformation) l.push(`Transformation revee : ${per.step_2_transformation}`);
-    if (per.step_3a_objections) l.push(`Objections : ${per.step_3a_objections}`);
-    if (per.step_3b_cliches) l.push(`Cliches : ${per.step_3b_cliches}`);
-  }
-  const t = d.tone;
-  if (t) {
-    if (t.combat_cause) l.push(`Combats : ${t.combat_cause}`);
-    if (t.voice_description) l.push(`Comment elle parle : ${t.voice_description}`);
-    const reg = [t.tone_register, t.tone_level, t.tone_style].filter(Boolean).join(" - ");
-    if (reg) l.push(`Ton : ${reg}`);
-    if (t.key_expressions) l.push(`Expressions cles : ${t.key_expressions}`);
-    if (t.things_to_avoid) l.push(`Ce qu'on evite : ${t.things_to_avoid}`);
-    if (t.target_verbatims) l.push(`Verbatims cible : ${t.target_verbatims}`);
-  }
-  if (d.storytelling?.step_7_polished) l.push(`Storytelling : ${d.storytelling.step_7_polished}`);
-  if (d.storytelling?.pitch_short) l.push(`Pitch storytelling : ${d.storytelling.pitch_short}`);
-  const s = d.strategy;
-  if (s) {
-    if (s.pillar_major) l.push(`Pilier majeur : ${s.pillar_major}`);
-    if (s.creative_concept) l.push(`Concept creatif : ${s.creative_concept}`);
-  }
-  return l.join("\n");
-}
+// Branding data now fetched via getUserContext
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -74,8 +24,8 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const { action, ...params } = await req.json();
-    const branding = await fetchFullBranding(supabase, user.id);
-    const context = buildContext(branding);
+    const ctx = await getUserContext(supabase, user.id);
+    const context = formatContextForAI(ctx, CONTEXT_PRESETS.website);
 
     let systemPrompt = "";
     let userPrompt = "";

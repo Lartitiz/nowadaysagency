@@ -279,4 +279,28 @@ export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
 
   // Creative flow / content generation: full context
   content: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false },
+
+  // Highlights: branding ✅, persona ✅, offers ✅, profile ✅
+  highlights: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false },
+
+  // Inspire: branding ✅, story ✅, persona ✅, profile ✅
+  inspire: { includeStory: true, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false },
+
+  // Launch plan: branding ✅, persona ✅, offers ✅, profile ✅
+  launch: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false },
+
+  // LinkedIn: branding ✅, story ✅, persona ✅, offers ✅, profile ✅
+  linkedin: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false },
+
+  // LinkedIn audit: branding ✅, persona ✅, offers ✅, profile ✅
+  linkedinAudit: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false },
+
+  // Pinterest: branding ✅, persona ✅, profile ✅
+  pinterest: { includeStory: false, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false },
+
+  // Website / pages de vente: everything + offer details
+  website: { includeStory: true, includePersona: true, includeOffers: true, includeOffersDetails: true, includeProfile: true, includeEditorial: false, includeAudit: false },
+
+  // Score content: branding ✅, profile ✅
+  score: { includeStory: false, includePersona: false, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false },
 };
