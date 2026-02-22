@@ -7,7 +7,8 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Pencil, Download, RefreshCw } from "lucide-react";
+import { Loader2, Pencil, RefreshCw } from "lucide-react";
+import EditableText from "@/components/EditableText";
 
 interface Portrait {
   prenom: string;
@@ -52,6 +53,24 @@ export default function PersonaRecapPage() {
 
   const canGenerate = data?.step_1_frustrations && data?.step_2_transformation;
 
+  const savePortraitField = async (path: string[], value: string) => {
+    if (!data || !portrait) return;
+    const updated = JSON.parse(JSON.stringify(portrait));
+    let obj = updated;
+    for (let i = 0; i < path.length - 1; i++) obj = obj[path[i]];
+    obj[path[path.length - 1]] = value;
+    await supabase.from("persona").update({ portrait: updated as any }).eq("id", data.id);
+    setPortrait(updated);
+  };
+
+  const savePortraitArrayItem = async (arrayKey: string, index: number, value: string) => {
+    if (!data || !portrait) return;
+    const updated = JSON.parse(JSON.stringify(portrait));
+    updated[arrayKey][index] = value;
+    await supabase.from("persona").update({ portrait: updated as any }).eq("id", data.id);
+    setPortrait(updated);
+  };
+
   const generatePortrait = async () => {
     if (!canGenerate) return;
     setGenerating(true);
@@ -74,9 +93,7 @@ export default function PersonaRecapPage() {
 
   const saveName = async (name: string) => {
     setCustomName(name);
-    if (data?.id) {
-      await supabase.from("persona").update({ portrait_prenom: name }).eq("id", data.id);
-    }
+    if (data?.id) await supabase.from("persona").update({ portrait_prenom: name }).eq("id", data.id);
     setEditingName(false);
   };
 
@@ -84,32 +101,23 @@ export default function PersonaRecapPage() {
   const initials = displayName ? displayName.slice(0, 1).toUpperCase() : "?";
 
   if (loading) return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <div className="flex justify-center py-20"><p className="text-muted-foreground">Chargement...</p></div>
-    </div>
+    <div className="min-h-screen bg-background"><AppHeader /><div className="flex justify-center py-20"><p className="text-muted-foreground">Chargement...</p></div></div>
   );
 
   if (!canGenerate) return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
+    <div className="min-h-screen bg-background"><AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Fiche portrait" />
         <div className="rounded-2xl bg-rose-pale border border-border p-6 text-center">
-          <p className="text-foreground text-[15px] mb-4">
-            💡 Ta fiche portrait a besoin d'au moins tes étapes "Frustrations" et "Transformation" pour être générée.
-          </p>
-          <Link to="/branding/persona">
-            <Button className="rounded-pill">Compléter mon persona →</Button>
-          </Link>
+          <p className="text-foreground text-[15px] mb-4">💡 Ta fiche portrait a besoin d'au moins tes étapes "Frustrations" et "Transformation".</p>
+          <Link to="/branding/persona"><Button className="rounded-pill">Compléter mon persona →</Button></Link>
         </div>
       </main>
     </div>
   );
 
   if (!portrait) return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
+    <div className="min-h-screen bg-background"><AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Fiche portrait" />
         <h1 className="font-display text-[22px] font-bold text-foreground mb-2">Le portrait de ta cliente idéale</h1>
@@ -121,46 +129,6 @@ export default function PersonaRecapPage() {
     </div>
   );
 
-  const sections = [
-    { icon: "👤", title: "Qui elle est", content: (
-      <div className="space-y-1 text-[14px] text-foreground">
-        {portrait.qui_elle_est.age && <p><span className="text-muted-foreground">Âge :</span> {portrait.qui_elle_est.age}</p>}
-        {portrait.qui_elle_est.metier && <p><span className="text-muted-foreground">Métier :</span> {portrait.qui_elle_est.metier}</p>}
-        {portrait.qui_elle_est.situation && <p><span className="text-muted-foreground">Situation :</span> {portrait.qui_elle_est.situation}</p>}
-        {portrait.qui_elle_est.ca && <p><span className="text-muted-foreground">CA :</span> {portrait.qui_elle_est.ca}</p>}
-        {portrait.qui_elle_est.temps_com && <p><span className="text-muted-foreground">Temps pour sa com' :</span> {portrait.qui_elle_est.temps_com}</p>}
-      </div>
-    )},
-    { icon: "😩", title: "Ce qui la frustre", content: (
-      <ul className="space-y-1.5 text-[14px] text-foreground">
-        {portrait.frustrations.map((f, i) => <li key={i}>• {f}</li>)}
-      </ul>
-    )},
-    { icon: "✨", title: "Ce qu'elle veut", content: (
-      <ul className="space-y-1.5 text-[14px] text-foreground">
-        {portrait.objectifs.map((o, i) => <li key={i}>• {o}</li>)}
-      </ul>
-    )},
-    { icon: "🚫", title: "Ce qui la bloque", content: (
-      <ul className="space-y-1.5 text-[14px] text-foreground">
-        {portrait.blocages.map((b, i) => <li key={i}>• {b}</li>)}
-      </ul>
-    )},
-    { icon: "💬", title: "Comment lui parler", content: (
-      <div className="space-y-1.5 text-[14px] text-foreground">
-        <p><span className="text-muted-foreground">Ton :</span> {portrait.comment_parler.ton}</p>
-        <p><span className="text-muted-foreground">Canal préféré :</span> {portrait.comment_parler.canal}</p>
-        <p><span className="text-muted-foreground">Ce qui la convainc :</span> {portrait.comment_parler.convainc}</p>
-        <p><span className="text-muted-foreground">Les mots qui la font fuir :</span> {portrait.comment_parler.fuir?.join(", ")}</p>
-      </div>
-    )},
-    { icon: "🗣️", title: "Ses mots à elle", content: (
-      <div className="space-y-1.5 text-[14px] text-foreground italic">
-        {portrait.ses_mots.map((m, i) => <p key={i}>"{m}"</p>)}
-      </div>
-    )},
-  ];
-
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -170,15 +138,10 @@ export default function PersonaRecapPage() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="font-display text-[22px] font-bold text-foreground">Le portrait de ta cliente idéale</h1>
           <div className="flex gap-2">
-            <Link to="/branding/persona">
-              <Button variant="outline" size="sm" className="rounded-pill text-xs">
-                <Pencil className="h-3 w-3 mr-1" /> Modifier
-              </Button>
-            </Link>
+            <Link to="/branding/persona"><Button variant="outline" size="sm" className="rounded-pill text-xs"><Pencil className="h-3 w-3 mr-1" /> Modifier</Button></Link>
           </div>
         </div>
 
-        {/* Portrait Card */}
         <div className="rounded-2xl border border-[hsl(var(--border))] bg-card shadow-card p-6 sm:p-8 mb-6">
           {/* Avatar + Name */}
           <div className="flex flex-col items-center mb-6">
@@ -188,43 +151,81 @@ export default function PersonaRecapPage() {
 
             {editingName ? (
               <div className="flex items-center gap-2 mb-1">
-                <Input
-                  ref={nameRef}
-                  value={customName}
-                  onChange={(e) => setCustomName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && saveName(customName)}
-                  onBlur={() => saveName(customName)}
-                  className="w-48 text-center font-display text-lg"
-                  autoFocus
-                />
+                <Input ref={nameRef} value={customName} onChange={(e) => setCustomName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && saveName(customName)} onBlur={() => saveName(customName)}
+                  className="w-48 text-center font-display text-lg" autoFocus />
               </div>
             ) : (
               <div className="flex items-center gap-2 mb-1">
                 <h2 className="font-display text-2xl font-bold text-foreground">{displayName}</h2>
-                <button onClick={() => { setEditingName(true); }} className="text-muted-foreground hover:text-primary transition-colors" title="Changer le prénom">
+                <button onClick={() => setEditingName(true)} className="text-muted-foreground hover:text-primary transition-colors" title="Changer le prénom">
                   <RefreshCw className="h-3.5 w-3.5" />
                 </button>
               </div>
             )}
 
-            <p className="text-[14px] italic text-muted-foreground text-center max-w-[400px]">
-              "{portrait.phrase_signature}"
-            </p>
+            <EditableText
+              value={portrait.phrase_signature}
+              onSave={(v) => savePortraitField(["phrase_signature"], v)}
+              type="input"
+              className="text-[14px] italic text-muted-foreground text-center max-w-[400px]"
+            />
           </div>
 
-          {/* Sections */}
-          {sections.map((s, i) => (
-            <div key={i}>
-              {i > 0 && <div className="border-t border-border my-5" />}
-              <h3 className="flex items-center gap-2 font-display text-[15px] font-bold text-foreground mb-2.5">
-                <span>{s.icon}</span> {s.title}
-              </h3>
-              {s.content}
+          {/* Qui elle est */}
+          <h3 className="flex items-center gap-2 font-display text-[15px] font-bold text-foreground mb-2.5"><span>👤</span> Qui elle est</h3>
+          <div className="space-y-1 text-[14px] text-foreground mb-5">
+            {(["age", "metier", "situation", "ca", "temps_com"] as const).map((key) => {
+              const labels: Record<string, string> = { age: "Âge", metier: "Métier", situation: "Situation", ca: "CA", temps_com: "Temps pour sa com'" };
+              return portrait.qui_elle_est[key] ? (
+                <p key={key}>
+                  <span className="text-muted-foreground">{labels[key]} : </span>
+                  <EditableText value={portrait.qui_elle_est[key]} onSave={(v) => savePortraitField(["qui_elle_est", key], v)} type="input" className="text-[14px] inline" />
+                </p>
+              ) : null;
+            })}
+          </div>
+
+          {/* List sections */}
+          {([
+            { icon: "😩", title: "Ce qui la frustre", key: "frustrations" },
+            { icon: "✨", title: "Ce qu'elle veut", key: "objectifs" },
+            { icon: "🚫", title: "Ce qui la bloque", key: "blocages" },
+          ] as const).map((section) => (
+            <div key={section.key}>
+              <div className="border-t border-border my-5" />
+              <h3 className="flex items-center gap-2 font-display text-[15px] font-bold text-foreground mb-2.5"><span>{section.icon}</span> {section.title}</h3>
+              <ul className="space-y-1.5 text-[14px] text-foreground">
+                {portrait[section.key].map((item, i) => (
+                  <li key={i} className="flex items-start gap-1">
+                    <span className="shrink-0">•</span>
+                    <EditableText value={item} onSave={(v) => savePortraitArrayItem(section.key, i, v)} type="input" className="text-[14px]" />
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
+
+          {/* Comment lui parler */}
+          <div className="border-t border-border my-5" />
+          <h3 className="flex items-center gap-2 font-display text-[15px] font-bold text-foreground mb-2.5"><span>💬</span> Comment lui parler</h3>
+          <div className="space-y-1.5 text-[14px] text-foreground">
+            <p><span className="text-muted-foreground">Ton : </span><EditableText value={portrait.comment_parler.ton} onSave={(v) => savePortraitField(["comment_parler", "ton"], v)} type="input" className="text-[14px] inline" /></p>
+            <p><span className="text-muted-foreground">Canal préféré : </span><EditableText value={portrait.comment_parler.canal} onSave={(v) => savePortraitField(["comment_parler", "canal"], v)} type="input" className="text-[14px] inline" /></p>
+            <p><span className="text-muted-foreground">Ce qui la convainc : </span><EditableText value={portrait.comment_parler.convainc} onSave={(v) => savePortraitField(["comment_parler", "convainc"], v)} type="input" className="text-[14px] inline" /></p>
+            <p><span className="text-muted-foreground">Les mots qui la font fuir : </span>{portrait.comment_parler.fuir?.join(", ")}</p>
+          </div>
+
+          {/* Ses mots */}
+          <div className="border-t border-border my-5" />
+          <h3 className="flex items-center gap-2 font-display text-[15px] font-bold text-foreground mb-2.5"><span>🗣️</span> Ses mots à elle</h3>
+          <div className="space-y-1.5 text-[14px] text-foreground italic">
+            {portrait.ses_mots.map((m, i) => (
+              <EditableText key={i} value={m} onSave={(v) => savePortraitArrayItem("ses_mots", i, v)} type="input" className="text-[14px] italic" />
+            ))}
+          </div>
         </div>
 
-        {/* Action buttons */}
         <div className="flex flex-wrap gap-2 mb-6">
           <Button onClick={generatePortrait} disabled={generating} variant="outline" size="sm" className="rounded-pill text-xs">
             {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
@@ -232,9 +233,7 @@ export default function PersonaRecapPage() {
           </Button>
         </div>
 
-        <Link to="/branding" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
-          ← Retour au Branding
-        </Link>
+        <Link to="/branding" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">← Retour au Branding</Link>
       </main>
     </div>
   );

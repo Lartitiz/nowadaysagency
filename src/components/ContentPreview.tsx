@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, Check, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
+import EditableTextStandalone from "@/components/EditableText";
 
 interface ContentPreviewProps {
   contentData: any;
