@@ -2116,6 +2116,30 @@ export type Database = {
         }
         Relationships: []
       }
+      reel_inspirations: {
+        Row: {
+          analysis: Json | null
+          created_at: string
+          id: string
+          image_url: string
+          user_id: string
+        }
+        Insert: {
+          analysis?: Json | null
+          created_at?: string
+          id?: string
+          image_url: string
+          user_id: string
+        }
+        Update: {
+          analysis?: Json | null
+          created_at?: string
+          id?: string
+          image_url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       reels_metrics: {
         Row: {
           ai_insight: string | null
@@ -2278,6 +2302,7 @@ export type Database = {
           angle: string
           calendar_post_id: string | null
           canal: string
+          content_data: Json | null
           content_draft: string | null
           created_at: string
           format: string
@@ -2285,7 +2310,9 @@ export type Database = {
           id: string
           notes: string | null
           objectif: string | null
+          personal_elements: Json | null
           planned_date: string | null
+          source_module: string | null
           status: string | null
           titre: string
           type: string | null
@@ -2298,6 +2325,7 @@ export type Database = {
           angle: string
           calendar_post_id?: string | null
           canal?: string
+          content_data?: Json | null
           content_draft?: string | null
           created_at?: string
           format: string
@@ -2305,7 +2333,9 @@ export type Database = {
           id?: string
           notes?: string | null
           objectif?: string | null
+          personal_elements?: Json | null
           planned_date?: string | null
+          source_module?: string | null
           status?: string | null
           titre: string
           type?: string | null
@@ -2318,6 +2348,7 @@ export type Database = {
           angle?: string
           calendar_post_id?: string | null
           canal?: string
+          content_data?: Json | null
           content_draft?: string | null
           created_at?: string
           format?: string
@@ -2325,7 +2356,9 @@ export type Database = {
           id?: string
           notes?: string | null
           objectif?: string | null
+          personal_elements?: Json | null
           planned_date?: string | null
+          source_module?: string | null
           status?: string | null
           titre?: string
           type?: string | null

@@ -7,12 +7,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Info } from "lucide-react";
+import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Info, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
+import ReelInspirationUpload from "@/components/ReelInspirationUpload";
 
 // ── Types ──
 interface Hook {
@@ -137,6 +139,8 @@ export default function InstagramReels() {
   const [loading, setLoading] = useState(false);
   const [showDurationGuide, setShowDurationGuide] = useState(false);
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
+  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
+  const [inspirationAnalysis, setInspirationAnalysis] = useState<any>(null);
 
   // Random tip
   const [tipIndex] = useState(() => Math.floor(Math.random() * REELS_TIPS.length));
@@ -180,8 +184,9 @@ export default function InstagramReels() {
     setLoading(true);
     try {
       const brandingContext = await fetchBrandingContext();
+      const inspCtx = inspirationAnalysis ? `Patterns : ${inspirationAnalysis.patterns_communs}\nRecommandation : ${inspirationAnalysis.recommandation}` : undefined;
       const { data, error } = await supabase.functions.invoke("reels-ai", {
-        body: { type: "hooks", objective, face_cam: faceCam, subject, time_available: timeAvailable, is_launch: isLaunch, branding_context: brandingContext },
+        body: { type: "hooks", objective, face_cam: faceCam, subject, time_available: timeAvailable, is_launch: isLaunch, branding_context: brandingContext, inspiration_context: inspCtx },
       });
       if (error) throw error;
       const raw = data?.content || "";
@@ -216,6 +221,7 @@ export default function InstagramReels() {
     setLoading(true);
     try {
       const brandingContext = await fetchBrandingContext();
+      const inspCtx = inspirationAnalysis ? `Patterns : ${inspirationAnalysis.patterns_communs}\nRecommandation : ${inspirationAnalysis.recommandation}` : undefined;
       const { data, error } = await supabase.functions.invoke("reels-ai", {
         body: {
           type: "script",
@@ -227,6 +233,7 @@ export default function InstagramReels() {
           branding_context: brandingContext,
           selected_hook: hook,
           pre_gen_answers: answers || undefined,
+          inspiration_context: inspCtx,
         },
       });
       if (error) throw error;
@@ -473,6 +480,7 @@ export default function InstagramReels() {
             <Button variant="outline" size="sm" onClick={handleCopyCaption}><Copy className="h-4 w-4" /> Copier la caption</Button>
             <Button variant="outline" size="sm" onClick={() => { setScriptResult(null); setStep(6); }}><RefreshCw className="h-4 w-4" /> Rechoisir le hook</Button>
             <Button size="sm" onClick={() => setShowCalendarDialog(true)}><CalendarDays className="h-4 w-4" /> Ajouter au calendrier</Button>
+            <Button variant="outline" size="sm" onClick={() => setShowIdeasDialog(true)}><Lightbulb className="h-4 w-4" /> Sauvegarder dans mes idées</Button>
           </div>
 
           <AddToCalendarDialog
@@ -481,6 +489,37 @@ export default function InstagramReels() {
             onConfirm={handleAddToCalendar}
             contentLabel={`🎬 Reel · ${scriptResult.duree_cible} · ${subject || scriptResult.format_label}`}
             contentEmoji="🎬"
+          />
+
+          <SaveToIdeasDialog
+            open={showIdeasDialog}
+            onOpenChange={setShowIdeasDialog}
+            contentType="reel"
+            subject={subject || scriptResult.format_label}
+            objectif={objective}
+            sourceModule="reels_generator"
+            contentData={{
+              type: "reel",
+              format_type: scriptResult.format_type,
+              format_label: scriptResult.format_label,
+              duree_cible: scriptResult.duree_cible,
+              script: scriptResult.script,
+              caption: scriptResult.caption,
+              hashtags: scriptResult.hashtags,
+              cover_text: scriptResult.cover_text,
+              alt_text: scriptResult.alt_text,
+              amplification_stories: scriptResult.amplification_stories,
+              hook: selectedHook ? {
+                text: selectedHook.text,
+                type: selectedHook.type,
+                type_label: selectedHook.type_label,
+                text_overlay: selectedHook.text_overlay,
+              } : null,
+            }}
+            personalElements={preGenAnswers ? {
+              vecu: preGenAnswers.anecdote || null,
+              punchline: preGenAnswers.conviction || null,
+            } : null}
           />
 
           {/* Feedback loop for script */}
@@ -615,6 +654,9 @@ export default function InstagramReels() {
           <p className="text-sm text-foreground">💡 {currentTip.text}</p>
           <p className="text-[10px] text-muted-foreground mt-1">— {currentTip.source}</p>
         </div>
+
+        {/* Inspiration upload */}
+        <ReelInspirationUpload onAnalysisComplete={setInspirationAnalysis} />
 
         {/* Step 1: Objective */}
         <div className="mb-8">

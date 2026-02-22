@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Sparkles, Mic } from "lucide-react";
+import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Sparkles, Mic, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import SubjectPicker, { type SubjectPickerResult } from "@/components/stories/SubjectPicker";
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import StickerGuide from "@/components/engagement/StickerGuide";
 import StoryChecklist from "@/components/stories/StoryChecklist";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 
 // Types
 interface StorySticker {
@@ -119,6 +120,7 @@ export default function InstagramStories() {
   // Hook selection for story 1
   const [selectedHookOption, setSelectedHookOption] = useState<"a" | "b" | null>(null);
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
+  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
   // Pre-fill from highlights navigation
   useEffect(() => {
@@ -443,6 +445,9 @@ export default function InstagramStories() {
             <Button size="sm" onClick={() => setShowCalendarDialog(true)}>
               <CalendarDays className="h-4 w-4" /> Ajouter au calendrier
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowIdeasDialog(true)}>
+              <Lightbulb className="h-4 w-4" /> Sauvegarder dans mes idées
+            </Button>
           </div>
 
           <AddToCalendarDialog
@@ -451,6 +456,28 @@ export default function InstagramStories() {
             onConfirm={handleAddToCalendar}
             contentLabel={`📱 ${result.total_stories} stories · ${result.structure_label}`}
             contentEmoji="📱"
+          />
+
+          <SaveToIdeasDialog
+            open={showIdeasDialog}
+            onOpenChange={setShowIdeasDialog}
+            contentType="stories"
+            subject={subject || result.structure_label}
+            objectif={objective}
+            sourceModule="stories_generator"
+            contentData={{
+              ...result,
+              personal_elements: {
+                vecu: preGenVecu || null,
+                energy: preGenEnergy || null,
+                message_cle: preGenMessage || null,
+              },
+            }}
+            personalElements={preGenVecu || preGenEnergy || preGenMessage ? {
+              vecu: preGenVecu || null,
+              energy: preGenEnergy || null,
+              message_cle: preGenMessage || null,
+            } : null}
           />
         </main>
       </div>
