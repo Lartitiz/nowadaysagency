@@ -71,6 +71,7 @@ import SiteAPropos from "./pages/SiteAPropos";
 import SiteTestimonials from "./pages/SiteTestimonials";
 import SiteCapturePage from "./pages/SiteCapturePage";
 import LegalAiPage from "./pages/LegalAiPage";
+import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -115,6 +116,7 @@ const App = () => (
             <Route path="/profil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/parametres" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/legal-ia" element={<ProtectedRoute><LegalAiPage /></ProtectedRoute>} />
+            <Route path="/payment/success" element={<ProtectedRoute><PaymentSuccessPage /></ProtectedRoute>} />
             {/* Instagram module */}
             <Route path="/instagram" element={<ProtectedRoute><InstagramHub /></ProtectedRoute>} />
             <Route path="/instagram/profil" element={<ProtectedRoute><InstagramProfile /></ProtectedRoute>} />

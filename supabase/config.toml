@@ -50,3 +50,15 @@ verify_jwt = false
 
 [functions.analyze-excel-mapping]
 verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.create-portal-session]
+verify_jwt = false
+
+[functions.check-subscription]
+verify_jwt = false

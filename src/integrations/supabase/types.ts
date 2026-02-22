@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage: {
+        Row: {
+          audit_count: number | null
+          generation_count: number | null
+          id: string
+          month: string
+          user_id: string
+        }
+        Insert: {
+          audit_count?: number | null
+          generation_count?: number | null
+          id?: string
+          month: string
+          user_id: string
+        }
+        Update: {
+          audit_count?: number | null
+          generation_count?: number | null
+          id?: string
+          month?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       audit_validations: {
         Row: {
           created_at: string
@@ -2585,6 +2609,7 @@ export type Database = {
           cible: string
           created_at: string
           croyances_limitantes: string
+          current_plan: string | null
           differentiation_text: string | null
           differentiation_type: string | null
           expressions_cles: string
@@ -2632,6 +2657,7 @@ export type Database = {
           cible?: string
           created_at?: string
           croyances_limitantes?: string
+          current_plan?: string | null
           differentiation_text?: string | null
           differentiation_type?: string | null
           expressions_cles?: string
@@ -2679,6 +2705,7 @@ export type Database = {
           cible?: string
           created_at?: string
           croyances_limitantes?: string
+          current_plan?: string | null
           differentiation_text?: string | null
           differentiation_type?: string | null
           expressions_cles?: string
@@ -2818,6 +2845,45 @@ export type Database = {
           stage?: string | null
           strengths?: string | null
           updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      purchases: {
+        Row: {
+          amount: number
+          created_at: string | null
+          currency: string | null
+          id: string
+          metadata: Json | null
+          product_type: string
+          status: string | null
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          metadata?: Json | null
+          product_type: string
+          status?: string | null
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          metadata?: Json | null
+          product_type?: string
+          status?: string | null
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
           user_id?: string
         }
         Relationships: []
@@ -3290,6 +3356,63 @@ export type Database = {
           story_type?: string | null
           title?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          cancel_at: string | null
+          canceled_at: string | null
+          created_at: string | null
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          plan: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_price_id: string | null
+          stripe_subscription_id: string | null
+          studio_end_date: string | null
+          studio_months_paid: number | null
+          studio_start_date: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          cancel_at?: string | null
+          canceled_at?: string | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          studio_end_date?: string | null
+          studio_months_paid?: number | null
+          studio_start_date?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          cancel_at?: string | null
+          canceled_at?: string | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          studio_end_date?: string | null
+          studio_months_paid?: number | null
+          studio_start_date?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
