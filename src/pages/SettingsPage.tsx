@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot } from "lucide-react";
+import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { STRIPE_PLANS } from "@/lib/stripe-config";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,12 +30,30 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // Notification preferences (local state — no DB table yet, stored in localStorage)
+  // Notification preferences
   const [notifEmail, setNotifEmail] = useState(() => localStorage.getItem("pref_notif_email") !== "false");
   const [notifTips, setNotifTips] = useState(() => localStorage.getItem("pref_notif_tips") !== "false");
   const [notifReminders, setNotifReminders] = useState(() => localStorage.getItem("pref_notif_reminders") !== "false");
 
   const [deleting, setDeleting] = useState(false);
+
+  // Subscription state
+  const [subInfo, setSubInfo] = useState<{ plan: string; status: string; current_period_end?: string; cancel_at?: string } | null>(null);
+  const [loadingSub, setLoadingSub] = useState(true);
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  useEffect(() => {
+    loadSubscription();
+  }, []);
+
+  const loadSubscription = async () => {
+    setLoadingSub(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("check-subscription");
+      if (!error && data) setSubInfo(data);
+    } catch {}
+    setLoadingSub(false);
+  };
 
   const handleChangePassword = async () => {
     if (newPassword.length < 6) {
@@ -63,9 +82,20 @@ export default function SettingsPage() {
     toast({ title: "Préférence enregistrée ✓" });
   };
 
+  const handleManageSubscription = async () => {
+    setPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-portal-session");
+      if (error) throw error;
+      if (data?.url) window.open(data.url, "_blank");
+    } catch {
+      toast({ title: "Erreur", description: "Impossible d'ouvrir le portail.", variant: "destructive" });
+    }
+    setPortalLoading(false);
+  };
+
   const handleDeleteAccount = async () => {
     setDeleting(true);
-    // Delete user data first
     if (user) {
       await Promise.all([
         supabase.from("profiles").delete().eq("user_id", user.id),
@@ -89,6 +119,8 @@ export default function SettingsPage() {
     toast({ title: "Compte supprimé. À bientôt peut-être 💛" });
   };
 
+  const planLabel = subInfo?.plan === "studio" ? "Now Studio" : subInfo?.plan === "outil" ? "Outil" : "Gratuit";
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -103,6 +135,45 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* ─── Subscription ─── */}
+        <Section icon={<CreditCard className="h-4 w-4" />} title="Mon abonnement">
+          {loadingSub ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" /> Chargement...
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Plan actuel : <span className="text-primary font-semibold">{planLabel}</span></p>
+                  {subInfo?.current_period_end && subInfo.plan !== "free" && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Prochain renouvellement : {new Date(subInfo.current_period_end).toLocaleDateString("fr-FR")}
+                    </p>
+                  )}
+                  {subInfo?.cancel_at && (
+                    <p className="text-xs text-destructive mt-0.5">
+                      Annulation prévue le {new Date(subInfo.cancel_at).toLocaleDateString("fr-FR")}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {subInfo?.plan !== "free" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={handleManageSubscription}
+                  disabled={portalLoading}
+                >
+                  {portalLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Gérer mon abonnement
+                </Button>
+              )}
+            </div>
+          )}
+        </Section>
+
         {/* ─── Account info ─── */}
         <Section icon={<Shield className="h-4 w-4" />} title="Mon compte">
           <div>
@@ -116,29 +187,13 @@ export default function SettingsPage() {
           <div className="space-y-3">
             <div>
               <label className="text-sm font-medium mb-1.5 block">Nouveau mot de passe</label>
-              <Input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="6 caractères minimum"
-                className="rounded-[10px] h-11"
-              />
+              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="6 caractères minimum" className="rounded-[10px] h-11" />
             </div>
             <div>
               <label className="text-sm font-medium mb-1.5 block">Confirmer</label>
-              <Input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Répète ton nouveau mot de passe"
-                className="rounded-[10px] h-11"
-              />
+              <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Répète ton nouveau mot de passe" className="rounded-[10px] h-11" />
             </div>
-            <Button
-              onClick={handleChangePassword}
-              disabled={changingPassword || !newPassword}
-              className="rounded-full bg-primary text-primary-foreground hover:bg-bordeaux"
-            >
+            <Button onClick={handleChangePassword} disabled={changingPassword || !newPassword} className="rounded-full bg-primary text-primary-foreground hover:bg-bordeaux">
               {changingPassword ? "Modification..." : "Mettre à jour"}
             </Button>
           </div>
@@ -147,36 +202,16 @@ export default function SettingsPage() {
         {/* ─── Notification preferences ─── */}
         <Section icon={<Bell className="h-4 w-4" />} title="Préférences de notification">
           <div className="space-y-4">
-            <PrefRow
-              icon={<Mail className="h-4 w-4 text-muted-foreground" />}
-              label="Emails de suivi"
-              description="Reçois un récap hebdomadaire de ta progression."
-              checked={notifEmail}
-              onCheckedChange={(v) => togglePref("pref_notif_email", v, setNotifEmail)}
-            />
-            <PrefRow
-              icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}
-              label="Conseils & astuces"
-              description="Reçois des conseils com' personnalisés par email."
-              checked={notifTips}
-              onCheckedChange={(v) => togglePref("pref_notif_tips", v, setNotifTips)}
-            />
-            <PrefRow
-              icon={<Bell className="h-4 w-4 text-muted-foreground" />}
-              label="Rappels de routines"
-              description="Un petit rappel quand tu oublies tes routines."
-              checked={notifReminders}
-              onCheckedChange={(v) => togglePref("pref_notif_reminders", v, setNotifReminders)}
-            />
+            <PrefRow icon={<Mail className="h-4 w-4 text-muted-foreground" />} label="Emails de suivi" description="Reçois un récap hebdomadaire de ta progression." checked={notifEmail} onCheckedChange={(v) => togglePref("pref_notif_email", v, setNotifEmail)} />
+            <PrefRow icon={<Sparkles className="h-4 w-4 text-muted-foreground" />} label="Conseils & astuces" description="Reçois des conseils com' personnalisés par email." checked={notifTips} onCheckedChange={(v) => togglePref("pref_notif_tips", v, setNotifTips)} />
+            <PrefRow icon={<Bell className="h-4 w-4 text-muted-foreground" />} label="Rappels de routines" description="Un petit rappel quand tu oublies tes routines." checked={notifReminders} onCheckedChange={(v) => togglePref("pref_notif_reminders", v, setNotifReminders)} />
           </div>
         </Section>
 
         {/* ─── AI section ─── */}
         <Section icon={<Bot className="h-4 w-4" />} title="Intelligence artificielle">
           <div className="space-y-3 text-sm text-foreground leading-relaxed">
-            <p>
-              Cet outil utilise l'IA pour t'aider à structurer et rédiger tes contenus de communication.
-            </p>
+            <p>Cet outil utilise l'IA pour t'aider à structurer et rédiger tes contenus de communication.</p>
             <div>
               <p className="font-semibold mb-1">Ce que l'IA fait :</p>
               <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
@@ -193,12 +228,8 @@ export default function SettingsPage() {
                 <li>Ne stocke pas tes données hors de l'app</li>
               </ul>
             </div>
-            <p className="text-muted-foreground">
-              Tes données sont utilisées uniquement pour personnaliser les générations dans l'app. Elles ne sont pas partagées avec des tiers.
-            </p>
-            <Link to="/legal-ia" className="text-primary text-xs font-medium hover:underline">
-              En savoir plus →
-            </Link>
+            <p className="text-muted-foreground">Tes données sont utilisées uniquement pour personnaliser les générations dans l'app. Elles ne sont pas partagées avec des tiers.</p>
+            <Link to="/legal-ia" className="text-primary text-xs font-medium hover:underline">En savoir plus →</Link>
           </div>
         </Section>
 
@@ -207,29 +238,19 @@ export default function SettingsPage() {
           <h2 className="font-display text-lg font-bold text-destructive mb-2 flex items-center gap-2">
             <Trash2 className="h-4 w-4" /> Zone dangereuse
           </h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            La suppression de ton compte est irréversible. Toutes tes données seront effacées.
-          </p>
+          <p className="text-sm text-muted-foreground mb-4">La suppression de ton compte est irréversible. Toutes tes données seront effacées.</p>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="rounded-full">
-                Supprimer mon compte
-              </Button>
+              <Button variant="destructive" className="rounded-full">Supprimer mon compte</Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Tu es sûre ?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Toutes tes données (profil, branding, storytelling, idées, calendrier, routines) seront supprimées définitivement. Cette action est irréversible.
-                </AlertDialogDescription>
+                <AlertDialogDescription>Toutes tes données (profil, branding, storytelling, idées, calendrier, routines) seront supprimées définitivement. Cette action est irréversible.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel className="rounded-full">Annuler</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDeleteAccount}
-                  disabled={deleting}
-                  className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
+                <AlertDialogAction onClick={handleDeleteAccount} disabled={deleting} className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90">
                   {deleting ? "Suppression..." : "Oui, supprimer mon compte"}
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -241,32 +262,16 @@ export default function SettingsPage() {
   );
 }
 
-/* ─── Section wrapper ─── */
 function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl bg-card border border-border p-6 mb-4">
-      <h2 className="font-display text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-        {icon} {title}
-      </h2>
+      <h2 className="font-display text-lg font-bold text-foreground mb-4 flex items-center gap-2">{icon} {title}</h2>
       {children}
     </div>
   );
 }
 
-/* ─── Preference row ─── */
-function PrefRow({
-  icon,
-  label,
-  description,
-  checked,
-  onCheckedChange,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  description: string;
-  checked: boolean;
-  onCheckedChange: (v: boolean) => void;
-}) {
+function PrefRow({ icon, label, description, checked, onCheckedChange }: { icon: React.ReactNode; label: string; description: string; checked: boolean; onCheckedChange: (v: boolean) => void }) {
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="flex items-start gap-3">

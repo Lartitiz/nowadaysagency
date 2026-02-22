@@ -20,8 +20,8 @@ export default function PaymentSuccessPage() {
       <AppHeader />
       {showConfetti && <Confetti />}
       <main className="mx-auto max-w-lg px-4 py-16 text-center animate-fade-in">
-        <div className="mx-auto mb-6 h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-          <CheckCircle className="h-8 w-8 text-green-600" />
+        <div className="mx-auto mb-6 h-16 w-16 rounded-full bg-accent flex items-center justify-center">
+          <CheckCircle className="h-8 w-8 text-primary" />
         </div>
 
         <h1 className="font-display text-3xl font-bold text-foreground mb-3">
