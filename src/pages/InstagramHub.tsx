@@ -116,12 +116,14 @@ export default function InstagramHub() {
               Créer un contenu
             </h3>
             <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
-              L'IA t'aide à rédiger. Tu choisis le format : post, Reel ou story.
+              Chaque format a son propre générateur optimisé.
             </p>
             <div className="flex justify-center gap-3 mt-5 flex-wrap">
-              <FormatPill emoji="📸" label="Post" />
+              <FormatPill emoji="📝" label="Post" />
+              <FormatPill emoji="🎠" label="Carrousel" soon />
               <FormatPill emoji="🎬" label="Reel" />
               <FormatPill emoji="📱" label="Story" />
+              <FormatPill emoji="💼" label="LinkedIn" />
             </div>
           </Link>
         </ZoneSection>
@@ -219,10 +221,12 @@ function HubCard({
 }
 
 /* ─── Format pill ─── */
-function FormatPill({ emoji, label }: { emoji: string; label: string }) {
+function FormatPill({ emoji, label, soon }: { emoji: string; label: string; soon?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-1.5 font-mono-ui text-xs font-semibold text-primary bg-rose-pale px-3 py-1.5 rounded-pill">
-      {emoji} {label}
+    <span className={`inline-flex items-center gap-1.5 font-mono-ui text-xs font-semibold px-3 py-1.5 rounded-pill ${
+      soon ? "text-muted-foreground bg-muted" : "text-primary bg-rose-pale"
+    }`}>
+      {emoji} {label}{soon && " 🔜"}
     </span>
   );
 }
