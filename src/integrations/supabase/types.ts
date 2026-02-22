@@ -2012,6 +2012,106 @@ export type Database = {
         }
         Relationships: []
       }
+      live_questions: {
+        Row: {
+          created_at: string
+          id: string
+          live_id: string
+          question: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          live_id: string
+          question: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          live_id?: string
+          question?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_questions_live_id_fkey"
+            columns: ["live_id"]
+            isOneToOne: false
+            referencedRelation: "lives"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_reminders: {
+        Row: {
+          created_at: string
+          id: string
+          live_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          live_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          live_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_reminders_live_id_fkey"
+            columns: ["live_id"]
+            isOneToOne: false
+            referencedRelation: "lives"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lives: {
+        Row: {
+          created_at: string
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          live_type: string
+          meeting_link: string | null
+          replay_url: string | null
+          scheduled_at: string | null
+          status: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          live_type?: string
+          meeting_link?: string | null
+          replay_url?: string | null
+          scheduled_at?: string | null
+          status?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          live_type?: string
+          meeting_link?: string | null
+          replay_url?: string | null
+          scheduled_at?: string | null
+          status?: string
+          title?: string
+        }
+        Relationships: []
+      }
       monthly_stats: {
         Row: {
           accounts_engaged: number | null
