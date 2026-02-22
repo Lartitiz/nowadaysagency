@@ -196,6 +196,28 @@ export default function BrandingPage() {
               </div>
             );
           })}
+
+          {/* Mes offres card */}
+          <div
+            className="rounded-2xl border-2 bg-card p-5 transition-all border-primary/30 hover:border-primary hover:shadow-md cursor-pointer"
+            onClick={() => navigate("/branding/offres")}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <span className="text-2xl">🎁</span>
+            </div>
+            <h3 className="font-display text-base font-bold text-foreground mb-1">Mes offres</h3>
+            <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">
+              Formule tes offres de manière désirable. L'IA te coache à chaque étape.
+            </p>
+            <Button
+              size="sm"
+              className="rounded-pill text-xs w-full"
+              onClick={(e) => { e.stopPropagation(); navigate("/branding/offres"); }}
+            >
+              <Sparkles className="h-3.5 w-3.5 mr-1" />
+              Voir mes offres
+            </Button>
+          </div>
         </div>
       </main>
     </div>

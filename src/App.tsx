@@ -49,6 +49,8 @@ import PropositionPage from "./pages/PropositionPage";
 import PropositionRecapPage from "./pages/PropositionRecapPage";
 import StrategiePage from "./pages/StrategiePage";
 import StrategieRecapPage from "./pages/StrategieRecapPage";
+import OffersPage from "./pages/OffersPage";
+import OfferWorkshopPage from "./pages/OfferWorkshopPage";
 import LinkedInHub from "./pages/LinkedInHub";
 import LinkedInAudit from "./pages/LinkedInAudit";
 import LinkedInProfil from "./pages/LinkedInProfil";
@@ -107,6 +109,8 @@ const App = () => (
             <Route path="/branding/niche/recap" element={<Navigate to="/branding/ton" replace />} />
             <Route path="/branding/strategie" element={<ProtectedRoute><StrategiePage /></ProtectedRoute>} />
             <Route path="/branding/strategie/recap" element={<ProtectedRoute><StrategieRecapPage /></ProtectedRoute>} />
+            <Route path="/branding/offres" element={<ProtectedRoute><OffersPage /></ProtectedRoute>} />
+            <Route path="/branding/offres/:id" element={<ProtectedRoute><OfferWorkshopPage /></ProtectedRoute>} />
             <Route path="/plan" element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />
             <Route path="/profil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/parametres" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
