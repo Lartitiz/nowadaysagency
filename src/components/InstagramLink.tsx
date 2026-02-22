@@ -37,33 +37,22 @@ function InstagramLinkInner({ username, children, className, onClick, showCopy =
   const { toast } = useToast();
   const url = buildUrl(username);
 
-  const handleClick = (e: React.MouseEvent) => {
-    // Always copy URL to clipboard as primary action
+  const copyUrl = () => {
     navigator.clipboard.writeText(url).then(() => {
       toast({
         title: "📋 Lien copié !",
-        description: "Colle-le dans ton navigateur pour ouvrir Instagram.",
+        description: "Colle-le dans ton navigateur → " + url,
       });
     }).catch(() => {
-      toast({ title: "🔗 Lien Instagram", description: url });
+      window.prompt("Copie ce lien :", url);
     });
+  };
 
-    // Try opening via a detached anchor to bypass iframe restrictions
-    try {
-      const a = document.createElement('a');
-      a.href = url;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer nofollow';
-      a.setAttribute('referrerpolicy', 'no-referrer');
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => document.body.removeChild(a), 100);
-    } catch {
-      // Fallback: clipboard copy already done above
-    }
-
-    e.preventDefault();
+  const handleClick = (e: React.MouseEvent) => {
     onClick?.();
+    // Don't prevent default — let the <a> try to open natively.
+    // Also copy as fallback in case Instagram blocks.
+    copyUrl();
   };
 
   return (
@@ -82,9 +71,7 @@ function InstagramLinkInner({ username, children, className, onClick, showCopy =
         <button
           onClick={(e) => {
             e.stopPropagation();
-            navigator.clipboard.writeText(url).then(() => {
-              toast({ title: "📋 Lien copié !", description: url });
-            });
+            copyUrl();
           }}
           className="text-muted-foreground hover:text-primary text-xs shrink-0"
           title="Copier le lien Instagram"
