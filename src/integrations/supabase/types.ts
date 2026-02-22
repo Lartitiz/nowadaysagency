@@ -3369,6 +3369,93 @@ export type Database = {
         }
         Relationships: []
       }
+      studio_binomes: {
+        Row: {
+          cohort: string | null
+          created_at: string
+          id: string
+          user_a: string
+          user_b: string
+        }
+        Insert: {
+          cohort?: string | null
+          created_at?: string
+          id?: string
+          user_a: string
+          user_b: string
+        }
+        Update: {
+          cohort?: string | null
+          created_at?: string
+          id?: string
+          user_a?: string
+          user_b?: string
+        }
+        Relationships: []
+      }
+      studio_coachings: {
+        Row: {
+          calendly_link: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          scheduled_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          calendly_link?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          scheduled_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          calendly_link?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          scheduled_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      studio_deliverables: {
+        Row: {
+          created_at: string
+          deliverable_type: string
+          feedback: string | null
+          id: string
+          label: string | null
+          status: string
+          user_id: string
+          validated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          deliverable_type: string
+          feedback?: string | null
+          id?: string
+          label?: string | null
+          status?: string
+          user_id: string
+          validated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          deliverable_type?: string
+          feedback?: string | null
+          id?: string
+          label?: string | null
+          status?: string
+          user_id?: string
+          validated_at?: string | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           cancel_at: string | null
