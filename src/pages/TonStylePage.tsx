@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import SaveButton from "@/components/SaveButton";
-import UnsavedChangesDialog from "@/components/UnsavedChangesDialog";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 
 /* ─── Types ─── */
@@ -103,7 +102,7 @@ export default function TonStylePage() {
   const [activeField, setActiveField] = useState("voice_description");
 
   const hasChanges = JSON.stringify(profile) !== JSON.stringify(savedProfile);
-  const blocker = useUnsavedChanges(hasChanges);
+  useUnsavedChanges(hasChanges);
 
   const { isListening, isSupported, toggle: toggleMic } = useSpeechRecognition((text) => {
     const cur = (profile as any)[activeField] || "";
@@ -348,7 +347,7 @@ Réponds avec le texte seul, 3-4 phrases.`);
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <UnsavedChangesDialog blocker={blocker} />
+      
       <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4 pb-28">
         <Link to="/branding" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ArrowLeft className="h-4 w-4" />
