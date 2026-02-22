@@ -12,21 +12,42 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const { type, objective, face_cam, subject, time_available, is_launch, branding_context, selected_hook, pre_gen_answers } = await req.json();
+    const { type, objective, face_cam, subject, time_available, is_launch, branding_context, selected_hook, pre_gen_answers, image_urls, inspiration_context } = await req.json();
 
     const systemPrompt = buildSystemPrompt(branding_context || "");
 
     let userPrompt = "";
+    let messages: any[] = [];
 
-    if (type === "hooks") {
-      userPrompt = buildHooksPrompt(objective, face_cam, subject, time_available, is_launch);
+    if (type === "analyze_inspiration") {
+      // Multimodal: analyze inspiration screenshots
+      const imageContent = (image_urls || []).map((url: string, i: number) => ({
+        type: "image_url",
+        image_url: { url },
+      }));
+      messages = [
+        { role: "system", content: "Tu es experte en analyse de Reels Instagram. Analyse les screenshots fournis et identifie les patterns de succès." },
+        { role: "user", content: [
+          { type: "text", text: buildInspirationAnalysisPrompt() },
+          ...imageContent,
+        ]},
+      ];
+    } else if (type === "hooks") {
+      userPrompt = buildHooksPrompt(objective, face_cam, subject, time_available, is_launch, inspiration_context);
     } else if (type === "script") {
-      userPrompt = buildScriptPrompt(objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers);
+      userPrompt = buildScriptPrompt(objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, inspiration_context);
     } else {
       return new Response(JSON.stringify({ error: "Type invalide" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (!messages.length) {
+      messages = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ];
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -37,10 +58,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
+        messages,
       }),
     });
 
@@ -150,7 +168,34 @@ RÈGLES DE GÉNÉRATION :
 RETOURNE UNIQUEMENT un JSON valide, sans texte avant ou après, sans backticks.`;
 }
 
-function buildHooksPrompt(objective: string, face_cam: string, subject: string, time_available: string, is_launch: boolean): string {
+function buildInspirationAnalysisPrompt(): string {
+  return `Analyse chaque screenshot de Reel et identifie :
+- Le type de hook utilisé (text overlay, phrase face cam, visuel choc)
+- Le format du Reel (face cam, montage, voix off, texte défilant)
+- Le ton (punchy, intime, pédago, drôle, coup de gueule)
+- La structure visible (hook → développement → CTA, ou autre)
+- Les éléments visuels distinctifs (sous-titres stylés, couleurs, cadrage)
+- Le texte visible sur le screenshot si lisible
+
+RETOURNE UNIQUEMENT un JSON valide, sans backticks :
+{
+  "inspiration_analysis": [
+    {
+      "image_index": 1,
+      "hook_type": "text overlay + face cam",
+      "hook_text_visible": "Le texte visible sur le screenshot si lisible",
+      "format": "face cam avec sous-titres stylés",
+      "tone": "punchy et direct",
+      "structure": "hook choc → démonstration → CTA",
+      "visual_elements": "sous-titres jaunes sur fond noir, gros plan"
+    }
+  ],
+  "patterns_communs": "Description des patterns communs identifiés",
+  "recommandation": "Recommandation concrète pour le prochain Reel"
+}`;
+}
+
+function buildHooksPrompt(objective: string, face_cam: string, subject: string, time_available: string, is_launch: boolean, inspirationContext?: string): string {
   const objectiveMap: Record<string, string> = {
     reach: "Reach / Viralité — toucher un max de nouvelles personnes",
     saves: "Saves / Expertise — contenu qu'on sauvegarde",
@@ -182,7 +227,7 @@ ${subjectInstruction}
 Temps tournage : ${time_available}
 En lancement : ${is_launch ? "oui" : "non"}
 Format suggéré : ${suggestedFormat}
-
+${inspirationContext ? `\nINSPIRATION ANALYSÉE :\n${inspirationContext}\n\nINSPIRE-TOI du style et du format identifiés dans les screenshots d'inspiration pour les hooks et le format. NE COPIE PAS le contenu.\n` : ""}
 HOOKS REELS — RÈGLES NON-NÉGOCIABLES :
 
 UN HOOK REEL = 5-12 MOTS MAXIMUM.
@@ -278,7 +323,7 @@ Retourne ce JSON exact :
 }`;
 }
 
-function buildScriptPrompt(objective: string, face_cam: string, subject: string, time_available: string, is_launch: boolean, selectedHook: any, preGenAnswers?: { anecdote?: string; emotion?: string; conviction?: string }): string {
+function buildScriptPrompt(objective: string, face_cam: string, subject: string, time_available: string, is_launch: boolean, selectedHook: any, preGenAnswers?: { anecdote?: string; emotion?: string; conviction?: string }, inspirationContext?: string): string {
   let preGenBlock = "";
   if (preGenAnswers && (preGenAnswers.anecdote || preGenAnswers.emotion || preGenAnswers.conviction)) {
     preGenBlock = `
@@ -308,7 +353,7 @@ Face cam : ${face_cam}
 Sujet : ${subject || "(basé sur le hook choisi)"}
 Temps tournage : ${time_available}
 En lancement : ${is_launch ? "oui" : "non"}
-
+${inspirationContext ? `\nINSPIRATION ANALYSÉE :\n${inspirationContext}\nINSPIRE-TOI du style identifié. NE COPIE PAS le contenu.\n` : ""}
 HOOK CHOISI :
 - Type : ${selectedHook.type} (${selectedHook.type_label})
 - Texte : "${selectedHook.text}"
