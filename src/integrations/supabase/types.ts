@@ -421,6 +421,66 @@ export type Database = {
           },
         ]
       }
+      content_recycling: {
+        Row: {
+          created_at: string
+          formats_requested: Json | null
+          id: string
+          results: Json | null
+          source_text: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          formats_requested?: Json | null
+          id?: string
+          results?: Json | null
+          source_text?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          formats_requested?: Json | null
+          id?: string
+          results?: Json | null
+          source_text?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      content_scores: {
+        Row: {
+          content_text: string | null
+          content_type: string | null
+          created_at: string
+          global_score: number | null
+          id: string
+          improvements: Json | null
+          scores: Json | null
+          user_id: string
+        }
+        Insert: {
+          content_text?: string | null
+          content_type?: string | null
+          created_at?: string
+          global_score?: number | null
+          id?: string
+          improvements?: Json | null
+          scores?: Json | null
+          user_id: string
+        }
+        Update: {
+          content_text?: string | null
+          content_type?: string | null
+          created_at?: string
+          global_score?: number | null
+          id?: string
+          improvements?: Json | null
+          scores?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       engagement_checklist_logs: {
         Row: {
           created_at: string | null
@@ -2684,6 +2744,39 @@ export type Database = {
           id?: string
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      weekly_batches: {
+        Row: {
+          contents_generated: Json | null
+          created_at: string
+          id: string
+          status: string
+          subjects_proposed: Json | null
+          subjects_selected: Json | null
+          user_id: string
+          week_start: string | null
+        }
+        Insert: {
+          contents_generated?: Json | null
+          created_at?: string
+          id?: string
+          status?: string
+          subjects_proposed?: Json | null
+          subjects_selected?: Json | null
+          user_id: string
+          week_start?: string | null
+        }
+        Update: {
+          contents_generated?: Json | null
+          created_at?: string
+          id?: string
+          status?: string
+          subjects_proposed?: Json | null
+          subjects_selected?: Json | null
+          user_id?: string
+          week_start?: string | null
         }
         Relationships: []
       }

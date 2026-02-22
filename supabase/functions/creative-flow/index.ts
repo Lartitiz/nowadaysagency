@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS } from "../_shared/copywriting-prompts.ts";
+import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS } from "../_shared/copywriting-prompts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -131,7 +131,7 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const body = await req.json();
-    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers } = body;
+    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat } = body;
 
     const profileBlock = profile ? buildProfileBlock(profile) : "";
     const brandingContext = await buildBrandingContext(supabase, user.id);
@@ -193,6 +193,8 @@ serve(async (req) => {
       systemPrompt = `${CORE_PRINCIPLES}
 
 ${ANTI_SLOP}
+
+${ANTI_BIAS}
 
 ${ETHICAL_GUARDRAILS}
 
@@ -302,6 +304,8 @@ Réponds UNIQUEMENT en JSON :
 
 ${ANTI_SLOP}
 
+${ANTI_BIAS}
+
 ${ETHICAL_GUARDRAILS}
 
 ${CHAIN_OF_THOUGHT}
@@ -359,6 +363,96 @@ Réponds UNIQUEMENT en JSON :
   "content": "..."
 }`;
       userPrompt = `Ajuste le contenu : ${adjustment}`;
+
+    } else if (step === "recycle") {
+      const formatLabels: Record<string, string> = {
+        carrousel: "Carrousel Instagram (8 slides)",
+        reel: "Script Reel (30-60 sec)",
+        stories: "Séquence Stories (5 stories)",
+        linkedin: "Post LinkedIn",
+        newsletter: "Email / Newsletter",
+      };
+      const requestedFormats = (formats || []).map((f: string) => formatLabels[f] || f);
+
+      systemPrompt = `${CORE_PRINCIPLES}
+
+${ANTI_SLOP}
+
+${ANTI_BIAS}
+
+${ETHICAL_GUARDRAILS}
+
+${CHAIN_OF_THOUGHT}
+
+${FORMAT_STRUCTURES}
+
+${WRITING_RESOURCES}
+
+PROFIL DE L'UTILISATRICE :
+${fullContext}
+${voiceBlock}
+
+Voici un contenu existant de l'utilisatrice :
+"""
+${sourceText}
+"""
+
+Transforme ce contenu en ces formats : ${requestedFormats.join(", ")}
+
+RÈGLES CRUCIALES :
+- Chaque format prend un ANGLE DIFFÉRENT du contenu source
+- Le carrousel ne résume PAS la newsletter : il prend 1 idée et la développe
+- Le Reel ne lit PAS le carrousel : il prend un autre point en mode oral/punchy
+- Les stories ne récitent PAS le Reel : elles ouvrent le sujet de manière intime
+- Le post LinkedIn ne copie PAS le post Instagram : ton plus analytique, 1ère personne, storytelling pro
+- Pour chaque format, précise l'angle choisi
+
+Réponds UNIQUEMENT en JSON :
+{
+  "results": {
+    ${(formats || []).map((f: string) => `"${f}": "contenu complet ici"`).join(",\n    ")}
+  }
+}`;
+      userPrompt = `Recycle ce contenu en ${requestedFormats.join(", ")}.`;
+
+    } else if (step === "dictation") {
+      systemPrompt = `${CORE_PRINCIPLES}
+
+${ANTI_SLOP}
+
+${ANTI_BIAS}
+
+${ETHICAL_GUARDRAILS}
+
+${WRITING_RESOURCES}
+
+PROFIL DE L'UTILISATRICE :
+${fullContext}
+${voiceBlock}
+
+L'utilisatrice a dicté ceci en mode vocal :
+"""
+${sourceText}
+"""
+
+Transforme en : ${targetFormat}
+
+RÈGLES ABSOLUES :
+- Garde SES mots. Si elle dit "le truc c'est que", utilise "le truc c'est que".
+- Garde SON rythme. Si elle fait des phrases longues qui déroulent, garde ça.
+- Garde SES expressions. Si elle dit "franchement" ou "genre", c'est sa voix.
+- NE réécris PAS dans un style "professionnel". Structure, c'est tout.
+- Tu peux couper les répétitions et les hésitations.
+- Tu peux réorganiser l'ordre pour plus de clarté.
+- Tu DOIS garder l'énergie et la personnalité de l'oral.
+
+Le résultat doit sonner comme si ELLE l'avait écrit, pas comme si une IA avait reformulé.
+
+Réponds UNIQUEMENT en JSON :
+{
+  "content": "..."
+}`;
+      userPrompt = `Structure ma dictée vocale en ${targetFormat}.`;
 
     } else {
       return new Response(JSON.stringify({ error: "Step non reconnu" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });

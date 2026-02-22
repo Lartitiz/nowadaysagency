@@ -7,9 +7,11 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, Save, PenLine, ArrowLeft, CalendarDays } from "lucide-react";
+import { Sparkles, Save, PenLine, ArrowLeft, CalendarDays, RefreshCw, Mic } from "lucide-react";
 import { Link } from "react-router-dom";
 import CreativeFlow from "@/components/CreativeFlow";
+import ContentRecycling from "@/components/ContentRecycling";
+import ContentWorkshop from "@/components/ContentWorkshop";
 import {
   OBJECTIFS, FORMATS, CANAUX,
   getRecommendedFormats, formatIdToGuideKey,
@@ -54,6 +56,7 @@ export default function AtelierPage() {
   const [brandProfile, setBrandProfile] = useState<any>(null);
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
   const [showRecapEdit, setShowRecapEdit] = useState(false);
+  const [atelierMode, setAtelierMode] = useState<"create" | "recycle" | "dictate">("create");
 
   // Pre-fill from calendar data
   useEffect(() => {
@@ -296,8 +299,58 @@ export default function AtelierPage() {
 
         <BrandingPrompt section="global" />
 
+        {/* Mode switcher (only when not from calendar) */}
+        {!fromCalendar && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            <button
+              onClick={() => setAtelierMode("create")}
+              className={`rounded-pill px-4 py-2 text-sm font-medium border transition-all ${
+                atelierMode === "create" ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"
+              }`}
+            >
+              ✨ Créer un contenu
+            </button>
+            <button
+              onClick={() => setAtelierMode("recycle")}
+              className={`rounded-pill px-4 py-2 text-sm font-medium border transition-all ${
+                atelierMode === "recycle" ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"
+              }`}
+            >
+              🔄 Recycler un contenu
+            </button>
+            <button
+              onClick={() => setAtelierMode("dictate")}
+              className={`rounded-pill px-4 py-2 text-sm font-medium border transition-all ${
+                atelierMode === "dictate" ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"
+              }`}
+            >
+              🎤 Dicter mon contenu
+            </button>
+          </div>
+        )}
+
+        {/* Recycle mode */}
+        {!fromCalendar && atelierMode === "recycle" && (
+          <ContentRecycling />
+        )}
+
+        {/* Dictate mode */}
+        {!fromCalendar && atelierMode === "dictate" && (
+          <ContentWorkshop onSave={(content, format) => {
+            if (!user) return;
+            supabase.from("saved_ideas").insert({
+              user_id: user.id,
+              titre: content.slice(0, 60),
+              format,
+              angle: content.slice(0, 120),
+              canal,
+              objectif: objectif || null,
+            }).then(() => toast({ title: "Contenu enregistré !" }));
+          }} />
+        )}
+
         {/* Hide selectors when coming from calendar (unless user wants to edit) */}
-        {(!fromCalendar || showRecapEdit) && (
+        {(fromCalendar || atelierMode === "create") && (!fromCalendar || showRecapEdit) && (
           <>
             {/* ── Canal selector ── */}
             <div className="mb-6">
