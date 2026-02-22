@@ -567,6 +567,140 @@ export type Database = {
           },
         ]
       }
+      contact_interactions: {
+        Row: {
+          ai_generated: boolean | null
+          contact_id: string
+          content: string | null
+          created_at: string
+          id: string
+          interaction_type: string
+          responded: boolean | null
+          user_id: string
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          contact_id: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          interaction_type: string
+          responded?: boolean | null
+          user_id: string
+        }
+        Update: {
+          ai_generated?: boolean | null
+          contact_id?: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          interaction_type?: string
+          responded?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_interactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          activity: string | null
+          contact_type: string
+          conversion_amount: number | null
+          converted_at: string | null
+          created_at: string
+          decision_phase: string | null
+          display_name: string | null
+          id: string
+          last_conversation: string | null
+          last_dm_context: string | null
+          last_interaction_at: string | null
+          network_category: string | null
+          next_followup_at: string | null
+          next_followup_text: string | null
+          noted_interest: string | null
+          notes: string | null
+          platform: string
+          potential_value: number | null
+          probable_problem: string | null
+          prospect_stage: string | null
+          relevant_offer: string | null
+          source: string | null
+          strengths: string | null
+          target_offer: string | null
+          to_avoid: string | null
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          activity?: string | null
+          contact_type?: string
+          conversion_amount?: number | null
+          converted_at?: string | null
+          created_at?: string
+          decision_phase?: string | null
+          display_name?: string | null
+          id?: string
+          last_conversation?: string | null
+          last_dm_context?: string | null
+          last_interaction_at?: string | null
+          network_category?: string | null
+          next_followup_at?: string | null
+          next_followup_text?: string | null
+          noted_interest?: string | null
+          notes?: string | null
+          platform?: string
+          potential_value?: number | null
+          probable_problem?: string | null
+          prospect_stage?: string | null
+          relevant_offer?: string | null
+          source?: string | null
+          strengths?: string | null
+          target_offer?: string | null
+          to_avoid?: string | null
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          activity?: string | null
+          contact_type?: string
+          conversion_amount?: number | null
+          converted_at?: string | null
+          created_at?: string
+          decision_phase?: string | null
+          display_name?: string | null
+          id?: string
+          last_conversation?: string | null
+          last_dm_context?: string | null
+          last_interaction_at?: string | null
+          network_category?: string | null
+          next_followup_at?: string | null
+          next_followup_text?: string | null
+          noted_interest?: string | null
+          notes?: string | null
+          platform?: string
+          potential_value?: number | null
+          probable_problem?: string | null
+          prospect_stage?: string | null
+          relevant_offer?: string | null
+          source?: string | null
+          strengths?: string | null
+          target_offer?: string | null
+          to_avoid?: string | null
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
       content_drafts: {
         Row: {
           accroche: string | null

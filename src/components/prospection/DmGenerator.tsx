@@ -6,7 +6,49 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, ArrowRight, Copy, Loader2, AlertTriangle, Check, Sparkles } from "lucide-react";
-import type { Prospect, ProspectInteraction } from "./ProspectionSection";
+// Prospect type - compatible with both old ProspectionSection and new ContactsPage
+type Prospect = {
+  id: string;
+  instagram_username?: string;
+  username?: string;
+  display_name?: string | null;
+  activity?: string | null;
+  strengths?: string | null;
+  probable_problem?: string | null;
+  source?: string | null;
+  note?: string | null;
+  notes?: string | null;
+  stage?: string;
+  prospect_stage?: string;
+  decision_phase?: string | null;
+  relevant_offer?: string | null;
+  last_interaction_at?: string | null;
+  next_reminder_at?: string | null;
+  next_followup_at?: string | null;
+  next_reminder_text?: string | null;
+  next_followup_text?: string | null;
+  conversion_amount?: number | null;
+  noted_interest?: string | null;
+  to_avoid?: string | null;
+  last_conversation?: string | null;
+  last_dm_context?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: any;
+};
+
+type ProspectInteraction = {
+  id: string;
+  prospect_id?: string;
+  contact_id?: string;
+  interaction_type: string;
+  content: string | null;
+  ai_generated: boolean;
+  responded: boolean | null;
+  created_at: string;
+};
+
+export type { Prospect, ProspectInteraction };
 
 const APPROACHES = [
   { key: "reconnect", emoji: "🫶", label: "Reprendre contact", desc: "Juste du lien humain, pas de vente." },
@@ -36,6 +78,10 @@ interface Props {
 }
 
 type Step = 1 | 2 | 3 | 4;
+
+function getUsername(p: Prospect) {
+  return p.instagram_username || p.username || "";
+}
 
 export default function DmGenerator({ prospect, interactions, onBack, onMessageSent }: Props) {
   const { user } = useAuth();
@@ -198,7 +244,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
       <div className="space-y-4">
         <StepHeader step={1} label="VOTRE CONVERSATION" prospect={prospect} onBack={onBack} />
         <p className="text-xs text-muted-foreground">
-          Copie-colle ici les derniers messages échangés avec @{prospect.instagram_username} (DM Instagram) :
+          Copie-colle ici les derniers messages échangés avec @{getUsername(prospect)} (DM Instagram) :
         </p>
         <Textarea
           value={conversationHistory}
@@ -475,7 +521,7 @@ function StepHeader({ step, label, prospect, onBack }: { step: number; label: st
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h3 className="font-display text-sm font-bold">
-          📩 DM pour @{prospect.instagram_username}
+          📩 DM pour @{getUsername(prospect)}
         </h3>
       </div>
       {/* Step indicator */}
