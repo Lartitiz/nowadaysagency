@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, ANTI_SLOP, ETHICAL_GUARDRAILS } from "../_shared/copywriting-prompts.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,9 +25,13 @@ Deno.serve(async (req) => {
     if (!user) throw new Error("Non authentifié");
 
     const body = await req.json();
-    const { target_username, post_caption, user_intent, angle, branding_context, screenshot_base64, screenshot_media_type } = body;
+    const { target_username, post_caption, user_intent, angle, screenshot_base64, screenshot_media_type } = body;
 
     if (!post_caption?.trim()) throw new Error("La légende du post est requise.");
+
+    // Fetch full user context server-side
+    const ctx = await getUserContext(supabaseClient, user.id);
+    const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.comments);
 
     const angleInstruction = angle && angle !== "all"
       ? `ANGLE DEMANDÉ : ${angle} — Génère uniquement ce type de commentaire, mais propose quand même 4 variantes avec des tons différents.`
@@ -40,8 +45,7 @@ ${ETHICAL_GUARDRAILS}
 
 Tu dois générer des commentaires Instagram stratégiques pour le post d'un contact.
 
-CONTEXTE DE L'UTILISATRICE :
-${branding_context || "Pas de contexte de marque disponible."}
+${contextStr}
 
 LE POST :
 - Compte : @${target_username}

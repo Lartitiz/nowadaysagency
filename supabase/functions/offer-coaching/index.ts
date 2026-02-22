@@ -1,20 +1,45 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { step, answer, offerData, brandContext } = await req.json();
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Authentification requise" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Authentification invalide" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { step, answer, offerData } = await req.json();
+
+    // Fetch full user context server-side for richer coaching
+    const ctx = await getUserContext(supabase, user.id);
+    const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.offerCoaching);
 
     const stepPrompts: Record<number, string> = {
       2: `L'utilisatrice décrit le problème que son offre résout.
 Sa réponse : "${answer}"
-Son activité : ${brandContext?.activity || "non renseignée"}
 Son offre : ${offerData?.name || "non nommée"} - ${offerData?.description_short || ""}
 
 Analyse sa réponse. Si elle reste en surface (symptômes, problèmes techniques), pose 2-3 questions pour creuser vers :
@@ -129,17 +154,25 @@ Retourne un JSON :
 
     const systemPrompt = `Tu es un coach en positionnement d'offre. Tu aides des solopreneuses à formuler leurs offres de manière désirable et éthique.
 
+${contextStr}
+
 Ton : direct, chaleureux, comme une coach bienveillante. Pas de jargon marketing. Tu parles comme à une amie qui est experte.
 
-IMPORTANT : chaque question doit être SPÉCIFIQUE à la réponse de l'utilisatrice, pas générique.
+IMPORTANT : chaque question doit être SPÉCIFIQUE à la réponse de l'utilisatrice, pas générique. Utilise le contexte de sa marque, son positionnement et sa cible pour personnaliser tes questions et reformulations.
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const userPrompt = stepPrompts[step] || `L'utilisatrice a répondu "${answer}" à l'étape ${step}. Analyse sa réponse et donne un feedback personnalisé. Retourne un JSON avec "reaction" (string).`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
@@ -159,7 +192,6 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "{}";
     
-    // Parse JSON from response (handle possible markdown wrapping)
     let parsed;
     try {
       const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -171,7 +203,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
+  } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

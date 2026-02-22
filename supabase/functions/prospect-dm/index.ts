@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, ANTI_SLOP, ETHICAL_GUARDRAILS } from "../_shared/copywriting-prompts.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,7 +25,34 @@ Deno.serve(async (req) => {
     if (!user) throw new Error("Non authentifié");
 
     const body = await req.json();
-    const { prospect, approach_type, interactions_summary, branding_context } = body;
+    const { prospect, approach_type, interactions_summary } = body;
+
+    // Fetch full user context server-side (includes offers for DM)
+    const ctx = await getUserContext(supabaseClient, user.id);
+    const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.dm);
+
+    // Find relevant offer for this prospect
+    let relevantOfferBlock = "";
+    if (ctx.offers?.length > 0) {
+      // If prospect has a relevant_offer field, find it; otherwise use the main paid offer
+      const relevantOffer = prospect.relevant_offer
+        ? ctx.offers.find((o: any) => o.name === prospect.relevant_offer)
+        : ctx.offers.find((o: any) => o.offer_type === "paid");
+      const freebie = ctx.offers.find((o: any) => o.offer_type === "free");
+
+      if (relevantOffer) {
+        relevantOfferBlock += `\nOFFRE PERTINENTE POUR CE PROSPECT :
+- Nom : ${relevantOffer.name}
+- Promesse : ${relevantOffer.promise || "?"}
+- Prix : ${relevantOffer.price_text || "?"}
+- Lien : ${relevantOffer.url_sales_page || relevantOffer.url_booking || "?"}`;
+      }
+      if (freebie && approach_type === "resource") {
+        relevantOfferBlock += `\nRESSOURCE GRATUITE DISPONIBLE :
+- Nom : ${freebie.name}
+- Description : ${freebie.description_short || "?"}`;
+      }
+    }
 
     const approachDescriptions: Record<string, string> = {
       reconnect: `MESSAGE DE REPRISE DE CONTACT NATURELLE
@@ -51,8 +79,8 @@ ${ANTI_SLOP}
 
 ${ETHICAL_GUARDRAILS}
 
-CONTEXTE DE L'EXPÉDITRICE :
-${branding_context || "Pas de contexte de marque disponible."}
+${contextStr}
+${relevantOfferBlock}
 
 CONTEXTE DU PROSPECT :
 - Username : @${prospect.instagram_username}
@@ -111,7 +139,6 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
 
-    // Parse JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("Failed to parse AI response");
 
