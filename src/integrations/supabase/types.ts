@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_validations: {
+        Row: {
+          created_at: string
+          id: string
+          section: string
+          status: string
+          updated_at: string
+          user_id: string
+          validated_at: string | null
+          validated_content: Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          section: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          validated_at?: string | null
+          validated_content?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          section?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          validated_at?: string | null
+          validated_content?: Json | null
+        }
+        Relationships: []
+      }
       brand_profile: {
         Row: {
           channels: string[] | null
@@ -2314,6 +2347,7 @@ export type Database = {
       profiles: {
         Row: {
           activite: string
+          bio_generator_answers: Json | null
           canaux: string[]
           ce_quon_evite: string
           cible: string
@@ -2334,11 +2368,14 @@ export type Database = {
           type_activite: string
           updated_at: string
           user_id: string
+          validated_bio: string | null
+          validated_bio_at: string | null
           verbatims: string
           weekly_time_available: number | null
         }
         Insert: {
           activite?: string
+          bio_generator_answers?: Json | null
           canaux?: string[]
           ce_quon_evite?: string
           cible?: string
@@ -2359,11 +2396,14 @@ export type Database = {
           type_activite?: string
           updated_at?: string
           user_id: string
+          validated_bio?: string | null
+          validated_bio_at?: string | null
           verbatims?: string
           weekly_time_available?: number | null
         }
         Update: {
           activite?: string
+          bio_generator_answers?: Json | null
           canaux?: string[]
           ce_quon_evite?: string
           cible?: string
@@ -2384,6 +2424,8 @@ export type Database = {
           type_activite?: string
           updated_at?: string
           user_id?: string
+          validated_bio?: string | null
+          validated_bio_at?: string | null
           verbatims?: string
           weekly_time_available?: number | null
         }
