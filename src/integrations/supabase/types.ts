@@ -1284,6 +1284,129 @@ export type Database = {
         }
         Relationships: []
       }
+      instagram_weekly_stats: {
+        Row: {
+          ai_analysis: string | null
+          best_post: string | null
+          best_reel: string | null
+          comments_made: number | null
+          comments_received: number | null
+          created_at: string | null
+          dm_received: number | null
+          dm_sent: number | null
+          followers: number | null
+          id: string
+          launch_conversions: number | null
+          launch_dms: number | null
+          launch_link_clicks: number | null
+          launch_signups: number | null
+          launch_story_views: number | null
+          link_clicks: number | null
+          new_followers: number | null
+          posts_comments_avg: number | null
+          posts_count: number | null
+          posts_likes_avg: number | null
+          posts_reach_avg: number | null
+          posts_saves_avg: number | null
+          posts_shares_avg: number | null
+          profile_visits: number | null
+          reels_count: number | null
+          reels_likes_avg: number | null
+          reels_saves_avg: number | null
+          reels_shares_avg: number | null
+          reels_views_avg: number | null
+          stories_count: number | null
+          stories_replies: number | null
+          stories_retention_pct: number | null
+          stories_sticker_clicks: number | null
+          stories_views_avg: number | null
+          updated_at: string | null
+          user_id: string
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          ai_analysis?: string | null
+          best_post?: string | null
+          best_reel?: string | null
+          comments_made?: number | null
+          comments_received?: number | null
+          created_at?: string | null
+          dm_received?: number | null
+          dm_sent?: number | null
+          followers?: number | null
+          id?: string
+          launch_conversions?: number | null
+          launch_dms?: number | null
+          launch_link_clicks?: number | null
+          launch_signups?: number | null
+          launch_story_views?: number | null
+          link_clicks?: number | null
+          new_followers?: number | null
+          posts_comments_avg?: number | null
+          posts_count?: number | null
+          posts_likes_avg?: number | null
+          posts_reach_avg?: number | null
+          posts_saves_avg?: number | null
+          posts_shares_avg?: number | null
+          profile_visits?: number | null
+          reels_count?: number | null
+          reels_likes_avg?: number | null
+          reels_saves_avg?: number | null
+          reels_shares_avg?: number | null
+          reels_views_avg?: number | null
+          stories_count?: number | null
+          stories_replies?: number | null
+          stories_retention_pct?: number | null
+          stories_sticker_clicks?: number | null
+          stories_views_avg?: number | null
+          updated_at?: string | null
+          user_id: string
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          ai_analysis?: string | null
+          best_post?: string | null
+          best_reel?: string | null
+          comments_made?: number | null
+          comments_received?: number | null
+          created_at?: string | null
+          dm_received?: number | null
+          dm_sent?: number | null
+          followers?: number | null
+          id?: string
+          launch_conversions?: number | null
+          launch_dms?: number | null
+          launch_link_clicks?: number | null
+          launch_signups?: number | null
+          launch_story_views?: number | null
+          link_clicks?: number | null
+          new_followers?: number | null
+          posts_comments_avg?: number | null
+          posts_count?: number | null
+          posts_likes_avg?: number | null
+          posts_reach_avg?: number | null
+          posts_saves_avg?: number | null
+          posts_shares_avg?: number | null
+          profile_visits?: number | null
+          reels_count?: number | null
+          reels_likes_avg?: number | null
+          reels_saves_avg?: number | null
+          reels_shares_avg?: number | null
+          reels_views_avg?: number | null
+          stories_count?: number | null
+          stories_replies?: number | null
+          stories_retention_pct?: number | null
+          stories_sticker_clicks?: number | null
+          stories_views_avg?: number | null
+          updated_at?: string | null
+          user_id?: string
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       launch_plan_contents: {
         Row: {
           accroche: string | null

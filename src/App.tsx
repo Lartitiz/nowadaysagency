@@ -37,6 +37,7 @@ import InstagramLaunchPlan from "./pages/InstagramLaunchPlan";
 import InstagramLaunchRecommendation from "./pages/InstagramLaunchRecommendation";
 import InstagramRythme from "./pages/InstagramRythme";
 import InstagramEngagement from "./pages/InstagramEngagement";
+import InstagramStats from "./pages/InstagramStats";
 import InstagramStories from "./pages/InstagramStories";
 import InstagramReels from "./pages/InstagramReels";
 import InstagramCreer from "./pages/InstagramCreer";
@@ -113,6 +114,7 @@ const App = () => (
             {/* Instagram module */}
             <Route path="/instagram" element={<ProtectedRoute><InstagramHub /></ProtectedRoute>} />
             <Route path="/instagram/profil" element={<ProtectedRoute><InstagramProfile /></ProtectedRoute>} />
+            <Route path="/instagram/stats" element={<ProtectedRoute><InstagramStats /></ProtectedRoute>} />
             <Route path="/instagram/profil/audit" element={<ProtectedRoute><InstagramAudit /></ProtectedRoute>} />
             <Route path="/instagram/profil/nom" element={<ProtectedRoute><InstagramProfileNom /></ProtectedRoute>} />
             <Route path="/instagram/profil/bio" element={<ProtectedRoute><InstagramBio /></ProtectedRoute>} />
