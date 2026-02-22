@@ -314,6 +314,57 @@ export type Database = {
         }
         Relationships: []
       }
+      branding_audits: {
+        Row: {
+          audit_detail: Json | null
+          created_at: string
+          extraction_branding: Json | null
+          id: string
+          instagram_username: string | null
+          linkedin_url: string | null
+          plan_action: Json | null
+          points_faibles: Json | null
+          points_forts: Json | null
+          score_global: number | null
+          site_url: string | null
+          sources_used: Json | null
+          synthese: string | null
+          user_id: string
+        }
+        Insert: {
+          audit_detail?: Json | null
+          created_at?: string
+          extraction_branding?: Json | null
+          id?: string
+          instagram_username?: string | null
+          linkedin_url?: string | null
+          plan_action?: Json | null
+          points_faibles?: Json | null
+          points_forts?: Json | null
+          score_global?: number | null
+          site_url?: string | null
+          sources_used?: Json | null
+          synthese?: string | null
+          user_id: string
+        }
+        Update: {
+          audit_detail?: Json | null
+          created_at?: string
+          extraction_branding?: Json | null
+          id?: string
+          instagram_username?: string | null
+          linkedin_url?: string | null
+          plan_action?: Json | null
+          points_faibles?: Json | null
+          points_forts?: Json | null
+          score_global?: number | null
+          site_url?: string | null
+          sources_used?: Json | null
+          synthese?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       calendar_posts: {
         Row: {
           accroche: string | null
