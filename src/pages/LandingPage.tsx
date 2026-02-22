@@ -473,7 +473,7 @@ export default function LandingPage() {
                   <a href="https://instagram.com/nowadaysagency" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline">
                     <Instagram className="h-4 w-4" /> Instagram
                   </a>
-                  <a href="https://linkedin.com/company/nowadaysagency" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline">
+                  <a href="https://www.linkedin.com/in/laetitiamattioli/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline">
                     <Linkedin className="h-4 w-4" /> LinkedIn
                   </a>
                 </div>
@@ -698,7 +698,7 @@ export default function LandingPage() {
                 <a href="https://instagram.com/nowadaysagency" target="_blank" rel="noopener noreferrer" className="text-background/60 hover:text-background transition-colors">
                   <Instagram className="h-5 w-5" />
                 </a>
-                <a href="https://linkedin.com/company/nowadaysagency" target="_blank" rel="noopener noreferrer" className="text-background/60 hover:text-background transition-colors">
+                <a href="https://www.linkedin.com/in/laetitiamattioli/" target="_blank" rel="noopener noreferrer" className="text-background/60 hover:text-background transition-colors">
                   <Linkedin className="h-5 w-5" />
                 </a>
               </div>
