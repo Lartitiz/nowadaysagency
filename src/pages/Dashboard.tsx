@@ -6,7 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import AiDisclaimerBanner from "@/components/AiDisclaimerBanner";
 import { Progress } from "@/components/ui/progress";
 import { ExternalLink, ArrowRight } from "lucide-react";
-import RoutinesPanel from "@/components/RoutinesPanel";
+import SmartRoutinesPanel from "@/components/SmartRoutinesPanel";
 import { getMonday } from "@/lib/mission-engine";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 
@@ -269,7 +269,7 @@ export default function Dashboard() {
 
         {/* Routines */}
         <div className="mb-8">
-          <RoutinesPanel />
+          <SmartRoutinesPanel />
         </div>
 
         {/* Conseil du jour */}
