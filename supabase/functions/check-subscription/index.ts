@@ -52,6 +52,7 @@ serve(async (req) => {
       studio_months_paid: sub?.studio_months_paid || 0,
       studio_end_date: sub?.studio_end_date,
       cancel_at: sub?.cancel_at,
+      source: sub?.source || "stripe",
       purchases: purchases || [],
       ai_usage: {
         generation_count: usage?.generation_count || 0,

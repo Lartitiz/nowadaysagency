@@ -7,6 +7,10 @@ import AiDisclaimerBanner from "@/components/AiDisclaimerBanner";
 import { Progress } from "@/components/ui/progress";
 import { ExternalLink, ArrowRight } from "lucide-react";
 import SmartRoutinesPanel from "@/components/SmartRoutinesPanel";
+import LivesWidget from "@/components/dashboard/LivesWidget";
+import CommunityWidget from "@/components/dashboard/CommunityWidget";
+import StudioWidget from "@/components/dashboard/StudioWidget";
+import ServicesWidget from "@/components/dashboard/ServicesWidget";
 import { getMonday } from "@/lib/mission-engine";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 
@@ -270,6 +274,14 @@ export default function Dashboard() {
         {/* Routines */}
         <div className="mb-8">
           <SmartRoutinesPanel />
+        </div>
+
+        {/* Extra sections */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <LivesWidget />
+          <CommunityWidget />
+          <StudioWidget />
+          <ServicesWidget />
         </div>
 
         {/* Conseil du jour */}

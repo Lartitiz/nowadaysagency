@@ -3023,6 +3023,74 @@ export type Database = {
         }
         Relationships: []
       }
+      promo_codes: {
+        Row: {
+          code: string
+          created_at: string
+          current_uses: number
+          duration_days: number | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_uses: number | null
+          plan_granted: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          current_uses?: number
+          duration_days?: number | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          plan_granted?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          current_uses?: number
+          duration_days?: number | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          plan_granted?: string
+        }
+        Relationships: []
+      }
+      promo_redemptions: {
+        Row: {
+          expires_at: string | null
+          id: string
+          promo_code_id: string
+          redeemed_at: string
+          user_id: string
+        }
+        Insert: {
+          expires_at?: string | null
+          id?: string
+          promo_code_id: string
+          redeemed_at?: string
+          user_id: string
+        }
+        Update: {
+          expires_at?: string | null
+          id?: string
+          promo_code_id?: string
+          redeemed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_redemptions_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prospect_interactions: {
         Row: {
           ai_generated: boolean | null
@@ -3813,6 +3881,7 @@ export type Database = {
           current_period_start: string | null
           id: string
           plan: string
+          source: string | null
           status: string
           stripe_customer_id: string | null
           stripe_price_id: string | null
@@ -3831,6 +3900,7 @@ export type Database = {
           current_period_start?: string | null
           id?: string
           plan?: string
+          source?: string | null
           status?: string
           stripe_customer_id?: string | null
           stripe_price_id?: string | null
@@ -3849,6 +3919,7 @@ export type Database = {
           current_period_start?: string | null
           id?: string
           plan?: string
+          source?: string | null
           status?: string
           stripe_customer_id?: string | null
           stripe_price_id?: string | null

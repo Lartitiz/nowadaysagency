@@ -14,6 +14,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Check, X, Sparkles, ArrowRight, Infinity } from "lucide-react";
+import PromoCodeInput from "@/components/PromoCodeInput";
 
 /* ─── Feature comparison data ─── */
 const SECTIONS = [
@@ -377,6 +378,13 @@ export default function PricingPage() {
             ))}
           </Accordion>
         </div>
+
+        {/* ── Promo Code ── */}
+        {user && (
+          <div className="max-w-md mx-auto mb-16">
+            <PromoCodeInput />
+          </div>
+        )}
 
         {/* ── Final CTA ── */}
         <div className="text-center rounded-2xl border border-border bg-card p-8 sm:p-12">
