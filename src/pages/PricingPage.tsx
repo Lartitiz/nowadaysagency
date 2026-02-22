@@ -123,7 +123,7 @@ export default function PricingPage() {
 
   const handleCheckout = async () => {
     if (!user) {
-      window.location.href = "/login";
+      window.location.href = "/login?redirect=/pricing";
       return;
     }
     setCheckoutLoading(true);
@@ -147,7 +147,19 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {user && <AppHeader />}
+      {user ? <AppHeader /> : (
+        <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
+          <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+            <Link to="/" className="font-display text-xl font-bold text-primary tracking-tight">Nowadays</Link>
+            <div className="flex items-center gap-3">
+              <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Se connecter</Link>
+              <Link to="/login" className="rounded-full bg-primary text-primary-foreground px-6 py-2 text-sm font-medium shadow-cta hover:opacity-90 transition-all">
+                Commencer
+              </Link>
+            </div>
+          </nav>
+        </header>
+      )}
 
       <main className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
         {/* ── Header ── */}
@@ -207,10 +219,10 @@ export default function PricingPage() {
               </div>
             ) : !user ? (
               <Link
-                to="/login"
+                to="/login?redirect=/pricing"
                 className="block text-center rounded-pill border border-border py-2.5 font-medium text-foreground hover:bg-secondary transition-colors text-sm"
               >
-                Commencer
+                Commencer gratuitement
               </Link>
             ) : null}
           </div>
@@ -404,7 +416,7 @@ export default function PricingPage() {
             </Link>
           ) : (
             <Link
-              to="/login"
+              to="/login?redirect=/pricing"
               className="inline-flex items-center gap-2 rounded-pill bg-primary text-primary-foreground px-8 py-3 font-medium shadow-cta hover:bg-bordeaux transition-all hover:-translate-y-0.5"
             >
               <Sparkles className="h-4 w-4" /> Commencer gratuitement
