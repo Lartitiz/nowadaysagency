@@ -60,7 +60,7 @@ export default function LinkedInRecommandations() {
       }
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const updateReco = (idx: number, field: keyof Reco, value: any) => {
     setRecos(prev => {

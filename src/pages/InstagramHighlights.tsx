@@ -197,7 +197,7 @@ export default function InstagramHighlights() {
       setLoaded(true);
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const setHighlightStatus = (type: string, status: "done" | "todo" | "skip") => {
     setStatuses((prev) => ({ ...prev, [type]: status }));

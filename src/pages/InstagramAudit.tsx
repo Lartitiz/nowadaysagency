@@ -76,7 +76,7 @@ export default function InstagramAudit() {
 
       setLoadingExisting(false);
     });
-  }, [user]);
+  }, [user?.id]);
 
   const sanitizeFileName = (fileName: string) => {
     const ext = fileName.split(".").pop()?.toLowerCase() || "png";

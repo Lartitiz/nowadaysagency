@@ -34,7 +34,7 @@ export default function LinkedInCommentStrategy() {
           setAccounts((data.accounts as unknown as CommentAccount[]) || []);
         }
       });
-  }, [user]);
+  }, [user?.id]);
 
   const save = async (newAccounts: CommentAccount[]) => {
     if (!user) return;

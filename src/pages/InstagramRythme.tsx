@@ -51,7 +51,7 @@ export default function InstagramRythme() {
         } catch { setSelectedSlots([]); }
       }
     });
-  }, [user]);
+  }, [user?.id]);
 
   // Calculations
   const calcs = useMemo(() => {

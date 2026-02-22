@@ -66,7 +66,7 @@ export default function TonStyleRecapPage() {
         setGenerating(false);
       }
     });
-  }, [user]);
+  }, [user?.id]);
 
   const summary: RecapSummary | null = data?.recap_summary as any;
 

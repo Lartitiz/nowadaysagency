@@ -93,7 +93,7 @@ export default function Profile() {
         }
         setLoading(false);
       });
-  }, [user]);
+  }, [user?.id]);
 
   const update = (field: keyof ProfileData, value: string | string[]) => {
     setCurrent((prev) => ({ ...prev, [field]: value }));

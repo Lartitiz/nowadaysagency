@@ -280,7 +280,7 @@ export default function InstagramStats() {
       setShowOnboarding(true);
     }
     setConfigLoaded(true);
-  }, [user]);
+  }, [user?.id]);
 
   // Load all stats
   const loadStats = useCallback(async () => {
@@ -298,7 +298,7 @@ export default function InstagramStats() {
     } else if (rows.length === 1) {
       setCompareA(rows[0].month_date);
     }
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => { loadConfig(); loadStats(); }, [loadConfig, loadStats]);
 

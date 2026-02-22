@@ -96,7 +96,7 @@ export default function IdeasPage() {
   useEffect(() => {
     if (!user) return;
     fetchIdeas();
-  }, [user]);
+  }, [user?.id]);
 
   const fetchIdeas = async () => {
     if (!user) return;

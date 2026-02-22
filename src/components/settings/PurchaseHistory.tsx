@@ -37,7 +37,7 @@ export default function PurchaseHistory() {
         if (data) setPurchases(data as Purchase[]);
         setLoading(false);
       });
-  }, [user]);
+  }, [user?.id]);
 
   if (loading) {
     return (

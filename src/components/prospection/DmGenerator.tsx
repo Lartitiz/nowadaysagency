@@ -77,7 +77,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
       .then(({ data }) => {
         if (data) setOffers(data as Offer[]);
       });
-  }, [user]);
+  }, [user?.id]);
 
   // Compute suggestion when entering step 3
   useEffect(() => {

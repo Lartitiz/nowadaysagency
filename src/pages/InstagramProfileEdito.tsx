@@ -269,7 +269,7 @@ export default function InstagramProfileEdito() {
       setLoaded(true);
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const totalPercent = useMemo(() => editorial.pillars.reduce((s, p) => s + p.percentage, 0), [editorial.pillars]);
 

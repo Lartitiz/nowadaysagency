@@ -81,7 +81,7 @@ export default function BrandingPage() {
       setLoading(false);
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const globalMessage =
     completion.total > 80

@@ -97,7 +97,7 @@ export default function InstagramProfileEpingles() {
       }
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const updateSlot = (idx: number, updates: Partial<PinnedSlot>) => {
     setSlots((prev) => prev.map((s, i) => (i === idx ? { ...s, ...updates } : s)));

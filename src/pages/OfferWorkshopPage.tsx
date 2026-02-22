@@ -94,7 +94,7 @@ export default function OfferWorkshopPage() {
   }, [triggerSave]);
 
   useEffect(() => {
-    if (!user || !id) return;
+    if (!user || !id || !loading) return;
     supabase.from("offers").select("*").eq("id", id).eq("user_id", user.id).single().then(({ data, error }) => {
       if (error || !data) { navigate("/branding/offres"); return; }
       setOffer(data);
@@ -117,7 +117,7 @@ export default function OfferWorkshopPage() {
       });
       setLoading(false);
     });
-  }, [user, id]);
+  }, [user?.id, id]);
 
   const save = useCallback(async (fields: Record<string, any>, nextStep?: number) => {
     if (!id || !user) return;

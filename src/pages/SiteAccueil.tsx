@@ -124,7 +124,7 @@ export default function SiteAccueil() {
   const [brandingPercent, setBrandingPercent] = useState(100);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !loading) return;
     const load = async () => {
       const { data: hp } = await supabase.from("website_homepage").select("*").eq("user_id", user.id).maybeSingle();
       if (hp) {
@@ -140,7 +140,7 @@ export default function SiteAccueil() {
       setLoading(false);
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const save = useCallback(async (updates: Partial<HomepageData>) => {
     if (!user) return;

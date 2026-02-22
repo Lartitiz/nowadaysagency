@@ -159,7 +159,7 @@ export default function LinkedInAudit() {
       setLoadingExisting(false);
     };
     loadExisting();
-  }, [user]);
+  }, [user?.id]);
 
   const sanitizeFileName = (fileName: string): string => {
     const ext = fileName.split(".").pop()?.toLowerCase() || "png";

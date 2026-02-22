@@ -76,7 +76,7 @@ export default function InstagramInspiration() {
       setLoaded(true);
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const updateAccount = (index: number, field: keyof AccountData, value: any) => {
     setAccounts((prev) => prev.map((a, i) => (i === index ? { ...a, [field]: value } : a)));

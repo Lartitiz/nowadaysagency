@@ -65,7 +65,7 @@ export default function PersonaPage() {
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !loading) return;
     const load = async () => {
       const [pRes, profRes, bpRes] = await Promise.all([
         supabase.from("persona").select("*").eq("user_id", user.id).maybeSingle(),
@@ -83,7 +83,7 @@ export default function PersonaPage() {
       setLoading(false);
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const saveNow = useCallback(async (updated: PersonaData) => {
     if (!user) return;

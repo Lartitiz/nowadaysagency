@@ -50,7 +50,7 @@ export default function LinkedInProfil() {
       }
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const save = async () => {
     if (!user) return;

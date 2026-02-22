@@ -105,7 +105,7 @@ export default function InstagramBio() {
 
   // Load profile, branding, and existing validation
   useEffect(() => {
-    if (!user) return;
+    if (!user || brandingLoaded) return;
     const load = async () => {
       const [{ data: prof }, { data: val }, { data: bp }, { data: persona }, { data: prop }, { data: strat }, { data: story }] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).single(),
@@ -119,14 +119,12 @@ export default function InstagramBio() {
 
       if (prof) {
         setProfile(prof);
-        // Pre-fill differentiation if already saved
         if ((prof as any).differentiation_type) setDiffAngle((prof as any).differentiation_type);
         if ((prof as any).differentiation_text) setDiffText((prof as any).differentiation_text);
         if ((prof as any).bio_cta_type) setCtaType((prof as any).bio_cta_type);
         if ((prof as any).bio_cta_text) setCtaText((prof as any).bio_cta_text);
       }
 
-      // Build branding context
       const toneArr = [bp?.tone_register, bp?.tone_level, bp?.tone_style, bp?.tone_humor, bp?.tone_engagement].filter(Boolean);
       const combatArr = [bp?.combat_cause, bp?.combat_fights, bp?.combat_alternative, bp?.combat_refusals].filter(Boolean);
       const pillars = [strat?.pillar_major, strat?.pillar_minor_1, strat?.pillar_minor_2, strat?.pillar_minor_3].filter(Boolean);
@@ -154,7 +152,7 @@ export default function InstagramBio() {
       }
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const brandingFilled = brandingCtx
     ? [brandingCtx.positioning, brandingCtx.valueProposition, brandingCtx.target, brandingCtx.tone].filter(Boolean).length

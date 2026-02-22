@@ -107,7 +107,7 @@ export default function SmartRoutinesPanel() {
       active_days: (planRes.data.active_days as string[]) || [],
       monthly_goal: planRes.data.monthly_goal || "visibility",
     });
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 

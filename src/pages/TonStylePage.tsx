@@ -110,7 +110,7 @@ export default function TonStylePage() {
   });
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !loading) return;
     supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
       if (data) {
         setExistingId(data.id);
@@ -121,7 +121,7 @@ export default function TonStylePage() {
       }
       setLoading(false);
     });
-  }, [user]);
+  }, [user?.id]);
 
   const updateField = (field: string, value: string | string[]) => {
     setProfile((prev) => ({ ...prev, [field]: value }));

@@ -40,7 +40,7 @@ export default function CommPlanPage() {
       }
       setLoading(false);
     })();
-  }, [user]);
+  }, [user?.id]);
 
   const handleSaveConfig = useCallback(async (cfg: PlanConfig) => {
     if (!user) return;

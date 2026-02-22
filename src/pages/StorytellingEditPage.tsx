@@ -20,7 +20,7 @@ export default function StorytellingEditPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!user || !id) return;
+    if (!user || !id || !loading) return;
     supabase.from("storytelling").select("title, imported_text, step_7_polished").eq("id", id).eq("user_id", user.id).single().then(({ data }) => {
       if (data) {
         setTitle((data as any).title || "");
@@ -28,7 +28,7 @@ export default function StorytellingEditPage() {
       }
       setLoading(false);
     });
-  }, [user, id]);
+  }, [user?.id, id]);
 
   const handleSave = async () => {
     if (!id) return;

@@ -120,7 +120,7 @@ export default function InstagramLaunchPlan() {
 
       setLoaded(true);
     })();
-  }, [user]);
+  }, [user?.id]);
 
   // ── Step 1: Template selection ──
 

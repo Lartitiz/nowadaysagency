@@ -61,7 +61,7 @@ export default function InstagramLaunchRecommendation() {
       }
       setLoaded(true);
     })();
-  }, [user]);
+  }, [user?.id]);
 
   const canShowReco = offerType && priceRange && audienceSize && recurrence && extraTime;
 

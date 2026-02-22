@@ -63,7 +63,7 @@ export default function InstagramHub() {
       });
     };
     fetchProgress();
-  }, [user]);
+  }, [user?.id]);
 
   return (
     <div className="min-h-screen bg-background">

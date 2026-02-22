@@ -33,7 +33,7 @@ export default function PinterestTableaux() {
     supabase.from("pinterest_boards").select("*").eq("user_id", user.id).order("sort_order").then(({ data }) => {
       if (data && data.length > 0) setBoards(data.map(d => ({ id: d.id, name: d.name || "", description: d.description || "", board_type: d.board_type || "autre" })));
     });
-  }, [user]);
+  }, [user?.id]);
 
   const addBoard = () => setBoards(prev => [...prev, { name: "", description: "", board_type: "autre" }]);
 

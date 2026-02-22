@@ -74,7 +74,7 @@ export default function ProspectionSection() {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
     if (data) setProspects(data as Prospect[]);
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => { loadProspects(); }, [loadProspects]);
 

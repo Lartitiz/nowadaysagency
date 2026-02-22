@@ -28,7 +28,7 @@ export default function SiteAccueilRecap() {
       if (wpRes.data) setCms(wpRes.data.cms || "");
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const copyText = (text: string) => { navigator.clipboard.writeText(text); toast.success("Copié !"); };
 

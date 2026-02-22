@@ -89,7 +89,7 @@ export default function InstagramInspirer() {
       .then(({ data }) => {
         if (data) setHistory(data as unknown as HistoryItem[]);
       });
-  }, [user]);
+  }, [user?.id]);
 
   const fetchFromLink = async () => {
     if (!sourceUrl.trim()) return;

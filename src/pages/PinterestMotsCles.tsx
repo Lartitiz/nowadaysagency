@@ -30,7 +30,7 @@ export default function PinterestMotsCles() {
         setChecklist({ titles: data.checklist_titles || false, boardDesc: data.checklist_board_desc || false, pinTitles: data.checklist_pin_titles || false, pinDesc: data.checklist_pin_desc || false, profileName: data.checklist_profile_name || false, bio: data.checklist_bio || false });
       }
     });
-  }, [user]);
+  }, [user?.id]);
 
   const generateKeywords = async () => {
     setGenerating(true);
