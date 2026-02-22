@@ -295,6 +295,23 @@ export default function WeekView() {
         </Button>
       </div>
 
+    {/* Empty week hint */}
+      {tasks.length === 0 && (
+        <div className="bg-muted/30 border border-border rounded-xl p-6 text-center space-y-3">
+          <p className="text-sm text-muted-foreground">
+            💡 Ta semaine est légère. Ajoute des contacts ou planifie du contenu pour avoir plus de tâches.
+          </p>
+          <div className="flex justify-center gap-3">
+            <Button variant="outline" size="sm" asChild className="text-xs gap-1">
+              <Link to="/contacts">👥 Mon réseau</Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild className="text-xs gap-1">
+              <Link to="/calendrier">📅 Mon calendrier</Link>
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Daily tasks */}
       {[1, 2, 3, 4, 5].map(dow => {
         const dayTasks = tasksByDay[dow] || [];
@@ -307,7 +324,7 @@ export default function WeekView() {
         return (
           <div key={dow} className="space-y-2">
             {/* Day header */}
-            <div className={`flex items-center justify-between px-1 ${isToday ? "" : ""}`}>
+            <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
                 {isToday && <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
                 <h3 className={`text-sm font-bold ${isToday ? "text-primary" : "text-foreground"}`}>
