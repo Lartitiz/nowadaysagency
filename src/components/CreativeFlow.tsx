@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import BaseReminder from "@/components/BaseReminder";
 import ContentScoring from "@/components/ContentScoring";
 import FeedbackLoop from "@/components/FeedbackLoop";
+import RedFlagsChecker from "@/components/RedFlagsChecker";
+import ABTestAccroches from "@/components/ABTestAccroches";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Button } from "@/components/ui/button";
@@ -649,6 +651,15 @@ export default function CreativeFlow({
             </Button>
           </div>
 
+          {/* Red flags checker */}
+          <RedFlagsChecker
+            content={editedContent}
+            onFix={(fixed) => {
+              setEditedContent(fixed);
+              setResult((prev) => prev ? { ...prev, content: fixed } : prev);
+            }}
+          />
+
           {/* Feedback loop */}
           <FeedbackLoop
             content={editedContent}
@@ -657,6 +668,15 @@ export default function CreativeFlow({
               setResult((prev) => prev ? { ...prev, content: newContent } : prev);
             }}
           />
+
+          {/* A/B test accroches */}
+          {result.accroche && (
+            <ABTestAccroches accroches={[
+              result.accroche,
+              editedContent.split("\n").find(l => l.trim().length > 10 && l !== result.accroche) || "",
+              editedContent.split("\n").filter(l => l.trim().length > 10).slice(-1)[0] || "",
+            ].filter(Boolean)} />
+          )}
 
           {/* Content scoring */}
           <ContentScoring

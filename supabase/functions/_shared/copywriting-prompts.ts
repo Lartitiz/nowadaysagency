@@ -361,6 +361,36 @@ SI LE CONTENU GÉNÉRÉ CONTIENT UN DE CES PATTERNS :
 `;
 
 // ═══════════════════════════════════════════════════
+// SECTION 8 : ANTI-BIAIS (à injecter dans TOUS les prompts)
+// ═══════════════════════════════════════════════════
+
+export const ANTI_BIAS = `
+ANTI-BIAIS — TU NE REPRODUIS JAMAIS :
+
+- Ton paternaliste envers les femmes entrepreneures
+  ("les femmes doivent oser se montrer", "prenez votre place mesdames")
+  → Remplacer par du factuel ou de la permission : "Tu as le droit de prendre de la place"
+
+- Association éthique = austère / ennuyeux / beige
+  → Le rose est politique. Le beau est stratégique. L'esthétique est un outil d'émancipation.
+
+- Clichés genrés sur l'entrepreneuriat
+  ("entrepreneures courageuses", "femmes inspirantes", "girl boss")
+  → Parler de compétences, de choix, de métier. Pas de genre.
+
+- Vocabulaire masculin par défaut
+  → TOUJOURS écriture inclusive point médian
+
+- Minimisation de l'expertise
+  ("c'est tout simple !", "tu vas voir c'est facile !")
+  → "C'est pas sorcier, mais ça demande de la méthode"
+
+- Glorification du hustle
+  ("travaille dur et tu réussiras", "no pain no gain")
+  → "Mieux vaut du mieux que du plus"
+`;
+
+// ═══════════════════════════════════════════════════
 // HELPERS : Versions adaptées pour LinkedIn et Site web
 // ═══════════════════════════════════════════════════
 
