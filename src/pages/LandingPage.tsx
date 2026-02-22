@@ -361,7 +361,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-4xl mt-12 sm:mt-16">
           <Reveal>
             <p className="text-center text-sm text-muted-foreground leading-relaxed">
-              Construit sur <strong className="text-foreground">10 ans d'expérience</strong> · <strong className="text-foreground">+150 projets accompagnés</strong> · Enseigné à l'<strong className="text-foreground">École des Arts Déco</strong>, <strong className="text-foreground">Sup de Pub</strong>, <strong className="text-foreground">ISCPA</strong>
+              Construit sur <strong className="text-foreground">10 ans d'expérience</strong> · <strong className="text-foreground">+150 projets accompagnés</strong> · Enseigné à l'<strong className="text-foreground">École des Arts Déco</strong>, <strong className="text-foreground">Sup de Pub</strong>, <strong className="text-foreground">Bureau du Design, de la Mode et des Métiers d'Art</strong>
             </p>
           </Reveal>
         </div>
