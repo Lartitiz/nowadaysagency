@@ -2681,14 +2681,18 @@ export type Database = {
       website_homepage: {
         Row: {
           benefits_block: string | null
+          checklist_data: Json | null
           completed: boolean | null
           created_at: string | null
+          cta_micro_copy: string | null
           cta_objective: string | null
           cta_primary: string | null
           cta_secondary: string | null
           current_step: number | null
           failure_block: string | null
           faq: Json | null
+          for_who_ideal: string | null
+          for_who_not: string | null
           framework: string | null
           guarantee_text: string | null
           guarantee_type: string | null
@@ -2699,9 +2703,18 @@ export type Database = {
           layout_done: boolean | null
           layout_notes: string | null
           offer_block: string | null
+          offer_comparison: string | null
+          offer_included: string | null
+          offer_name: string | null
+          offer_payment: string | null
+          offer_price: string | null
+          page_type: string | null
           plan_steps: Json | null
           presentation_block: string | null
           problem_block: string | null
+          seo_h1: string | null
+          seo_meta: string | null
+          seo_title: string | null
           social_proof_done: boolean | null
           storybrand_data: Json | null
           updated_at: string | null
@@ -2709,14 +2722,18 @@ export type Database = {
         }
         Insert: {
           benefits_block?: string | null
+          checklist_data?: Json | null
           completed?: boolean | null
           created_at?: string | null
+          cta_micro_copy?: string | null
           cta_objective?: string | null
           cta_primary?: string | null
           cta_secondary?: string | null
           current_step?: number | null
           failure_block?: string | null
           faq?: Json | null
+          for_who_ideal?: string | null
+          for_who_not?: string | null
           framework?: string | null
           guarantee_text?: string | null
           guarantee_type?: string | null
@@ -2727,9 +2744,18 @@ export type Database = {
           layout_done?: boolean | null
           layout_notes?: string | null
           offer_block?: string | null
+          offer_comparison?: string | null
+          offer_included?: string | null
+          offer_name?: string | null
+          offer_payment?: string | null
+          offer_price?: string | null
+          page_type?: string | null
           plan_steps?: Json | null
           presentation_block?: string | null
           problem_block?: string | null
+          seo_h1?: string | null
+          seo_meta?: string | null
+          seo_title?: string | null
           social_proof_done?: boolean | null
           storybrand_data?: Json | null
           updated_at?: string | null
@@ -2737,14 +2763,18 @@ export type Database = {
         }
         Update: {
           benefits_block?: string | null
+          checklist_data?: Json | null
           completed?: boolean | null
           created_at?: string | null
+          cta_micro_copy?: string | null
           cta_objective?: string | null
           cta_primary?: string | null
           cta_secondary?: string | null
           current_step?: number | null
           failure_block?: string | null
           faq?: Json | null
+          for_who_ideal?: string | null
+          for_who_not?: string | null
           framework?: string | null
           guarantee_text?: string | null
           guarantee_type?: string | null
@@ -2755,9 +2785,18 @@ export type Database = {
           layout_done?: boolean | null
           layout_notes?: string | null
           offer_block?: string | null
+          offer_comparison?: string | null
+          offer_included?: string | null
+          offer_name?: string | null
+          offer_payment?: string | null
+          offer_price?: string | null
+          page_type?: string | null
           plan_steps?: Json | null
           presentation_block?: string | null
           problem_block?: string | null
+          seo_h1?: string | null
+          seo_meta?: string | null
+          seo_title?: string | null
           social_proof_done?: boolean | null
           storybrand_data?: Json | null
           updated_at?: string | null

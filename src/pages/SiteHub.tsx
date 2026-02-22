@@ -16,9 +16,10 @@ const CMS_OPTIONS = [
 ];
 
 const CARDS = [
-  { emoji: "🏠", title: "Ma page d'accueil", desc: "Rédige les textes de ta page d'accueil section par section.", to: "/site/accueil", tag: "IA + Guide" },
-  { emoji: "👋", title: "Ma page À propos", desc: "Raconte ton histoire pour créer du lien.", to: "/site/a-propos", tag: "IA + Guide", disabled: false },
-  { emoji: "💬", title: "Mes témoignages", desc: "Récolte et structure des témoignages qui convertissent.", to: "/site/temoignages", tag: "IA + Guide", disabled: false },
+  { emoji: "🏠", title: "Ma page d'accueil / vente", desc: "Rédige les textes de ta page section par section. Page d'accueil, page de vente ou page de services.", to: "/site/accueil", tag: "IA + Guide" },
+  { emoji: "🎁", title: "Ma page de capture", desc: "Récolte des emails avec un lead magnet. Structure minimale et efficace.", to: "/site/capture", tag: "IA + Guide" },
+  { emoji: "👋", title: "Ma page À propos", desc: "Raconte ton histoire pour créer du lien.", to: "/site/a-propos", tag: "IA + Guide" },
+  { emoji: "💬", title: "Mes témoignages", desc: "Récolte et structure des témoignages qui convertissent.", to: "/site/temoignages", tag: "IA + Guide" },
   { emoji: "💚", title: "Mes pages produits", desc: "Des fiches produits qui donnent envie d'acheter.", to: "/site/produits", tag: "Bientôt", disabled: true },
   { emoji: "⚙️", title: "Autres optimisations", desc: "SEO, vitesse, accessibilité, mentions légales.", to: "/site/optimisations", tag: "Bientôt", disabled: true },
 ];
@@ -37,7 +38,7 @@ export default function SiteHub() {
         supabase.from("website_homepage").select("current_step, completed").eq("user_id", user.id).maybeSingle(),
       ]);
       if (wpRes.data) setCms(wpRes.data.cms);
-      if (hpRes.data) setHomepageStep(hpRes.data.completed ? 6 : (hpRes.data.current_step || 1));
+      if (hpRes.data) setHomepageStep(hpRes.data.completed ? 10 : (hpRes.data.current_step || 1));
       setLoading(false);
     };
     load();
@@ -86,9 +87,9 @@ export default function SiteHub() {
         )}
 
         {/* Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {CARDS.map((card) => {
-            const label = card.to === "/site/accueil" && homepageStep > 0 ? `${Math.min(homepageStep, 6)}/6 étapes` : null;
+            const label = card.to === "/site/accueil" && homepageStep > 0 ? `${Math.min(homepageStep, 10)}/10 étapes` : null;
             const inner = (
               <div className={`group relative rounded-2xl border bg-card p-6 transition-all ${card.disabled ? "opacity-45 cursor-default" : "hover:border-primary hover:shadow-md cursor-pointer"}`}>
                 {label && <span className="absolute top-4 right-4 font-mono-ui text-[10px] font-semibold text-muted-foreground bg-rose-pale px-2 py-0.5 rounded-pill">{label}</span>}

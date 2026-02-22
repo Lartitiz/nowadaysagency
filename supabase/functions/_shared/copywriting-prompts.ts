@@ -502,17 +502,70 @@ Les pages rédigées en langage simple (niveau CM2-5e) convertissent 2x mieux (U
 - Si un mot a un synonyme plus simple, utiliser le plus simple : "utiliser" > "employer", "aider" > "faciliter", "montrer" > "démontrer"
 - Une idée par phrase
 - Pas de subordonnées complexes imbriquées
-- Lire à voix haute : si ça sonne naturel à l'oral, c'est le bon niveau
-- Ça ne veut pas dire infantiliser. Ça veut dire exprimer des idées profondes avec des mots simples.
+- Lire à voix haute : si ça sonne naturel a l'oral, c'est le bon niveau
+- Ca ne veut pas dire infantiliser. Ca veut dire exprimer des idées profondes avec des mots simples.
+
+GARDE-FOUS ÉTHIQUES PAGES WEB :
+
+1. FAUSSE URGENCE : JAMAIS de "Plus que X places !" (sauf si vrai et vérifiable). JAMAIS de compteur factice.
+   ALTERNATIVE : "Les inscriptions ferment le [date]." (si vrai)
+
+2. SHAMING : JAMAIS de "Si tu ne fais pas ca, tu vas échouer."
+   JAMAIS de popup "Non merci, je préfère rester invisible."
+   ALTERNATIVE : "Pas maintenant" / "Non merci, peut-être plus tard"
+
+3. PRIX GONFLÉ : JAMAIS de "Valeur réelle 10 000 euros, aujourd'hui 997 euros"
+   ALTERNATIVE : "290 euros/mois. Voilà ce qui est inclus."
+
+4. CTA CULPABILISANT : JAMAIS de "Ne rate pas cette chance unique"
+   ALTERNATIVE : "Si ca te parle, bienvenue."
+
+5. TÉMOIGNAGES : TOUJOURS vrais, avec prénom et contexte réel. JAMAIS inventés.
+
+6. CHIFFRES : TOUJOURS réels. JAMAIS gonflés.
+
+7. MICRO-COPY : JAMAIS de "En continuant vous acceptez tout."
+   ALTERNATIVE : explication claire de ce à quoi on s'engage.
+
+SI LE CONTENU GÉNÉRÉ CONTIENT UN DE CES PATTERNS, REFORMULER AVEC L'ALTERNATIVE ÉTHIQUE.
+
+RÈGLES CTA :
+- Première personne ("Je réserve") > impératif ("Réservez")
+- Action claire : la personne sait ce qui va se passer au clic
+- JAMAIS de "Submit", "Envoyer", "En savoir plus" (trop vague)
+- Micro-copy = réassurance : gratuit, sans engagement, durée, confidentialité
+- Le CTA doit être cohérent avec le niveau d'engagement demandé
 `;
 
 export const WEBSITE_LANDING_TIPS = [
   { text: "Le trafic email convertit le mieux. Ta newsletter est ton meilleur levier pour remplir tes pages de vente.", source: "Unbounce 2024" },
   { text: "Instagram Ads convertit à 17,9% en moyenne sur les landing pages : le meilleur canal social payant.", source: "Unbounce 2024" },
   { text: "LinkedIn Ads ne convertit qu'à 3,1% en volume, mais l'audience est souvent plus qualifiée pour du B2B.", source: "Unbounce 2024" },
-  { text: "Pour une offre à 1 740€ (type Academy), un taux de 2-5% sur la page de vente est réaliste. 5%+ est excellent.", source: "Benchmarks high-ticket" },
+  { text: "Pour une offre à 1 740 euros (type Academy), un taux de 2-5% sur la page de vente est réaliste. 5%+ est excellent.", source: "Benchmarks high-ticket" },
   { text: "Les pages avec un 'Plan en 3 étapes' convertissent mieux : ça réduit la complexité perçue et rassure.", source: "StoryBrand / Donald Miller" },
   { text: "L'élément 'échec' (ce qui se passe si on ne fait rien) est puissant mais à utiliser comme du sel : une pincée suffit.", source: "StoryBrand" },
   { text: "Le top 10% des popups de sortie convertissent à 42%. Mais seulement si elles apportent de la vraie valeur, pas du shaming.", source: "Wisepops 2025" },
-  { text: "Une page de vente 10x plus longue que l'originale a converti 363% mieux. Pour les offres >500€, la longueur rassure.", source: "SolidGigs 2025" },
+  { text: "Une page de vente 10x plus longue que l'originale a converti 363% mieux. Pour les offres >500 euros, la longueur rassure.", source: "SolidGigs 2025" },
+  { text: "8 personnes sur 10 lisent le titre. Seulement 2 sur 10 lisent le reste. Ton titre est ta meilleure chance.", source: "Copyblogger" },
+  { text: "Les pages rédigées en langage simple (niveau 5e-7e) convertissent 2x mieux que celles en langage soutenu.", source: "Unbounce 2024" },
+  { text: "Les CTA personnalisés ('Je réserve mon appel') convertissent 202% mieux que les génériques ('En savoir plus').", source: "HubSpot" },
+  { text: "Chaque champ supplémentaire dans un formulaire réduit les conversions de 4%. Prénom + email suffisent.", source: "HubSpot 2024" },
+  { text: "Les témoignages augmentent la conversion de 34%. 3-5 sur la page est l'équilibre optimal.", source: "Invesp 2024" },
+  { text: "53% des visiteur-ices mobiles quittent si le chargement dépasse 3 secondes. Vitesse = conversion.", source: "Google" },
+  { text: "Les FAQ sur une page de vente augmentent la conversion de 10-20%. Elles répondent aux objections silencieuses.", source: "ConvertLab 2025" },
+  { text: "Desktop convertit 8% mieux que mobile malgré 62,5% du trafic mobile. Optimise d'abord le mobile.", source: "Unbounce 2024" },
+  { text: "Le micro-copy sous le bouton ('Gratuit, Sans engagement') peut faire la différence entre un clic et un abandon.", source: "Best practice CRO" },
+  { text: "Un seul type d'action par page, répété plusieurs fois. Ne mélange pas 'acheter' et 's'inscrire à la newsletter'.", source: "Unbounce" },
+  { text: "Les produits avec une note de 4,2-4,5 étoiles convertissent mieux que 5/5. L'authenticité bat la perfection.", source: "Trustmary 2025" },
+  { text: "L'espacement blanc augmente l'engagement de 14% et la lisibilité de 25%. Laisse respirer ta page.", source: "SQ Magazine 2025" },
+];
+
+export const LANDING_PAGE_RED_FLAGS = [
+  { pattern: "Valeur réelle de|Vaut \\\\d+", label: "prix gonflé", fix: "Dire le prix réel et ce qui est inclus" },
+  { pattern: "Plus que \\\\d+ places?", label: "possible fausse urgence", fix: "Vérifier que c'est vrai. Si non, supprimer." },
+  { pattern: "Ne ratez? pas|Ne manquez? pas", label: "CTA culpabilisant", fix: "Si ca te parle, bienvenue" },
+  { pattern: "Soumett?re|Submit", label: "CTA générique", fix: "Je télécharge / Je réserve / J'y vais" },
+  { pattern: "En savoir plus$", label: "CTA vague", fix: "Dire exactement ce qui se passe au clic" },
+  { pattern: "Nous sommes ravis|C'est avec fierté", label: "corporate vide", fix: "Supprimer ou reformuler en ton direct" },
+  { pattern: "Offre exclusive|Opportunité unique", label: "fausse exclusivité", fix: "Décrire l'offre simplement" },
 ];
