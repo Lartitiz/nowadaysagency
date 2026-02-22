@@ -6,6 +6,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Sparkles, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import SubjectPicker, { type SubjectPickerResult } from "@/components/stories/SubjectPicker";
 import { toast } from "sonner";
 import StickerGuide from "@/components/engagement/StickerGuide";
 import StoryChecklist from "@/components/stories/StoryChecklist";
@@ -100,7 +101,13 @@ export default function InstagramStories() {
   const [timeAvailable, setTimeAvailable] = useState("");
   const [faceCam, setFaceCam] = useState("");
   const [subject, setSubject] = useState("");
+  const [subjectDetails, setSubjectDetails] = useState("");
+  const [rawIdea, setRawIdea] = useState("");
+  const [clarifyContext, setClarifyContext] = useState("");
+  const [subjectDirection, setSubjectDirection] = useState("");
   const [isLaunch, setIsLaunch] = useState(false);
+  const [subjectDone, setSubjectDone] = useState(false);
+  const [brandingCtx, setBrandingCtx] = useState("");
   const [showStickerGuide, setShowStickerGuide] = useState(false);
 
   // Pre-gen questions
@@ -118,10 +125,15 @@ export default function InstagramStories() {
       if (highlightState.price_range) setPriceRange(highlightState.price_range);
       if (highlightState.time_available) setTimeAvailable(highlightState.time_available);
       if (highlightState.face_cam) setFaceCam(highlightState.face_cam);
-      if (highlightState.subject) setSubject(highlightState.subject);
+      if (highlightState.subject) { setSubject(highlightState.subject); setSubjectDone(true); }
       setStep(3);
     }
   }, []);
+
+  // Pre-fetch branding context for SubjectPicker
+  useEffect(() => {
+    fetchBrandingContext().then(setBrandingCtx);
+  }, [user]);
 
   // Result state
   const [loading, setLoading] = useState(false);
@@ -146,6 +158,10 @@ export default function InstagramStories() {
           time_available: timeAvailable,
           face_cam: faceCam,
           subject,
+          subject_details: subjectDetails || undefined,
+          raw_idea: rawIdea || undefined,
+          clarify_context: clarifyContext || undefined,
+          direction: subjectDirection || undefined,
           is_launch: isLaunch,
           branding_context: await fetchBrandingContext(),
           pre_gen_answers: isDaily ? undefined : preGenAnswers,
@@ -298,7 +314,7 @@ export default function InstagramStories() {
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-          <button onClick={() => { setStep(1); setResult(null); setPreGenVecu(""); setPreGenEnergy(""); setPreGenMessage(""); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
+          <button onClick={() => { setStep(1); setResult(null); setPreGenVecu(""); setPreGenEnergy(""); setPreGenMessage(""); setSubjectDone(false); setSubjectDetails(""); setRawIdea(""); setClarifyContext(""); setSubjectDirection(""); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
             <ArrowLeft className="h-4 w-4" /> Nouvelle séquence
           </button>
 
@@ -539,19 +555,22 @@ export default function InstagramStories() {
           </div>
         )}
 
-        {/* Step 3: Context */}
-        {step >= 3 && (
+        {/* Step 3: Subject picker */}
+        {step >= 3 && !subjectDone && (
           <div className="mb-8 space-y-4">
-            <h2 className="font-display text-lg font-bold text-foreground mb-3">3. Un sujet en tête ? (optionnel)</h2>
-            <Textarea
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="Mon lancement de la Now Academy..."
-              className="min-h-[80px]"
+            <SubjectPicker
+              onComplete={(result: SubjectPickerResult) => {
+                setSubject(result.subject);
+                setSubjectDetails(result.subject_details || "");
+                setRawIdea(result.raw_idea || "");
+                setClarifyContext(result.clarify_context || "");
+                setSubjectDirection(result.direction || "");
+                setSubjectDone(true);
+              }}
+              brandingContext={brandingCtx}
             />
-            <p className="text-xs text-muted-foreground">💡 Laisse vide et l'IA proposera un sujet basé sur ta ligne éditoriale.</p>
 
-            <div>
+            <div className="mt-4">
               <h2 className="font-display text-sm font-bold text-foreground mb-2">Tu es en période de lancement ?</h2>
               <div className="flex gap-3">
                 <button
@@ -568,8 +587,17 @@ export default function InstagramStories() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
 
-            <Button onClick={() => setStep(4)} className="mt-4 w-full" disabled={!objective || !timeAvailable || !faceCam}>
+        {/* Step 3 done → show continue to step 4 */}
+        {step >= 3 && subjectDone && step < 4 && (
+          <div className="mb-8">
+            <div className="rounded-xl border border-primary/20 bg-rose-pale p-3 text-sm text-foreground mb-4">
+              ✅ Sujet : <span className="font-medium">{subject}</span>
+              <button onClick={() => setSubjectDone(false)} className="ml-2 text-xs text-primary hover:underline">Modifier</button>
+            </div>
+            <Button onClick={() => setStep(4)} className="w-full" disabled={!objective || !timeAvailable || !faceCam}>
               Continuer
             </Button>
           </div>
