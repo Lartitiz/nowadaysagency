@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.carousel-ai]
 verify_jwt = false
+
+[functions.audit-branding]
+verify_jwt = false

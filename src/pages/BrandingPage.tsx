@@ -172,19 +172,31 @@ export default function BrandingPage() {
               <p className="text-[12px] text-muted-foreground">{globalMessage}</p>
             </div>
 
-            {/* Import block — always accessible */}
-            {showImportBlock ? (
-              <BrandingImportBlock onResult={handleImportResult} />
-            ) : (
+            {/* Audit & Import links */}
+            <div className="space-y-2 mb-4">
               <button
-                onClick={() => setShowImportBlock(true)}
-                className="w-full rounded-xl border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors p-4 mb-4 text-left"
+                onClick={() => navigate("/branding/audit")}
+                className="w-full rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors p-4 text-left"
               >
                 <p className="text-sm font-medium text-foreground flex items-center gap-2">
-                  📄 Tu as un document stratégique ? Importe-le pour pré-remplir ton branding.
+                  🔍 Tu veux d'abord faire un diagnostic de ce que t'as déjà ?
                 </p>
+                <p className="text-xs text-muted-foreground mt-1">Analyse ton site, tes réseaux et tes documents en un clic.</p>
               </button>
-            )}
+
+              {showImportBlock ? (
+                <BrandingImportBlock onResult={handleImportResult} />
+              ) : (
+                <button
+                  onClick={() => setShowImportBlock(true)}
+                  className="w-full rounded-xl border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors p-4 text-left"
+                >
+                  <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                    📄 Tu as un document stratégique ? Importe-le pour pré-remplir ton branding.
+                  </p>
+                </button>
+              )}
+            </div>
 
             {/* Synthesis button */}
             <div className="mb-8">
