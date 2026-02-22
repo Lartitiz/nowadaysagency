@@ -3102,14 +3102,21 @@ export type Database = {
           instagram_pillars: Json | null
           instagram_pinned_posts: Json | null
           instagram_posts_per_month: number | null
+          instagram_url: string | null
           instagram_username: string | null
+          level: string | null
+          linkedin_posts_per_week: number | null
+          linkedin_url: string | null
+          main_goal: string | null
           mission: string
           offre: string
           onboarding_completed: boolean
           piliers: string[]
           plan_start_date: string | null
+          posts_per_week: number | null
           prenom: string
           probleme_principal: string
+          stories_per_week: number | null
           style_communication: string[]
           time_distribution: Json | null
           tons: string[]
@@ -3119,6 +3126,8 @@ export type Database = {
           validated_bio: string | null
           validated_bio_at: string | null
           verbatims: string
+          website_url: string | null
+          weekly_time: string | null
           weekly_time_available: number | null
         }
         Insert: {
@@ -3150,14 +3159,21 @@ export type Database = {
           instagram_pillars?: Json | null
           instagram_pinned_posts?: Json | null
           instagram_posts_per_month?: number | null
+          instagram_url?: string | null
           instagram_username?: string | null
+          level?: string | null
+          linkedin_posts_per_week?: number | null
+          linkedin_url?: string | null
+          main_goal?: string | null
           mission?: string
           offre?: string
           onboarding_completed?: boolean
           piliers?: string[]
           plan_start_date?: string | null
+          posts_per_week?: number | null
           prenom?: string
           probleme_principal?: string
+          stories_per_week?: number | null
           style_communication?: string[]
           time_distribution?: Json | null
           tons?: string[]
@@ -3167,6 +3183,8 @@ export type Database = {
           validated_bio?: string | null
           validated_bio_at?: string | null
           verbatims?: string
+          website_url?: string | null
+          weekly_time?: string | null
           weekly_time_available?: number | null
         }
         Update: {
@@ -3198,14 +3216,21 @@ export type Database = {
           instagram_pillars?: Json | null
           instagram_pinned_posts?: Json | null
           instagram_posts_per_month?: number | null
+          instagram_url?: string | null
           instagram_username?: string | null
+          level?: string | null
+          linkedin_posts_per_week?: number | null
+          linkedin_url?: string | null
+          main_goal?: string | null
           mission?: string
           offre?: string
           onboarding_completed?: boolean
           piliers?: string[]
           plan_start_date?: string | null
+          posts_per_week?: number | null
           prenom?: string
           probleme_principal?: string
+          stories_per_week?: number | null
           style_communication?: string[]
           time_distribution?: Json | null
           tons?: string[]
@@ -3215,6 +3240,8 @@ export type Database = {
           validated_bio?: string | null
           validated_bio_at?: string | null
           verbatims?: string
+          website_url?: string | null
+          weekly_time?: string | null
           weekly_time_available?: number | null
         }
         Relationships: []
@@ -4172,28 +4199,40 @@ export type Database = {
           channels: Json
           created_at: string
           id: string
+          level: string | null
           main_goal: string
+          onboarding_completed: boolean | null
+          onboarding_completed_at: string | null
           updated_at: string
           user_id: string
           weekly_time: string
+          welcome_seen: boolean | null
         }
         Insert: {
           channels?: Json
           created_at?: string
           id?: string
+          level?: string | null
           main_goal?: string
+          onboarding_completed?: boolean | null
+          onboarding_completed_at?: string | null
           updated_at?: string
           user_id: string
           weekly_time?: string
+          welcome_seen?: boolean | null
         }
         Update: {
           channels?: Json
           created_at?: string
           id?: string
+          level?: string | null
           main_goal?: string
+          onboarding_completed?: boolean | null
+          onboarding_completed_at?: string | null
           updated_at?: string
           user_id?: string
           weekly_time?: string
+          welcome_seen?: boolean | null
         }
         Relationships: []
       }

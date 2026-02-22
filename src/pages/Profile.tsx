@@ -27,6 +27,27 @@ const ACTIVITY_TYPES = [
   { id: "autre", label: "Autre" },
 ];
 
+const GOAL_OPTIONS = [
+  { key: "start", emoji: "🌱", label: "Poser les bases" },
+  { key: "visibility", emoji: "📱", label: "Être visible" },
+  { key: "launch", emoji: "🎁", label: "Lancer une offre" },
+  { key: "clients", emoji: "🎯", label: "Trouver des client·es" },
+  { key: "structure", emoji: "🗂️", label: "Structurer" },
+];
+
+const LEVEL_OPTIONS = [
+  { key: "beginner", emoji: "🐣", label: "Je démarre" },
+  { key: "intermediate", emoji: "🐥", label: "Je poste au feeling" },
+  { key: "advanced", emoji: "🦅", label: "J'ai déjà une stratégie" },
+];
+
+const TIME_OPTIONS = [
+  { key: "less_2h", label: "Moins de 2h" },
+  { key: "2_5h", label: "2-5h" },
+  { key: "5_10h", label: "5-10h" },
+  { key: "more_10h", label: "Plus de 10h" },
+];
+
 type HelpKey = string | null;
 
 interface ProfileData {
@@ -37,6 +58,15 @@ interface ProfileData {
   probleme: string;
   piliers: string[];
   tons: string[];
+  mainGoal: string;
+  level: string;
+  weeklyTime: string;
+  postsPerWeek: number | null;
+  storiesPerWeek: number | null;
+  linkedinPostsPerWeek: number | null;
+  websiteUrl: string;
+  instagramUrl: string;
+  linkedinUrl: string;
 }
 
 function HelpToggle({ text, fieldKey, openHelp, setOpenHelp }: { text: string; fieldKey: string; openHelp: HelpKey; setOpenHelp: (k: HelpKey) => void }) {
@@ -54,6 +84,72 @@ function HelpToggle({ text, fieldKey, openHelp, setOpenHelp }: { text: string; f
   );
 }
 
+function ChipSelector({ options, value, onChange, multi = false }: {
+  options: { key: string; emoji?: string; label: string }[];
+  value: string | string[];
+  onChange: (v: any) => void;
+  multi?: boolean;
+}) {
+  const selected = multi ? (value as string[]) : [value as string];
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((opt) => {
+        const isActive = selected.includes(opt.key);
+        return (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => {
+              if (multi) {
+                const arr = value as string[];
+                onChange(isActive ? arr.filter(v => v !== opt.key) : [...arr, opt.key]);
+              } else {
+                onChange(opt.key);
+              }
+            }}
+            className={`px-3.5 py-2 rounded-xl text-sm font-medium border transition-all ${
+              isActive
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-card text-foreground border-border hover:border-primary/40"
+            }`}
+          >
+            {opt.emoji ? `${opt.emoji} ` : ""}{opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function FrequencySelector({ label, value, options, onChange }: {
+  label: string;
+  value: number | null;
+  options: number[];
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div>
+      <label className="text-xs font-medium text-foreground mb-1.5 block">{label}</label>
+      <div className="flex gap-2">
+        {options.map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(n)}
+            className={`w-10 h-10 rounded-lg text-sm font-medium border transition-all ${
+              value === n
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-card text-foreground border-border hover:border-primary/40"
+            }`}
+          >
+            {n === options[options.length - 1] ? `${n}+` : n}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Profile() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -61,42 +157,54 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [openHelp, setOpenHelp] = useState<HelpKey>(null);
 
-  const [current, setCurrent] = useState<ProfileData>({
+  const emptyProfile: ProfileData = {
     prenom: "", activite: "", typeActivite: "", cible: "", probleme: "", piliers: [], tons: [],
-  });
-  const [saved, setSaved] = useState<ProfileData>({
-    prenom: "", activite: "", typeActivite: "", cible: "", probleme: "", piliers: [], tons: [],
-  });
+    mainGoal: "", level: "", weeklyTime: "",
+    postsPerWeek: null, storiesPerWeek: null, linkedinPostsPerWeek: null,
+    websiteUrl: "", instagramUrl: "", linkedinUrl: "",
+  };
+
+  const [current, setCurrent] = useState<ProfileData>(emptyProfile);
+  const [saved, setSaved] = useState<ProfileData>(emptyProfile);
 
   const hasChanges = JSON.stringify(current) !== JSON.stringify(saved);
   useUnsavedChanges(hasChanges);
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("profiles")
-      .select("*")
-      .eq("user_id", user.id)
-      .single()
-      .then(({ data }) => {
-        if (data) {
-          const loaded: ProfileData = {
-            prenom: data.prenom || "",
-            activite: data.activite || "",
-            typeActivite: data.type_activite || "",
-            cible: data.cible || "",
-            probleme: data.probleme_principal || "",
-            piliers: data.piliers || [],
-            tons: data.tons || [],
-          };
-          setCurrent(loaded);
-          setSaved(loaded);
-        }
-        setLoading(false);
-      });
+    const load = async () => {
+      const [{ data }, { data: config }] = await Promise.all([
+        supabase.from("profiles").select("*").eq("user_id", user.id).single(),
+        supabase.from("user_plan_config").select("main_goal, level, weekly_time").eq("user_id", user.id).maybeSingle(),
+      ]);
+      if (data) {
+        const loaded: ProfileData = {
+          prenom: data.prenom || "",
+          activite: data.activite || "",
+          typeActivite: data.type_activite || "",
+          cible: data.cible || "",
+          probleme: data.probleme_principal || "",
+          piliers: data.piliers || [],
+          tons: data.tons || [],
+          mainGoal: (data as any).main_goal || config?.main_goal || "",
+          level: (data as any).level || config?.level || "",
+          weeklyTime: (data as any).weekly_time || config?.weekly_time || "",
+          postsPerWeek: (data as any).posts_per_week ?? null,
+          storiesPerWeek: (data as any).stories_per_week ?? null,
+          linkedinPostsPerWeek: (data as any).linkedin_posts_per_week ?? null,
+          websiteUrl: (data as any).website_url || "",
+          instagramUrl: (data as any).instagram_url || "",
+          linkedinUrl: (data as any).linkedin_url || "",
+        };
+        setCurrent(loaded);
+        setSaved(loaded);
+      }
+      setLoading(false);
+    };
+    load();
   }, [user?.id]);
 
-  const update = (field: keyof ProfileData, value: string | string[]) => {
+  const update = (field: keyof ProfileData, value: any) => {
     setCurrent((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -108,24 +216,45 @@ export default function Profile() {
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        prenom: current.prenom,
-        activite: current.activite,
-        type_activite: current.typeActivite,
-        cible: current.cible,
-        probleme_principal: current.probleme,
-        piliers: current.piliers,
-        tons: current.tons,
-      })
-      .eq("user_id", user.id);
-    setSaving(false);
-    if (error) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          prenom: current.prenom,
+          activite: current.activite,
+          type_activite: current.typeActivite,
+          cible: current.cible,
+          probleme_principal: current.probleme,
+          piliers: current.piliers,
+          tons: current.tons,
+          main_goal: current.mainGoal,
+          level: current.level,
+          weekly_time: current.weeklyTime,
+          posts_per_week: current.postsPerWeek,
+          stories_per_week: current.storiesPerWeek,
+          linkedin_posts_per_week: current.linkedinPostsPerWeek,
+          website_url: current.websiteUrl,
+          instagram_url: current.instagramUrl,
+          linkedin_url: current.linkedinUrl,
+        })
+        .eq("user_id", user.id);
+      if (error) throw error;
+
+      // Sync to user_plan_config
+      if (current.mainGoal || current.level || current.weeklyTime) {
+        const configUpdate: any = {};
+        if (current.mainGoal) configUpdate.main_goal = current.mainGoal;
+        if (current.level) configUpdate.level = current.level;
+        if (current.weeklyTime) configUpdate.weekly_time = current.weeklyTime;
+        await supabase.from("user_plan_config").update(configUpdate).eq("user_id", user.id);
+      }
+
       setSaved({ ...current });
       toast({ title: "✅ Modifications enregistrées" });
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -224,6 +353,71 @@ export default function Profile() {
 
           {/* ─── Canaux ─── */}
           <ChannelSelector />
+        </div>
+
+        {/* New section: Objective, Level, Time */}
+        <div className="rounded-2xl bg-card p-6 border border-border space-y-5 mt-6">
+          <div>
+            <label className="text-sm font-medium mb-2 block">🎯 Mon objectif principal</label>
+            <ChipSelector options={GOAL_OPTIONS} value={current.mainGoal} onChange={(v: string) => update("mainGoal", v)} />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-2 block">🐣 Mon niveau en com'</label>
+            <ChipSelector options={LEVEL_OPTIONS} value={current.level} onChange={(v: string) => update("level", v)} />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-2 block">⏰ Mon temps dispo par semaine</label>
+            <ChipSelector options={TIME_OPTIONS} value={current.weeklyTime} onChange={(v: string) => update("weeklyTime", v)} />
+          </div>
+        </div>
+
+        {/* Frequency */}
+        <div className="rounded-2xl bg-card p-6 border border-border space-y-5 mt-6">
+          <label className="text-sm font-medium mb-1 block">📊 Ma fréquence souhaitée</label>
+          <FrequencySelector
+            label="Posts Instagram par semaine"
+            value={current.postsPerWeek}
+            options={[1, 2, 3, 4, 5]}
+            onChange={(v) => update("postsPerWeek", v)}
+          />
+          <FrequencySelector
+            label="Stories par semaine"
+            value={current.storiesPerWeek}
+            options={[0, 3, 5, 7, 10]}
+            onChange={(v) => update("storiesPerWeek", v)}
+          />
+          <FrequencySelector
+            label="Posts LinkedIn par semaine"
+            value={current.linkedinPostsPerWeek}
+            options={[0, 1, 2, 3]}
+            onChange={(v) => update("linkedinPostsPerWeek", v)}
+          />
+        </div>
+
+        {/* Links */}
+        <div className="rounded-2xl bg-card p-6 border border-border space-y-4 mt-6">
+          <label className="text-sm font-medium mb-1 block">🔗 Mes liens</label>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Site web</label>
+            <Input value={current.websiteUrl} onChange={(e) => update("websiteUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://monsite.com" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Instagram</label>
+            <Input value={current.instagramUrl} onChange={(e) => update("instagramUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://instagram.com/moncompte" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">LinkedIn</label>
+            <Input value={current.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://linkedin.com/in/monprofil" />
+          </div>
+        </div>
+
+        {/* Welcome page link */}
+        <div className="mt-6 text-center">
+          <Link to="/welcome" className="text-xs text-muted-foreground hover:text-primary transition-colors underline">
+            Revoir la page de bienvenue
+          </Link>
         </div>
       </main>
 
