@@ -11,12 +11,15 @@ interface ProgressData {
   calendarCount: number;
   launchCount: number;
   engagementWeekly: string;
+  statsFollowers: number | null;
+  statsFollowersDiff: number | null;
+  statsUpToDate: boolean;
 }
 
 export default function InstagramHub() {
   const { user } = useAuth();
   const [progress, setProgress] = useState<ProgressData>({
-    auditScore: null, ideasCount: 0, calendarCount: 0, launchCount: 0, engagementWeekly: "À faire",
+    auditScore: null, ideasCount: 0, calendarCount: 0, launchCount: 0, engagementWeekly: "À faire", statsFollowers: null, statsFollowersDiff: null, statsUpToDate: false,
   });
 
   useEffect(() => {
@@ -30,16 +33,24 @@ export default function InstagramHub() {
       mondayDate.setDate(now.getDate() - day + (day === 0 ? -6 : 1));
       const monday = mondayDate.toISOString().split("T")[0];
 
-      const [auditRes, ideasRes, calRes, launchRes, weeklyRes] = await Promise.all([
+      const prevMondayDate = new Date(mondayDate);
+      prevMondayDate.setDate(prevMondayDate.getDate() - 7);
+      const prevMonday = prevMondayDate.toISOString().split("T")[0];
+
+      const [auditRes, ideasRes, calRes, launchRes, weeklyRes, statsRes, prevStatsRes] = await Promise.all([
         supabase.from("instagram_audit").select("score_global").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("saved_ideas").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("canal", "instagram"),
         supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("canal", "instagram").gte("date", monthStart).lte("date", monthEnd),
         supabase.from("launches").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("engagement_weekly").select("total_done, dm_target, comments_target, replies_target").eq("user_id", user.id).eq("week_start", monday).maybeSingle(),
+        supabase.from("instagram_weekly_stats" as any).select("followers").eq("user_id", user.id).eq("week_start", monday).maybeSingle(),
+        supabase.from("instagram_weekly_stats" as any).select("followers").eq("user_id", user.id).eq("week_start", prevMonday).maybeSingle(),
       ]);
 
       const w = weeklyRes.data;
       const wTotal = w ? (w.dm_target ?? 0) + (w.comments_target ?? 0) + (w.replies_target ?? 0) : 0;
+      const currentFollowers = (statsRes.data as any)?.followers ?? null;
+      const prevFollowers = (prevStatsRes.data as any)?.followers ?? null;
 
       setProgress({
         auditScore: auditRes.data?.score_global ?? null,
@@ -47,6 +58,9 @@ export default function InstagramHub() {
         calendarCount: calRes.count || 0,
         launchCount: launchRes.count || 0,
         engagementWeekly: w ? `${w.total_done ?? 0}/${wTotal}` : "À faire",
+        statsFollowers: currentFollowers,
+        statsFollowersDiff: currentFollowers != null && prevFollowers != null ? currentFollowers - prevFollowers : null,
+        statsUpToDate: currentFollowers != null,
       });
     };
     fetchProgress();
@@ -79,12 +93,15 @@ export default function InstagramHub() {
               badge={progress.auditScore !== null ? `${progress.auditScore}/100` : "À configurer"}
             />
             <HubCard
-              to="/instagram/profil"
+              to="/instagram/stats"
               emoji="📈"
               title="Mes stats"
-              desc="Followers, reach, posts qui marchent. Connecte Instagram pour un audit automatique."
-              badge="Bientôt"
-              disabled
+              desc="Followers, reach, posts qui marchent. Saisis tes stats chaque semaine."
+              badge={progress.statsUpToDate
+                ? (progress.statsFollowersDiff !== null
+                  ? `${progress.statsFollowers} abo (${progress.statsFollowersDiff > 0 ? "+" : ""}${progress.statsFollowersDiff})`
+                  : `${progress.statsFollowers} abo`)
+                : "⚠️ Stats pas remplies"}
             />
           </div>
         </ZoneSection>

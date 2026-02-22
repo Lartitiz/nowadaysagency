@@ -6,10 +6,8 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { useToast } from "@/hooks/use-toast";
 import StreakSection from "@/components/engagement/StreakSection";
 import DailyChecklist, { getDefaultItems } from "@/components/engagement/DailyChecklist";
-import MetricsSection from "@/components/engagement/MetricsSection";
 import ContactsSection, { type Contact } from "@/components/engagement/ContactsSection";
 import TipsSection from "@/components/engagement/TipsSection";
-import StoriesMetricsSection from "@/components/engagement/StoriesMetricsSection";
 import Confetti from "@/components/Confetti";
 
 function getMonday(d: Date) {
@@ -24,7 +22,7 @@ function getTodayStr() {
 
 function getDayIndex() {
   const d = new Date().getDay();
-  return d === 0 ? 6 : d - 1; // Mon=0 ... Sun=6
+  return d === 0 ? 6 : d - 1;
 }
 
 export default function InstagramEngagement() {
@@ -32,58 +30,26 @@ export default function InstagramEngagement() {
   const { toast } = useToast();
   const [showConfetti, setShowConfetti] = useState(false);
 
-  // Streak
   const [currentStreak, setCurrentStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [weekChecks, setWeekChecks] = useState<boolean[]>(Array(7).fill(false));
 
-  // Checklist
   const [checked, setChecked] = useState<string[]>([]);
   const [isLaunching, setIsLaunching] = useState(false);
 
-  // Metrics
-  const [metrics, setMetrics] = useState<any>({});
-  const [prevMetrics, setPrevMetrics] = useState<any>(undefined);
-  const [metricsHistory, setMetricsHistory] = useState<any[]>([]);
-  const [metricsId, setMetricsId] = useState<string | null>(null);
-  const [aiInsight, setAiInsight] = useState<string>("");
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  // Contacts
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactFilter, setContactFilter] = useState("all");
-
-  // Stories metrics
-  const [storiesMetrics, setStoriesMetrics] = useState({
-    sequences_published: 0,
-    completion_rate: null as number | null,
-    dm_replies: 0,
-    best_story: "",
-    stickers_used: [] as string[],
-  });
-  const [storiesMetricsId, setStoriesMetricsId] = useState<string | null>(null);
 
   const today = useMemo(() => getTodayStr(), []);
   const todayIndex = useMemo(() => getDayIndex(), []);
   const monday = useMemo(() => getMonday(new Date()).toISOString().split("T")[0], []);
-  const sundayDate = useMemo(() => {
-    const m = getMonday(new Date());
-    m.setDate(m.getDate() + 6);
-    return m;
-  }, []);
-  const weekLabel = useMemo(() => {
-    const m = getMonday(new Date());
-    return `Semaine du ${m.toLocaleDateString("fr-FR")} au ${sundayDate.toLocaleDateString("fr-FR")}`;
-  }, [sundayDate]);
 
   const items = useMemo(() => getDefaultItems(isLaunching), [isLaunching]);
   const threshold = Math.ceil(items.length * 0.6);
 
-  // Load all data
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      // Check if launching
       const { data: launches } = await supabase
         .from("launches")
         .select("id, status")
@@ -92,7 +58,6 @@ export default function InstagramEngagement() {
         .limit(1);
       setIsLaunching((launches?.length ?? 0) > 0);
 
-      // Streak
       const { data: streak } = await supabase
         .from("engagement_streaks")
         .select("*")
@@ -103,7 +68,6 @@ export default function InstagramEngagement() {
         setBestStreak(streak.best_streak ?? 0);
       }
 
-      // Today's checklist
       const { data: todayLog } = await supabase
         .from("engagement_checklist_logs")
         .select("*")
@@ -114,7 +78,6 @@ export default function InstagramEngagement() {
         setChecked(todayLog.items_checked as string[]);
       }
 
-      // Week checks (Mon-Sun)
       const mondayDate = getMonday(new Date());
       const dates: string[] = [];
       for (let i = 0; i < 7; i++) {
@@ -130,33 +93,6 @@ export default function InstagramEngagement() {
       const logMap = new Map((weekLogs || []).map(l => [l.log_date, l.streak_maintained]));
       setWeekChecks(dates.map(d => logMap.get(d) === true));
 
-      // Metrics current week
-      const { data: met } = await supabase
-        .from("engagement_metrics")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("week_start", monday)
-        .maybeSingle();
-      if (met) {
-        setMetricsId(met.id);
-        setMetrics(met);
-        setAiInsight(met.ai_insight || "");
-      }
-
-      // Metrics history
-      const { data: hist } = await supabase
-        .from("engagement_metrics")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("week_start", { ascending: true })
-        .limit(8);
-      setMetricsHistory(hist || []);
-      if (hist && hist.length > 0) {
-        const prev = hist.filter((h: any) => h.week_start !== monday);
-        if (prev.length > 0) setPrevMetrics(prev[prev.length - 1]);
-      }
-
-      // Contacts
       const { data: cont } = await supabase
         .from("engagement_contacts")
         .select("*")
@@ -170,29 +106,10 @@ export default function InstagramEngagement() {
         notes: c.notes,
         last_interaction: c.last_interaction,
       })));
-
-      // Stories metrics
-      const { data: sm } = await supabase
-        .from("stories_metrics" as any)
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("week_start", monday)
-        .maybeSingle();
-      if (sm) {
-        setStoriesMetricsId((sm as any).id);
-        setStoriesMetrics({
-          sequences_published: (sm as any).sequences_published || 0,
-          completion_rate: (sm as any).completion_rate ?? null,
-          dm_replies: (sm as any).dm_replies || 0,
-          best_story: (sm as any).best_story || "",
-          stickers_used: (sm as any).stickers_used || [],
-        });
-      }
     };
     load();
   }, [user, today, monday]);
 
-  // Toggle checklist item
   const toggleItem = useCallback(async (id: string) => {
     if (!user) return;
     const next = checked.includes(id) ? checked.filter(c => c !== id) : [...checked, id];
@@ -200,7 +117,6 @@ export default function InstagramEngagement() {
 
     const streakMaintained = next.length >= threshold;
 
-    // Upsert today's log
     const { data: existing } = await supabase
       .from("engagement_checklist_logs")
       .select("id")
@@ -224,7 +140,6 @@ export default function InstagramEngagement() {
       });
     }
 
-    // Update streak
     const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
     const { data: streak } = await supabase
       .from("engagement_streaks")
@@ -258,7 +173,6 @@ export default function InstagramEngagement() {
       setBestStreak(newBest);
     }
 
-    // Update week checks
     setWeekChecks(prev => {
       const n = [...prev];
       n[todayIndex] = streakMaintained;
@@ -271,48 +185,6 @@ export default function InstagramEngagement() {
     }
   }, [user, checked, threshold, items.length, today, todayIndex, toast]);
 
-  // Save metrics
-  const saveMetrics = async (data: any) => {
-    if (!user) return;
-    const payload = { ...data, user_id: user.id, week_start: monday, updated_at: new Date().toISOString() };
-    delete payload.id;
-    delete payload.created_at;
-
-    if (metricsId) {
-      await supabase.from("engagement_metrics").update(payload).eq("id", metricsId);
-    } else {
-      const { data: ins } = await supabase.from("engagement_metrics").insert(payload).select("id").single();
-      if (ins) setMetricsId(ins.id);
-    }
-    toast({ title: "💾 Métriques sauvegardées" });
-  };
-
-  const generateInsight = async () => {
-    if (!user) return;
-    setIsGenerating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("engagement-insight", {
-        body: { currentWeek: metrics, history: metricsHistory.filter((h: any) => h.week_start !== monday) },
-      });
-      if (error) throw error;
-      const insight = data?.insight || "";
-      setAiInsight(insight);
-      // Save insight
-      if (metricsId) {
-        await supabase.from("engagement_metrics").update({ ai_insight: insight }).eq("id", metricsId);
-      }
-    } catch (e) {
-      console.error(e);
-      toast({ title: "Erreur lors de l'analyse", variant: "destructive" });
-    }
-    setIsGenerating(false);
-  };
-
-  const onMetricChange = (field: string, value: number) => {
-    setMetrics((prev: any) => ({ ...prev, [field]: value }));
-  };
-
-  // Contacts CRUD
   const addContact = async (pseudo: string, tag: string) => {
     if (!user) return;
     const { data } = await supabase.from("engagement_contacts").insert({
@@ -337,27 +209,6 @@ export default function InstagramEngagement() {
     setContacts(prev => prev.map(c => c.id === id ? { ...c, notes } : c));
   };
 
-  const saveStoriesMetrics = async () => {
-    if (!user) return;
-    const payload: any = {
-      user_id: user.id,
-      week_start: monday,
-      sequences_published: storiesMetrics.sequences_published,
-      completion_rate: storiesMetrics.completion_rate,
-      dm_replies: storiesMetrics.dm_replies,
-      best_story: storiesMetrics.best_story,
-      stickers_used: storiesMetrics.stickers_used,
-      updated_at: new Date().toISOString(),
-    };
-    if (storiesMetricsId) {
-      await supabase.from("stories_metrics" as any).update(payload).eq("id", storiesMetricsId);
-    } else {
-      const { data: ins } = await supabase.from("stories_metrics" as any).insert(payload).select("id").single();
-      if (ins) setStoriesMetricsId((ins as any).id);
-    }
-    toast({ title: "💾 Stats stories sauvegardées" });
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -379,25 +230,6 @@ export default function InstagramEngagement() {
           checked={checked}
           onToggle={toggleItem}
           threshold={threshold}
-        />
-
-        <MetricsSection
-          weekLabel={weekLabel}
-          metrics={metrics}
-          prevMetrics={prevMetrics}
-          history={metricsHistory}
-          isLaunching={isLaunching}
-          aiInsight={aiInsight}
-          onSave={saveMetrics}
-          onGenerateInsight={generateInsight}
-          isGenerating={isGenerating}
-          onChange={onMetricChange}
-        />
-
-        <StoriesMetricsSection
-          data={storiesMetrics}
-          onChange={setStoriesMetrics}
-          onSave={saveStoriesMetrics}
         />
 
         <ContactsSection
