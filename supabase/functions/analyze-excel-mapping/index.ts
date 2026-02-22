@@ -96,7 +96,7 @@ Règles :
 - Choisis la feuille qui contient le plus de données de suivi (pas une feuille "OLD" ou vide)
 - confidence: "high" si headers clairs, "medium" si ambigus, "low" si très incertain`;
 
-    const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
