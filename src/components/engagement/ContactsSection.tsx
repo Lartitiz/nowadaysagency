@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Plus, StickyNote, ExternalLink } from "lucide-react";
-import InstagramLink from "@/components/InstagramLink";
+import InstagramLink, { cleanPseudo } from "@/components/InstagramLink";
 
 export interface Contact {
   id: string;
@@ -48,13 +48,7 @@ const FILTERS = [
   { value: "stale", label: "⚠️ Inactifs" },
 ];
 
-function cleanPseudo(input: string): string {
-  return input
-    .replace(/^@/, '')
-    .replace(/^https?:\/\/(www\.)?instagram\.com\//, '')
-    .replace(/\/$/, '')
-    .trim();
-}
+// cleanPseudo is now imported from InstagramLink
 
 // Removed openInstagramProfile - now using InstagramLink component
 
@@ -146,13 +140,14 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
                 </div>
                 <div className="flex gap-1 shrink-0">
                   <InstagramLink
-                    username={c.pseudo}
-                    className="inline-flex items-center gap-1 h-7 px-2 text-[11px] rounded-md hover:bg-accent text-foreground"
-                    onClick={() => handleGoComment(c)}
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    <span className="hidden sm:inline">Commenter</span>
-                  </InstagramLink>
+                      username={c.pseudo}
+                      className="inline-flex items-center gap-1 h-7 px-2 text-[11px] rounded-md hover:bg-accent text-foreground"
+                      onClick={() => handleGoComment(c)}
+                      showCopy
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      <span className="hidden sm:inline">Commenter</span>
+                    </InstagramLink>
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => {
                     if (isEditingThis) { onUpdateNotes(c.id, tempNotes); setEditingNotes(null); }
                     else { setEditingNotes(c.id); setTempNotes(c.notes || ""); }
