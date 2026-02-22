@@ -74,6 +74,8 @@ import LegalAiPage from "./pages/LegalAiPage";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 import PricingPage from "./pages/PricingPage";
 import NowStudioSalesPage from "./pages/NowStudioSalesPage";
+import ServicesPage from "./pages/ServicesPage";
+import StudioDashboard from "./pages/StudioDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -116,8 +118,9 @@ const App = () => (
             <Route path="/branding/offres/:id" element={<ProtectedRoute><OfferWorkshopPage /></ProtectedRoute>} />
             <Route path="/plan" element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />
             <Route path="/pricing" element={<PricingPage />} />
-            <Route path="/studio" element={<NowStudioSalesPage />} />
+            <Route path="/studio" element={<ProtectedRoute><StudioDashboard /></ProtectedRoute>} />
             <Route path="/studio/discover" element={<NowStudioSalesPage />} />
+            <Route path="/services" element={<ServicesPage />} />
             <Route path="/profil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/parametres" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/legal-ia" element={<ProtectedRoute><LegalAiPage /></ProtectedRoute>} />

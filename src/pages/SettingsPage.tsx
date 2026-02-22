@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2 } from "lucide-react";
+import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { STRIPE_PLANS } from "@/lib/stripe-config";
+import PurchaseHistory from "@/components/settings/PurchaseHistory";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -172,6 +173,11 @@ export default function SettingsPage() {
               )}
             </div>
           )}
+        </Section>
+
+        {/* ─── Purchases ─── */}
+        <Section icon={<ShoppingBag className="h-4 w-4" />} title="Mes achats">
+          <PurchaseHistory />
         </Section>
 
         {/* ─── Account info ─── */}
