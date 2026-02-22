@@ -72,6 +72,7 @@ import SiteTestimonials from "./pages/SiteTestimonials";
 import SiteCapturePage from "./pages/SiteCapturePage";
 import LegalAiPage from "./pages/LegalAiPage";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
+import PricingPage from "./pages/PricingPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -113,6 +114,7 @@ const App = () => (
             <Route path="/branding/offres" element={<ProtectedRoute><OffersPage /></ProtectedRoute>} />
             <Route path="/branding/offres/:id" element={<ProtectedRoute><OfferWorkshopPage /></ProtectedRoute>} />
             <Route path="/plan" element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />
+            <Route path="/pricing" element={<PricingPage />} />
             <Route path="/profil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/parametres" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/legal-ia" element={<ProtectedRoute><LegalAiPage /></ProtectedRoute>} />
