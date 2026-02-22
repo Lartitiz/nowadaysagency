@@ -125,7 +125,8 @@ const App = () => (
             <Route path="/instagram/lancement/plan" element={<ProtectedRoute><InstagramLaunchPlan /></ProtectedRoute>} />
             <Route path="/instagram/lancement/recommandation" element={<ProtectedRoute><InstagramLaunchRecommendation /></ProtectedRoute>} />
             <Route path="/instagram/rythme" element={<ProtectedRoute><InstagramRythme /></ProtectedRoute>} />
-            <Route path="/instagram/engagement" element={<ProtectedRoute><InstagramEngagement /></ProtectedRoute>} />
+            <Route path="/instagram/routine" element={<ProtectedRoute><InstagramEngagement /></ProtectedRoute>} />
+            <Route path="/instagram/engagement" element={<Navigate to="/instagram/routine" replace />} />
             <Route path="/instagram/stories" element={<ProtectedRoute><InstagramStories /></ProtectedRoute>} />
             <Route path="/instagram/reels" element={<ProtectedRoute><InstagramReels /></ProtectedRoute>} />
             <Route path="/instagram/creer" element={<ProtectedRoute><InstagramCreer /></ProtectedRoute>} />

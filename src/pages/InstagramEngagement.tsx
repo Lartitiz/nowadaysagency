@@ -363,7 +363,7 @@ export default function InstagramEngagement() {
       <AppHeader />
       {showConfetti && <Confetti />}
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 space-y-6">
-        <SubPageHeader parentTo="/instagram" parentLabel="Instagram" currentLabel="Mon engagement" />
+        <SubPageHeader parentTo="/instagram" parentLabel="Instagram" currentLabel="Routine d'engagement" />
 
         <StreakSection
           currentStreak={currentStreak}
