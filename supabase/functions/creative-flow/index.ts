@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT } from "../_shared/copywriting-prompts.ts";
+import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS } from "../_shared/copywriting-prompts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -194,6 +194,8 @@ serve(async (req) => {
 
 ${ANTI_SLOP}
 
+${ETHICAL_GUARDRAILS}
+
 ${FRAMEWORK_SELECTION}
 
 TYPE DE CONTENU : ${contentType}
@@ -299,6 +301,8 @@ Réponds UNIQUEMENT en JSON :
       systemPrompt = `${CORE_PRINCIPLES}
 
 ${ANTI_SLOP}
+
+${ETHICAL_GUARDRAILS}
 
 ${CHAIN_OF_THOUGHT}
 

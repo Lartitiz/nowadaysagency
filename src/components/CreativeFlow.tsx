@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import BaseReminder from "@/components/BaseReminder";
+import ContentScoring from "@/components/ContentScoring";
+import FeedbackLoop from "@/components/FeedbackLoop";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Button } from "@/components/ui/button";
@@ -646,6 +648,26 @@ export default function CreativeFlow({
               <RefreshCw className="h-3.5 w-3.5" /> Réécrire
             </Button>
           </div>
+
+          {/* Feedback loop */}
+          <FeedbackLoop
+            content={editedContent}
+            onUpdate={(newContent) => {
+              setEditedContent(newContent);
+              setResult((prev) => prev ? { ...prev, content: newContent } : prev);
+            }}
+          />
+
+          {/* Content scoring */}
+          <ContentScoring
+            content={editedContent}
+            format={result.format}
+            objective={result.objectif}
+            onImprove={(improved) => {
+              setEditedContent(improved);
+              setResult((prev) => prev ? { ...prev, content: improved } : prev);
+            }}
+          />
 
           <BaseReminder variant="atelier" />
         </div>

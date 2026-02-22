@@ -67,7 +67,7 @@ const TONE_OPTIONS = {
 
 const CHANNEL_OPTIONS = ["Instagram", "LinkedIn", "Newsletter", "Pinterest", "Blog", "Podcast", "YouTube"];
 
-const TOTAL_SECTIONS = 8;
+const TOTAL_SECTIONS = 9;
 
 function computeScore(p: Omit<ToneProfile, "user_id">): number {
   let score = 0;
@@ -558,7 +558,37 @@ Réponds avec le texte seul, 3-4 phrases.`);
           {aiLoading === "verbatims" ? "Extraction en cours..." : "✨ Extraire les verbatims de mon persona"}
         </Button>
 
-        {/* Section 7: Canaux */}
+        {/* Section 7: Ma voix (profil opérationnel) */}
+        <SectionTitle title="🎤 Ma voix" />
+        <p className="text-[13px] text-muted-foreground mb-3">
+          L'IA utilisera ces éléments pour que chaque contenu sonne comme toi.
+        </p>
+
+        <h3 className="font-display text-sm font-bold text-foreground mb-2">Mes expressions signature</h3>
+        <p className="text-[12px] text-muted-foreground mb-1">L'IA les utilisera naturellement dans tes contenus.</p>
+        <Textarea
+          value={profile.key_expressions}
+          onChange={(e) => updateField("key_expressions", e.target.value)}
+          placeholder="en vrai, franchement, bon, le truc c'est que, j'avoue, du coup..."
+          rows={3}
+          className="mb-4"
+        />
+
+        <h3 className="font-display text-sm font-bold text-foreground mb-2">Mes expressions interdites</h3>
+        <p className="text-[12px] text-muted-foreground mb-1">L'IA ne les utilisera JAMAIS.</p>
+        <Textarea
+          value={profile.things_to_avoid}
+          onChange={(e) => updateField("things_to_avoid", e.target.value)}
+          placeholder="n'hésitez pas, mindset, passer à l'action, game changer, leverage, scalable..."
+          rows={3}
+          className="mb-4"
+        />
+
+        <VoiceOnboarding />
+
+        <div className="mb-8" />
+
+        {/* Section 8: Canaux */}
         <SectionTitle title="📱 Mes canaux" />
         <div className="flex flex-wrap gap-2 mb-8">
           {CHANNEL_OPTIONS.map((ch) => {
