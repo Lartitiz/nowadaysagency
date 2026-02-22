@@ -3,32 +3,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
-import { ArrowLeft, User, Sparkles, Lightbulb, PenLine, CalendarDays, Rocket, Heart, Video } from "lucide-react";
-
-interface CardDef {
-  icon: React.ElementType;
-  emoji: string;
-  title: string;
-  desc: string;
-  to: string;
-  tag: string;
-}
-
-const CARDS: CardDef[] = [
-  { icon: User, emoji: "👤", title: "Mon profil", desc: "Audit + bio + stories à la une + posts épinglés + feed + nom.", to: "/instagram/profil", tag: "Audit + Optimisations" },
-  { icon: Sparkles, emoji: "✨", title: "M'inspirer", desc: "Colle un contenu qui t'a plu. L'IA t'explique pourquoi ça marche et te crée ta version.", to: "/instagram/inspirer", tag: "Analyser · Adapter · Poster" },
-  { icon: Lightbulb, emoji: "💡", title: "Trouver des idées", desc: "Direction l'atelier.", to: "/atelier?canal=instagram", tag: "IA" },
-  { icon: PenLine, emoji: "✏️", title: "Rédiger un contenu", desc: "L'IA t'aide à rédiger un post complet.", to: "/atelier?canal=instagram&mode=rediger", tag: "Rédaction IA" },
-  { icon: Video, emoji: "🎬", title: "Créer un Reel", desc: "Génère un script complet avec hook, structure et CTA. Prêt à filmer.", to: "/instagram/reels", tag: "Script · Hook · CTA" },
-  { icon: Heart, emoji: "📱", title: "Mes Stories", desc: "Crée des séquences stories complètes avec le bon sticker et le bon CTA.", to: "/instagram/stories", tag: "Stories · Séquences · Stickers" },
-  { icon: CalendarDays, emoji: "📅", title: "Mon calendrier", desc: "Planifie tes posts.", to: "/calendrier?canal=instagram", tag: "Planning" },
-  { icon: Rocket, emoji: "🚀", title: "Mon lancement", desc: "Plan de lancement guidé.", to: "/instagram/lancement", tag: "Template + IA" },
-  { icon: Heart, emoji: "📊", title: "Mon engagement", desc: "Crée du lien avec ta communauté. Exercice guidé + checklist hebdo.", to: "/instagram/engagement", tag: "Exercice + Suivi" },
-];
+import { ArrowLeft, User, BarChart3, Sparkles, MessageCircle, CheckSquare, CalendarDays, Lightbulb, Rocket } from "lucide-react";
 
 interface ProgressData {
   auditScore: number | null;
-  inspirerCount: number;
   ideasCount: number;
   calendarCount: number;
   launchCount: number;
@@ -38,8 +16,7 @@ interface ProgressData {
 export default function InstagramHub() {
   const { user } = useAuth();
   const [progress, setProgress] = useState<ProgressData>({
-    auditScore: null, inspirerCount: 0, ideasCount: 0,
-    calendarCount: 0, launchCount: 0, engagementWeekly: "0/0",
+    auditScore: null, ideasCount: 0, calendarCount: 0, launchCount: 0, engagementWeekly: "À faire",
   });
 
   useEffect(() => {
@@ -53,9 +30,8 @@ export default function InstagramHub() {
       mondayDate.setDate(now.getDate() - day + (day === 0 ? -6 : 1));
       const monday = mondayDate.toISOString().split("T")[0];
 
-      const [auditRes, inspirerRes, ideasRes, calRes, launchRes, weeklyRes] = await Promise.all([
+      const [auditRes, ideasRes, calRes, launchRes, weeklyRes] = await Promise.all([
         supabase.from("instagram_audit").select("score_global").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("instagram_inspirations").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("saved_ideas").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("canal", "instagram"),
         supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("canal", "instagram").gte("date", monthStart).lte("date", monthEnd),
         supabase.from("launches").select("id", { count: "exact", head: true }).eq("user_id", user.id),
@@ -67,7 +43,6 @@ export default function InstagramHub() {
 
       setProgress({
         auditScore: auditRes.data?.score_global ?? null,
-        inspirerCount: inspirerRes.count || 0,
         ideasCount: ideasRes.count || 0,
         calendarCount: calRes.count || 0,
         launchCount: launchRes.count || 0,
@@ -77,28 +52,11 @@ export default function InstagramHub() {
     fetchProgress();
   }, [user]);
 
-  const getProgressLabel = (index: number): string | null => {
-    switch (index) {
-      case 0: return progress.auditScore !== null ? `${progress.auditScore}/100` : "À configurer";
-      case 1: return progress.inspirerCount > 0 ? `${progress.inspirerCount} analyse${progress.inspirerCount !== 1 ? "s" : ""}` : null;
-      case 2: return `${progress.ideasCount} idée${progress.ideasCount !== 1 ? "s" : ""}`;
-      case 3: return null;
-      case 4: return null; // Stories
-      case 5: return `${progress.calendarCount} post${progress.calendarCount !== 1 ? "s" : ""} ce mois`;
-      case 6: return `${progress.launchCount} lancement${progress.launchCount !== 1 ? "s" : ""}`;
-      case 7: return progress.engagementWeekly;
-      default: return null;
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-5xl px-6 py-8 max-md:px-4">
-        <Link
-          to="/dashboard"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6"
-        >
+        <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
           <ArrowLeft className="h-4 w-4" />
           Retour au hub
         </Link>
@@ -110,33 +68,153 @@ export default function InstagramHub() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {CARDS.map((card, idx) => {
-            const progressLabel = getProgressLabel(idx);
-            return (
-              <Link
-                key={card.to}
-                to={card.to}
-                className="group relative rounded-2xl border border-border bg-card p-6 hover:border-primary hover:shadow-md transition-all"
-              >
-                {progressLabel && (
-                  <span className="absolute top-4 right-4 font-mono-ui text-[10px] font-semibold text-muted-foreground bg-rose-pale px-2 py-0.5 rounded-pill">
-                    {progressLabel}
-                  </span>
-                )}
-                <span className="text-2xl mb-3 block">{card.emoji}</span>
-                <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">
-                  {card.title}
-                </h3>
-                <p className="mt-1 text-sm text-muted-foreground">{card.desc}</p>
-                <span className="mt-3 inline-block font-mono-ui text-[10px] font-semibold text-primary bg-rose-pale px-2.5 py-0.5 rounded-pill">
-                  {card.tag}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
+        {/* ─── ZONE 1 : ANALYSER ─── */}
+        <ZoneSection emoji="📊" title="Analyser">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <HubCard
+              to="/instagram/profil"
+              emoji="👤"
+              title="Mon profil"
+              desc="Audit complet : bio, feed, stories à la une, posts épinglés, nom."
+              badge={progress.auditScore !== null ? `${progress.auditScore}/100` : "À configurer"}
+            />
+            <HubCard
+              to="/instagram/profil"
+              emoji="📈"
+              title="Mes stats"
+              desc="Followers, reach, posts qui marchent. Connecte Instagram pour un audit automatique."
+              badge="Bientôt"
+              disabled
+            />
+          </div>
+        </ZoneSection>
+
+        {/* ─── ZONE 2 : CRÉER ─── */}
+        <ZoneSection emoji="✨" title="Créer">
+          <Link
+            to="/instagram/creer"
+            className="group block rounded-2xl border-2 border-primary bg-primary/5 p-6 sm:p-8 hover:bg-primary/10 hover:shadow-md transition-all text-center"
+          >
+            <span className="text-3xl mb-3 block">✨</span>
+            <h3 className="font-display text-xl sm:text-2xl font-bold text-primary group-hover:text-bordeaux transition-colors">
+              Créer un contenu
+            </h3>
+            <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
+              L'IA t'aide à rédiger. Tu choisis le format : post, Reel ou story.
+            </p>
+            <div className="flex justify-center gap-3 mt-5 flex-wrap">
+              <FormatPill emoji="📸" label="Post" />
+              <FormatPill emoji="🎬" label="Reel" />
+              <FormatPill emoji="📱" label="Story" />
+            </div>
+          </Link>
+        </ZoneSection>
+
+        {/* ─── ZONE 3 : ENGAGER ─── */}
+        <ZoneSection emoji="💬" title="Engager">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <HubCard
+              to="/instagram/engagement"
+              emoji="💬"
+              title="Stratégie commentaires"
+              desc="Tes comptes à commenter + bonnes pratiques pour créer du lien."
+              badge={progress.engagementWeekly}
+            />
+            <HubCard
+              to="/instagram/engagement"
+              emoji="✅"
+              title="Checklist hebdo"
+              desc="Exercice guidé pour créer du lien chaque semaine."
+            />
+          </div>
+        </ZoneSection>
+
+        {/* ─── ZONE 4 : PLANIFIER ─── */}
+        <ZoneSection emoji="📅" title="Planifier">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <HubCard
+              to="/calendrier?canal=instagram"
+              emoji="📅"
+              title="Calendrier"
+              desc="Planifie tes posts."
+              badge={`${progress.calendarCount} post${progress.calendarCount !== 1 ? "s" : ""} ce mois`}
+            />
+            <HubCard
+              to="/atelier?canal=instagram"
+              emoji="💡"
+              title="Mes idées"
+              desc="Ta banque d'idées sauvegardées."
+              badge={`${progress.ideasCount} idée${progress.ideasCount !== 1 ? "s" : ""}`}
+            />
+            <HubCard
+              to="/instagram/lancement"
+              emoji="🚀"
+              title="Mon lancement"
+              desc="Plan de lancement guidé."
+              badge={`${progress.launchCount} lancement${progress.launchCount !== 1 ? "s" : ""}`}
+            />
+          </div>
+        </ZoneSection>
       </main>
     </div>
+  );
+}
+
+/* ─── Zone section wrapper ─── */
+function ZoneSection({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
+  return (
+    <section className="mb-6">
+      <h2 className="font-display text-lg font-bold text-foreground mb-3 flex items-center gap-2">
+        <span>{emoji}</span> {title}
+      </h2>
+      <div className="rounded-2xl border border-border bg-card/50 p-4">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+/* ─── Hub card ─── */
+function HubCard({
+  to,
+  emoji,
+  title,
+  desc,
+  badge,
+  disabled,
+}: {
+  to: string;
+  emoji: string;
+  title: string;
+  desc: string;
+  badge?: string;
+  disabled?: boolean;
+}) {
+  const content = (
+    <div className={`relative rounded-2xl border border-border bg-card p-5 transition-all ${disabled ? "opacity-60 cursor-not-allowed" : "hover:border-primary hover:shadow-md group"}`}>
+      {badge && (
+        <span className="absolute top-3 right-3 font-mono-ui text-[10px] font-semibold text-muted-foreground bg-rose-pale px-2 py-0.5 rounded-pill">
+          {badge}
+        </span>
+      )}
+      <span className="text-2xl mb-2 block">{emoji}</span>
+      <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+        {title}
+      </h3>
+      <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{desc}</p>
+    </div>
+  );
+
+  if (disabled) return content;
+
+  return <Link to={to}>{content}</Link>;
+}
+
+/* ─── Format pill ─── */
+function FormatPill({ emoji, label }: { emoji: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 font-mono-ui text-xs font-semibold text-primary bg-rose-pale px-3 py-1.5 rounded-pill">
+      {emoji} {label}
+    </span>
   );
 }
