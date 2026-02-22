@@ -311,14 +311,9 @@ function ModuleCardComponent({ mod, brandingCompletion }: { mod: ModuleCard; bra
       {/* Top row: number + badge */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-2xl">{mod.emoji}</span>
-        <div className="flex items-center gap-2">
-          <span className={`font-mono-ui text-[11px] font-semibold px-2 py-0.5 rounded-md ${badgeClass(mod.badge.variant)}`}>
-            {mod.badge.label}
-          </span>
-          <span className="font-mono-ui text-[11px] font-semibold bg-rose-pale text-foreground px-2 py-0.5 rounded-md">
-            {mod.number}
-          </span>
-        </div>
+        <span className={`font-mono-ui text-[11px] font-semibold px-2 py-0.5 rounded-md ${badgeClass(mod.badge.variant)}`}>
+          {mod.badge.label}
+        </span>
       </div>
 
       {/* Title */}
