@@ -396,7 +396,7 @@ Réponds en JSON :
         userPrompt = "Rédige le post complet.";
 
       } else if (type === "instagram-audit") {
-        const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, successNotes: sn, failNotes: fn, profileUrl: pu, successPostsData, failPostsData } = body;
+        const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, successNotes: sn, failNotes: fn, profileUrl: pu, successPostsData, failPostsData, auditTextData: atd } = body;
 
         // Build structured post descriptions for AI
         let successPostsBlock = "";
@@ -433,21 +433,35 @@ Réponds en JSON :
           }).join("\n");
         }
 
+        // Build text-based profile data block
+        let profileTextBlock = "";
+        if (atd) {
+          const lines = [];
+          if (atd.displayName) lines.push(`- Nom d'affichage : ${atd.displayName}`);
+          if (atd.username) lines.push(`- Username : ${atd.username}`);
+          if (atd.bio) lines.push(`- Bio :\n${atd.bio}`);
+          if (atd.bioLink) lines.push(`- Lien en bio : ${atd.bioLink}`);
+          if (atd.photoDescription) lines.push(`- Photo de profil : ${atd.photoDescription}`);
+          if (atd.highlights?.length) lines.push(`- Stories à la une : ${atd.highlights.join(", ")} (${atd.highlightsCount || atd.highlights.length} highlights)`);
+          if (atd.pinnedPosts?.length) lines.push(`- Posts épinglés :\n${atd.pinnedPosts.map((p: any, i: number) => `  ${i+1}. ${p.description}`).join("\n")}`);
+          if (atd.feedDescription) lines.push(`- Description du feed : ${atd.feedDescription}`);
+          if (atd.followers) lines.push(`- Nombre d'abonnés : ${atd.followers}`);
+          if (atd.postsPerMonth) lines.push(`- Posts publiés ce mois : ${atd.postsPerMonth}`);
+          if (atd.frequency) lines.push(`- Fréquence de publication : ${atd.frequency}`);
+          if (atd.pillars?.length) lines.push(`- Piliers de contenu : ${atd.pillars.join(", ")}`);
+          profileTextBlock = "\nPROFIL INSTAGRAM (saisi par l'utilisatrice) :\n" + lines.join("\n");
+        }
+
         systemPrompt = `${CORE_PRINCIPLES}
+${profileTextBlock}
 
-RÉPONSES DE L'UTILISATRICE :
-- Contenus qui marchent le mieux : "${bc || "non renseigné"}"
-- Contenus qui ne marchent pas : "${wc || "non renseigné"}"
-- Rythme actuel : "${rh || "non renseigné"}"
-- Objectif principal : "${obj || "non renseigné"}"
+${bc || wc || rh || obj ? `RÉPONSES COMPLÉMENTAIRES :
+${bc ? `- Contenus qui marchent le mieux : "${bc}"` : ""}
+${wc ? `- Contenus qui ne marchent pas : "${wc}"` : ""}
+${rh ? `- Rythme actuel : "${rh}"` : ""}
+${obj ? `- Objectif principal : "${obj}"` : ""}` : ""}
 ${pu ? `- URL du profil : ${pu}` : ""}
-
-CONTENUS QUI ONT BIEN MARCHÉ :
-Commentaire de l'utilisatrice : "${sn || "non renseigné"}"
 ${successPostsBlock}
-
-CONTENUS QUI N'ONT PAS MARCHÉ :
-Commentaire de l'utilisatrice : "${fn || "non renseigné"}"
 ${failPostsBlock}
 
 ${brandingContext}

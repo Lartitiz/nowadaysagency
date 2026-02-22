@@ -23,13 +23,23 @@ interface ValidationStatus {
   status: string;
 }
 
+interface ProfileSnippets {
+  instagram_display_name?: string | null;
+  instagram_bio?: string | null;
+  instagram_highlights?: string[] | null;
+  instagram_highlights_count?: number | null;
+  instagram_pinned_posts?: { description: string }[] | null;
+  instagram_feed_description?: string | null;
+  instagram_pillars?: string[] | null;
+}
+
 const SECTIONS = [
-  { key: "nom", emoji: "📝", label: "Mon nom", icon: PenLine, route: "/instagram/profil/nom" },
-  { key: "bio", emoji: "✍️", label: "Ma bio", icon: PenLine, route: "/instagram/profil/bio" },
-  { key: "stories", emoji: "📌", label: "Stories à la une", icon: BookmarkCheck, route: "/instagram/profil/stories" },
-  { key: "epingles", emoji: "📌", label: "Posts épinglés", icon: Pin, route: "/instagram/profil/epingles" },
-  { key: "feed", emoji: "🎨", label: "Mon feed", icon: Palette, route: "/instagram/profil/feed" },
-  { key: "edito", emoji: "📊", label: "Ma ligne éditoriale", icon: BarChart3, route: "/instagram/profil/edito" },
+  { key: "nom", emoji: "📝", label: "Mon nom", icon: PenLine, route: "/instagram/profil/nom", moduleRoute: "/instagram/profil/nom", moduleLabel: "Optimiser" },
+  { key: "bio", emoji: "✍️", label: "Ma bio", icon: PenLine, route: "/instagram/profil/bio", moduleRoute: "/instagram/profil/bio", moduleLabel: "Créer ma bio" },
+  { key: "stories", emoji: "📌", label: "Stories à la une", icon: BookmarkCheck, route: "/instagram/profil/stories", moduleRoute: "/instagram/profil/stories", moduleLabel: "Module highlights" },
+  { key: "epingles", emoji: "📌", label: "Posts épinglés", icon: Pin, route: "/instagram/profil/epingles", moduleRoute: "/instagram/profil/epingles", moduleLabel: "Choisir mes posts" },
+  { key: "feed", emoji: "🎨", label: "Mon feed", icon: Palette, route: "/instagram/profil/feed", moduleRoute: "/instagram/profil/feed", moduleLabel: "Recommandations" },
+  { key: "edito", emoji: "📊", label: "Ma ligne éditoriale", icon: BarChart3, route: "/instagram/profil/edito", moduleRoute: "/instagram/rythme", moduleLabel: "Ligne éditoriale" },
 ];
 
 function scoreBadge(score: number | null) {
@@ -45,11 +55,12 @@ export default function InstagramProfile() {
   const [audit, setAudit] = useState<AuditData | null>(null);
   const [loading, setLoading] = useState(true);
   const [validations, setValidations] = useState<ValidationStatus[]>([]);
+  const [snippets, setSnippets] = useState<ProfileSnippets>({});
 
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
-      const [{ data: auditData }, { data: valData }] = await Promise.all([
+      const [{ data: auditData }, { data: valData }, { data: profileData }] = await Promise.all([
         supabase
           .from("instagram_audit")
           .select("score_global, score_nom, score_bio, score_stories, score_epingles, score_feed, score_edito, resume")
@@ -61,9 +72,15 @@ export default function InstagramProfile() {
           .from("audit_validations" as any)
           .select("section, status")
           .eq("user_id", user.id),
+        supabase
+          .from("profiles")
+          .select("instagram_display_name, instagram_bio, instagram_highlights, instagram_highlights_count, instagram_pinned_posts, instagram_feed_description, instagram_pillars")
+          .eq("user_id", user.id)
+          .maybeSingle(),
       ]);
       if (auditData) setAudit(auditData as AuditData);
       if (valData) setValidations(valData as unknown as ValidationStatus[]);
+      if (profileData) setSnippets(profileData as unknown as ProfileSnippets);
       setLoading(false);
     };
     fetchData();
@@ -177,6 +194,14 @@ export default function InstagramProfile() {
             const sc = getScore(s.key);
             const badge = scoreBadge(sc);
             const vs = getValidationStatus(s.key);
+            const snippet = s.key === "bio" ? snippets.instagram_bio
+              : s.key === "nom" ? snippets.instagram_display_name
+              : s.key === "stories" ? (snippets.instagram_highlights as string[] || []).join(" · ") || null
+              : s.key === "epingles" ? (snippets.instagram_pinned_posts as any[] || []).map((p: any) => p.description).join(", ") || null
+              : s.key === "feed" ? snippets.instagram_feed_description
+              : s.key === "edito" ? (snippets.instagram_pillars as string[] || []).join(", ") || null
+              : null;
+            const improvementCount = sc !== null && sc < 70 ? Math.max(1, Math.ceil((70 - sc) / 20)) : 0;
             return (
               <Link
                 key={s.key}
@@ -187,9 +212,7 @@ export default function InstagramProfile() {
                   <span className="text-2xl">{s.emoji}</span>
                   <div className="flex items-center gap-1.5">
                     {vs === "validated" && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-green-100 text-green-700">
-                        ✅
-                      </span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-green-100 text-green-700">✅</span>
                     )}
                     {sc !== null && (
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-pill ${badge.color}`}>
@@ -201,10 +224,14 @@ export default function InstagramProfile() {
                 <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
                   {s.label}
                 </h3>
-                {sc !== null && (
-                  <p className={`text-xs mt-1 font-medium ${sc >= 80 ? "text-green-600" : sc >= 50 ? "text-orange-600" : sc > 0 ? "text-red-600" : "text-muted-foreground"}`}>
-                    {vs === "validated" ? "✅ Validé" : badge.label === "Bien" ? "✅" : badge.label === "À améliorer" ? "⚠️" : badge.label === "Prioritaire" ? "🔴" : "⬜"} {vs === "validated" ? "" : badge.label}
-                  </p>
+                {snippet && (
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2 italic">"{snippet.substring(0, 60)}{snippet.length > 60 ? "…" : ""}"</p>
+                )}
+                {sc !== null && improvementCount > 0 && (
+                  <p className="text-xs text-amber-600 mt-1 font-medium">{improvementCount} amélioration{improvementCount > 1 ? "s" : ""} suggérée{improvementCount > 1 ? "s" : ""}</p>
+                )}
+                {sc !== null && improvementCount === 0 && (
+                  <p className="text-xs text-green-600 mt-1 font-medium">✅ {vs === "validated" ? "Validé" : "Bien"}</p>
                 )}
               </Link>
             );
