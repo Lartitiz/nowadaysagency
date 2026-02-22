@@ -34,7 +34,68 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { objective, price_range, time_available, face_cam, subject, is_launch, branding_context, type, pre_gen_answers } = await req.json();
+    const body = await req.json();
+    const { objective, price_range, time_available, face_cam, subject, subject_details, raw_idea, clarify_context, direction, is_launch, branding_context, type, pre_gen_answers } = body;
+
+    // Clarify subject (fuzzy path)
+    if (type === "clarify_subject") {
+      const systemPrompt = `Tu es experte en stories Instagram pour solopreneuses créatives.
+L'utilisatrice a une idée floue pour ses stories. Aide-la à préciser.
+
+${branding_context || ""}
+
+L'utilisatrice a partagé une idée brute :
+"${body.raw_idea}"
+
+Pose-lui 1 question de précision adaptée à son idée.
+La question doit l'aider à trouver :
+- Le déclencheur concret (vécu perso, situation client, observation)
+- OU l'angle spécifique (qu'est-ce qu'elle veut que les gens comprennent/ressentent)
+
+RÈGLES :
+- 1 question, pas 5. On ne veut pas un interrogatoire.
+- La question est formulée en langage oral : "C'est quoi le truc qui t'a fait penser à ça ?" pas "Pourriez-vous préciser le contexte de votre réflexion ?"
+- Propose aussi 3-4 directions sous forme de choix cliquables
+- Les directions proposées doivent être DIFFÉRENTES entre elles
+
+RETOURNE un JSON strict :
+{
+  "clarifying_question": "...",
+  "directions": [
+    { "emoji": "🤝", "label": "Rassurer / donner la permission", "tone": "bienveillant" },
+    { "emoji": "📚", "label": "Expliquer pourquoi c'est un piège", "tone": "pédago" },
+    { "emoji": "😤", "label": "Coup de gueule doux", "tone": "affirmé" },
+    { "emoji": "💡", "label": "Donner un conseil concret", "tone": "pratique" }
+  ]
+}
+Réponds UNIQUEMENT avec le JSON.`;
+      const response = await callAI(LOVABLE_API_KEY, systemPrompt, `Idée brute : "${body.raw_idea}"`);
+      return new Response(JSON.stringify({ content: response }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Suggest subjects (no idea path)
+    if (type === "suggest_subjects") {
+      const systemPrompt = `Tu es experte en stories Instagram pour solopreneuses créatives.
+
+${branding_context || ""}
+
+Propose 5 sujets de séquences stories pertinents pour cette utilisatrice, basés sur son contexte de marque.
+
+Chaque sujet doit être :
+- Spécifique (pas "parle de ton offre" mais "les 3 erreurs que tes clientes font avant de te contacter")
+- Formulé de façon engageante et concrète
+- Varié : mélange connexion, éducation, engagement
+
+RETOURNE un JSON strict :
+{ "suggestions": ["sujet 1", "sujet 2", "sujet 3", "sujet 4", "sujet 5"] }
+Réponds UNIQUEMENT avec le JSON.`;
+      const response = await callAI(LOVABLE_API_KEY, systemPrompt, "Propose-moi 5 sujets de stories.");
+      return new Response(JSON.stringify({ content: response }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Check recent sale sequences for garde-fou
     let gardeFouAlerte: string | null = null;
@@ -60,8 +121,21 @@ serve(async (req) => {
       });
     }
 
+    // Build enriched subject from SubjectPicker
+    let enrichedSubject = subject || "";
+    if (subject_details) {
+      enrichedSubject += `\n\nCE QU'ELLE VEUT DIRE (utilise SES mots, SES expressions, SES analogies) :\n"${subject_details}"`;
+    }
+    if (raw_idea && clarify_context) {
+      enrichedSubject = raw_idea;
+      enrichedSubject += `\n\nCONTEXTE SUPPLÉMENTAIRE : "${clarify_context}"`;
+    }
+    if (direction) {
+      enrichedSubject += `\n\nDIRECTION CHOISIE : ${direction}`;
+    }
+
     // Main generation
-    const systemPrompt = buildMainPrompt({ objective, price_range, time_available, face_cam, subject, is_launch, branding_context, gardeFouAlerte, pre_gen_answers });
+    const systemPrompt = buildMainPrompt({ objective, price_range, time_available, face_cam, subject: enrichedSubject, is_launch, branding_context, gardeFouAlerte, pre_gen_answers });
     const response = await callAI(LOVABLE_API_KEY, systemPrompt, "Génère ma séquence stories.");
     return new Response(JSON.stringify({ content: response }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
