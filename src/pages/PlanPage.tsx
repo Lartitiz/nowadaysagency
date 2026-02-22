@@ -7,10 +7,9 @@ import { Progress } from "@/components/ui/progress";
 import { Link } from "react-router-dom";
 import {
   Check, Clock, ArrowRight, Lock, Settings, ChevronDown, ChevronRight, Sparkles,
-  CalendarDays, ClipboardList, BarChart3, Construction,
+  ClipboardList, BarChart3, Construction,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import WeekView from "@/components/plan/WeekView";
 import { computePlan, GOAL_LABELS, TIME_LABELS, type PlanData, type PlanConfig, type PlanPhase, type PlanStep, type StepStatus } from "@/lib/plan-engine";
 
 /* ═══════════════════════════════════════════════════════════════
