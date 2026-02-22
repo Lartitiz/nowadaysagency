@@ -271,7 +271,7 @@ function Step1({ formData, setFormData }: any) {
       </div>
       <div>
         <label className="text-sm font-semibold text-foreground mb-1 block">Nom de l'offre</label>
-        <Input value={formData.name} onChange={(e) => update("name", e.target.value)} placeholder="Ex: Now Academy" />
+        <Input value={formData.name} onChange={(e) => update("name", e.target.value)} placeholder="Ex: Now Studio" />
       </div>
       <div>
         <label className="text-sm font-semibold text-foreground mb-1 block">Décris ton offre en 2-3 phrases</label>

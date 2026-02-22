@@ -31,7 +31,7 @@ const METRIC_LABELS: Record<string, { label: string; emoji: string }> = {
   traffic_social: { label: "Trafic réseaux sociaux", emoji: "🌍" },
   ad_budget: { label: "Budget pub", emoji: "💶" },
   page_views_plan: { label: "Pages plan de com'", emoji: "📄" },
-  page_views_academy: { label: "Pages Academy", emoji: "🎓" },
+  page_views_academy: { label: "Pages Now Studio", emoji: "🎓" },
   page_views_agency: { label: "Pages Agency", emoji: "🏢" },
   discovery_calls: { label: "Appels découverte", emoji: "📞" },
   clients_signed: { label: "Clients signés", emoji: "✍️" },

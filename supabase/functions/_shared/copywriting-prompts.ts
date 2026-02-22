@@ -574,7 +574,7 @@ export const WEBSITE_LANDING_TIPS = [
   { text: "Le trafic email convertit le mieux. Ta newsletter est ton meilleur levier pour remplir tes pages de vente.", source: "Unbounce 2024" },
   { text: "Instagram Ads convertit à 17,9% en moyenne sur les landing pages : le meilleur canal social payant.", source: "Unbounce 2024" },
   { text: "LinkedIn Ads ne convertit qu'à 3,1% en volume, mais l'audience est souvent plus qualifiée pour du B2B.", source: "Unbounce 2024" },
-  { text: "Pour une offre à 1 740 euros (type Academy), un taux de 2-5% sur la page de vente est réaliste. 5%+ est excellent.", source: "Benchmarks high-ticket" },
+  { text: "Pour une offre à 1 740 euros (type Now Studio), un taux de 2-5% sur la page de vente est réaliste. 5%+ est excellent.", source: "Benchmarks high-ticket" },
   { text: "Les pages avec un 'Plan en 3 étapes' convertissent mieux : ça réduit la complexité perçue et rassure.", source: "StoryBrand / Donald Miller" },
   { text: "L'élément 'échec' (ce qui se passe si on ne fait rien) est puissant mais à utiliser comme du sel : une pincée suffit.", source: "StoryBrand" },
   { text: "Le top 10% des popups de sortie convertissent à 42%. Mais seulement si elles apportent de la vraie valeur, pas du shaming.", source: "Wisepops 2025" },

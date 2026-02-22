@@ -100,14 +100,14 @@ const GUARANTEE_TYPES = [
 
 const PAGE_TYPES = [
   { value: "home", emoji: "🏠", label: "Page d'accueil", desc: "Le hub de ton site : positionnement, offres, preuves. 6-8 sections courtes." },
-  { value: "sales", emoji: "💰", label: "Page de vente", desc: "Vendre ton offre : Academy, formation, accompagnement. 10-12 sections (long-form)." },
+  { value: "sales", emoji: "💰", label: "Page de vente", desc: "Vendre ton offre : Now Studio, formation, accompagnement. 10-12 sections (long-form)." },
   { value: "services", emoji: "🏛️", label: "Page de services", desc: "Présenter tes services B2B, CTA = appel découverte. 6-8 sections." },
   { value: "capture", emoji: "🎁", label: "Page de capture", desc: "Récolter des emails avec un lead magnet. 3-4 éléments.", isLink: true, to: "/site/capture" },
   { value: "about", emoji: "👤", label: "Page à propos", desc: "Raconter ton histoire, créer la confiance. 4-5 sections.", isLink: true, to: "/site/a-propos" },
 ];
 
 const OFFER_TYPES = [
-  { value: "formation", label: "🎓 Formation/Academy" },
+  { value: "formation", label: "🎓 Formation/Now Studio" },
   { value: "services", label: "🏛️ Services/Agency" },
   { value: "leadmagnet", label: "🎁 Lead magnet" },
   { value: "autre", label: "Autre" },
@@ -621,7 +621,7 @@ function Step5OfferPrice({ data, save, callAI, aiLoading, aiResults, copyText }:
       <div className="space-y-4">
         <div>
           <label className="text-sm font-semibold block mb-1">Nom de l'offre</label>
-          <Input value={data.offer_name} onChange={(e) => save({ offer_name: e.target.value })} placeholder="Ex : Now Academy" />
+          <Input value={data.offer_name} onChange={(e) => save({ offer_name: e.target.value })} placeholder="Ex : Now Studio" />
         </div>
         <div>
           <label className="text-sm font-semibold block mb-1">Prix</label>

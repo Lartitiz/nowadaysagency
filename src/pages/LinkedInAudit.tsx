@@ -27,7 +27,7 @@ interface AuditResult {
 // ── Constants ──
 const STEPS = ["Screenshots", "Profil", "Contenu", "Stratégie", "Réseau"];
 const OBJECTIVE_OPTIONS = [
-  "Trouver des client·es (Academy)",
+  "Trouver des client·es (Now Studio)",
   "Trouver des client·es (Agency)",
   "Développer mon réseau pro",
   "Me positionner comme experte",

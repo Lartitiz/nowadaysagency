@@ -194,7 +194,7 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
         <h3 className="text-sm font-bold text-foreground">📱 TES STORIES À LA UNE</h3>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Liste les noms de tes highlights (séparés par des virgules) :</label>
-          <Input value={form.highlights} onChange={(e) => set("highlights", e.target.value)} placeholder="Avis, FAQ, Perso, Academy, Coulisses" />
+          <Input value={form.highlights} onChange={(e) => set("highlights", e.target.value)} placeholder="Avis, FAQ, Perso, Now Studio, Coulisses" />
         </div>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Combien de highlights :</label>
