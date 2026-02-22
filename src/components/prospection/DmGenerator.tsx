@@ -54,6 +54,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
   const [notedInterest, setNotedInterest] = useState((prospect as any).noted_interest || "");
   const [prospectProblem, setProspectProblem] = useState(prospect.probable_problem || "");
   const [toAvoid, setToAvoid] = useState((prospect as any).to_avoid || "");
+  const [messageContext, setMessageContext] = useState((prospect as any).last_dm_context || "");
 
   // Step 3: Approach
   const [selectedApproach, setSelectedApproach] = useState<string | null>(null);
@@ -130,6 +131,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
             noted_interest: notedInterest,
             probable_problem: prospectProblem,
             to_avoid: toAvoid,
+            last_dm_context: messageContext,
           },
           approach_type: selectedApproach,
           interactions_summary: interactionsSummary,
@@ -160,6 +162,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
       if (notedInterest.trim()) updates.noted_interest = notedInterest;
       if (prospectProblem.trim()) updates.probable_problem = prospectProblem;
       if (toAvoid.trim()) updates.to_avoid = toAvoid;
+      if (messageContext.trim()) updates.last_dm_context = messageContext;
       if (Object.keys(updates).length > 0) {
         supabase.from("prospects").update(updates).eq("id", prospect.id).then(() => {});
       }
@@ -181,6 +184,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
       if (notedInterest.trim()) updates.noted_interest = notedInterest;
       if (prospectProblem.trim()) updates.probable_problem = prospectProblem;
       if (toAvoid.trim()) updates.to_avoid = toAvoid;
+      if (messageContext.trim()) updates.last_dm_context = messageContext;
       if (Object.keys(updates).length > 0) {
         supabase.from("prospects").update(updates).eq("id", prospect.id).then(() => {});
       }
@@ -275,6 +279,17 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
             value={prospectProblem}
             onChange={e => setProspectProblem(e.target.value)}
             placeholder="Elle a du super contenu mais aucune stratégie..."
+            className="text-xs min-h-[60px]"
+          />
+        </div>
+
+        {/* Message context */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-foreground">💬 Qu'est-ce que tu veux lui dire ? (contexte du message)</label>
+          <Textarea
+            value={messageContext}
+            onChange={e => setMessageContext(e.target.value)}
+            placeholder="Ex : Je veux lui parler de mon atelier Instagram, rebondir sur sa story d'hier, lui proposer un café virtuel..."
             className="text-xs min-h-[60px]"
           />
         </div>

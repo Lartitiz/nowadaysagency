@@ -97,6 +97,7 @@ ${prospect.strengths ? `- Ce qu'elle fait bien : ${prospect.strengths}` : ""}
 ${prospect.probable_problem ? `- Son problème d'après l'expéditrice : ${prospect.probable_problem}` : ""}
 - Phase du parcours : ${prospect.decision_phase || "inconnue"} — ${phaseGuidance[prospect.decision_phase] || ""}
 ${prospect.noted_interest ? `- Intérêt montré : ${prospect.noted_interest}` : ""}
+${prospect.last_dm_context ? `\nINTENTION DU MESSAGE :\n${prospect.last_dm_context}\n(Ce que l'expéditrice veut aborder dans le DM. Le message généré doit intégrer cette intention naturellement, pas la plaquer mot pour mot.)` : ""}
 ${prospect.to_avoid ? `- ⚠️ À ÉVITER dans le message : ${prospect.to_avoid}` : ""}
 
 HISTORIQUE DE CONVERSATION RÉCENTE (DMs Instagram) :

@@ -3142,6 +3142,7 @@ export type Database = {
           id: string
           instagram_username: string
           last_conversation: string | null
+          last_dm_context: string | null
           last_interaction_at: string | null
           next_reminder_at: string | null
           next_reminder_text: string | null
@@ -3165,6 +3166,7 @@ export type Database = {
           id?: string
           instagram_username: string
           last_conversation?: string | null
+          last_dm_context?: string | null
           last_interaction_at?: string | null
           next_reminder_at?: string | null
           next_reminder_text?: string | null
@@ -3188,6 +3190,7 @@ export type Database = {
           id?: string
           instagram_username?: string
           last_conversation?: string | null
+          last_dm_context?: string | null
           last_interaction_at?: string | null
           next_reminder_at?: string | null
           next_reminder_text?: string | null
