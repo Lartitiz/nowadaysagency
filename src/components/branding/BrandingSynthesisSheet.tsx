@@ -19,25 +19,66 @@ interface SynthesisData {
   liAudit: any;
 }
 
-function Field({ label, value, fallbackLink, fallbackLabel }: { label: string; value: any; fallbackLink?: string; fallbackLabel?: string }) {
-  const isEmpty = value === null || value === undefined || (typeof value === "string" && value.trim() === "");
-  if (isEmpty) {
-    return (
-      <div className="py-1.5">
-        <span className="text-sm font-medium text-foreground">{label} : </span>
-        <span className="text-sm text-muted-foreground/60 italic">Non renseigné</span>
-        {fallbackLink && (
-          <a href={fallbackLink} className="text-xs text-primary hover:underline ml-2 inline-flex items-center gap-0.5">
-            Compléter <ExternalLink className="h-3 w-3" />
-          </a>
-        )}
-      </div>
-    );
-  }
+/* ── Helpers ── */
+
+function EmptyField({ label, link, linkLabel }: { label: string; link?: string; linkLabel?: string }) {
+  return (
+    <div className="py-1.5 flex items-center gap-2">
+      <span className="text-sm text-muted-foreground/50 italic">Non renseigné</span>
+      {link && (
+        <a href={link} className="text-xs text-primary hover:underline inline-flex items-center gap-0.5">
+          {linkLabel || "Compléter"} <ExternalLink className="h-3 w-3" />
+        </a>
+      )}
+    </div>
+  );
+}
+
+function TextField({ label, value, link }: { label: string; value: string | null | undefined; link?: string }) {
+  if (!value || value.trim() === "") return <EmptyField label={label} link={link} />;
   return (
     <div className="py-1.5">
       <span className="text-sm font-medium text-foreground">{label} : </span>
-      <span className="text-sm text-muted-foreground whitespace-pre-line">{typeof value === "string" ? value : JSON.stringify(value)}</span>
+      <span className="text-sm text-muted-foreground whitespace-pre-line">{value}</span>
+    </div>
+  );
+}
+
+function QuoteList({ items, emoji = "💬" }: { items: string[]; emoji?: string }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div className="space-y-2 py-1">
+      {items.map((item, i) => (
+        <p key={i} className="text-sm text-foreground flex items-start gap-2">
+          <span className="shrink-0">{emoji}</span>
+          <span className="italic">"{item}"</span>
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function BulletList({ items, emoji = "•" }: { items: string[]; emoji?: string }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <ul className="space-y-1.5 py-1">
+      {items.map((item, i) => (
+        <li key={i} className="text-sm text-foreground flex items-start gap-2">
+          <span className="shrink-0">{emoji}</span>
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function TagList({ items }: { items: string[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 py-1">
+      {items.map((t, i) => (
+        <span key={i} className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">{t}</span>
+      ))}
     </div>
   );
 }
@@ -45,13 +86,41 @@ function Field({ label, value, fallbackLink, fallbackLabel }: { label: string; v
 function Section({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
   return (
     <div className="mb-6">
-      <h3 className="font-display font-bold text-foreground text-base mb-2 flex items-center gap-2">
+      <h3 className="font-display font-bold text-foreground text-base mb-3 flex items-center gap-2">
         <span>{emoji}</span> {title}
       </h3>
-      <div className="border-t border-border pt-2">{children}</div>
+      <div className="border-t border-border pt-3 space-y-1">{children}</div>
     </div>
   );
 }
+
+function SubSection({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
+  return (
+    <div className="py-2">
+      <p className="text-sm font-semibold text-foreground flex items-center gap-1.5 mb-1.5">
+        <span>{emoji}</span> {title}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+/* ── Parsers for JSON / mixed fields ── */
+
+function parseStringList(value: any): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean).map(String);
+  if (typeof value === "string") {
+    // Try splitting by newlines, bullets, or numbered lists
+    return value
+      .split(/[\n•\-–—]/)
+      .map((s: string) => s.replace(/^\d+[\.\)]\s*/, "").trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+/* ── Main component ── */
 
 export default function BrandingSynthesisSheet({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
@@ -120,13 +189,13 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
       const contentW = pageW - margin * 2;
       const imgH = (canvas.height / canvas.width) * contentW;
 
-      let y = margin;
       let remaining = imgH;
       const pageContentH = pageH - margin * 2;
+      let isFirst = true;
 
-      // Multi-page support
       while (remaining > 0) {
-        if (y !== margin) pdf.addPage();
+        if (!isFirst) pdf.addPage();
+        isFirst = false;
         const sourceY = (imgH - remaining) / imgH * canvas.height;
         const sliceH = Math.min(pageContentH / contentW * canvas.width, canvas.height - sourceY);
 
@@ -140,7 +209,6 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
         const sliceImgH = (sliceH / canvas.width) * contentW;
         pdf.addImage(sliceImg, "PNG", margin, margin, contentW, sliceImgH);
         remaining -= pageContentH;
-        y = margin;
       }
 
       pdf.save(`fiche-branding-${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -163,6 +231,12 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
   if (!data) return null;
   const { brand, persona, storytelling, proposition, strategy, offers, channels, igAudit, liAudit } = data;
   const today = new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+
+  /* ── Parse persona portrait ── */
+  const portrait = persona?.portrait as any;
+
+  /* ── Parse strategy recap ── */
+  const stratRecap = strategy?.recap_summary as any;
 
   return (
     <div className="space-y-4">
@@ -192,98 +266,281 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
           <p className="text-xs text-muted-foreground mt-1">Générée le {today}</p>
         </div>
 
-        {/* Positionnement */}
+        {/* ═══ POSITIONNEMENT ═══ */}
         <Section emoji="🎯" title="Positionnement">
-          <Field label="Mission" value={brand?.mission} fallbackLink="/branding" />
-          <Field label="Ce que je fais" value={brand?.offer} fallbackLink="/branding" />
-          <Field label="Ma voix" value={brand?.voice_description} fallbackLink="/branding" />
+          <TextField label="Mission" value={brand?.mission} link="/branding" />
+          <TextField label="Ce que je fais" value={brand?.offer} link="/branding" />
+          <TextField label="Ma voix" value={brand?.voice_description} link="/branding" />
         </Section>
 
-        {/* Proposition de valeur */}
+        {/* ═══ PROPOSITION DE VALEUR ═══ */}
         <Section emoji="❤️" title="Proposition de valeur">
-          <Field label="Ce que je fais" value={proposition?.step_1_what} fallbackLink="/branding/proposition" />
-          <Field label="Ma méthode" value={proposition?.step_2a_process} fallbackLink="/branding/proposition" />
-          <Field label="Mes valeurs" value={proposition?.step_2b_values} fallbackLink="/branding/proposition" />
-          <Field label="Version finale" value={proposition?.version_final} fallbackLink="/branding/proposition" />
-          <Field label="One-liner" value={proposition?.version_one_liner} fallbackLink="/branding/proposition" />
-          <Field label="Pitch court" value={proposition?.version_short} fallbackLink="/branding/proposition" />
+          <TextField label="Ce que je fais" value={proposition?.step_1_what} link="/branding/proposition" />
+          <TextField label="Ma méthode" value={proposition?.step_2a_process} link="/branding/proposition" />
+          <TextField label="Mes valeurs" value={proposition?.step_2b_values} link="/branding/proposition" />
+          {proposition?.version_final && (
+            <SubSection emoji="✨" title="Version finale">
+              <p className="text-sm text-foreground italic">"{proposition.version_final}"</p>
+            </SubSection>
+          )}
+          {proposition?.version_one_liner && (
+            <SubSection emoji="💡" title="One-liner">
+              <p className="text-sm text-foreground italic">"{proposition.version_one_liner}"</p>
+            </SubSection>
+          )}
+          {proposition?.version_short && (
+            <SubSection emoji="🎤" title="Pitch court">
+              <p className="text-sm text-foreground italic">"{proposition.version_short}"</p>
+            </SubSection>
+          )}
+          {!proposition && <EmptyField label="Proposition" link="/branding/proposition" />}
         </Section>
 
-        {/* Ton */}
+        {/* ═══ MON TON & MES COMBATS ═══ */}
         <Section emoji="🎙️" title="Mon ton & mes combats">
-          <Field label="Registre" value={brand?.tone_register} fallbackLink="/branding/ton" />
-          <Field label="Style" value={brand?.tone_style} fallbackLink="/branding/ton" />
-          <Field label="Niveau de proximité" value={brand?.tone_level} fallbackLink="/branding/ton" />
-          <Field label="Expressions clés" value={brand?.key_expressions} fallbackLink="/branding/ton" />
-          <Field label="À éviter" value={brand?.things_to_avoid} fallbackLink="/branding/ton" />
-          <Field label="Ma cause" value={brand?.combat_cause} fallbackLink="/branding/ton" />
-          <Field label="Mes combats" value={brand?.combat_fights} fallbackLink="/branding/ton" />
-          <Field label="Ce que je refuse" value={brand?.combat_refusals} fallbackLink="/branding/ton" />
-          <Field label="Mon alternative" value={brand?.combat_alternative} fallbackLink="/branding/ton" />
-        </Section>
-
-        {/* Cible */}
-        <Section emoji="👤" title="Ma cible">
-          <Field label="Portrait" value={persona?.portrait} fallbackLink="/branding/persona" />
-          <Field label="Prénom fictif" value={persona?.portrait_prenom} fallbackLink="/branding/persona" />
-          <Field label="Point de départ" value={persona?.starting_point} fallbackLink="/branding/persona" />
-          <Field label="Frustrations" value={persona?.step_1_frustrations} fallbackLink="/branding/persona" />
-          <Field label="Transformation souhaitée" value={persona?.step_2_transformation} fallbackLink="/branding/persona" />
-          <Field label="Objections" value={persona?.step_3a_objections} fallbackLink="/branding/persona" />
-          <Field label="Clichés à casser" value={persona?.step_3b_cliches} fallbackLink="/branding/persona" />
-        </Section>
-
-        {/* Histoire */}
-        <Section emoji="📖" title="Mon histoire">
-          {storytelling ? (
-            <>
-              <Field label="Titre" value={storytelling.title} />
-              <Field label="L'histoire brute" value={storytelling.step_1_raw} fallbackLink="/branding/storytelling" />
-              <Field label="Version polie" value={storytelling.step_7_polished} fallbackLink="/branding/storytelling" />
-              <Field label="Pitch court" value={storytelling.pitch_short} fallbackLink="/branding/storytelling" />
-            </>
-          ) : (
-            <Field label="Storytelling" value={null} fallbackLink="/branding/storytelling" fallbackLabel="Écrire mon histoire" />
+          <TextField label="Registre" value={brand?.tone_register} link="/branding/ton" />
+          <TextField label="Style" value={brand?.tone_style} link="/branding/ton" />
+          <TextField label="Niveau de proximité" value={brand?.tone_level} link="/branding/ton" />
+          {brand?.key_expressions && (
+            <SubSection emoji="💬" title="Mes expressions clés">
+              <BulletList items={parseStringList(brand.key_expressions)} emoji="💬" />
+            </SubSection>
+          )}
+          {brand?.things_to_avoid && (
+            <SubSection emoji="⛔" title="Les mots à éviter">
+              <BulletList items={parseStringList(brand.things_to_avoid)} emoji="❌" />
+            </SubSection>
+          )}
+          {brand?.combat_cause && (
+            <SubSection emoji="✊" title="Mon combat">
+              <p className="text-sm text-foreground">{brand.combat_cause}</p>
+            </SubSection>
+          )}
+          {brand?.combat_fights && (
+            <SubSection emoji="🥊" title="Ce que je combats">
+              <BulletList items={parseStringList(brand.combat_fights)} emoji="🚫" />
+            </SubSection>
+          )}
+          {brand?.combat_refusals && (
+            <SubSection emoji="🙅" title="Ce que je refuse">
+              <BulletList items={parseStringList(brand.combat_refusals)} emoji="❌" />
+            </SubSection>
+          )}
+          {brand?.combat_alternative && (
+            <SubSection emoji="🌱" title="Mon alternative">
+              <p className="text-sm text-foreground">{brand.combat_alternative}</p>
+            </SubSection>
           )}
         </Section>
 
-        {/* Stratégie */}
-        <Section emoji="🍒" title="Stratégie de contenu">
-          <Field label="Pilier majeur" value={strategy?.pillar_major} fallbackLink="/branding/strategie" />
-          <Field label="Pilier mineur 1" value={strategy?.pillar_minor_1} fallbackLink="/branding/strategie" />
-          <Field label="Pilier mineur 2" value={strategy?.pillar_minor_2} fallbackLink="/branding/strategie" />
-          <Field label="Pilier mineur 3" value={strategy?.pillar_minor_3} fallbackLink="/branding/strategie" />
-          <Field label="Facette 1" value={strategy?.facet_1} fallbackLink="/branding/strategie" />
-          <Field label="Facette 2" value={strategy?.facet_2} fallbackLink="/branding/strategie" />
-          <Field label="Facette 3" value={strategy?.facet_3} fallbackLink="/branding/strategie" />
-          <Field label="Twist créatif" value={strategy?.creative_concept} fallbackLink="/branding/strategie" />
+        {/* ═══ MA CIBLE ═══ */}
+        <Section emoji="👤" title="Ma cible">
+          {portrait ? (
+            <>
+              {/* Portrait header */}
+              {(portrait.prenom || persona?.portrait_prenom) && (
+                <p className="text-sm font-semibold text-foreground mb-2">
+                  👋 {persona?.portrait_prenom || portrait.prenom}
+                  {portrait.qui_elle_est?.age && `, ${portrait.qui_elle_est.age}`}
+                </p>
+              )}
+
+              {/* Qui elle est */}
+              {portrait.qui_elle_est && (
+                <SubSection emoji="👤" title="Portrait">
+                  {portrait.qui_elle_est.metier && <p className="text-sm text-foreground">💼 {portrait.qui_elle_est.metier}</p>}
+                  {portrait.qui_elle_est.situation && <p className="text-sm text-foreground">📍 {portrait.qui_elle_est.situation}</p>}
+                  {portrait.qui_elle_est.ca && <p className="text-sm text-foreground">💰 {portrait.qui_elle_est.ca}</p>}
+                  {portrait.qui_elle_est.temps_com && <p className="text-sm text-foreground">⏰ {portrait.qui_elle_est.temps_com}</p>}
+                </SubSection>
+              )}
+
+              {/* Ses mots */}
+              {portrait.ses_mots?.length > 0 && (
+                <SubSection emoji="💬" title="Ce qu'elle dit">
+                  <QuoteList items={portrait.ses_mots} />
+                </SubSection>
+              )}
+
+              {/* Blocages */}
+              {portrait.blocages?.length > 0 && (
+                <SubSection emoji="🚫" title="Ses blocages">
+                  <BulletList items={portrait.blocages} emoji="🚫" />
+                </SubSection>
+              )}
+
+              {/* Frustrations */}
+              {portrait.frustrations?.length > 0 && (
+                <SubSection emoji="😤" title="Ses frustrations">
+                  <BulletList items={portrait.frustrations} emoji="😤" />
+                </SubSection>
+              )}
+
+              {/* Objectifs */}
+              {portrait.objectifs?.length > 0 && (
+                <SubSection emoji="✨" title="Ce qu'elle veut">
+                  <BulletList items={portrait.objectifs} emoji="✨" />
+                </SubSection>
+              )}
+
+              {/* Comment lui parler */}
+              {portrait.comment_parler && (
+                <SubSection emoji="🗣️" title="Comment lui parler">
+                  {portrait.comment_parler.ton && <p className="text-sm text-foreground">🎯 Ton : {portrait.comment_parler.ton}</p>}
+                  {portrait.comment_parler.canal && <p className="text-sm text-foreground">📱 Canal : {portrait.comment_parler.canal}</p>}
+                  {portrait.comment_parler.convainc && <p className="text-sm text-foreground">💡 Ce qui la convainc : {portrait.comment_parler.convainc}</p>}
+                  {portrait.comment_parler.fuir?.length > 0 && (
+                    <p className="text-sm text-foreground">❌ À fuir : {portrait.comment_parler.fuir.join(" · ")}</p>
+                  )}
+                </SubSection>
+              )}
+
+              {/* Phrase signature */}
+              {portrait.phrase_signature && (
+                <SubSection emoji="✍️" title="Sa phrase signature">
+                  <p className="text-sm text-foreground italic">"{portrait.phrase_signature}"</p>
+                </SubSection>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Fallback to raw persona fields */}
+              <TextField label="Frustrations" value={persona?.step_1_frustrations} link="/branding/persona" />
+              <TextField label="Transformation souhaitée" value={persona?.step_2_transformation} link="/branding/persona" />
+              <TextField label="Objections" value={persona?.step_3a_objections} link="/branding/persona" />
+              {!persona && <EmptyField label="Cible" link="/branding/persona" linkLabel="Définir ma cible" />}
+            </>
+          )}
         </Section>
 
-        {/* Offres */}
+        {/* ═══ MON HISTOIRE ═══ */}
+        <Section emoji="📖" title="Mon histoire">
+          {storytelling ? (
+            <>
+              {storytelling.title && <p className="text-sm font-semibold text-foreground mb-2">📌 {storytelling.title}</p>}
+              {storytelling.pitch_short && (
+                <SubSection emoji="🎤" title="Mon pitch">
+                  <p className="text-sm text-foreground italic">"{storytelling.pitch_short}"</p>
+                </SubSection>
+              )}
+              {(storytelling.step_7_polished || storytelling.step_6_full_story) && (
+                <SubSection emoji="📝" title="Mon histoire complète">
+                  <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
+                    {storytelling.step_7_polished || storytelling.step_6_full_story}
+                  </p>
+                </SubSection>
+              )}
+              {/* Storytelling recap summary */}
+              {storytelling.recap_summary && (() => {
+                const sr = storytelling.recap_summary as any;
+                return (
+                  <div className="mt-2 space-y-2">
+                    {sr.before && <p className="text-sm text-foreground">🔵 <span className="font-medium">Avant :</span> {sr.before}</p>}
+                    {sr.trigger && <p className="text-sm text-foreground">💥 <span className="font-medium">Déclic :</span> {sr.trigger}</p>}
+                    {sr.after && <p className="text-sm text-foreground">🌱 <span className="font-medium">Après :</span> {sr.after}</p>}
+                    {sr.values?.length > 0 && (
+                      <SubSection emoji="❤️" title="Mes valeurs">
+                        <TagList items={sr.values} />
+                      </SubSection>
+                    )}
+                    {sr.unique?.length > 0 && (
+                      <SubSection emoji="💪" title="Ce qui me rend unique">
+                        <BulletList items={sr.unique} emoji="💪" />
+                      </SubSection>
+                    )}
+                  </div>
+                );
+              })()}
+            </>
+          ) : (
+            <EmptyField label="Storytelling" link="/branding/storytelling" linkLabel="Écrire mon histoire" />
+          )}
+        </Section>
+
+        {/* ═══ STRATÉGIE ═══ */}
+        <Section emoji="🍒" title="Stratégie de contenu">
+          {strategy ? (
+            <>
+              {strategy.creative_concept && (
+                <SubSection emoji="🎨" title="Mon concept créatif">
+                  <p className="text-sm text-foreground italic">"{strategy.creative_concept}"</p>
+                </SubSection>
+              )}
+
+              {/* Pillars from raw data */}
+              {(strategy.pillar_major || strategy.pillar_minor_1) && (
+                <SubSection emoji="📊" title="Mes piliers de contenu">
+                  {strategy.pillar_major && (
+                    <p className="text-sm text-foreground">🔥 <span className="font-medium">Pilier majeur :</span> {strategy.pillar_major}</p>
+                  )}
+                  {[strategy.pillar_minor_1, strategy.pillar_minor_2, strategy.pillar_minor_3].filter(Boolean).map((p: string, i: number) => (
+                    <p key={i} className="text-sm text-foreground">🌱 <span className="font-medium">Pilier mineur :</span> {p}</p>
+                  ))}
+                </SubSection>
+              )}
+
+              {/* Facets */}
+              {(strategy.facet_1 || strategy.facet_2 || strategy.facet_3) && (
+                <SubSection emoji="🎭" title="Mes facettes">
+                  <TagList items={[strategy.facet_1, strategy.facet_2, strategy.facet_3].filter(Boolean)} />
+                </SubSection>
+              )}
+
+              {/* Content mix from recap */}
+              {stratRecap?.content_mix && (
+                <SubSection emoji="📈" title="Mon mix de contenu">
+                  <div className="space-y-1">
+                    <MixLine emoji="👁️" label="Visibilité" value={stratRecap.content_mix.visibility} />
+                    <MixLine emoji="🤝" label="Confiance" value={stratRecap.content_mix.trust} />
+                    <MixLine emoji="💰" label="Vente" value={stratRecap.content_mix.sales} />
+                  </div>
+                </SubSection>
+              )}
+
+              {stratRecap?.creative_gestures?.length > 0 && (
+                <SubSection emoji="✨" title="Mes gestes créatifs">
+                  <BulletList items={stratRecap.creative_gestures} emoji="✨" />
+                </SubSection>
+              )}
+            </>
+          ) : (
+            <EmptyField label="Stratégie" link="/branding/strategie" linkLabel="Créer ma stratégie" />
+          )}
+        </Section>
+
+        {/* ═══ MES OFFRES ═══ */}
         <Section emoji="🎁" title="Mes offres">
           {offers.length === 0 ? (
-            <Field label="Offres" value={null} fallbackLink="/branding/offres" fallbackLabel="Créer une offre" />
+            <EmptyField label="Offres" link="/branding/offres" linkLabel="Créer une offre" />
           ) : (
             <div className="space-y-3">
               {offers.map((o) => (
-                <div key={o.id} className="bg-muted/30 rounded-xl p-3 space-y-1">
+                <div key={o.id} className="bg-muted/30 rounded-xl p-4 space-y-1.5">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm text-foreground">{o.name || "Sans nom"}</span>
                     {o.price_text && <span className="text-xs text-muted-foreground">— {o.price_text}</span>}
                   </div>
-                  {o.description_short && <p className="text-xs text-muted-foreground">{o.description_short}</p>}
-                  {o.problem_deep && <p className="text-xs text-muted-foreground">Problème profond : {o.problem_deep}</p>}
-                  {o.promise && <p className="text-xs text-muted-foreground">Promesse : {o.promise}</p>}
+                  {o.description_short && <p className="text-sm text-muted-foreground">{o.description_short}</p>}
+                  {o.problem_deep && (
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-medium">Problème résolu :</span> {o.problem_deep}
+                    </p>
+                  )}
+                  {o.promise && (
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-medium">Promesse :</span> {o.promise}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </Section>
 
-        {/* Canaux */}
+        {/* ═══ CANAUX ═══ */}
         <Section emoji="📱" title="Mes canaux actifs">
           {channels.length === 0 ? (
-            <Field label="Canaux" value={null} fallbackLink="/mon-plan" fallbackLabel="Configurer mon plan" />
+            <EmptyField label="Canaux" link="/mon-plan" linkLabel="Configurer mon plan" />
           ) : (
             <div className="flex flex-wrap gap-2 py-1">
               {channels.map((c) => (
@@ -293,28 +550,69 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
           )}
         </Section>
 
-        {/* Audit Instagram */}
+        {/* ═══ AUDIT INSTAGRAM ═══ */}
         {igAudit && (
           <Section emoji="📊" title="Audit Instagram">
-            <Field label="Score global" value={igAudit.score_global ? `${igAudit.score_global}/100` : null} />
-            <Field label="Score bio" value={igAudit.score_bio ? `${igAudit.score_bio}/100` : null} />
-            <Field label="Score feed" value={igAudit.score_feed ? `${igAudit.score_feed}/100` : null} />
-            <Field label="Score stories" value={igAudit.score_stories ? `${igAudit.score_stories}/100` : null} />
-            <Field label="Résumé" value={igAudit.resume} />
-            <Field label="Meilleur contenu" value={igAudit.best_content} />
-            <Field label="À améliorer" value={igAudit.worst_content} />
+            {igAudit.score_global != null && (
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl font-bold text-foreground">{igAudit.score_global}</span>
+                <span className="text-sm text-muted-foreground">/100</span>
+                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${igAudit.score_global}%` }} />
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+              {[
+                { label: "Bio", value: igAudit.score_bio },
+                { label: "Feed", value: igAudit.score_feed },
+                { label: "Stories", value: igAudit.score_stories },
+                { label: "Édito", value: igAudit.score_edito },
+              ].filter(s => s.value != null).map((s) => (
+                <div key={s.label} className="bg-muted/40 rounded-lg p-2 text-center">
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                  <p className="text-sm font-bold text-foreground">{s.value}/100</p>
+                </div>
+              ))}
+            </div>
+            {igAudit.resume && <TextField label="Résumé" value={igAudit.resume} />}
+            {igAudit.best_content && <TextField label="Points forts" value={igAudit.best_content} />}
+            {igAudit.worst_content && <TextField label="À améliorer" value={igAudit.worst_content} />}
           </Section>
         )}
 
-        {/* Audit LinkedIn */}
+        {/* ═══ AUDIT LINKEDIN ═══ */}
         {liAudit && (
           <Section emoji="💼" title="Audit LinkedIn">
-            <Field label="Score global" value={liAudit.score_global ? `${liAudit.score_global}/100` : null} />
-            <Field label="Score profil" value={liAudit.score_profil ? `${liAudit.score_profil}/100` : null} />
-            <Field label="Score contenu" value={liAudit.score_contenu ? `${liAudit.score_contenu}/100` : null} />
+            {liAudit.score_global != null && (
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl font-bold text-foreground">{liAudit.score_global}</span>
+                <span className="text-sm text-muted-foreground">/100</span>
+                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${liAudit.score_global}%` }} />
+                </div>
+              </div>
+            )}
+            {liAudit.score_profil != null && <TextField label="Score profil" value={`${liAudit.score_profil}/100`} />}
+            {liAudit.score_contenu != null && <TextField label="Score contenu" value={`${liAudit.score_contenu}/100`} />}
           </Section>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ── Small helpers ── */
+
+function MixLine({ emoji, label, value }: { emoji: string; label: string; value: number }) {
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <span>{emoji}</span>
+      <span className="text-muted-foreground w-20">{label}</span>
+      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+        <div className="h-full rounded-full bg-primary" style={{ width: `${(value / 10) * 100}%` }} />
+      </div>
+      <span className="text-xs text-muted-foreground w-10 text-right">{value}/10</span>
     </div>
   );
 }
