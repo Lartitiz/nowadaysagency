@@ -1841,9 +1841,11 @@ export type Database = {
           ad_budget: number | null
           ai_analysis: string | null
           ai_analyzed_at: string | null
+          business_data: Json | null
           clients_signed: number | null
           content_published: string | null
           created_at: string | null
+          custom_data: Json | null
           discovery_calls: number | null
           email_signups: number | null
           followers: number | null
@@ -1855,8 +1857,10 @@ export type Database = {
           id: string
           interactions: number | null
           launch_conversions: number | null
+          launch_data: Json | null
           launch_dms: number | null
           launch_link_clicks: number | null
+          launch_name: string | null
           launch_signups: number | null
           launch_story_views: number | null
           month_date: string
@@ -1868,6 +1872,7 @@ export type Database = {
           profile_visits: number | null
           reach: number | null
           revenue: number | null
+          sales_pages_data: Json | null
           stories_coverage: number | null
           traffic_instagram: number | null
           traffic_pinterest: number | null
@@ -1877,6 +1882,7 @@ export type Database = {
           user_id: string
           views: number | null
           website_clicks: number | null
+          website_data: Json | null
           website_visitors: number | null
         }
         Insert: {
@@ -1884,9 +1890,11 @@ export type Database = {
           ad_budget?: number | null
           ai_analysis?: string | null
           ai_analyzed_at?: string | null
+          business_data?: Json | null
           clients_signed?: number | null
           content_published?: string | null
           created_at?: string | null
+          custom_data?: Json | null
           discovery_calls?: number | null
           email_signups?: number | null
           followers?: number | null
@@ -1898,8 +1906,10 @@ export type Database = {
           id?: string
           interactions?: number | null
           launch_conversions?: number | null
+          launch_data?: Json | null
           launch_dms?: number | null
           launch_link_clicks?: number | null
+          launch_name?: string | null
           launch_signups?: number | null
           launch_story_views?: number | null
           month_date: string
@@ -1911,6 +1921,7 @@ export type Database = {
           profile_visits?: number | null
           reach?: number | null
           revenue?: number | null
+          sales_pages_data?: Json | null
           stories_coverage?: number | null
           traffic_instagram?: number | null
           traffic_pinterest?: number | null
@@ -1920,6 +1931,7 @@ export type Database = {
           user_id: string
           views?: number | null
           website_clicks?: number | null
+          website_data?: Json | null
           website_visitors?: number | null
         }
         Update: {
@@ -1927,9 +1939,11 @@ export type Database = {
           ad_budget?: number | null
           ai_analysis?: string | null
           ai_analyzed_at?: string | null
+          business_data?: Json | null
           clients_signed?: number | null
           content_published?: string | null
           created_at?: string | null
+          custom_data?: Json | null
           discovery_calls?: number | null
           email_signups?: number | null
           followers?: number | null
@@ -1941,8 +1955,10 @@ export type Database = {
           id?: string
           interactions?: number | null
           launch_conversions?: number | null
+          launch_data?: Json | null
           launch_dms?: number | null
           launch_link_clicks?: number | null
+          launch_name?: string | null
           launch_signups?: number | null
           launch_story_views?: number | null
           month_date?: string
@@ -1954,6 +1970,7 @@ export type Database = {
           profile_visits?: number | null
           reach?: number | null
           revenue?: number | null
+          sales_pages_data?: Json | null
           stories_coverage?: number | null
           traffic_instagram?: number | null
           traffic_pinterest?: number | null
@@ -1963,6 +1980,7 @@ export type Database = {
           user_id?: string
           views?: number | null
           website_clicks?: number | null
+          website_data?: Json | null
           website_visitors?: number | null
         }
         Relationships: []
@@ -2629,6 +2647,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      stats_config: {
+        Row: {
+          business_metrics: Json | null
+          business_type: string | null
+          created_at: string | null
+          custom_metrics: Json | null
+          id: string
+          launch_metrics: Json | null
+          sales_pages: Json | null
+          traffic_sources: Json | null
+          updated_at: string | null
+          user_id: string
+          uses_ga4: boolean | null
+          website_platform: string | null
+          website_platform_other: string | null
+        }
+        Insert: {
+          business_metrics?: Json | null
+          business_type?: string | null
+          created_at?: string | null
+          custom_metrics?: Json | null
+          id?: string
+          launch_metrics?: Json | null
+          sales_pages?: Json | null
+          traffic_sources?: Json | null
+          updated_at?: string | null
+          user_id: string
+          uses_ga4?: boolean | null
+          website_platform?: string | null
+          website_platform_other?: string | null
+        }
+        Update: {
+          business_metrics?: Json | null
+          business_type?: string | null
+          created_at?: string | null
+          custom_metrics?: Json | null
+          id?: string
+          launch_metrics?: Json | null
+          sales_pages?: Json | null
+          traffic_sources?: Json | null
+          updated_at?: string | null
+          user_id?: string
+          uses_ga4?: boolean | null
+          website_platform?: string | null
+          website_platform_other?: string | null
+        }
+        Relationships: []
       }
       stories_metrics: {
         Row: {
