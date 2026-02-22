@@ -2359,6 +2359,21 @@ export type Database = {
           differentiation_type: string | null
           expressions_cles: string
           id: string
+          instagram_bio: string | null
+          instagram_bio_link: string | null
+          instagram_display_name: string | null
+          instagram_feed_description: string | null
+          instagram_feed_screenshot_url: string | null
+          instagram_followers: number | null
+          instagram_frequency: string | null
+          instagram_highlights: Json | null
+          instagram_highlights_count: number | null
+          instagram_photo_description: string | null
+          instagram_photo_url: string | null
+          instagram_pillars: Json | null
+          instagram_pinned_posts: Json | null
+          instagram_posts_per_month: number | null
+          instagram_username: string | null
           mission: string
           offre: string
           onboarding_completed: boolean
@@ -2391,6 +2406,21 @@ export type Database = {
           differentiation_type?: string | null
           expressions_cles?: string
           id?: string
+          instagram_bio?: string | null
+          instagram_bio_link?: string | null
+          instagram_display_name?: string | null
+          instagram_feed_description?: string | null
+          instagram_feed_screenshot_url?: string | null
+          instagram_followers?: number | null
+          instagram_frequency?: string | null
+          instagram_highlights?: Json | null
+          instagram_highlights_count?: number | null
+          instagram_photo_description?: string | null
+          instagram_photo_url?: string | null
+          instagram_pillars?: Json | null
+          instagram_pinned_posts?: Json | null
+          instagram_posts_per_month?: number | null
+          instagram_username?: string | null
           mission?: string
           offre?: string
           onboarding_completed?: boolean
@@ -2423,6 +2453,21 @@ export type Database = {
           differentiation_type?: string | null
           expressions_cles?: string
           id?: string
+          instagram_bio?: string | null
+          instagram_bio_link?: string | null
+          instagram_display_name?: string | null
+          instagram_feed_description?: string | null
+          instagram_feed_screenshot_url?: string | null
+          instagram_followers?: number | null
+          instagram_frequency?: string | null
+          instagram_highlights?: Json | null
+          instagram_highlights_count?: number | null
+          instagram_photo_description?: string | null
+          instagram_photo_url?: string | null
+          instagram_pillars?: Json | null
+          instagram_pinned_posts?: Json | null
+          instagram_posts_per_month?: number | null
+          instagram_username?: string | null
           mission?: string
           offre?: string
           onboarding_completed?: boolean
