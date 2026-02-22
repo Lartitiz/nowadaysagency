@@ -29,6 +29,9 @@ export interface Prospect {
   next_reminder_at: string | null;
   next_reminder_text: string | null;
   conversion_amount: number | null;
+  noted_interest: string | null;
+  to_avoid: string | null;
+  last_conversation: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -2795,15 +2795,18 @@ export type Database = {
           display_name: string | null
           id: string
           instagram_username: string
+          last_conversation: string | null
           last_interaction_at: string | null
           next_reminder_at: string | null
           next_reminder_text: string | null
           note: string | null
+          noted_interest: string | null
           probable_problem: string | null
           relevant_offer: string | null
           source: string | null
           stage: string | null
           strengths: string | null
+          to_avoid: string | null
           updated_at: string | null
           user_id: string
         }
@@ -2815,15 +2818,18 @@ export type Database = {
           display_name?: string | null
           id?: string
           instagram_username: string
+          last_conversation?: string | null
           last_interaction_at?: string | null
           next_reminder_at?: string | null
           next_reminder_text?: string | null
           note?: string | null
+          noted_interest?: string | null
           probable_problem?: string | null
           relevant_offer?: string | null
           source?: string | null
           stage?: string | null
           strengths?: string | null
+          to_avoid?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -2835,15 +2841,18 @@ export type Database = {
           display_name?: string | null
           id?: string
           instagram_username?: string
+          last_conversation?: string | null
           last_interaction_at?: string | null
           next_reminder_at?: string | null
           next_reminder_text?: string | null
           note?: string | null
+          noted_interest?: string | null
           probable_problem?: string | null
           relevant_offer?: string | null
           source?: string | null
           stage?: string | null
           strengths?: string | null
+          to_avoid?: string | null
           updated_at?: string | null
           user_id?: string
         }

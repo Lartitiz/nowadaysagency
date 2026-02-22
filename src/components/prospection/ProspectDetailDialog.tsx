@@ -121,7 +121,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
             prospect={prospect}
             interactions={interactions}
             onBack={() => setShowDmGen(false)}
-            onMessageSent={(content, type) => {
+            onMessageSent={(content, approach, meta) => {
               // Log interaction
               if (user) {
                 supabase.from("prospect_interactions").insert({
@@ -132,15 +132,26 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
                   ai_generated: true,
                 }).then(() => loadInteractions());
               }
-              // Update prospect
-              const nextStage = prospect.stage === "to_contact" ? "in_conversation" : prospect.stage;
+              // Determine next stage & reminder based on approach
+              let nextStage = prospect.stage === "to_contact" ? "in_conversation" : prospect.stage;
+              let reminderDays = 3;
+              let reminderText = `Vérifier si @${prospect.instagram_username} a répondu`;
+              if (approach === "resource") {
+                nextStage = "resource_sent";
+                reminderDays = 5;
+                reminderText = `Vérifier si @${prospect.instagram_username} a regardé la ressource`;
+              } else if (approach === "offer") {
+                nextStage = "offer_proposed";
+                reminderDays = 3;
+                reminderText = `Vérifier si @${prospect.instagram_username} a réservé`;
+              }
               const reminderDate = new Date();
-              reminderDate.setDate(reminderDate.getDate() + 3);
+              reminderDate.setDate(reminderDate.getDate() + reminderDays);
               onUpdate({
                 stage: nextStage,
                 last_interaction_at: new Date().toISOString(),
                 next_reminder_at: reminderDate.toISOString(),
-                next_reminder_text: `Vérifier si @${prospect.instagram_username} a répondu`,
+                next_reminder_text: reminderText,
               });
               setShowDmGen(false);
               toast({ title: "✅ Message noté dans l'historique !" });
