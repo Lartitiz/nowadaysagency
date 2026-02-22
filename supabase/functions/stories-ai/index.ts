@@ -264,10 +264,9 @@ ANTI-SLOP : JAMAIS de "Dans un monde où", "N'hésitez pas", "Plongeons dans", "
 
 AVANT DE RÉDIGER, RÉFLÉCHIS EN INTERNE (ne montre PAS) : Quel est le problème ? Quelle émotion ? Quelle accroche est la MEILLEURE ? Mon output a-t-il du slop ?
 
-ANALOGIES VISUELLES :
-Intègre au moins 1 analogie visuelle concrète dans la séquence.
-L'analogie doit être du QUOTIDIEN (cuisine, maison, route, nature, objets courants).
-Pas d'analogies abstraites. L'audience doit pouvoir "voir" l'image mentalement.
+ANALOGIES VISUELLES — DOSAGE :
+1 analogie max dans la séquence. Parfois 0. Si l'idée est claire sans, n'en mets pas.
+L'analogie doit être du QUOTIDIEN et VISUELLE. Jamais forcée.
 
 ${p.branding_context || ""}
 ${preGenBlock}
