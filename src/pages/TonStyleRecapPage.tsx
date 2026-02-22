@@ -7,6 +7,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, FileText, Loader2, RefreshCw, Pencil } from "lucide-react";
+import EditableText from "@/components/EditableText";
 
 interface RecapSummary {
   voice_oneliner: string;
@@ -34,7 +35,6 @@ export default function TonStyleRecapPage() {
     supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle().then(async ({ data: d }) => {
       setData(d);
       setLoading(false);
-      // Auto-generate recap if data exists but no summary yet
       if (d && !d.recap_summary) {
         setGenerating(true);
         try {
@@ -44,17 +44,11 @@ export default function TonStyleRecapPage() {
               type: "generate-tone-recap",
               tone_data: {
                 voice_description: d.voice_description,
-                tone_register: d.tone_register,
-                tone_level: d.tone_level,
-                tone_style: d.tone_style,
-                tone_humor: d.tone_humor,
-                tone_engagement: d.tone_engagement,
-                key_expressions: d.key_expressions,
-                things_to_avoid: d.things_to_avoid,
-                target_verbatims: d.target_verbatims,
-                combat_cause: d.combat_cause,
-                combat_fights: d.combat_fights,
-                combat_refusals: d.combat_refusals,
+                tone_register: d.tone_register, tone_level: d.tone_level,
+                tone_style: d.tone_style, tone_humor: d.tone_humor, tone_engagement: d.tone_engagement,
+                key_expressions: d.key_expressions, things_to_avoid: d.things_to_avoid,
+                target_verbatims: d.target_verbatims, combat_cause: d.combat_cause,
+                combat_fights: d.combat_fights, combat_refusals: d.combat_refusals,
                 combat_alternative: d.combat_alternative,
               },
               creative_concept: stratRes.data?.creative_concept || "",
@@ -76,40 +70,54 @@ export default function TonStyleRecapPage() {
 
   const summary: RecapSummary | null = data?.recap_summary as any;
 
+  /* ── Save helpers ── */
+  const saveRecapField = async (path: string[], value: string) => {
+    if (!data || !summary) return;
+    const updated = JSON.parse(JSON.stringify(summary));
+    let obj = updated;
+    for (let i = 0; i < path.length - 1; i++) obj = obj[path[i]];
+    obj[path[path.length - 1]] = value;
+    await supabase.from("brand_profile").update({ recap_summary: updated } as any).eq("id", data.id);
+    setData({ ...data, recap_summary: updated });
+  };
+
+  const saveRecapArrayItem = async (arrayKey: string, index: number, value: string) => {
+    if (!data || !summary) return;
+    const updated = JSON.parse(JSON.stringify(summary));
+    updated[arrayKey][index] = value;
+    await supabase.from("brand_profile").update({ recap_summary: updated } as any).eq("id", data.id);
+    setData({ ...data, recap_summary: updated });
+  };
+
+  const saveRawField = async (field: string, value: string) => {
+    if (!data) return;
+    await supabase.from("brand_profile").update({ [field]: value } as any).eq("id", data.id);
+    setData({ ...data, [field]: value });
+  };
+
   const generateRecap = async () => {
     if (!data) return;
     setGenerating(true);
     try {
-      const [stratRes] = await Promise.all([
-        supabase.from("brand_strategy").select("creative_concept").eq("user_id", user!.id).maybeSingle(),
-      ]);
-
+      const stratRes = await supabase.from("brand_strategy").select("creative_concept").eq("user_id", user!.id).maybeSingle();
       const { data: fnData, error } = await supabase.functions.invoke("niche-ai", {
         body: {
           type: "generate-tone-recap",
           tone_data: {
-            voice_description: data.voice_description,
-            tone_register: data.tone_register,
-            tone_level: data.tone_level,
-            tone_style: data.tone_style,
-            tone_humor: data.tone_humor,
-            tone_engagement: data.tone_engagement,
-            key_expressions: data.key_expressions,
-            things_to_avoid: data.things_to_avoid,
-            target_verbatims: data.target_verbatims,
-            combat_cause: data.combat_cause,
-            combat_fights: data.combat_fights,
-            combat_refusals: data.combat_refusals,
+            voice_description: data.voice_description, tone_register: data.tone_register,
+            tone_level: data.tone_level, tone_style: data.tone_style,
+            tone_humor: data.tone_humor, tone_engagement: data.tone_engagement,
+            key_expressions: data.key_expressions, things_to_avoid: data.things_to_avoid,
+            target_verbatims: data.target_verbatims, combat_cause: data.combat_cause,
+            combat_fights: data.combat_fights, combat_refusals: data.combat_refusals,
             combat_alternative: data.combat_alternative,
           },
           creative_concept: stratRes.data?.creative_concept || "",
         },
       });
       if (error) throw error;
-
       const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(raw);
-
       await supabase.from("brand_profile").update({ recap_summary: parsed } as any).eq("id", data.id);
       setData({ ...data, recap_summary: parsed });
       toast({ title: "Synthèse générée !" });
@@ -117,11 +125,6 @@ export default function TonStyleRecapPage() {
       toast({ title: "Erreur", description: e.message, variant: "destructive" });
     }
     setGenerating(false);
-  };
-
-  const copyText = async (text: string) => {
-    await navigator.clipboard.writeText(text);
-    toast({ title: "Copié !" });
   };
 
   const exportPDF = async () => {
@@ -197,22 +200,40 @@ export default function TonStyleRecapPage() {
             {data?.voice_description && (
               <div className="mb-4">
                 <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "#6B5E7B" }}>Ma voix</p>
-                <p className="font-body text-[14px] leading-relaxed" style={{ color: "#1a1a2e" }}>{data.voice_description}</p>
+                <EditableText
+                  value={data.voice_description}
+                  onSave={(v) => saveRawField("voice_description", v)}
+                  className="font-body text-[14px] leading-relaxed"
+                />
               </div>
             )}
 
             {data?.key_expressions && (
               <div className="mb-4">
                 <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "#6B5E7B" }}>Mes expressions</p>
-                <p className="font-body text-[14px] leading-relaxed" style={{ color: "#1a1a2e" }}>{data.key_expressions}</p>
+                <EditableText
+                  value={data.key_expressions}
+                  onSave={(v) => saveRawField("key_expressions", v)}
+                  className="font-body text-[14px] leading-relaxed"
+                />
               </div>
             )}
 
             {data?.combat_cause && (
               <div className="mb-4">
                 <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "#6B5E7B" }}>Mes combats</p>
-                <p className="font-body text-[14px] leading-relaxed" style={{ color: "#1a1a2e" }}>{data.combat_cause}</p>
-                {data.combat_fights && <p className="font-body text-[13px] mt-1" style={{ color: "#1a1a2e" }}>{data.combat_fights}</p>}
+                <EditableText
+                  value={data.combat_cause}
+                  onSave={(v) => saveRawField("combat_cause", v)}
+                  className="font-body text-[14px] leading-relaxed"
+                />
+                {data.combat_fights && (
+                  <EditableText
+                    value={data.combat_fights}
+                    onSave={(v) => saveRawField("combat_fights", v)}
+                    className="font-body text-[13px] mt-1"
+                  />
+                )}
               </div>
             )}
 
@@ -249,9 +270,12 @@ export default function TonStyleRecapPage() {
               <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>
                 Ma voix en une phrase
               </p>
-              <p className="font-body text-[18px] italic leading-relaxed" style={{ color: "#1a1a2e" }}>
-                "{summary.voice_oneliner}"
-              </p>
+              <EditableText
+                value={summary.voice_oneliner}
+                onSave={(v) => saveRecapField(["voice_oneliner"], v)}
+                className="font-body text-[18px] italic leading-relaxed"
+                type="input"
+              />
             </div>
 
             {/* Mon registre - tags */}
@@ -277,7 +301,13 @@ export default function TonStyleRecapPage() {
                 <ul className="space-y-1.5">
                   {summary.i_am.map((item, i) => (
                     <li key={i} className="font-body text-[13px] leading-relaxed flex items-start gap-2" style={{ color: "#1a1a2e" }}>
-                      <span style={{ color: "#22c55e" }} className="mt-0.5">•</span> {item}
+                      <span style={{ color: "#22c55e" }} className="mt-0.5 shrink-0">•</span>
+                      <EditableText
+                        value={item}
+                        onSave={(v) => saveRecapArrayItem("i_am", i, v)}
+                        type="input"
+                        className="font-body text-[13px]"
+                      />
                     </li>
                   ))}
                 </ul>
@@ -289,7 +319,13 @@ export default function TonStyleRecapPage() {
                 <ul className="space-y-1.5">
                   {summary.i_am_not.map((item, i) => (
                     <li key={i} className="font-body text-[13px] leading-relaxed flex items-start gap-2" style={{ color: "#1a1a2e" }}>
-                      <span style={{ color: "#f87171" }} className="mt-0.5">•</span> {item}
+                      <span style={{ color: "#f87171" }} className="mt-0.5 shrink-0">•</span>
+                      <EditableText
+                        value={item}
+                        onSave={(v) => saveRecapArrayItem("i_am_not", i, v)}
+                        type="input"
+                        className="font-body text-[13px]"
+                      />
                     </li>
                   ))}
                 </ul>
@@ -304,7 +340,13 @@ export default function TonStyleRecapPage() {
                 </p>
                 <div className="space-y-1.5">
                   {summary.my_expressions.map((expr, i) => (
-                    <p key={i} className="font-body text-[13px] italic leading-relaxed" style={{ color: "#1a1a2e" }}>"{expr}"</p>
+                    <EditableText
+                      key={i}
+                      value={expr}
+                      onSave={(v) => saveRecapArrayItem("my_expressions", i, v)}
+                      type="input"
+                      className="font-body text-[13px] italic"
+                    />
                   ))}
                 </div>
               </div>
@@ -314,7 +356,13 @@ export default function TonStyleRecapPage() {
                 </p>
                 <div className="space-y-1.5">
                   {summary.forbidden_words.map((word, i) => (
-                    <p key={i} className="font-body text-[13px] italic leading-relaxed line-through" style={{ color: "#1a1a2e", textDecorationColor: "#fca5a5" }}>"{word}"</p>
+                    <EditableText
+                      key={i}
+                      value={word}
+                      onSave={(v) => saveRecapArrayItem("forbidden_words", i, v)}
+                      type="input"
+                      className="font-body text-[13px] italic line-through"
+                    />
                   ))}
                 </div>
               </div>
@@ -328,7 +376,13 @@ export default function TonStyleRecapPage() {
                 </p>
                 <div className="space-y-2">
                   {summary.verbatims.map((v, i) => (
-                    <p key={i} className="font-body text-[14px] italic leading-relaxed" style={{ color: "#1a1a2e" }}>"{v}"</p>
+                    <EditableText
+                      key={i}
+                      value={v}
+                      onSave={(val) => saveRecapArrayItem("verbatims", i, val)}
+                      type="input"
+                      className="font-body text-[14px] italic"
+                    />
                   ))}
                 </div>
                 <p className="text-[11px] italic mt-3" style={{ color: "#9CA3AF" }}>
@@ -343,24 +397,36 @@ export default function TonStyleRecapPage() {
                 ✊ Mes combats
               </p>
 
-              {/* Combat majeur */}
               {summary.major_fight && (
                 <div className="rounded-xl p-5 border-l-4 mb-4" style={{ backgroundColor: "#FFF4F8", borderLeftColor: "#fb3d80" }}>
                   <div className="flex items-center gap-2 mb-2">
                     <span>🔥</span>
-                    <p className="font-display text-[15px] font-bold" style={{ color: "#1a1a2e" }}>{summary.major_fight.name}</p>
+                    <EditableText
+                      value={summary.major_fight.name}
+                      onSave={(v) => saveRecapField(["major_fight", "name"], v)}
+                      type="input"
+                      className="font-display text-[15px] font-bold"
+                    />
                   </div>
-                  <p className="font-body text-[13px] leading-relaxed" style={{ color: "#1a1a2e" }}>{summary.major_fight.description}</p>
+                  <EditableText
+                    value={summary.major_fight.description}
+                    onSave={(v) => saveRecapField(["major_fight", "description"], v)}
+                    className="font-body text-[13px] leading-relaxed"
+                  />
                 </div>
               )}
 
-              {/* Combats secondaires */}
               {summary.minor_fights && summary.minor_fights.length > 0 && (
                 <div className="flex flex-wrap gap-3">
                   {summary.minor_fights.map((fight, i) => (
                     <div key={i} className="rounded-xl border px-4 py-3 flex items-center gap-2" style={{ borderColor: "#E5E0EB", backgroundColor: "#ffffff" }}>
                       <span>🌱</span>
-                      <p className="font-body text-[13px] font-medium" style={{ color: "#1a1a2e" }}>{fight}</p>
+                      <EditableText
+                        value={fight}
+                        onSave={(v) => saveRecapArrayItem("minor_fights", i, v)}
+                        type="input"
+                        className="font-body text-[13px] font-medium"
+                      />
                     </div>
                   ))}
                 </div>
