@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight } from "lucide-react";

@@ -5,7 +5,7 @@ import AppHeader from "@/components/AppHeader";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Sparkles, Mic, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import SubjectPicker, { type SubjectPickerResult } from "@/components/stories/SubjectPicker";
 import { toast } from "sonner";
 import StickerGuide from "@/components/engagement/StickerGuide";

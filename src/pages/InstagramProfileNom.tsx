@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Copy, Check, Loader2 } from "lucide-react";

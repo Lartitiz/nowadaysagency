@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, RefreshCw, Bookmark, PenLine, Lightbulb, CalendarDays, Instagram, Target, Sparkles } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";

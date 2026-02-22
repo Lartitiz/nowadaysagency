@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { format as fnsFormat } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Textarea } from "@/components/ui/textarea";
+import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 
 /* ─── Types ─── */
 interface SavedIdea {

@@ -5,7 +5,7 @@ import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Save, PenLine, ArrowLeft, CalendarDays, RefreshCw, Mic } from "lucide-react";
 import { Link } from "react-router-dom";

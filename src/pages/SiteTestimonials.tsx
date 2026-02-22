@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Copy, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 

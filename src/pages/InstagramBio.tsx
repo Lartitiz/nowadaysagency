@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, Check, Sparkles, Loader2, RefreshCw, ChevronLeft, Blend, ArrowRight } from "lucide-react";
 import AuditInsight, { useAuditInsight } from "@/components/AuditInsight";

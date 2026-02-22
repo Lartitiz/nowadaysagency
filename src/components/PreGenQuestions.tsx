@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Sparkles, SkipForward } from "lucide-react";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import MicButton from "@/components/MicButton";

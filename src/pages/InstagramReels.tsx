@@ -9,7 +9,7 @@ import AppHeader from "@/components/AppHeader";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Info, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
