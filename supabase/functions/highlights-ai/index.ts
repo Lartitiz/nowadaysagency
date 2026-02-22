@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, FORMAT_STRUCTURES } from "../_shared/copywriting-prompts.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,52 +34,19 @@ serve(async (req) => {
     const body = await req.json();
     const { type } = body;
 
-    // Fetch branding context
-    const [profileRes, toneRes, propositionRes, personaRes, strategyRes, storytellingRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_proposition").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("persona").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_strategy").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("storytelling").select("*").eq("user_id", user.id).eq("is_primary", true).maybeSingle(),
-    ]);
-
-    const profile = profileRes.data;
-    const tone = toneRes.data;
-    const proposition = propositionRes.data;
-    const persona = personaRes.data;
-    const strategy = strategyRes.data;
-    const storytelling = storytellingRes.data;
-
-    const brandingBlock = `
-BRANDING DE L'UTILISATRICE :
-- Activité : ${profile?.activite || "non renseignée"}
-- Offre : ${profile?.offre || tone?.offer || "non renseignée"}
-- Mission : ${profile?.mission || tone?.mission || "non renseignée"}
-- Proposition de valeur : ${proposition?.version_final || proposition?.version_short || "non renseignée"}
-- Proposition courte (bio) : ${proposition?.version_bio || "non renseignée"}
-- Storytelling résumé : ${storytelling?.pitch_short || storytelling?.pitch_medium || "non renseigné"}
-- Persona frustrations : ${persona?.step_1_frustrations || "non renseignées"}
-- Persona transformation : ${persona?.step_2_transformation || "non renseignée"}
-- Persona objections : ${persona?.step_3a_objections || "non renseignées"}
-- Combats / cause : ${tone?.combat_cause || "non renseignés"}
-- Pilier majeur : ${strategy?.pillar_major || "non renseigné"}
-- Piliers mineurs : ${[strategy?.pillar_minor_1, strategy?.pillar_minor_2, strategy?.pillar_minor_3].filter(Boolean).join(", ") || "non renseignés"}
-- Ton & style : ${tone?.voice_description || "non renseigné"}
-- Registre : ${tone?.tone_register || "non renseigné"}
-- Canaux : ${(profile?.canaux || tone?.channels || []).join(", ") || "instagram"}
-`;
+    // Fetch full user context server-side
+    const ctx = await getUserContext(supabase, user.id);
+    const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.highlights);
 
     let systemPrompt = "";
     let userPrompt = "";
 
     if (type === "generate") {
-      // SECTION 1 (principes) + SECTION 3 (structures stories)
       systemPrompt = `${CORE_PRINCIPLES}
 
 ${FORMAT_STRUCTURES}
 
-${brandingBlock}
+${contextStr}
 
 Génère 6 à 8 catégories de stories à la une Instagram personnalisées.
 
@@ -120,7 +88,7 @@ Réponds UNIQUEMENT en JSON valide, sans texte avant ni après :
       const { categories, questions } = body;
       systemPrompt = `${CORE_PRINCIPLES}
 
-${brandingBlock}
+${contextStr}
 
 CATÉGORIES DÉJÀ GÉNÉRÉES :
 ${JSON.stringify(categories, null, 2)}
@@ -157,12 +125,8 @@ Même format JSON que précédemment. Réponds UNIQUEMENT en JSON valide, sans t
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Trop de requêtes, réessaie dans quelques instants." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Crédits IA épuisés." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
+      if (response.status === 429) return new Response(JSON.stringify({ error: "Trop de requêtes, réessaie dans quelques instants." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (response.status === 402) return new Response(JSON.stringify({ error: "Crédits IA épuisés." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const errText = await response.text();
       throw new Error(`AI API error: ${response.status} - ${errText}`);
     }

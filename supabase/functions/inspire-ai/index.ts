@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, FORMAT_STRUCTURES, WRITING_RESOURCES } from "../_shared/copywriting-prompts.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,14 +23,13 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
 
     const {
       data: { user },
-    } = await createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    }).auth.getUser();
+    } = await supabase.auth.getUser();
 
     if (!user) {
       return new Response(JSON.stringify({ error: "Non autorisé" }), {
@@ -57,38 +57,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch branding context
-    const [profileRes, brandRes, propRes, personaRes, stratRes, storyRes] =
-      await Promise.all([
-        supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("brand_proposition").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("persona").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("brand_strategy").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("storytelling").select("*").eq("user_id", user.id).eq("is_primary", true).maybeSingle(),
-      ]);
-
-    const profile = profileRes.data;
-    const brand = brandRes.data;
-    const prop = propRes.data;
-    const persona = personaRes.data;
-    const strat = stratRes.data;
-    const story = storyRes.data;
-
-    const brandingContext = `
-BRANDING DE L'UTILISATRICE :
-- Activité : ${profile?.activite || "Non renseigné"}
-- Proposition de valeur : ${prop?.version_pitch_naturel || prop?.version_bio || prop?.version_final || "Non renseignée"}
-- Proposition courte : ${prop?.version_bio || "Non renseignée"}
-- Storytelling : ${story?.pitch_short || "Non renseigné"}
-- Persona frustrations : ${persona?.step_1_frustrations || "Non renseigné"}
-- Persona transformation : ${persona?.step_2_transformation || "Non renseigné"}
-- Persona objections : ${persona?.step_3a_objections || "Non renseigné"}
-- Combats : ${brand?.combat_cause || "Non renseigné"} / ${brand?.combat_fights || ""}
-- Ton & style : ${brand?.voice_description || "Non renseigné"}, registre : ${brand?.tone_register || ""}, expressions : ${brand?.key_expressions || ""}, à éviter : ${brand?.things_to_avoid || ""}
-- Piliers de contenu : ${strat?.pillar_major || "Non renseigné"}, ${strat?.pillar_minor_1 || ""}, ${strat?.pillar_minor_2 || ""}, ${strat?.pillar_minor_3 || ""}
-- Concept créatif : ${strat?.creative_concept || "Non renseigné"}
-`.trim();
+    // Fetch full user context server-side
+    const ctx = await getUserContext(supabase, user.id);
+    const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.inspire);
 
     let sourceBlock: string;
     if (isScreenshot) {
@@ -108,12 +79,11 @@ ${source_text}
 """`;
     }
 
-    // SECTION 1 (principes) + SECTION 4 (banques pour la rédaction de l'adaptation)
     const systemPrompt = `${CORE_PRINCIPLES}
 
 ${WRITING_RESOURCES}
 
-${brandingContext}
+${contextStr}
 
 ${sourceBlock}
 
@@ -177,12 +147,10 @@ Réponds UNIQUEMENT en JSON valide :
     if (isScreenshot) {
       const contentParts: any[] = [{ type: "text", text: systemPrompt }];
       for (const img of images) {
-        // Support both old format (string) and new format ({data, type})
         const imgUrl = typeof img === "string" ? img : img.data;
         const mediaType = typeof img === "string" ? undefined : img.type;
 
         if (mediaType === "application/pdf") {
-          // Extract base64 data from data URL
           const base64Data = imgUrl.includes(",") ? imgUrl.split(",")[1] : imgUrl;
           contentParts.push({
             type: "file",
@@ -211,26 +179,15 @@ Réponds UNIQUEMENT en JSON valide :
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.8,
-      }),
+      body: JSON.stringify({ model, messages, temperature: 0.8 }),
     });
 
     if (!aiRes.ok) {
-      if (aiRes.status === 429) {
-        return new Response(JSON.stringify({ error: "Trop de requêtes, réessaie dans un moment." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      if (aiRes.status === 402) {
-        return new Response(JSON.stringify({ error: "Crédits IA épuisés." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
+      if (aiRes.status === 429) return new Response(JSON.stringify({ error: "Trop de requêtes, réessaie dans un moment." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (aiRes.status === 402) return new Response(JSON.stringify({ error: "Crédits IA épuisés." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const err = await aiRes.text();
       console.error("AI API error:", err);
-      return new Response(JSON.stringify({ error: "Erreur IA" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ error: "Erreur IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const aiData = await aiRes.json();
@@ -242,15 +199,10 @@ Réponds UNIQUEMENT en JSON valide :
       result = JSON.parse(raw);
     } catch {
       console.error("JSON parse error:", raw);
-      return new Response(JSON.stringify({ error: "Erreur de format IA" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ error: "Erreur de format IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     console.error("Error:", error);
     return new Response(

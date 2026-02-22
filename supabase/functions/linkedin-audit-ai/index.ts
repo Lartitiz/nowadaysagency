@@ -1,21 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LINKEDIN_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function fetchBrandingData(supabase: any, userId: string) {
-  const [profRes, propRes, perRes, toneRes] = await Promise.all([
-    supabase.from("profiles").select("prenom, activite, type_activite, cible, mission, offre").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_proposition").select("version_final, version_bio").eq("user_id", userId).maybeSingle(),
-    supabase.from("persona").select("step_1_frustrations, step_2_transformation").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_profile").select("voice_description, combat_cause, tone_register, tone_level, tone_style").eq("user_id", userId).maybeSingle(),
-  ]);
-  return { profile: profRes.data, proposition: propRes.data, persona: perRes.data, tone: toneRes.data };
-}
+// Branding data now fetched via getUserContext
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -41,27 +34,8 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const body = await req.json();
-    const branding = await fetchBrandingData(supabase, user.id);
-
-    // Build branding context
-    const brandingLines: string[] = [];
-    const p = branding.profile;
-    if (p) {
-      if (p.activite) brandingLines.push(`Activité : ${p.activite}`);
-      if (p.mission) brandingLines.push(`Mission : ${p.mission}`);
-      if (p.cible) brandingLines.push(`Cible : ${p.cible}`);
-    }
-    if (branding.proposition?.version_final) brandingLines.push(`Proposition de valeur : ${branding.proposition.version_final}`);
-    if (branding.persona) {
-      if (branding.persona.step_1_frustrations) brandingLines.push(`Frustrations cible : ${branding.persona.step_1_frustrations}`);
-      if (branding.persona.step_2_transformation) brandingLines.push(`Transformation : ${branding.persona.step_2_transformation}`);
-    }
-    if (branding.tone) {
-      const t = branding.tone;
-      if (t.voice_description) brandingLines.push(`Voix : ${t.voice_description}`);
-      const reg = [t.tone_register, t.tone_level, t.tone_style].filter(Boolean).join(" - ");
-      if (reg) brandingLines.push(`Registre : ${reg}`);
-    }
+    const ctx = await getUserContext(supabase, user.id);
+    const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.linkedinAudit);
 
     // Build screenshot content array for multimodal
     const contentParts: any[] = [];
@@ -93,7 +67,7 @@ DONNÉES DE L'AUDIT :
 - Organisation publication : ${body.publicationOrg || "non précisé"}
 - Demandes entrantes : ${body.inboundRequests || "non précisé"}
 
-${brandingLines.length > 0 ? `BRANDING :\n${brandingLines.join("\n")}` : ""}
+${contextStr}
 
 ANALYSE les screenshots et les réponses. Pour chaque section, donne un score et des recommandations.
 

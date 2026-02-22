@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,26 +33,16 @@ serve(async (req) => {
     const body = await req.json();
     const { launch, phases, template_type, extra_weekly_hours, editorial_time, preferred_formats, rhythm } = body;
 
-    // Fetch branding context
-    const [profileRes, personaRes, toneRes, stratRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("persona").select("step_1_frustrations, step_3a_objections").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_profile").select("combat_cause, combat_fights, combat_alternative").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq("user_id", user.id).maybeSingle(),
-    ]);
-
-    const profile = profileRes.data;
-    const persona = personaRes.data;
-    const tone = toneRes.data;
-    const strat = stratRes.data;
-
-    const piliers = [strat?.pillar_major, strat?.pillar_minor_1, strat?.pillar_minor_2, strat?.pillar_minor_3].filter(Boolean);
+    // Fetch full user context server-side
+    const ctx = await getUserContext(supabase, user.id);
+    const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.launch);
 
     const phasesStr = (phases || []).map((p: any) => `- ${p.emoji} ${p.label}: du ${p.start_date} au ${p.end_date}`).join("\n");
-
     const totalWeeklyHours = (editorial_time || 3) + (extra_weekly_hours || 0);
 
     const systemPrompt = `Tu es experte en stratégie de lancement Instagram pour des solopreneuses créatives et éthiques.
+
+${contextStr}
 
 DONNÉES DU LANCEMENT :
 - Offre : "${launch?.name || ""}"
@@ -67,14 +58,6 @@ ${phasesStr}
 TEMPS DISPONIBLE : ${totalWeeklyHours}h/semaine
 FORMATS PRÉFÉRÉS : ${(preferred_formats || []).join(", ") || "carrousel, reel, story"}
 RYTHME HABITUEL : ${rhythm || "3 posts/semaine"}
-
-BRANDING :
-- Activité : ${profile?.activite || "?"}
-- Cible : ${profile?.cible || "?"}
-- Persona frustrations : ${persona?.step_1_frustrations || "?"}
-- Persona objections : ${persona?.step_3a_objections || "?"}
-- Combats : ${tone?.combat_cause || "?"} / ${tone?.combat_fights || "?"}
-- Piliers de contenu : ${piliers.join(", ") || "?"}
 
 ---
 
@@ -94,37 +77,19 @@ RÈGLES :
    - Phases de closing : 10-20% valeur, 80-90% vente
 
 3. INTÈGRE les contenus prévus par l'utilisatrice dans le plan aux bons moments.
-
 4. Traite CHAQUE objection dans au moins 1 slot.
-
 5. Alterne les formats (pas 5 carrousels d'affilée).
-
 6. Utilise les formats préférés de l'utilisatrice en priorité.
-
-7. L'angle_suggestion est une phrase courte qui donne une direction créative,
-   pas un texte à publier.
-
-8. Pour chaque slot, indique ratio_category "valeur" ou "vente" pour permettre
-   le calcul visuel du ratio valeur/vente par phase.
-
-9. Pour le plan long (6-8 sem), intègre une MINI-FICTION en 5 chapitres :
-   - Chapitre 1 "Elle patauge" (phase problème)
-   - Chapitre 2 "Elle découvre" (phase solution)
-   - Chapitre 3 "Elle doute" (phase teasing)
-   - Chapitre 4 "Elle se projette" (phase révélation)
-   - Chapitre 5 "Elle passe à l'action" (phase closing)
+7. L'angle_suggestion est une phrase courte qui donne une direction créative, pas un texte à publier.
+8. Pour chaque slot, indique ratio_category "valeur" ou "vente".
+9. Pour le plan long (6-8 sem), intègre une MINI-FICTION en 5 chapitres.
 
 GARDE-FOUS ÉTHIQUES — OBLIGATOIRES :
-- PAS de fausse urgence ("Plus que X places !!!" sans raison logistique réelle)
-  → Alternative : "Les inscriptions ferment vendredi parce qu'on démarre lundi"
-- PAS de shaming ("Si tu n'investis pas en toi...")
-  → Alternative : "C'est ok de prendre le temps de décider"
-- PAS de promesses de résultats garantis ("Tu vas doubler ton CA")
-  → Alternative : "Voici ce que [prénom] a obtenu en 3 mois"
-- PAS de CTA agressifs ("ACHÈTE MAINTENANT")
-  → Alternative : "Si ça te parle, je t'envoie les détails en DM"
+- PAS de fausse urgence
+- PAS de shaming
+- PAS de promesses de résultats garantis
+- PAS de CTA agressifs
 - PAS de FOMO artificiel
-  → Alternative : vrais chiffres, vrais témoignages
 - L'urgence vient de la logistique, pas de la manipulation
 - Chaque contenu a de la valeur même pour celles qui n'achètent pas
 
@@ -182,23 +147,14 @@ Réponds UNIQUEMENT en JSON :
 
     if (!res.ok) {
       const errText = await res.text();
-      if (res.status === 429) {
-        return new Response(JSON.stringify({ error: "Trop de requêtes, réessaie dans quelques instants." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (res.status === 402) {
-        return new Response(JSON.stringify({ error: "Crédits IA épuisés. Ajoute des crédits dans les paramètres." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (res.status === 429) return new Response(JSON.stringify({ error: "Trop de requêtes, réessaie dans quelques instants." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (res.status === 402) return new Response(JSON.stringify({ error: "Crédits IA épuisés. Ajoute des crédits dans les paramètres." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       throw new Error(`AI API error: ${res.status} ${errText}`);
     }
 
     const aiData = await res.json();
     const content = aiData.choices?.[0]?.message?.content || "";
 
-    // Parse JSON from response
     let parsed: any;
     try {
       parsed = JSON.parse(content);
