@@ -2,6 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Link, useLocation } from "react-router-dom";
 import { Home, ClipboardList, User, Settings, Menu, X, Lightbulb } from "lucide-react";
 import { useState } from "react";
+import NotificationBell from "@/components/NotificationBell";
 
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Accueil", icon: Home },
@@ -40,7 +41,8 @@ export default function AppHeader() {
         </nav>
 
         {/* Desktop user */}
-        <div className="hidden lg:flex items-center gap-3 shrink-0">
+        <div className="hidden lg:flex items-center gap-2 shrink-0">
+          <NotificationBell />
           <div className="h-[34px] w-[34px] rounded-full bg-gradient-to-br from-primary to-rose-medium flex items-center justify-center text-primary-foreground text-sm font-bold">
             {user?.email?.charAt(0).toUpperCase()}
           </div>
@@ -49,14 +51,17 @@ export default function AppHeader() {
           </button>
         </div>
 
-        {/* Mobile burger */}
-        <button
-          className="lg:hidden p-2 text-foreground"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label="Menu"
-        >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        {/* Mobile burger + bell */}
+        <div className="lg:hidden flex items-center gap-1">
+          <NotificationBell />
+          <button
+            className="p-2 text-foreground"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label="Menu"
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile menu */}
