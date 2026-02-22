@@ -4,10 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StreakSection from "@/components/engagement/StreakSection";
 import DailyChecklist, { getDefaultItems } from "@/components/engagement/DailyChecklist";
 import ContactsSection, { type Contact } from "@/components/engagement/ContactsSection";
 import TipsSection from "@/components/engagement/TipsSection";
+import ProspectionSection from "@/components/prospection/ProspectionSection";
 import Confetti from "@/components/Confetti";
 
 function getMonday(d: Date) {
@@ -29,6 +31,7 @@ export default function InstagramEngagement() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [showConfetti, setShowConfetti] = useState(false);
+  const [activeTab, setActiveTab] = useState("engagement");
 
   const [currentStreak, setCurrentStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
@@ -223,26 +226,41 @@ export default function InstagramEngagement() {
           todayIndex={todayIndex}
         />
 
-        <DailyChecklist
-          date={new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
-          isLaunching={isLaunching}
-          items={items}
-          checked={checked}
-          onToggle={toggleItem}
-          threshold={threshold}
-        />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="w-full grid grid-cols-3">
+            <TabsTrigger value="engagement">💬 Engagement</TabsTrigger>
+            <TabsTrigger value="contacts">👥 Contacts</TabsTrigger>
+            <TabsTrigger value="prospection">🎯 Prospection</TabsTrigger>
+          </TabsList>
 
-        <ContactsSection
-          contacts={contacts}
-          filter={contactFilter}
-          onFilterChange={setContactFilter}
-          onInteract={interactContact}
-          onDelete={deleteContact}
-          onAdd={addContact}
-          onUpdateNotes={updateContactNotes}
-        />
+          <TabsContent value="engagement" className="space-y-6 mt-4">
+            <DailyChecklist
+              date={new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+              isLaunching={isLaunching}
+              items={items}
+              checked={checked}
+              onToggle={toggleItem}
+              threshold={threshold}
+            />
+            <TipsSection isLaunching={isLaunching} />
+          </TabsContent>
 
-        <TipsSection isLaunching={isLaunching} />
+          <TabsContent value="contacts" className="mt-4">
+            <ContactsSection
+              contacts={contacts}
+              filter={contactFilter}
+              onFilterChange={setContactFilter}
+              onInteract={interactContact}
+              onDelete={deleteContact}
+              onAdd={addContact}
+              onUpdateNotes={updateContactNotes}
+            />
+          </TabsContent>
+
+          <TabsContent value="prospection" className="mt-4">
+            <ProspectionSection />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
