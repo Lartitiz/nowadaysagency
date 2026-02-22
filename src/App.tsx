@@ -42,6 +42,7 @@ import InstagramStats from "./pages/InstagramStats";
 import InstagramStories from "./pages/InstagramStories";
 import InstagramReels from "./pages/InstagramReels";
 import InstagramCreer from "./pages/InstagramCreer";
+import InstagramCarousel from "./pages/InstagramCarousel";
 import AtelierPage from "./pages/AtelierPage";
 import RedactionPage from "./pages/RedactionPage";
 import PersonaPage from "./pages/PersonaPage";
@@ -157,6 +158,7 @@ const App = () => (
             <Route path="/instagram/stories" element={<ProtectedRoute><InstagramStories /></ProtectedRoute>} />
             <Route path="/instagram/reels" element={<ProtectedRoute><InstagramReels /></ProtectedRoute>} />
             <Route path="/instagram/creer" element={<ProtectedRoute><InstagramCreer /></ProtectedRoute>} />
+            <Route path="/instagram/carousel" element={<ProtectedRoute><InstagramCarousel /></ProtectedRoute>} />
             {/* Redirects from old routes */}
             <Route path="/instagram/bio" element={<Navigate to="/instagram/profil/bio" replace />} />
             <Route path="/instagram/highlights" element={<Navigate to="/instagram/profil/stories" replace />} />

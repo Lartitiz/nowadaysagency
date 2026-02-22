@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.analyze-branding-import]
 verify_jwt = false
+
+[functions.carousel-ai]
+verify_jwt = false
