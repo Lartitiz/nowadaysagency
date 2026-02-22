@@ -2545,6 +2545,110 @@ export type Database = {
         }
         Relationships: []
       }
+      prospect_interactions: {
+        Row: {
+          ai_generated: boolean | null
+          content: string | null
+          created_at: string | null
+          id: string
+          interaction_type: string
+          prospect_id: string
+          responded: boolean | null
+          user_id: string
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          interaction_type: string
+          prospect_id: string
+          responded?: boolean | null
+          user_id: string
+        }
+        Update: {
+          ai_generated?: boolean | null
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          interaction_type?: string
+          prospect_id?: string
+          responded?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_interactions_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospects: {
+        Row: {
+          activity: string | null
+          conversion_amount: number | null
+          created_at: string | null
+          decision_phase: string | null
+          display_name: string | null
+          id: string
+          instagram_username: string
+          last_interaction_at: string | null
+          next_reminder_at: string | null
+          next_reminder_text: string | null
+          note: string | null
+          probable_problem: string | null
+          relevant_offer: string | null
+          source: string | null
+          stage: string | null
+          strengths: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          activity?: string | null
+          conversion_amount?: number | null
+          created_at?: string | null
+          decision_phase?: string | null
+          display_name?: string | null
+          id?: string
+          instagram_username: string
+          last_interaction_at?: string | null
+          next_reminder_at?: string | null
+          next_reminder_text?: string | null
+          note?: string | null
+          probable_problem?: string | null
+          relevant_offer?: string | null
+          source?: string | null
+          stage?: string | null
+          strengths?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          activity?: string | null
+          conversion_amount?: number | null
+          created_at?: string | null
+          decision_phase?: string | null
+          display_name?: string | null
+          id?: string
+          instagram_username?: string
+          last_interaction_at?: string | null
+          next_reminder_at?: string | null
+          next_reminder_text?: string | null
+          note?: string | null
+          probable_problem?: string | null
+          relevant_offer?: string | null
+          source?: string | null
+          stage?: string | null
+          strengths?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       reel_inspirations: {
         Row: {
           analysis: Json | null
