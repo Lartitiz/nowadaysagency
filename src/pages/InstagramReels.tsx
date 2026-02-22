@@ -1,5 +1,7 @@
 import { useState } from "react";
 import BaseReminder from "@/components/BaseReminder";
+import ContentScoring from "@/components/ContentScoring";
+import FeedbackLoop from "@/components/FeedbackLoop";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -403,6 +405,25 @@ export default function InstagramReels() {
             <Button variant="outline" size="sm" onClick={handleCopyCaption}><Copy className="h-4 w-4" /> Copier la caption</Button>
             <Button variant="outline" size="sm" onClick={() => { setScriptResult(null); setStep(6); }}><RefreshCw className="h-4 w-4" /> Rechoisir le hook</Button>
             <Button size="sm" onClick={handleAddToCalendar}><CalendarDays className="h-4 w-4" /> Ajouter au calendrier</Button>
+          </div>
+
+          {/* Feedback loop for script */}
+          <div className="mt-6">
+            <FeedbackLoop
+              content={scriptResult.script.map(s => `[${s.timing}] ${s.texte_parle}`).join("\n\n")}
+              onUpdate={() => {
+                toast.info("Regénère le script avec un nouveau hook pour appliquer tes retours.");
+              }}
+            />
+          </div>
+
+          {/* Content scoring for caption */}
+          <div className="mt-4">
+            <ContentScoring
+              content={`${scriptResult.caption.text}\n\n${scriptResult.caption.cta}`}
+              format="reel"
+              objective={objective}
+            />
           </div>
 
           <BaseReminder variant="reels" />
