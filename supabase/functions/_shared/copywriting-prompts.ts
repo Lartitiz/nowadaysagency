@@ -420,49 +420,49 @@ GARDE-FOUS LINKEDIN :
 10. PAS DE CORPORATE VIDE : "Nous sommes ravis", "C'est avec fierté que" → SUPPRIMER.
 `;
 
-export const LINKEDIN_TEMPLATES = {
-  storytelling: \`TEMPLATE STORYTELLING PRO :
+export const LINKEDIN_TEMPLATES: Record<string, string> = {
+  storytelling: `TEMPLATE STORYTELLING PRO :
 Hook (2 lignes, avant "voir plus") : phrase percutante, confession ou in medias res
 Contexte (2-3 phrases) : quand, où, pourquoi
 Développement (4-6 phrases) : l'histoire, les galères, les surprises
 Leçon (2-3 phrases) : sincère, pas moralisateur
-CTA : question ouverte invitant au partage d'expérience\`,
+CTA : question ouverte invitant au partage d'expérience`,
 
-  etude_de_cas: \`TEMPLATE ÉTUDE DE CAS :
+  etude_de_cas: `TEMPLATE ÉTUDE DE CAS :
 Hook (2 lignes) : résultat chiffré ou problème frappant
 Contexte client (2-3 phrases) : qui, quel problème
 Approche (3-4 phrases) : concret, pas de jargon
 Résultats (2-3 phrases) : chiffres, avant/après
 Leçon transférable (1-2 phrases)
-CTA : "Si vous reconnaissez votre structure, écrivez-moi en MP."\`,
+CTA : "Si vous reconnaissez votre structure, écrivez-moi en MP."`,
 
-  prise_de_position: \`TEMPLATE PRISE DE POSITION :
+  prise_de_position: `TEMPLATE PRISE DE POSITION :
 Hook (2 lignes) : affirmation tranchée ou contrarian take
 Constat (2-3 phrases) : ce que tu observes, exemples concrets
 Analyse (3-4 phrases) : pourquoi c'est un problème, aller au fond
 Alternative (2-3 phrases)
-Ouverture : question qui invite au débat\`,
+Ouverture : question qui invite au débat`,
 
-  educatif: \`TEMPLATE ÉDUCATIF / PÉDAGOGIQUE :
+  educatif: `TEMPLATE ÉDUCATIF / PÉDAGOGIQUE :
 Hook (2 lignes) : question ou problème reconnu
 Contexte (1-2 phrases)
 Contenu (5-8 phrases) : framework, étapes, concret et actionnable
 Nuance (1-2 phrases) : limites, "oui mais", montre l'expertise
-CTA : question pratique\`,
+CTA : question pratique`,
 
-  decryptage: \`TEMPLATE DÉCRYPTAGE ACTU :
+  decryptage: `TEMPLATE DÉCRYPTAGE ACTU :
 Hook (2 lignes) : fait d'actualité + angle original
 Ce qui se passe (2-3 phrases) : résumé factuel
 Ce que ça change (3-4 phrases) : analyse de fond
 Ce qu'on peut en faire (2-3 phrases) : conseil pratique
-Ouverture : invitation à partager son avis\`,
+Ouverture : invitation à partager son avis`,
 
-  permission: \`TEMPLATE PERMISSION :
+  permission: `TEMPLATE PERMISSION :
 Hook (2 lignes) : injonction ou croyance que l'audience subit
 Observation (2-3 phrases) : ce que tu vois chez tes client·es
 Déconstruction (3-4 phrases) : pourquoi c'est un frein
 Permission (2-3 phrases) : message libérateur, sans condescendance
-CTA : question intime\`,
+CTA : question intime`,
 };
 
 export const LINKEDIN_TIPS = [
