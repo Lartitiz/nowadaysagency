@@ -201,7 +201,7 @@ const FEATURES = [
   { emoji: "📅", title: "Calendrier éditorial", sub: "Planifie ta communication", desc: "Calendrier visuel avec tags d'objectif et jauge d'équilibre. Tu sais quoi poster et quand.", soon: false },
   { emoji: "📱", title: "Instagram", sub: "Optimise ton profil", desc: "Bio, stories à la une, audit de profil, routine d'engagement, prospection douce.", soon: false },
   { emoji: "💼", title: "LinkedIn", sub: "Développe ta présence pro", desc: "Audit de profil, optimisation, contenus adaptés au réseau professionnel.", soon: false },
-  { emoji: "🔍", title: "SEO / Référencement", sub: "Sois trouvée sur Google", desc: "Mots-clés, optimisation de pages, stratégie de contenu pour le référencement naturel.", soon: true },
+  { emoji: "🔍", title: "SEO / Référencement", sub: "Sois trouvée sur Google", desc: "Mots-clés, optimisation de pages, stratégie de contenu pour le référencement naturel.", soon: false },
   { emoji: "📧", title: "Newsletter / Emailing", sub: "Crée ta liste et fidélise", desc: "Séquences email, newsletters, lead nurturing.", soon: true },
   { emoji: "🌐", title: "Site web / Pages de vente", sub: "Convertis tes visiteurs", desc: "Pages de vente, landing pages, optimisation.", soon: true },
   { emoji: "📰", title: "Relations presse", sub: "Fais parler de toi", desc: "Communiqués, fichier presse, stratégie médias.", soon: true },
