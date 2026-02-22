@@ -3968,6 +3968,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_plan_config: {
+        Row: {
+          channels: Json
+          created_at: string
+          id: string
+          main_goal: string
+          updated_at: string
+          user_id: string
+          weekly_time: string
+        }
+        Insert: {
+          channels?: Json
+          created_at?: string
+          id?: string
+          main_goal?: string
+          updated_at?: string
+          user_id: string
+          weekly_time?: string
+        }
+        Update: {
+          channels?: Json
+          created_at?: string
+          id?: string
+          main_goal?: string
+          updated_at?: string
+          user_id?: string
+          weekly_time?: string
+        }
+        Relationships: []
+      }
       user_rhythm: {
         Row: {
           created_at: string | null
