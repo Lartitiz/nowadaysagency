@@ -1,14 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Check, Lightbulb, CalendarDays, BookOpen, Instagram, Palette, PenTool, BarChart3 } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  Palette,
+  Search,
+  PenTool,
+  Target,
+  BarChart3,
+  Users,
+  Instagram,
+  Linkedin,
+  ChevronDown,
+  Play,
+  Sparkles,
+  ArrowRight,
+} from "lucide-react";
 
-/* ─── Signup Form ─── */
-function SignupForm() {
+/* ─── Signup Form (compact) ─── */
+function SignupForm({ variant = "default" }: { variant?: "default" | "hero" }) {
   const { toast } = useToast();
   const [prenom, setPrenom] = useState("");
   const [email, setEmail] = useState("");
@@ -53,7 +72,9 @@ function SignupForm() {
           description: (
             <span>
               Connecte-toi ici :{" "}
-              <a href="/login" className="underline font-medium text-primary">page de connexion</a>
+              <a href="/login" className="underline font-medium text-primary">
+                page de connexion
+              </a>
             </span>
           ) as any,
           variant: "destructive",
@@ -69,9 +90,12 @@ function SignupForm() {
   if (success) {
     return (
       <div className="rounded-2xl bg-card border border-border p-6 text-center space-y-2">
-        <p className="font-display text-lg font-bold text-foreground">Presque là !</p>
+        <p className="font-display text-lg font-bold text-foreground">
+          Presque là !
+        </p>
         <p className="text-sm text-muted-foreground">
-          Un email de confirmation vient d'être envoyé à ton adresse. Clique sur le lien pour activer ton compte et accéder à ton atelier.
+          Un email de confirmation vient d'être envoyé. Clique sur le lien pour
+          activer ton compte.
         </p>
       </div>
     );
@@ -79,21 +103,85 @@ function SignupForm() {
 
   return (
     <form onSubmit={handleSignup} className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Ton prénom" required className="rounded-[10px] h-12 bg-card border-border" />
-        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Ton email" required className="rounded-[10px] h-12 bg-card border-border" />
-        <Input value={activite} onChange={(e) => setActivite(e.target.value)} placeholder="Ex : céramiste, coach..." className="rounded-[10px] h-12 bg-card border-border" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input
+          value={prenom}
+          onChange={(e) => setPrenom(e.target.value)}
+          placeholder="Ton prénom"
+          required
+          className="rounded-xl h-12 bg-card border-border"
+        />
+        <Input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Ton email"
+          required
+          className="rounded-xl h-12 bg-card border-border"
+        />
       </div>
-      <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe (6 caractères min.)" required minLength={6} className="rounded-[10px] h-12 bg-card border-border" />
-      <Button type="submit" disabled={loading} className="w-full sm:w-auto h-12 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux px-10 text-base font-medium transition-all hover:shadow-lg hover:-translate-y-0.5">
-        {loading ? "Un instant..." : "Accéder gratuitement"}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input
+          value={activite}
+          onChange={(e) => setActivite(e.target.value)}
+          placeholder="Ex : céramiste, coach..."
+          className="rounded-xl h-12 bg-card border-border"
+        />
+        <Input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Mot de passe (6 car. min.)"
+          required
+          minLength={6}
+          className="rounded-xl h-12 bg-card border-border"
+        />
+      </div>
+      <Button
+        type="submit"
+        disabled={loading}
+        className="w-full sm:w-auto h-12 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux px-10 text-base font-medium transition-all shadow-cta hover:-translate-y-0.5"
+      >
+        {loading ? "Un instant..." : "🚀 Commencer gratuitement"}
       </Button>
-      <p className="text-xs text-muted-foreground">Gratuit. Sans carte bancaire. En 30 secondes.</p>
+      <p className="text-xs text-muted-foreground">
+        Gratuit. Sans carte bancaire. En 30 secondes.
+      </p>
     </form>
   );
 }
 
-/* ─── Landing Page ─── */
+/* ─── Sticky CTA Mobile ─── */
+function StickyCTA() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setVisible(window.scrollY > 600);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-card/90 backdrop-blur-md border-t border-border lg:hidden animate-fade-in">
+      <Link
+        to="#signup-section"
+        onClick={(e) => {
+          e.preventDefault();
+          document
+            .getElementById("signup-section")
+            ?.scrollIntoView({ behavior: "smooth" });
+        }}
+        className="block w-full text-center rounded-pill bg-primary text-primary-foreground py-3 font-medium shadow-cta"
+      >
+        🚀 Commencer gratuitement
+      </Link>
+    </div>
+  );
+}
+
+/* ─── Main Landing ─── */
 export default function LandingPage() {
   const { user, loading } = useAuth();
 
@@ -101,9 +189,15 @@ export default function LandingPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex gap-1">
-          <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" />
-          <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} />
-          <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
+          <div className="h-3 w-3 rounded-sm bg-primary animate-bounce-dot" />
+          <div
+            className="h-3 w-3 rounded-sm bg-primary animate-bounce-dot"
+            style={{ animationDelay: "0.16s" }}
+          />
+          <div
+            className="h-3 w-3 rounded-sm bg-primary animate-bounce-dot"
+            style={{ animationDelay: "0.32s" }}
+          />
         </div>
       </div>
     );
@@ -111,259 +205,625 @@ export default function LandingPage() {
 
   if (user) return <Navigate to="/dashboard" replace />;
 
+  const scrollToDemo = () =>
+    document
+      .getElementById("demo-section")
+      ?.scrollIntoView({ behavior: "smooth" });
+
   return (
     <div className="min-h-screen bg-background font-body text-foreground overflow-x-hidden">
+      <StickyCTA />
+
       {/* ─── NAV ─── */}
       <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-sm">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            <span className="font-display text-xl font-bold text-bordeaux">L'Assistant Com'</span>
-            <span className="rounded-pill bg-secondary px-2 py-0.5 text-[10px] font-semibold text-primary">beta</span>
+            <span className="font-display text-xl font-bold text-bordeaux">
+              L'Assistant Com'
+            </span>
+            <span className="rounded-pill bg-secondary px-2 py-0.5 text-[10px] font-semibold text-primary">
+              beta
+            </span>
           </div>
-          <Link to="/login" className="rounded-pill border border-border px-5 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors">
-            Se connecter
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/plan"
+              className="hidden sm:inline-block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Tarifs
+            </Link>
+            <Link
+              to="/login"
+              className="rounded-pill border border-border px-5 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+            >
+              Se connecter
+            </Link>
+          </div>
         </div>
       </header>
 
-      {/* ─── HERO ─── */}
+      {/* ═══════════════════════════════════════════════════════════
+          HERO
+      ═══════════════════════════════════════════════════════════ */}
       <section className="relative py-16 sm:py-24 px-4 overflow-hidden">
-        <div className="absolute -top-20 -right-32 w-96 h-72 bg-rose-soft/40 rounded-[60%_40%_70%_30%/50%_60%_40%_50%] blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 -left-24 w-80 h-56 bg-yellow/20 rounded-[40%_60%_30%_70%/60%_30%_70%_40%] blur-3xl pointer-events-none" />
+        {/* Background shapes — NO circles */}
+        <div className="absolute -top-20 -right-32 w-[500px] h-[320px] bg-rose-soft/40 blur-[80px] pointer-events-none" style={{ clipPath: "polygon(20% 0%, 80% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%)" }} />
+        <div className="absolute bottom-0 -left-24 w-[400px] h-[250px] bg-accent/20 blur-[80px] pointer-events-none" style={{ clipPath: "polygon(25% 0%, 75% 0%, 100% 40%, 85% 100%, 15% 100%, 0% 40%)" }} />
 
-        <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-12 items-center">
+        <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-12 items-center">
           <div className="animate-fade-in">
-            <h1 className="font-display text-[32px] sm:text-[42px] lg:text-[48px] font-bold leading-tight text-foreground">
-              Ta com' te prend la tête ?{" "}
-              <span className="text-primary">On a créé l'outil qu'il te fallait.</span>
+            <h1 className="font-display text-[28px] sm:text-[40px] lg:text-[50px] font-bold leading-[1.15] text-foreground">
+              Tu fais un travail magnifique.
+              <br />
+              <span className="text-primary">Mais personne ne le voit.</span>
             </h1>
             <p className="mt-5 text-base sm:text-lg text-muted-foreground max-w-xl leading-relaxed">
-              Trouve des idées de contenu, définis ta marque, planifie ta communication. Tout au même endroit. Basé sur une vraie méthode, pas du bullshit marketing.
+              L'outil de communication pensé pour les créatrices éthiques.
+              <br />
+              Branding, contenus, stratégie : l'IA fait le boulot,
+              <br className="hidden sm:block" />
+              toi tu restes authentique.
             </p>
-            <div className="mt-8">
-              <SignupForm />
+            <div className="mt-8 flex flex-col sm:flex-row gap-3">
+              <Link
+                to="#signup-section"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document
+                    .getElementById("signup-section")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-pill bg-primary text-primary-foreground px-8 py-3.5 font-medium shadow-cta hover:bg-bordeaux transition-all hover:-translate-y-0.5"
+              >
+                <Sparkles className="h-4 w-4" /> Commencer gratuitement
+              </Link>
+              <button
+                onClick={scrollToDemo}
+                className="inline-flex items-center justify-center gap-2 rounded-pill border border-border px-8 py-3.5 font-medium text-foreground hover:bg-secondary transition-colors"
+              >
+                <Play className="h-4 w-4" /> Voir la démo
+              </button>
             </div>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Rejoins <span className="font-semibold text-foreground">50+</span>{" "}
+              créatrices éthiques qui utilisent l'outil
+            </p>
           </div>
 
           {/* App mockup */}
-          <div className="hidden lg:block animate-fade-in" style={{ animationDelay: "0.15s" }}>
+          <div
+            className="hidden lg:block animate-fade-in"
+            style={{ animationDelay: "0.15s" }}
+          >
             <div className="relative">
-              <div className="rounded-2xl bg-card border border-border shadow-xl p-5 transform rotate-2 hover:rotate-0 transition-transform duration-500">
+              <div className="rounded-2xl bg-card border border-border shadow-strong p-5 transform rotate-1 hover:rotate-0 transition-transform duration-500">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="h-3 w-3 rounded-sm bg-primary/60" />
-                  <div className="h-2 w-24 rounded bg-muted" />
-                  <div className="ml-auto h-6 w-20 rounded-pill bg-yellow" />
+                  <div className="h-3 w-8 rounded-sm bg-primary/60" />
+                  <div className="h-2 w-24 rounded-sm bg-muted" />
+                  <div className="ml-auto h-6 w-20 rounded-pill bg-accent" />
                 </div>
                 <div className="space-y-2 mb-4">
-                  {["Storytelling", "Coup de gueule", "Conseil"].map((label) => (
-                    <div key={label} className="flex items-center gap-2">
-                      <div className="h-7 rounded-pill bg-secondary px-3 flex items-center text-xs font-medium text-secondary-foreground">{label}</div>
-                    </div>
-                  ))}
+                  {["Storytelling", "Coup de gueule", "Conseil"].map(
+                    (label) => (
+                      <div key={label} className="flex items-center gap-2">
+                        <div className="h-7 rounded-pill bg-secondary px-3 flex items-center text-xs font-medium text-secondary-foreground">
+                          {label}
+                        </div>
+                      </div>
+                    )
+                  )}
                 </div>
-                <div className="h-8 w-40 rounded-pill bg-primary/90 flex items-center justify-center text-xs font-medium text-primary-foreground">Trouver des idées</div>
+                <div className="h-8 w-40 rounded-pill bg-primary/90 flex items-center justify-center text-xs font-medium text-primary-foreground">
+                  ✨ Générer un post
+                </div>
                 <div className="mt-4 grid grid-cols-7 gap-1">
                   {Array.from({ length: 14 }).map((_, i) => (
-                    <div key={i} className={`h-6 rounded-sm border border-border ${i === 3 || i === 9 ? "bg-cal-ready" : i === 7 ? "bg-cal-drafting" : ""}`} />
+                    <div
+                      key={i}
+                      className={`h-6 rounded-sm border border-border ${
+                        i === 3 || i === 9
+                          ? "bg-cal-ready"
+                          : i === 7
+                          ? "bg-cal-drafting"
+                          : i === 11
+                          ? "bg-cal-published"
+                          : ""
+                      }`}
+                    />
                   ))}
                 </div>
               </div>
-              <div className="absolute -z-10 -bottom-6 -right-6 w-full h-full bg-rose-soft/50 rounded-[40%_60%_50%_50%/60%_40%_60%_40%]" />
+              {/* Geometric accent — diamond shape */}
+              <div className="absolute -z-10 -bottom-5 -right-5 w-full h-full bg-rose-soft/50 pointer-events-none" style={{ clipPath: "polygon(10% 0%, 90% 0%, 100% 50%, 90% 100%, 10% 100%, 0% 50%)" }} />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ─── LE PROBLÈME ─── */}
+      {/* ═══════════════════════════════════════════════════════════
+          LE PROBLÈME
+      ═══════════════════════════════════════════════════════════ */}
       <section className="bg-rose-pale py-16 sm:py-20 px-4">
         <div className="mx-auto max-w-5xl text-center">
-          <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-10">Si tu te reconnais là-dedans...</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center mb-10">
             {[
-              { icon: "😩", text: "Tu postes quand tu y penses, sans stratégie, et tu as l'impression que ça mène nulle part." },
-              { icon: "📱", text: "Tu passes des heures à chercher quoi dire, tu ouvres Instagram et tu refermes sans rien publier." },
-              { icon: "🤷", text: "Tu sais que ta com' est importante mais tu ne sais pas par où commencer, ni comment t'organiser." },
+              {
+                emoji: "😩",
+                title: "Tu postes au feeling",
+                sub: "sans résultat",
+              },
+              {
+                emoji: "😰",
+                title: "Tu culpabilises",
+                sub: "de te vendre",
+              },
+              {
+                emoji: "😤",
+                title: "Tu vois des projets moins bons",
+                sub: "cartonner",
+              },
             ].map((card, i) => (
-              <div key={i} className="rounded-2xl bg-card border border-border p-6 shadow-sm animate-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
-                <span className="text-2xl mb-3 block">{card.icon}</span>
-                <p className="text-sm leading-relaxed text-foreground">{card.text}</p>
+              <div
+                key={i}
+                className="rounded-2xl bg-card border border-border p-6 shadow-card animate-fade-in"
+                style={{ animationDelay: `${i * 0.1}s` }}
+              >
+                <span className="text-4xl mb-3 block">{card.emoji}</span>
+                <p className="font-display text-base font-bold text-foreground">
+                  {card.title}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">{card.sub}</p>
               </div>
             ))}
           </div>
-          <p className="mt-10 text-base italic text-muted-foreground max-w-lg mx-auto">
-            "Le problème, c'est pas toi. C'est qu'on ne t'a jamais donné les bons outils."
+          <p className="font-display text-lg sm:text-xl font-bold text-foreground max-w-lg mx-auto leading-snug">
+            Et si le problème c'était pas toi,
+            <br />
+            <span className="text-primary">
+              mais ce qu'on t'a appris sur le marketing ?
+            </span>
           </p>
         </div>
       </section>
 
-      {/* ─── CE QUE TU PEUX FAIRE (Features détaillées) ─── */}
-      <section className="py-16 sm:py-20 px-4">
+      {/* ═══════════════════════════════════════════════════════════
+          COMMENT ÇA MARCHE
+      ═══════════════════════════════════════════════════════════ */}
+      <section className="py-16 sm:py-24 px-4">
         <div className="mx-auto max-w-5xl text-center">
-          <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-3">Tout ce dont tu as besoin, au même endroit</h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto mb-12 text-base leading-relaxed">
-            Pas un énième outil compliqué. Un assistant qui te dit quoi faire, te propose des idées, et t'aide à rester régulière.
+          <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">
+            Comment ça marche
+          </h2>
+          <p className="text-muted-foreground mb-14 max-w-xl mx-auto">
+            3 étapes pour passer de "j'sais pas quoi poster" à "j'ai un plan
+            béton".
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+            {[
+              {
+                step: "①",
+                title: "Pose tes bases",
+                desc: "Branding, cible, storytelling : l'IA te guide pas à pas.",
+                color: "bg-accent",
+              },
+              {
+                step: "②",
+                title: "Crée ton contenu",
+                desc: "Posts, Reels, Stories, bio : l'IA génère, toi tu personnalises.",
+                color: "bg-rose-soft",
+              },
+              {
+                step: "③",
+                title: "Engage et convertis",
+                desc: "Routine d'engagement, prospection douce, suivi de tes résultats.",
+                color: "bg-secondary",
+              },
+            ].map((s, i) => (
+              <div
+                key={i}
+                className="text-center animate-fade-in"
+                style={{ animationDelay: `${i * 0.12}s` }}
+              >
+                <div
+                  className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl ${s.color} mb-5`}
+                >
+                  <span className="text-2xl font-bold text-foreground">
+                    {s.step}
+                  </span>
+                </div>
+                <h3 className="font-display text-lg font-bold mb-2">
+                  {s.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mx-auto">
+                  {s.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════
+          FONCTIONNALITÉS
+      ═══════════════════════════════════════════════════════════ */}
+      <section className="bg-rose-pale py-16 sm:py-24 px-4">
+        <div className="mx-auto max-w-6xl text-center">
+          <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">
+            Tout ce dont tu as besoin
+          </h2>
+          <p className="text-muted-foreground mb-12 max-w-xl mx-auto">
+            Un seul outil, pas six abonnements.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
             {[
               {
                 icon: <Palette className="h-6 w-6 text-primary" />,
-                title: "Définis ta marque",
-                desc: "Mission, cible, ton, positionnement : pose les fondations de ta com' avec le module Branding auto-save.",
-                tag: "Branding",
+                title: "Branding & identité",
+                desc: "Pose ton positionnement, ta mission, ton ton de voix avec un atelier guidé.",
               },
               {
-                icon: <Lightbulb className="h-6 w-6 text-primary" />,
-                title: "Trouve des idées de contenu",
-                desc: "13 formats, 10 angles, recommandations intelligentes selon ton objectif. Plus jamais de panne d'inspiration.",
-                tag: "Atelier d'idées",
+                icon: <Search className="h-6 w-6 text-primary" />,
+                title: "Audit Instagram",
+                desc: "L'IA analyse ton profil et te donne des recommandations concrètes.",
               },
               {
                 icon: <PenTool className="h-6 w-6 text-primary" />,
-                title: "Rédige avec un guide",
-                desc: "Flow en 5 étapes : structure, accroches, premier jet, édition, checklist qualité. De l'idée au post publié.",
-                tag: "Rédaction guidée",
+                title: "Générateur de contenus",
+                desc: "Posts, Reels, Stories, bio : du contenu personnalisé en 1 clic.",
               },
               {
-                icon: <CalendarDays className="h-6 w-6 text-primary" />,
-                title: "Planifie dans un calendrier",
-                desc: "Calendrier éditorial visuel avec tags d'objectif colorés et jauge d'équilibre mensuel.",
-                tag: "Calendrier",
+                icon: <Target className="h-6 w-6 text-primary" />,
+                title: "Prospection douce",
+                desc: "Un mini-CRM pour transformer tes abonné·es en client·es.",
               },
               {
                 icon: <BarChart3 className="h-6 w-6 text-primary" />,
-                title: "Équilibre ta stratégie",
-                desc: "Visibilité, confiance, vente, crédibilité : visualise la répartition de ton contenu en un coup d'œil.",
-                tag: "Objectifs",
+                title: "Dashboard stats",
+                desc: "Suis tes résultats, comprends ce qui marche et ce qui marche pas.",
               },
               {
-                icon: <BookOpen className="h-6 w-6 text-primary" />,
-                title: "Optimise ton Instagram",
-                desc: "Bio, stories à la une, comptes inspirants, lancement : 6 sous-modules pour un profil qui convertit.",
-                tag: "Instagram",
+                icon: <Users className="h-6 w-6 text-primary" />,
+                title: "Communauté",
+                desc: "Échange avec d'autres créatrices éthiques qui avancent comme toi.",
               },
-            ].map((block, i) => (
-              <div key={i} className="rounded-2xl bg-card border border-border p-5 shadow-sm hover:shadow-card-hover transition-shadow">
-                <div className="flex items-center gap-3 mb-3">
-                  {block.icon}
-                  <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-md bg-rose-pale text-bordeaux">{block.tag}</span>
-                </div>
-                <h3 className="font-display text-base font-bold mb-2">{block.title}</h3>
-                <p className="text-[13px] text-muted-foreground leading-relaxed">{block.desc}</p>
+            ].map((f, i) => (
+              <div
+                key={i}
+                className="rounded-2xl bg-card border border-border p-6 shadow-card hover:shadow-card-hover transition-shadow animate-fade-in"
+                style={{ animationDelay: `${i * 0.06}s` }}
+              >
+                <div className="mb-4">{f.icon}</div>
+                <h3 className="font-display text-base font-bold mb-2">
+                  {f.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {f.desc}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── POURQUOI C'EST DIFFÉRENT ─── */}
-      <section className="bg-rose-pale py-16 sm:py-20 px-4">
-        <div className="mx-auto max-w-3xl text-center">
-          <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-5">Pas un outil IA de plus. Une vraie méthode dedans.</h2>
-          <p className="text-[15px] text-muted-foreground leading-relaxed mb-12 max-w-xl mx-auto">
-            L'Assistant Com' est construit sur la méthode Nowadays : 10 ans d'expérience en communication éthique, +50 créatrices accompagnées, des cours dans les plus grandes écoles (Arts Déco, Sup de Pub, ISCPA).
+      {/* ═══════════════════════════════════════════════════════════
+          DÉMO
+      ═══════════════════════════════════════════════════════════ */}
+      <section id="demo-section" className="py-16 sm:py-24 px-4">
+        <div className="mx-auto max-w-5xl text-center">
+          <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">
+            L'outil en action
+          </h2>
+          <p className="text-muted-foreground mb-12 max-w-xl mx-auto">
+            Voici ce que tu obtiens dès ton inscription.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {[
-              { title: "Adapté à TON activité", desc: "Pas des conseils génériques. L'outil connaît ton projet, ta cible, ton ton." },
-              { title: "Éthique par design", desc: "Zéro manipulation, zéro marketing d'urgence. De la com' humaine et sincère." },
-              { title: "Créé par une experte", desc: "Derrière l'outil, il y a Laetitia, 10 ans de terrain, pas juste un algorithme." },
-            ].map((item, i) => (
-              <div key={i} className="rounded-2xl bg-card border border-border p-5 shadow-sm">
-                <h3 className="font-display text-base font-bold mb-2 text-foreground">{item.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
+              {
+                emoji: "✍️",
+                title: "Génère un post",
+                desc: "Choisis un sujet, un format, et l'IA te propose un brouillon personnalisé à ton ton de voix.",
+              },
+              {
+                emoji: "🔍",
+                title: "Audite ton profil",
+                desc: "Un score de 0 à 100 sur 7 critères avec des recommandations concrètes pour s'améliorer.",
+              },
+              {
+                emoji: "📊",
+                title: "Suis tes résultats",
+                desc: "Dashboard visuel avec tes stats semaine par semaine et les insights IA pour progresser.",
+              },
+            ].map((d, i) => (
+              <div
+                key={i}
+                className="rounded-2xl bg-card border border-border p-6 shadow-card text-left animate-fade-in"
+                style={{ animationDelay: `${i * 0.1}s` }}
+              >
+                <span className="text-3xl mb-3 block">{d.emoji}</span>
+                <h3 className="font-display text-base font-bold mb-2">
+                  {d.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {d.desc}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── POUR QUI ─── */}
-      <section className="py-16 sm:py-20 px-4">
-        <div className="mx-auto max-w-2xl">
-          <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-8 text-center">C'est pour toi si...</h2>
-          <ul className="space-y-4">
-            {[
-              "Tu es créatrice, artisane, coach, prestataire de services ou solopreneuse",
-              "Tu veux te rendre visible sur les réseaux mais tu sais pas par où commencer",
-              "Tu en as marre du marketing agressif et tu cherches une approche qui te ressemble",
-              "Tu as besoin de structure sans te sentir enfermée dans un cadre rigide",
-              "Tu veux un outil simple, pas une usine à gaz",
-            ].map((item, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <span className="text-[15px] text-foreground leading-relaxed">{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      {/* ═══════════════════════════════════════════════════════════
+          PRICING
+      ═══════════════════════════════════════════════════════════ */}
+      <section className="bg-rose-pale py-16 sm:py-24 px-4">
+        <div className="mx-auto max-w-5xl text-center">
+          <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">
+            Choisis ton plan
+          </h2>
+          <p className="text-muted-foreground mb-12 max-w-xl mx-auto">
+            Commence gratuitement, monte en puissance quand tu es prête.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {/* Free */}
+            <div className="rounded-2xl bg-card border border-border p-6 text-left flex flex-col">
+              <span className="text-2xl mb-2">🆓</span>
+              <h3 className="font-display text-lg font-bold">Gratuit</h3>
+              <p className="text-sm text-muted-foreground mt-1 mb-4">
+                L'essentiel pour tester
+              </p>
+              <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
+                <li>✓ Branding guidé</li>
+                <li>✓ 3 générations IA / mois</li>
+                <li>✓ 1 audit / mois</li>
+                <li>✓ Recommandations</li>
+              </ul>
+              <Link
+                to="#signup-section"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document
+                    .getElementById("signup-section")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="block text-center rounded-pill border border-border py-2.5 font-medium text-foreground hover:bg-secondary transition-colors"
+              >
+                Commencer
+              </Link>
+            </div>
 
-      {/* ─── ROADMAP (mise à jour) ─── */}
-      <section className="bg-rose-pale py-16 sm:py-20 px-4">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-12">Et ce n'est que le début.</h2>
-          <div className="relative">
-            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-border sm:left-1/2 sm:-translate-x-px" />
-            <div className="space-y-10 text-left">
-              {[
-                {
-                  tag: "Disponible",
-                  tagColor: "bg-cal-published text-foreground border-cal-published-border",
-                  title: "Maintenant",
-                  desc: "Branding complet • Atelier d'idées (13 formats) • Rédaction guidée en 5 étapes • Calendrier éditorial avec objectifs • Module Instagram (bio, highlights, inspiration, lancement)",
-                },
-                {
-                  tag: "En cours",
-                  tagColor: "bg-cal-drafting text-foreground border-cal-drafting-border",
-                  title: "Bientôt",
-                  desc: "LinkedIn et Blog dans l'atelier • Module SEO intégré • Templates de newsletters",
-                },
-                {
-                  tag: "À venir",
-                  tagColor: "bg-cal-idea text-foreground border-cal-idea-border",
-                  title: "Prochainement",
-                  desc: "Module Emailing • Site Web guidé • Presse & Influence • Analytics de contenu",
-                },
-              ].map((step, i) => (
-                <div key={i} className="relative pl-14 sm:pl-0 sm:grid sm:grid-cols-2 sm:gap-8">
-                  <div className="absolute left-4 top-1 h-5 w-5 rounded-sm bg-card border-2 border-primary sm:left-1/2 sm:-translate-x-1/2" />
-                  <div className={`sm:text-right ${i % 2 === 1 ? "sm:col-start-2" : ""}`}>
-                    <span className={`inline-block rounded-pill border px-3 py-0.5 text-xs font-semibold mb-2 ${step.tagColor}`}>{step.tag}</span>
-                    <h3 className="font-display text-lg font-bold text-foreground">{step.title}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed mt-1">{step.desc}</p>
-                  </div>
-                </div>
-              ))}
+            {/* Outil */}
+            <div className="rounded-2xl bg-card border-2 border-primary p-6 text-left flex flex-col relative shadow-card-hover">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-pill">
+                Populaire
+              </div>
+              <span className="text-2xl mb-2">💎</span>
+              <h3 className="font-display text-lg font-bold">Outil</h3>
+              <p className="text-primary font-bold text-xl mt-1">
+                39€
+                <span className="text-sm font-normal text-muted-foreground">
+                  /mois
+                </span>
+              </p>
+              <p className="text-sm text-muted-foreground mt-1 mb-4">
+                Tout l'outil débloqué
+              </p>
+              <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
+                <li>✓ Générations IA illimitées</li>
+                <li>✓ Audits illimités</li>
+                <li>✓ Mini-CRM prospection</li>
+                <li>✓ Générateur commentaires + DM</li>
+                <li>✓ Dashboard stats complet</li>
+                <li>✓ Calendrier éditorial</li>
+              </ul>
+              <Link
+                to="#signup-section"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document
+                    .getElementById("signup-section")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="block text-center rounded-pill bg-primary text-primary-foreground py-2.5 font-medium hover:bg-bordeaux transition-colors shadow-cta"
+              >
+                S'abonner
+              </Link>
+            </div>
+
+            {/* Now Studio */}
+            <div className="rounded-2xl bg-card border border-border p-6 text-left flex flex-col">
+              <span className="text-2xl mb-2">🌟</span>
+              <h3 className="font-display text-lg font-bold">Now Studio</h3>
+              <p className="text-primary font-bold text-xl mt-1">
+                250€
+                <span className="text-sm font-normal text-muted-foreground">
+                  /mois × 6
+                </span>
+              </p>
+              <p className="text-sm text-muted-foreground mt-1 mb-4">
+                L'outil + l'accompagnement humain
+              </p>
+              <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
+                <li>✓ Tout le plan Outil</li>
+                <li>✓ Coaching individuel</li>
+                <li>✓ Validation par Laetitia</li>
+                <li>✓ Espace privé Studio</li>
+                <li>✓ Canal direct Laetitia</li>
+                <li>✓ Weekend Bourgogne inclus</li>
+              </ul>
+              <Link
+                to="/plan"
+                className="block text-center rounded-pill border border-border py-2.5 font-medium text-foreground hover:bg-secondary transition-colors"
+              >
+                En savoir plus
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ─── TÉMOIGNAGE ─── */}
-      <section className="py-16 sm:py-20 px-4">
-        <div className="mx-auto max-w-3xl text-center">
-          <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-10">Elles parlent de Nowadays</h2>
-          <blockquote className="rounded-2xl bg-card border border-border p-8 shadow-sm mb-8">
-            <p className="text-base italic text-foreground leading-relaxed mb-4">
-              "Laetitia a su comprendre notre projet et nos contraintes dès le départ. Elle est réactive, autonome, et surtout elle livre un travail qu'on n'a pas besoin de reprendre."
-            </p>
-            <cite className="text-sm font-medium text-muted-foreground not-italic">— La Coopérative Oasis</cite>
-          </blockquote>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Enseignante à l'École des Arts Décoratifs (ENSAD-PSL), Sup de Pub, ISCPA.
-            <br />
-            Citée dans L'ADN, Capital, e-marketing.
-          </p>
+      {/* ═══════════════════════════════════════════════════════════
+          TÉMOIGNAGES
+      ═══════════════════════════════════════════════════════════ */}
+      <section className="py-16 sm:py-24 px-4">
+        <div className="mx-auto max-w-5xl text-center">
+          <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-12">
+            Elles utilisent l'outil
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {[
+              {
+                name: "Napperon",
+                role: "Créatrice linge de maison",
+                quote:
+                  "J'ai enfin une stratégie claire et je sais quoi poster chaque semaine. Plus de panne d'inspiration.",
+                result: "Engagement ×3 en 2 mois",
+              },
+              {
+                name: "Mazeh Paris",
+                role: "Marque de bijoux éthiques",
+                quote:
+                  "L'outil m'a permis de structurer ma com' sans sacrifier mon authenticité. Un vrai game-changer.",
+                result: "Doublé son CA en 4 mois",
+              },
+              {
+                name: "Boom Boom Dance",
+                role: "Studio de danse",
+                quote:
+                  "On est passé de 0 à 500 abonnées engagées. Le module de prospection douce fait des merveilles.",
+                result: "+500 abonnées qualifiées",
+              },
+            ].map((t, i) => (
+              <div
+                key={i}
+                className="rounded-2xl bg-card border border-border p-6 text-left shadow-card animate-fade-in"
+                style={{ animationDelay: `${i * 0.1}s` }}
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-rose-medium flex items-center justify-center text-primary-foreground font-bold text-sm">
+                    {t.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-display text-sm font-bold">
+                      {t.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{t.role}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-foreground leading-relaxed italic mb-3">
+                  "{t.quote}"
+                </p>
+                <p className="text-xs font-semibold text-primary">
+                  📈 {t.result}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ─── CTA FINAL ─── */}
-      <section className="relative py-16 sm:py-20 px-4 overflow-hidden" style={{ background: "linear-gradient(180deg, hsl(340 100% 97%) 0%, hsl(340 33% 99%) 100%)" }}>
-        <div className="absolute -top-16 -left-24 w-72 h-56 bg-rose-soft/30 rounded-[60%_40%_70%_30%/50%_60%_40%_50%] blur-3xl pointer-events-none" />
+      {/* ═══════════════════════════════════════════════════════════
+          QUI SUIS-JE
+      ═══════════════════════════════════════════════════════════ */}
+      <section className="bg-rose-pale py-16 sm:py-24 px-4">
+        <div className="mx-auto max-w-3xl text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-bordeaux mb-6">
+            <span className="text-3xl text-primary-foreground font-bold">
+              L
+            </span>
+          </div>
+          <h2 className="font-display text-2xl sm:text-[28px] font-bold mb-4">
+            Je suis Laetitia
+          </h2>
+          <p className="text-muted-foreground leading-relaxed max-w-lg mx-auto mb-6">
+            J'accompagne les créatrices éthiques depuis 10 ans à se rendre
+            visibles sans renier leurs valeurs. Cet outil, c'est le condensé de
+            tout ce que j'ai appris sur le terrain.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3 text-xs font-medium">
+            <span className="bg-card border border-border rounded-pill px-4 py-2">
+              🎓 Enseignante ENSAD-PSL, Sup de Pub, ISCPA
+            </span>
+            <span className="bg-card border border-border rounded-pill px-4 py-2">
+              👥 50+ créatrices accompagnées
+            </span>
+            <span className="bg-card border border-border rounded-pill px-4 py-2">
+              📰 Citée dans L'ADN, Capital, e-marketing
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════
+          FAQ
+      ═══════════════════════════════════════════════════════════ */}
+      <section className="py-16 sm:py-24 px-4">
+        <div className="mx-auto max-w-2xl">
+          <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-10 text-center">
+            Questions fréquentes
+          </h2>
+          <Accordion type="single" collapsible className="space-y-3">
+            {[
+              {
+                q: "C'est quoi la différence avec Canva / Later / ChatGPT ?",
+                a: "Ces outils font une seule chose. L'Assistant Com' combine branding, stratégie, création de contenu et suivi de résultats dans une méthode complète. Et l'IA est entraînée à ta marque, pas générique.",
+              },
+              {
+                q: "Est-ce que ça marche pour mon secteur ?",
+                a: "Oui ! L'outil s'adapte à ton activité : artisanat, coaching, services, e-commerce éthique... L'IA personnalise tout à ton domaine et ta cible.",
+              },
+              {
+                q: "Je peux annuler quand je veux ?",
+                a: "Oui, sans engagement. Tu peux annuler depuis ton espace en un clic. Ton compte repasse en gratuit et tu gardes tout ton contenu.",
+              },
+              {
+                q: "C'est quoi le Now Studio ?",
+                a: "Le Now Studio, c'est l'accompagnement premium : tu as tout l'outil + un coaching individuel avec Laetitia, la validation de tes contenus, et un espace privé entre membres.",
+              },
+              {
+                q: "Mes données sont sécurisées ?",
+                a: "Absolument. Tes données sont chiffrées, hébergées en Europe, et ne sont jamais partagées avec des tiers. L'IA n'utilise pas tes contenus pour s'entraîner.",
+              },
+              {
+                q: "Je suis débutante, c'est pour moi ?",
+                a: "C'est justement fait pour toi ! L'outil te guide étape par étape depuis le branding jusqu'à la publication. Pas besoin d'expérience en marketing.",
+              },
+            ].map((faq, i) => (
+              <AccordionItem
+                key={i}
+                value={`faq-${i}`}
+                className="rounded-2xl border border-border bg-card px-5"
+              >
+                <AccordionTrigger className="text-left text-sm font-semibold text-foreground hover:no-underline py-4">
+                  {faq.q}
+                </AccordionTrigger>
+                <AccordionContent className="text-sm text-muted-foreground leading-relaxed pb-4">
+                  {faq.a}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════
+          CTA FINAL + SIGNUP
+      ═══════════════════════════════════════════════════════════ */}
+      <section
+        id="signup-section"
+        className="relative py-16 sm:py-24 px-4 overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(180deg, hsl(340 100% 97%) 0%, hsl(340 33% 99%) 100%)",
+        }}
+      >
+        <div className="absolute -top-16 -left-24 w-[350px] h-[250px] bg-rose-soft/30 blur-[80px] pointer-events-none" style={{ clipPath: "polygon(20% 0%, 80% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%)" }} />
         <div className="mx-auto max-w-2xl text-center relative">
-          <h2 className="font-display text-2xl sm:text-[36px] font-bold mb-4">Ta com' mérite mieux que l'improvisation.</h2>
+          <h2 className="font-display text-2xl sm:text-[36px] font-bold mb-4">
+            Ta com' mérite mieux que l'improvisation.
+          </h2>
           <p className="text-muted-foreground mb-8 text-base">
-            Rejoins L'Assistant Com' gratuitement et commence à structurer ta visibilité dès aujourd'hui.
+            Rejoins L'Assistant Com' gratuitement et commence à structurer ta
+            visibilité dès aujourd'hui.
           </p>
           <div className="text-left max-w-lg mx-auto">
             <SignupForm />
@@ -371,21 +831,53 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── FOOTER ─── */}
+      {/* ═══════════════════════════════════════════════════════════
+          FOOTER
+      ═══════════════════════════════════════════════════════════ */}
       <footer className="bg-foreground text-background py-10 px-4">
         <div className="mx-auto max-w-5xl flex flex-col sm:flex-row items-center justify-between gap-6">
           <div>
-            <span className="font-display text-lg font-bold">L'Assistant Com'</span>
-            <span className="block text-sm text-background/60 mt-0.5">par Nowadays Agency</span>
+            <span className="font-display text-lg font-bold">Nowadays</span>
+            <span className="block text-sm text-background/60 mt-0.5">
+              L'Assistant Com' par Nowadays Agency
+            </span>
           </div>
-          <nav className="flex items-center gap-6 text-sm">
-            <Link to="/" className="text-background/70 hover:text-background transition-colors">Accueil</Link>
-            <Link to="/login" className="text-background/70 hover:text-background transition-colors">Se connecter</Link>
-            <span className="text-background/40">Mentions légales</span>
+          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
+            <Link
+              to="/plan"
+              className="text-background/70 hover:text-background transition-colors"
+            >
+              Tarifs
+            </Link>
+            <Link
+              to="/login"
+              className="text-background/70 hover:text-background transition-colors"
+            >
+              Se connecter
+            </Link>
+            <Link
+              to="/legal-ia"
+              className="text-background/70 hover:text-background transition-colors"
+            >
+              Mentions légales
+            </Link>
           </nav>
           <div className="flex items-center gap-4">
-            <a href="https://instagram.com/nowadaysagency" target="_blank" rel="noopener noreferrer" className="text-background/70 hover:text-background transition-colors">
+            <a
+              href="https://instagram.com/nowadaysagency"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-background/70 hover:text-background transition-colors"
+            >
               <Instagram className="h-5 w-5" />
+            </a>
+            <a
+              href="https://linkedin.com/company/nowadaysagency"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-background/70 hover:text-background transition-colors"
+            >
+              <Linkedin className="h-5 w-5" />
             </a>
           </div>
         </div>
