@@ -139,10 +139,34 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
 
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    // Clean AI response: strip markdown fences, trim
+    let cleaned = content.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("Failed to parse AI response");
 
-    const variants = JSON.parse(jsonMatch[0]);
+    let variants: { variant_a: string; variant_b: string };
+    try {
+      variants = JSON.parse(jsonMatch[0]);
+    } catch {
+      // Try fixing common LLM JSON issues: unescaped newlines inside strings
+      const fixed = jsonMatch[0]
+        .replace(/(?<=:\s*")([\s\S]*?)(?="[\s,}])/g, (match) =>
+          match.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t")
+        );
+      try {
+        variants = JSON.parse(fixed);
+      } catch {
+        // Last resort: extract variants manually
+        const matchA = jsonMatch[0].match(/"variant_a"\s*:\s*"([\s\S]*?)"\s*,\s*"variant_b"/);
+        const matchB = jsonMatch[0].match(/"variant_b"\s*:\s*"([\s\S]*?)"\s*\}?$/);
+        if (matchA && matchB) {
+          variants = { variant_a: matchA[1].replace(/\\n/g, "\n"), variant_b: matchB[1].replace(/\\n/g, "\n") };
+        } else {
+          console.error("Unparseable AI JSON:", jsonMatch[0]);
+          throw new Error("Format de réponse IA invalide, réessaie.");
+        }
+      }
+    }
 
     return new Response(JSON.stringify(variants), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
