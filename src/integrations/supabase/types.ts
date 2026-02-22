@@ -892,6 +892,48 @@ export type Database = {
         }
         Relationships: []
       }
+      import_mappings: {
+        Row: {
+          column_mapping: Json
+          created_at: string | null
+          date_column: number | null
+          date_format: string | null
+          file_name: string | null
+          headers: Json | null
+          id: string
+          sheet_name: string | null
+          start_row: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          column_mapping?: Json
+          created_at?: string | null
+          date_column?: number | null
+          date_format?: string | null
+          file_name?: string | null
+          headers?: Json | null
+          id?: string
+          sheet_name?: string | null
+          start_row?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          column_mapping?: Json
+          created_at?: string | null
+          date_column?: number | null
+          date_format?: string | null
+          file_name?: string | null
+          headers?: Json | null
+          id?: string
+          sheet_name?: string | null
+          start_row?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       inspiration_accounts: {
         Row: {
           account_handle: string

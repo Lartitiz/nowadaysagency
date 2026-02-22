@@ -21,6 +21,7 @@ import {
   Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from "recharts";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
+import ExcelImportDialog from "@/components/stats/ExcelImportDialog";
 import * as XLSX from "xlsx";
 
 /* ═══════════════════════════════════════════════
@@ -238,6 +239,7 @@ export default function InstagramStats() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [compareA, setCompareA] = useState("");
   const [compareB, setCompareB] = useState("");
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   // Period selector
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("this_month");
@@ -1020,12 +1022,9 @@ export default function InstagramStats() {
                   {monthOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <label className="ml-auto cursor-pointer">
-                <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelImport} />
-                <Button variant="outline" size="sm" className="gap-1.5 pointer-events-none" tabIndex={-1}>
-                  <Upload className="h-3.5 w-3.5" /> Importer (Excel)
-                </Button>
-              </label>
+              <Button variant="outline" size="sm" className="gap-1.5 ml-auto" onClick={() => setShowImportDialog(true)}>
+                <Upload className="h-3.5 w-3.5" /> Importer (Excel)
+              </Button>
             </div>
 
             <Accordion type="multiple" defaultValue={["instagram"]} className="space-y-2">
@@ -1261,6 +1260,7 @@ export default function InstagramStats() {
           </TabsContent>
         </Tabs>
       </main>
+      {user && <ExcelImportDialog open={showImportDialog} onOpenChange={setShowImportDialog} userId={user.id} onImportComplete={loadStats} />}
     </div>
   );
 }
