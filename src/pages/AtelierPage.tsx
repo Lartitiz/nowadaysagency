@@ -335,18 +335,8 @@ export default function AtelierPage() {
         )}
 
         {/* Dictate mode */}
-        {!fromCalendar && atelierMode === "dictate" && (
-          <ContentWorkshop onSave={(content, format) => {
-            if (!user) return;
-            supabase.from("saved_ideas").insert({
-              user_id: user.id,
-              titre: content.slice(0, 60),
-              format,
-              angle: content.slice(0, 120),
-              canal,
-              objectif: objectif || null,
-            }).then(() => toast({ title: "Contenu enregistré !" }));
-          }} />
+        {!fromCalendar && atelierMode === "dictate" && profile && (
+          <ContentWorkshop profile={profile} onIdeaGenerated={() => {}} />
         )}
 
         {/* Hide selectors when coming from calendar (unless user wants to edit) */}
