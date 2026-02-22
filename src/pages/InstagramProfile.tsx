@@ -139,10 +139,10 @@ export default function InstagramProfile() {
               Envoie des screenshots de ton profil Instagram. L'IA va analyser ton compte et te donner un score avec des recommandations personnalisées basées sur ton branding.
             </p>
             <div className="flex gap-3 flex-wrap">
-              <Link to="/instagram/profil/audit">
+              <Link to="/instagram/audit">
                 <Button className="rounded-pill gap-2">
                   <Sparkles className="h-4 w-4" />
-                  Lancer l'audit
+                  🔍 Lancer mon premier audit
                 </Button>
               </Link>
               <Button variant="outline" className="rounded-pill" onClick={() => {}}>
@@ -180,9 +180,17 @@ export default function InstagramProfile() {
                 "{audit.resume}"
               </p>
             )}
-            <div className="text-center mt-4">
-              <Link to="/instagram/profil/audit" className="text-xs text-primary hover:underline font-medium">
-                🔄 Refaire un audit
+            <div className="flex flex-wrap justify-center gap-3 mt-4">
+              <Link to="/instagram/audit?view=results">
+                <Button size="sm" className="rounded-pill gap-1.5">
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  📊 Voir mes résultats
+                </Button>
+              </Link>
+              <Link to="/instagram/audit?view=form">
+                <Button variant="outline" size="sm" className="rounded-pill gap-1.5">
+                  🔄 Refaire l'audit
+                </Button>
               </Link>
             </div>
           </div>

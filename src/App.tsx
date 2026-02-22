@@ -115,7 +115,8 @@ const App = () => (
             <Route path="/instagram" element={<ProtectedRoute><InstagramHub /></ProtectedRoute>} />
             <Route path="/instagram/profil" element={<ProtectedRoute><InstagramProfile /></ProtectedRoute>} />
             <Route path="/instagram/stats" element={<ProtectedRoute><InstagramStats /></ProtectedRoute>} />
-            <Route path="/instagram/profil/audit" element={<ProtectedRoute><InstagramAudit /></ProtectedRoute>} />
+            <Route path="/instagram/audit" element={<ProtectedRoute><InstagramAudit /></ProtectedRoute>} />
+            <Route path="/instagram/profil/audit" element={<Navigate to="/instagram/audit" replace />} />
             <Route path="/instagram/profil/nom" element={<ProtectedRoute><InstagramProfileNom /></ProtectedRoute>} />
             <Route path="/instagram/profil/bio" element={<ProtectedRoute><InstagramBio /></ProtectedRoute>} />
             <Route path="/instagram/profil/stories" element={<ProtectedRoute><InstagramHighlights /></ProtectedRoute>} />

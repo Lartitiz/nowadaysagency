@@ -958,6 +958,8 @@ export type Database = {
       instagram_audit: {
         Row: {
           best_content: string | null
+          best_posts: Json | null
+          best_posts_comment: string | null
           combo_gagnant: string | null
           content_analysis: Json | null
           content_dna: Json | null
@@ -967,6 +969,7 @@ export type Database = {
           editorial_recommendations: Json | null
           id: string
           main_objective: string | null
+          posts_analysis: Json | null
           profile_url: string | null
           resume: string | null
           score_bio: number | null
@@ -980,9 +983,13 @@ export type Database = {
           unsuccessful_content_notes: string | null
           user_id: string
           worst_content: string | null
+          worst_posts: Json | null
+          worst_posts_comment: string | null
         }
         Insert: {
           best_content?: string | null
+          best_posts?: Json | null
+          best_posts_comment?: string | null
           combo_gagnant?: string | null
           content_analysis?: Json | null
           content_dna?: Json | null
@@ -992,6 +999,7 @@ export type Database = {
           editorial_recommendations?: Json | null
           id?: string
           main_objective?: string | null
+          posts_analysis?: Json | null
           profile_url?: string | null
           resume?: string | null
           score_bio?: number | null
@@ -1005,9 +1013,13 @@ export type Database = {
           unsuccessful_content_notes?: string | null
           user_id: string
           worst_content?: string | null
+          worst_posts?: Json | null
+          worst_posts_comment?: string | null
         }
         Update: {
           best_content?: string | null
+          best_posts?: Json | null
+          best_posts_comment?: string | null
           combo_gagnant?: string | null
           content_analysis?: Json | null
           content_dna?: Json | null
@@ -1017,6 +1029,7 @@ export type Database = {
           editorial_recommendations?: Json | null
           id?: string
           main_objective?: string | null
+          posts_analysis?: Json | null
           profile_url?: string | null
           resume?: string | null
           score_bio?: number | null
@@ -1030,6 +1043,8 @@ export type Database = {
           unsuccessful_content_notes?: string | null
           user_id?: string
           worst_content?: string | null
+          worst_posts?: Json | null
+          worst_posts_comment?: string | null
         }
         Relationships: []
       }

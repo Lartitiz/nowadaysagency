@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Upload, X, Sparkles, Loader2 } from "lucide-react";
+import { Upload, X, Sparkles, Loader2, ImagePlus } from "lucide-react";
 
 const FREQUENCY_OPTIONS = ["Tous les jours", "3-4x/semaine", "1-2x/semaine", "Moins d'1x/semaine", "Irrégulier"];
 
@@ -27,15 +27,66 @@ export interface AuditFormData {
   profileScreenshots: File[];
   feedScreenshot: File | null;
   highlightsScreenshot: File | null;
+  // Post analysis uploads
+  bestPostFiles: File[];
+  worstPostFiles: File[];
+  bestPostsComment: string;
+  worstPostsComment: string;
 }
 
 interface AuditInputFormProps {
   initial?: Partial<AuditFormData>;
   onSubmit: (data: AuditFormData) => void;
   loading: boolean;
+  isRedo?: boolean;
 }
 
-export default function AuditInputForm({ initial, onSubmit, loading }: AuditInputFormProps) {
+function FileUploadGrid({ files, onAdd, onRemove, maxFiles = 5, label }: {
+  files: File[];
+  onAdd: (files: FileList) => void;
+  onRemove: (index: number) => void;
+  maxFiles?: number;
+  label: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div>
+      <div className="flex flex-wrap gap-3">
+        {files.map((f, i) => (
+          <div key={i} className="relative w-24 h-24 rounded-xl border border-border bg-muted/30 overflow-hidden group">
+            <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+            <button
+              onClick={() => onRemove(i)}
+              className="absolute top-1 right-1 bg-background/80 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <X className="h-3 w-3" />
+            </button>
+            <span className="absolute bottom-1 left-1 text-[9px] bg-background/80 rounded px-1 py-0.5">✅</span>
+          </div>
+        ))}
+        {files.length < maxFiles && (
+          <button
+            onClick={() => ref.current?.click()}
+            className="w-24 h-24 rounded-xl border-2 border-dashed border-border bg-muted/20 flex flex-col items-center justify-center gap-1 hover:border-primary/50 transition-colors"
+          >
+            <ImagePlus className="h-5 w-5 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground">Ajouter</span>
+          </button>
+        )}
+      </div>
+      <input
+        ref={ref}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,application/pdf"
+        multiple
+        className="hidden"
+        onChange={(e) => { if (e.target.files) onAdd(e.target.files); e.target.value = ""; }}
+      />
+    </div>
+  );
+}
+
+export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: AuditInputFormProps) {
   const [form, setForm] = useState<AuditFormData>({
     displayName: initial?.displayName || "",
     username: initial?.username || "",
@@ -56,6 +107,10 @@ export default function AuditInputForm({ initial, onSubmit, loading }: AuditInpu
     profileScreenshots: [],
     feedScreenshot: null,
     highlightsScreenshot: null,
+    bestPostFiles: [],
+    worstPostFiles: [],
+    bestPostsComment: initial?.bestPostsComment || "",
+    worstPostsComment: initial?.worstPostsComment || "",
   });
 
   const profileRef = useRef<HTMLInputElement>(null);
@@ -70,8 +125,23 @@ export default function AuditInputForm({ initial, onSubmit, loading }: AuditInpu
     set("profileScreenshots", [...form.profileScreenshots, ...arr]);
   };
 
+  const addPostFiles = (field: "bestPostFiles" | "worstPostFiles", fl: FileList) => {
+    const current = form[field];
+    const newFiles = Array.from(fl).filter((f) => f.size <= 5 * 1024 * 1024);
+    const combined = [...current, ...newFiles].slice(0, 5);
+    set(field, combined);
+  };
+
   return (
     <div className="space-y-8">
+      {isRedo && (
+        <div className="rounded-2xl border border-primary/30 bg-rose-pale p-4">
+          <p className="text-sm text-foreground">
+            🔄 Tes infos du dernier audit sont <strong>pré-remplies</strong>. Mets à jour ce qui a changé.
+          </p>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-border bg-card p-5">
         <p className="text-sm text-muted-foreground mb-1">
           Remplis les infos de ton profil. Plus c'est précis, plus l'audit sera pertinent.
@@ -98,7 +168,7 @@ export default function AuditInputForm({ initial, onSubmit, loading }: AuditInpu
         <h3 className="text-sm font-bold text-foreground">📝 TA BIO</h3>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Copie-colle ta bio Instagram ici :</label>
-          <Textarea value={form.bio} onChange={(e) => set("bio", e.target.value)} placeholder="Communication éthique pour créatrices engagées ✨&#10;Fondatrice @nowadaysagency&#10;Prof de com' ENSAD + Sup de Pub&#10;↓ Mini-formation gratuite" className="min-h-[100px]" />
+          <Textarea value={form.bio} onChange={(e) => set("bio", e.target.value)} placeholder={"Communication éthique pour créatrices engagées ✨\nFondatrice @nowadaysagency\nProf de com' ENSAD + Sup de Pub\n↓ Mini-formation gratuite"} className="min-h-[100px]" />
           <p className="text-xs text-muted-foreground mt-1 italic">💡 Tu la trouves dans Instagram › Modifier le profil</p>
         </div>
       </section>
@@ -175,6 +245,65 @@ export default function AuditInputForm({ initial, onSubmit, loading }: AuditInpu
             </div>
           )}
         </div>
+      </section>
+
+      {/* ── Mes Posts (meilleurs + pires) ── */}
+      <section className="space-y-4">
+        <h3 className="text-sm font-bold text-foreground">📊 MES POSTS</h3>
+
+        {isRedo && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 p-3">
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              ⚠️ Les captures du dernier audit ne sont pas réutilisées (tes stats ont changé). Uploade les nouveaux.
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          <label className="text-xs font-semibold text-foreground block">
+            🟢 Tes posts qui ont LE MIEUX marché ce mois :
+          </label>
+          <FileUploadGrid
+            files={form.bestPostFiles}
+            onAdd={(fl) => addPostFiles("bestPostFiles", fl)}
+            onRemove={(i) => set("bestPostFiles", form.bestPostFiles.filter((_, j) => j !== i))}
+            label="meilleur post"
+          />
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Pourquoi tu penses qu'ils ont bien marché ? (optionnel)</label>
+            <Textarea
+              value={form.bestPostsComment}
+              onChange={(e) => set("bestPostsComment", e.target.value)}
+              placeholder="Le carrousel sur les erreurs de bio a eu beaucoup de saves et le Reel a bien tourné en organique"
+              className="min-h-[60px]"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-xs font-semibold text-foreground block">
+            🔴 Tes posts qui ont LE MOINS marché :
+          </label>
+          <FileUploadGrid
+            files={form.worstPostFiles}
+            onAdd={(fl) => addPostFiles("worstPostFiles", fl)}
+            onRemove={(i) => set("worstPostFiles", form.worstPostFiles.filter((_, j) => j !== i))}
+            label="pire post"
+          />
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Pourquoi tu penses qu'ils n'ont pas marché ? (optionnel)</label>
+            <Textarea
+              value={form.worstPostsComment}
+              onChange={(e) => set("worstPostsComment", e.target.value)}
+              placeholder="Le post citation a fait 0 save et le Reel tuto était trop long"
+              className="min-h-[60px]"
+            />
+          </div>
+        </div>
+
+        <p className="text-xs text-muted-foreground italic">
+          💡 Tu peux uploader des PNG, JPG ou PDF (5 Mo max par fichier). Les captures d'écran des stats du post sont idéales : Instagram › Post › "Voir les statistiques"
+        </p>
       </section>
 
       {/* ── Chiffres ── */}
