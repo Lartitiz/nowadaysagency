@@ -8,6 +8,7 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
+import WelcomePage from "./pages/WelcomePage";
 import Dashboard from "./pages/Dashboard";
 import IdeasPage from "./pages/IdeasPage";
 import Profile from "./pages/Profile";
@@ -101,6 +102,7 @@ const App = () => (
             {/* /plan is handled below as a protected route */}
             <Route path="/now-studio" element={<Navigate to="/studio/discover" replace />} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+            <Route path="/welcome" element={<ProtectedRoute><WelcomePage /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/idees" element={<ProtectedRoute><IdeasPage /></ProtectedRoute>} />
             <Route path="/branding" element={<ProtectedRoute><BrandingPage /></ProtectedRoute>} />

@@ -45,15 +45,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (path === "/" || path === "/login" || path === "/connexion") {
             setTimeout(async () => {
               if (!mounted) return;
-              const { data: profile } = await supabase
-                .from("profiles")
-                .select("onboarding_completed")
-                .eq("user_id", currentSession.user.id)
-                .maybeSingle();
+              const [{ data: profile }, { data: config }] = await Promise.all([
+                supabase
+                  .from("profiles")
+                  .select("onboarding_completed")
+                  .eq("user_id", currentSession.user.id)
+                  .maybeSingle(),
+                supabase
+                  .from("user_plan_config")
+                  .select("onboarding_completed, welcome_seen")
+                  .eq("user_id", currentSession.user.id)
+                  .maybeSingle(),
+              ]);
 
               if (!mounted) return;
-              if (!profile || !profile.onboarding_completed) {
+              const onboardingDone = profile?.onboarding_completed && config?.onboarding_completed;
+              if (!onboardingDone) {
                 navigate("/onboarding");
+              } else if (!config?.welcome_seen) {
+                navigate("/welcome");
               } else {
                 navigate("/dashboard");
               }
@@ -79,19 +89,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (initialSession?.user) {
         const path = window.location.pathname;
         if (path === "/" || path === "/login" || path === "/connexion") {
-          supabase
-            .from("profiles")
-            .select("onboarding_completed")
-            .eq("user_id", initialSession.user.id)
-            .maybeSingle()
-            .then(({ data: profile }) => {
-              if (!mounted) return;
-              if (!profile || !profile.onboarding_completed) {
-                navigate("/onboarding");
-              } else {
-                navigate("/dashboard");
-              }
-            });
+          Promise.all([
+            supabase
+              .from("profiles")
+              .select("onboarding_completed")
+              .eq("user_id", initialSession.user.id)
+              .maybeSingle(),
+            supabase
+              .from("user_plan_config")
+              .select("onboarding_completed, welcome_seen")
+              .eq("user_id", initialSession.user.id)
+              .maybeSingle(),
+          ]).then(([{ data: profile }, { data: config }]) => {
+            if (!mounted) return;
+            const onboardingDone = profile?.onboarding_completed && config?.onboarding_completed;
+            if (!onboardingDone) {
+              navigate("/onboarding");
+            } else if (!config?.welcome_seen) {
+              navigate("/welcome");
+            } else {
+              navigate("/dashboard");
+            }
+          });
         }
       }
 

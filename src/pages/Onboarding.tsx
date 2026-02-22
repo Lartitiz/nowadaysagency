@@ -1,34 +1,31 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
-import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
 import Confetti from "@/components/Confetti";
 
-const ACTIVITY_TYPES = [
-  { id: "creatrice", label: "Créatrice / Artisane", desc: "Tu fabriques des produits" },
-  { id: "freelance", label: "Freelance", desc: "Graphisme, com', photo, rédaction…" },
-  { id: "prestataire", label: "Prestataire / Consultante", desc: "Tu vends ton expertise" },
-  { id: "accompagnante", label: "Coach / Formatrice", desc: "Tu guides des personnes" },
-  { id: "autre", label: "Autre", desc: "Aucune case ne te va" },
+const GOAL_OPTIONS = [
+  { key: "start", emoji: "🌱", label: "Poser les bases de ma com' (je démarre)" },
+  { key: "visibility", emoji: "📱", label: "Être plus visible sur les réseaux" },
+  { key: "launch", emoji: "🎁", label: "Lancer une offre ou un produit" },
+  { key: "clients", emoji: "🎯", label: "Trouver des client·es" },
+  { key: "structure", emoji: "🗂️", label: "Structurer ce que je fais déjà" },
 ];
 
-const PILIERS = [
-  "Coulisses / fabrication",
-  "Éducation / pédagogie",
-  "Valeurs / engagements",
-  "Témoignages clients",
-  "Vie d'entrepreneuse",
-  "Inspiration / tendances",
-  "Conseils pratiques",
-  "Storytelling personnel",
+const LEVEL_OPTIONS = [
+  { key: "beginner", emoji: "🐣", label: "Je démarre", desc: "Pas encore de compte ou très récent" },
+  { key: "intermediate", emoji: "🐥", label: "J'ai un compte mais je poste au feeling", desc: "" },
+  { key: "advanced", emoji: "🦅", label: "J'ai déjà une stratégie, je veux l'optimiser", desc: "" },
 ];
 
-const TONS = [
-  "Chaleureux", "Expert·e", "Drôle", "Engagé·e", "Poétique", "Direct", "Inspirant·e",
+const TIME_OPTIONS = [
+  { key: "less_2h", emoji: "⏰", label: "Moins de 2h", desc: "L'essentiel en mode express" },
+  { key: "2_5h", emoji: "⏰", label: "2 à 5h", desc: "Le bon équilibre" },
+  { key: "5_10h", emoji: "⏰", label: "5 à 10h", desc: "Tu peux aller loin" },
+  { key: "more_10h", emoji: "⏰", label: "Plus de 10h", desc: "La com' c'est ton truc" },
 ];
 
 export default function Onboarding() {
@@ -38,86 +35,99 @@ export default function Onboarding() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Pre-fill from landing page signup
   const storedPrenom = localStorage.getItem("lac_prenom") || "";
   const storedActivite = localStorage.getItem("lac_activite") || "";
-  const hasLandingData = !!(storedPrenom && storedActivite);
 
-  // Start at step 2 if we already have prénom + activité from the landing form
-  const [step, setStep] = useState(hasLandingData ? 2 : 1);
-
+  const [step, setStep] = useState(1);
   const [prenom, setPrenom] = useState(storedPrenom);
   const [activite, setActivite] = useState(storedActivite);
-  const [typeActivite, setTypeActivite] = useState("");
-  const [cible, setCible] = useState("");
-  const [probleme, setProbleme] = useState("");
-  const [piliers, setPiliers] = useState<string[]>([]);
-  const [tons, setTons] = useState<string[]>([]);
+  const [mainGoal, setMainGoal] = useState("");
+  const [level, setLevel] = useState("");
+  const [weeklyTime, setWeeklyTime] = useState("");
 
-  const togglePilier = (p: string) =>
-    setPiliers((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : prev.length < 4 ? [...prev, p] : prev);
-
-  const toggleTon = (t: string) =>
-    setTons((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
+  // Load existing profile data
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      const [{ data: profile }, { data: config }] = await Promise.all([
+        supabase.from("profiles").select("prenom, activite, main_goal, level, weekly_time").eq("user_id", user.id).maybeSingle(),
+        supabase.from("user_plan_config").select("main_goal, level, weekly_time, onboarding_completed").eq("user_id", user.id).maybeSingle(),
+      ]);
+      if (config?.onboarding_completed) {
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+      if (profile) {
+        if (profile.prenom) setPrenom(profile.prenom);
+        if (profile.activite) setActivite(profile.activite);
+        if (profile.main_goal) setMainGoal(profile.main_goal);
+        if (profile.level) setLevel(profile.level);
+        if (profile.weekly_time) setWeeklyTime(profile.weekly_time);
+        // Skip step 1 if name/activity already filled
+        if (profile.prenom && profile.activite) setStep(2);
+      }
+      if (config) {
+        if (config.main_goal && config.main_goal !== 'start') setMainGoal(config.main_goal);
+        if (config.level && config.level !== 'beginner') setLevel(config.level);
+        if (config.weekly_time && config.weekly_time !== 'less_2h') setWeeklyTime(config.weekly_time);
+      }
+    };
+    load();
+  }, [user?.id]);
 
   const canNext = () => {
-    if (step === 1) return prenom.trim() && activite.trim() && typeActivite;
-    if (step === 2) return cible.trim() && probleme.trim();
-    if (step === 3) return piliers.length >= 3 && tons.length >= 1;
+    if (step === 1) return prenom.trim().length > 0 && activite.trim().length > 0;
+    if (step === 2) return mainGoal && level;
+    if (step === 3) return !!weeklyTime;
     return true;
   };
-
-  // Total steps: if we skipped step 1, we show steps 2-4 (displayed as 1-3)
-  const totalSteps = hasLandingData ? 3 : 4;
-  const displayStep = hasLandingData ? step - 1 : step;
-  const lastStep = 4;
 
   const handleFinish = async () => {
     if (!user) return;
     setSaving(true);
     try {
-      // Check if profile already exists (created during landing signup)
+      // Update profiles
       const { data: existingProfile } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+        .from("profiles").select("id").eq("user_id", user.id).maybeSingle();
+
+      const profileData = {
+        prenom,
+        activite,
+        main_goal: mainGoal,
+        level,
+        weekly_time: weeklyTime,
+        onboarding_completed: true,
+      };
 
       if (existingProfile) {
-        // Update existing profile
-        const { error } = await supabase.from("profiles").update({
-          prenom,
-          activite,
-          type_activite: typeActivite,
-          cible,
-          probleme_principal: probleme,
-          piliers,
-          tons,
-          onboarding_completed: true,
-        }).eq("user_id", user.id);
-        if (error) throw error;
+        await supabase.from("profiles").update(profileData).eq("user_id", user.id);
       } else {
-        // Insert new profile
-        const { error } = await supabase.from("profiles").insert({
-          user_id: user.id,
-          prenom,
-          activite,
-          type_activite: typeActivite,
-          cible,
-          probleme_principal: probleme,
-          piliers,
-          tons,
-          onboarding_completed: true,
-        });
-        if (error) throw error;
+        await supabase.from("profiles").insert({ user_id: user.id, ...profileData });
       }
 
-      // Clean up localStorage
+      // Upsert user_plan_config
+      const { data: existingConfig } = await supabase
+        .from("user_plan_config").select("id").eq("user_id", user.id).maybeSingle();
+
+      const configData = {
+        main_goal: mainGoal,
+        level,
+        weekly_time: weeklyTime,
+        onboarding_completed: true,
+        onboarding_completed_at: new Date().toISOString(),
+      };
+
+      if (existingConfig) {
+        await supabase.from("user_plan_config").update(configData).eq("user_id", user.id);
+      } else {
+        await supabase.from("user_plan_config").insert({ user_id: user.id, ...configData });
+      }
+
       localStorage.removeItem("lac_prenom");
       localStorage.removeItem("lac_activite");
 
       setShowConfetti(true);
-      setTimeout(() => navigate("/dashboard"), 2000);
+      setTimeout(() => navigate("/welcome"), 1800);
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     } finally {
@@ -126,191 +136,219 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-rose-pale flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8">
       {showConfetti && <Confetti />}
-      <div className="w-full max-w-lg animate-fade-in">
-        {/* Progress */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {Array.from({ length: totalSteps }).map((_, i) => (
-            <div
-              key={i}
-              className={`h-3 w-3 rounded-full transition-all ${
-                i + 1 <= displayStep ? "bg-primary scale-110" : "bg-secondary"
-              }`}
-            />
-          ))}
-        </div>
+      <div className="w-full max-w-lg">
+        {/* Step 1: Name + Activity */}
+        {step === 1 && (
+          <div className="animate-fade-in space-y-6">
+            <div className="text-center space-y-3">
+              <span className="text-4xl">✨</span>
+              <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
+                Bienvenue sur L'Assistant Com'
+              </h1>
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
+                L'outil qui t'aide à poser, structurer et piloter toute ta communication. À ton rythme.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                On va prendre 1 minute pour personnaliser ton expérience.
+              </p>
+            </div>
 
-        <div className="rounded-2xl bg-card p-8 shadow-sm border border-border">
-          {/* Step 1 */}
-          {step === 1 && (
-            <div className="space-y-5 animate-fade-in">
-              <h2 className="font-display text-2xl font-bold">Dis-moi qui tu es</h2>
+            <div className="rounded-2xl bg-card border border-border p-6 space-y-5">
               <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Prénom</label>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">
+                  Comment tu t'appelles ?
+                </label>
                 <Input
                   value={prenom}
                   onChange={(e) => setPrenom(e.target.value)}
-                  placeholder="Comment tu t'appelles ?"
-                  className="rounded-[10px] h-12"
+                  placeholder="Ton prénom"
+                  className="rounded-xl h-12"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Ton activité en une phrase</label>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">
+                  Qu'est-ce que tu fais ? (en une phrase)
+                </label>
                 <Input
                   value={activite}
                   onChange={(e) => setActivite(e.target.value)}
-                  placeholder="Ex : Je crée des bijoux en céramique faits main"
-                  className="rounded-[10px] h-12"
+                  placeholder='Ex : "Coach bien-être", "Graphiste freelance", "Créatrice de bijoux éthiques"'
+                  className="rounded-xl h-12"
                 />
               </div>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Type d'activité</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {ACTIVITY_TYPES.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => setTypeActivite(t.id)}
-                      className={`rounded-lg border-2 p-4 text-left transition-all ${
-                        typeActivite === t.id
-                          ? "border-primary bg-secondary"
-                          : "border-border hover:border-primary/40"
-                      }`}
-                    >
-                      <span className="block text-sm font-semibold">{t.label}</span>
-                      <span className="block text-xs text-muted-foreground mt-1">{t.desc}</span>
-                    </button>
-                  ))}
-                </div>
+
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => setStep(2)}
+                  disabled={!canNext()}
+                  className="rounded-pill"
+                >
+                  C'est parti →
+                </Button>
               </div>
             </div>
-          )}
 
-          {/* Step 2 */}
-          {step === 2 && (
-            <div className="space-y-5 animate-fade-in">
-              <h2 className="font-display text-2xl font-bold">Ta cliente idéale</h2>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Elle ressemble à quoi, ta cliente ?</label>
-                <Textarea
-                  value={cible}
-                  onChange={(e) => setCible(e.target.value)}
-                  placeholder="Ex : Des femmes de 30-45 ans qui veulent consommer mieux..."
-                  className="rounded-[10px] min-h-[100px]"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Son problème principal (celui que tu résous)</label>
-                <Input
-                  value={probleme}
-                  onChange={(e) => setProbleme(e.target.value)}
-                  placeholder="Ex : Elle ne sait pas comment s'habiller éthique sans se ruiner"
-                  className="rounded-[10px] h-12"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Step 3 */}
-          {step === 3 && (
-            <div className="space-y-5 animate-fade-in">
-              <h2 className="font-display text-2xl font-bold">Tes thématiques</h2>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">
-                  De quoi tu parles sur tes réseaux ? Choisis les grandes thématiques qui te ressemblent (3-4 max).
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {PILIERS.map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => togglePilier(p)}
-                      className={`rounded-pill px-4 py-2 text-sm font-medium border transition-all ${
-                        piliers.includes(p)
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-card text-foreground border-border hover:border-primary/40"
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">
-                  Ton ton sur les réseaux
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {TONS.map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => toggleTon(t)}
-                      className={`rounded-pill px-4 py-2 text-sm font-medium border transition-all ${
-                        tons.includes(t)
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-card text-foreground border-border hover:border-primary/40"
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 4 */}
-          {step === 4 && (
-            <div className="space-y-5 animate-fade-in">
-              <h2 className="font-display text-2xl font-bold">Tout est bon !</h2>
-              <div className="rounded-xl bg-rose-pale p-5 space-y-2">
-                <p className="text-sm"><strong>Prénom :</strong> {prenom}</p>
-                <p className="text-sm"><strong>Activité :</strong> {activite}</p>
-                <p className="text-sm"><strong>Type :</strong> {ACTIVITY_TYPES.find(t => t.id === typeActivite)?.label}</p>
-                <p className="text-sm"><strong>Cible :</strong> {cible}</p>
-                <p className="text-sm"><strong>Problème :</strong> {probleme}</p>
-                <p className="text-sm"><strong>Thématiques :</strong> {piliers.join(", ")}</p>
-                <p className="text-sm"><strong>Ton :</strong> {tons.join(", ")}</p>
-              </div>
-              <div className="rounded-xl border-2 border-yellow bg-accent/20 p-5">
-                <p className="text-sm font-medium">
-                  L'Assistant Com' va utiliser ces infos pour te proposer des idées de contenu
-                  personnalisées, adaptées à ta cible et à ton ton. Prête ?
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Navigation */}
-          <div className="flex justify-between mt-8">
-            {step > (hasLandingData ? 2 : 1) ? (
-              <Button
-                variant="outline"
-                onClick={() => setStep(step - 1)}
-                className="rounded-pill"
-              >
-                Retour
-              </Button>
-            ) : <div />}
-            {step < lastStep ? (
-              <Button
-                onClick={() => setStep(step + 1)}
-                disabled={!canNext()}
-                className="rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux"
-              >
-                Continuer
-              </Button>
-            ) : (
-              <Button
-                onClick={handleFinish}
-                disabled={saving}
-                className="rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux"
-              >
-                {saving ? "Un instant..." : "Accéder à mon atelier ✨"}
-              </Button>
-            )}
+            <ProgressDots current={1} total={3} />
           </div>
-        </div>
+        )}
+
+        {/* Step 2: Goal + Level */}
+        {step === 2 && (
+          <div className="animate-fade-in space-y-6">
+            <div className="text-center space-y-2">
+              <h1 className="font-display text-2xl font-bold text-foreground">
+                Salut {prenom} 👋
+              </h1>
+            </div>
+
+            <div className="rounded-2xl bg-card border border-border p-6 space-y-6">
+              <div>
+                <h3 className="text-sm font-medium text-foreground mb-3">
+                  C'est quoi ton objectif principal en ce moment ?
+                </h3>
+                <div className="space-y-2">
+                  {GOAL_OPTIONS.map((g) => (
+                    <OptionCard
+                      key={g.key}
+                      emoji={g.emoji}
+                      label={g.label}
+                      selected={mainGoal === g.key}
+                      onClick={() => setMainGoal(g.key)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-foreground mb-3">
+                  Et t'en es où avec ta com' ?
+                </h3>
+                <div className="space-y-2">
+                  {LEVEL_OPTIONS.map((l) => (
+                    <OptionCard
+                      key={l.key}
+                      emoji={l.emoji}
+                      label={l.label}
+                      desc={l.desc}
+                      selected={level === l.key}
+                      onClick={() => setLevel(l.key)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={() => setStep(1)} className="rounded-pill">
+                  ← Retour
+                </Button>
+                <Button onClick={() => setStep(3)} disabled={!canNext()} className="rounded-pill">
+                  Suivant →
+                </Button>
+              </div>
+            </div>
+
+            <ProgressDots current={2} total={3} />
+          </div>
+        )}
+
+        {/* Step 3: Weekly Time */}
+        {step === 3 && (
+          <div className="animate-fade-in space-y-6">
+            <div className="text-center space-y-2">
+              <h1 className="font-display text-2xl font-bold text-foreground">
+                Dernière question {prenom},
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Tu peux consacrer combien de temps par semaine à ta com' ?
+              </p>
+              <p className="text-xs text-muted-foreground italic">
+                (Pas de jugement. L'outil s'adapte à TON rythme.)
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-card border border-border p-6 space-y-4">
+              <div className="space-y-2">
+                {TIME_OPTIONS.map((t) => (
+                  <OptionCard
+                    key={t.key}
+                    emoji={t.emoji}
+                    label={t.label}
+                    desc={t.desc}
+                    selected={weeklyTime === t.key}
+                    onClick={() => setWeeklyTime(t.key)}
+                  />
+                ))}
+              </div>
+
+              <div className="flex justify-between pt-2">
+                <Button variant="outline" onClick={() => setStep(2)} className="rounded-pill">
+                  ← Retour
+                </Button>
+                <Button
+                  onClick={handleFinish}
+                  disabled={!canNext() || saving}
+                  className="rounded-pill"
+                >
+                  {saving ? "Un instant..." : "Voir mon plan →"}
+                </Button>
+              </div>
+            </div>
+
+            <ProgressDots current={3} total={3} />
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+function ProgressDots({ current, total }: { current: number; total: number }) {
+  return (
+    <div className="flex items-center justify-center gap-2 pt-2">
+      {Array.from({ length: total }).map((_, i) => (
+        <div
+          key={i}
+          className={`h-2.5 w-2.5 rounded-full transition-all ${
+            i + 1 === current ? "bg-primary scale-110" : "bg-border"
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function OptionCard({
+  emoji,
+  label,
+  desc,
+  selected,
+  onClick,
+}: {
+  emoji: string;
+  label: string;
+  desc?: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full text-left rounded-xl border-2 px-4 py-3.5 transition-all ${
+        selected
+          ? "border-primary bg-secondary"
+          : "border-border hover:border-primary/40 bg-card"
+      }`}
+    >
+      <span className="flex items-center gap-3">
+        <span className="text-lg">{emoji}</span>
+        <span className="flex-1">
+          <span className="text-sm font-medium text-foreground">{label}</span>
+          {desc && <span className="block text-xs text-muted-foreground mt-0.5">{desc}</span>}
+        </span>
+      </span>
+    </button>
   );
 }
