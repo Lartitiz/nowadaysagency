@@ -123,6 +123,10 @@ export default {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
+        "marquee": {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -133,6 +137,7 @@ export default {
         "count-up": "count-up 0.4s ease-out forwards",
         "float": "float 4s ease-in-out infinite",
         "shimmer": "shimmer 2s linear infinite",
+        "marquee": "marquee 25s linear infinite",
       },
     },
   },
