@@ -3,11 +3,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { HelpCircle, ArrowRight } from "lucide-react";
+import SaveButton from "@/components/SaveButton";
+import UnsavedChangesDialog from "@/components/UnsavedChangesDialog";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 
 const PILIERS = [
   "Coulisses / fabrication", "Éducation / pédagogie", "Valeurs / engagements",
@@ -25,6 +27,16 @@ const ACTIVITY_TYPES = [
 ];
 
 type HelpKey = string | null;
+
+interface ProfileData {
+  prenom: string;
+  activite: string;
+  typeActivite: string;
+  cible: string;
+  probleme: string;
+  piliers: string[];
+  tons: string[];
+}
 
 function HelpToggle({ text, fieldKey, openHelp, setOpenHelp }: { text: string; fieldKey: string; openHelp: HelpKey; setOpenHelp: (k: HelpKey) => void }) {
   const isOpen = openHelp === fieldKey;
@@ -48,13 +60,15 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [openHelp, setOpenHelp] = useState<HelpKey>(null);
 
-  const [prenom, setPrenom] = useState("");
-  const [activite, setActivite] = useState("");
-  const [typeActivite, setTypeActivite] = useState("");
-  const [cible, setCible] = useState("");
-  const [probleme, setProbleme] = useState("");
-  const [piliers, setPiliers] = useState<string[]>([]);
-  const [tons, setTons] = useState<string[]>([]);
+  const [current, setCurrent] = useState<ProfileData>({
+    prenom: "", activite: "", typeActivite: "", cible: "", probleme: "", piliers: [], tons: [],
+  });
+  const [saved, setSaved] = useState<ProfileData>({
+    prenom: "", activite: "", typeActivite: "", cible: "", probleme: "", piliers: [], tons: [],
+  });
+
+  const hasChanges = JSON.stringify(current) !== JSON.stringify(saved);
+  const blocker = useUnsavedChanges(hasChanges);
 
   useEffect(() => {
     if (!user) return;
@@ -65,22 +79,30 @@ export default function Profile() {
       .single()
       .then(({ data }) => {
         if (data) {
-          setPrenom(data.prenom);
-          setActivite(data.activite);
-          setTypeActivite(data.type_activite);
-          setCible(data.cible);
-          setProbleme(data.probleme_principal);
-          setPiliers(data.piliers || []);
-          setTons(data.tons || []);
+          const loaded: ProfileData = {
+            prenom: data.prenom || "",
+            activite: data.activite || "",
+            typeActivite: data.type_activite || "",
+            cible: data.cible || "",
+            probleme: data.probleme_principal || "",
+            piliers: data.piliers || [],
+            tons: data.tons || [],
+          };
+          setCurrent(loaded);
+          setSaved(loaded);
         }
         setLoading(false);
       });
   }, [user]);
 
+  const update = (field: keyof ProfileData, value: string | string[]) => {
+    setCurrent((prev) => ({ ...prev, [field]: value }));
+  };
+
   const togglePilier = (p: string) =>
-    setPiliers((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : prev.length < 4 ? [...prev, p] : prev);
+    update("piliers", current.piliers.includes(p) ? current.piliers.filter((x) => x !== p) : current.piliers.length < 4 ? [...current.piliers, p] : current.piliers);
   const toggleTon = (t: string) =>
-    setTons((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
+    update("tons", current.tons.includes(t) ? current.tons.filter((x) => x !== t) : [...current.tons, t]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -88,14 +110,21 @@ export default function Profile() {
     const { error } = await supabase
       .from("profiles")
       .update({
-        prenom, activite, type_activite: typeActivite, cible, probleme_principal: probleme, piliers, tons,
+        prenom: current.prenom,
+        activite: current.activite,
+        type_activite: current.typeActivite,
+        cible: current.cible,
+        probleme_principal: current.probleme,
+        piliers: current.piliers,
+        tons: current.tons,
       })
       .eq("user_id", user.id);
     setSaving(false);
     if (error) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "C'est enregistré !" });
+      setSaved({ ...current });
+      toast({ title: "✅ Modifications enregistrées" });
     }
   };
 
@@ -109,7 +138,8 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="mx-auto max-w-2xl px-4 py-8 animate-fade-in">
+      <UnsavedChangesDialog blocker={blocker} />
+      <main className="mx-auto max-w-2xl px-4 py-8 pb-28 animate-fade-in">
         <h1 className="font-display text-3xl font-bold text-bordeaux mb-2">Mon profil</h1>
         <p className="text-sm text-muted-foreground mb-6">Tes infos de base. Pour tout ce qui concerne ta marque (mission, ton, positionnement), c'est dans le module Branding.</p>
 
@@ -129,13 +159,13 @@ export default function Profile() {
           {/* Prénom */}
           <div>
             <label className="text-sm font-medium mb-1.5 block">Prénom</label>
-            <Input value={prenom} onChange={(e) => setPrenom(e.target.value)} className="rounded-[10px] h-12" />
+            <Input value={current.prenom} onChange={(e) => update("prenom", e.target.value)} className="rounded-[10px] h-12" />
           </div>
 
           {/* Activité */}
           <div>
             <label className="text-sm font-medium mb-1.5 block">Activité</label>
-            <Input value={activite} onChange={(e) => setActivite(e.target.value)} className="rounded-[10px] h-12" placeholder="Ex : Céramiste, coach, photographe..." />
+            <Input value={current.activite} onChange={(e) => update("activite", e.target.value)} className="rounded-[10px] h-12" placeholder="Ex : Céramiste, coach, photographe..." />
           </div>
 
           {/* Type d'activité */}
@@ -143,8 +173,8 @@ export default function Profile() {
             <label className="text-sm font-medium mb-1.5 block">Type d'activité</label>
             <div className="grid grid-cols-2 gap-3">
               {ACTIVITY_TYPES.map((t) => (
-                <button key={t.id} onClick={() => setTypeActivite(t.id)}
-                  className={`rounded-lg border-2 p-3 text-left text-sm font-medium transition-all ${typeActivite === t.id ? "border-primary bg-secondary" : "border-border hover:border-primary/40"}`}>
+                <button key={t.id} onClick={() => update("typeActivite", t.id)}
+                  className={`rounded-lg border-2 p-3 text-left text-sm font-medium transition-all ${current.typeActivite === t.id ? "border-primary bg-secondary" : "border-border hover:border-primary/40"}`}>
                   {t.label}
                 </button>
               ))}
@@ -154,14 +184,14 @@ export default function Profile() {
           {/* Cible */}
           <div>
             <label className="text-sm font-medium mb-1.5 block">Ta cliente idéale</label>
-            <Textarea value={cible} onChange={(e) => setCible(e.target.value)} className="rounded-[10px] min-h-[80px]" placeholder="Qui est-elle ? Quel âge, quel style de vie ?" />
+            <Textarea value={current.cible} onChange={(e) => update("cible", e.target.value)} className="rounded-[10px] min-h-[80px]" placeholder="Qui est-elle ? Quel âge, quel style de vie ?" />
             <HelpToggle fieldKey="cible" openHelp={openHelp} setOpenHelp={setOpenHelp} text="Ex : Femmes 30-45 ans, urbaines, sensibles à l'artisanat et au fait-main, qui cherchent des pièces uniques pour leur intérieur." />
           </div>
 
           {/* Problème */}
           <div>
             <label className="text-sm font-medium mb-1.5 block">Problème principal de ta cible</label>
-            <Input value={probleme} onChange={(e) => setProbleme(e.target.value)} className="rounded-[10px] h-12" placeholder="Qu'est-ce qui la bloque ?" />
+            <Input value={current.probleme} onChange={(e) => update("probleme", e.target.value)} className="rounded-[10px] h-12" placeholder="Qu'est-ce qui la bloque ?" />
             <HelpToggle fieldKey="probleme" openHelp={openHelp} setOpenHelp={setOpenHelp} text="Ex : Elle crée des pièces magnifiques mais personne ne les voit sur Instagram." />
           </div>
 
@@ -171,7 +201,7 @@ export default function Profile() {
             <div className="flex flex-wrap gap-2">
               {PILIERS.map((p) => (
                 <button key={p} onClick={() => togglePilier(p)}
-                  className={`rounded-full px-4 py-2 text-sm font-medium border transition-all ${piliers.includes(p) ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                  className={`rounded-full px-4 py-2 text-sm font-medium border transition-all ${current.piliers.includes(p) ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
                   {p}
                 </button>
               ))}
@@ -184,18 +214,21 @@ export default function Profile() {
             <div className="flex flex-wrap gap-2">
               {TONS.map((t) => (
                 <button key={t} onClick={() => toggleTon(t)}
-                  className={`rounded-full px-4 py-2 text-sm font-medium border transition-all ${tons.includes(t) ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                  className={`rounded-full px-4 py-2 text-sm font-medium border transition-all ${current.tons.includes(t) ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
                   {t}
                 </button>
               ))}
             </div>
           </div>
-
-          <Button onClick={handleSave} disabled={saving} className="w-full rounded-full bg-primary text-primary-foreground hover:bg-bordeaux h-12">
-            {saving ? "Enregistrement..." : "Enregistrer les modifications"}
-          </Button>
         </div>
       </main>
+
+      {/* Sticky save button */}
+      <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border p-4 z-40">
+        <div className="mx-auto max-w-2xl">
+          <SaveButton hasChanges={hasChanges} saving={saving} onSave={handleSave} />
+        </div>
+      </div>
     </div>
   );
 }
