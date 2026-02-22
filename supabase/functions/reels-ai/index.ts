@@ -140,24 +140,48 @@ function buildHooksPrompt(objective: string, face_cam: string, subject: string, 
 
   const suggestedFormat = formatMatrix[objective]?.[time_available] || "Mini-tuto (15-45s)";
 
+  const subjectInstruction = subject
+    ? `SUJET DONNÉ PAR L'UTILISATRICE : "${subject}"
+
+RÈGLE CRITIQUE — HOOKS ANCRÉS DANS LE SUJET :
+Chaque hook DOIT être directement lié à "${subject}".
+Chaque hook doit :
+- Mentionner ou référencer "${subject}" explicitement
+- Être une PHRASE COMPLÈTE et SPÉCIFIQUE, prête à être dite face caméra
+- PAS une formule à trous avec [sujet] remplacé mécaniquement
+
+❌ INTERDIT (formules génériques à trous) :
+"Le truc que personne ne te dit sur [sujet]..."
+"3 erreurs qui tuent ta [sujet]."
+"Tu galères avec [problème] ?"
+
+✅ ATTENDU (hooks ancrés, spécifiques, finis) :
+Si le sujet est "les erreurs en bio Instagram" :
+- "J'ai refait ma bio 47 fois avant de comprendre ça."
+- "Ta bio Instagram fait fuir les gens. Et tu sais même pas pourquoi."
+- "Arrête de mettre ton métier dans ta bio. Voilà ce qu'il faut à la place."`
+    : `PAS DE SUJET DONNÉ — propose un sujet pertinent basé sur le contexte branding, puis génère les hooks sur ce sujet. Précise le sujet choisi dans chaque hook.`;
+
   return `DEMANDE : Proposer 3 hooks pour un Reel Instagram.
 
 Objectif : ${objectiveMap[objective] || objective}
 Face cam : ${face_cam}
-Sujet : ${subject || "(pas de sujet fourni — propose un sujet pertinent basé sur le contexte branding)"}
+${subjectInstruction}
 Temps tournage : ${time_available}
 En lancement : ${is_launch ? "oui" : "non"}
 Format suggéré : ${suggestedFormat}
 
-Les 8 formules de hooks à utiliser (choisis-en 3 différentes) :
-1. Curiosité gap : "Le truc que personne ne te dit sur..."
-2. Contrarian : "Arrête de [conseil commun]. Voilà pourquoi."
-3. Erreur : "3 erreurs qui tuent ta [sujet]."
-4. Liste numérotée : "5 façons de [résultat]."
-5. Question directe : "Tu galères avec [problème] ?"
-6. Preuve sociale : "Comment j'ai [résultat] en [durée]."
-7. Story / confession : "Faut que je te raconte ce qui m'est arrivé."
-8. Commande directe : "Sauvegarde ce Reel si tu [cible]."
+Les 8 formules de hooks (choisis-en 3 différentes comme INSPIRATION, pas comme template) :
+1. Curiosité gap — ex : "J'ai découvert un truc sur [aspect précis du sujet]"
+2. Contrarian — ex : "Arrête de [conseil commun lié au sujet]. Voilà pourquoi."
+3. Erreur — ex : "[Nombre] erreurs qui [conséquence spécifique au sujet]"
+4. Liste numérotée — ex : "[Nombre] façons de [résultat spécifique au sujet]"
+5. Question directe — ex : "Tu [frustration spécifique liée au sujet] ?"
+6. Preuve sociale — ex : "Comment j'ai [résultat concret lié au sujet] en [durée]"
+7. Story / confession — ex : "[Anecdote personnelle liée au sujet]"
+8. Commande directe — ex : "Sauvegarde ce Reel si tu [situation liée au sujet]"
+
+RAPPEL : chaque hook est une phrase FINIE et SPÉCIFIQUE au sujet, pas une formule à trous.
 
 Retourne ce JSON exact :
 {
@@ -166,8 +190,8 @@ Retourne ce JSON exact :
       "id": "A",
       "type": "curiosite",
       "type_label": "Curiosité",
-      "text": "Le truc que personne ne te dit sur ta bio Instagram.",
-      "text_overlay": "CE QUE PERSONNE NE TE DIT...",
+      "text": "[PHRASE COMPLÈTE ancrée dans le sujet]",
+      "text_overlay": "[3-5 MOTS EN MAJUSCULES liés au sujet]",
       "format_recommande": "mini_tuto",
       "format_label": "Mini-tuto",
       "duree_cible": "30 sec"
@@ -176,7 +200,7 @@ Retourne ce JSON exact :
       "id": "B",
       "type": "erreur",
       "type_label": "Erreur",
-      "text": "...",
+      "text": "[PHRASE COMPLÈTE ancrée dans le sujet]",
       "text_overlay": "...",
       "format_recommande": "...",
       "format_label": "...",
@@ -186,7 +210,7 @@ Retourne ce JSON exact :
       "id": "C",
       "type": "...",
       "type_label": "...",
-      "text": "...",
+      "text": "[PHRASE COMPLÈTE ancrée dans le sujet]",
       "text_overlay": "...",
       "format_recommande": "...",
       "format_label": "...",
@@ -211,6 +235,15 @@ HOOK CHOISI :
 - Texte overlay : "${selectedHook.text_overlay}"
 - Format recommandé : ${selectedHook.format_label}
 - Durée cible : ${selectedHook.duree_cible}
+
+ANCRAGE SUJET — RÈGLE CRITIQUE :
+Le script ENTIER doit rester ancré dans le sujet "${subject || '(basé sur le hook)'}".
+- Le hook parle de ce sujet
+- Le body développe CE sujet (pas un sujet adjacent ou plus large)
+- Le CTA est lié à CE sujet
+- La caption développe un angle complémentaire de CE sujet
+- Les hashtags sont liés à CE sujet
+Ne PAS élargir au sujet général. Si le sujet est "les erreurs en bio", le Reel parle de la bio, pas d'Instagram en général.
 
 Génère un script complet structuré avec timing seconde par seconde.
 Chaque section body DOIT inclure une indication de CUT (changement de plan).
