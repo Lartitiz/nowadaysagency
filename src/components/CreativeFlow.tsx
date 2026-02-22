@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import BaseReminder from "@/components/BaseReminder";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Button } from "@/components/ui/button";
@@ -558,6 +559,10 @@ export default function CreativeFlow({
             Ton contenu
           </h3>
 
+          <p className="text-[13px] text-muted-foreground italic">
+            Donne-moi un sujet et tes mots. Je m'occupe de la structure.
+          </p>
+
           <Textarea
             value={editedContent}
             onChange={(e) => setEditedContent(e.target.value)}
@@ -641,6 +646,8 @@ export default function CreativeFlow({
               <RefreshCw className="h-3.5 w-3.5" /> Réécrire
             </Button>
           </div>
+
+          <BaseReminder variant="atelier" />
         </div>
       )}
     </div>

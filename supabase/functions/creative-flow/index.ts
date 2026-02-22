@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES } from "../_shared/copywriting-prompts.ts";
+import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT } from "../_shared/copywriting-prompts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -131,11 +131,41 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const body = await req.json();
-    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext } = body;
+    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers } = body;
 
     const profileBlock = profile ? buildProfileBlock(profile) : "";
     const brandingContext = await buildBrandingContext(supabase, user.id);
-    const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "");
+    
+    // Fetch voice profile
+    const { data: voiceData } = await supabase.from("voice_profile").select("*").eq("user_id", user.id).maybeSingle();
+    let voiceBlock = "";
+    if (voiceData) {
+      const vl: string[] = ["PROFIL DE VOIX DE L'UTILISATRICE :"];
+      if (voiceData.structure_patterns?.length) vl.push(`- Structure : ${(voiceData.structure_patterns as string[]).join(", ")}`);
+      if (voiceData.tone_patterns?.length) vl.push(`- Ton : ${(voiceData.tone_patterns as string[]).join(", ")}`);
+      if (voiceData.signature_expressions?.length) vl.push(`- Expressions signature à utiliser : ${(voiceData.signature_expressions as string[]).join(", ")}`);
+      if (voiceData.banned_expressions?.length) vl.push(`- Expressions interdites (NE JAMAIS UTILISER) : ${(voiceData.banned_expressions as string[]).join(", ")}`);
+      if (voiceData.voice_summary) vl.push(`- Style résumé : ${voiceData.voice_summary}`);
+      vl.push("UTILISE ce profil de voix pour TOUT le contenu généré.");
+      voiceBlock = "\n" + vl.join("\n") + "\n";
+    }
+
+    // Pre-generation personal answers
+    let preGenBlock = "";
+    if (preGenAnswers) {
+      const pl: string[] = [];
+      if (preGenAnswers.anecdote) pl.push(`- Anecdote : "${preGenAnswers.anecdote}"`);
+      if (preGenAnswers.emotion) pl.push(`- Émotion visée : ${preGenAnswers.emotion}`);
+      if (preGenAnswers.conviction) pl.push(`- Conviction/phrase clé : "${preGenAnswers.conviction}"`);
+      if (pl.length) {
+        preGenBlock = `\nL'UTILISATRICE A PARTAGÉ CES ÉLÉMENTS PERSONNELS :\n${pl.join("\n")}\n\nINTÈGRE CES ÉLÉMENTS dans le contenu généré :\n- L'anecdote doit apparaître naturellement (en accroche ou en illustration)\n- L'émotion visée guide le ton et la structure\n- La conviction doit être présente, formulée dans le style de l'utilisatrice\n- Ne change PAS le sens de ce qu'elle a dit, juste la structure\n`;
+      }
+    }
+    if (!preGenAnswers && step === "generate") {
+      preGenBlock = `\nL'utilisatrice n'a pas fourni d'éléments personnels.\nGénère le contenu normalement mais AJOUTE en fin :\n"💡 Ajoute une anecdote perso pour que ça sonne vraiment toi. L'IA structure, toi tu incarnes."\n`;
+    }
+
+    const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "") + voiceBlock;
 
     // Build calendar context block
     let calendarBlock = "";
@@ -160,8 +190,9 @@ serve(async (req) => {
     let userPrompt = "";
 
     if (step === "angles") {
-      // SECTION 1 (principes) + SECTION 2 (frameworks) + branding
       systemPrompt = `${CORE_PRINCIPLES}
+
+${ANTI_SLOP}
 
 ${FRAMEWORK_SELECTION}
 
@@ -260,13 +291,16 @@ Réponds UNIQUEMENT en JSON :
       userPrompt = "Pose-moi des questions d'approfondissement basées sur mes réponses.";
 
     } else if (step === "generate") {
-      // SECTION 1 (principes) + SECTION 3 (structures) + SECTION 4 (banques) + branding
       const answersBlock = answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n");
       const followUpBlock = followUpAnswers?.length
         ? "\n\nQUESTIONS D'APPROFONDISSEMENT :\n" + followUpAnswers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
         : "";
 
       systemPrompt = `${CORE_PRINCIPLES}
+
+${ANTI_SLOP}
+
+${CHAIN_OF_THOUGHT}
 
 ${FORMAT_STRUCTURES}
 
@@ -284,6 +318,7 @@ ${followUpBlock}
 PROFIL DE L'UTILISATRICE :
 ${fullContext}
 ${calendarBlock}
+${preGenBlock}
 
 Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
 

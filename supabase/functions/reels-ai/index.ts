@@ -81,6 +81,20 @@ function buildSystemPrompt(brandingContext: string): string {
 
 ${brandingContext}
 
+ANTI-SLOP — TU NE GÉNÈRES JAMAIS :
+- "Dans un monde où…", "N'hésitez pas à…", "Il est important de noter que…"
+- "Plongeons dans…", "Sans plus attendre", "En outre", "Par conséquent"
+- "Cela étant dit", "Force est de constater", "Il convient de", "En définitive"
+- "Décortiquons", "Explorons", "Découvrons", "Passons à", "Abordons"
+- Tout tiret cadratin (—) → remplacer par : ou ;
+SI TU DÉTECTES CES PATTERNS DANS TON OUTPUT, RÉÉCRIS AVANT DE RETOURNER.
+
+AVANT DE RÉDIGER, RÉFLÉCHIS EN INTERNE (ne montre PAS ce raisonnement) :
+1. Quel est le problème principal de l'audience sur ce sujet ?
+2. Quelle est l'accroche la plus forte possible ?
+3. Est-ce que mon output contient des patterns "slop" ? Si oui, réécrire.
+ENSUITE seulement, génère le contenu final.
+
 GARDE-FOUS REELS OBLIGATOIRES :
 
 1. HOOK : TOUJOURS un hook dans les 1,5 premières secondes.

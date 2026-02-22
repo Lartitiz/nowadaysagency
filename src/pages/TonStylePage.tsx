@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
+import VoiceOnboarding from "@/components/VoiceOnboarding";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Check, Sparkles, ChevronDown, ChevronUp, Mic, Loader2, Copy, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
