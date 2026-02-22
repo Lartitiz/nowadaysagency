@@ -3,14 +3,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Plus } from "lucide-react";
+import { Plus, MessageCircle, SkipForward } from "lucide-react";
 import Confetti from "@/components/Confetti";
 import ProspectPipeline from "./ProspectPipeline";
 import ProspectDetailDialog from "./ProspectDetailDialog";
 import AddProspectForm from "./AddProspectForm";
 import ProspectionReminders from "./ProspectionReminders";
 import ProspectionStats from "./ProspectionStats";
+import DmGenerator from "./DmGenerator";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 export interface Prospect {
   id: string;
@@ -59,6 +60,8 @@ export default function ProspectionSection() {
   const [adding, setAdding] = useState(false);
   const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [dmProspect, setDmProspect] = useState<Prospect | null>(null);
+  const [dmInteractions, setDmInteractions] = useState<ProspectInteraction[]>([]);
 
   const loadProspects = useCallback(async () => {
     if (!user) return;
@@ -95,7 +98,6 @@ export default function ProspectionSection() {
       setAdding(false);
       toast({ title: "🎯 Prospect ajouté·e !" });
 
-      // Create auto-reminder J+2
       const reminderDate = new Date();
       reminderDate.setDate(reminderDate.getDate() + 2);
       await supabase.from("prospects").update({
@@ -133,6 +135,41 @@ export default function ProspectionSection() {
     count: prospects.filter(p => p.stage === s.key).length,
   }));
 
+  const openDmForProspect = async (prospect: Prospect) => {
+    setDmProspect(prospect);
+    // Load interactions for DM context
+    const { data } = await supabase
+      .from("prospect_interactions")
+      .select("*")
+      .eq("prospect_id", prospect.id)
+      .order("created_at", { ascending: true });
+    setDmInteractions((data || []) as ProspectInteraction[]);
+  };
+
+  const handleDmSent = (content: string, approach: string) => {
+    if (!dmProspect || !user) return;
+    // Log interaction
+    supabase.from("prospect_interactions").insert({
+      prospect_id: dmProspect.id,
+      user_id: user.id,
+      interaction_type: "dm_sent",
+      content,
+      ai_generated: true,
+    });
+
+    const nextStage = dmProspect.stage === "to_contact" ? "in_conversation" : dmProspect.stage;
+    const reminderDate = new Date();
+    reminderDate.setDate(reminderDate.getDate() + 3);
+    updateProspect(dmProspect.id, {
+      stage: nextStage,
+      last_interaction_at: new Date().toISOString(),
+      next_reminder_at: reminderDate.toISOString(),
+      next_reminder_text: `Vérifier si @${dmProspect.instagram_username} a répondu`,
+    });
+    setDmProspect(null);
+    toast({ title: "✅ Message noté dans l'historique !" });
+  };
+
   return (
     <div className="space-y-5">
       {showConfetti && <Confetti />}
@@ -162,17 +199,46 @@ export default function ProspectionSection() {
       {/* Add form */}
       {adding && <AddProspectForm onAdd={addProspect} onCancel={() => setAdding(false)} />}
 
-      {/* Reminders */}
-      {todayReminders.length > 0 && (
-        <ProspectionReminders
-          reminders={todayReminders}
-          onSelect={setSelectedProspect}
-          onPostpone={async (id) => {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            await updateProspect(id, { next_reminder_at: tomorrow.toISOString() });
-          }}
-        />
+      {/* DM du jour section */}
+      {(todayReminders.length > 0 || prospects.length > 0) && (
+        <div className="rounded-xl border-2 border-primary/20 bg-rose-pale/30 p-4 space-y-3">
+          <h3 className="text-sm font-bold">📩 Mes DM du jour</h3>
+          
+          {todayReminders.length > 0 ? (
+            <>
+              <p className="text-xs text-muted-foreground">
+                🔔 {todayReminders.length} message{todayReminders.length > 1 ? "s" : ""} à envoyer aujourd'hui :
+              </p>
+              {todayReminders.map(p => (
+                <div key={p.id} className="flex items-center gap-2 text-sm">
+                  <span className="flex-1 min-w-0">
+                    <span className="font-mono font-semibold text-primary">@{p.instagram_username}</span>
+                    {p.next_reminder_text && (
+                      <span className="text-muted-foreground text-xs"> · {p.next_reminder_text}</span>
+                    )}
+                  </span>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => openDmForProspect(p)}>
+                    <MessageCircle className="h-3 w-3 mr-1" /> Générer un DM
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={async () => {
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    await updateProspect(p.id, { next_reminder_at: tomorrow.toISOString() });
+                  }}>
+                    <SkipForward className="h-3 w-3 mr-1" /> Reporter
+                  </Button>
+                </div>
+              ))}
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">✅ Aucune relance pour aujourd'hui !</p>
+          )}
+
+          {/* Free DM button */}
+          <div className="border-t border-primary/10 pt-2">
+            <p className="text-[11px] text-muted-foreground mb-2">Ou choisis un prospect dans le pipeline ci-dessous pour lui écrire un DM personnalisé.</p>
+          </div>
+        </div>
       )}
 
       {/* Pipeline */}
@@ -181,6 +247,7 @@ export default function ProspectionSection() {
         stages={STAGES}
         onSelect={setSelectedProspect}
         onStageChange={(id, stage) => updateProspect(id, { stage })}
+        onWriteDm={openDmForProspect}
       />
 
       {/* Stats */}
@@ -195,6 +262,20 @@ export default function ProspectionSection() {
           onUpdate={(updates) => updateProspect(selectedProspect.id, updates)}
           onDelete={() => deleteProspect(selectedProspect.id)}
         />
+      )}
+
+      {/* DM Generator Dialog */}
+      {dmProspect && (
+        <Dialog open={!!dmProspect} onOpenChange={(open) => { if (!open) setDmProspect(null); }}>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+            <DmGenerator
+              prospect={dmProspect}
+              interactions={dmInteractions}
+              onBack={() => setDmProspect(null)}
+              onMessageSent={handleDmSent}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

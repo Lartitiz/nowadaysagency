@@ -1,0 +1,122 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+import { CORE_PRINCIPLES, ANTI_SLOP, ETHICAL_GUARDRAILS } from "../_shared/copywriting-prompts.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
+    );
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) throw new Error("Non authentifié");
+
+    const body = await req.json();
+    const { target_username, post_caption, user_intent, angle, branding_context } = body;
+
+    if (!post_caption?.trim()) throw new Error("La légende du post est requise.");
+
+    const angleInstruction = angle && angle !== "all"
+      ? `ANGLE DEMANDÉ : ${angle} — Génère uniquement ce type de commentaire, mais propose quand même 4 variantes avec des tons différents.`
+      : `Génère les 4 types : value (apport de valeur), question (question pertinente), remarkable (court et remarquable), expertise (expertise subtile).`;
+
+    const prompt = `${CORE_PRINCIPLES}
+
+${ANTI_SLOP}
+
+${ETHICAL_GUARDRAILS}
+
+Tu dois générer des commentaires Instagram stratégiques pour le post d'un contact.
+
+CONTEXTE DE L'UTILISATRICE :
+${branding_context || "Pas de contexte de marque disponible."}
+
+LE POST :
+- Compte : @${target_username}
+- Légende : "${post_caption}"
+
+${user_intent ? `CE QUE L'UTILISATRICE VOUDRAIT DIRE : "${user_intent}"` : ""}
+
+${angleInstruction}
+
+GÉNÈRE 4 COMMENTAIRES :
+
+1. 💡 APPORT DE VALEUR (type: "value") : ajouter une info, un retour d'expérience, un angle complémentaire. Le commentaire enrichit la conversation.
+
+2. ❓ QUESTION PERTINENTE (type: "question") : poser une question qui montre qu'on a lu le post en profondeur. Pas "super post !" mais une vraie question qui génère de la conversation.
+
+3. ⚡ COURT ET REMARQUABLE (type: "remarkable") : 1-2 phrases max. Percutant. Le genre de commentaire qu'on relit. Pas un emoji, pas "trop bien". Un truc qui marque.
+
+4. 🎓 EXPERTISE SUBTILE (type: "expertise") : montrer son expertise sans faire la meuf qui ramène tout à elle. Apporter un éclairage pro, un terme technique vulgarisé, une observation de terrain.
+
+RÈGLES :
+- Ton naturel, oral, comme dans une vraie conversation
+- PAS de "Super post !" ni de compliments vides
+- PAS de "En tant que [métier], je..." (trop promo)
+- Les commentaires doivent donner envie de cliquer sur le profil de l'utilisatrice
+- Longueur : entre 20 et 80 mots selon le type (remarkable = 20 mots max)
+- Maximum 1 emoji par commentaire
+- Le commentaire doit être SPÉCIFIQUE au post (pas générique)
+- Si l'utilisatrice a indiqué ce qu'elle veut dire, intégrer ça naturellement
+
+Retourne EXACTEMENT ce JSON (pas de texte autour) :
+{
+  "comments": [
+    { "type": "value", "label": "Apport de valeur", "emoji": "💡", "text": "...", "word_count": 42 },
+    { "type": "question", "label": "Question pertinente", "emoji": "❓", "text": "...", "word_count": 35 },
+    { "type": "remarkable", "label": "Court et remarquable", "emoji": "⚡", "text": "...", "word_count": 15 },
+    { "type": "expertise", "label": "Expertise subtile", "emoji": "🎓", "text": "...", "word_count": 50 }
+  ]
+}`;
+
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.8,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`AI API error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
+
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("Failed to parse AI response");
+
+    const result = JSON.parse(jsonMatch[0]);
+
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

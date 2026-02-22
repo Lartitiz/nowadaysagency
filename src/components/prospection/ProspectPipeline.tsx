@@ -7,6 +7,7 @@ interface ProspectPipelineProps {
   stages: { key: string; label: string; color: string }[];
   onSelect: (p: Prospect) => void;
   onStageChange: (id: string, stage: string) => void;
+  onWriteDm?: (p: Prospect) => void;
 }
 
 function daysSince(dateStr?: string | null) {
@@ -14,7 +15,7 @@ function daysSince(dateStr?: string | null) {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
 }
 
-export default function ProspectPipeline({ prospects, stages, onSelect, onStageChange }: ProspectPipelineProps) {
+export default function ProspectPipeline({ prospects, stages, onSelect, onStageChange, onWriteDm }: ProspectPipelineProps) {
   return (
     <div className="space-y-4">
       <h3 className="font-display text-sm font-bold text-foreground">📋 Pipeline</h3>
@@ -62,11 +63,17 @@ export default function ProspectPipeline({ prospects, stages, onSelect, onStageC
                     </div>
                     <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                       <button
-                        onClick={() => onSelect(p)}
+                        onClick={() => onWriteDm ? onWriteDm(p) : onSelect(p)}
                         className="h-7 px-2 text-[11px] rounded-md hover:bg-accent text-foreground inline-flex items-center gap-1"
                       >
                         <MessageCircle className="h-3 w-3" />
-                        <span className="hidden sm:inline">Écrire</span>
+                        <span className="hidden sm:inline">DM</span>
+                      </button>
+                      <button
+                        onClick={() => onSelect(p)}
+                        className="h-7 px-2 text-[11px] rounded-md hover:bg-accent text-foreground inline-flex items-center gap-1"
+                      >
+                        📋
                       </button>
                       <InstagramLink
                         username={p.instagram_username}

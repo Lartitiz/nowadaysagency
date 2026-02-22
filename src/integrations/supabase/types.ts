@@ -544,6 +544,69 @@ export type Database = {
         }
         Relationships: []
       }
+      engagement_comments: {
+        Row: {
+          comment_type: string | null
+          contact_id: string | null
+          created_at: string | null
+          final_text: string | null
+          generated_text: string | null
+          id: string
+          post_caption: string | null
+          posted_at: string | null
+          prospect_id: string | null
+          target_username: string
+          user_id: string
+          user_intent: string | null
+          was_posted: boolean | null
+        }
+        Insert: {
+          comment_type?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          final_text?: string | null
+          generated_text?: string | null
+          id?: string
+          post_caption?: string | null
+          posted_at?: string | null
+          prospect_id?: string | null
+          target_username: string
+          user_id: string
+          user_intent?: string | null
+          was_posted?: boolean | null
+        }
+        Update: {
+          comment_type?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          final_text?: string | null
+          generated_text?: string | null
+          id?: string
+          post_caption?: string | null
+          posted_at?: string | null
+          prospect_id?: string | null
+          target_username?: string
+          user_id?: string
+          user_intent?: string | null
+          was_posted?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagement_comments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "engagement_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_comments_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       engagement_contacts: {
         Row: {
           created_at: string | null
