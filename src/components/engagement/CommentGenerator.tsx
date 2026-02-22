@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Copy, Loader2 } from "lucide-react";
+import { Copy, Loader2, ImageIcon, X } from "lucide-react";
 import type { Contact } from "./ContactsSection";
 
 interface GeneratedComment {
@@ -23,6 +23,9 @@ const ANGLES = [
   { value: "remarkable", label: "⚡ Remarquable" },
   { value: "expertise", label: "🎓 Expertise" },
 ];
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 Mo
+const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/jpg"];
 
 interface Props {
   contact: Contact;
@@ -42,6 +45,45 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
   const [comments, setComments] = useState<GeneratedComment[]>([]);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editedText, setEditedText] = useState("");
+
+  // Screenshot state
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [screenshotBase64, setScreenshotBase64] = useState<string | null>(null);
+  const [screenshotMediaType, setScreenshotMediaType] = useState<string>("image/png");
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (file: File) => {
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      toast({ title: "Format non supporté", description: "Utilise PNG ou JPG.", variant: "destructive" });
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      toast({ title: "Fichier trop lourd", description: "5 Mo maximum.", variant: "destructive" });
+      return;
+    }
+    setScreenshotMediaType(file.type);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setScreenshotPreview(dataUrl);
+      setScreenshotBase64(dataUrl.split(",")[1]);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
+  };
+
+  const removeScreenshot = () => {
+    setScreenshotPreview(null);
+    setScreenshotBase64(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const generate = async () => {
     if (!user || !caption.trim()) {
@@ -69,6 +111,8 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
           user_intent: intent || undefined,
           angle,
           branding_context: brandingContext,
+          screenshot_base64: screenshotBase64 || undefined,
+          screenshot_media_type: screenshotBase64 ? screenshotMediaType : undefined,
         },
       });
 
@@ -90,8 +134,6 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
 
   const markPosted = async (comment: GeneratedComment, finalText?: string) => {
     if (!user) return;
-
-    // Save to engagement_comments
     await supabase.from("engagement_comments").insert({
       user_id: user.id,
       contact_id: contact.id,
@@ -105,8 +147,6 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
       was_posted: true,
       posted_at: new Date().toISOString(),
     });
-
-    // If prospect exists, log interaction
     if (prospectId) {
       await supabase.from("prospect_interactions").insert({
         prospect_id: prospectId,
@@ -116,14 +156,13 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
         ai_generated: true,
       });
     }
-
     onCommentPosted(contact.id);
     toast({ title: "✅ Commentaire noté !" });
     onOpenChange(false);
-    // Reset
     setComments([]);
     setCaption("");
     setIntent("");
+    removeScreenshot();
   };
 
   return (
@@ -135,6 +174,57 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
 
         {comments.length === 0 ? (
           <div className="space-y-4">
+            {/* Screenshot upload */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Screenshot du post</label>
+              {screenshotPreview ? (
+                <div className="relative rounded-lg border border-border overflow-hidden bg-muted/30">
+                  <img
+                    src={screenshotPreview}
+                    alt="Screenshot du post"
+                    className="w-full max-h-[200px] object-contain"
+                  />
+                  <button
+                    onClick={removeScreenshot}
+                    className="absolute top-2 right-2 rounded-full bg-background/80 backdrop-blur-sm p-1 border border-border hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onDrop={handleDrop}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors ${
+                    isDragging
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/40 bg-muted/20"
+                  }`}
+                >
+                  <ImageIcon className="h-8 w-8 text-muted-foreground/60" />
+                  <p className="text-xs text-muted-foreground text-center">
+                    Glisse le screenshot du post ici<br />ou clique pour uploader
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/60">PNG, JPG · 5 Mo max</p>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".png,.jpg,.jpeg"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFile(file);
+                }}
+              />
+              <p className="text-[10px] text-muted-foreground italic">
+                📷 L'IA analyse le visuel pour générer un commentaire plus pertinent
+              </p>
+            </div>
+
             {/* Caption input */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground">Légende du post (copie-colle depuis Instagram)</label>
