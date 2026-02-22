@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Plus, StickyNote, ExternalLink } from "lucide-react";
+import InstagramLink from "@/components/InstagramLink";
 
 export interface Contact {
   id: string;
@@ -55,16 +56,7 @@ function cleanPseudo(input: string): string {
     .trim();
 }
 
-function getInstagramUrl(pseudo: string): string {
-  const clean = cleanPseudo(pseudo);
-  if (clean.startsWith('http')) return clean;
-  return `https://www.instagram.com/${clean}/`;
-}
-
-function openInstagramProfile(pseudo: string) {
-  const url = getInstagramUrl(pseudo);
-  window.open(url, '_blank', 'noopener,noreferrer');
-}
+// Removed openInstagramProfile - now using InstagramLink component
 
 function daysSince(dateStr?: string) {
   if (!dateStr) return Infinity;
@@ -93,7 +85,7 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
   };
 
   const handleGoComment = (contact: Contact) => {
-    openInstagramProfile(contact.pseudo);
+    // Interaction is tracked; link opening handled by InstagramLink <a> tag
     onInteract(contact.id);
   };
 
@@ -131,13 +123,12 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => openInstagramProfile(c.pseudo)}
-                      className="font-mono text-sm font-bold text-primary hover:underline cursor-pointer bg-transparent border-none p-0"
+                    <InstagramLink
+                      username={c.pseudo}
+                      className="font-mono text-sm font-bold text-primary hover:underline cursor-pointer"
                     >
                       @{displayPseudo}
-                    </button>
+                    </InstagramLink>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full ${TAG_COLORS[c.tag] || "bg-muted text-foreground"}`}>
                       {TAG_LABELS[c.tag] || c.tag}
                     </span>
@@ -154,16 +145,14 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
                   )}
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 gap-1 px-2 text-[11px]"
+                  <InstagramLink
+                    username={c.pseudo}
+                    className="inline-flex items-center gap-1 h-7 px-2 text-[11px] rounded-md hover:bg-accent text-foreground"
                     onClick={() => handleGoComment(c)}
-                    title="Aller commenter sur Instagram"
                   >
                     <ExternalLink className="h-3 w-3" />
                     <span className="hidden sm:inline">Commenter</span>
-                  </Button>
+                  </InstagramLink>
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => {
                     if (isEditingThis) { onUpdateNotes(c.id, tempNotes); setEditingNotes(null); }
                     else { setEditingNotes(c.id); setTempNotes(c.notes || ""); }
