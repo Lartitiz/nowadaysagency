@@ -3,19 +3,29 @@ import { Link, useLocation } from "react-router-dom";
 import { Home, ClipboardList, User, Settings, Menu, X, Lightbulb } from "lucide-react";
 import { useState } from "react";
 import NotificationBell from "@/components/NotificationBell";
+import { useActiveChannels } from "@/hooks/use-active-channels";
 
-const NAV_ITEMS = [
-  { to: "/dashboard", label: "Accueil", icon: Home },
-  { to: "/idees", label: "Mes idées", icon: Lightbulb },
-  { to: "/mon-plan", label: "Mon plan", icon: ClipboardList },
-  { to: "/profil", label: "Profil", icon: User },
-  { to: "/parametres", label: "Paramètres", icon: Settings },
-];
+function useNavItems() {
+  const { hasInstagram, hasLinkedin, loading } = useActiveChannels();
+  const base = [
+    { to: "/dashboard", label: "Accueil", icon: Home },
+    { to: "/idees", label: "Mes idées", icon: Lightbulb },
+    { to: "/mon-plan", label: "Mon plan", icon: ClipboardList },
+  ];
+  if (!loading && hasInstagram) base.push({ to: "/instagram", label: "📱 Instagram", icon: Home });
+  if (!loading && hasLinkedin) base.push({ to: "/linkedin", label: "💼 LinkedIn", icon: Home });
+  base.push(
+    { to: "/profil", label: "Profil", icon: User },
+    { to: "/parametres", label: "Paramètres", icon: Settings },
+  );
+  return base;
+}
 
 export default function AppHeader() {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const NAV_ITEMS = useNavItems();
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card">
