@@ -6,7 +6,7 @@ import PreGenQuestions, { PreGenAnswers } from "@/components/PreGenQuestions";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Info, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -642,7 +642,7 @@ export default function InstagramReels() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-        <Link to="/instagram" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
+        <Link to={new URLSearchParams(window.location.search).get("from") || "/instagram/creer"} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
           <ArrowLeft className="h-4 w-4" /> Retour
         </Link>
 
