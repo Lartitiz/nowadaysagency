@@ -2138,6 +2138,116 @@ export type Database = {
         }
         Relationships: []
       }
+      offers: {
+        Row: {
+          benefits: Json | null
+          completed: boolean | null
+          completion_pct: number | null
+          created_at: string
+          current_step: number | null
+          description_short: string | null
+          emotional_after: string | null
+          emotional_before: string | null
+          features: Json | null
+          features_to_benefits: Json | null
+          feelings_after: Json | null
+          id: string
+          linked_freebie_id: string | null
+          name: string
+          objections: Json | null
+          offer_type: string
+          price_amount: number | null
+          price_text: string | null
+          problem_deep: string | null
+          problem_surface: string | null
+          promise: string | null
+          promise_long: string | null
+          sales_line: string | null
+          target_ideal: string | null
+          target_not_for: string | null
+          testimonials: Json | null
+          trigger_situation: string | null
+          updated_at: string
+          url_booking: string | null
+          url_sales_page: string | null
+          user_id: string
+        }
+        Insert: {
+          benefits?: Json | null
+          completed?: boolean | null
+          completion_pct?: number | null
+          created_at?: string
+          current_step?: number | null
+          description_short?: string | null
+          emotional_after?: string | null
+          emotional_before?: string | null
+          features?: Json | null
+          features_to_benefits?: Json | null
+          feelings_after?: Json | null
+          id?: string
+          linked_freebie_id?: string | null
+          name?: string
+          objections?: Json | null
+          offer_type?: string
+          price_amount?: number | null
+          price_text?: string | null
+          problem_deep?: string | null
+          problem_surface?: string | null
+          promise?: string | null
+          promise_long?: string | null
+          sales_line?: string | null
+          target_ideal?: string | null
+          target_not_for?: string | null
+          testimonials?: Json | null
+          trigger_situation?: string | null
+          updated_at?: string
+          url_booking?: string | null
+          url_sales_page?: string | null
+          user_id: string
+        }
+        Update: {
+          benefits?: Json | null
+          completed?: boolean | null
+          completion_pct?: number | null
+          created_at?: string
+          current_step?: number | null
+          description_short?: string | null
+          emotional_after?: string | null
+          emotional_before?: string | null
+          features?: Json | null
+          features_to_benefits?: Json | null
+          feelings_after?: Json | null
+          id?: string
+          linked_freebie_id?: string | null
+          name?: string
+          objections?: Json | null
+          offer_type?: string
+          price_amount?: number | null
+          price_text?: string | null
+          problem_deep?: string | null
+          problem_surface?: string | null
+          promise?: string | null
+          promise_long?: string | null
+          sales_line?: string | null
+          target_ideal?: string | null
+          target_not_for?: string | null
+          testimonials?: Json | null
+          trigger_situation?: string | null
+          updated_at?: string
+          url_booking?: string | null
+          url_sales_page?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_linked_freebie_fkey"
+            columns: ["linked_freebie_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       persona: {
         Row: {
           completed: boolean | null
