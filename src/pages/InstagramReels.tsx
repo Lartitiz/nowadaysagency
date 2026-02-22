@@ -2,6 +2,7 @@ import { useState } from "react";
 import BaseReminder from "@/components/BaseReminder";
 import ContentScoring from "@/components/ContentScoring";
 import FeedbackLoop from "@/components/FeedbackLoop";
+import PreGenQuestions, { PreGenAnswers } from "@/components/PreGenQuestions";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -18,6 +19,8 @@ interface Hook {
   type: string;
   type_label: string;
   text: string;
+  word_count?: number;
+  estimated_seconds?: number;
   text_overlay: string;
   format_recommande: string;
   format_label: string;
@@ -51,6 +54,7 @@ interface ScriptResult {
   duree_cible: string;
   duree_justification: string;
   objectif: string;
+  personal_tip?: string | null;
   script: ScriptSection[];
   caption: { text: string; cta: string };
   hashtags: string[];
@@ -102,12 +106,21 @@ const REELS_TIPS = [
   { text: "Les comptes qui postent 3-5 Reels/semaine doublent leur croissance vs 1/semaine.", source: "Buffer" },
 ];
 
+const HOOK_TYPE_EMOJIS: Record<string, string> = {
+  confession: "🎤",
+  affirmation_contraire: "💥",
+  resultat_concret: "🔥",
+  interpellation: "👉",
+  teaser: "🔮",
+  analogie: "🪞",
+};
+
 export default function InstagramReels() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Flow state
-  const [step, setStep] = useState(1); // 1=objective, 2=facecam, 3=subject, 4=time, 5=launch, 6=hooks, 7=script
+  // Flow state — steps: 1=objective, 2=facecam, 3=subject, 4=time, 5=launch, 6=hooks, 6.5=preGenQ, 7=script
+  const [step, setStep] = useState(1);
   const [objective, setObjective] = useState("");
   const [faceCam, setFaceCam] = useState("");
   const [subject, setSubject] = useState("");
@@ -117,6 +130,7 @@ export default function InstagramReels() {
   // Results
   const [hooks, setHooks] = useState<Hook[]>([]);
   const [selectedHook, setSelectedHook] = useState<Hook | null>(null);
+  const [preGenAnswers, setPreGenAnswers] = useState<PreGenAnswers | null>(null);
   const [scriptResult, setScriptResult] = useState<ScriptResult | null>(null);
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
@@ -180,14 +194,38 @@ export default function InstagramReels() {
     setLoading(false);
   };
 
-  const handleGenerateScript = async (hook: Hook) => {
-    if (!user) return;
+  const handleSelectHook = (hook: Hook) => {
     setSelectedHook(hook);
+    setStep(6.5); // Show pre-gen questions
+  };
+
+  const handlePreGenSubmit = (answers: PreGenAnswers) => {
+    setPreGenAnswers(answers);
+    if (selectedHook) handleGenerateScript(selectedHook, answers);
+  };
+
+  const handlePreGenSkip = () => {
+    setPreGenAnswers(null);
+    if (selectedHook) handleGenerateScript(selectedHook, null);
+  };
+
+  const handleGenerateScript = async (hook: Hook, answers: PreGenAnswers | null) => {
+    if (!user) return;
     setLoading(true);
     try {
       const brandingContext = await fetchBrandingContext();
       const { data, error } = await supabase.functions.invoke("reels-ai", {
-        body: { type: "script", objective, face_cam: faceCam, subject, time_available: timeAvailable, is_launch: isLaunch, branding_context: brandingContext, selected_hook: hook },
+        body: {
+          type: "script",
+          objective,
+          face_cam: faceCam,
+          subject,
+          time_available: timeAvailable,
+          is_launch: isLaunch,
+          branding_context: brandingContext,
+          selected_hook: hook,
+          pre_gen_answers: answers || undefined,
+        },
       });
       if (error) throw error;
       const raw = data?.content || "";
@@ -293,7 +331,7 @@ export default function InstagramReels() {
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-          <button onClick={() => { setStep(1); setScriptResult(null); setHooks([]); setSelectedHook(null); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
+          <button onClick={() => { setStep(1); setScriptResult(null); setHooks([]); setSelectedHook(null); setPreGenAnswers(null); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
             <ArrowLeft className="h-4 w-4" /> Nouveau script
           </button>
 
@@ -308,6 +346,12 @@ export default function InstagramReels() {
           {scriptResult.garde_fou_alerte && (
             <div className="mb-6 rounded-xl border border-primary/30 bg-rose-pale p-4 text-sm text-foreground">
               ⚠️ {scriptResult.garde_fou_alerte}
+            </div>
+          )}
+
+          {scriptResult.personal_tip && (
+            <div className="mb-6 rounded-xl border border-dashed border-accent bg-accent/10 p-4 text-sm text-foreground">
+              💡 {scriptResult.personal_tip}
             </div>
           )}
 
@@ -432,6 +476,40 @@ export default function InstagramReels() {
     );
   }
 
+  // ── STEP 6.5: Pre-gen questions ──
+  if (step === 6.5 && selectedHook) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
+          <button onClick={() => setStep(6)} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
+            <ArrowLeft className="h-4 w-4" /> Retour aux hooks
+          </button>
+
+          <div className="mb-6 rounded-2xl border border-primary/20 bg-rose-pale p-4">
+            <p className="text-xs font-semibold text-muted-foreground mb-1">Hook sélectionné</p>
+            <p className="text-[15px] font-medium text-foreground">"{selectedHook.text}"</p>
+          </div>
+
+          {/* Voice test */}
+          <div className="mb-6 rounded-xl border border-dashed border-accent bg-accent/10 p-4">
+            <p className="text-sm font-semibold text-foreground mb-1">🎤 Test rapide</p>
+            <p className="text-xs text-muted-foreground">
+              Dis ton hook à voix haute. ✅ Tu l'as dit en une respiration ? C'est bon. ❌ Tu as dû reprendre ton souffle ? Trop long.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 italic">💡 Le hook, c'est le premier contact. Pas le résumé. Le développement vient APRÈS.</p>
+          </div>
+
+          <PreGenQuestions
+            variant="reels"
+            onSubmit={handlePreGenSubmit}
+            onSkip={handlePreGenSkip}
+          />
+        </main>
+      </div>
+    );
+  }
+
   // ── STEP 6: Hook selection ──
   if (step === 6 && hooks.length > 0) {
     return (
@@ -442,33 +520,46 @@ export default function InstagramReels() {
             <ArrowLeft className="h-4 w-4" /> Retour
           </button>
 
-          <h1 className="font-display text-2xl font-bold text-foreground mb-2">🪝 Choisis ton hook</h1>
-          <p className="text-sm text-muted-foreground mb-6">Les 3 premières secondes font tout. Choisis ton accroche.</p>
+          <h1 className="font-display text-2xl font-bold text-foreground mb-2">🎬 Choisis ton hook</h1>
+          <p className="text-sm text-muted-foreground mb-1">Sujet : {subject || "(suggéré par l'IA)"}</p>
+          <p className="text-xs text-muted-foreground mb-6">Un bon hook se dit en 2 secondes face cam. Si tu dois reprendre ta respiration, c'est trop long.</p>
 
           <div className="space-y-3">
-            {hooks.map((hook) => (
-              <button
-                key={hook.id}
-                onClick={() => handleGenerateScript(hook)}
-                className="w-full rounded-2xl border border-border bg-card p-5 text-left hover:border-primary hover:shadow-md transition-all"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-semibold text-primary bg-rose-pale px-2 py-0.5 rounded-full">Hook {hook.id}</span>
-                  <span className="text-xs font-semibold text-muted-foreground">· {hook.type_label}</span>
-                </div>
-                <p className="text-[15px] font-medium text-foreground leading-relaxed">"{hook.text}"</p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  📊 Durée cible : {hook.duree_cible} · Format : {hook.format_label}
-                </p>
-              </button>
-            ))}
+            {hooks.map((hook) => {
+              const wordCount = hook.word_count || hook.text.split(/\s+/).length;
+              const estSec = hook.estimated_seconds || Math.max(1.5, Math.min(3, wordCount * 0.3));
+              const emoji = HOOK_TYPE_EMOJIS[hook.type] || "🪝";
+
+              return (
+                <button
+                  key={hook.id}
+                  onClick={() => handleSelectHook(hook)}
+                  className="w-full rounded-2xl border border-border bg-card p-5 text-left hover:border-primary hover:shadow-md transition-all"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">{emoji}</span>
+                    <span className="text-xs font-semibold text-primary bg-rose-pale px-2 py-0.5 rounded-full">{hook.type_label}</span>
+                    <span className="text-xs text-muted-foreground">· {wordCount} mots · ~{Number(estSec).toFixed(1)} sec</span>
+                  </div>
+                  <p className="text-[15px] font-medium text-foreground leading-relaxed">"{hook.text}"</p>
+                  {hook.text_overlay && (
+                    <p className="mt-2 text-xs font-bold text-accent-foreground bg-accent/20 rounded px-2 py-1 inline-block">
+                      📝 {hook.text_overlay}
+                    </p>
+                  )}
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    📊 Durée cible : {hook.duree_cible} · Format : {hook.format_label}
+                  </p>
+                </button>
+              );
+            })}
           </div>
 
           <button
             onClick={handleGenerateHooks}
             className="mt-4 text-sm text-primary font-medium hover:underline"
           >
-            🔄 Proposer d'autres hooks
+            🔄 Proposer 3 autres hooks
           </button>
         </main>
       </div>

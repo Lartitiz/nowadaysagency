@@ -12,7 +12,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const { type, objective, face_cam, subject, time_available, is_launch, branding_context, selected_hook } = await req.json();
+    const { type, objective, face_cam, subject, time_available, is_launch, branding_context, selected_hook, pre_gen_answers } = await req.json();
 
     const systemPrompt = buildSystemPrompt(branding_context || "");
 
@@ -21,7 +21,7 @@ serve(async (req) => {
     if (type === "hooks") {
       userPrompt = buildHooksPrompt(objective, face_cam, subject, time_available, is_launch);
     } else if (type === "script") {
-      userPrompt = buildScriptPrompt(objective, face_cam, subject, time_available, is_launch, selected_hook);
+      userPrompt = buildScriptPrompt(objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers);
     } else {
       return new Response(JSON.stringify({ error: "Type invalide" }), {
         status: 400,
@@ -106,16 +106,16 @@ GARDE-FOUS REELS OBLIGATOIRES :
 
 1. HOOK : TOUJOURS un hook dans les 1,5 premières secondes.
    JAMAIS de "Salut, moi c'est [nom]..." en intro.
-   50% des gens partent dans les 3 premières secondes.
+   65% des viewers décident de rester en 1,7 seconde.
+   UN HOOK = 5-12 MOTS MAX. Si tu dépasses, COUPE.
 
 2. SOUS-TITRES : TOUJOURS mentionner "Prévois les sous-titres"
    si face cam ou voix off (60-80% regardent sans le son).
 
 3. DURÉE JUSTIFIÉE : chaque seconde doit servir. Pas de remplissage.
-   Indiquer la durée cible ET la raison.
 
 4. PATTERN INTERRUPTS : si le Reel dépasse 15 sec, TOUJOURS inclure
-   des indications de CUT / changement de plan toutes les 3-5 sec.
+   des indications de CUT toutes les 3-5 sec.
 
 5. CTA ÉTHIQUE : JAMAIS de CTA agressif. Toujours permission :
    "si ça te parle", "sauvegarde", "envoie à une amie qui".
@@ -125,9 +125,17 @@ GARDE-FOUS REELS OBLIGATOIRES :
 7. TEXTE OVERLAY : toujours COURT (3-5 mots max), MAJUSCULES, contrasté.
 
 8. CAPTION ≠ SCRIPT : la caption ne répète PAS le script.
-   Elle développe un angle complémentaire + mots-clés SEO.
 
 9. HASHTAGS : 3-5 max. Mix large (1-2) + niche (2-3).
+
+ANALOGIES VISUELLES — UTILISE-LES SYSTÉMATIQUEMENT :
+Une bonne analogie transforme un concept abstrait en image mentale.
+L'audience ne retient pas "tu manques de stratégie".
+L'audience retient "poster sans stratégie, c'est distribuer des flyers dans le désert".
+
+Pour chaque concept abstrait, propose une analogie concrète et visuelle.
+L'analogie doit être du QUOTIDIEN (cuisine, maison, route, corps, nature, objets courants).
+Pas d'analogies abstraites. 1 analogie forte par section suffit.
 
 RÈGLES DE GÉNÉRATION :
 - Ton oral, direct, comme un message vocal
@@ -163,27 +171,10 @@ function buildHooksPrompt(objective: string, face_cam: string, subject: string, 
 
   const subjectInstruction = subject
     ? `SUJET DONNÉ PAR L'UTILISATRICE : "${subject}"
+Chaque hook DOIT être directement lié à "${subject}".`
+    : `PAS DE SUJET DONNÉ — propose un sujet pertinent basé sur le contexte branding, puis génère les hooks sur ce sujet.`;
 
-RÈGLE CRITIQUE — HOOKS ANCRÉS DANS LE SUJET :
-Chaque hook DOIT être directement lié à "${subject}".
-Chaque hook doit :
-- Mentionner ou référencer "${subject}" explicitement
-- Être une PHRASE COMPLÈTE et SPÉCIFIQUE, prête à être dite face caméra
-- PAS une formule à trous avec [sujet] remplacé mécaniquement
-
-❌ INTERDIT (formules génériques à trous) :
-"Le truc que personne ne te dit sur [sujet]..."
-"3 erreurs qui tuent ta [sujet]."
-"Tu galères avec [problème] ?"
-
-✅ ATTENDU (hooks ancrés, spécifiques, finis) :
-Si le sujet est "les erreurs en bio Instagram" :
-- "J'ai refait ma bio 47 fois avant de comprendre ça."
-- "Ta bio Instagram fait fuir les gens. Et tu sais même pas pourquoi."
-- "Arrête de mettre ton métier dans ta bio. Voilà ce qu'il faut à la place."`
-    : `PAS DE SUJET DONNÉ — propose un sujet pertinent basé sur le contexte branding, puis génère les hooks sur ce sujet. Précise le sujet choisi dans chaque hook.`;
-
-  return `DEMANDE : Proposer 3 hooks pour un Reel Instagram.
+  return `DEMANDE : Proposer 3 hooks COURTS pour un Reel Instagram.
 
 Objectif : ${objectiveMap[objective] || objective}
 Face cam : ${face_cam}
@@ -192,36 +183,80 @@ Temps tournage : ${time_available}
 En lancement : ${is_launch ? "oui" : "non"}
 Format suggéré : ${suggestedFormat}
 
-Les 8 formules de hooks (choisis-en 3 différentes comme INSPIRATION, pas comme template) :
-1. Curiosité gap — ex : "J'ai découvert un truc sur [aspect précis du sujet]"
-2. Contrarian — ex : "Arrête de [conseil commun lié au sujet]. Voilà pourquoi."
-3. Erreur — ex : "[Nombre] erreurs qui [conséquence spécifique au sujet]"
-4. Liste numérotée — ex : "[Nombre] façons de [résultat spécifique au sujet]"
-5. Question directe — ex : "Tu [frustration spécifique liée au sujet] ?"
-6. Preuve sociale — ex : "Comment j'ai [résultat concret lié au sujet] en [durée]"
-7. Story / confession — ex : "[Anecdote personnelle liée au sujet]"
-8. Commande directe — ex : "Sauvegarde ce Reel si tu [situation liée au sujet]"
+HOOKS REELS — RÈGLES NON-NÉGOCIABLES :
 
-RAPPEL : chaque hook est une phrase FINIE et SPÉCIFIQUE au sujet, pas une formule à trous.
+UN HOOK REEL = 5-12 MOTS MAXIMUM.
+C'est une phrase qu'on DIT face cam en 1,5-3 secondes.
+Pas une phrase qu'on LIT dans un carrousel.
+Si ton hook dépasse 12 mots, COUPE. Toujours.
+
+LE HOOK DOIT ÊTRE :
+- Dicible en une respiration (teste : lis-le à voix haute)
+- Spécifique au sujet (pas une formule à trous générique)
+- Un pattern interrupt (quelque chose d'inattendu qui casse le scroll)
+
+LE HOOK NE DOIT PAS ÊTRE :
+- Une question longue à rallonge
+- Une phrase avec des subordonnées
+- Un résumé du contenu qui suit
+- Une formule générique où on remplace [sujet]
+
+TYPES DE HOOKS COURTS (choisis-en 3 DIFFÉRENTS) :
+
+1. CONFESSION CHOC (5-8 mots)
+   "J'ai fait cette erreur pendant 3 ans."
+   "Je regrette d'avoir suivi ce conseil."
+
+2. AFFIRMATION CONTRAIRE (5-10 mots)
+   "Arrête de poster tous les jours."
+   "Ta bio Instagram ne sert à rien."
+
+3. RÉSULTAT CONCRET (6-10 mots)
+   "0 à 15 000 vues. Sans pub."
+   "3 mots dans ma bio ont tout changé."
+
+4. INTERPELLATION DIRECTE (5-8 mots)
+   "Toi qui postes sans stratégie."
+   "Si ta com' te fatigue, écoute ça."
+
+5. TEASER IRRÉSISTIBLE (5-8 mots)
+   "Le truc que personne ne te dit."
+   "Voilà pourquoi ça marche pas."
+
+6. ANALOGIE FLASH (6-10 mots)
+   "Ta com', c'est un CV sans photo."
+   "Poster sans stratégie, c'est crier dans le désert."
+
+RAPPEL : chaque hook est 5-12 MOTS, une phrase FINIE et SPÉCIFIQUE au sujet, pas une formule à trous.
+
+GÉNÈRE aussi un TEXT OVERLAY pour chaque hook.
+Le text overlay = version ENCORE PLUS COURTE du hook : 3-6 mots max, EN MAJUSCULES.
+Exemples :
+Hook : "J'ai refait ma bio 47 fois." → Overlay : "47 BIOS PLUS TARD..."
+Hook : "Ta bio Instagram fait fuir les gens." → Overlay : "TA BIO FAIT FUIR"
 
 Retourne ce JSON exact :
 {
   "hooks": [
     {
       "id": "A",
-      "type": "curiosite",
-      "type_label": "Curiosité",
-      "text": "[PHRASE COMPLÈTE ancrée dans le sujet]",
-      "text_overlay": "[3-5 MOTS EN MAJUSCULES liés au sujet]",
+      "type": "confession",
+      "type_label": "Confession",
+      "text": "[HOOK 5-12 MOTS]",
+      "word_count": 7,
+      "estimated_seconds": 2,
+      "text_overlay": "[3-6 MOTS EN MAJUSCULES]",
       "format_recommande": "mini_tuto",
       "format_label": "Mini-tuto",
       "duree_cible": "30 sec"
     },
     {
       "id": "B",
-      "type": "erreur",
-      "type_label": "Erreur",
-      "text": "[PHRASE COMPLÈTE ancrée dans le sujet]",
+      "type": "affirmation_contraire",
+      "type_label": "Affirmation contraire",
+      "text": "[HOOK 5-12 MOTS]",
+      "word_count": 8,
+      "estimated_seconds": 2,
       "text_overlay": "...",
       "format_recommande": "...",
       "format_label": "...",
@@ -229,9 +264,11 @@ Retourne ce JSON exact :
     },
     {
       "id": "C",
-      "type": "...",
-      "type_label": "...",
-      "text": "[PHRASE COMPLÈTE ancrée dans le sujet]",
+      "type": "resultat_concret",
+      "type_label": "Résultat concret",
+      "text": "[HOOK 5-12 MOTS]",
+      "word_count": 7,
+      "estimated_seconds": 2,
       "text_overlay": "...",
       "format_recommande": "...",
       "format_label": "...",
@@ -241,7 +278,29 @@ Retourne ce JSON exact :
 }`;
 }
 
-function buildScriptPrompt(objective: string, face_cam: string, subject: string, time_available: string, is_launch: boolean, selectedHook: any): string {
+function buildScriptPrompt(objective: string, face_cam: string, subject: string, time_available: string, is_launch: boolean, selectedHook: any, preGenAnswers?: { anecdote?: string; emotion?: string; conviction?: string }): string {
+  let preGenBlock = "";
+  if (preGenAnswers && (preGenAnswers.anecdote || preGenAnswers.emotion || preGenAnswers.conviction)) {
+    preGenBlock = `
+L'UTILISATRICE A PARTAGÉ :
+${preGenAnswers.anecdote ? `- Moment perso : "${preGenAnswers.anecdote}"` : ""}
+${preGenAnswers.emotion ? `- Émotion visée : ${preGenAnswers.emotion}` : ""}
+${preGenAnswers.conviction ? `- Punchline : "${preGenAnswers.conviction}"` : ""}
+
+INTÈGRE dans le script :
+- Le moment perso peut devenir le hook OU une illustration dans le body
+- L'émotion guide le ton et le rythme du script
+- La punchline doit apparaître telle quelle (ou quasi), idéalement comme phrase de fin ou pivot central
+- NE CHANGE PAS le sens de ses mots, juste la structure si nécessaire
+`;
+  } else {
+    preGenBlock = `
+L'utilisatrice n'a pas fourni d'éléments personnels.
+Génère le script normalement mais AJOUTE un champ "personal_tip" dans le JSON :
+"Ce script sera 10x plus fort avec ton anecdote perso. Ajoute un truc vécu avant de filmer."
+`;
+  }
+
   return `DEMANDE : Générer un script Reel complet.
 
 Objectif : ${objective}
@@ -257,14 +316,16 @@ HOOK CHOISI :
 - Format recommandé : ${selectedHook.format_label}
 - Durée cible : ${selectedHook.duree_cible}
 
+${preGenBlock}
+
 ANCRAGE SUJET — RÈGLE CRITIQUE :
 Le script ENTIER doit rester ancré dans le sujet "${subject || '(basé sur le hook)'}".
-- Le hook parle de ce sujet
-- Le body développe CE sujet (pas un sujet adjacent ou plus large)
-- Le CTA est lié à CE sujet
-- La caption développe un angle complémentaire de CE sujet
-- Les hashtags sont liés à CE sujet
-Ne PAS élargir au sujet général. Si le sujet est "les erreurs en bio", le Reel parle de la bio, pas d'Instagram en général.
+Ne PAS élargir au sujet général.
+
+ANALOGIES VISUELLES :
+Intègre au moins 1 analogie visuelle concrète dans le body du script.
+L'analogie doit être du QUOTIDIEN (cuisine, maison, route, nature, objets courants).
+Pas d'analogies abstraites. L'audience doit pouvoir "voir" l'image mentalement.
 
 Génère un script complet structuré avec timing seconde par seconde.
 Chaque section body DOIT inclure une indication de CUT (changement de plan).
@@ -276,6 +337,7 @@ Retourne ce JSON exact :
   "duree_cible": "45 sec",
   "duree_justification": "Le storytelling a besoin de contexte + tension + leçon",
   "objectif": "${objective}",
+  "personal_tip": null,
   "script": [
     {
       "section": "hook",

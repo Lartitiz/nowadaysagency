@@ -330,6 +330,57 @@ ENSUITE seulement, génère le contenu final.
 `;
 
 // ═══════════════════════════════════════════════════
+// SECTION 9 : ANALOGIES VISUELLES (à injecter dans TOUS les prompts)
+// ═══════════════════════════════════════════════════
+
+export const VISUAL_ANALOGIES = \`
+ANALOGIES VISUELLES — UTILISE-LES SYSTÉMATIQUEMENT :
+
+Une bonne analogie transforme un concept abstrait en image mentale.
+L'audience ne retient pas "tu manques de stratégie".
+L'audience retient "poster sans stratégie, c'est distribuer des flyers dans le désert".
+
+POUR CHAQUE CONCEPT ABSTRAIT, PROPOSE UNE ANALOGIE CONCRÈTE.
+
+Exemples par thème :
+
+VISIBILITÉ :
+- "Ton projet est incroyable. Mais là, c'est comme un restaurant gastronomique dans une ruelle sans panneau."
+- "Être invisible sur Instagram, c'est comme chanter sous la douche : t'es peut-être géniale, mais personne ne t'entend."
+
+BIO INSTAGRAM :
+- "Ta bio, c'est ta vitrine. En ce moment, le rideau est baissé."
+- "Mettre juste ton métier en bio, c'est comme mettre 'humain' sur ton CV."
+
+STRATÉGIE DE CONTENU :
+- "Poster sans stratégie, c'est comme conduire sans GPS : tu roules, mais tu sais pas où tu vas."
+- "Un feed sans ligne éditoriale, c'est une bibliothèque où les livres sont rangés au hasard."
+- "Du contenu sans CTA, c'est un film sans fin : les gens restent là, ils savent pas quoi faire."
+
+BRANDING :
+- "Un branding flou, c'est comme un parfum qu'on oublie en sortant de la pièce."
+- "Ton identité visuelle, c'est ta voix dans une foule. Si tout le monde parle pareil, personne ne t'entend."
+
+MARKETING ÉTHIQUE :
+- "Le marketing bro, c'est un mégaphone. Le marketing éthique, c'est un aimant."
+- "Vendre sans manipuler, c'est cuisiner sans exhausteurs de goût : le produit doit être bon de base."
+
+RÈGLES :
+- L'analogie doit être VISUELLE : la personne doit pouvoir se l'imaginer instantanément
+- L'analogie doit être du QUOTIDIEN : cuisine, maison, route, corps, nature, objets courants
+- L'analogie doit être PROPORTIONNÉE : pas de comparaisons dramatiques pour des problèmes modérés
+- 1 analogie forte par section de contenu suffit. Ne pas en mettre 5 d'affilée.
+- L'analogie peut être drôle, c'est même mieux
+
+QUAND UTILISER :
+- Dans les hooks (Reels, posts, LinkedIn)
+- Dans les sections "Problème" des pages web
+- Dans les descriptions de transformation
+- Dans les explications pédagogiques
+- Dans les CTA ("Ne reste pas dans la ruelle. Mets un panneau.")
+\`;
+
+// ═══════════════════════════════════════════════════
 // SECTION 7 : GUARDRAILS ÉTHIQUES (PRIORITÉ ABSOLUE)
 // ═══════════════════════════════════════════════════
 
