@@ -33,9 +33,8 @@ export default function InstagramHub() {
       mondayDate.setDate(now.getDate() - day + (day === 0 ? -6 : 1));
       const monday = mondayDate.toISOString().split("T")[0];
 
-      const prevMondayDate = new Date(mondayDate);
-      prevMondayDate.setDate(prevMondayDate.getDate() - 7);
-      const prevMonday = prevMondayDate.toISOString().split("T")[0];
+      const currentMonthDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+      const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0];
 
       const [auditRes, ideasRes, calRes, launchRes, weeklyRes, statsRes, prevStatsRes] = await Promise.all([
         supabase.from("instagram_audit").select("score_global").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
@@ -43,8 +42,8 @@ export default function InstagramHub() {
         supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("canal", "instagram").gte("date", monthStart).lte("date", monthEnd),
         supabase.from("launches").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("engagement_weekly").select("total_done, dm_target, comments_target, replies_target").eq("user_id", user.id).eq("week_start", monday).maybeSingle(),
-        supabase.from("instagram_weekly_stats" as any).select("followers").eq("user_id", user.id).eq("week_start", monday).maybeSingle(),
-        supabase.from("instagram_weekly_stats" as any).select("followers").eq("user_id", user.id).eq("week_start", prevMonday).maybeSingle(),
+        supabase.from("monthly_stats" as any).select("followers, followers_gained").eq("user_id", user.id).eq("month_date", currentMonthDate).maybeSingle(),
+        supabase.from("monthly_stats" as any).select("followers").eq("user_id", user.id).eq("month_date", prevMonthDate).maybeSingle(),
       ]);
 
       const w = weeklyRes.data;
@@ -96,7 +95,7 @@ export default function InstagramHub() {
               to="/instagram/stats"
               emoji="📈"
               title="Mes stats"
-              desc="Followers, reach, posts qui marchent. Saisis tes stats chaque semaine."
+              desc="Tes KPIs mensuels : Instagram, site, CA. Avec graphiques d'évolution."
               badge={progress.statsUpToDate
                 ? (progress.statsFollowersDiff !== null
                   ? `${progress.statsFollowers} abo (${progress.statsFollowersDiff > 0 ? "+" : ""}${progress.statsFollowersDiff})`

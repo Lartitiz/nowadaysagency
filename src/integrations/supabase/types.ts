@@ -1835,6 +1835,138 @@ export type Database = {
         }
         Relationships: []
       }
+      monthly_stats: {
+        Row: {
+          accounts_engaged: number | null
+          ad_budget: number | null
+          ai_analysis: string | null
+          ai_analyzed_at: string | null
+          clients_signed: number | null
+          content_published: string | null
+          created_at: string | null
+          discovery_calls: number | null
+          email_signups: number | null
+          followers: number | null
+          followers_engaged: number | null
+          followers_gained: number | null
+          followers_lost: number | null
+          ga4_users: number | null
+          has_launch: boolean | null
+          id: string
+          interactions: number | null
+          launch_conversions: number | null
+          launch_dms: number | null
+          launch_link_clicks: number | null
+          launch_signups: number | null
+          launch_story_views: number | null
+          month_date: string
+          newsletter_subscribers: number | null
+          objective: string | null
+          page_views_academy: number | null
+          page_views_agency: number | null
+          page_views_plan: number | null
+          profile_visits: number | null
+          reach: number | null
+          revenue: number | null
+          stories_coverage: number | null
+          traffic_instagram: number | null
+          traffic_pinterest: number | null
+          traffic_search: number | null
+          traffic_social: number | null
+          updated_at: string | null
+          user_id: string
+          views: number | null
+          website_clicks: number | null
+          website_visitors: number | null
+        }
+        Insert: {
+          accounts_engaged?: number | null
+          ad_budget?: number | null
+          ai_analysis?: string | null
+          ai_analyzed_at?: string | null
+          clients_signed?: number | null
+          content_published?: string | null
+          created_at?: string | null
+          discovery_calls?: number | null
+          email_signups?: number | null
+          followers?: number | null
+          followers_engaged?: number | null
+          followers_gained?: number | null
+          followers_lost?: number | null
+          ga4_users?: number | null
+          has_launch?: boolean | null
+          id?: string
+          interactions?: number | null
+          launch_conversions?: number | null
+          launch_dms?: number | null
+          launch_link_clicks?: number | null
+          launch_signups?: number | null
+          launch_story_views?: number | null
+          month_date: string
+          newsletter_subscribers?: number | null
+          objective?: string | null
+          page_views_academy?: number | null
+          page_views_agency?: number | null
+          page_views_plan?: number | null
+          profile_visits?: number | null
+          reach?: number | null
+          revenue?: number | null
+          stories_coverage?: number | null
+          traffic_instagram?: number | null
+          traffic_pinterest?: number | null
+          traffic_search?: number | null
+          traffic_social?: number | null
+          updated_at?: string | null
+          user_id: string
+          views?: number | null
+          website_clicks?: number | null
+          website_visitors?: number | null
+        }
+        Update: {
+          accounts_engaged?: number | null
+          ad_budget?: number | null
+          ai_analysis?: string | null
+          ai_analyzed_at?: string | null
+          clients_signed?: number | null
+          content_published?: string | null
+          created_at?: string | null
+          discovery_calls?: number | null
+          email_signups?: number | null
+          followers?: number | null
+          followers_engaged?: number | null
+          followers_gained?: number | null
+          followers_lost?: number | null
+          ga4_users?: number | null
+          has_launch?: boolean | null
+          id?: string
+          interactions?: number | null
+          launch_conversions?: number | null
+          launch_dms?: number | null
+          launch_link_clicks?: number | null
+          launch_signups?: number | null
+          launch_story_views?: number | null
+          month_date?: string
+          newsletter_subscribers?: number | null
+          objective?: string | null
+          page_views_academy?: number | null
+          page_views_agency?: number | null
+          page_views_plan?: number | null
+          profile_visits?: number | null
+          reach?: number | null
+          revenue?: number | null
+          stories_coverage?: number | null
+          traffic_instagram?: number | null
+          traffic_pinterest?: number | null
+          traffic_search?: number | null
+          traffic_social?: number | null
+          updated_at?: string | null
+          user_id?: string
+          views?: number | null
+          website_clicks?: number | null
+          website_visitors?: number | null
+        }
+        Relationships: []
+      }
       persona: {
         Row: {
           completed: boolean | null
