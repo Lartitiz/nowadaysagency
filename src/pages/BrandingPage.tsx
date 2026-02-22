@@ -4,9 +4,10 @@ import { Link, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Eye, Pencil, Sparkles } from "lucide-react";
+import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList } from "lucide-react";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { supabase } from "@/integrations/supabase/client";
+import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
 
 interface BrandingCard {
   emoji: string;
@@ -66,6 +67,7 @@ export default function BrandingPage() {
   const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [primaryStoryId, setPrimaryStoryId] = useState<string | null>(null);
+  const [showSynthesis, setShowSynthesis] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -123,102 +125,128 @@ export default function BrandingPage() {
           C'est ici que tout commence. Plus tu remplis, plus L'Assistant Com' te connaît et te propose des idées qui te ressemblent.
         </p>
 
-        <div className="rounded-2xl border border-border bg-card p-5 mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-mono-ui text-[12px] font-semibold text-foreground">
-              Mon branding est complet à {completion.total}%
-            </span>
-          </div>
-          <Progress value={completion.total} className="h-2.5 mb-2" />
-          <p className="text-[12px] text-muted-foreground">{globalMessage}</p>
-        </div>
+        {showSynthesis ? (
+          <BrandingSynthesisSheet onClose={() => setShowSynthesis(false)} />
+        ) : (
+          <>
+            <div className="rounded-2xl border border-border bg-card p-5 mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-mono-ui text-[12px] font-semibold text-foreground">
+                  Mon branding est complet à {completion.total}%
+                </span>
+              </div>
+              <Progress value={completion.total} className="h-2.5 mb-2" />
+              <p className="text-[12px] text-muted-foreground">{globalMessage}</p>
+            </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {CARDS.map((card) => {
-            const pValue = completion[card.scoreKey];
-            const isCompleted = pValue === 100;
-            const pLabel = isCompleted ? "✅ Complet" : `${pValue}%`;
+            {/* Synthesis button */}
+            <div className="mb-8">
+              {completion.total >= 10 ? (
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 text-sm"
+                  onClick={() => setShowSynthesis(true)}
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  📋 Générer ma fiche de synthèse
+                </Button>
+              ) : (
+                <div className="text-center py-3 px-4 rounded-xl bg-muted/40 border border-border">
+                  <p className="text-xs text-muted-foreground">
+                    Remplis au moins ton positionnement ou ta cible pour générer ta fiche de synthèse.
+                  </p>
+                </div>
+              )}
+            </div>
 
-            return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {CARDS.map((card) => {
+                const pValue = completion[card.scoreKey];
+                const isCompleted = pValue === 100;
+                const pLabel = isCompleted ? "✅ Complet" : `${pValue}%`;
+
+                return (
+                  <div
+                    key={card.stepperRoute}
+                    className="rounded-2xl border-2 bg-card p-5 transition-all border-border hover:border-primary/30 hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <span className="text-2xl">{card.emoji}</span>
+                    </div>
+                    <h3 className="font-display text-base font-bold text-foreground mb-1">{card.title}</h3>
+                    <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">{card.description}</p>
+                    <div className="flex items-center gap-2 mb-4">
+                      <Progress value={pValue} className="h-1.5 flex-1" />
+                      <span className={`font-mono-ui text-[10px] font-semibold shrink-0 ${isCompleted ? "text-[#2E7D32]" : "text-muted-foreground"}`}>{pLabel}</span>
+                    </div>
+
+                    {isCompleted ? (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          className="rounded-pill text-xs flex-1"
+                          onClick={() => navigate(getRecapRoute(card))}
+                        >
+                          <Eye className="h-3.5 w-3.5 mr-1" />
+                          Voir ma fiche
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-pill text-xs"
+                          onClick={() => navigate(card.stepperRoute)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ) : pValue > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          className="rounded-pill text-xs flex-1"
+                          onClick={() => navigate(card.stepperRoute)}
+                        >
+                          Continuer →
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="rounded-pill text-xs w-full"
+                        onClick={() => navigate(card.stepperRoute)}
+                      >
+                        <Sparkles className="h-3.5 w-3.5 mr-1" />
+                        Commencer
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Mes offres card */}
               <div
-                key={card.stepperRoute}
-                className="rounded-2xl border-2 bg-card p-5 transition-all border-border hover:border-primary/30 hover:shadow-md"
+                className="rounded-2xl border-2 bg-card p-5 transition-all border-primary/30 hover:border-primary hover:shadow-md cursor-pointer"
+                onClick={() => navigate("/branding/offres")}
               >
                 <div className="flex items-start justify-between mb-3">
-                  <span className="text-2xl">{card.emoji}</span>
+                  <span className="text-2xl">🎁</span>
                 </div>
-                <h3 className="font-display text-base font-bold text-foreground mb-1">{card.title}</h3>
-                <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">{card.description}</p>
-                <div className="flex items-center gap-2 mb-4">
-                  <Progress value={pValue} className="h-1.5 flex-1" />
-                  <span className={`font-mono-ui text-[10px] font-semibold shrink-0 ${isCompleted ? "text-[#2E7D32]" : "text-muted-foreground"}`}>{pLabel}</span>
-                </div>
-
-                {isCompleted ? (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      className="rounded-pill text-xs flex-1"
-                      onClick={() => navigate(getRecapRoute(card))}
-                    >
-                      <Eye className="h-3.5 w-3.5 mr-1" />
-                      Voir ma fiche
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="rounded-pill text-xs"
-                      onClick={() => navigate(card.stepperRoute)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ) : pValue > 0 ? (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      className="rounded-pill text-xs flex-1"
-                      onClick={() => navigate(card.stepperRoute)}
-                    >
-                      Continuer →
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    size="sm"
-                    className="rounded-pill text-xs w-full"
-                    onClick={() => navigate(card.stepperRoute)}
-                  >
-                    <Sparkles className="h-3.5 w-3.5 mr-1" />
-                    Commencer
-                  </Button>
-                )}
+                <h3 className="font-display text-base font-bold text-foreground mb-1">Mes offres</h3>
+                <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">
+                  Formule tes offres de manière désirable. L'IA te coache à chaque étape.
+                </p>
+                <Button
+                  size="sm"
+                  className="rounded-pill text-xs w-full"
+                  onClick={(e) => { e.stopPropagation(); navigate("/branding/offres"); }}
+                >
+                  <Sparkles className="h-3.5 w-3.5 mr-1" />
+                  Voir mes offres
+                </Button>
               </div>
-            );
-          })}
-
-          {/* Mes offres card */}
-          <div
-            className="rounded-2xl border-2 bg-card p-5 transition-all border-primary/30 hover:border-primary hover:shadow-md cursor-pointer"
-            onClick={() => navigate("/branding/offres")}
-          >
-            <div className="flex items-start justify-between mb-3">
-              <span className="text-2xl">🎁</span>
             </div>
-            <h3 className="font-display text-base font-bold text-foreground mb-1">Mes offres</h3>
-            <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">
-              Formule tes offres de manière désirable. L'IA te coache à chaque étape.
-            </p>
-            <Button
-              size="sm"
-              className="rounded-pill text-xs w-full"
-              onClick={(e) => { e.stopPropagation(); navigate("/branding/offres"); }}
-            >
-              <Sparkles className="h-3.5 w-3.5 mr-1" />
-              Voir mes offres
-            </Button>
-          </div>
-        </div>
+          </>
+        )}
       </main>
     </div>
   );
