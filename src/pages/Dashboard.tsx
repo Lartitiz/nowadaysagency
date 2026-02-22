@@ -94,7 +94,7 @@ const MODULES: ModuleCard[] = [
     emoji: "🌐",
     number: 7,
     title: "Mon Site Web",
-    description: "Rédige les textes de ton site : page d'accueil, à propos, pages produits. L'IA écrit, tu copies-colles.",
+    description: "Rédige les textes de ton site : page d'accueil, à propos, pages produits. On te guide, tu copies-colles.",
     chips: ["Page d'accueil", "À propos", "Pages produits"],
     cta: "Bosser sur mon site →",
     route: "/site",
