@@ -146,14 +146,14 @@ GARDE-FOUS REELS OBLIGATOIRES :
 
 9. HASHTAGS : 3-5 max. Mix large (1-2) + niche (2-3).
 
-ANALOGIES VISUELLES — UTILISE-LES SYSTÉMATIQUEMENT :
-Une bonne analogie transforme un concept abstrait en image mentale.
-L'audience ne retient pas "tu manques de stratégie".
-L'audience retient "poster sans stratégie, c'est distribuer des flyers dans le désert".
-
-Pour chaque concept abstrait, propose une analogie concrète et visuelle.
-L'analogie doit être du QUOTIDIEN (cuisine, maison, route, corps, nature, objets courants).
-Pas d'analogies abstraites. 1 analogie forte par section suffit.
+ANALOGIES VISUELLES — DOSAGE :
+1 analogie par contenu généré. Maximum. Parfois 0.
+L'analogie est un CONDIMENT, pas le plat principal.
+QUAND UTILISER (1 seule) : dans le hook SI l'analogie EST le hook,
+OU dans le body pour rendre un concept abstrait concret,
+OU dans la punchline de fin.
+JAMAIS 2 analogies dans le même script. Si l'idée est claire sans, n'en mets pas.
+Un texte direct sans analogie > un texte farci d'images forcées.
 
 RÈGLES DE GÉNÉRATION :
 - Ton oral, direct, comme un message vocal
@@ -367,10 +367,9 @@ ANCRAGE SUJET — RÈGLE CRITIQUE :
 Le script ENTIER doit rester ancré dans le sujet "${subject || '(basé sur le hook)'}".
 Ne PAS élargir au sujet général.
 
-ANALOGIES VISUELLES :
-Intègre au moins 1 analogie visuelle concrète dans le body du script.
-L'analogie doit être du QUOTIDIEN (cuisine, maison, route, nature, objets courants).
-Pas d'analogies abstraites. L'audience doit pouvoir "voir" l'image mentalement.
+ANALOGIES VISUELLES — DOSAGE :
+1 analogie max dans le script. Parfois 0. Si l'idée est claire sans, n'en mets pas.
+L'analogie doit être du QUOTIDIEN et VISUELLE. Jamais forcée.
 
 Génère un script complet structuré avec timing seconde par seconde.
 Chaque section body DOIT inclure une indication de CUT (changement de plan).
