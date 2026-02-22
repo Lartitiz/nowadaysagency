@@ -438,46 +438,167 @@ export default function InstagramStats() {
     setIsGenerating(false);
   };
 
-  // Excel import
+  // Excel import — robust French date parsing
+  const parseMonthDate = (value: any, rowIndex: number, prevDate: Date | null): Date | null => {
+    // Date object (SheetJS parsed Excel serial date)
+    if (value instanceof Date && !isNaN(value.getTime())) {
+      return new Date(value.getFullYear(), value.getMonth(), 1);
+    }
+    // Excel serial number
+    if (typeof value === "number") {
+      try {
+        const parsed = XLSX.SSF.parse_date_code(value) as any;
+        if (parsed) return new Date(parsed.y, parsed.m - 1, 1);
+      } catch { /* fall through */ }
+      return null;
+    }
+    if (typeof value !== "string") return null;
+
+    const text = value.trim().toLowerCase().replace(/['']/g, "'");
+
+    const monthMap: Record<string, number> = {
+      janvier: 0, jan: 0, janv: 0,
+      "février": 1, fevrier: 1, fev: 1, "fév": 1,
+      mars: 2, mar: 2,
+      avril: 3, avr: 3,
+      mai: 4,
+      juin: 5,
+      juillet: 6, juil: 6,
+      aout: 7, "août": 7,
+      septembre: 8, sept: 8, sep: 8,
+      octobre: 9, oct: 9,
+      novembre: 10, nov: 10,
+      "décembre": 11, decembre: 11, dec: 11, "déc": 11,
+    };
+
+    // Try ISO / standard date first
+    const iso = new Date(value.trim());
+    if (!isNaN(iso.getTime()) && /\d{4}/.test(value)) {
+      return new Date(iso.getFullYear(), iso.getMonth(), 1);
+    }
+
+    // Find French month name
+    let foundMonth: number | null = null;
+    // Sort keys longest first to avoid partial matches ("mar" before "mars")
+    const sortedKeys = Object.keys(monthMap).sort((a, b) => b.length - a.length);
+    for (const name of sortedKeys) {
+      if (text.startsWith(name)) {
+        foundMonth = monthMap[name];
+        break;
+      }
+    }
+    if (foundMonth === null) return null;
+
+    // Extract year from text
+    const yearMatch = text.match(/(\d{2,4})/);
+    let foundYear: number | null = null;
+    if (yearMatch) {
+      let y = parseInt(yearMatch[1]);
+      if (y < 100) y += 2000;
+      foundYear = y;
+    }
+
+    // Deduce year from previous row's date if missing
+    if (foundYear === null && prevDate) {
+      // If month <= previous month, we likely rolled over to next year
+      if (foundMonth <= prevDate.getMonth()) {
+        foundYear = prevDate.getFullYear() + 1;
+      } else {
+        foundYear = prevDate.getFullYear();
+      }
+    }
+
+    // Fallback heuristic based on row position
+    if (foundYear === null) {
+      foundYear = rowIndex <= 12 ? 2024 : 2025;
+    }
+
+    return new Date(foundYear, foundMonth, 1);
+  };
+
   const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     try {
       const ab = await file.arrayBuffer();
-      const wb = XLSX.read(ab, { type: "array" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
-      let imported = 0;
+      const wb = XLSX.read(ab, { type: "array", cellDates: true });
+      // Prefer sheet named "Bon suivi KPI"
+      const sheetName = wb.SheetNames.find(n => n.toLowerCase().includes("bon suivi")) || wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+      const importedRows: { monthDate: string; payload: any }[] = [];
+      const skippedRows: { row: number; value: any; reason: string }[] = [];
+      let prevDate: Date | null = null;
+
+      const safeNum = (val: any): number | null => {
+        if (val == null || val === "" || val === "-" || val === "/" || val === "__" || val === "—") return null;
+        if (typeof val === "number") return isNaN(val) ? null : val;
+        if (typeof val === "string") {
+          const cleaned = val.replace(/[^\d.\-]/g, "");
+          const n = parseFloat(cleaned);
+          return isNaN(n) ? null : n;
+        }
+        return null;
+      };
+      const txt = (val: any) => (val != null && val !== "" && val !== "__") ? String(val) : null;
+
       for (let i = 1; i < rows.length; i++) {
         const r = rows[i];
-        if (!r || !r[0]) continue;
-        let md: Date | null = null;
-        if (typeof r[0] === "number") {
-          const parsed = XLSX.SSF.parse_date_code(r[0]) as any;
-          if (parsed) md = new Date(parsed.y, parsed.m - 1, 1);
-        } else if (typeof r[0] === "string") {
-          const parsed = new Date(r[0]);
-          if (!isNaN(parsed.getTime())) md = new Date(parsed.getFullYear(), parsed.getMonth(), 1);
+        if (!r || r.every((c: any) => c == null || c === "")) continue;
+        if (!r[0] && !r[1]) continue; // skip fully empty rows
+
+        const md = parseMonthDate(r[0], i, prevDate);
+        if (!md) {
+          if (r[0] != null && String(r[0]).trim() !== "") {
+            skippedRows.push({ row: i + 1, value: r[0], reason: "Date non reconnue" });
+          }
+          continue;
         }
-        if (!md) continue;
-        const num = (col: number) => { const v = r[col]; if (v == null || v === "" || v === "-") return null; const n = Number(v); return isNaN(n) ? null : n; };
-        const txt = (col: number) => r[col]?.toString() || null;
+        prevDate = md;
+
         const payload: any = {
-          user_id: user.id, month_date: monthKey(md), objective: txt(1), content_published: txt(2),
-          reach: num(5), profile_visits: num(6), website_clicks: num(7), interactions: num(8),
-          accounts_engaged: num(9), followers_engaged: num(11), followers: num(12), followers_gained: num(13),
-          followers_lost: num(15), email_signups: num(17), newsletter_subscribers: num(18),
-          website_visitors: num(19), traffic_pinterest: num(20), traffic_instagram: num(21),
-          ga4_users: num(22), traffic_search: num(23), traffic_social: num(24), ad_budget: num(25),
-          page_views_plan: num(26), page_views_academy: num(27), page_views_agency: num(28),
-          discovery_calls: num(29), clients_signed: num(31), revenue: num(32),
+          user_id: user.id, month_date: monthKey(md),
+          objective: txt(r[1]), content_published: txt(r[2]),
+          views: safeNum(r[3]), stories_coverage: safeNum(r[4]),
+          reach: safeNum(r[5]), profile_visits: safeNum(r[6]),
+          website_clicks: safeNum(r[7]), interactions: safeNum(r[8]),
+          accounts_engaged: safeNum(r[9]), followers_engaged: safeNum(r[11]),
+          followers: safeNum(r[12]), followers_gained: safeNum(r[13]),
+          followers_lost: safeNum(r[15]), email_signups: safeNum(r[17]),
+          newsletter_subscribers: safeNum(r[18]), website_visitors: safeNum(r[19]),
+          traffic_pinterest: safeNum(r[20]), traffic_instagram: safeNum(r[21]),
+          ga4_users: safeNum(r[22]), traffic_search: safeNum(r[23]),
+          traffic_social: safeNum(r[24]), ad_budget: safeNum(r[25]),
+          page_views_plan: safeNum(r[26]), page_views_academy: safeNum(r[27]),
+          page_views_agency: safeNum(r[28]), discovery_calls: safeNum(r[29]),
+          clients_signed: safeNum(r[31]), revenue: safeNum(r[32]),
         };
-        await supabase.from("monthly_stats" as any).upsert(payload, { onConflict: "user_id,month_date" });
-        imported++;
+        importedRows.push({ monthDate: monthKey(md), payload });
       }
-      toast({ title: `✅ ${imported} mois de données importés.` });
+
+      // Batch upsert
+      let imported = 0;
+      for (const row of importedRows) {
+        const { error } = await supabase.from("monthly_stats" as any).upsert(row.payload, { onConflict: "user_id,month_date" });
+        if (!error) imported++;
+      }
+
+      const firstMonth = importedRows.length > 0 ? monthLabel(importedRows[0].monthDate) : "";
+      const lastMonth = importedRows.length > 0 ? monthLabel(importedRows[importedRows.length - 1].monthDate) : "";
+      const skippedMsg = skippedRows.length > 0
+        ? `\n${skippedRows.length} ligne(s) ignorée(s) : ${skippedRows.map(s => `L${s.row} "${s.value}"`).join(", ")}`
+        : "";
+
+      toast({
+        title: `✅ ${imported} mois importés`,
+        description: imported > 0 ? `De ${firstMonth} à ${lastMonth}${skippedMsg}` : "Aucune donnée trouvée dans le fichier.",
+      });
       loadStats();
-    } catch { toast({ title: "Erreur lors de l'import Excel", variant: "destructive" }); }
+    } catch (err) {
+      console.error("Import error:", err);
+      toast({ title: "Erreur lors de l'import", description: "Vérifie le format de ton fichier Excel.", variant: "destructive" });
+    }
     e.target.value = "";
   };
 
