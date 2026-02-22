@@ -333,7 +333,7 @@ ENSUITE seulement, génère le contenu final.
 // SECTION 9 : ANALOGIES VISUELLES (à injecter dans TOUS les prompts)
 // ═══════════════════════════════════════════════════
 
-export const VISUAL_ANALOGIES = \`
+export const VISUAL_ANALOGIES = `
 ANALOGIES VISUELLES — UTILISE-LES SYSTÉMATIQUEMENT :
 
 Une bonne analogie transforme un concept abstrait en image mentale.
@@ -378,7 +378,7 @@ QUAND UTILISER :
 - Dans les descriptions de transformation
 - Dans les explications pédagogiques
 - Dans les CTA ("Ne reste pas dans la ruelle. Mets un panneau.")
-\`;
+`;
 
 // ═══════════════════════════════════════════════════
 // SECTION 7 : GUARDRAILS ÉTHIQUES (PRIORITÉ ABSOLUE)
