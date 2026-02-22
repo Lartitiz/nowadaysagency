@@ -1,16 +1,18 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 
 interface UseSpeechRecognitionReturn {
   isListening: boolean;
   isSupported: boolean;
   toggle: () => void;
-  transcript: string;
+  error: string | null;
 }
 
 export function useSpeechRecognition(onResult: (text: string) => void): UseSpeechRecognitionReturn {
   const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
+  const onResultRef = useRef(onResult);
+  onResultRef.current = onResult;
 
   const SpeechRecognition = typeof window !== "undefined"
     ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
@@ -18,8 +20,17 @@ export function useSpeechRecognition(onResult: (text: string) => void): UseSpeec
 
   const isSupported = !!SpeechRecognition;
 
-  useEffect(() => {
+  const toggle = useCallback(() => {
     if (!isSupported) return;
+    setError(null);
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    // Create a fresh instance each time to avoid InvalidStateError
     const recognition = new SpeechRecognition();
     recognition.lang = "fr-FR";
     recognition.continuous = true;
@@ -34,31 +45,35 @@ export function useSpeechRecognition(onResult: (text: string) => void): UseSpeec
         }
       }
       if (finalTranscript) {
-        setTranscript(finalTranscript);
-        onResult(finalTranscript);
+        onResultRef.current(finalTranscript);
       }
     };
 
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
+    recognition.onerror = (event: any) => {
+      setIsListening(false);
+      if (event.error === "not-allowed") {
+        setError("Autorise le micro dans les paramètres de ton navigateur.");
+      } else if (event.error === "no-speech") {
+        // Silently ignore no-speech
+      } else {
+        console.error("Speech recognition error:", event.error);
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
 
     recognitionRef.current = recognition;
 
-    return () => {
-      recognition.abort();
-    };
-  }, [isSupported]);
-
-  const toggle = useCallback(() => {
-    if (!recognitionRef.current) return;
-    if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    } else {
-      recognitionRef.current.start();
+    try {
+      recognition.start();
       setIsListening(true);
+    } catch (e) {
+      console.error("Failed to start speech recognition:", e);
+      setError("La dictée vocale n'a pas pu démarrer.");
     }
-  }, [isListening]);
+  }, [isListening, isSupported]);
 
-  return { isListening, isSupported, toggle, transcript };
+  return { isListening, isSupported, toggle, error };
 }
