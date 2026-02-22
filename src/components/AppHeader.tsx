@@ -7,7 +7,7 @@ import NotificationBell from "@/components/NotificationBell";
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Accueil", icon: Home },
   { to: "/idees", label: "Mes idées", icon: Lightbulb },
-  { to: "/plan", label: "Mon plan", icon: ClipboardList },
+  { to: "/mon-plan", label: "Mon plan", icon: ClipboardList },
   { to: "/profil", label: "Profil", icon: User },
   { to: "/parametres", label: "Paramètres", icon: Settings },
 ];

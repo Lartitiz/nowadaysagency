@@ -77,7 +77,7 @@ export default function PlanMiniRecap() {
           Un plan en 12 semaines pour structurer ta com'.
         </p>
         <Link
-          to="/plan"
+          to="/mon-plan"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
         >
           Commencer le programme
@@ -119,7 +119,7 @@ export default function PlanMiniRecap() {
       </p>
 
       <Link
-        to="/plan"
+        to="/mon-plan"
         className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
       >
         Voir mon plan

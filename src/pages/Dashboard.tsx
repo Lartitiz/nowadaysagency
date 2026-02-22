@@ -251,7 +251,7 @@ export default function Dashboard() {
 
         {/* Missions summary */}
         {missionsTotal > 0 && (
-          <Link to="/plan" className="block mb-6">
+          <Link to="/mon-plan" className="block mb-6">
             <div className="rounded-2xl border border-border bg-card p-4 hover:border-primary/40 transition-all hover:shadow-card-hover hover:-translate-y-px">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-bold text-foreground">🎯 Cette semaine : {missionsDone}/{missionsTotal} missions faites</p>
