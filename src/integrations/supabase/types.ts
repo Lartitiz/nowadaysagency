@@ -16,24 +16,30 @@ export type Database = {
     Tables: {
       ai_usage: {
         Row: {
-          audit_count: number | null
-          generation_count: number | null
+          action_type: string
+          category: string
+          created_at: string
           id: string
-          month: string
+          model_used: string | null
+          tokens_used: number | null
           user_id: string
         }
         Insert: {
-          audit_count?: number | null
-          generation_count?: number | null
+          action_type: string
+          category: string
+          created_at?: string
           id?: string
-          month: string
+          model_used?: string | null
+          tokens_used?: number | null
           user_id: string
         }
         Update: {
-          audit_count?: number | null
-          generation_count?: number | null
+          action_type?: string
+          category?: string
+          created_at?: string
           id?: string
-          month?: string
+          model_used?: string | null
+          tokens_used?: number | null
           user_id?: string
         }
         Relationships: []

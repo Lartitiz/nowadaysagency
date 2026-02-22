@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { PLAN_LIMITS } from "../_shared/plan-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,15 +39,32 @@ serve(async (req) => {
       .eq("user_id", userId)
       .eq("status", "paid");
 
-    const { data: usage } = await supabaseClient
+    // Get usage this month by category
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    const { data: usageRows } = await supabaseClient
       .from("ai_usage")
-      .select("*")
+      .select("category")
       .eq("user_id", userId)
-      .eq("month", new Date().toISOString().slice(0, 7))
-      .single();
+      .gte("created_at", monthStart.toISOString());
+
+    const rows = usageRows || [];
+    const plan = sub?.plan || "free";
+    const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+
+    // Build usage map
+    const usage: Record<string, { used: number; limit: number }> = {};
+    for (const cat of Object.keys(limits)) {
+      if (cat === "total") continue;
+      const used = rows.filter((r: any) => r.category === cat).length;
+      usage[cat] = { used, limit: limits[cat] };
+    }
+    usage.total = { used: rows.length, limit: limits.total };
 
     return new Response(JSON.stringify({
-      plan: sub?.plan || "free",
+      plan,
       status: sub?.status || "active",
       current_period_end: sub?.current_period_end,
       studio_months_paid: sub?.studio_months_paid || 0,
@@ -54,10 +72,7 @@ serve(async (req) => {
       cancel_at: sub?.cancel_at,
       source: sub?.source || "stripe",
       purchases: purchases || [],
-      ai_usage: {
-        generation_count: usage?.generation_count || 0,
-        audit_count: usage?.audit_count || 0,
-      },
+      ai_usage: usage,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

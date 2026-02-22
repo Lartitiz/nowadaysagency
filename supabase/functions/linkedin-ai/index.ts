@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LINKEDIN_PRINCIPLES, LINKEDIN_TEMPLATES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
@@ -34,16 +34,29 @@ serve(async (req) => {
 
     // Anthropic API key checked in shared helper
 
-    // Check plan limits
-    const usageCheck = await checkAndIncrementUsage(supabase, user.id, "generation");
-    if (!usageCheck.allowed) {
+    const { action, ...params } = await req.json();
+
+    // Determine category based on action
+    const categoryMap: Record<string, string> = {
+      "generate-post": "content",
+      "adapt-instagram": "adaptation",
+      "crosspost": "adaptation",
+      "title": "bio_profile",
+      "summary": "bio_profile",
+      "optimize-experience": "bio_profile",
+      "suggest-skills": "bio_profile",
+      "personalize-message": "bio_profile",
+      "draft-recommendation": "bio_profile",
+      "analyze-resume": "bio_profile",
+    };
+    const category = categoryMap[action] || "content";
+    const quotaCheck = await checkQuota(user.id, category);
+    if (!quotaCheck.allowed) {
       return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0, category: quotaCheck.reason }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const { action, ...params } = await req.json();
     const ctx = await getUserContext(supabase, user.id);
     const context = formatContextForAI(ctx, CONTEXT_PRESETS.linkedin);
     const qualityBlocks = `${ANTI_SLOP}\n\n${ETHICAL_GUARDRAILS}\n\n${ANTI_BIAS}\n\n${CHAIN_OF_THOUGHT}`;
@@ -111,6 +124,8 @@ serve(async (req) => {
     }
 
     const content = await callAnthropicSimple("claude-opus-4-6", systemPrompt, userPrompt, 0.8);
+
+    await logUsage(user.id, category, `linkedin_${action}`);
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
