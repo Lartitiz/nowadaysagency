@@ -6,7 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Lightbulb, PenLine, CalendarDays, Trash2, Copy, ChevronDown, X, ExternalLink } from "lucide-react";
-import { ContentPreview } from "@/components/ContentPreview";
+import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -399,6 +399,17 @@ export default function IdeasPage() {
                         contentData={selectedIdea.content_data}
                         contentDraft={selectedIdea.content_draft}
                         contentType={selectedIdea.format === "reel" ? "reel" : selectedIdea.format === "story_serie" ? "stories" : undefined}
+                        editable
+                        onContentChange={async (updatedData) => {
+                          // Save to content_data or content_draft depending on type
+                          const isJson = typeof updatedData === "object";
+                          const updatePayload = isJson
+                            ? { content_data: updatedData, updated_at: new Date().toISOString() }
+                            : { content_draft: updatedData, updated_at: new Date().toISOString() };
+                          await supabase.from("saved_ideas").update(updatePayload as any).eq("id", selectedIdea.id);
+                          setIdeas((prev) => prev.map((i) => i.id === selectedIdea.id ? { ...i, ...(isJson ? { content_data: updatedData } : { content_draft: updatedData }) } : i));
+                          setSelectedIdea((prev) => prev ? { ...prev, ...(isJson ? { content_data: updatedData } : { content_draft: updatedData }) } : null);
+                        }}
                       />
                     </div>
                   </div>

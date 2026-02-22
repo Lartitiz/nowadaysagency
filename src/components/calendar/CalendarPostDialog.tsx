@@ -12,6 +12,7 @@ import { FORMAT_EMOJIS, FORMAT_LABELS } from "@/lib/calendar-helpers";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
 
 const FORMAT_OPTIONS = [
   { id: "post_carrousel", emoji: "📑", label: "Carrousel" },
@@ -503,7 +504,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       </DialogContent>
     </Dialog>
 
-    {/* Content Viewer Sheet */}
+    {/* Content Viewer Sheet — now uses ContentPreview with inline editing */}
     <Sheet open={showContentViewer} onOpenChange={setShowContentViewer}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
@@ -513,102 +514,30 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         </SheetHeader>
 
         <div className="mt-4 space-y-4">
-          {/* Reel content viewer */}
-          {isReelPost && reelData && (
-            <>
-              {reelData.hook && (
-                <div className="rounded-xl border border-primary/20 bg-rose-pale p-3">
-                  <p className="text-xs font-semibold text-primary mb-1">🪝 HOOK</p>
-                  <p className="text-sm font-medium text-foreground">"{reelData.hook.text}"</p>
-                  {reelData.hook.text_overlay && (
-                    <p className="text-xs text-muted-foreground mt-1">📝 Overlay : {reelData.hook.text_overlay}</p>
-                  )}
-                </div>
-              )}
+          <ContentPreview
+            contentData={editingPost?.story_sequence_detail}
+            contentType={isReelPost ? "reel" : isStoriesPost ? "stories" : undefined}
+            editable
+            onContentChange={async (updatedData) => {
+              if (!editingPost) return;
+              await supabase
+                .from("calendar_posts")
+                .update({ story_sequence_detail: updatedData, updated_at: new Date().toISOString() })
+                .eq("id", editingPost.id);
+            }}
+          />
 
-              {reelData.script?.map((section: any, idx: number) => (
-                <div key={idx} className="rounded-xl border border-border bg-card p-4 space-y-2">
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-accent/20 text-accent-foreground">
-                    {section.section?.toUpperCase()} · {section.timing}
-                  </span>
-                  <p className="text-xs text-muted-foreground">{section.format_visuel}</p>
-                  <p className="text-sm text-foreground whitespace-pre-line">"{section.texte_parle}"</p>
-                  {section.texte_overlay && (
-                    <div className="border-l-[3px] border-accent bg-accent/20 rounded-r-lg px-3 py-1.5">
-                      <p className="text-xs font-bold text-accent-foreground">📝 {section.texte_overlay}</p>
-                    </div>
-                  )}
-                  {section.cut && (
-                    <p className="text-xs text-muted-foreground italic">✂️ CUT → {section.cut}</p>
-                  )}
-                </div>
-              ))}
-
-              {reelData.caption && (
-                <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground">📝 CAPTION</p>
-                  <p className="text-sm text-foreground whitespace-pre-line">{reelData.caption.text}</p>
-                  <p className="text-sm text-primary font-medium">{reelData.caption.cta}</p>
-                  {reelData.hashtags && (
-                    <p className="text-xs text-muted-foreground">{reelData.hashtags.join(" ")}</p>
-                  )}
-                </div>
-              )}
-
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => {
-                  const text = reelData.script?.map((s: any) => `[${s.timing}] ${s.section?.toUpperCase()}\n"${s.texte_parle}"${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n───\n\n") || "";
-                  navigator.clipboard.writeText(text);
-                  toast({ title: "Script copié !" });
-                }} className="rounded-pill text-xs gap-1.5">
-                  <Copy className="h-3 w-3" /> Copier le script
-                </Button>
-                {reelData.caption && (
-                  <Button variant="outline" size="sm" onClick={() => {
-                    navigator.clipboard.writeText(`${reelData.caption.text}\n\n${reelData.caption.cta}\n\n${reelData.hashtags?.join(" ") || ""}`);
-                    toast({ title: "Caption copiée !" });
-                  }} className="rounded-pill text-xs gap-1.5">
-                    <Copy className="h-3 w-3" /> Copier la caption
-                  </Button>
-                )}
-              </div>
-            </>
-          )}
-
-          {/* Stories content viewer */}
-          {isStoriesPost && storiesData?.stories && (
-            <>
-              {storiesData.stories.map((story: any) => (
-                <div key={story.number} className="rounded-xl border border-border bg-card p-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-accent/20 text-accent-foreground">
-                      {story.timing_emoji} Story {story.number} · {story.role}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{story.format_label || story.format}</p>
-                  <p className="text-sm text-foreground whitespace-pre-line">{story.text}</p>
-                  {story.sticker && (
-                    <div className="rounded-lg border border-primary/20 bg-rose-pale p-2">
-                      <p className="text-xs font-semibold text-primary">🎯 {story.sticker.label}</p>
-                      {story.sticker.options && (
-                        <p className="text-xs text-muted-foreground">{story.sticker.options.join(" / ")}</p>
-                      )}
-                    </div>
-                  )}
-                  {story.tip && (
-                    <p className="text-xs text-muted-foreground italic">💡 {story.tip}</p>
-                  )}
-                </div>
-              ))}
-
-              <Button variant="outline" size="sm" onClick={() => {
-                const text = storiesData.stories.map((s: any) => `${s.timing_emoji || ""} STORY ${s.number} · ${s.role}\n${s.format_label || s.format}\n\n${s.text}${s.sticker ? `\n🎯 ${s.sticker.label}${s.sticker.options ? ` → ${s.sticker.options.join(" / ")}` : ""}` : ""}`).join("\n\n───\n\n");
-                navigator.clipboard.writeText(text);
-                toast({ title: "Séquence copiée !" });
-              }} className="rounded-pill text-xs gap-1.5">
-                <Copy className="h-3 w-3" /> Copier tout
-              </Button>
-            </>
+          {/* Revert to AI version */}
+          {editingPost && (editingPost as any).original_content_data && (
+            <RevertToOriginalButton onRevert={async () => {
+              const original = (editingPost as any).original_content_data;
+              await supabase
+                .from("calendar_posts")
+                .update({ story_sequence_detail: original, updated_at: new Date().toISOString() })
+                .eq("id", editingPost.id);
+              toast({ title: "Version originale restaurée" });
+              setShowContentViewer(false);
+            }} />
           )}
         </div>
       </SheetContent>
