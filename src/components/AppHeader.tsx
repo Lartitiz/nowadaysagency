@@ -1,6 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useLocation } from "react-router-dom";
-import { Home, ClipboardList, User, Settings, Menu, X, Lightbulb } from "lucide-react";
+import { Home, ClipboardList, User, Settings, Menu, X, Lightbulb, Users } from "lucide-react";
 import { useState } from "react";
 import NotificationBell from "@/components/NotificationBell";
 import { useActiveChannels } from "@/hooks/use-active-channels";
@@ -15,6 +15,7 @@ function useNavItems() {
   if (!loading && hasInstagram) base.push({ to: "/instagram", label: "📱 Instagram", icon: Home });
   if (!loading && hasLinkedin) base.push({ to: "/linkedin", label: "💼 LinkedIn", icon: Home });
   base.push(
+    { to: "/contacts", label: "👥 Mes contacts", icon: Users },
     { to: "/profil", label: "Profil", icon: User },
     { to: "/parametres", label: "Paramètres", icon: Settings },
   );

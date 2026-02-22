@@ -8,7 +8,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Trash2, Plus, Copy } from "lucide-react";
 import InstagramLink, { cleanPseudo } from "@/components/InstagramLink";
-import type { Prospect, ProspectInteraction } from "./ProspectionSection";
+import type { Prospect, ProspectInteraction } from "./DmGenerator";
 import { STAGES } from "./ProspectionSection";
 import DmGenerator from "./DmGenerator";
 
@@ -28,6 +28,8 @@ interface Props {
   onDelete: () => void;
 }
 
+function getUsername(p: Prospect) { return p.instagram_username || p.username || ""; }
+
 export default function ProspectDetailDialog({ prospect, open, onOpenChange, onUpdate, onDelete }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -40,12 +42,22 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
   const [editValue, setEditValue] = useState("");
 
   const loadInteractions = useCallback(async () => {
+    // Try contact_interactions first, fallback to prospect_interactions
     const { data } = await supabase
-      .from("prospect_interactions")
+      .from("contact_interactions")
       .select("*")
-      .eq("prospect_id", prospect.id)
+      .eq("contact_id", prospect.id)
       .order("created_at", { ascending: true });
-    if (data) setInteractions(data as ProspectInteraction[]);
+    if (data && data.length > 0) {
+      setInteractions(data as unknown as ProspectInteraction[]);
+    } else {
+      const { data: legacy } = await supabase
+        .from("prospect_interactions")
+        .select("*")
+        .eq("prospect_id", prospect.id)
+        .order("created_at", { ascending: true });
+      if (legacy) setInteractions(legacy as unknown as ProspectInteraction[]);
+    }
   }, [prospect.id]);
 
   useEffect(() => { loadInteractions(); }, [loadInteractions]);
@@ -53,20 +65,20 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
   const addInteraction = async () => {
     if (!user) return;
     const { data } = await supabase
-      .from("prospect_interactions")
+      .from("contact_interactions")
       .insert({
-        prospect_id: prospect.id,
+        contact_id: prospect.id,
         user_id: user.id,
         interaction_type: newInteractionType,
         content: newInteractionContent || null,
-      })
+      } as any)
       .select("*")
       .single();
     if (data) {
-      setInteractions(prev => [...prev, data as ProspectInteraction]);
+      setInteractions(prev => [...prev, data as unknown as ProspectInteraction]);
       setAddingInteraction(false);
       setNewInteractionContent("");
-      onUpdate({ last_interaction_at: new Date().toISOString() });
+      onUpdate({ last_interaction_at: new Date().toISOString() } as any);
     }
   };
 
@@ -124,26 +136,27 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
             onMessageSent={(content, approach, meta) => {
               // Log interaction
               if (user) {
-                supabase.from("prospect_interactions").insert({
-                  prospect_id: prospect.id,
+                supabase.from("contact_interactions").insert({
+                  contact_id: prospect.id,
                   user_id: user.id,
                   interaction_type: "dm_sent",
                   content,
                   ai_generated: true,
-                }).then(() => loadInteractions());
+                } as any).then(() => loadInteractions());
               }
               // Determine next stage & reminder based on approach
-              let nextStage = prospect.stage === "to_contact" ? "in_conversation" : prospect.stage;
+              const currentStage = prospect.stage || prospect.prospect_stage;
+              let nextStage = currentStage === "to_contact" ? "in_conversation" : currentStage;
               let reminderDays = 3;
-              let reminderText = `Vérifier si @${prospect.instagram_username} a répondu`;
+              let reminderText = `Vérifier si @${getUsername(prospect)} a répondu`;
               if (approach === "resource") {
                 nextStage = "resource_sent";
                 reminderDays = 5;
-                reminderText = `Vérifier si @${prospect.instagram_username} a regardé la ressource`;
+                reminderText = `Vérifier si @${getUsername(prospect)} a regardé la ressource`;
               } else if (approach === "offer") {
                 nextStage = "offer_proposed";
                 reminderDays = 3;
-                reminderText = `Vérifier si @${prospect.instagram_username} a réservé`;
+                reminderText = `Vérifier si @${getUsername(prospect)} a réservé`;
               }
               const reminderDate = new Date();
               reminderDate.setDate(reminderDate.getDate() + reminderDays);
@@ -167,7 +180,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <span>👤 @{cleanPseudo(prospect.instagram_username)}</span>
+            <span>👤 @{cleanPseudo(getUsername(prospect))}</span>
             {prospect.display_name && (
               <span className="text-sm font-normal text-muted-foreground">{prospect.display_name}</span>
             )}
@@ -175,7 +188,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
         </DialogHeader>
 
         <div className="flex gap-2 mb-2">
-          <InstagramLink username={prospect.instagram_username} className="text-xs text-primary hover:underline" showCopy>
+          <InstagramLink username={getUsername(prospect)} className="text-xs text-primary hover:underline" showCopy>
             👁️ Profil Instagram
           </InstagramLink>
         </div>
