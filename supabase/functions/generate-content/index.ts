@@ -244,10 +244,58 @@ IMPORTANT : Réponds UNIQUEMENT en JSON :
         userPrompt = "Analyse ma bio Instagram.";
 
       } else if (type === "bio-generator") {
-        const ga = body.generatorAnswers || {};
-        const toneLabels: Record<string,string> = { pro: "professionnelle et claire", warm: "chaleureuse et accessible", punchy: "punchy et directe", soft: "douce et poétique", fun: "fun et décalée" };
-        const actionLabels: Record<string,string> = { buy: "acheter/commander", dm: "envoyer un DM", link: "cliquer sur le lien", newsletter: "s'abonner à la newsletter", rdv: "prendre RDV", explore: "explorer le contenu" };
-        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nINFOS DU GÉNÉRATEUR :\n- Activité : ${ga.activity || "?"}\n- Cible : ${ga.target || "?"}\n- Différenciant : ${ga.differentiator || "?"}\n- Ton souhaité : ${toneLabels[ga.tone] || ga.tone || "?"}\n- Action souhaitée : ${actionLabels[ga.action] || ga.action || "?"}\n\nCONSIGNE :\nGénère 3 versions de bio Instagram.\n\nRÈGLES :\n- 150 caractères MAX par bio complète (la bio entière, pas par ligne)\n- Affiche le compteur de caractères pour chaque version\n- Pas de suite d'emojis en début de chaque ligne\n- Des phrases complètes, pas des mots-clés en vrac\n- Utilise les MOTS de l'utilisatrice, pas du jargon marketing\n- Chaque version a un style différent :\n  Version A : la plus directe et claire\n  Version B : la plus chaleureuse et humaine\n  Version C : la plus punchy avec preuve sociale si possible\n- Inclure un CTA clair dans chaque version\n- Ne pas commencer par un emoji\n\nRéponds UNIQUEMENT en JSON :\n{"versions":[{"label":"Directe","bio_text":"ligne1\\nligne2\\nligne3\\nligne4","character_count":142,"style_note":"Courte et efficace"}]}`;
+        const bc = body.brandingContext || {};
+        const diff = body.differentiation || {};
+        const cta = body.ctaInfo || {};
+        const diffTypeLabels: Record<string,string> = { parcours: "Son parcours / expertise", valeurs: "Ses valeurs / engagements", methode: "Sa méthode unique", clients: "Ce que ses clients disent", style: "Son style / esthétique" };
+        const ctaTypeLabels: Record<string,string> = { freebie: "télécharger une ressource gratuite", rdv: "prendre RDV", boutique: "voir sa boutique / ses offres", newsletter: "s'inscrire à sa newsletter", dm: "envoyer un DM", site: "visiter son site" };
+
+        systemPrompt = `${CORE_PRINCIPLES}
+
+PROFIL DE L'UTILISATRICE :
+${fullContext}
+
+CONTEXTE BRANDING (issu du module Branding) :
+- Positionnement : ${bc.positioning || "?"}
+- Proposition de valeur : ${bc.valueProposition || "?"}
+- Cible : ${bc.target || "?"}
+- Ton de voix : ${bc.tone || "?"}
+- Mots-clés / piliers : ${bc.keywords || "?"}
+- Mission : ${bc.mission || "?"}
+- Offre : ${bc.offer || "?"}
+- Combats : ${bc.combats || "?"}
+${bc.story ? `- Histoire : ${bc.story.substring(0, 300)}...` : ""}
+
+DIFFÉRENCIATION :
+- Angle choisi : ${diffTypeLabels[diff.type] || diff.type || "?"}
+- Détail : ${diff.text || "?"}
+
+CTA SOUHAITÉ :
+- Action : ${ctaTypeLabels[cta.type] || cta.type || "?"}
+${cta.text ? `- Nom du freebie/newsletter : ${cta.text}` : ""}
+
+CONSIGNE :
+Génère 3 propositions de bio Instagram.
+
+RÈGLES :
+- 150 caractères MAX par bio complète (la bio entière, toutes lignes incluses)
+- 4 lignes max
+- Ligne 1 : qui elle est / ce qu'elle fait (avec mot-clé SEO)
+- Ligne 2 : sa promesse ou sa différenciation
+- Ligne 3 : preuve de crédibilité ou détail humain
+- Ligne 4 : CTA avec emoji pointant vers le lien ↓
+- Utiliser le ton de l'utilisatrice (pas générique)
+- Pas de suite d'emojis en début de chaque ligne
+- Des phrases complètes, pas des mots-clés en vrac
+- Utilise les MOTS de l'utilisatrice, pas du jargon marketing
+- Ne pas commencer par un emoji
+- Chaque proposition doit avoir un angle différent :
+  · Proposition A : focus promesse (bénéfice client)
+  · Proposition B : focus différenciation (ce qui la rend unique)
+  · Proposition C : focus personnalité (son style, son énergie)
+
+Réponds UNIQUEMENT en JSON :
+{"bios":[{"label":"Focus promesse","bio_text":"ligne1\\nligne2\\nligne3\\nligne4","character_count":142,"pourquoi":"Cette version met en avant le bénéfice pour ta cible."}]}`;
         userPrompt = "Génère 3 versions de bio Instagram pour moi.";
 
       } else if (type === "bio") {
