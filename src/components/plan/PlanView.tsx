@@ -160,6 +160,11 @@ function StepCard({ step, navigate }: { step: PlanStep; navigate: (path: string)
               <Lock className="h-3 w-3" /> Termine d'abord les fondations
             </p>
           )}
+          {step.debugInfo && (
+            <p className="text-[10px] text-muted-foreground/50 mt-1 font-mono break-all">
+              (debug: {step.debugInfo})
+            </p>
+          )}
         </div>
         <div className="flex-shrink-0 flex items-center gap-3">
           <span className="text-xs text-muted-foreground flex items-center gap-1">

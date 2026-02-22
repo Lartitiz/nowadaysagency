@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { fetchBrandingData, calculateBrandingCompletion } from "./branding-completion";
 
 export type StepStatus = "done" | "in_progress" | "todo" | "locked";
 
@@ -13,6 +12,7 @@ export interface PlanStep {
   detail?: string; // e.g. "Score : 62/100"
   recommendation?: string;
   comingSoon?: boolean;
+  debugInfo?: string;
 }
 
 export interface PlanPhase {
@@ -56,56 +56,99 @@ const TIME_LABELS: Record<string, string> = {
 export { GOAL_LABELS, TIME_LABELS };
 
 export async function computePlan(userId: string, config: PlanConfig): Promise<PlanData> {
-  // Fetch all needed data in parallel
+  // Fetch all needed data in parallel — simple existence/count checks
   const [
-    brandingRaw,
+    brandProfileRes,
+    personaRes,
     { count: storyCount },
-    { count: prospectCount },
-    { count: contactCount },
-    { count: calendarPostCount },
+    { count: offerCount },
     { data: auditIg },
+    { data: auditIgBio },
     liAuditResult,
     { data: editoLine },
-    { data: bioData },
-    { data: offerData },
+    { count: calendarPostCount },
+    { count: contactCount },
+    { count: prospectCount },
+    strategyRes,
+    propRes,
+    toneRes,
   ] = await Promise.all([
-    fetchBrandingData(userId),
+    supabase.from("brand_profile").select("mission, voice_description, tone_register, offer").eq("user_id", userId).maybeSingle(),
+    supabase.from("persona").select("step_1_frustrations, step_2_transformation").eq("user_id", userId).maybeSingle(),
     supabase.from("storytelling").select("id", { count: "exact", head: true }).eq("user_id", userId),
-    supabase.from("prospects").select("id", { count: "exact", head: true }).eq("user_id", userId),
-    supabase.from("engagement_contacts").select("id", { count: "exact", head: true }).eq("user_id", userId),
-    supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    supabase.from("offers").select("id", { count: "exact", head: true }).eq("user_id", userId),
     supabase.from("instagram_audit").select("score_global").eq("user_id", userId).maybeSingle(),
+    supabase.from("instagram_audit").select("score_bio").eq("user_id", userId).maybeSingle(),
     Promise.resolve(supabase.from("linkedin_audit").select("score_global").eq("user_id", userId).maybeSingle()).catch(() => ({ data: null })),
     supabase.from("instagram_editorial_line").select("pillars").eq("user_id", userId).maybeSingle(),
-    supabase.from("instagram_audit").select("score_bio").eq("user_id", userId).maybeSingle(),
+    supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    supabase.from("engagement_contacts").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    supabase.from("prospects").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    supabase.from("brand_strategy").select("facet_1, pillar_major, creative_concept, step_1_hidden_facets").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_proposition").select("step_1_what, version_final").eq("user_id", userId).maybeSingle(),
+    supabase.from("brand_profile").select("tone_register, tone_level, tone_style, combat_cause, combat_fights, key_expressions").eq("user_id", userId).maybeSingle(),
   ]);
   const auditLi = liAuditResult?.data;
 
-  const branding = calculateBrandingCompletion(brandingRaw);
   const channels = config.channels || [];
 
-  // Determine step statuses
-  const brandingDone = branding.total >= 50;
-  const brandingStarted = branding.total > 0;
-  const personaDone = branding.persona >= 80;
-  const personaStarted = branding.persona > 0;
+  // Helper
+  const filled = (v: any) => v !== null && v !== undefined && (typeof v !== "string" || v.trim().length > 0);
+
+  // ===== Simple existence-based status checks =====
+  const bp = brandProfileRes.data;
+  const brandingDone = !!(bp && (filled(bp.mission) || filled(bp.voice_description) || filled(bp.tone_register) || filled(bp.offer)));
+  const brandingStarted = !!bp;
+
+  const per = personaRes.data;
+  const personaDone = !!(per && (filled(per.step_1_frustrations) || filled(per.step_2_transformation)));
+  const personaStarted = !!per;
+
   const storyDone = (storyCount || 0) > 0;
-  const propDone = branding.proposition >= 80;
-  const propStarted = branding.proposition > 0;
-  const stratDone = branding.strategy >= 80;
-  const stratStarted = branding.strategy > 0;
-  const toneDone = branding.tone >= 80;
-  const toneStarted = branding.tone > 0;
+
+  const prop = propRes.data;
+  const propDone = !!(prop && filled(prop.version_final));
+  const propStarted = !!(prop && filled(prop.step_1_what));
+
+  const td = toneRes.data;
+  const toneDone = !!(td && (filled(td.tone_register) || filled(td.tone_level) || filled(td.tone_style) || filled(td.combat_cause) || filled(td.combat_fights) || filled(td.key_expressions)));
+  const toneStarted = !!td;
+
+  const st = strategyRes.data;
+  const stratDone = !!(st && (filled(st.pillar_major) || filled(st.facet_1)));
+  const stratStarted = !!(st && filled(st.step_1_hidden_facets));
 
   const igAuditDone = !!auditIg?.score_global;
-  const igBioScore = bioData?.score_bio;
+  const igBioScore = auditIgBio?.score_bio;
+  // Bio done if score exists (audit was done and bio was analyzed)
+  const igBioDone = igBioScore != null && igBioScore > 0;
   const igBioRecommendation = igBioScore != null && igBioScore < 70 ? "💡 Ta bio actuelle peut être améliorée" : undefined;
+
   const liAuditDone = !!auditLi?.score_global;
+
   const editoDone = !!(editoLine?.pillars && Array.isArray(editoLine.pillars) && (editoLine.pillars as any[]).length > 0);
   const calendarDone = (calendarPostCount || 0) > 0;
-  const contactsDone = (contactCount || 0) > 0;
+  const contactsDone = (contactCount || 0) >= 3;
   const prospectsDone = (prospectCount || 0) > 0;
+  const offersDone = (offerCount || 0) > 0;
+
+  // Debug info map
+  const debugInfo: Record<string, string> = {
+    branding: `brand_profile exists=${!!bp}, mission=${filled(bp?.mission)}, voice=${filled(bp?.voice_description)} → ${brandingDone ? "done" : "todo"}`,
+    persona: `persona exists=${!!per}, frustrations=${filled(per?.step_1_frustrations)} → ${personaDone ? "done" : "todo"}`,
+    storytelling: `count=${storyCount || 0} → ${storyDone ? "done" : "todo"}`,
+    proposition: `version_final=${filled(prop?.version_final)}, step_1=${filled(prop?.step_1_what)} → ${propDone ? "done" : propStarted ? "in_progress" : "todo"}`,
+    tone: `register=${filled(td?.tone_register)}, combat=${filled(td?.combat_cause)} → ${toneDone ? "done" : "todo"}`,
+    ig_audit: `score_global=${auditIg?.score_global ?? "null"} → ${igAuditDone ? "done" : "todo"}`,
+    ig_bio: `score_bio=${igBioScore ?? "null"} → ${igBioDone ? "done" : "todo"}`,
+    li_audit: `score_global=${auditLi?.score_global ?? "null"} → ${liAuditDone ? "done" : "todo"}`,
+    edito: `pillars=${editoLine?.pillars ? (editoLine.pillars as any[]).length : 0} → ${editoDone ? "done" : "todo"}`,
+    calendar: `count=${calendarPostCount || 0} → ${calendarDone ? "done" : "todo"}`,
+    engagement: `contacts=${contactCount || 0} (need ≥3) → ${contactsDone ? "done" : "todo"}`,
+    prospection: `count=${prospectCount || 0} → ${prospectsDone ? "done" : "todo"}`,
+    offers: `count=${offerCount || 0} → ${offersDone ? "done" : "todo"}`,
+    strategy: `pillar_major=${filled(st?.pillar_major)}, facet_1=${filled(st?.facet_1)} → ${stratDone ? "done" : "todo"}`,
+  };
 
   function s(done: boolean, started?: boolean): StepStatus {
     if (done) return "done";
@@ -113,10 +156,9 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
     return "todo";
   }
 
-  const foundationsLocked = false;
   const brandingComplete = brandingDone && personaDone;
 
-  // Phase 1: Fondations (always present)
+  // Phase 1: Fondations
   const phase1Steps: PlanStep[] = [
     {
       id: "branding",
@@ -125,6 +167,7 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
       duration: 20,
       route: "/branding",
       status: s(brandingDone, brandingStarted),
+      debugInfo: debugInfo.branding,
     },
     {
       id: "persona",
@@ -133,6 +176,7 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
       duration: 30,
       route: "/branding/persona",
       status: s(personaDone, personaStarted),
+      debugInfo: debugInfo.persona,
     },
     {
       id: "storytelling",
@@ -141,6 +185,7 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
       duration: 45,
       route: "/branding/storytelling",
       status: s(storyDone),
+      debugInfo: debugInfo.storytelling,
     },
     {
       id: "proposition",
@@ -149,6 +194,7 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
       duration: 30,
       route: "/branding/proposition",
       status: s(propDone, propStarted),
+      debugInfo: debugInfo.proposition,
     },
     {
       id: "tone",
@@ -157,10 +203,10 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
       duration: 25,
       route: "/branding/ton",
       status: s(toneDone, toneStarted),
+      debugInfo: debugInfo.tone,
     },
   ];
 
-  // Add offers if goal is launch
   if (config.main_goal === "launch" || config.main_goal === "clients") {
     phase1Steps.push({
       id: "offers",
@@ -168,11 +214,12 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
       description: "Atelier de positionnement d'offre",
       duration: 60,
       route: "/branding/offres",
-      status: s(!!offerData?.version_final, !!offerData?.step_1_what),
+      status: s(offersDone),
+      debugInfo: debugInfo.offers,
     });
   }
 
-  // Phase 2: Canaux (conditional)
+  // Phase 2: Canaux
   const phase2Steps: PlanStep[] = [];
 
   if (channels.includes("instagram")) {
@@ -184,6 +231,7 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
       route: "/instagram/audit",
       status: s(igAuditDone),
       detail: igAuditDone && auditIg?.score_global ? `Score : ${auditIg.score_global}/100` : undefined,
+      debugInfo: debugInfo.ig_audit,
     });
     phase2Steps.push({
       id: "ig_bio",
@@ -191,8 +239,9 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
       description: "Bio, nom, photo de profil",
       duration: 15,
       route: "/instagram/profil/bio",
-      status: igAuditDone ? (igBioScore && igBioScore >= 70 ? "done" : "todo") : "todo",
+      status: s(igBioDone),
       recommendation: igBioRecommendation,
+      debugInfo: debugInfo.ig_bio,
     });
   }
 
@@ -205,6 +254,7 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
       route: "/linkedin/audit",
       status: s(liAuditDone),
       detail: liAuditDone && auditLi?.score_global ? `Score : ${(auditLi as any).score_global}/100` : undefined,
+      debugInfo: debugInfo.li_audit,
     });
     phase2Steps.push({
       id: "li_profil",
@@ -271,6 +321,7 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
       duration: 45,
       route: "/branding/strategie",
       status: s(stratDone, stratStarted),
+      debugInfo: debugInfo.strategy,
     },
   ];
 
@@ -282,6 +333,7 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
       duration: 45,
       route: "/instagram/profil/edito",
       status: s(editoDone),
+      debugInfo: debugInfo.edito,
     });
   }
 
@@ -292,6 +344,7 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
     duration: 60,
     route: "/calendrier",
     status: s(calendarDone),
+    debugInfo: debugInfo.calendar,
   });
 
   // Phase 4: Quotidien
@@ -305,6 +358,7 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
       duration: 30,
       route: "/instagram/routine",
       status: s(contactsDone),
+      debugInfo: debugInfo.engagement,
     });
   }
 
@@ -316,6 +370,7 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
       duration: 30,
       route: "/instagram/routine",
       status: s(prospectsDone),
+      debugInfo: debugInfo.prospection,
     });
   }
 
@@ -324,8 +379,9 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
     label: "Créer ton premier contenu",
     description: "Utiliser l'atelier créatif pour ton 1er post",
     duration: 30,
-    route: "/atelier",
+    route: "/instagram/creer",
     status: s(calendarDone),
+    debugInfo: debugInfo.calendar,
   });
 
   // Build phases
@@ -343,7 +399,7 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
     phases.push({ id: "daily", title: "Ton quotidien", emoji: "⚡", steps: phase4Steps, locked: !brandingComplete });
   }
 
-  // Apply locks: if branding not complete, lock steps in phases 2+
+  // Apply locks
   for (const phase of phases) {
     if (phase.locked) {
       for (const step of phase.steps) {
