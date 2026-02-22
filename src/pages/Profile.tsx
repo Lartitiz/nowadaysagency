@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { HelpCircle, ArrowRight } from "lucide-react";
 import SaveButton from "@/components/SaveButton";
-import UnsavedChangesDialog from "@/components/UnsavedChangesDialog";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 
 const PILIERS = [
@@ -69,7 +68,7 @@ export default function Profile() {
   });
 
   const hasChanges = JSON.stringify(current) !== JSON.stringify(saved);
-  const blocker = useUnsavedChanges(hasChanges);
+  useUnsavedChanges(hasChanges);
 
   useEffect(() => {
     if (!user) return;
@@ -139,7 +138,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <UnsavedChangesDialog blocker={blocker} />
+      
       <main className="mx-auto max-w-2xl px-4 py-8 pb-28 animate-fade-in">
         <h1 className="font-display text-3xl font-bold text-bordeaux mb-2">Mon profil</h1>
         <p className="text-sm text-muted-foreground mb-6">Tes infos de base. Pour tout ce qui concerne ta marque (mission, ton, positionnement), c'est dans le module Branding.</p>
