@@ -165,28 +165,12 @@ function BrandMarquee() {
 }
 
 /* ─── Founder photo ─── */
+import laetitiaPhoto from "@/assets/laetitia-photo.jpg";
+
 function FounderPhoto() {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    const { data } = supabase.storage.from("landing-assets").getPublicUrl("founder-photo.jpg");
-    // Check if image exists by attempting to load it
-    const img = new Image();
-    img.onload = () => setUrl(data.publicUrl);
-    img.onerror = () => setUrl(null);
-    img.src = data.publicUrl;
-  }, []);
-
-  if (!url) {
-    return (
-      <div className="w-full aspect-[3/4] max-w-xs rounded-2xl bg-rose-soft flex items-center justify-center">
-        <span className="text-muted-foreground text-sm">Photo à venir</span>
-      </div>
-    );
-  }
-
   return (
     <img
-      src={url}
+      src={laetitiaPhoto}
       alt="Laetitia, fondatrice de Nowadays"
       className="w-full max-w-xs rounded-2xl shadow-strong object-cover aspect-[3/4]"
       loading="lazy"
