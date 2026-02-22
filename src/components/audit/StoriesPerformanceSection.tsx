@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
+import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Upload, X } from "lucide-react";
 
 const STORY_TYPES = ["Storytime", "Éducation", "Vente", "Coulisses", "FAQ", "Amplification"];

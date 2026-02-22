@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
+import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Trash2, Plus, StickyNote, ExternalLink, MessageSquare } from "lucide-react";
 import InstagramLink, { cleanPseudo } from "@/components/InstagramLink";
 import CommentGenerator from "./CommentGenerator";

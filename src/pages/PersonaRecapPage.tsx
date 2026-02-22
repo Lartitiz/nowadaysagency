@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Pencil, RefreshCw } from "lucide-react";
 import EditableText from "@/components/EditableText";

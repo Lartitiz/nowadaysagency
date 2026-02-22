@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
+import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Button } from "@/components/ui/button";
 import { Upload, X, Sparkles, Loader2, ImagePlus } from "lucide-react";
 

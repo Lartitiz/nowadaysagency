@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Check, Sparkles, ChevronDown, ChevronUp, Mic, Loader2, Copy, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import SaveButton from "@/components/SaveButton";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";

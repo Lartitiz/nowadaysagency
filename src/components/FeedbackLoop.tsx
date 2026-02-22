@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Mic, MicOff, RefreshCw, Undo2 } from "lucide-react";
 

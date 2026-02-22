@@ -6,7 +6,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Copy, RefreshCw, FileText, Pencil, Check } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
+import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
