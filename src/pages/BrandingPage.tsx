@@ -8,6 +8,9 @@ import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList } from "lucide-react";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { supabase } from "@/integrations/supabase/client";
 import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
+import BrandingImportBlock from "@/components/branding/BrandingImportBlock";
+import BrandingImportReview from "@/components/branding/BrandingImportReview";
+import type { BrandingExtraction } from "@/lib/branding-import-types";
 
 interface BrandingCard {
   emoji: string;
@@ -68,6 +71,8 @@ export default function BrandingPage() {
   const [loading, setLoading] = useState(true);
   const [primaryStoryId, setPrimaryStoryId] = useState<string | null>(null);
   const [showSynthesis, setShowSynthesis] = useState(false);
+  const [importPhase, setImportPhase] = useState<'idle' | 'reviewing'>('idle');
+  const [importExtraction, setImportExtraction] = useState<BrandingExtraction | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -84,6 +89,27 @@ export default function BrandingPage() {
     };
     load();
   }, [user?.id]);
+
+  const reloadCompletion = async () => {
+    if (!user) return;
+    const data = await fetchBrandingData(user.id);
+    setCompletion(calculateBrandingCompletion(data));
+    if (data.storytellingList && data.storytellingList.length > 0) {
+      const primary = data.storytellingList.find((s: any) => s.is_primary);
+      setPrimaryStoryId(primary?.id || data.storytellingList[0].id);
+    }
+  };
+
+  const handleImportResult = (extraction: BrandingExtraction) => {
+    setImportExtraction(extraction);
+    setImportPhase('reviewing');
+  };
+
+  const handleImportDone = async () => {
+    setImportPhase('idle');
+    setImportExtraction(null);
+    await reloadCompletion();
+  };
 
   const globalMessage =
     completion.total > 80
@@ -127,6 +153,12 @@ export default function BrandingPage() {
 
         {showSynthesis ? (
           <BrandingSynthesisSheet onClose={() => setShowSynthesis(false)} />
+        ) : importPhase === 'reviewing' && importExtraction ? (
+          <BrandingImportReview
+            extraction={importExtraction}
+            onDone={handleImportDone}
+            onCancel={() => { setImportPhase('idle'); setImportExtraction(null); }}
+          />
         ) : (
           <>
             <div className="rounded-2xl border border-border bg-card p-5 mb-4">
@@ -138,6 +170,11 @@ export default function BrandingPage() {
               <Progress value={completion.total} className="h-2.5 mb-2" />
               <p className="text-[12px] text-muted-foreground">{globalMessage}</p>
             </div>
+
+            {/* Import block — shown when branding is mostly empty */}
+            {completion.total < 30 && (
+              <BrandingImportBlock onResult={handleImportResult} />
+            )}
 
             {/* Synthesis button */}
             <div className="mb-8">
