@@ -73,6 +73,7 @@ export default function BrandingPage() {
   const [showSynthesis, setShowSynthesis] = useState(false);
   const [importPhase, setImportPhase] = useState<'idle' | 'reviewing'>('idle');
   const [importExtraction, setImportExtraction] = useState<BrandingExtraction | null>(null);
+  const [showImportBlock, setShowImportBlock] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -171,9 +172,18 @@ export default function BrandingPage() {
               <p className="text-[12px] text-muted-foreground">{globalMessage}</p>
             </div>
 
-            {/* Import block — shown when branding is mostly empty */}
-            {completion.total < 30 && (
+            {/* Import block — always accessible */}
+            {showImportBlock ? (
               <BrandingImportBlock onResult={handleImportResult} />
+            ) : (
+              <button
+                onClick={() => setShowImportBlock(true)}
+                className="w-full rounded-xl border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors p-4 mb-4 text-left"
+              >
+                <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                  📄 Tu as un document stratégique ? Importe-le pour pré-remplir ton branding.
+                </p>
+              </button>
             )}
 
             {/* Synthesis button */}
