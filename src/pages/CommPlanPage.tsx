@@ -5,8 +5,10 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import PlanSetup from "@/components/plan/PlanSetup";
 import PlanView from "@/components/plan/PlanView";
+import WeekView from "@/components/plan/WeekView";
 import { computePlan, type PlanData, type PlanConfig } from "@/lib/plan-engine";
-import { Loader2 } from "lucide-react";
+import { Loader2, CalendarDays, ClipboardList, BarChart3, Construction } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function CommPlanPage() {
   const { user } = useAuth();
@@ -18,7 +20,7 @@ export default function CommPlanPage() {
 
   // Load config from DB
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
     (async () => {
       const { data } = await supabase
         .from("user_plan_config")
@@ -89,10 +91,43 @@ export default function CommPlanPage() {
             initialConfig={config}
           />
         ) : (
-          <PlanView
-            plan={plan}
-            onEditConfig={() => setShowSetup(true)}
-          />
+          <Tabs defaultValue="week" className="space-y-4">
+            <TabsList className="w-full grid grid-cols-3 h-11">
+              <TabsTrigger value="parcours" className="gap-1.5 text-xs sm:text-sm">
+                <ClipboardList className="h-3.5 w-3.5" />
+                Parcours
+              </TabsTrigger>
+              <TabsTrigger value="week" className="gap-1.5 text-xs sm:text-sm">
+                <CalendarDays className="h-3.5 w-3.5" />
+                Ma semaine
+              </TabsTrigger>
+              <TabsTrigger value="bilan" className="gap-1.5 text-xs sm:text-sm">
+                <BarChart3 className="h-3.5 w-3.5" />
+                Bilan
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="parcours">
+              <PlanView
+                plan={plan}
+                onEditConfig={() => setShowSetup(true)}
+              />
+            </TabsContent>
+
+            <TabsContent value="week">
+              <WeekView />
+            </TabsContent>
+
+            <TabsContent value="bilan">
+              <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
+                <Construction className="h-10 w-10 text-muted-foreground/40" />
+                <h3 className="font-display font-bold text-foreground">Bientôt disponible</h3>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  Le bilan hebdomadaire te permettra de suivre tes performances et ton évolution semaine après semaine.
+                </p>
+              </div>
+            </TabsContent>
+          </Tabs>
         )}
       </main>
     </div>
