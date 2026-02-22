@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, Mic, MicOff } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import MicButton from "@/components/MicButton";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Direction {
@@ -19,9 +20,9 @@ interface ClarifyResult {
 export interface SubjectPickerResult {
   subject: string;
   subject_details?: string;
-  direction?: string;
   raw_idea?: string;
   clarify_context?: string;
+  direction?: string;
 }
 
 interface SubjectPickerProps {
@@ -30,13 +31,12 @@ interface SubjectPickerProps {
 }
 
 type Path = null | "fuzzy" | "precise" | "none";
-type FuzzyStep = "input" | "clarify" | "direction";
 
 export default function SubjectPicker({ onComplete, brandingContext }: SubjectPickerProps) {
   const [path, setPath] = useState<Path>(null);
 
   // Fuzzy path state
-  const [fuzzyStep, setFuzzyStep] = useState<FuzzyStep>("input");
+  const [fuzzyStep, setFuzzyStep] = useState<"input" | "clarify">("input");
   const [rawIdea, setRawIdea] = useState("");
   const [clarifyResult, setClarifyResult] = useState<ClarifyResult | null>(null);
   const [clarifyAnswer, setClarifyAnswer] = useState("");
@@ -53,7 +53,7 @@ export default function SubjectPicker({ onComplete, brandingContext }: SubjectPi
 
   // Mic
   const [activeMic, setActiveMic] = useState<string | null>(null);
-  const { isListening, isSupported, toggle } = useSpeechRecognition((text) => {
+  const { isListening, isSupported, toggle, error } = useSpeechRecognition((text) => {
     if (activeMic === "rawIdea") setRawIdea(prev => prev + (prev ? " " : "") + text);
     if (activeMic === "clarifyAnswer") setClarifyAnswer(prev => prev + (prev ? " " : "") + text);
     if (activeMic === "preciseSubject") setPreciseSubject(prev => prev + (prev ? " " : "") + text);
@@ -61,23 +61,13 @@ export default function SubjectPicker({ onComplete, brandingContext }: SubjectPi
   });
 
   const handleMic = (field: string) => {
+    if (isListening && activeMic === field) {
+      toggle();
+      return;
+    }
+    if (isListening) toggle();
     setActiveMic(field);
-    toggle();
-  };
-
-  const MicButton = ({ field }: { field: string }) => {
-    if (!isSupported) return null;
-    const active = isListening && activeMic === field;
-    return (
-      <button
-        onClick={() => handleMic(field)}
-        className={`absolute right-3 top-3 p-1.5 rounded-lg transition-colors ${
-          active ? "bg-primary text-primary-foreground animate-pulse" : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        {active ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-      </button>
-    );
+    setTimeout(() => toggle(), 50);
   };
 
   // Fuzzy: call AI for clarifying question
@@ -101,15 +91,6 @@ export default function SubjectPicker({ onComplete, brandingContext }: SubjectPi
       console.error(e);
     }
     setClarifyLoading(false);
-  };
-
-  const handleFuzzyComplete = () => {
-    onComplete({
-      subject: rawIdea,
-      raw_idea: rawIdea,
-      clarify_context: clarifyAnswer || undefined,
-      direction: selectedDirection || undefined,
-    });
   };
 
   // No idea: call AI for suggestions
@@ -179,9 +160,16 @@ export default function SubjectPicker({ onComplete, brandingContext }: SubjectPi
                 value={rawIdea}
                 onChange={(e) => setRawIdea(e.target.value)}
                 placeholder="Genre je voulais parler du fait que les gens se comparent trop sur Instagram..."
-                className="pr-12 min-h-[80px]"
+                className="pr-16 min-h-[80px]"
               />
-              <MicButton field="rawIdea" />
+              <div className="absolute right-2 top-2">
+                <MicButton
+                  isListening={isListening && activeMic === "rawIdea"}
+                  isSupported={isSupported}
+                  onClick={() => handleMic("rawIdea")}
+                  error={activeMic === "rawIdea" ? error : null}
+                />
+              </div>
             </div>
           </div>
           <Button onClick={handleFuzzySubmit} disabled={!rawIdea.trim() || clarifyLoading} className="w-full">
@@ -208,9 +196,16 @@ export default function SubjectPicker({ onComplete, brandingContext }: SubjectPi
                 value={clarifyAnswer}
                 onChange={(e) => setClarifyAnswer(e.target.value)}
                 placeholder="Une situation, un truc qu'une cliente t'a dit..."
-                className="pr-12 min-h-[70px]"
+                className="pr-16 min-h-[70px]"
               />
-              <MicButton field="clarifyAnswer" />
+              <div className="absolute right-2 top-2">
+                <MicButton
+                  isListening={isListening && activeMic === "clarifyAnswer"}
+                  isSupported={isSupported}
+                  onClick={() => handleMic("clarifyAnswer")}
+                  error={activeMic === "clarifyAnswer" ? error : null}
+                />
+              </div>
             </div>
           </div>
 
@@ -235,7 +230,12 @@ export default function SubjectPicker({ onComplete, brandingContext }: SubjectPi
             </div>
           </div>
 
-          <Button onClick={handleFuzzyComplete} className="w-full gap-1.5">
+          <Button onClick={() => onComplete({
+            subject: rawIdea,
+            raw_idea: rawIdea,
+            clarify_context: clarifyAnswer || undefined,
+            direction: selectedDirection || undefined,
+          })} className="w-full gap-1.5">
             <Sparkles className="h-4 w-4" /> Générer la séquence avec ça
           </Button>
         </div>
@@ -257,9 +257,16 @@ export default function SubjectPicker({ onComplete, brandingContext }: SubjectPi
               value={preciseSubject}
               onChange={(e) => setPreciseSubject(e.target.value)}
               placeholder="La comparaison sur Instagram"
-              className="pr-12 min-h-[60px]"
+              className="pr-16 min-h-[60px]"
             />
-            <MicButton field="preciseSubject" />
+            <div className="absolute right-2 top-2">
+              <MicButton
+                isListening={isListening && activeMic === "preciseSubject"}
+                isSupported={isSupported}
+                onClick={() => handleMic("preciseSubject")}
+                error={activeMic === "preciseSubject" ? error : null}
+              />
+            </div>
           </div>
         </div>
 
@@ -272,9 +279,16 @@ export default function SubjectPicker({ onComplete, brandingContext }: SubjectPi
               value={preciseDetails}
               onChange={(e) => setPreciseDetails(e.target.value)}
               placeholder="Je voulais dire que comparer son feed c'est comme comparer son brouillon au produit fini de quelqu'un d'autre..."
-              className="pr-12 min-h-[100px]"
+              className="pr-16 min-h-[100px]"
             />
-            <MicButton field="preciseDetails" />
+            <div className="absolute right-2 top-2">
+              <MicButton
+                isListening={isListening && activeMic === "preciseDetails"}
+                isSupported={isSupported}
+                onClick={() => handleMic("preciseDetails")}
+                error={activeMic === "preciseDetails" ? error : null}
+              />
+            </div>
           </div>
         </div>
 

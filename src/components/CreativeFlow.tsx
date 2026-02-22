@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Sparkles, Zap, Target, RefreshCw, Copy, Save, CalendarPlus,
-  Mic, MicOff, ChevronDown, ChevronUp, MessageSquarePlus, PenLine,
+  ChevronDown, ChevronUp, MessageSquarePlus, PenLine,
 } from "lucide-react";
 
 /* ─── Types ─── */
@@ -78,20 +78,24 @@ interface CreativeFlowProps {
 type FlowStep = "choose-mode" | "angles" | "questions" | "follow-up" | "result";
 
 /* ─── Micro button helper ─── */
-function MicButton({ onResult, fieldId }: { onResult: (text: string) => void; fieldId: string }) {
-  const { isListening, isSupported, toggle } = useSpeechRecognition(onResult);
+function CreativeFlowMicButton({ onResult, fieldId }: { onResult: (text: string) => void; fieldId: string }) {
+  const { isListening, isSupported, toggle, error } = useSpeechRecognition(onResult);
   if (!isSupported) return null;
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      className={`absolute right-3 top-3 p-1.5 rounded-lg transition-colors ${
-        isListening ? "bg-primary text-primary-foreground animate-pulse" : "text-muted-foreground hover:text-foreground hover:bg-muted"
-      }`}
-      title={isListening ? "Arrêter l'écoute" : "Dicter"}
-    >
-      {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-    </button>
+    <div className="absolute right-2 top-2">
+      <button
+        type="button"
+        onClick={toggle}
+        className={`p-1.5 rounded-lg transition-all ${
+          isListening ? "animate-pulse" : "opacity-50 hover:opacity-80 cursor-pointer"
+        }`}
+        title={isListening ? "Arrêter l'écoute" : "Dicter"}
+      >
+        <span className="text-[18px]" style={{ filter: isListening ? "none" : "grayscale(1)" }}>🎙️</span>
+      </button>
+      {isListening && <span className="text-xs text-destructive font-medium animate-pulse ml-1">Parle...</span>}
+      {error && !isListening && <span className="text-xs text-destructive ml-1">{error}</span>}
+    </div>
   );
 }
 
@@ -490,7 +494,7 @@ export default function CreativeFlow({
                         placeholder={q.placeholder}
                         className="pr-12 min-h-[100px]"
                       />
-                      <MicButton
+                      <CreativeFlowMicButton
                         fieldId={`q-${i}`}
                         onResult={(text) => setAnswers((prev) => ({
                           ...prev,
@@ -518,7 +522,7 @@ export default function CreativeFlow({
                             placeholder={q.placeholder}
                             className="pr-12 min-h-[80px]"
                           />
-                          <MicButton
+                          <CreativeFlowMicButton
                             fieldId={`fu-${i}`}
                             onResult={(text) => setFollowUpAnswers((prev) => ({
                               ...prev,

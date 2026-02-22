@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, SkipForward, Mic, MicOff } from "lucide-react";
+import { Sparkles, SkipForward } from "lucide-react";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import MicButton from "@/components/MicButton";
 
 export interface PreGenAnswers {
   anecdote: string;
@@ -57,14 +58,22 @@ export default function PreGenQuestions({ variant = "atelier", onSubmit, onSkip 
   const [conviction, setConviction] = useState("");
   const [activeMic, setActiveMic] = useState<string | null>(null);
 
-  const { isListening, isSupported, toggle } = useSpeechRecognition((text) => {
+  const { isListening, isSupported, toggle, error } = useSpeechRecognition((text) => {
     if (activeMic === "anecdote") setAnecdote(prev => prev + (prev ? " " : "") + text);
     if (activeMic === "conviction") setConviction(prev => prev + (prev ? " " : "") + text);
   });
 
   const handleMic = (field: string) => {
+    if (isListening && activeMic === field) {
+      toggle();
+      return;
+    }
+    if (isListening) {
+      toggle(); // stop current
+    }
     setActiveMic(field);
-    toggle();
+    // Small delay to ensure previous recognition stops
+    setTimeout(() => toggle(), 50);
   };
 
   return (
@@ -88,18 +97,17 @@ export default function PreGenQuestions({ variant = "atelier", onSubmit, onSkip 
             value={anecdote}
             onChange={(e) => setAnecdote(e.target.value)}
             placeholder={config.q1Placeholder}
-            className="pr-12 min-h-[70px]"
+            className="pr-16 min-h-[70px]"
           />
-          {isSupported && (
-            <button
+          <div className="absolute right-2 top-2">
+            <MicButton
+              isListening={isListening && activeMic === "anecdote"}
+              isSupported={isSupported}
               onClick={() => handleMic("anecdote")}
-              className={`absolute right-3 top-3 p-1.5 rounded-lg transition-colors ${
-                isListening && activeMic === "anecdote" ? "bg-primary text-primary-foreground animate-pulse" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {isListening && activeMic === "anecdote" ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-            </button>
-          )}
+              size="sm"
+              error={activeMic === "anecdote" ? error : null}
+            />
+          </div>
         </div>
       </div>
 
@@ -133,18 +141,17 @@ export default function PreGenQuestions({ variant = "atelier", onSubmit, onSkip 
             value={conviction}
             onChange={(e) => setConviction(e.target.value)}
             placeholder={config.q3Placeholder}
-            className="pr-12 min-h-[70px]"
+            className="pr-16 min-h-[70px]"
           />
-          {isSupported && (
-            <button
+          <div className="absolute right-2 top-2">
+            <MicButton
+              isListening={isListening && activeMic === "conviction"}
+              isSupported={isSupported}
               onClick={() => handleMic("conviction")}
-              className={`absolute right-3 top-3 p-1.5 rounded-lg transition-colors ${
-                isListening && activeMic === "conviction" ? "bg-primary text-primary-foreground animate-pulse" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {isListening && activeMic === "conviction" ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-            </button>
-          )}
+              size="sm"
+              error={activeMic === "conviction" ? error : null}
+            />
+          </div>
         </div>
       </div>
 
