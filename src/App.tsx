@@ -96,7 +96,7 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/connexion" element={<LoginPage />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/plan" element={<Navigate to="/pricing" replace />} />
+            {/* /plan is handled below as a protected route */}
             <Route path="/now-studio" element={<Navigate to="/studio/discover" replace />} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
