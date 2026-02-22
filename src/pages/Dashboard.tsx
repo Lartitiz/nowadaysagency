@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
+import AiDisclaimerBanner from "@/components/AiDisclaimerBanner";
 import { Progress } from "@/components/ui/progress";
 import { ExternalLink, ArrowRight } from "lucide-react";
 import RoutinesPanel from "@/components/RoutinesPanel";
@@ -225,6 +226,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
+      <AiDisclaimerBanner />
       <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4">
         {/* Header */}
         <div className="mb-2">
