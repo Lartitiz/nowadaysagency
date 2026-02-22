@@ -56,7 +56,14 @@ function cleanPseudo(input: string): string {
 }
 
 function getInstagramUrl(pseudo: string): string {
-  return `https://www.instagram.com/${cleanPseudo(pseudo)}/`;
+  const clean = cleanPseudo(pseudo);
+  if (clean.startsWith('http')) return clean;
+  return `https://www.instagram.com/${clean}/`;
+}
+
+function openInstagramProfile(pseudo: string) {
+  const url = getInstagramUrl(pseudo);
+  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 function daysSince(dateStr?: string) {
@@ -86,7 +93,7 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
   };
 
   const handleGoComment = (contact: Contact) => {
-    window.open(getInstagramUrl(contact.pseudo), '_blank');
+    openInstagramProfile(contact.pseudo);
     onInteract(contact.id);
   };
 
@@ -124,14 +131,13 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <a
-                      href={getInstagramUrl(c.pseudo)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-mono text-sm font-bold text-primary hover:underline"
+                    <button
+                      type="button"
+                      onClick={() => openInstagramProfile(c.pseudo)}
+                      className="font-mono text-sm font-bold text-primary hover:underline cursor-pointer bg-transparent border-none p-0"
                     >
                       @{displayPseudo}
-                    </a>
+                    </button>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full ${TAG_COLORS[c.tag] || "bg-muted text-foreground"}`}>
                       {TAG_LABELS[c.tag] || c.tag}
                     </span>
