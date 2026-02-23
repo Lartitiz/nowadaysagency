@@ -34,8 +34,9 @@ export function useActiveChannels(): ActiveChannels {
 
   useEffect(() => {
     if (isDemoMode) {
-      // Use demo channels
-      const demoChannels = ([...(demoData?.onboarding?.canaux || ["instagram", "site"])]) as ChannelId[];
+      // Map demo channel names to our ChannelId format
+      const channelMap: Record<string, ChannelId> = { instagram: "instagram", website: "site", newsletter: "newsletter", linkedin: "linkedin", pinterest: "pinterest", seo: "seo", site: "site" };
+      const demoChannels = (demoData?.onboarding?.canaux || ["instagram", "site"]).map(c => channelMap[c] || c) as ChannelId[];
       setChannelsState(demoChannels);
       setLoading(false);
       return;

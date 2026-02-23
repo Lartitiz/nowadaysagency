@@ -20,9 +20,9 @@ export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
 
   const fetchData = useCallback(async () => {
     if (isDemoMode) {
-      // Demo: show 3 days done this week
-      setWeekDots([true, true, true, false, false, false, false]);
-      setStreakCount(3);
+      // Demo: 2 days done this week (streak of 2)
+      setWeekDots([true, true, false, false, false, false, false]);
+      setStreakCount(2);
       setTodayDone(false);
       return;
     }

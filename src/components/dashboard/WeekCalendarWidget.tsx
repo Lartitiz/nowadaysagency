@@ -80,21 +80,31 @@ export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
 
   const fetchData = useCallback(async () => {
     if (isDemoMode) {
-      // Use demo data
+      // Use demo data with dates in the current week
       if (demoData) {
-        const demoPosts: WeekPost[] = demoData.calendar_posts
-          .filter(p => p.planned_day)
-          .map((p, i) => ({
-            id: `demo-${i}`,
-            date: p.planned_day,
-            theme: p.title,
-            format: p.format === "carousel" ? "post_carrousel" : p.format === "reel" ? "reel" : "post_photo",
-            status: i === 0 ? "published" : "planned",
-            canal: "instagram",
-            content_type_emoji: null,
-            stories_count: null,
-            stories_structure: null,
-          }));
+        const mondayStr = format(monday, "yyyy-MM-dd");
+        const wednesdayStr = format(addDays(monday, 2), "yyyy-MM-dd");
+        const fridayStr = format(addDays(monday, 4), "yyyy-MM-dd");
+        const demoPosts: WeekPost[] = [
+          {
+            id: "demo-1", date: mondayStr,
+            theme: "3 erreurs qui rendent tes photos invisibles",
+            format: "post_carrousel", status: "published", canal: "instagram",
+            content_type_emoji: null, stories_count: null, stories_structure: null,
+          },
+          {
+            id: "demo-2", date: wednesdayStr,
+            theme: "Coulisses séance studio",
+            format: "reel", status: "planned", canal: "instagram",
+            content_type_emoji: null, stories_count: null, stories_structure: null,
+          },
+          {
+            id: "demo-3", date: fridayStr,
+            theme: "Pourquoi tes photos de profil comptent",
+            format: "reel", status: "planned", canal: "instagram",
+            content_type_emoji: null, stories_count: null, stories_structure: null,
+          },
+        ];
         setWeekPosts(demoPosts);
       }
       setLoading(false);

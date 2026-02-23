@@ -115,6 +115,11 @@ export default function Dashboard() {
       weekPostsPublished: 1,
       contactCount: demoData.contacts.length,
       prospectCount: demoData.contacts.filter(c => c.type === "prospect").length,
+      recommendations: [
+        { id: "demo-rec-1", titre: "Optimise ta bio Instagram", route: "/instagram/bio", completed: false },
+        { id: "demo-rec-2", titre: "Crée un calendrier de publication régulier", route: "/calendrier", completed: false },
+        { id: "demo-rec-3", titre: "Ajoute des CTA dans tes légendes", route: "/instagram/creer", completed: false },
+      ],
     }));
     if (demoData.coaching) {
       setCoachingMonth(demoData.coaching.current_month);

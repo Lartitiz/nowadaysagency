@@ -57,10 +57,10 @@ export default function MonthlyStatsWidget({ animationDelay = 0 }: Props) {
 
   const fetchData = useCallback(async () => {
     if (isDemoMode && demoData) {
-      setMonthPublished(1);
-      setMonthRoutineDays(2);
+      setMonthPublished(5);
+      setMonthRoutineDays(12);
       setMonthAiUsage(demoData.profile.credits_used);
-      setObjectives(getMonthlyObjectives("2_5h"));
+      setObjectives({ posts: 8, routineDays: 20 });
       setLoading(false);
       return;
     }

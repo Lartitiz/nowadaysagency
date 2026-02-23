@@ -664,7 +664,7 @@ export default function Onboarding() {
                   <DiagnosticLoading
                     hasInstagram={answers.canaux.includes("instagram") && !!answers.instagram}
                     hasWebsite={answers.canaux.includes("website") && !!answers.website}
-                    hasDocuments={uploadedFiles.length > 0}
+                    hasDocuments={isDemoMode ? true : uploadedFiles.length > 0}
                     isDemoMode={isDemoMode}
                     answers={answers}
                     brandingAnswers={brandingAnswers}

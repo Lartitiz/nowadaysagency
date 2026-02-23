@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemoContext } from "@/contexts/DemoContext";
 import { BADGES } from "@/lib/badges";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,9 +16,17 @@ interface UnlockedBadge {
 
 export default function BadgesWidget({ animationDelay = 0 }: { animationDelay?: number }) {
   const { user } = useAuth();
+  const { isDemoMode } = useDemoContext();
   const [unlocked, setUnlocked] = useState<UnlockedBadge[]>([]);
 
   useEffect(() => {
+    if (isDemoMode) {
+      setUnlocked([
+        { badge_id: "first_post", unlocked_at: "2026-02-20T10:00:00Z", seen: true },
+        { badge_id: "five_posts", unlocked_at: "2026-02-22T14:00:00Z", seen: true },
+      ]);
+      return;
+    }
     if (!user) return;
     supabase
       .from("user_badges")
@@ -37,7 +46,7 @@ export default function BadgesWidget({ animationDelay = 0 }: { animationDelay?: 
           }
         }
       });
-  }, [user?.id]);
+  }, [user?.id, isDemoMode]);
 
   const unlockedIds = unlocked.map((b) => b.badge_id);
 
