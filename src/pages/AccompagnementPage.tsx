@@ -139,6 +139,20 @@ export default function AccompagnementPage() {
 
   const progressPct = Math.round(((program.current_month || 1) / 6) * 100);
   const nextSession = sessions.find(s => s.status === "scheduled" && s.scheduled_date);
+  const nextUnscheduled = sessions.find(s => s.status === "scheduled" && !s.scheduled_date);
+  const upcomingSession = nextSession || nextUnscheduled;
+
+  const DEFAULT_CALENDLY = "https://calendly.com/laetitia-mattioli/atelier-2h";
+  const calendlyUrl = program.calendly_link || DEFAULT_CALENDLY;
+
+  const handleBookSession = () => {
+    const url = new URL(calendlyUrl);
+    const firstName = user?.user_metadata?.prenom || user?.user_metadata?.first_name || "";
+    const email = user?.email || "";
+    if (firstName) url.searchParams.set("name", firstName);
+    if (email) url.searchParams.set("email", email);
+    window.open(url.toString(), "_blank");
+  };
 
   const fondationSessions = sessions.filter(s => s.session_type && ["launch", "strategy", "checkpoint"].includes(s.session_type));
   const focusSessions = sessions.filter(s => !s.session_type || s.session_type === "focus");
@@ -162,39 +176,62 @@ export default function AccompagnementPage() {
           <p className="text-sm text-muted-foreground mb-2">Mois {program.current_month || 1}/6</p>
           <Progress value={progressPct} className="h-2.5" />
           <p className="text-xs text-muted-foreground mt-1 text-right">{progressPct}%</p>
+          <div className="flex flex-wrap gap-2 mt-4">
+            <Button onClick={handleBookSession} variant="outline" className="rounded-full gap-2 text-sm">
+              <CalendarDays className="h-4 w-4" /> Réserver une session
+            </Button>
+            <Button asChild variant="outline" className="rounded-full gap-2 text-sm bg-[#25D366] hover:bg-[#1ebe57] text-white border-0">
+              <a href={program.whatsapp_link || LAETITIA_WHATSAPP} target="_blank" rel="noopener noreferrer">
+                <MessageCircle className="h-4 w-4" /> WhatsApp Laetitia
+              </a>
+            </Button>
+          </div>
         </div>
 
         {/* PROCHAINE SESSION */}
-        {nextSession && (
+        {upcomingSession && (
           <div className="rounded-2xl border-2 border-primary/30 bg-card p-6">
             <h2 className="font-display text-lg font-bold text-foreground mb-3 flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-primary" /> Prochaine session
             </h2>
             <div className="space-y-2">
               <p className="font-semibold text-foreground flex items-center gap-2">
-                <span>{getSessionIcon(nextSession)}</span>
-                {nextSession.title}
+                <span>{getSessionIcon(upcomingSession)}</span>
+                {upcomingSession.title || "À définir"}
               </p>
               <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                {nextSession.scheduled_date && (
-                  <span className="flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" /> {format(new Date(nextSession.scheduled_date), "EEEE d MMMM · HH'h'mm", { locale: fr })}</span>
+                {upcomingSession.scheduled_date && (
+                  <span className="flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" /> {format(new Date(upcomingSession.scheduled_date), "EEEE d MMMM · HH'h'mm", { locale: fr })}</span>
                 )}
-                <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {nextSession.duration_minutes} min</span>
+                <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {upcomingSession.duration_minutes} min</span>
               </div>
-              {nextSession.focus && <p className="text-sm text-muted-foreground">🎯 {nextSession.focus}</p>}
-              {nextSession.prep_notes && (
+              {upcomingSession.focus && <p className="text-sm text-muted-foreground">🎯 {upcomingSession.focus}</p>}
+              {upcomingSession.prep_notes && (
                 <div className="rounded-xl bg-rose-pale p-3 mt-2">
                   <p className="text-xs font-semibold text-primary mb-1">💡 Avant la session, pense à :</p>
-                  <p className="text-sm text-foreground whitespace-pre-line">{nextSession.prep_notes}</p>
+                  <p className="text-sm text-foreground whitespace-pre-line">{upcomingSession.prep_notes}</p>
                 </div>
               )}
-              {nextSession.meeting_link && (
-                <Button asChild className="mt-2 rounded-full gap-2">
-                  <a href={nextSession.meeting_link} target="_blank" rel="noopener noreferrer">
-                    <Video className="h-4 w-4" /> Rejoindre l'appel
-                  </a>
-                </Button>
-              )}
+              <div className="flex flex-wrap gap-2 mt-2">
+                {upcomingSession.scheduled_date ? (
+                  <>
+                    {upcomingSession.meeting_link && (
+                      <Button asChild className="rounded-full gap-2">
+                        <a href={upcomingSession.meeting_link} target="_blank" rel="noopener noreferrer">
+                          <Video className="h-4 w-4" /> Rejoindre l'appel
+                        </a>
+                      </Button>
+                    )}
+                    <Button onClick={handleBookSession} variant="outline" className="rounded-full gap-2 text-sm">
+                      <CalendarDays className="h-4 w-4" /> Modifier le créneau
+                    </Button>
+                  </>
+                ) : (
+                  <Button onClick={handleBookSession} className="rounded-full gap-2">
+                    <CalendarDays className="h-4 w-4" /> Réserver mon créneau
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         )}

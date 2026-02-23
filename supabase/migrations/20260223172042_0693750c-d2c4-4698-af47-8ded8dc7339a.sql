@@ -1,0 +1,1 @@
+ALTER TABLE coaching_programs ALTER COLUMN calendly_link SET DEFAULT 'https://calendly.com/laetitia-mattioli/atelier-2h';
