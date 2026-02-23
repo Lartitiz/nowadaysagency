@@ -249,15 +249,31 @@ export default function AccompagnementPage() {
       <div className="min-h-screen bg-background pb-20 lg:pb-8">
         <AppHeader />
         <main className="mx-auto max-w-2xl px-4 py-8 animate-fade-in">
-          <div className="rounded-2xl border border-primary/20 bg-card p-6 text-center space-y-4">
-            <span className="text-4xl">🤝</span>
-            <h1 className="font-display text-xl font-bold text-foreground">Mon accompagnement</h1>
-            <p className="text-sm text-muted-foreground">Programme Now Pilot · Avec Laetitia</p>
-            <p className="text-sm text-muted-foreground">Cette section est en cours de mise en place. Laetitia te contactera pour planifier ta première session.</p>
-            <Button asChild className="rounded-full gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white">
-              <a href={LAETITIA_WHATSAPP} target="_blank" rel="noopener noreferrer">
-                <MessageCircle className="h-4 w-4" /> Contacter Laetitia sur WhatsApp
-              </a>
+          <div className="rounded-2xl bg-rose-pale border border-primary/10 p-8 text-center space-y-6">
+            <span className="text-5xl block">🤝</span>
+            <h1 className="font-display text-2xl font-bold text-foreground">Envie d'être accompagnée ?</h1>
+            <div className="text-left space-y-3 max-w-md mx-auto">
+              {[
+                "6 mois de stratégie co-construite",
+                "Sessions visio 2h/mois avec Laetitia",
+                "WhatsApp jours ouvrés",
+                "Tous les outils débloqués",
+                "Plan de com' personnalisé",
+                "300 crédits IA / mois",
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">✓</span>
+                  <p className="text-sm text-foreground">{item}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-sm text-muted-foreground">250€/mois · Engagement 6 mois</p>
+            <Button
+              className="rounded-full gap-2"
+              onClick={() => window.open("https://calendly.com/laetitia-mattioli/appel-decouverte", "_blank")}
+            >
+              <CalendarDays className="h-4 w-4" />
+              Réserver un appel découverte →
             </Button>
           </div>
         </main>
