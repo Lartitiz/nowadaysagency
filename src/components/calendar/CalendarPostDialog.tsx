@@ -1,11 +1,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { format as formatDate } from "date-fns";
+import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Trash2, ChevronDown, Sparkles, Zap, Copy, RefreshCw, Loader2, Undo2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { Trash2, ChevronDown, Sparkles, Zap, Copy, RefreshCw, Loader2, Undo2, CalendarIcon } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
 import { ANGLES, STATUSES, OBJECTIFS, type CalendarPost } from "@/lib/calendar-constants";
 import { FORMAT_EMOJIS, FORMAT_LABELS } from "@/lib/calendar-helpers";
@@ -31,10 +36,11 @@ interface Props {
   onSave: (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format: string | null; content_draft: string | null; accroche: string | null }) => void;
   onDelete: () => void;
   onUnplan?: () => void;
+  onDateChange?: (postId: string, newDate: string) => void;
   prefillData?: { theme?: string; notes?: string } | null;
 }
 
-export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onDelete, onUnplan, prefillData }: Props) {
+export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onDelete, onUnplan, onDateChange, prefillData }: Props) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [theme, setTheme] = useState("");
@@ -376,6 +382,35 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           </div>
         ) : (
         <div className="space-y-4 mt-2">
+          {/* Date picker */}
+          {editingPost && selectedDate && (
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">📅 Date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal rounded-[10px] h-11")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formatDate(new Date(selectedDate + "T00:00:00"), "EEEE d MMMM yyyy", { locale: fr })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 z-[60]" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={new Date(selectedDate + "T00:00:00")}
+                    onSelect={(d) => {
+                      if (d && onDateChange && editingPost) {
+                        const newDateStr = d.toISOString().split("T")[0];
+                        onDateChange(editingPost.id, newDateStr);
+                      }
+                    }}
+                    locale={fr}
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
           {/* Theme */}
           <div>
             <label className="text-sm font-medium mb-1.5 block">Thème / sujet</label>
