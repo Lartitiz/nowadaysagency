@@ -15,6 +15,9 @@ export interface AnthropicOptions {
   max_tokens?: number;
 }
 
+const MAX_RETRIES = 2;
+const RETRY_DELAYS = [3000, 6000]; // ms
+
 export async function callAnthropic(options: AnthropicOptions): Promise<string> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
@@ -33,32 +36,60 @@ export async function callAnthropic(options: AnthropicOptions): Promise<string> 
     body.temperature = options.temperature;
   }
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify(body),
-  });
+  let lastError: Error | null = null;
 
-  if (!response.ok) {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const delay = RETRY_DELAYS[attempt - 1] || 6000;
+      console.log(`Anthropic retry ${attempt}/${MAX_RETRIES} after ${delay}ms...`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.content?.[0]?.text || "";
+    }
+
     const errorText = await response.text();
-    console.error("Anthropic API error:", response.status, errorText);
+    console.error(`Anthropic API error (attempt ${attempt + 1}):`, response.status, errorText);
 
+    // Retryable: 429 (rate limit) and 529 (overloaded)
+    if ((response.status === 429 || response.status === 529) && attempt < MAX_RETRIES) {
+      lastError = new AnthropicError(
+        response.status === 429
+          ? "Trop de requêtes, réessai en cours..."
+          : "L'IA est surchargée, réessai en cours...",
+        response.status
+      );
+      continue;
+    }
+
+    // Non-retryable or last attempt
     if (response.status === 429) {
-      throw new AnthropicError("Trop de requêtes, réessaie dans un moment.", 429);
+      throw new AnthropicError("Trop de requêtes. Réessaie dans un moment.", 429);
+    }
+    if (response.status === 529) {
+      throw new AnthropicError("L'IA est temporairement surchargée. Réessaie dans quelques minutes.", 529);
     }
     if (response.status === 402 || response.status === 400) {
-      const parsed = JSON.parse(errorText).error?.message || errorText;
-      throw new AnthropicError(`Erreur API Anthropic: ${parsed}`, response.status);
+      let msg = errorText;
+      try { msg = JSON.parse(errorText).error?.message || errorText; } catch {}
+      throw new AnthropicError(`Erreur API: ${msg}`, response.status);
     }
     throw new AnthropicError(`Erreur API Anthropic: ${response.status}`, response.status);
   }
 
-  const data = await response.json();
-  return data.content?.[0]?.text || "";
+  throw lastError || new Error("Erreur inattendue lors de l'appel à l'IA");
 }
 
 export class AnthropicError extends Error {
