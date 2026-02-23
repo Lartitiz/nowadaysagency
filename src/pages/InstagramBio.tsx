@@ -11,6 +11,7 @@ import { Copy, Check, Sparkles, Loader2, RefreshCw, ChevronLeft, Blend, ArrowRig
 import AuditInsight, { useAuditInsight } from "@/components/AuditInsight";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { Link } from "react-router-dom";
+import { useActivityExamples } from "@/hooks/use-activity-examples";
 
 /* ═══════════════════════════════════════════════
    TYPES
@@ -71,6 +72,7 @@ export default function InstagramBio() {
   const { user } = useAuth();
   const { toast } = useToast();
   useAuditInsight("bio");
+  const activityExamples = useActivityExamples();
 
   // Profile data
   const [profile, setProfile] = useState<any>(null);
@@ -339,7 +341,7 @@ export default function InstagramBio() {
               <Textarea
                 value={currentBioText}
                 onChange={e => setCurrentBioText(e.target.value)}
-                placeholder={"🌿 Créatrice bijoux éthiques\n✨ Fait main à Marseille\n🌍 Mode responsable\n📩 Commandes en DM"}
+                placeholder={activityExamples.bio_example}
                 className="min-h-[120px]"
               />
               <div className="flex flex-wrap gap-3">

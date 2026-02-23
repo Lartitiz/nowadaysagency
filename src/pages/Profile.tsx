@@ -295,7 +295,7 @@ export default function Profile() {
           {/* Activité */}
           <div>
             <label className="text-sm font-medium mb-1.5 block">Activité</label>
-            <Input value={current.activite} onChange={(e) => update("activite", e.target.value)} className="rounded-[10px] h-12" placeholder="Ex : Céramiste, coach, photographe..." />
+            <Input value={current.activite} onChange={(e) => update("activite", e.target.value)} className="rounded-[10px] h-12" placeholder="Ex : Photographe, coach, graphiste..." />
           </div>
 
           {/* Type d'activité */}

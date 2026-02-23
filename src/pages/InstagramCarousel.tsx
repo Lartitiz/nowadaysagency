@@ -16,6 +16,7 @@ import { useFormPersist } from "@/hooks/use-form-persist";
 import { DraftRestoredBanner } from "@/components/DraftRestoredBanner";
 import MicButton from "@/components/MicButton";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { useActivityExamples } from "@/hooks/use-activity-examples";
 
 // ── Types ──
 interface CarouselType {
@@ -142,6 +143,7 @@ const DEFAULT_QUESTIONS = [
 export default function InstagramCarousel() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  const activityExamples = useActivityExamples();
 
   // Flow: 1=type, 2=context, 3=deepening questions, 4=angles, 5=hooks+structure, 6=slides+caption
   const [step, setStep] = useState(1);
@@ -885,7 +887,7 @@ export default function InstagramCarousel() {
             <TextareaWithVoice
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder='Ex : "Les erreurs que je vois le plus souvent sur les bios Instagram"'
+              placeholder={`Ex : "${activityExamples.post_examples[0]}"`}
               rows={2}
               className="min-h-[60px]"
             />

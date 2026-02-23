@@ -11,6 +11,7 @@ import { useActiveChannels, ALL_CHANNELS, type ChannelId } from "@/hooks/use-act
 import { computePlan, type PlanData } from "@/lib/plan-engine";
 import { startOfWeek, endOfWeek, format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useActivityExamples } from "@/hooks/use-activity-examples";
 
 /* ── Types ── */
 export interface UserProfile {
@@ -59,13 +60,13 @@ function getQuickActions(data: DashboardData): QuickAction[] {
   return actions.sort((a, b) => a.priority - b.priority).slice(0, 4);
 }
 
-/* ── Dynamic tip ── */
-function getDynamicTip(data: DashboardData): string {
+/* ── Dynamic tip — now uses activity examples as fallback ── */
+function getDynamicTip(data: DashboardData, activityTip?: string): string {
   if (data.brandingCompletion.total < 30) return "Commence par le Branding, c'est la base de tout le reste.";
   if (data.brandingCompletion.total < 100) return "Continue ton branding ! Plus il est complet, plus l'IA te connaît.";
   if (data.igAuditScore == null) return "Maintenant que ton branding est posé, fais ton audit pour savoir où tu en es.";
   if (data.calendarPostCount === 0) return "Tes fondations sont solides. C'est le moment de planifier tes premiers contenus !";
-  return "Continue comme ça ! Pense à checker tes stats pour voir ce qui marche.";
+  return activityTip || "Continue comme ça ! Pense à checker tes stats pour voir ce qui marche.";
 }
 
 /* ── Channel completion helpers ── */
@@ -84,6 +85,7 @@ function getLiCompletion(d: DashboardData): number {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const activityExamples = useActivityExamples();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [dashData, setDashData] = useState<DashboardData>({
     brandingCompletion: { storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 },
@@ -162,7 +164,7 @@ export default function Dashboard() {
   const liCompletion = getLiCompletion(dashData);
   const brandingDone = dashData.brandingCompletion.total >= 100;
   const quickActions = getQuickActions(dashData);
-  const tip = getDynamicTip(dashData);
+  const tip = getDynamicTip(dashData, activityExamples.dashboard_tip);
 
   // Coming soon channels that are active in profile
   const comingSoonChannels = ALL_CHANNELS.filter(c => c.comingSoon && channels.includes(c.id));

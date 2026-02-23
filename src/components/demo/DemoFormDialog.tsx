@@ -152,7 +152,7 @@ export default function DemoFormDialog({ open, onOpenChange }: Props) {
               id="demo-activity"
               value={activity}
               onChange={(e) => setActivity(e.target.value)}
-              placeholder="Créatrice de bijoux éthiques"
+              placeholder="Ex : Photographe portrait, Coach sportive, Graphiste freelance..."
               disabled={generating}
             />
           </div>
