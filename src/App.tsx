@@ -230,13 +230,13 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <ErrorBoundary>
-        <AuthProvider>
-          <DemoProvider>
-          <DemoBanner />
-          <AssistantButton />
-          <AnimatedRoutes />
+        <DemoProvider>
+          <AuthProvider>
+            <DemoBanner />
+            <AssistantButton />
+            <AnimatedRoutes />
+          </AuthProvider>
         </DemoProvider>
-        </AuthProvider>
         </ErrorBoundary>
       </BrowserRouter>
     </TooltipProvider>
