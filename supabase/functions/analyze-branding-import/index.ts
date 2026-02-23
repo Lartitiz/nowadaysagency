@@ -1,4 +1,6 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple } from "../_shared/anthropic.ts";
+import { logUsage } from "../_shared/plan-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -177,6 +179,16 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après. Pas de mark
         JSON.stringify({ error: "Erreur lors de l'analyse. Réessaie." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Log usage if authenticated
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader) {
+      try {
+        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
+        const { data: { user } } = await sb.auth.getUser(authHeader.replace("Bearer ", ""));
+        if (user) await logUsage(user.id, "import", "branding_import");
+      } catch { /* best effort */ }
     }
 
     return new Response(

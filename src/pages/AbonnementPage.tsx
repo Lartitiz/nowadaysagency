@@ -22,13 +22,16 @@ const QUOTA_CATEGORIES: { key: AiCategory; emoji: string; label: string }[] = [
 
 export default function AbonnementPage() {
   const { user } = useAuth();
-  const { plan, usage, isPaid } = useUserPlan();
+  const { plan, usage, isPaid, refresh } = useUserPlan();
 
   const [subInfo, setSubInfo] = useState<any>(null);
   const [loadingSub, setLoadingSub] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
 
   useEffect(() => {
+    // Always refresh credits on mount for fresh data
+    refresh();
+
     (async () => {
       setLoadingSub(true);
       try {

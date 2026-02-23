@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple } from "../_shared/anthropic.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,6 +72,13 @@ RÈGLES :
 - Max 5 points par catégorie
 - Réponds UNIQUEMENT avec le JSON`;
 
+    const quotaCheck = await checkQuota(user.id, "bio_profile");
+    if (!quotaCheck.allowed) {
+      return new Response(JSON.stringify({ error: quotaCheck.message }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const rawContent = await callAnthropicSimple(
       "claude-sonnet-4-5-20250929",
       systemPrompt,
@@ -86,6 +94,8 @@ RÈGLES :
       if (match) parsed = JSON.parse(match[0]);
       else throw new Error("Impossible de parser la réponse IA");
     }
+
+    await logUsage(user.id, "bio_profile", "voice_analysis");
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

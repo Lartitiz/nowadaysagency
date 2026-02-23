@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple } from "../_shared/anthropic.ts";
+import { logUsage } from "../_shared/plan-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -68,6 +69,15 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("Invalid AI response");
     const suggestion = JSON.parse(jsonMatch[0]);
+
+    // Log usage if user is authenticated
+    if (authHeader) {
+      const anonSb2 = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+      const { data: { user: logUser } } = await anonSb2.auth.getUser(authHeader.replace("Bearer ", ""));
+      if (logUser) {
+        await logUsage(logUser.id, "suggestion", "suggest_format");
+      }
+    }
 
     return new Response(JSON.stringify(suggestion), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
