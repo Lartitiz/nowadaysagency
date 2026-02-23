@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAnthropicSimple } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,9 +42,6 @@ serve(async (req) => {
       }
     }
 
-    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!apiKey) throw new Error("Missing ANTHROPIC_API_KEY");
-
     const prompt = `L'utilisatrice a une idée de contenu mais ne sait pas quel format choisir. Analyse son idée et recommande le meilleur format.
 
 Formats disponibles :
@@ -65,22 +63,8 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
   "reason": "Une phrase expliquant pourquoi ce format est adapté."
 }`;
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 400,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
+    const text = await callAnthropicSimple("claude-sonnet-4-5-20250929", "", prompt, 0.7, 400);
 
-    const aiData = await res.json();
-    const text = aiData.content?.[0]?.text || "";
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("Invalid AI response");
     const suggestion = JSON.parse(jsonMatch[0]);
@@ -89,6 +73,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
+    console.error("suggest-format error:", e);
     return new Response(JSON.stringify({ error: e.message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
