@@ -244,6 +244,35 @@ export const DEMO_DATA = {
       { title: "Templates Canva", status: "pending" },
       { title: "Plan de com' 6 mois", status: "pending" },
     ],
+    journal: [
+      {
+        id: "journal-1",
+        month_number: 1,
+        date: "2026-02-25",
+        title: "Atelier de lancement ✅",
+        body: "On a posé les fondations de ta com'.\nTon positionnement est clair : \"Je capture la confiance.\"\nTa cible, c'est Marion, 35 ans, solopreneuse qui repousse sa séance photo depuis 2 ans.\nTes 3 offres sont restructurées et tes 4 piliers de contenu définis.",
+        laetitia_note: "Léa, tu as un vrai talent pour raconter les histoires de tes clientes. Capitalise là-dessus. C'est ta force.",
+        status: "completed",
+      },
+      {
+        id: "journal-2",
+        month_number: 1,
+        date: "2026-03-11",
+        title: "Atelier Stratégique ✅",
+        body: "Ta stratégie est posée pour les 6 prochains mois.\n3 posts/semaine : 2 carrousels + 1 reel.\nStories quotidiennes. Newsletter mensuelle.\nOn a décidé les 4 sessions focus : Instagram, Site web, Newsletter, Lancement.",
+        laetitia_note: null,
+        status: "completed",
+      },
+      {
+        id: "journal-3",
+        month_number: 2,
+        date: "2026-03-25",
+        title: "Point d'étape",
+        body: null,
+        laetitia_note: null,
+        status: "current",
+      },
+    ],
   },
 
   // ── ONBOARDING (pré-rempli) ──
