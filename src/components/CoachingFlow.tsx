@@ -511,7 +511,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
             <Textarea
               value={adjustmentFeedback}
               onChange={e => setAdjustmentFeedback(e.target.value)}
-              placeholder={'Ex: "La cible est trop large, je veux cibler uniquement les céramistes" ou "Le ton est trop formel" ou "Ajoute le fait qu\'elle a des enfants"'}
+              placeholder={'Ex: "La cible est trop large" ou "Le ton est trop formel" ou "Ajoute un détail sur son quotidien"'}
               className="min-h-[100px] text-sm"
             />
             <div className="flex flex-col gap-2">

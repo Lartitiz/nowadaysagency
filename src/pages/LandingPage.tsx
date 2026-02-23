@@ -113,7 +113,7 @@ function SignupForm({ compact = false }: { compact?: boolean }) {
         <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Ton email" required className="rounded-xl h-12 bg-card border-border" />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input value={activite} onChange={(e) => setActivite(e.target.value)} placeholder="Ex : céramiste, coach..." className="rounded-xl h-12 bg-card border-border" />
+        <Input value={activite} onChange={(e) => setActivite(e.target.value)} placeholder="Ex : photographe, coach, artisane..." className="rounded-xl h-12 bg-card border-border" />
         <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe (6 car. min.)" required minLength={6} className="rounded-xl h-12 bg-card border-border" />
       </div>
       <Button type="submit" disabled={loading} className="w-full sm:w-auto h-12 rounded-pill px-10 text-base font-medium">

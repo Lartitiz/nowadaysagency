@@ -174,7 +174,7 @@ export default function Onboarding() {
                 <Input
                   value={activite}
                   onChange={(e) => setActivite(e.target.value)}
-                  placeholder='Ex : "Coach bien-être", "Graphiste freelance", "Créatrice de bijoux éthiques"'
+                  placeholder='Ex : "Photographe", "Coach sportive", "Graphiste freelance", "Artisane céramiste"'
                   className="rounded-xl h-12"
                 />
               </div>
