@@ -164,3 +164,10 @@
 .animate-confetti {
   animation: confetti-fall 3s ease-out forwards;
 }
+
+/* Mobile bottom tab bar spacing — add padding so content isn't hidden behind fixed tab bar */
+@media (max-width: 1023px) {
+  body {
+    padding-bottom: 3.5rem; /* matches h-14 tab bar */
+  }
+}

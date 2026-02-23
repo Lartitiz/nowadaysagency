@@ -1,115 +1,184 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { Link, useLocation } from "react-router-dom";
-import { Home, ClipboardList, User, Settings, Menu, X, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut } from "lucide-react";
+import { useUserPlan } from "@/hooks/use-user-plan";
+import { Progress } from "@/components/ui/progress";
 import NotificationBell from "@/components/NotificationBell";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const NAV_ITEMS = [
-  { to: "/dashboard", label: "Accueil", icon: Home },
-  { to: "/mon-plan", label: "Mon plan", icon: ClipboardList },
-  { to: "/instagram/creer", label: "Créer", icon: Sparkles },
-  { to: "/profil", label: "Profil", icon: User },
-  { to: "/parametres", label: "Paramètres", icon: Settings },
+  { to: "/dashboard", label: "Accueil", icon: Home, matchExact: true },
+  { to: "/instagram/creer", label: "Créer", icon: Sparkles, matchExact: false },
+  { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
+  { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
+  { to: "/contacts", label: "Contacts", icon: Users, matchExact: false },
 ];
 
 export default function AppHeader() {
   const { user, signOut } = useAuth();
   const location = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  // NAV_ITEMS is a module-level constant now
+  const navigate = useNavigate();
+  const { plan, usage, remainingTotal } = useUserPlan();
+
+  const isActive = (item: typeof NAV_ITEMS[0]) =>
+    item.matchExact ? location.pathname === item.to : location.pathname.startsWith(item.to);
+
+  const planLabel = plan === "studio" ? "Now Studio" : plan === "outil" ? "Outil (39€)" : "Gratuit";
+  const totalUsed = usage.total?.used ?? 0;
+  const totalLimit = usage.total?.limit ?? 100;
+  const totalPercent = totalLimit > 0 ? Math.round((totalUsed / totalLimit) * 100) : 0;
+  const firstName = user?.user_metadata?.first_name || user?.email?.split("@")[0] || "Toi";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-card">
-      <div className="mx-auto flex h-14 max-w-[1100px] items-center justify-between px-6 max-md:px-4">
-        {/* Logo → Hub */}
-        <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
-          <span className="font-display text-xl font-bold text-bordeaux">L'Assistant Com'</span>
-          <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-md">beta</span>
-        </Link>
-
-        {/* Desktop nav */}
-        <nav className="hidden lg:flex items-center gap-1 rounded-pill bg-rose-pale p-1">
-          {NAV_ITEMS.map((item) => (
-            <NavTab
-              key={item.to}
-              to={item.to}
-              active={item.to === "/dashboard" ? location.pathname === "/dashboard" : location.pathname.startsWith(item.to)}
-              icon={item.icon}
-            >
-              {item.label}
-            </NavTab>
-          ))}
-        </nav>
-
-        {/* Desktop user */}
-        <div className="hidden lg:flex items-center gap-2 shrink-0">
-          <NotificationBell />
-          <div className="h-[34px] w-[34px] rounded-full bg-gradient-to-br from-primary to-rose-medium flex items-center justify-center text-primary-foreground text-sm font-bold">
-            {user?.email?.charAt(0).toUpperCase()}
+    <>
+      {/* ─── Desktop header ─── */}
+      <header className="sticky top-0 z-40 border-b border-border bg-card hidden lg:block">
+        <div className="mx-auto flex h-14 max-w-[1100px] items-center justify-between px-6">
+          {/* Logo L + dropdown */}
+          <div className="flex items-center gap-4 shrink-0">
+            <LogoMenu
+              firstName={firstName}
+              planLabel={planLabel}
+              totalUsed={totalUsed}
+              totalLimit={totalLimit}
+              totalPercent={totalPercent}
+              signOut={signOut}
+              navigate={navigate}
+            />
           </div>
-          <button onClick={signOut} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Déconnexion
-          </button>
-        </div>
 
-        {/* Mobile burger + bell */}
-        <div className="lg:hidden flex items-center gap-1">
-          <NotificationBell />
-          <button
-            className="p-2 text-foreground"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Menu"
-          >
-            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile menu */}
-      {mobileOpen && (
-        <div className="lg:hidden border-t border-border bg-card animate-fade-in">
-          <nav className="flex flex-col p-3 gap-1">
+          {/* Desktop nav — 5 items */}
+          <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1">
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
-                  (item.to === "/dashboard" ? location.pathname === "/dashboard" : location.pathname.startsWith(item.to))
-                    ? "bg-primary text-primary-foreground"
-                    : "text-foreground hover:bg-secondary"
+                className={`flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-sm font-semibold transition-all duration-200 whitespace-nowrap ${
+                  isActive(item)
+                    ? "bg-card text-primary shadow-[0_2px_8px_hsl(338_96%_61%/0.1)]"
+                    : "text-muted-foreground hover:bg-secondary"
                 }`}
               >
-                <item.icon className="h-4 w-4" />
+                <item.icon className="h-3.5 w-3.5" />
                 {item.label}
               </Link>
             ))}
-            <span className="my-1 h-px bg-border" />
-            <button
-              onClick={() => { signOut(); setMobileOpen(false); }}
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-all"
-            >
-              Déconnexion
-            </button>
           </nav>
+
+          {/* Right side */}
+          <div className="flex items-center gap-2 shrink-0">
+            <NotificationBell />
+          </div>
         </div>
-      )}
-    </header>
+      </header>
+
+      {/* ─── Mobile top bar (logo + bell) ─── */}
+      <header className="sticky top-0 z-40 border-b border-border bg-card lg:hidden">
+        <div className="flex h-12 items-center justify-between px-4">
+          <LogoMenu
+            firstName={firstName}
+            planLabel={planLabel}
+            totalUsed={totalUsed}
+            totalLimit={totalLimit}
+            totalPercent={totalPercent}
+            signOut={signOut}
+            navigate={navigate}
+          />
+          <NotificationBell />
+        </div>
+      </header>
+
+      {/* ─── Mobile bottom tab bar ─── */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.05)] lg:hidden">
+        <div className="flex items-center justify-around h-14">
+          {NAV_ITEMS.map((item) => {
+            const active = isActive(item);
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-colors ${
+                  active ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                <item.icon className={`h-5 w-5 ${active ? "text-primary" : ""}`} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    </>
   );
 }
 
-function NavTab({ to, active, icon: Icon, children }: { to: string; active: boolean; icon: React.ElementType; children: React.ReactNode }) {
+/* ─── Logo "L" dropdown menu ─── */
+interface LogoMenuProps {
+  firstName: string;
+  planLabel: string;
+  totalUsed: number;
+  totalLimit: number;
+  totalPercent: number;
+  signOut: () => void;
+  navigate: (path: string) => void;
+}
+
+function LogoMenu({ firstName, planLabel, totalUsed, totalLimit, totalPercent, signOut, navigate }: LogoMenuProps) {
   return (
-    <Link
-      to={to}
-      className={`flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-sm font-semibold transition-all duration-[250ms] whitespace-nowrap ${
-        active
-          ? "bg-card text-bordeaux shadow-[0_2px_8px_rgba(145,1,75,0.1)]"
-          : "text-muted-foreground hover:bg-secondary"
-      }`}
-    >
-      <Icon className="h-3.5 w-3.5" />
-      {children}
-    </Link>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-2 shrink-0 focus:outline-none group">
+          <span className="font-display text-xl font-bold text-primary group-hover:opacity-80 transition-opacity">L</span>
+          <span className="font-display text-sm font-bold text-foreground hidden sm:inline">L'Assistant Com'</span>
+          <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-md hidden sm:inline">beta</span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-72 bg-card border border-border shadow-lg z-50">
+        {/* User info */}
+        <div className="px-3 py-3">
+          <p className="text-sm font-semibold text-foreground">Salut {firstName} 👋</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Plan : {planLabel}</p>
+          {/* Credits mini bar */}
+          <button
+            onClick={() => navigate("/abonnement")}
+            className="w-full mt-2 group/credits"
+          >
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+              <span>Crédits IA</span>
+              <span className="font-mono-ui font-semibold">{totalUsed}/{totalLimit}</span>
+            </div>
+            <Progress value={totalPercent} className="h-1.5" />
+          </button>
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate("/profil")} className="gap-2 cursor-pointer">
+          <User className="h-4 w-4" /> Mon profil
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate("/branding")} className="gap-2 cursor-pointer">
+          <Palette className="h-4 w-4" /> Mon branding
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate("/abonnement")} className="gap-2 cursor-pointer">
+          <CreditCard className="h-4 w-4" /> Mon abonnement
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate("/parametres")} className="gap-2 cursor-pointer">
+          <Settings className="h-4 w-4" /> Paramètres
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => window.open("mailto:hello@nowadays.com", "_blank")} className="gap-2 cursor-pointer">
+          <HelpCircle className="h-4 w-4" /> Aide & support
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={signOut} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
+          <LogOut className="h-4 w-4" /> Déconnexion
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -86,6 +86,7 @@ import ContactsPage from "./pages/ContactsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import BrandingAuditPage from "./pages/BrandingAuditPage";
 import BrandingAuditResultPage from "./pages/BrandingAuditResultPage";
+import AbonnementPage from "./pages/AbonnementPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -142,6 +143,7 @@ const App = () => (
             <Route path="/contacts" element={<ProtectedRoute><ContactsPage /></ProtectedRoute>} />
             <Route path="/profil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/parametres" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            <Route path="/abonnement" element={<ProtectedRoute><AbonnementPage /></ProtectedRoute>} />
             <Route path="/legal-ia" element={<ProtectedRoute><LegalAiPage /></ProtectedRoute>} />
             <Route path="/payment/success" element={<PaymentSuccessPage />} />
             {/* Instagram module */}
