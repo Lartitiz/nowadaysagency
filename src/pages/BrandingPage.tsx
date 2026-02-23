@@ -15,6 +15,8 @@ import CoachingFlow from "@/components/CoachingFlow";
 import type { BrandingExtraction } from "@/lib/branding-import-types";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useDemoContext } from "@/contexts/DemoContext";
+import { DEMO_DATA } from "@/lib/demo-data";
 
 interface BrandingCard {
   emoji: string;
@@ -72,6 +74,7 @@ export default function BrandingPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { isDemoMode } = useDemoContext();
   const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [primaryStoryId, setPrimaryStoryId] = useState<string | null>(null);
@@ -88,6 +91,26 @@ export default function BrandingPage() {
   const [coachingActive, setCoachingActive] = useState(fromAudit && !!coachingModule);
 
   useEffect(() => {
+    if (isDemoMode) {
+      setCompletion({
+        storytelling: 100,
+        persona: 100,
+        proposition: 100,
+        tone: 80,
+        strategy: 70,
+        total: DEMO_DATA.branding.completion,
+      });
+      setPrimaryStoryId("demo-story");
+      setLastAudit({
+        id: "demo-audit",
+        created_at: new Date().toISOString(),
+        score_global: DEMO_DATA.audit.score,
+        points_forts: DEMO_DATA.audit.points_forts,
+        points_faibles: DEMO_DATA.audit.points_faibles,
+      });
+      setLoading(false);
+      return;
+    }
     if (!user) return;
     const load = async () => {
       const data = await fetchBrandingData(user.id);
@@ -112,7 +135,7 @@ export default function BrandingPage() {
       setLoading(false);
     };
     load();
-  }, [user?.id]);
+  }, [user?.id, isDemoMode]);
 
   const reloadCompletion = async () => {
     if (!user) return;
