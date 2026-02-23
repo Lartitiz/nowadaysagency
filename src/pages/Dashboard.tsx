@@ -8,6 +8,7 @@ import AiDisclaimerBanner from "@/components/AiDisclaimerBanner";
 import { Progress } from "@/components/ui/progress";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { ArrowRight, Sparkles } from "lucide-react";
+import FirstTimeTooltip from "@/components/FirstTimeTooltip";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { useActiveChannels, ALL_CHANNELS } from "@/hooks/use-active-channels";
 import { computePlan, type PlanData } from "@/lib/plan-engine";
@@ -267,42 +268,44 @@ export default function Dashboard() {
            ROW 1 — Hero "Créer un contenu"
            ═══════════════════════════════════════ */}
         <BentoGrid>
-          <BentoCard
-            title=""
-            colSpan={12}
-            rowSpan={2}
-            variant="highlight"
-            onClick={() => navigate("/instagram/creer")}
-            animationDelay={nextDelay()}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <h2 className="font-heading text-lg sm:text-xl font-bold text-foreground">Créer un contenu</h2>
-            </div>
-            <p className="text-sm text-muted-foreground mb-5">
-              Post, carousel, reel, article... c'est parti.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { label: "Post Instagram", route: "/instagram/creer" },
-                { label: "Carousel", route: "/instagram/carousel" },
-                { label: "Reel", route: "/instagram/reels" },
-                { label: "Post LinkedIn", route: "/linkedin/post" },
-                { label: "Article de blog", route: "/site/accueil" },
-              ].map((item) => (
-                <button
-                  key={item.route + item.label}
-                  onClick={(e) => { e.stopPropagation(); navigate(item.route); }}
-                  className="text-xs font-medium px-3.5 py-2 rounded-xl
-                    bg-card/80 border border-primary/15 text-foreground
-                    hover:bg-primary hover:text-primary-foreground hover:border-primary
-                    transition-all duration-150"
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </BentoCard>
+          <FirstTimeTooltip id="dashboard-create" text="Crée des posts, carrousels, Reels... L'IA t'aide à rédiger.">
+            <BentoCard
+              title=""
+              colSpan={12}
+              rowSpan={2}
+              variant="highlight"
+              onClick={() => navigate("/instagram/creer")}
+              animationDelay={nextDelay()}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <h2 className="font-heading text-lg sm:text-xl font-bold text-foreground">Créer un contenu</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-5">
+                Post, carousel, reel, article... c'est parti.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "Post Instagram", route: "/instagram/creer" },
+                  { label: "Carousel", route: "/instagram/carousel" },
+                  { label: "Reel", route: "/instagram/reels" },
+                  { label: "Post LinkedIn", route: "/linkedin/post" },
+                  { label: "Article de blog", route: "/site/accueil" },
+                ].map((item) => (
+                  <button
+                    key={item.route + item.label}
+                    onClick={(e) => { e.stopPropagation(); navigate(item.route); }}
+                    className="text-xs font-medium px-3.5 py-2 rounded-xl
+                      bg-card/80 border border-primary/15 text-foreground
+                      hover:bg-primary hover:text-primary-foreground hover:border-primary
+                      transition-all duration-150"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </BentoCard>
+          </FirstTimeTooltip>
         </BentoGrid>
 
         {/* ═══════════════════════════════════════
@@ -332,9 +335,15 @@ export default function Dashboard() {
            ROW 2 — Calendrier + Engagement + Stats
            ═══════════════════════════════════════ */}
         <BentoGrid>
-          <WeekCalendarWidget animationDelay={nextDelay()} />
-          <EngagementRoutineWidget animationDelay={nextDelay()} />
-          <MonthlyStatsWidget animationDelay={nextDelay()} />
+          <FirstTimeTooltip id="dashboard-calendar" text="Planifie tes contenus de la semaine. Fini le 'je poste quoi aujourd'hui'.">
+            <WeekCalendarWidget animationDelay={nextDelay()} />
+          </FirstTimeTooltip>
+          <FirstTimeTooltip id="dashboard-routine" text="15 min/jour pour interagir avec ta communauté. L'habitude qui change tout.">
+            <EngagementRoutineWidget animationDelay={nextDelay()} />
+          </FirstTimeTooltip>
+          <FirstTimeTooltip id="dashboard-stats" text="Tes chiffres du mois. Publications, engagement, objectifs.">
+            <MonthlyStatsWidget animationDelay={nextDelay()} />
+          </FirstTimeTooltip>
         </BentoGrid>
 
         {/* ═══════════════════════════════════════

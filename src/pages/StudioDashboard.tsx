@@ -5,6 +5,7 @@ import { useUserPlan } from "@/hooks/use-user-plan";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
+import FirstTimeTooltip from "@/components/FirstTimeTooltip";
 import { Progress } from "@/components/ui/progress";
 import {
   Star, CalendarDays, CheckCircle, Clock, Square,
@@ -207,13 +208,15 @@ export default function StudioDashboard() {
         </Section>
 
         {/* ─── Canal direct ─── */}
-        <Section icon={<MessageCircle className="h-4 w-4" />} title="Canal direct">
-          <Button variant="outline" className="rounded-full gap-2 w-full sm:w-auto" asChild>
-            <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
-              💬 Envoyer un message à Laetitia
-            </a>
-          </Button>
-        </Section>
+        <FirstTimeTooltip id="coaching-whatsapp" text="Écris à Laetitia. Réponse sous 24-48h les jours ouvrés.">
+          <Section icon={<MessageCircle className="h-4 w-4" />} title="Canal direct">
+            <Button variant="outline" className="rounded-full gap-2 w-full sm:w-auto" asChild>
+              <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+                💬 Envoyer un message à Laetitia
+              </a>
+            </Button>
+          </Section>
+        </FirstTimeTooltip>
 
         {/* ─── Lives exclusifs ─── */}
         <Section icon={<Video className="h-4 w-4" />} title="Lives exclusifs Studio">
