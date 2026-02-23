@@ -304,11 +304,11 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
     phase2Steps.push({
       id: "seo",
       label: "Stratégie SEO",
-      description: "Référencement naturel",
+      description: "Référencement naturel — ouvre le SEO Toolkit",
       duration: 45,
-      route: "#",
+      route: "https://referencement-seo.lovable.app/",
       status: "todo",
-      comingSoon: true,
+      comingSoon: false,
     });
   }
 
