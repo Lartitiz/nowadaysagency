@@ -445,6 +445,11 @@ export default function CalendarPage() {
           onSave={handleSave}
           onDelete={handleDelete}
           onUnplan={editingPost ? handleUnplan : undefined}
+          onDateChange={(postId, newDate) => {
+            handleMovePost(postId, newDate);
+            setSelectedDate(newDate);
+            if (editingPost) setEditingPost({ ...editingPost, date: newDate });
+          }}
           prefillData={prefillData}
         />
 
