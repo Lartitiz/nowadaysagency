@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.coaching-module]
 verify_jwt = false
+
+[functions.generate-demo]
+verify_jwt = false
