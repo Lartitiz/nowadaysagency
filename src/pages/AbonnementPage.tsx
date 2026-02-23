@@ -85,7 +85,7 @@ export default function AbonnementPage() {
     const text = encodeURIComponent(
       `Bonjour Laetitia, je voudrais acheter un pack de ${credits} crédits (${price}). Mon email : ${email}`
     );
-    window.open(`https://wa.me/33612345678?text=${text}`, "_blank");
+    window.open(`https://wa.me/33614133921?text=${text}`, "_blank");
   };
 
   const planLabel = subInfo?.plan === "now_pilot" ? "🤝 Now Pilot" : subInfo?.plan === "studio" ? "Now Studio" : subInfo?.plan === "outil" ? "Outil" : "Gratuit";

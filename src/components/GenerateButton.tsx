@@ -38,7 +38,7 @@ export default function GenerateButton({ onClick, loading, disabled, label = "GÃ
     const text = encodeURIComponent(
       `Bonjour Laetitia, je voudrais acheter un pack de ${credits} crÃ©dits (${price}). Mon email : ${email}`
     );
-    window.open(`https://wa.me/33612345678?text=${text}`, "_blank");
+    window.open(`https://wa.me/33614133921?text=${text}`, "_blank");
   };
 
   const handleClick = () => {
