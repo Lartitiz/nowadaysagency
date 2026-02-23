@@ -1,17 +1,17 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { extractTextFromFile, isAcceptedFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
-import { Search, Loader2, Upload, FileText, X, ChevronDown, ChevronUp, ArrowRight, ExternalLink } from "lucide-react";
+import { Search, Loader2, Upload, FileText, X, ChevronDown, ChevronUp, ArrowRight } from "lucide-react";
 
 /* ─── Types ─── */
 interface PillarDetail {
@@ -54,10 +54,10 @@ const STATUT_COLORS: Record<string, string> = {
 const SCORE_BAR_COLOR = (score: number) =>
   score >= 75 ? "bg-emerald-500" : score >= 50 ? "bg-amber-400" : "bg-red-500";
 
-/* ══════════════════════════════════════════ */
 export default function BrandingAuditPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   /* ─── Source toggles ─── */
   const [useSite, setUseSite] = useState(false);
@@ -78,8 +78,10 @@ export default function BrandingAuditPage() {
   const [result, setResult] = useState<AuditResult | null>(null);
   const [expandedPillar, setExpandedPillar] = useState<string | null>(null);
   const [previousAudit, setPreviousAudit] = useState<any>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
 
-  /* ─── Pre-fill from profile ─── */
+  /* ─── Pre-fill from profile & load previous audit ─── */
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -88,14 +90,13 @@ export default function BrandingAuditPage() {
         .select("website_url, instagram_url, linkedin_url")
         .eq("id", user.id)
         .maybeSingle();
-      if (profile?.website_url) { setSiteUrl(profile.website_url); }
+      if (profile?.website_url) setSiteUrl(profile.website_url);
       if (profile?.instagram_url) {
         const match = profile.instagram_url.match(/instagram\.com\/([^/?]+)/);
         if (match) setInstagramUsername(match[1]);
       }
-      if (profile?.linkedin_url) { setLinkedinUrl(profile.linkedin_url); }
+      if (profile?.linkedin_url) setLinkedinUrl(profile.linkedin_url);
 
-      // Check for previous audit
       const { data: prevAudit } = await supabase
         .from("branding_audits")
         .select("*")
@@ -103,9 +104,33 @@ export default function BrandingAuditPage() {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (prevAudit) setPreviousAudit(prevAudit);
+
+      if (prevAudit) {
+        setPreviousAudit(prevAudit);
+        // Auto-display results
+        setResult({
+          score_global: prevAudit.score_global as number,
+          synthese: prevAudit.synthese as string,
+          points_forts: (prevAudit.points_forts || []) as any,
+          points_faibles: (prevAudit.points_faibles || []) as any,
+          audit_detail: (prevAudit.audit_detail || {}) as any,
+          plan_action_recommande: (prevAudit.plan_action || []) as any,
+          extraction_branding: prevAudit.extraction_branding as any,
+        });
+      } else {
+        // No previous audit → show form directly
+        setFormOpen(true);
+      }
     })();
   }, [user]);
+
+  // If navigated with ?refaire hash, open form
+  useEffect(() => {
+    if (location.hash === "#refaire") {
+      setFormOpen(true);
+      setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth" }), 200);
+    }
+  }, [location.hash]);
 
   const hasSource = (useSite && siteUrl.trim()) || (useInstagram && instagramUsername.trim()) ||
     (useLinkedin && linkedinUrl.trim()) || (useDocument && file) || (useFreeText && freeText.trim().length > 20);
@@ -161,6 +186,9 @@ export default function BrandingAuditPage() {
       if (!data?.audit) throw new Error("Réponse inattendue");
 
       setResult(data.audit as AuditResult);
+      setFormOpen(false);
+      // Scroll to top to see results
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e: any) {
       toast.error(e.message || "Erreur lors de l'audit. Réessaie.");
     } finally {
@@ -168,18 +196,9 @@ export default function BrandingAuditPage() {
     }
   };
 
-  /* ─── View previous audit ─── */
-  const showPreviousAudit = () => {
-    if (!previousAudit) return;
-    setResult({
-      score_global: previousAudit.score_global,
-      synthese: previousAudit.synthese,
-      points_forts: previousAudit.points_forts || [],
-      points_faibles: previousAudit.points_faibles || [],
-      audit_detail: previousAudit.audit_detail || {},
-      plan_action_recommande: previousAudit.plan_action || [],
-      extraction_branding: previousAudit.extraction_branding,
-    });
+  const handleRedoClick = () => {
+    setFormOpen(true);
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth" }), 200);
   };
 
   /* ════════════════════════════════════ RENDER ════════════════════════════════════ */
@@ -199,99 +218,143 @@ export default function BrandingAuditPage() {
     );
   }
 
-  if (result) {
-    return (
-      <div className="min-h-screen bg-background">
-        <AppHeader />
-        <main className="container max-w-2xl mx-auto px-4 py-6 pb-24">
-          <SubPageHeader currentLabel="🔍 Audit de ta communication" parentLabel="Branding" parentTo="/branding" />
-          <AuditResults result={result} expandedPillar={expandedPillar} setExpandedPillar={setExpandedPillar} navigate={navigate} onRedo={() => setResult(null)} />
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="container max-w-2xl mx-auto px-4 py-6 pb-24">
         <SubPageHeader currentLabel="🔍 Audit de ta communication" parentLabel="Branding" parentTo="/branding" />
 
-        <p className="text-sm text-muted-foreground mb-6">
-          Donne-moi ce que t'as, je te dis où t'en es. L'outil analyse ton site, ton Instagram, tes documents et te fait un diagnostic complet.
-        </p>
-
-        {previousAudit && (
-          <button onClick={showPreviousAudit} className="w-full rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors p-4 mb-6 text-left">
-            <p className="text-sm font-medium flex items-center gap-2">
-              📊 Voir mon dernier audit ({previousAudit.score_global}/100)
-              <span className="text-xs text-muted-foreground ml-auto">
-                {new Date(previousAudit.created_at).toLocaleDateString("fr-FR")}
-              </span>
-            </p>
-          </button>
+        {/* ─── Results section (shown first if audit exists) ─── */}
+        {result && (
+          <div id="resultats">
+            <AuditResults
+              result={result}
+              previousAudit={previousAudit}
+              expandedPillar={expandedPillar}
+              setExpandedPillar={setExpandedPillar}
+              navigate={navigate}
+              onRedo={handleRedoClick}
+            />
+          </div>
         )}
 
-        <h3 className="font-display font-bold text-sm mb-4">Qu'est-ce que tu veux analyser ?</h3>
-
-        {/* Site web */}
-        <SourceToggle checked={useSite} onToggle={setUseSite} label="Mon site web">
-          <Input placeholder="https://monsite.com" value={siteUrl} onChange={(e) => setSiteUrl(e.target.value)} />
-        </SourceToggle>
-
-        {/* Instagram */}
-        <SourceToggle checked={useInstagram} onToggle={setUseInstagram} label="Mon compte Instagram">
-          <Input placeholder="@moncompte" value={instagramUsername} onChange={(e) => setInstagramUsername(e.target.value)} />
-        </SourceToggle>
-
-        {/* LinkedIn */}
-        <SourceToggle checked={useLinkedin} onToggle={setUseLinkedin} label="Mon profil LinkedIn">
-          <Input placeholder="https://linkedin.com/in/..." value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} />
-        </SourceToggle>
-
-        {/* Document */}
-        <SourceToggle checked={useDocument} onToggle={setUseDocument} label="Un document stratégique (brief, plan de com')">
-          <div
-            className={`rounded-xl border-2 border-dashed p-4 text-center cursor-pointer transition-colors
-              ${dragOver ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {file ? (
-              <div className="flex items-center justify-center gap-3">
-                <FileText className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-sm truncate max-w-[200px]">{file.name}</span>
-                <button onClick={(e) => { e.stopPropagation(); setFile(null); }} className="text-muted-foreground hover:text-foreground">
-                  <X className="h-4 w-4" />
+        {/* ─── Form section ─── */}
+        <div ref={formRef}>
+          {result ? (
+            /* If results exist, form is collapsible */
+            <Collapsible open={formOpen} onOpenChange={setFormOpen}>
+              <CollapsibleTrigger asChild>
+                <button className="w-full rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors p-4 mt-6 text-left flex items-center justify-between">
+                  <span className="text-sm font-medium flex items-center gap-2">🔄 Refaire un audit</span>
+                  {formOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                 </button>
-              </div>
-            ) : (
-              <>
-                <Upload className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
-                <p className="text-xs text-muted-foreground">PDF, Word, texte</p>
-              </>
-            )}
-            <input ref={fileInputRef} type="file" accept={ACCEPTED_MIME_TYPES} onChange={handleFileSelect} className="hidden" />
-          </div>
-        </SourceToggle>
-
-        {/* Free text */}
-        <SourceToggle checked={useFreeText} onToggle={setUseFreeText} label="Du texte libre (notes, idées en vrac)">
-          <Textarea placeholder="Colle ici tout ce que tu veux…" value={freeText} onChange={(e) => setFreeText(e.target.value)} className="min-h-[80px]" />
-        </SourceToggle>
-
-        <Button onClick={handleAudit} disabled={!hasSource} className="w-full gap-2 mt-6" size="lg">
-          <Search className="h-4 w-4" />
-          Lancer l'audit
-        </Button>
-
-        <p className="text-xs text-muted-foreground text-center mt-3">
-          ⏰ L'analyse prend environ 30 secondes. · 💡 Plus tu donnes de sources, plus l'audit est précis.
-        </p>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="mt-4">
+                  <AuditForm
+                    useSite={useSite} setUseSite={setUseSite} siteUrl={siteUrl} setSiteUrl={setSiteUrl}
+                    useInstagram={useInstagram} setUseInstagram={setUseInstagram} instagramUsername={instagramUsername} setInstagramUsername={setInstagramUsername}
+                    useLinkedin={useLinkedin} setUseLinkedin={setUseLinkedin} linkedinUrl={linkedinUrl} setLinkedinUrl={setLinkedinUrl}
+                    useDocument={useDocument} setUseDocument={setUseDocument} file={file} setFile={setFile}
+                    useFreeText={useFreeText} setUseFreeText={setUseFreeText} freeText={freeText} setFreeText={setFreeText}
+                    fileInputRef={fileInputRef} dragOver={dragOver} setDragOver={setDragOver}
+                    handleDrop={handleDrop} handleFileSelect={handleFileSelect}
+                    hasSource={hasSource} handleAudit={handleAudit}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          ) : (
+            /* No results → show form directly */
+            <div>
+              <p className="text-sm text-muted-foreground mb-6">
+                Donne-moi ce que t'as, je te dis où t'en es. L'outil analyse ton site, ton Instagram, tes documents et te fait un diagnostic complet.
+              </p>
+              <AuditForm
+                useSite={useSite} setUseSite={setUseSite} siteUrl={siteUrl} setSiteUrl={setSiteUrl}
+                useInstagram={useInstagram} setUseInstagram={setUseInstagram} instagramUsername={instagramUsername} setInstagramUsername={setInstagramUsername}
+                useLinkedin={useLinkedin} setUseLinkedin={setUseLinkedin} linkedinUrl={linkedinUrl} setLinkedinUrl={setLinkedinUrl}
+                useDocument={useDocument} setUseDocument={setUseDocument} file={file} setFile={setFile}
+                useFreeText={useFreeText} setUseFreeText={setUseFreeText} freeText={freeText} setFreeText={setFreeText}
+                fileInputRef={fileInputRef} dragOver={dragOver} setDragOver={setDragOver}
+                handleDrop={handleDrop} handleFileSelect={handleFileSelect}
+                hasSource={hasSource} handleAudit={handleAudit}
+              />
+            </div>
+          )}
+        </div>
       </main>
     </div>
+  );
+}
+
+/* ─── Audit Form (extracted component) ─── */
+function AuditForm({
+  useSite, setUseSite, siteUrl, setSiteUrl,
+  useInstagram, setUseInstagram, instagramUsername, setInstagramUsername,
+  useLinkedin, setUseLinkedin, linkedinUrl, setLinkedinUrl,
+  useDocument, setUseDocument, file, setFile,
+  useFreeText, setUseFreeText, freeText, setFreeText,
+  fileInputRef, dragOver, setDragOver,
+  handleDrop, handleFileSelect,
+  hasSource, handleAudit,
+}: any) {
+  return (
+    <>
+      <h3 className="font-display font-bold text-sm mb-4">Qu'est-ce que tu veux analyser ?</h3>
+
+      <SourceToggle checked={useSite} onToggle={setUseSite} label="Mon site web">
+        <Input placeholder="https://monsite.com" value={siteUrl} onChange={(e: any) => setSiteUrl(e.target.value)} />
+      </SourceToggle>
+
+      <SourceToggle checked={useInstagram} onToggle={setUseInstagram} label="Mon compte Instagram">
+        <Input placeholder="@moncompte" value={instagramUsername} onChange={(e: any) => setInstagramUsername(e.target.value)} />
+      </SourceToggle>
+
+      <SourceToggle checked={useLinkedin} onToggle={setUseLinkedin} label="Mon profil LinkedIn">
+        <Input placeholder="https://linkedin.com/in/..." value={linkedinUrl} onChange={(e: any) => setLinkedinUrl(e.target.value)} />
+      </SourceToggle>
+
+      <SourceToggle checked={useDocument} onToggle={setUseDocument} label="Un document stratégique (brief, plan de com')">
+        <div
+          className={`rounded-xl border-2 border-dashed p-4 text-center cursor-pointer transition-colors
+            ${dragOver ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}
+          onDragOver={(e: any) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          {file ? (
+            <div className="flex items-center justify-center gap-3">
+              <FileText className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+              <button onClick={(e: any) => { e.stopPropagation(); setFile(null); }} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <>
+              <Upload className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
+              <p className="text-xs text-muted-foreground">PDF, Word, texte</p>
+            </>
+          )}
+          <input ref={fileInputRef} type="file" accept={ACCEPTED_MIME_TYPES} onChange={handleFileSelect} className="hidden" />
+        </div>
+      </SourceToggle>
+
+      <SourceToggle checked={useFreeText} onToggle={setUseFreeText} label="Du texte libre (notes, idées en vrac)">
+        <Textarea placeholder="Colle ici tout ce que tu veux…" value={freeText} onChange={(e: any) => setFreeText(e.target.value)} className="min-h-[80px]" />
+      </SourceToggle>
+
+      <Button onClick={handleAudit} disabled={!hasSource} className="w-full gap-2 mt-6" size="lg">
+        <Search className="h-4 w-4" />
+        Lancer l'audit
+      </Button>
+
+      <p className="text-xs text-muted-foreground text-center mt-3">
+        ⏰ L'analyse prend environ 30 secondes. · 💡 Plus tu donnes de sources, plus l'audit est précis.
+      </p>
+    </>
   );
 }
 
@@ -309,14 +372,21 @@ function SourceToggle({ checked, onToggle, label, children }: { checked: boolean
 }
 
 /* ─── Audit Results Display ─── */
-function AuditResults({ result, expandedPillar, setExpandedPillar, navigate, onRedo }: {
-  result: AuditResult; expandedPillar: string | null; setExpandedPillar: (p: string | null) => void;
+function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar, navigate, onRedo }: {
+  result: AuditResult; previousAudit: any; expandedPillar: string | null; setExpandedPillar: (p: string | null) => void;
   navigate: (path: string) => void; onRedo: () => void;
 }) {
   const scoreColor = result.score_global >= 75 ? "text-emerald-500" : result.score_global >= 50 ? "text-amber-500" : "text-red-500";
 
   return (
     <div className="space-y-6">
+      {/* Date */}
+      {previousAudit?.created_at && (
+        <p className="text-xs text-muted-foreground">
+          🔍 Audit du {new Date(previousAudit.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+        </p>
+      )}
+
       {/* Score global */}
       <div className="rounded-2xl border border-border bg-card p-6 text-center">
         <p className={`text-5xl font-display font-bold ${scoreColor}`}>{result.score_global}<span className="text-lg text-muted-foreground">/100</span></p>
