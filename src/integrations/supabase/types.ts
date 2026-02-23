@@ -187,6 +187,7 @@ export type Database = {
           key_expressions: string | null
           mission: string | null
           offer: string | null
+          positioning: string | null
           recap_summary: Json | null
           target_beliefs: string | null
           target_description: string | null
@@ -195,11 +196,13 @@ export type Database = {
           things_to_avoid: string | null
           tone_engagement: string | null
           tone_humor: string | null
+          tone_keywords: Json | null
           tone_level: string | null
           tone_register: string | null
           tone_style: string | null
           updated_at: string
           user_id: string
+          values: Json | null
           voice_description: string | null
         }
         Insert: {
@@ -213,6 +216,7 @@ export type Database = {
           key_expressions?: string | null
           mission?: string | null
           offer?: string | null
+          positioning?: string | null
           recap_summary?: Json | null
           target_beliefs?: string | null
           target_description?: string | null
@@ -221,11 +225,13 @@ export type Database = {
           things_to_avoid?: string | null
           tone_engagement?: string | null
           tone_humor?: string | null
+          tone_keywords?: Json | null
           tone_level?: string | null
           tone_register?: string | null
           tone_style?: string | null
           updated_at?: string
           user_id: string
+          values?: Json | null
           voice_description?: string | null
         }
         Update: {
@@ -239,6 +245,7 @@ export type Database = {
           key_expressions?: string | null
           mission?: string | null
           offer?: string | null
+          positioning?: string | null
           recap_summary?: Json | null
           target_beliefs?: string | null
           target_description?: string | null
@@ -247,11 +254,13 @@ export type Database = {
           things_to_avoid?: string | null
           tone_engagement?: string | null
           tone_humor?: string | null
+          tone_keywords?: Json | null
           tone_level?: string | null
           tone_register?: string | null
           tone_style?: string | null
           updated_at?: string
           user_id?: string
+          values?: Json | null
           voice_description?: string | null
         }
         Relationships: []
@@ -3238,6 +3247,7 @@ export type Database = {
           completed: boolean | null
           created_at: string
           current_step: number | null
+          description: string | null
           id: string
           pitch_long: string | null
           pitch_medium: string | null
@@ -3262,6 +3272,7 @@ export type Database = {
           completed?: boolean | null
           created_at?: string
           current_step?: number | null
+          description?: string | null
           id?: string
           pitch_long?: string | null
           pitch_medium?: string | null
@@ -3286,6 +3297,7 @@ export type Database = {
           completed?: boolean | null
           created_at?: string
           current_step?: number | null
+          description?: string | null
           id?: string
           pitch_long?: string | null
           pitch_medium?: string | null
@@ -3601,6 +3613,8 @@ export type Database = {
           mission: string
           offre: string
           onboarding_completed: boolean
+          onboarding_completed_at: string | null
+          onboarding_step: number | null
           piliers: string[]
           plan_start_date: string | null
           posts_per_week: number | null
@@ -3661,6 +3675,8 @@ export type Database = {
           mission?: string
           offre?: string
           onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
+          onboarding_step?: number | null
           piliers?: string[]
           plan_start_date?: string | null
           posts_per_week?: number | null
@@ -3721,6 +3737,8 @@ export type Database = {
           mission?: string
           offre?: string
           onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
+          onboarding_step?: number | null
           piliers?: string[]
           plan_start_date?: string | null
           posts_per_week?: number | null
@@ -4686,6 +4704,75 @@ export type Database = {
           label?: string
           order_index?: number
           period?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_documents: {
+        Row: {
+          context: string | null
+          created_at: string | null
+          extracted_data: Json | null
+          file_name: string | null
+          file_type: string | null
+          file_url: string | null
+          id: string
+          processed: boolean | null
+          user_id: string
+        }
+        Insert: {
+          context?: string | null
+          created_at?: string | null
+          extracted_data?: Json | null
+          file_name?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          processed?: boolean | null
+          user_id: string
+        }
+        Update: {
+          context?: string | null
+          created_at?: string | null
+          extracted_data?: Json | null
+          file_name?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          processed?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_offers: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          price: string | null
+          sort_order: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          price?: string | null
+          sort_order?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          price?: string | null
+          sort_order?: number | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
