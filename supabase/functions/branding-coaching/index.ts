@@ -162,19 +162,39 @@ serve(async (req) => {
       max_tokens: 1500,
     });
 
-    // Extract JSON from the response
+    // Extract JSON from the response robustly
     let parsed;
+    const cleaned = rawResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    
     try {
-      // Try direct parse first
-      parsed = JSON.parse(rawResponse);
+      parsed = JSON.parse(cleaned);
     } catch {
-      // Try to extract JSON from markdown code blocks
-      const jsonMatch = rawResponse.match(/```(?:json)?\s*([\s\S]*?)```/) || rawResponse.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const jsonStr = jsonMatch[1] || jsonMatch[0];
-        parsed = JSON.parse(jsonStr);
+      // Try to find the outermost JSON object
+      const start = cleaned.indexOf("{");
+      const end = cleaned.lastIndexOf("}");
+      if (start !== -1 && end !== -1 && end > start) {
+        try {
+          parsed = JSON.parse(cleaned.slice(start, end + 1));
+        } catch (e2) {
+          console.error("JSON parse failed. Raw response:", rawResponse);
+          // Fallback: return the raw text as a question
+          parsed = {
+            question: cleaned.length > 0 ? cleaned : "Peux-tu reformuler ta réponse ?",
+            question_type: "textarea",
+            placeholder: "Ta réponse...",
+            is_complete: false,
+            completion_percentage: 0,
+          };
+        }
       } else {
-        throw new Error("Impossible de parser la réponse IA");
+        console.error("No JSON found in response:", rawResponse);
+        parsed = {
+          question: cleaned.length > 0 ? cleaned : "Peux-tu reformuler ta réponse ?",
+          question_type: "textarea",
+          placeholder: "Ta réponse...",
+          is_complete: false,
+          completion_percentage: 0,
+        };
       }
     }
 
