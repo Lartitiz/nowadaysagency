@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import AiDisclaimerBanner from "@/components/AiDisclaimerBanner";
 import { Progress } from "@/components/ui/progress";
+import { useUserPlan } from "@/hooks/use-user-plan";
 import { ArrowRight } from "lucide-react";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { useActiveChannels, ALL_CHANNELS, type ChannelId } from "@/hooks/use-active-channels";
@@ -86,7 +87,9 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const activityExamples = useActivityExamples();
+  const { isPilot } = useUserPlan();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [coachingInfo, setCoachingInfo] = useState<{ phase: string; month: number; nextSession: { date: string; title: string } | null; actionsDone: number; actionsTotal: number } | null>(null);
   const [dashData, setDashData] = useState<DashboardData>({
     brandingCompletion: { storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 },
     igAuditScore: null, liAuditScore: null,
@@ -144,6 +147,40 @@ export default function Dashboard() {
         nextPost: nextPostRes.data ? { date: nextPostRes.data.date, theme: nextPostRes.data.theme } : null,
         planData,
       });
+
+      // Fetch coaching info for Now Pilot
+      if (isPilot) {
+        const { data: prog } = await (supabase.from("coaching_programs" as any) as any)
+          .select("current_phase, current_month, id")
+          .eq("client_user_id", user.id)
+          .eq("status", "active")
+          .maybeSingle();
+        if (prog) {
+          const [nextSessRes, actionsRes, actionsDoneRes] = await Promise.all([
+            (supabase.from("coaching_sessions" as any) as any)
+              .select("scheduled_date, title")
+              .eq("program_id", prog.id)
+              .eq("status", "scheduled")
+              .order("scheduled_date", { ascending: true })
+              .limit(1)
+              .maybeSingle(),
+            (supabase.from("coaching_actions" as any) as any)
+              .select("id", { count: "exact", head: true })
+              .eq("program_id", prog.id),
+            (supabase.from("coaching_actions" as any) as any)
+              .select("id", { count: "exact", head: true })
+              .eq("program_id", prog.id)
+              .eq("completed", true),
+          ]);
+          setCoachingInfo({
+            phase: prog.current_phase,
+            month: prog.current_month,
+            nextSession: nextSessRes.data ? { date: nextSessRes.data.scheduled_date, title: nextSessRes.data.title } : null,
+            actionsDone: actionsDoneRes.count ?? 0,
+            actionsTotal: actionsRes.count ?? 0,
+          });
+        }
+      }
     };
     fetchAll();
   }, [user?.id]);
@@ -200,10 +237,50 @@ export default function Dashboard() {
         {/* 1. Header */}
         <div className="mb-4">
           <h1 className="font-display text-[22px] sm:text-[30px] font-bold text-foreground">
-            Hey <span className="text-primary">{profile.prenom}</span>, on avance sur quoi aujourd'hui ?
+            Hey <span className="text-primary">{profile.prenom}</span>,{" "}
+            {isPilot && coachingInfo
+              ? <>programme Now Pilot · Mois {coachingInfo.month}/6 🤝</>
+              : <>on avance sur quoi aujourd'hui ?</>
+            }
           </h1>
-          <p className="mt-1 text-[15px] text-muted-foreground">Choisis un pilier ou lance une action rapide.</p>
+          <p className="mt-1 text-[15px] text-muted-foreground">
+            {isPilot ? "Ton espace coaching + outils de com'." : "Choisis un pilier ou lance une action rapide."}
+          </p>
         </div>
+
+        {/* Now Pilot coaching card */}
+        {isPilot && (
+          <div
+            onClick={() => navigate("/accompagnement")}
+            className="rounded-xl border-2 border-primary/30 bg-card p-4 mb-6 cursor-pointer hover:border-primary/50 transition-colors"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🤝</span>
+                <span className="text-sm font-bold text-foreground">Mon accompagnement</span>
+                {coachingInfo && (
+                  <span className="text-xs text-muted-foreground">
+                    · Phase {coachingInfo.phase === "strategy" ? "Stratégie" : "Binôme"}
+                  </span>
+                )}
+              </div>
+              <ArrowRight className="h-4 w-4 text-primary" />
+            </div>
+            {coachingInfo?.nextSession ? (
+              <p className="text-xs text-muted-foreground ml-7">
+                Prochaine session : {format(new Date(coachingInfo.nextSession.date), "d MMM", { locale: fr })}
+                {coachingInfo.nextSession.title ? ` · ${coachingInfo.nextSession.title}` : ""}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground ml-7">Pas de session programmée pour le moment.</p>
+            )}
+            {coachingInfo && coachingInfo.actionsTotal > 0 && (
+              <p className="text-xs text-muted-foreground ml-7">
+                Actions : {coachingInfo.actionsDone}/{coachingInfo.actionsTotal} faites
+              </p>
+            )}
+          </div>
+        )}
 
         {/* 2. Conseil du jour */}
         <div className="rounded-[10px] bg-rose-pale px-4 py-3 mb-6">

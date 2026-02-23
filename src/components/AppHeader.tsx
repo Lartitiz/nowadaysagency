@@ -26,9 +26,11 @@ export default function AppHeader() {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { plan, usage } = useUserPlan();
+  const { plan, usage, isPilot } = useUserPlan();
   const [demoOpen, setDemoOpen] = useState(false);
   const [hasCoaching, setHasCoaching] = useState(false);
+  const [coachingMonth, setCoachingMonth] = useState<number | null>(null);
+  const [coachingPhase, setCoachingPhase] = useState<string | null>(null);
   const isAdmin = user?.email === "laetitia@nowadaysagency.com";
 
   // Check if user has an active coaching program
@@ -36,18 +38,25 @@ export default function AppHeader() {
     if (!user) return;
     import("@/integrations/supabase/client").then(({ supabase }) => {
       (supabase.from("coaching_programs" as any) as any)
-        .select("id")
+        .select("id, current_month, current_phase")
         .eq("client_user_id", user.id)
         .eq("status", "active")
         .maybeSingle()
-        .then(({ data }: any) => { if (data) setHasCoaching(true); });
+        .then(({ data }: any) => {
+          if (data) {
+            setHasCoaching(true);
+            setCoachingMonth(data.current_month);
+            setCoachingPhase(data.current_phase);
+          }
+        });
     });
   }, [user?.id]);
 
   const isActive = (item: typeof NAV_ITEMS[0]) =>
     item.matchExact ? location.pathname === item.to : location.pathname.startsWith(item.to);
 
-  const planLabel = plan === "studio" ? "Now Studio" : plan === "outil" ? "Outil (39€)" : "Gratuit";
+  const planLabel = plan === "now_pilot" ? "🤝 Now Pilot" : plan === "studio" ? "Now Studio" : plan === "outil" ? "Outil (39€)" : "Gratuit";
+  const planBadge = plan === "now_pilot" ? "🤝 Pilot" : plan === "outil" || plan === "studio" ? "Pro" : null;
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;
   const totalPercent = totalLimit > 0 ? Math.round((totalUsed / totalLimit) * 100) : 0;
@@ -87,13 +96,17 @@ export default function AppHeader() {
               initial={initial}
               firstName={firstName}
               planLabel={planLabel}
+              planBadge={planBadge}
               totalUsed={totalUsed}
               totalLimit={totalLimit}
               totalPercent={totalPercent}
               signOut={signOut}
               navigate={navigate}
               isAdmin={isAdmin}
-              hasCoaching={hasCoaching}
+              hasCoaching={hasCoaching || isPilot}
+              isPilot={isPilot}
+              coachingMonth={coachingMonth}
+              coachingPhase={coachingPhase}
               onDemoClick={() => setDemoOpen(true)}
             />
           </div>
@@ -131,13 +144,17 @@ export default function AppHeader() {
               initial={initial}
               firstName={firstName}
               planLabel={planLabel}
+              planBadge={planBadge}
               totalUsed={totalUsed}
               totalLimit={totalLimit}
               totalPercent={totalPercent}
               signOut={signOut}
               navigate={navigate}
               isAdmin={isAdmin}
-              hasCoaching={hasCoaching}
+              hasCoaching={hasCoaching || isPilot}
+              isPilot={isPilot}
+              coachingMonth={coachingMonth}
+              coachingPhase={coachingPhase}
               onDemoClick={() => setDemoOpen(true)}
             />
           </div>
@@ -157,13 +174,17 @@ export default function AppHeader() {
               initial={initial}
               firstName={firstName}
               planLabel={planLabel}
+              planBadge={planBadge}
               totalUsed={totalUsed}
               totalLimit={totalLimit}
               totalPercent={totalPercent}
               signOut={signOut}
               navigate={navigate}
               isAdmin={isAdmin}
-              hasCoaching={hasCoaching}
+              hasCoaching={hasCoaching || isPilot}
+              isPilot={isPilot}
+              coachingMonth={coachingMonth}
+              coachingPhase={coachingPhase}
               onDemoClick={() => setDemoOpen(true)}
             />
           </div>
@@ -202,6 +223,7 @@ interface AvatarMenuProps {
   initial: string;
   firstName: string;
   planLabel: string;
+  planBadge: string | null;
   totalUsed: number;
   totalLimit: number;
   totalPercent: number;
@@ -209,56 +231,77 @@ interface AvatarMenuProps {
   navigate: (path: string) => void;
   isAdmin: boolean;
   hasCoaching?: boolean;
+  isPilot?: boolean;
+  coachingMonth?: number | null;
+  coachingPhase?: string | null;
   onDemoClick: () => void;
 }
 
-function AvatarMenu({ initial, firstName, planLabel, totalUsed, totalLimit, totalPercent, signOut, navigate, isAdmin, hasCoaching, onDemoClick }: AvatarMenuProps) {
+function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, totalLimit, totalPercent, signOut, navigate, isAdmin, hasCoaching, isPilot, coachingMonth, coachingPhase, onDemoClick }: AvatarMenuProps) {
+  const remaining = totalLimit - totalUsed;
+  const isLow = remaining <= 10 && totalLimit > 0;
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-primary-foreground text-sm font-bold focus:outline-none hover:opacity-90 transition-opacity shrink-0"
+          className="flex items-center gap-1.5 justify-center h-9 rounded-full bg-primary text-primary-foreground text-sm font-bold focus:outline-none hover:opacity-90 transition-opacity shrink-0 px-3"
           aria-label="Menu utilisateur"
         >
           {initial}
+          {planBadge && (
+            <span className="text-[10px] font-semibold bg-primary-foreground/20 px-1.5 py-0.5 rounded-md">
+              {planBadge}
+            </span>
+          )}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72 bg-card border border-border shadow-lg z-50">
         {/* User info */}
         <div className="px-3 py-3">
-          <p className="text-sm font-semibold text-foreground">Salut {firstName} 👋</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-foreground">Salut {firstName} 👋</p>
+            {planBadge && (
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${isPilot ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"}`}>
+                {planBadge}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground mt-0.5">Plan : {planLabel}</p>
+          {isPilot && coachingMonth && (
+            <p className="text-xs text-muted-foreground">Phase : {coachingPhase === "strategy" ? "Stratégie" : "Binôme"} · Mois {coachingMonth}/6</p>
+          )}
           <button
             onClick={() => navigate("/abonnement")}
             className="w-full mt-2 group/credits"
           >
             <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
               <span className="flex items-center gap-1">⚡ Crédits IA</span>
-              <span className={`font-mono-ui font-semibold ${totalPercent >= 90 ? "text-destructive" : totalPercent >= 70 ? "text-orange-500" : ""}`}>
-                {totalLimit - totalUsed}/{totalLimit}
+              <span className={`font-mono-ui font-semibold ${isLow ? "text-destructive" : totalPercent >= 70 ? "text-orange-500" : ""}`}>
+                {remaining}/{totalLimit}
               </span>
             </div>
             <Progress value={totalPercent} className="h-1.5" />
-            {totalPercent >= 90 && (
+            {isLow && (
               <p className="text-[10px] text-destructive mt-0.5 text-left">Crédits presque épuisés</p>
             )}
           </button>
         </div>
         <DropdownMenuSeparator />
+        {(hasCoaching || isPilot) && (
+          <>
+            <DropdownMenuItem onClick={() => navigate("/accompagnement")} className="gap-2 cursor-pointer">
+              <Handshake className="h-4 w-4" /> 🤝 Mon accompagnement
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
         <DropdownMenuItem onClick={() => navigate("/profil")} className="gap-2 cursor-pointer">
           <User className="h-4 w-4" /> Mon profil
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate("/branding")} className="gap-2 cursor-pointer">
           <Palette className="h-4 w-4" /> Mon branding
         </DropdownMenuItem>
-        {hasCoaching && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate("/accompagnement")} className="gap-2 cursor-pointer">
-              <Handshake className="h-4 w-4" /> 🤝 Mon accompagnement
-            </DropdownMenuItem>
-          </>
-        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate("/abonnement")} className="gap-2 cursor-pointer">
           <CreditCard className="h-4 w-4" /> Mon abonnement
