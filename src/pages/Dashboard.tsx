@@ -6,9 +6,9 @@ import AppHeader from "@/components/AppHeader";
 import AiDisclaimerBanner from "@/components/AiDisclaimerBanner";
 import { Progress } from "@/components/ui/progress";
 import { useUserPlan } from "@/hooks/use-user-plan";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Calendar, BarChart3, Globe, Sparkles } from "lucide-react";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
-import { useActiveChannels, ALL_CHANNELS, type ChannelId } from "@/hooks/use-active-channels";
+import { useActiveChannels, ALL_CHANNELS } from "@/hooks/use-active-channels";
 import { computePlan, type PlanData } from "@/lib/plan-engine";
 import { startOfWeek, endOfWeek, format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -49,25 +49,18 @@ interface DashboardData {
   planData: PlanData | null;
 }
 
-/* ── Quick actions ── */
-interface QuickAction { label: string; emoji: string; route: string; priority: number }
+/* ── Welcome messages ── */
+const WELCOME_MESSAGES = [
+  "on avance sur quoi aujourd'hui ?",
+  "prête à créer du contenu qui claque ?",
+  "ta com' t'attend, et elle va être belle.",
+  "allez, on s'y met ?",
+  "qu'est-ce qu'on construit aujourd'hui ?",
+];
 
-function getQuickActions(data: DashboardData): QuickAction[] {
-  const actions: QuickAction[] = [];
-  actions.push({ label: "Créer un post", emoji: "✨", route: "/instagram/creer", priority: 1 });
-  actions.push({ label: "Routine engagement", emoji: "💬", route: "/instagram/routine", priority: 2 });
-  actions.push({ label: "Voir mon calendrier", emoji: "📅", route: "/calendrier", priority: 3 });
-  // "Relancer un prospect" removed
-  return actions.sort((a, b) => a.priority - b.priority).slice(0, 4);
-}
-
-/* ── Dynamic tip — now uses activity examples as fallback ── */
-function getDynamicTip(data: DashboardData, activityTip?: string): string {
-  if (data.brandingCompletion.total < 30) return "Commence par le Branding, c'est la base de tout le reste.";
-  if (data.brandingCompletion.total < 100) return "Continue ton branding ! Plus il est complet, plus l'IA te connaît.";
-  if (data.igAuditScore == null) return "Maintenant que ton branding est posé, fais ton audit pour savoir où tu en es.";
-  if (data.calendarPostCount === 0) return "Tes fondations sont solides. C'est le moment de planifier tes premiers contenus !";
-  return activityTip || "Continue comme ça ! Pense à checker tes stats pour voir ce qui marche.";
+function getWelcomeMessage(): string {
+  const idx = new Date().getDate() % WELCOME_MESSAGES.length;
+  return WELCOME_MESSAGES[idx];
 }
 
 /* ── Channel completion helpers ── */
@@ -189,9 +182,9 @@ export default function Dashboard() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex gap-1">
-          <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" />
-          <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} />
-          <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
+          <div className="h-3 w-3 rounded-sm bg-primary animate-bounce-dot" />
+          <div className="h-3 w-3 rounded-sm bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} />
+          <div className="h-3 w-3 rounded-sm bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
         </div>
       </div>
     );
@@ -200,190 +193,264 @@ export default function Dashboard() {
   const igCompletion = getIgCompletion(dashData);
   const liCompletion = getLiCompletion(dashData);
   const brandingDone = dashData.brandingCompletion.total >= 100;
-  const quickActions = getQuickActions(dashData);
-  const tip = getDynamicTip(dashData, activityExamples.dashboard_tip);
-
-  // Coming soon channels that are active in profile
   const comingSoonChannels = ALL_CHANNELS.filter(c => c.comingSoon && channels.includes(c.id));
-
-  // Branding next step
-  const brandingNextStep = (() => {
-    const bc = dashData.brandingCompletion;
-    if (bc.storytelling === 0) return "Écrire ton histoire";
-    if (bc.persona === 0) return "Définir ta cible";
-    if (bc.proposition === 0) return "Affiner ta proposition de valeur";
-    if (bc.tone === 0) return "Définir ton ton & tes combats";
-    if (bc.strategy === 0) return "Créer ta stratégie de contenu";
-    return null;
-  })();
-
-  function getBrandingMissing(bc: BrandingCompletion): string | undefined {
-    const missing: string[] = [];
-    if (bc.storytelling === 0) missing.push("ton histoire");
-    if (bc.persona === 0) missing.push("ta cible");
-    if (bc.proposition === 0) missing.push("ta proposition de valeur");
-    if (bc.tone === 0) missing.push("ton ton de voix");
-    if (bc.strategy === 0) missing.push("ta ligne éditoriale");
-    if (missing.length === 0 || bc.total === 0) return undefined;
-    return missing.slice(0, 2).join(", ");
-  }
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <AiDisclaimerBanner />
-      <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4">
+      <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4 animate-fade-in">
 
-        {/* 1. Header */}
-        <div className="mb-4">
-          <h1 className="font-display text-[22px] sm:text-[30px] font-bold text-foreground">
+        {/* ─── 2. Welcome ─── */}
+        <div className="mb-6">
+          <h1 className="font-display text-[22px] sm:text-[28px] font-bold text-foreground leading-tight">
             Hey <span className="text-primary">{profile.prenom}</span>,{" "}
             {isPilot && coachingInfo
               ? <>programme Now Pilot · Mois {coachingInfo.month}/6 🤝</>
-              : <>on avance sur quoi aujourd'hui ?</>
+              : <>{getWelcomeMessage()}</>
             }
           </h1>
-          <p className="mt-1 text-[15px] text-muted-foreground">
-            {isPilot ? "Ton espace coaching + outils de com'." : "Choisis un pilier ou lance une action rapide."}
+          <p className="mt-1 text-[14px] text-muted-foreground font-mono-ui">
+            Ton espace coaching + outils de com'.
           </p>
         </div>
 
-        {/* Now Pilot coaching card */}
-        {isPilot && (
+        {/* ─── 3. HUB D'ACTIONS ─── */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-8">
+          {/* Main card — Créer un contenu */}
           <div
-            onClick={() => navigate("/accompagnement")}
-            className="rounded-xl border-2 border-primary/30 bg-card p-4 mb-6 cursor-pointer hover:border-primary/50 transition-colors"
+            className="lg:col-span-3 rounded-2xl p-6 cursor-pointer group
+              bg-gradient-to-br from-rose-pale via-secondary to-rose-medium/30
+              border border-primary/10 hover:shadow-strong hover:-translate-y-0.5 transition-all duration-200"
+            onClick={() => navigate("/instagram/creer")}
           >
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🤝</span>
-                <span className="text-sm font-bold text-foreground">Mon accompagnement</span>
-                {coachingInfo && (
-                  <span className="text-xs text-muted-foreground">
-                    · Phase {coachingInfo.phase === "strategy" ? "Stratégie" : "Binôme"}
-                  </span>
-                )}
-              </div>
-              <ArrowRight className="h-4 w-4 text-primary" />
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <h2 className="font-display text-lg font-bold text-foreground">Créer un contenu</h2>
             </div>
-            {coachingInfo?.nextSession ? (
-              <p className="text-xs text-muted-foreground ml-7">
-                Prochaine session : {format(new Date(coachingInfo.nextSession.date), "d MMM", { locale: fr })}
-                {coachingInfo.nextSession.title ? ` · ${coachingInfo.nextSession.title}` : ""}
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground ml-7">Pas de session programmée pour le moment.</p>
-            )}
-            {coachingInfo && coachingInfo.actionsTotal > 0 && (
-              <p className="text-xs text-muted-foreground ml-7">
-                Actions : {coachingInfo.actionsDone}/{coachingInfo.actionsTotal} faites
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* 2. Conseil du jour */}
-        <div className="rounded-[10px] bg-rose-pale px-4 py-3 mb-6">
-          <p className="text-[13px] text-muted-foreground">💡 <span className="font-bold text-bordeaux">{tip}</span></p>
-        </div>
-
-        {/* 3. Actions rapides */}
-        <div className="mb-6">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">⚡ Actions rapides</p>
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
-            {quickActions.map((a) => (
-              <button key={a.route + a.label} onClick={() => navigate(a.route)}
-                className="shrink-0 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/5 hover:border-primary/50 transition-colors">
-                <span>{a.emoji}</span>{a.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 4. Fondations — après actions rapides, avant canaux */}
-        <div className="mb-6">
-          {brandingDone ? (
-            <div className="rounded-xl border border-border bg-card px-4 py-3 space-y-1.5">
-              <div onClick={() => navigate("/branding")}
-                className="flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity">
-                <div className="flex items-center gap-2">
-                  <span className="text-base">🎨</span>
-                  <span className="text-sm font-semibold text-foreground">Mon Branding</span>
-                  <span className="text-xs font-semibold text-[#2E7D32] bg-[#E8F5E9] px-1.5 py-0.5 rounded">✅</span>
-                </div>
-                <span className="text-xs text-primary font-medium">Voir ma synthèse →</span>
-              </div>
-              {dashData.igAuditScore != null && (
-                <div onClick={() => navigate("/instagram/audit")}
-                  className="flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">🔍</span>
-                    <span className="text-sm text-muted-foreground">Dernier audit : <span className="font-semibold text-foreground">{dashData.igAuditScore}/100</span></span>
-                  </div>
-                  <span className="text-xs text-primary font-medium">Voir →</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div onClick={() => navigate("/branding")}
-              className="rounded-xl border border-border bg-card px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-base">🎨</span>
-                  <span className="text-sm font-semibold text-foreground">Mon Branding</span>
-                  <span className="text-xs text-muted-foreground">· {dashData.brandingCompletion.total}%</span>
-                </div>
-                <span className="text-xs text-primary font-medium">{dashData.brandingCompletion.total > 0 ? "Continuer →" : "Commencer →"}</span>
-              </div>
-              <p className="text-[12px] text-muted-foreground mt-1">Pose les bases de ta communication.</p>
-            </div>
-          )}
-        </div>
-
-        {/* 5. Cards canaux */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {/* Instagram card */}
-          {!channelsLoading && hasInstagram && (
-            igCompletion >= 100
-              ? <ChannelDailyCard channel="instagram" data={dashData} />
-              : <ChannelSetupCard emoji="📱" title="Mon Instagram" completion={igCompletion}
-                  nextStep={dashData.igAuditScore == null ? "Faire ton audit Instagram" : "Planifier ton premier contenu"}
-                  route="/instagram" descKey="instagram" />
-          )}
-
-          {/* LinkedIn card */}
-          {!channelsLoading && hasLinkedin && (
-            liCompletion >= 100
-              ? <ChannelDailyCard channel="linkedin" data={dashData} />
-              : <ChannelSetupCard emoji="💼" title="Mon LinkedIn" completion={liCompletion}
-                  nextStep={dashData.liAuditScore == null ? "Auditer ton profil LinkedIn" : "Optimiser ton profil"}
-                  route="/linkedin" descKey="linkedin" />
-          )}
-
-          {/* Site Web / Blog card */}
-          {!channelsLoading && hasWebsite && <WebsiteCard />}
-
-          {/* SEO card (external tool) */}
-          {!channelsLoading && hasSeo && <SeoExternalCard />}
-        </div>
-
-        {/* 6. Bientôt disponibles */}
-        {comingSoonChannels.length > 0 && (
-          <div className="mb-8">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">🔜 Bientôt disponibles</p>
-            <div className="space-y-1.5">
-              {comingSoonChannels.map(c => (
-                <p key={c.id} className="text-sm text-muted-foreground">
-                  {c.emoji} <span className="font-medium text-foreground">{c.label}</span> · On y travaille, tu seras prévenu·e
-                </p>
+            <p className="text-sm text-muted-foreground mb-5">
+              Post, carousel, reel, article... c'est parti.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: "Post Instagram", route: "/instagram/creer" },
+                { label: "Carousel", route: "/instagram/carousel" },
+                { label: "Reel", route: "/instagram/reels" },
+                { label: "Post LinkedIn", route: "/linkedin/post" },
+                { label: "Article de blog", route: "/site/accueil" },
+              ].map((item) => (
+                <button
+                  key={item.route + item.label}
+                  onClick={(e) => { e.stopPropagation(); navigate(item.route); }}
+                  className="text-xs font-medium px-3.5 py-2 rounded-xl
+                    bg-card/80 border border-primary/15 text-foreground
+                    hover:bg-primary hover:text-primary-foreground hover:border-primary
+                    transition-all duration-150"
+                >
+                  {item.label}
+                </button>
               ))}
             </div>
           </div>
+
+          {/* 3 secondary cards */}
+          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
+            {/* Calendrier */}
+            <HubCard
+              icon={<Calendar className="h-4 w-4 text-primary" />}
+              title="Mon calendrier édito"
+              subtitle="Planifie et visualise tes publications"
+              badge={`${dashData.weekPostsPublished}/${dashData.weekPostsTotal} publiés cette semaine`}
+              onClick={() => navigate("/calendrier")}
+            />
+            {/* Site & SEO */}
+            <HubCard
+              icon={<Globe className="h-4 w-4 text-primary" />}
+              title="Mon site & SEO"
+              subtitle="Pages, articles, référencement"
+              onClick={() => navigate("/site")}
+            />
+            {/* Stats & Audits */}
+            <HubCard
+              icon={<BarChart3 className="h-4 w-4 text-primary" />}
+              title="Mes stats & audits"
+              subtitle="Analyse ta visibilité et ta progression"
+              badge={dashData.igAuditScore != null ? `Score audit : ${dashData.igAuditScore}/100` : undefined}
+              badgeProgress={dashData.igAuditScore ?? undefined}
+              onClick={() => navigate("/instagram/audit")}
+            />
+          </div>
+        </div>
+
+        {/* ─── 4. ESPACES DE TRAVAIL ─── */}
+        <div className="mb-8">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4 font-mono-ui">
+            Mes espaces de travail
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Instagram */}
+            {!channelsLoading && hasInstagram && (
+              igCompletion >= 100
+                ? <WorkspaceReadyCard
+                    emoji="📱" title="Instagram" score={dashData.igAuditScore}
+                    weekLabel={`${dashData.weekPostsPublished}/${dashData.weekPostsTotal} posts publiés`}
+                    actions={[
+                      { label: "Créer un contenu", route: "/instagram/creer" },
+                      { label: "Analyser mon profil", route: "/instagram/audit" },
+                      { label: "Routine engagement", route: "/instagram/routine" },
+                      { label: "Calendrier édito", route: "/calendrier" },
+                      { label: "Mes stats", route: "/instagram/stats" },
+                    ]}
+                    onCardClick={() => navigate("/instagram")}
+                  />
+                : <WorkspaceSetupCard
+                    emoji="📱" title="Instagram" completion={igCompletion}
+                    desc="Optimise ton profil, génère tes contenus et développe ta communauté."
+                    nextStep={dashData.igAuditScore == null ? "Faire ton audit Instagram" : "Planifier ton premier contenu"}
+                    route="/instagram"
+                  />
+            )}
+
+            {/* Site Web */}
+            {!channelsLoading && hasWebsite && (
+              <WorkspaceSetupCard
+                emoji="🌐" title="Site Web" completion={0}
+                desc="Rédige les textes de ton site : page d'accueil, à propos, pages de vente."
+                nextStep="Rédiger ta page d'accueil"
+                route="/site"
+              />
+            )}
+
+            {/* LinkedIn */}
+            {!channelsLoading && hasLinkedin && (
+              liCompletion >= 100
+                ? <WorkspaceReadyCard
+                    emoji="💼" title="LinkedIn" score={dashData.liAuditScore}
+                    weekLabel="0/1 post publié"
+                    actions={[
+                      { label: "Créer un post", route: "/linkedin/post" },
+                      { label: "Calendrier édito", route: "/calendrier?canal=linkedin" },
+                      { label: "Mes stats", route: "/linkedin/audit" },
+                    ]}
+                    onCardClick={() => navigate("/linkedin")}
+                  />
+                : <WorkspaceSetupCard
+                    emoji="💼" title="LinkedIn" completion={liCompletion}
+                    desc="Travaille ta présence professionnelle : profil, posts stratégiques et réseau."
+                    nextStep={dashData.liAuditScore == null ? "Auditer ton profil LinkedIn" : "Optimiser ton profil"}
+                    route="/linkedin"
+                  />
+            )}
+
+            {/* SEO */}
+            {!channelsLoading && hasSeo && (
+              <div className="rounded-2xl border border-border bg-card p-5 opacity-[0.92]">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xl">🔍</span>
+                    <h3 className="font-display text-base font-bold text-foreground">SEO</h3>
+                  </div>
+                  <span className="text-xs font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-lg">🔗 Externe</span>
+                </div>
+                <p className="text-[13px] text-muted-foreground mb-3">Améliore ton référencement pour être trouvée sur Google.</p>
+                <a
+                  href="https://referencement-seo.lovable.app/"
+                  target="_blank" rel="noopener noreferrer"
+                  className="text-xs font-medium px-3 py-1.5 rounded-xl border border-primary/20 text-primary hover:bg-primary/5 transition-colors inline-flex items-center gap-1"
+                >
+                  Ouvrir le SEO Toolkit →
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ─── 5. BRANDING ─── */}
+        <div className="mb-6">
+          {brandingDone ? (
+            <div
+              onClick={() => navigate("/branding")}
+              className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-4 cursor-pointer hover:shadow-card-hover hover:-translate-y-0.5 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-lg">🎨</span>
+                <span className="text-sm font-bold text-foreground">Mon Branding</span>
+                <span className="text-xs font-semibold text-[hsl(142,71%,45%)] bg-[hsl(142,76%,92%)] px-2 py-0.5 rounded-lg">
+                  Score : {dashData.brandingCompletion.total}/100
+                </span>
+              </div>
+              <span className="text-xs text-primary font-medium flex items-center gap-1">
+                Voir ma synthèse <ArrowRight className="h-3 w-3" />
+              </span>
+            </div>
+          ) : (
+            <div
+              onClick={() => navigate("/branding")}
+              className="rounded-2xl border border-primary/20 bg-gradient-to-r from-rose-pale to-card px-5 py-4 cursor-pointer hover:shadow-card-hover hover:-translate-y-0.5 transition-all"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">🎨</span>
+                  <span className="text-sm font-bold text-foreground">Mon Branding</span>
+                  <span className="text-xs text-muted-foreground font-mono-ui">{dashData.brandingCompletion.total}%</span>
+                </div>
+                <span className="text-xs text-primary font-medium flex items-center gap-1">
+                  {dashData.brandingCompletion.total > 0 ? "Continuer" : "Poser mon branding"} <ArrowRight className="h-3 w-3" />
+                </span>
+              </div>
+              <Progress value={dashData.brandingCompletion.total} className="h-1.5" />
+            </div>
+          )}
+        </div>
+
+        {/* ─── 6. ACCOMPAGNEMENT ─── */}
+        {isPilot && (
+          <div className="mb-6">
+            <div
+              onClick={() => navigate("/accompagnement")}
+              className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-3 cursor-pointer hover:shadow-card transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-base">🤝</span>
+                {coachingInfo?.nextSession ? (
+                  <span className="text-sm text-muted-foreground">
+                    Prochaine session : <span className="font-medium text-foreground">
+                      {format(new Date(coachingInfo.nextSession.date), "d MMM", { locale: fr })}
+                      {coachingInfo.nextSession.title ? ` · ${coachingInfo.nextSession.title}` : ""}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-sm text-muted-foreground">
+                    Pas de session prévue — <span className="text-primary font-medium">Réserver un créneau</span>
+                  </span>
+                )}
+              </div>
+              <ArrowRight className="h-4 w-4 text-primary shrink-0" />
+            </div>
+          </div>
         )}
 
-        {/* 7. Lien modifier mes canaux */}
+        {/* ─── 7. COMING SOON ─── */}
+        {comingSoonChannels.length > 0 && (
+          <div className="mb-8 rounded-2xl bg-gradient-to-r from-rose-pale via-card to-accent/10 border border-border p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-base">🚀</span>
+              <h3 className="font-display text-sm font-bold text-foreground">
+                Bientôt : {comingSoonChannels.map(c => c.label).join(" & ")}
+              </h3>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3 font-mono-ui">
+              On y travaille pour toi. Bientôt dans ton Assistant.
+            </p>
+            <button className="text-xs font-medium px-3.5 py-2 rounded-xl bg-accent text-accent-foreground hover:opacity-90 transition-opacity">
+              Me prévenir →
+            </button>
+          </div>
+        )}
+
+        {/* Footer link */}
         <div className="text-center py-4">
-          <Link to="/profil" className="text-xs text-muted-foreground hover:text-primary transition-colors">
+          <Link to="/profil" className="text-xs text-muted-foreground hover:text-primary transition-colors font-mono-ui">
             📱 Tu veux ajouter un canal ? <span className="underline">Modifier dans le profil →</span>
           </Link>
         </div>
@@ -396,198 +463,115 @@ export default function Dashboard() {
 /*  Sub-components                                            */
 /* ═══════════════════════════════════════════════════════════ */
 
-/* ── Channel descriptions ── */
-const CHANNEL_DESCRIPTIONS: Record<string, { setup: string; ready: string | null }> = {
-  instagram: {
-    setup: "Optimise ton profil, génère tes contenus et développe ta communauté sur Instagram.",
-    ready: "Crée tes contenus, suis tes stats et développe ta communauté sur Instagram.",
-  },
-  linkedin: {
-    setup: "Travaille ta présence professionnelle : profil optimisé, posts stratégiques et réseau ciblé.",
-    ready: "Publie du contenu stratégique et développe ton réseau professionnel sur LinkedIn.",
-  },
-  website: {
-    setup: "Rédige les textes de ton site : page d'accueil, à propos, pages de vente et articles de blog.",
-    ready: "Rédige et améliore les textes de ton site : pages, articles de blog, pages de vente.",
-  },
-  seo: {
-    setup: "Améliore ton référencement naturel pour être trouvée sur Google par tes client·es idéales.",
-    ready: "Améliore ton référencement naturel pour être trouvée sur Google par tes client·es idéales.",
-  },
-  branding: {
-    setup: "Pose les bases de ta communication : positionnement, cible idéale, ton de voix, histoire et offres.",
-    ready: null,
-  },
-};
+/* ── Hub Card (secondary) ── */
+function HubCard({ icon, title, subtitle, badge, badgeProgress, onClick }: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  badge?: string;
+  badgeProgress?: number;
+  onClick: () => void;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      className="rounded-2xl border border-primary/10 bg-card p-4 cursor-pointer
+        hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200"
+    >
+      <div className="flex items-center gap-2 mb-1">
+        {icon}
+        <h3 className="font-display text-sm font-bold text-foreground">{title}</h3>
+      </div>
+      <p className="text-xs text-muted-foreground mb-2">{subtitle}</p>
+      {badge && (
+        <p className="text-xs text-muted-foreground font-mono-ui">{badge}</p>
+      )}
+      {badgeProgress != null && (
+        <Progress value={badgeProgress} className="h-1 mt-1.5" />
+      )}
+    </div>
+  );
+}
 
-/* ── Channel Setup Card (< 100%) ── */
-function ChannelSetupCard({ emoji, title, completion, nextStep, route, descKey, missingLabel }: {
-  emoji: string; title: string; completion: number; nextStep: string; route: string; descKey?: string; missingLabel?: string;
+/* ── Workspace Setup Card ── */
+function WorkspaceSetupCard({ emoji, title, completion, desc, nextStep, route }: {
+  emoji: string; title: string; completion: number; desc: string; nextStep: string; route: string;
 }) {
   const navigate = useNavigate();
-  const desc = descKey ? CHANNEL_DESCRIPTIONS[descKey]?.setup : null;
+  const notStarted = completion === 0;
   return (
-    <div onClick={() => navigate(route)}
-      className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
+    <div
+      onClick={() => navigate(route)}
+      className={`rounded-2xl border border-border bg-card p-5 cursor-pointer
+        hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200
+        ${notStarted ? "opacity-[0.88]" : ""}`}
+    >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2.5">
           <span className="text-xl">{emoji}</span>
           <h3 className="font-display text-base font-bold text-foreground">{title}</h3>
         </div>
-        <span className="text-xs font-semibold text-muted-foreground">{completion}%</span>
+        {notStarted ? (
+          <span className="text-xs text-muted-foreground font-mono-ui">🔒 Pas commencé</span>
+        ) : (
+          <span className="text-xs font-semibold text-muted-foreground font-mono-ui">{completion}%</span>
+        )}
       </div>
-      <Progress value={completion} className="h-2 mb-3" />
-      {desc && <p className="text-[13px] text-muted-foreground mb-3">{desc}</p>}
-      {missingLabel ? (
-        <p className="text-[13px] text-muted-foreground mb-1">Il te manque : <span className="text-foreground font-medium">{missingLabel}</span></p>
-      ) : (
-        <p className="text-[13px] text-muted-foreground mb-1">Prochaine étape : <span className="text-foreground font-medium">{nextStep}</span></p>
-      )}
-      <p className="text-sm font-semibold text-primary mt-1">{completion > 0 ? "Continuer →" : "Commencer →"}</p>
-    </div>
-  );
-}
-
-/* ── Channel Daily Card (100%) ── */
-function ChannelDailyCard({ channel, data }: { channel: "instagram" | "linkedin"; data: DashboardData }) {
-  const navigate = useNavigate();
-
-  if (channel === "instagram") {
-    return (
-      <div onClick={() => navigate("/instagram")} className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xl">📱</span>
-            <h3 className="font-display text-base font-bold text-foreground">Mon Instagram</h3>
-          </div>
-          <span className="text-xs font-semibold text-[#2E7D32] bg-[#E8F5E9] px-2 py-0.5 rounded-full">✅ Prêt</span>
-        </div>
-        <p className="text-[13px] text-muted-foreground mb-3">{CHANNEL_DESCRIPTIONS.instagram.ready}</p>
-        <div className="space-y-1 mb-3 text-[13px] text-muted-foreground">
-          {data.igAuditScore != null && <p>📊 Dernier audit : <span className="font-medium text-foreground">{data.igAuditScore}/100</span></p>}
-          <p>📅 Cette semaine : <span className="font-medium text-foreground">{data.weekPostsPublished}/{data.weekPostsTotal} posts publiés</span></p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <MiniBtn label="✨ Créer un contenu" onClick={() => navigate("/instagram/creer")} />
-          <MiniBtn label="🔍 Analyser mon profil" onClick={() => navigate("/instagram/audit")} />
-          <MiniBtn label="💬 Routine engagement" onClick={() => navigate("/contacts")} />
-          <MiniBtn label="📅 Calendrier édito" onClick={() => navigate("/calendrier")} />
-          <MiniBtn label="📊 Mes stats" onClick={() => navigate("/instagram/stats")} />
-        </div>
-      </div>
-    );
-  }
-
-  // LinkedIn
-  return (
-    <div onClick={() => navigate("/linkedin")} className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xl">💼</span>
-          <h3 className="font-display text-base font-bold text-foreground">Mon LinkedIn</h3>
-        </div>
-        <span className="text-xs font-semibold text-[#2E7D32] bg-[#E8F5E9] px-2 py-0.5 rounded-full">✅ Prêt</span>
-      </div>
-      <p className="text-[13px] text-muted-foreground mb-3">{CHANNEL_DESCRIPTIONS.linkedin.ready}</p>
-      <div className="space-y-1 mb-3 text-[13px] text-muted-foreground">
-        {data.liAuditScore != null && <p>📊 Dernier audit : <span className="font-medium text-foreground">{data.liAuditScore}/100</span></p>}
-        <p>📅 Cette semaine : <span className="font-medium text-foreground">0/1 post publié</span></p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <MiniBtn label="✨ Créer un post LinkedIn" onClick={() => navigate("/linkedin/post")} />
-        <MiniBtn label="📅 Calendrier édito" onClick={() => navigate("/calendrier?canal=linkedin")} />
-        <MiniBtn label="📊 Mes stats" onClick={() => navigate("/linkedin/audit")} />
-      </div>
-    </div>
-  );
-}
-
-/* ── Mini button for daily cards ── */
-function MiniBtn({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button onClick={(e) => { e.stopPropagation(); onClick(); }}
-      className="text-xs font-medium px-3 py-1.5 rounded-full border border-primary/20 text-primary hover:bg-primary/5 transition-colors">
-      {label}
-    </button>
-  );
-}
-
-/* ── Website Card ── */
-function WebsiteCard() {
-  const navigate = useNavigate();
-  // TODO: could fetch actual page count from DB to switch between setup/ready
-  const isReady = false; // placeholder — flip when pages are written
-  return (
-    <div onClick={() => navigate("/site")}
-      className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xl">🌐</span>
-          <h3 className="font-display text-base font-bold text-foreground">Mon Site Web</h3>
-        </div>
-        {isReady && <span className="text-xs font-semibold text-[#2E7D32] bg-[#E8F5E9] px-2 py-0.5 rounded-full">✅ Prêt</span>}
-      </div>
-      <p className="text-[13px] text-muted-foreground mb-3">
-        {isReady ? CHANNEL_DESCRIPTIONS.website.ready : CHANNEL_DESCRIPTIONS.website.setup}
+      <Progress value={completion} className="h-1.5 mb-3" />
+      <p className="text-[13px] text-muted-foreground mb-2">{desc}</p>
+      <p className="text-[13px] text-muted-foreground">
+        Prochaine étape : <span className="text-foreground font-medium">{nextStep}</span>
       </p>
-      {!isReady && (
-        <>
-          <Progress value={0} className="h-2 mb-3" />
-          <p className="text-[13px] text-muted-foreground mb-1">Prochaine étape : <span className="text-foreground font-medium">Rédiger ta page d'accueil</span></p>
-          <p className="text-sm font-semibold text-primary mt-1">Commencer →</p>
-        </>
-      )}
-      {isReady && (
-        <div className="flex flex-wrap gap-2">
-          <MiniBtn label="📄 Page d'accueil" onClick={() => navigate("/site/accueil")} />
-          <MiniBtn label="📄 À propos" onClick={() => navigate("/site/a-propos")} />
-          <MiniBtn label="📄 Mes offres" onClick={() => navigate("/site/capture")} />
-          <MiniBtn label="✨ Écrire un article de blog" onClick={() => navigate("/site/accueil")} />
-        </div>
-      )}
+      <p className="text-sm font-semibold text-primary mt-2 flex items-center gap-1">
+        {completion > 0 ? "Continuer" : "Commencer"} <ArrowRight className="h-3.5 w-3.5" />
+      </p>
     </div>
   );
 }
 
-/* ── SEO External Card ── */
-function SeoExternalCard() {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xl">🔍</span>
-          <h3 className="font-display text-base font-bold text-foreground">Mon SEO</h3>
-        </div>
-        <span className="text-xs font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">🔗 Externe</span>
-      </div>
-      <p className="text-[13px] text-muted-foreground mb-3">{CHANNEL_DESCRIPTIONS.seo.setup}</p>
-      <a
-        href="https://referencement-seo.lovable.app/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-xs font-medium px-3 py-1.5 rounded-full border border-primary/20 text-primary hover:bg-primary/5 transition-colors inline-flex items-center gap-1"
-      >
-        🔗 Ouvrir le SEO Toolkit →
-      </a>
-    </div>
-  );
-}
-
-
-/* ── Foundation Row (mini) ── */
-function FoundationRow({ emoji, label, detail, route, linkLabel }: {
-  emoji: string; label: string; detail: string; route: string; linkLabel: string;
+/* ── Workspace Ready Card ── */
+function WorkspaceReadyCard({ emoji, title, score, weekLabel, actions, onCardClick }: {
+  emoji: string;
+  title: string;
+  score: number | null;
+  weekLabel: string;
+  actions: { label: string; route: string }[];
+  onCardClick: () => void;
 }) {
   const navigate = useNavigate();
   return (
-    <div onClick={() => navigate(route)}
-      className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors">
-      <div className="flex items-center gap-2.5">
-        <span className="text-lg">{emoji}</span>
-        <span className="text-sm font-semibold text-foreground">{label}</span>
-        <span className="text-xs font-semibold text-[#2E7D32] bg-[#E8F5E9] px-1.5 py-0.5 rounded">✅ {detail}</span>
+    <div
+      onClick={onCardClick}
+      className="rounded-2xl border border-border bg-card p-5 cursor-pointer
+        hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xl">{emoji}</span>
+          <h3 className="font-display text-base font-bold text-foreground">{title}</h3>
+        </div>
+        <span className="text-xs font-semibold text-[hsl(142,71%,45%)] bg-[hsl(142,76%,92%)] px-2 py-0.5 rounded-lg">✅ Prêt</span>
       </div>
-      <span className="text-xs text-primary font-medium">{linkLabel}</span>
+      <div className="space-y-1 mb-3 text-[13px] text-muted-foreground">
+        {score != null && (
+          <div>
+            <p className="mb-1">📊 Dernier audit : <span className="font-medium text-foreground">{score}/100</span></p>
+            <Progress value={score} className="h-1" />
+          </div>
+        )}
+        <p>📅 Cette semaine : <span className="font-medium text-foreground">{weekLabel}</span></p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {actions.map((a) => (
+          <button
+            key={a.route + a.label}
+            onClick={(e) => { e.stopPropagation(); navigate(a.route); }}
+            className="text-xs font-medium px-3 py-1.5 rounded-xl border border-primary/20 text-primary hover:bg-primary/5 transition-colors"
+          >
+            {a.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
