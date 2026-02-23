@@ -3570,6 +3570,7 @@ export type Database = {
           level: string | null
           linkedin_posts_per_week: number | null
           linkedin_url: string | null
+          main_blocker: string | null
           main_goal: string | null
           mission: string
           offre: string
@@ -3628,6 +3629,7 @@ export type Database = {
           level?: string | null
           linkedin_posts_per_week?: number | null
           linkedin_url?: string | null
+          main_blocker?: string | null
           main_goal?: string | null
           mission?: string
           offre?: string
@@ -3686,6 +3688,7 @@ export type Database = {
           level?: string | null
           linkedin_posts_per_week?: number | null
           linkedin_url?: string | null
+          main_blocker?: string | null
           main_goal?: string | null
           mission?: string
           offre?: string

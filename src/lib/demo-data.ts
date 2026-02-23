@@ -250,6 +250,13 @@ export const DEMO_DATA = {
   onboarding: {
     prenom: "Léa",
     activite: "Photographe portrait pour entrepreneures",
+    activity_type: "photo_video",
+    canaux: ["instagram", "website", "newsletter"],
+    blocage: "invisible",
+    objectif: "visibility",
+    temps: "2h",
+    instagram: "@lea_portraits",
+    website: "www.leaportraits.fr",
     mainGoal: "visibility",
     level: "intermediate",
     weeklyTime: "2_5h",
