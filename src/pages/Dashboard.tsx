@@ -203,7 +203,25 @@ export default function Dashboard() {
           <p className="mt-1 text-[15px] text-muted-foreground">Choisis un pilier ou lance une action rapide.</p>
         </div>
 
-        {/* 2. Fondations — toujours visible, toujours en haut */}
+        {/* 2. Conseil du jour */}
+        <div className="rounded-[10px] bg-rose-pale px-4 py-3 mb-6">
+          <p className="text-[13px] text-muted-foreground">💡 <span className="font-bold text-bordeaux">{tip}</span></p>
+        </div>
+
+        {/* 3. Actions rapides */}
+        <div className="mb-6">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">⚡ Actions rapides</p>
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
+            {quickActions.map((a) => (
+              <button key={a.route + a.label} onClick={() => navigate(a.route)}
+                className="shrink-0 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/5 hover:border-primary/50 transition-colors">
+                <span>{a.emoji}</span>{a.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 4. Fondations — après actions rapides, avant canaux */}
         <div className="mb-6">
           {brandingDone ? (
             <div className="rounded-xl border border-border bg-card px-4 py-3 space-y-1.5">
@@ -241,24 +259,6 @@ export default function Dashboard() {
               <p className="text-[12px] text-muted-foreground mt-1">Pose les bases de ta communication.</p>
             </div>
           )}
-        </div>
-
-        {/* 3. Conseil du jour */}
-        <div className="rounded-[10px] bg-rose-pale px-4 py-3 mb-6">
-          <p className="text-[13px] text-muted-foreground">💡 <span className="font-bold text-bordeaux">{tip}</span></p>
-        </div>
-
-        {/* 4. Actions rapides */}
-        <div className="mb-8">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">⚡ Actions rapides</p>
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
-            {quickActions.map((a) => (
-              <button key={a.route + a.label} onClick={() => navigate(a.route)}
-                className="shrink-0 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/5 hover:border-primary/50 transition-colors">
-                <span>{a.emoji}</span>{a.label}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* 5. Cards canaux */}
