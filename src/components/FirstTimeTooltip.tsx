@@ -10,6 +10,8 @@ interface FirstTimeTooltipProps {
   id: string;
   text: string;
   position?: Position;
+  /** Extra classes forwarded to the wrapper div (e.g. grid col-span) */
+  className?: string;
   children: ReactNode;
 }
 
@@ -31,13 +33,14 @@ export default function FirstTimeTooltip({
   id,
   text,
   position = "bottom",
+  className,
   children,
 }: FirstTimeTooltipProps) {
   const { isDemoMode } = useDemoContext();
   const isMobile = useIsMobile();
   const { show, handleMouseEnter, handleDismiss, alreadySeen } = useFirstTimeTooltip(id);
 
-  // No tooltips in demo mode
+  // No tooltips in demo mode — render children directly, no wrapper
   if (isDemoMode) return <>{children}</>;
 
   // Mobile: show a small "?" badge that triggers on tap
@@ -45,7 +48,7 @@ export default function FirstTimeTooltip({
     if (alreadySeen) return <>{children}</>;
 
     return (
-      <div className="relative">
+      <div className={cn("relative", className)}>
         {children}
         {!show && (
           <button
@@ -75,10 +78,13 @@ export default function FirstTimeTooltip({
     );
   }
 
+  // Desktop: if already seen, render children directly — no wrapper div at all
+  if (alreadySeen) return <>{children}</>;
+
   // Desktop: hover-triggered
   return (
     <div
-      className="relative"
+      className={cn("relative", className)}
       onMouseEnter={handleMouseEnter}
       onClick={handleDismiss}
     >

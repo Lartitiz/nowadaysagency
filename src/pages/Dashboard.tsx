@@ -268,7 +268,7 @@ export default function Dashboard() {
            ROW 1 — Hero "Créer un contenu"
            ═══════════════════════════════════════ */}
         <BentoGrid>
-          <FirstTimeTooltip id="dashboard-create" text="Crée des posts, carrousels, Reels... L'IA t'aide à rédiger.">
+          <FirstTimeTooltip id="dashboard-create" text="Crée des posts, carrousels, Reels... L'IA t'aide à rédiger." className="col-span-4 sm:col-span-6 lg:col-span-12 row-span-2">
             <BentoCard
               title=""
               colSpan={12}
@@ -335,13 +335,13 @@ export default function Dashboard() {
            ROW 2 — Calendrier + Engagement + Stats
            ═══════════════════════════════════════ */}
         <BentoGrid>
-          <FirstTimeTooltip id="dashboard-calendar" text="Planifie tes contenus de la semaine. Fini le 'je poste quoi aujourd'hui'.">
+          <FirstTimeTooltip id="dashboard-calendar" text="Planifie tes contenus de la semaine. Fini le 'je poste quoi aujourd'hui'." className="col-span-4 sm:col-span-6 lg:col-span-6 row-span-3">
             <WeekCalendarWidget animationDelay={nextDelay()} />
           </FirstTimeTooltip>
-          <FirstTimeTooltip id="dashboard-routine" text="15 min/jour pour interagir avec ta communauté. L'habitude qui change tout.">
+          <FirstTimeTooltip id="dashboard-routine" text="15 min/jour pour interagir avec ta communauté. L'habitude qui change tout." className="col-span-4 sm:col-span-6 lg:col-span-6 row-span-1">
             <EngagementRoutineWidget animationDelay={nextDelay()} />
           </FirstTimeTooltip>
-          <FirstTimeTooltip id="dashboard-stats" text="Tes chiffres du mois. Publications, engagement, objectifs.">
+          <FirstTimeTooltip id="dashboard-stats" text="Tes chiffres du mois. Publications, engagement, objectifs." className="col-span-4 sm:col-span-6 lg:col-span-6 row-span-2">
             <MonthlyStatsWidget animationDelay={nextDelay()} />
           </FirstTimeTooltip>
         </BentoGrid>
