@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Check, RefreshCw, Search } from "lucide-react";
+import { ArrowRight, Check, RefreshCw, Search, Square, CheckSquare } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -89,6 +89,15 @@ export default function AuditRecommendationsSection() {
     navigate(route);
   };
 
+  const toggleCompletion = async (recId: string, currentlyCompleted: boolean) => {
+    const newCompleted = !currentlyCompleted;
+    setRecommendations(prev => prev.map(r => r.id === recId ? { ...r, completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null } as Recommendation : r));
+    await supabase
+      .from("audit_recommendations")
+      .update({ completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null })
+      .eq("id", recId);
+  };
+
   if (loading || recommendations.length === 0) return null;
 
   const completedCount = recommendations.filter(r => r.completed).length;
@@ -145,11 +154,17 @@ export default function AuditRecommendationsSection() {
             }`}
           >
             <div className="flex items-start gap-3">
-              {rec.completed ? (
-                <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-              ) : (
-                <span className="text-sm shrink-0">{prioriteIcon(rec.priorite)}</span>
-              )}
+             <button
+                onClick={(e) => { e.stopPropagation(); toggleCompletion(rec.id, !!rec.completed); }}
+                className="shrink-0 mt-0.5"
+                aria-label={rec.completed ? "Marquer comme non fait" : "Marquer comme fait"}
+              >
+                {rec.completed ? (
+                  <CheckSquare className="h-5 w-5 text-emerald-600" />
+                ) : (
+                  <Square className="h-5 w-5 text-muted-foreground hover:text-primary transition-colors" />
+                )}
+              </button>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-foreground">
