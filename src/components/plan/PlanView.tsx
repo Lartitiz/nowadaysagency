@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Settings, Check, Clock, Lock, Lightbulb, ArrowRight, Construction } from "lucide-react";
 import type { PlanData, PlanPhase, PlanStep, StepStatus } from "@/lib/plan-engine";
 import { GOAL_LABELS, TIME_LABELS } from "@/lib/plan-engine";
+import AuditRecommendationsSection from "./AuditRecommendationsSection";
 
 interface PlanViewProps {
   plan: PlanData;
@@ -64,6 +65,9 @@ export default function PlanView({ plan, onEditConfig }: PlanViewProps) {
           )}
         </div>
       </div>
+
+      {/* Audit Recommendations */}
+      <AuditRecommendationsSection />
 
       {/* Phases */}
       {plan.phases.map(phase => (
