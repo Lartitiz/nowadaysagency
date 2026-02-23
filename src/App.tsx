@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPassword from "./pages/ResetPassword";
@@ -95,6 +96,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <ErrorBoundary>
         <AuthProvider>
           <Routes>
             <Route path="/" element={<LandingPage />} />
@@ -201,6 +203,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
+        </ErrorBoundary>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
