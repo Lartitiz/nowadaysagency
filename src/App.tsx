@@ -84,6 +84,7 @@ import CommunautePage from "./pages/CommunautePage";
 import ContactsPage from "./pages/ContactsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import BrandingAuditPage from "./pages/BrandingAuditPage";
+import BrandingAuditResultPage from "./pages/BrandingAuditResultPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -108,6 +109,7 @@ const App = () => (
             <Route path="/idees" element={<ProtectedRoute><IdeasPage /></ProtectedRoute>} />
             <Route path="/branding" element={<ProtectedRoute><BrandingPage /></ProtectedRoute>} />
             <Route path="/branding/audit" element={<ProtectedRoute><BrandingAuditPage /></ProtectedRoute>} />
+            <Route path="/branding/audit/:id" element={<ProtectedRoute><BrandingAuditResultPage /></ProtectedRoute>} />
             <Route path="/branding/ton" element={<ProtectedRoute><TonStylePage /></ProtectedRoute>} />
             <Route path="/branding/ton/recap" element={<ProtectedRoute><TonStyleRecapPage /></ProtectedRoute>} />
             <Route path="/branding/storytelling" element={<ProtectedRoute><StorytellingListPage /></ProtectedRoute>} />
