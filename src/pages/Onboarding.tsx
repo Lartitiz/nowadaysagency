@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, SkipForward, Film, Upload, X, Plus, Trash2 } from "lucide-react";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { getActivityExamples } from "@/lib/activity-examples";
+import DiagnosticLoading from "@/components/onboarding/DiagnosticLoading";
+import DiagnosticView from "@/components/onboarding/DiagnosticView";
+import { type DiagnosticData } from "@/lib/diagnostic-data";
 
 /* ────────────────────────────────────────────── constants */
 
@@ -155,6 +158,7 @@ export default function Onboarding() {
     documents: null,
     isLoading: false,
   });
+  const [diagnosticData, setDiagnosticData] = useState<DiagnosticData | null>(null);
 
   const [answers, setAnswers] = useState<Answers>({
     prenom: isDemoMode ? (demoDefaults?.prenom ?? "") : (localStorage.getItem("lac_prenom") || ""),
@@ -434,6 +438,34 @@ export default function Onboarding() {
     navigate("/dashboard", { replace: true });
   };
 
+  const handleDiagnosticComplete = async () => {
+    if (isDemoMode) {
+      skipDemoOnboarding();
+      navigate("/dashboard", { replace: true });
+      return;
+    }
+    if (!user || !diagnosticData) {
+      navigate("/dashboard", { replace: true });
+      return;
+    }
+    try {
+      const recs = diagnosticData.priorities.map((p, i) => ({
+        user_id: user.id,
+        titre: p.title,
+        label: p.title,
+        module: p.channel,
+        route: p.route,
+        priorite: p.impact,
+        temps_estime: p.time,
+        position: i + 1,
+      }));
+      await supabase.from("audit_recommendations").insert(recs);
+    } catch (e) {
+      console.error("Failed to save diagnostic:", e);
+    }
+    navigate("/dashboard", { replace: true });
+  };
+
   const getPlaceholder = (field: string) => {
     const examples = getActivityExamples(answers.activity_type || answers.activite);
     const map: Record<string, string> = {
@@ -463,7 +495,7 @@ export default function Onboarding() {
       )}
 
       {/* Progress bar */}
-      {step > 0 && isCurrentStep && (
+      {step > 0 && step <= 15 && (
         <div className="fixed top-0 left-0 right-0 z-40 h-1 bg-border/30">
           <div
             className="h-full bg-primary transition-all duration-500 ease-out"
@@ -473,7 +505,7 @@ export default function Onboarding() {
       )}
 
       {/* Back button */}
-      {step > 0 && isCurrentStep && (
+      {step > 0 && step <= 15 && (
         <button
           onClick={prev}
           className="fixed top-4 left-4 z-40 text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 transition-colors"
@@ -483,101 +515,117 @@ export default function Onboarding() {
       )}
 
       {/* Content */}
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="max-w-lg w-full">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={step}
-              variants={variants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              {/* PHASE 1: QUI ES-TU */}
-              {step === 0 && <WelcomeScreen onNext={next} />}
-              {step === 1 && <PrenomScreen value={answers.prenom} onChange={v => set("prenom", v)} onNext={next} />}
-              {step === 2 && <ActiviteScreen prenom={answers.prenom} value={answers.activite} onChange={v => set("activite", v)} onNext={next} />}
-              {step === 3 && <TypeScreen value={answers.activity_type} detailValue={answers.activity_detail} onChange={v => { set("activity_type", v); if (v !== "autre") { set("activity_detail", ""); setTimeout(next, 600); } }} onDetailChange={v => set("activity_detail", v)} onNext={next} />}
-              {step === 4 && <CanauxScreen value={answers.canaux} onChange={v => set("canaux", v)} onNext={next} />}
-              {step === 5 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setTimeout(next, 500); }} />}
-              {step === 6 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setTimeout(next, 500); }} />}
-              {step === 7 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setTimeout(next, 500); }} />}
-              {step === 8 && <InstagramScreen answers={answers} set={set} onNext={next} onSkip={next} />}
+      {step <= 16 ? (
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="max-w-lg w-full">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={step}
+                variants={variants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                {/* PHASE 1: QUI ES-TU */}
+                {step === 0 && <WelcomeScreen onNext={next} />}
+                {step === 1 && <PrenomScreen value={answers.prenom} onChange={v => set("prenom", v)} onNext={next} />}
+                {step === 2 && <ActiviteScreen prenom={answers.prenom} value={answers.activite} onChange={v => set("activite", v)} onNext={next} />}
+                {step === 3 && <TypeScreen value={answers.activity_type} detailValue={answers.activity_detail} onChange={v => { set("activity_type", v); if (v !== "autre") { set("activity_detail", ""); setTimeout(next, 600); } }} onDetailChange={v => set("activity_detail", v)} onNext={next} />}
+                {step === 4 && <CanauxScreen value={answers.canaux} onChange={v => set("canaux", v)} onNext={next} />}
+                {step === 5 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setTimeout(next, 500); }} />}
+                {step === 6 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setTimeout(next, 500); }} />}
+                {step === 7 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setTimeout(next, 500); }} />}
+                {step === 8 && <InstagramScreen answers={answers} set={set} onNext={next} onSkip={next} />}
 
-              {/* PHASE 2: NOURRIR L'OUTIL */}
-              {step === 9 && (
-                <ImportScreen
-                  files={uploadedFiles}
-                  uploading={uploading}
-                  onUpload={handleFileUpload}
-                  onRemove={removeFile}
-                  onNext={next}
-                  onSkip={next}
-                />
-              )}
+                {/* PHASE 2: NOURRIR L'OUTIL */}
+                {step === 9 && (
+                  <ImportScreen
+                    files={uploadedFiles}
+                    uploading={uploading}
+                    onUpload={handleFileUpload}
+                    onRemove={removeFile}
+                    onNext={next}
+                    onSkip={next}
+                  />
+                )}
 
-              {/* PHASE 3: BRANDING CONVERSATIONNEL */}
-              {step === 10 && (
-                <PositioningScreen
-                  value={brandingAnswers.positioning}
-                  onChange={v => setBranding("positioning", v)}
-                  placeholder={getPlaceholder("positioning")}
-                  hasAiSuggestion={!!auditResults.documents?.positioning && !brandingAnswers.positioning}
-                  onNext={next}
-                />
-              )}
-              {step === 11 && (
-                <MissionScreen
-                  value={brandingAnswers.mission}
-                  onChange={v => setBranding("mission", v)}
-                  placeholder={getPlaceholder("mission")}
-                  onNext={next}
-                />
-              )}
-              {step === 12 && (
-                <TargetScreen
-                  value={brandingAnswers.target_description}
-                  onChange={v => setBranding("target_description", v)}
-                  placeholder={getPlaceholder("target")}
-                  onNext={next}
-                />
-              )}
-              {step === 13 && (
-                <ToneScreen
-                  value={brandingAnswers.tone_keywords}
-                  onChange={v => setBranding("tone_keywords", v)}
-                  onNext={next}
-                />
-              )}
-              {step === 14 && (
-                <OffersScreen
-                  value={brandingAnswers.offers}
-                  onChange={v => setBranding("offers", v)}
-                  onNext={next}
-                />
-              )}
-              {step === 15 && (
-                <ValuesScreen
-                  value={brandingAnswers.values}
-                  onChange={v => setBranding("values", v)}
-                  onNext={() => { next(); handleFinish(); }}
-                />
-              )}
+                {/* PHASE 3: BRANDING CONVERSATIONNEL */}
+                {step === 10 && (
+                  <PositioningScreen
+                    value={brandingAnswers.positioning}
+                    onChange={v => setBranding("positioning", v)}
+                    placeholder={getPlaceholder("positioning")}
+                    hasAiSuggestion={!!auditResults.documents?.positioning && !brandingAnswers.positioning}
+                    onNext={next}
+                  />
+                )}
+                {step === 11 && (
+                  <MissionScreen
+                    value={brandingAnswers.mission}
+                    onChange={v => setBranding("mission", v)}
+                    placeholder={getPlaceholder("mission")}
+                    onNext={next}
+                  />
+                )}
+                {step === 12 && (
+                  <TargetScreen
+                    value={brandingAnswers.target_description}
+                    onChange={v => setBranding("target_description", v)}
+                    placeholder={getPlaceholder("target")}
+                    onNext={next}
+                  />
+                )}
+                {step === 13 && (
+                  <ToneScreen
+                    value={brandingAnswers.tone_keywords}
+                    onChange={v => setBranding("tone_keywords", v)}
+                    onNext={next}
+                  />
+                )}
+                {step === 14 && (
+                  <OffersScreen
+                    value={brandingAnswers.offers}
+                    onChange={v => setBranding("offers", v)}
+                    onNext={next}
+                  />
+                )}
+                {step === 15 && (
+                  <ValuesScreen
+                    value={brandingAnswers.values}
+                    onChange={v => setBranding("values", v)}
+                    onNext={() => { next(); handleFinish(); }}
+                  />
+                )}
 
-              {/* ÉCRAN FINAL */}
-              {step === TOTAL_STEPS && (
-                <BuildingScreen
-                  prenom={answers.prenom}
-                  brandingAnswers={brandingAnswers}
-                  answers={answers}
-                  onDone={() => navigate("/welcome")}
-                />
-              )}
-            </motion.div>
-          </AnimatePresence>
+                {/* PHASE 4: DIAGNOSTIC LOADING */}
+                {step === 16 && (
+                  <DiagnosticLoading
+                    hasInstagram={answers.canaux.includes("instagram") && !!answers.instagram}
+                    hasWebsite={answers.canaux.includes("website") && !!answers.website}
+                    hasDocuments={uploadedFiles.length > 0}
+                    isDemoMode={isDemoMode}
+                    answers={answers}
+                    brandingAnswers={brandingAnswers}
+                    onReady={(data) => {
+                      setDiagnosticData(data);
+                      setStep(17);
+                    }}
+                  />
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
-      </div>
+      ) : diagnosticData ? (
+        <DiagnosticView
+          data={diagnosticData}
+          prenom={answers.prenom}
+          onComplete={handleDiagnosticComplete}
+          hasInstagram={answers.canaux.includes("instagram") && !!answers.instagram}
+          hasWebsite={answers.canaux.includes("website") && !!answers.website}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1229,91 +1277,7 @@ function ValuesScreen({ value, onChange, onNext }: {
   );
 }
 
-/* ════════════════════════════════════════════════════════
-   BUILDING SCREEN
-   ════════════════════════════════════════════════════════ */
-
-function BuildingScreen({ prenom, brandingAnswers, answers, onDone }: {
-  prenom: string;
-  brandingAnswers: BrandingAnswers;
-  answers: Answers;
-  onDone: () => void;
-}) {
-  const [lines, setLines] = useState<number>(0);
-  const [showButton, setShowButton] = useState(false);
-
-  const steps = [
-    { label: "Ton profil est enregistré", done: true },
-    { label: "Ton positionnement est posé", done: !!brandingAnswers.positioning },
-    { label: "Ta cible est définie", done: !!brandingAnswers.target_description },
-    { label: "Tes offres sont enregistrées", done: brandingAnswers.offers.some(o => o.name.trim()) },
-    { label: "Ton ton est choisi", done: brandingAnswers.tone_keywords.length >= 2 },
-    { label: "Tes valeurs sont posées", done: brandingAnswers.values.filter(v => v.trim()).length >= 2 },
-  ];
-
-  const filledCount = steps.filter(s => s.done).length;
-  const completionPct = Math.round((filledCount / steps.length) * 100);
-
-  useEffect(() => {
-    const timers: NodeJS.Timeout[] = [];
-    steps.forEach((_, i) => {
-      timers.push(setTimeout(() => setLines(i + 1), 500 * (i + 1)));
-    });
-    timers.push(setTimeout(() => setShowButton(true), 500 * (steps.length + 1)));
-    return () => timers.forEach(clearTimeout);
-  }, []);
-
-  return (
-    <div className="text-center space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-          Merci {prenom} ! 🌸
-        </h1>
-        <p className="text-base text-muted-foreground">Ton espace prend forme...</p>
-      </div>
-      <div className="space-y-4 text-left max-w-sm mx-auto">
-        {steps.map((s, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, x: -12 }}
-            animate={i < lines ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.35 }}
-            className="flex items-center gap-3"
-          >
-            {i < lines && (
-              <span className="text-lg">{s.done ? "✅" : "⬜"}</span>
-            )}
-            <span className={`text-sm ${i < lines ? "text-foreground" : "text-muted-foreground/40"}`}>{s.label}</span>
-          </motion.div>
-        ))}
-      </div>
-
-      {lines >= steps.length && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
-          <p className="text-lg font-semibold text-foreground">
-            Ton branding est complété à {completionPct}% !
-          </p>
-          <div className="w-48 mx-auto h-2 bg-border/40 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-primary rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${completionPct}%` }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-            />
-          </div>
-        </motion.div>
-      )}
-
-      {showButton && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          <Button onClick={onDone} size="lg" className="rounded-full px-8 gap-2">
-            Découvrir mon espace →
-          </Button>
-        </motion.div>
-      )}
-    </div>
-  );
-}
+/* BuildingScreen removed — replaced by DiagnosticLoading + DiagnosticView */
 
 /* ────────────────────────────────────────────── shared */
 
