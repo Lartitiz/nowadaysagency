@@ -1,19 +1,15 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import AiDisclaimerBanner from "@/components/AiDisclaimerBanner";
 import { Progress } from "@/components/ui/progress";
-import { ExternalLink, ArrowRight } from "lucide-react";
-import SmartRoutinesPanel from "@/components/SmartRoutinesPanel";
-import LivesWidget from "@/components/dashboard/LivesWidget";
-import CommunityWidget from "@/components/dashboard/CommunityWidget";
-import StudioWidget from "@/components/dashboard/StudioWidget";
-import ServicesWidget from "@/components/dashboard/ServicesWidget";
-import { getMonday } from "@/lib/mission-engine";
+import { ArrowRight, Check, ExternalLink, Sparkles, MessageSquare, Mail, CalendarDays, Palette, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { useActiveChannels } from "@/hooks/use-active-channels";
+import { computePlan, type PlanData, type PlanStep } from "@/lib/plan-engine";
 
 export interface UserProfile {
   prenom: string;
@@ -34,187 +30,262 @@ export interface UserProfile {
   canaux?: string[];
 }
 
-/* ─── Module cards data ─── */
-interface ModuleCard {
+/* ── Module definition ── */
+interface DashboardModule {
   id: string;
   emoji: string;
-  number: number;
   title: string;
+  shortTitle: string;
   description: string;
-  chips: string[];
-  cta: string;
-  route?: string;
+  route: string;
   externalUrl?: string;
-  badge: { label: string; variant: "available" | "soon" | "external" };
-  disabled?: boolean;
+  channelRequired?: string; // if set, only show when this channel is active
+  alwaysShow?: boolean;
+  getCompletion?: (data: DashboardData) => number;
+  getNextStep?: (data: DashboardData) => string | null;
+  getCompletedDetail?: (data: DashboardData) => string | null;
+  completedRoute?: string;
 }
 
-const MODULES: ModuleCard[] = [
+interface DashboardData {
+  brandingCompletion: BrandingCompletion;
+  igAuditScore: number | null;
+  liAuditScore: number | null;
+  contactCount: number;
+  prospectCount: number;
+  calendarPostCount: number;
+  planData: PlanData | null;
+}
+
+const MODULES: DashboardModule[] = [
   {
     id: "branding",
     emoji: "🎨",
-    number: 1,
     title: "Mon Branding",
-    description: "Pose les bases de ta marque : ta mission, ton positionnement, ta cible, ton ton. C'est ce qui rend tout le reste cohérent.",
-    chips: ["Ma mission", "Ma cible", "Mon ton", "Mon positionnement"],
-    cta: "Définir ma marque →",
+    shortTitle: "Branding",
+    description: "Pose les bases de ta marque : ta mission, ton positionnement, ta cible, ton ton.",
     route: "/branding",
-    badge: { label: "Disponible", variant: "available" },
+    alwaysShow: true,
+    getCompletion: (d) => d.brandingCompletion.total,
+    getNextStep: (d) => {
+      if (d.brandingCompletion.storytelling === 0) return "Écrire ton histoire";
+      if (d.brandingCompletion.persona === 0) return "Définir ta cible";
+      if (d.brandingCompletion.proposition === 0) return "Affiner ta proposition de valeur";
+      if (d.brandingCompletion.tone === 0) return "Définir ton ton & tes combats";
+      if (d.brandingCompletion.strategy === 0) return "Créer ta stratégie de contenu";
+      return null;
+    },
+    completedRoute: "/branding",
   },
   {
     id: "instagram",
     emoji: "📱",
-    number: 2,
     title: "Mon Instagram",
-    description: "Optimise ton compte, trouve des idées de contenu, planifie tes posts, et crée du contenu qui fonctionne.",
-    chips: ["Ma bio", "Idées de contenu", "Calendrier", "Stories à la une", "Lancement"],
-    cta: "Bosser sur Instagram →",
+    shortTitle: "Instagram",
+    description: "Optimise ton compte, trouve des idées de contenu, planifie tes posts.",
     route: "/instagram",
-    badge: { label: "Disponible", variant: "available" },
+    channelRequired: "instagram",
+    getCompletion: (d) => {
+      let score = 0, total = 0;
+      total += 1; if (d.igAuditScore != null) score += 1;
+      total += 1; if (d.calendarPostCount > 0) score += 1;
+      return total > 0 ? Math.round((score / total) * 100) : 0;
+    },
+    getNextStep: (d) => {
+      if (d.igAuditScore == null) return "Faire ton audit Instagram";
+      if (d.calendarPostCount === 0) return "Planifier ton premier contenu";
+      return null;
+    },
+    getCompletedDetail: (d) => d.igAuditScore != null ? `Score audit : ${d.igAuditScore}/100` : null,
   },
   {
     id: "linkedin",
     emoji: "💼",
-    number: 3,
     title: "Mon LinkedIn",
-    description: "Optimise ton profil, développe ton réseau et crée du contenu qui te positionne comme experte.",
-    chips: ["Mon profil", "Mon résumé", "Mon parcours", "Engagement"],
-    cta: "Bosser sur LinkedIn →",
+    shortTitle: "LinkedIn",
+    description: "Optimise ton profil et développe ton réseau professionnel.",
     route: "/linkedin",
-    badge: { label: "Disponible", variant: "available" },
+    channelRequired: "linkedin",
+    getCompletion: (d) => {
+      if (d.liAuditScore != null) return 50;
+      return 0;
+    },
+    getNextStep: (d) => {
+      if (d.liAuditScore == null) return "Auditer ton profil LinkedIn";
+      return "Optimiser ton profil";
+    },
+    getCompletedDetail: (d) => d.liAuditScore != null ? `Score : ${d.liAuditScore}/100` : null,
   },
   {
     id: "pinterest",
     emoji: "📌",
-    number: 4,
     title: "Mon Pinterest",
-    description: "Transforme tes visuels en trafic durable. Pinterest travaille pour toi même quand tu dors.",
-    chips: ["Mon compte", "Mes tableaux", "Mes épingles", "Mots-clés"],
-    cta: "Bosser sur Pinterest →",
+    shortTitle: "Pinterest",
+    description: "Transforme tes visuels en trafic durable.",
     route: "/pinterest",
-    badge: { label: "Disponible", variant: "available" },
+    channelRequired: "pinterest",
+    getCompletion: () => 0,
+    getNextStep: () => "Configurer ton compte",
+  },
+  {
+    id: "calendar",
+    emoji: "📅",
+    title: "Mon Calendrier",
+    shortTitle: "Calendrier",
+    description: "Planifie tes contenus pour le mois. Vision claire de ce que tu publies.",
+    route: "/calendrier",
+    alwaysShow: true,
+    getCompletion: (d) => d.calendarPostCount > 0 ? 100 : 0,
+    getNextStep: () => "Créer ton calendrier éditorial",
+    getCompletedDetail: (d) => d.calendarPostCount > 0 ? `${d.calendarPostCount} post${d.calendarPostCount > 1 ? "s" : ""} planifié${d.calendarPostCount > 1 ? "s" : ""}` : null,
+  },
+  {
+    id: "contacts",
+    emoji: "👥",
+    title: "Mes Contacts",
+    shortTitle: "Contacts",
+    description: "Gère ton réseau stratégique et tes prospects.",
+    route: "/contacts",
+    alwaysShow: true,
+    getCompletion: (d) => {
+      if (d.contactCount >= 3 && d.prospectCount > 0) return 100;
+      if (d.contactCount > 0 || d.prospectCount > 0) return 50;
+      return 0;
+    },
+    getNextStep: (d) => {
+      if (d.contactCount < 3) return "Ajouter tes contacts stratégiques";
+      if (d.prospectCount === 0) return "Ajouter ton premier prospect";
+      return null;
+    },
+  },
+  {
+    id: "content",
+    emoji: "✨",
+    title: "Créer un contenu",
+    shortTitle: "Créer",
+    description: "Génère un post, un carrousel ou un reel avec l'aide de l'IA.",
+    route: "/instagram/creer",
+    alwaysShow: true,
+    getCompletion: () => 0, // Never "completed"
+    getNextStep: () => null,
   },
   {
     id: "siteweb",
     emoji: "🌐",
-    number: 7,
     title: "Mon Site Web",
-    description: "Rédige les textes de ton site : page d'accueil, à propos, pages produits. On te guide, tu copies-colles.",
-    chips: ["Page d'accueil", "À propos", "Pages produits"],
-    cta: "Bosser sur mon site →",
+    shortTitle: "Site Web",
+    description: "Rédige les textes de ton site : page d'accueil, à propos.",
     route: "/site",
-    badge: { label: "Disponible", variant: "available" },
-  },
-  {
-    id: "seo",
-    emoji: "🔍",
-    number: 5,
-    title: "Mon Référencement (SEO)",
-    description: "Sois trouvée sur Google. Mots-clés, maillage interne, optimisation de tes pages.",
-    chips: ["Mots-clés", "Maillage interne", "Audit SEO"],
-    cta: "Ouvrir l'outil SEO ↗",
-    externalUrl: "https://referencement-seo.lovable.app/",
-    badge: { label: "Outil dispo ↗", variant: "external" },
-  },
-  {
-    id: "emailing",
-    emoji: "📧",
-    number: 6,
-    title: "Mon Emailing",
-    description: "Newsletter, séquences automatisées, emails qui fidélisent sans spammer.",
-    chips: ["Newsletter", "Séquences", "Templates"],
-    cta: "Arrive bientôt",
-    badge: { label: "Bientôt", variant: "soon" },
-    disabled: true,
-  },
-  {
-    id: "presse",
-    emoji: "📣",
-    number: 8,
-    title: "Presse & Influence",
-    description: "Que d'autres racontent ton histoire à ta place. Relations presse, partenariats, ambassadrices.",
-    chips: ["Contacts médias", "Partenariats", "Ambassadrices"],
-    cta: "Arrive bientôt",
-    badge: { label: "Bientôt", variant: "soon" },
-    disabled: true,
+    channelRequired: "site",
+    getCompletion: () => 0,
+    getNextStep: () => "Rédiger ta page d'accueil",
   },
 ];
 
-/* ─── Conseils du jour ─── */
-const CONSEILS = [
-  "Ta com' n'a pas besoin d'être parfaite. Elle a besoin d'être régulière et sincère.",
-  "Un post imparfait publié vaut mille posts parfaits restés dans tes brouillons.",
-  "Si tu ne sais pas quoi poster, raconte une galère récente et ce que tu en as appris.",
-  "Ton audience ne te suit pas pour tes photos. Elle te suit pour ta vision.",
-  "La meilleure stratégie Instagram du monde ne remplacera jamais un positionnement clair.",
-  "Vendre, ce n'est pas manipuler. C'est montrer à quelqu'un que tu as la solution à son problème.",
-  "2 posts par semaine avec intention valent plus que 7 posts par semaine sans stratégie.",
-  "Si un sujet engage en stories, c'est un signal pour en faire un post.",
-  "Ton contenu ne doit pas plaire à tout le monde. Il doit parler à la bonne personne.",
-  "La visibilité n'est pas de la vanité. C'est politique.",
-  "Arrête de te comparer aux comptes qui ont 50K abonné·es. Toi, tu construis une communauté, pas une audience.",
-  "Le contenu parfait n'existe pas. Le contenu publié, oui.",
-  "Ton expertise mérite d'être visible. Poster, c'est un acte de générosité.",
-  "Les algorithmes changent, les vraies connexions restent.",
-  "Raconte ton histoire : c'est la seule chose que personne ne peut copier.",
-  "La régularité bat la perfection. Toujours.",
-  "Ton audience ne veut pas du contenu lisse. Elle veut du vrai.",
-  "Chaque post est une graine. Certaines germent tout de suite, d'autres dans 6 mois.",
-  "Ta voix unique est ton meilleur atout marketing.",
-  "Mieux vaut 100 abonné·es engagé·es que 10 000 fantômes.",
-];
-
-/* ─── Badge styles ─── */
-function badgeClass(variant: "available" | "soon" | "external") {
-  switch (variant) {
-    case "available":
-      return "bg-primary text-primary-foreground";
-    case "soon":
-      return "bg-accent text-accent-foreground";
-    case "external":
-      return "bg-[#E8F5E9] text-[#2E7D32]";
-  }
+/* ── Quick actions logic ── */
+interface QuickAction {
+  label: string;
+  emoji: string;
+  route: string;
+  priority: number;
 }
 
-/* ─── Main component ─── */
+function getQuickActions(data: DashboardData): QuickAction[] {
+  const actions: QuickAction[] = [];
+
+  // Always: create content
+  actions.push({ label: "Créer un post", emoji: "✨", route: "/instagram/creer", priority: 1 });
+
+  // Contacts > 3 → comment
+  if (data.contactCount >= 3) {
+    actions.push({ label: "Commenter 3 comptes", emoji: "💬", route: "/contacts", priority: 2 });
+  }
+
+  // Prospects pending
+  if (data.prospectCount > 0) {
+    actions.push({ label: "Relancer un prospect", emoji: "📩", route: "/contacts", priority: 3 });
+  }
+
+  // Calendar has posts
+  if (data.calendarPostCount > 0) {
+    actions.push({ label: "Voir mon calendrier", emoji: "📅", route: "/calendrier", priority: 4 });
+  }
+
+  // Branding not done
+  if (data.brandingCompletion.total < 100) {
+    actions.push({ label: "Continuer mon branding", emoji: "🎨", route: "/branding", priority: 5 });
+  }
+
+  // No audit
+  if (data.igAuditScore == null) {
+    actions.push({ label: "Faire mon audit", emoji: "🔍", route: "/instagram/audit", priority: 6 });
+  }
+
+  return actions.sort((a, b) => a.priority - b.priority).slice(0, 4);
+}
+
+/* ── Dynamic tip ── */
+function getDynamicTip(data: DashboardData): string {
+  if (data.brandingCompletion.total < 30) return "Commence par le Branding, c'est la base de tout le reste.";
+  if (data.brandingCompletion.total < 100) return "Continue ton branding ! Plus il est complet, plus l'IA te connaît.";
+  if (data.igAuditScore == null) return "Maintenant que ton branding est posé, fais ton audit pour savoir où tu en es.";
+  if (data.calendarPostCount === 0) return "Tes fondations sont solides. C'est le moment de planifier tes premiers contenus !";
+  return "Continue comme ça ! Pense à checker tes stats pour voir ce qui marche.";
+}
+
+/* ── Main component ── */
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [brandingCompletion, setBrandingCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 });
-  const [missionsDone, setMissionsDone] = useState(0);
-  const [missionsTotal, setMissionsTotal] = useState(0);
+  const [dashData, setDashData] = useState<DashboardData>({
+    brandingCompletion: { storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 },
+    igAuditScore: null,
+    liAuditScore: null,
+    contactCount: 0,
+    prospectCount: 0,
+    calendarPostCount: 0,
+    planData: null,
+  });
+  const { hasInstagram, hasLinkedin, hasPinterest, hasWebsite, loading: channelsLoading, channels } = useActiveChannels();
 
   useEffect(() => {
     if (!user) return;
-    const fetchData = async () => {
-      const [profRes, brandingData] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date")
-          .eq("user_id", user.id)
-          .single(),
+    const fetchAll = async () => {
+      const [profRes, brandingData, igAuditRes, liAuditRes, contactRes, prospectRes, calendarRes, planConfigRes] = await Promise.all([
+        supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq("user_id", user.id).single(),
         fetchBrandingData(user.id),
+        supabase.from("instagram_audit").select("score_global").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("linkedin_audit").select("score_global").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "network"),
+        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "prospect"),
+        supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+        supabase.from("user_plan_config").select("*").eq("user_id", user.id).maybeSingle(),
       ]);
+
       if (profRes.data) setProfile(profRes.data as UserProfile);
-      setBrandingCompletion(calculateBrandingCompletion(brandingData));
 
-      // Fetch missions summary
-      const weekStart = getMonday(new Date()).toISOString().split("T")[0];
-      const { data: missionsData } = await supabase
-        .from("weekly_missions")
-        .select("is_done")
-        .eq("user_id", user.id)
-        .eq("week_start", weekStart);
-      if (missionsData) {
-        setMissionsTotal(missionsData.length);
-        setMissionsDone(missionsData.filter((m: any) => m.is_done).length);
-      }
+      const bc = calculateBrandingCompletion(brandingData);
+      const config = {
+        weekly_time: (planConfigRes.data as any)?.weekly_time?.toString() || "2_5h",
+        channels: (planConfigRes.data?.channels as string[]) || ["instagram"],
+        main_goal: (planConfigRes.data as any)?.main_goal || "visibility",
+      };
+      let planData: PlanData | null = null;
+      try { planData = await computePlan(user.id, config); } catch {}
+
+      setDashData({
+        brandingCompletion: bc,
+        igAuditScore: igAuditRes.data?.score_global ?? null,
+        liAuditScore: liAuditRes.data?.score_global ?? null,
+        contactCount: contactRes.count ?? 0,
+        prospectCount: prospectRes.count ?? 0,
+        calendarPostCount: calendarRes.count ?? 0,
+        planData,
+      });
     };
-    fetchData();
+    fetchAll();
   }, [user?.id]);
-
-  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
-  const conseil = CONSEILS[dayOfYear % CONSEILS.length];
 
   if (!profile) {
     return (
@@ -228,189 +299,215 @@ export default function Dashboard() {
     );
   }
 
+  // Filter modules by active channels
+  const channelMap: Record<string, boolean> = {
+    instagram: hasInstagram,
+    linkedin: hasLinkedin,
+    pinterest: hasPinterest,
+    site: hasWebsite,
+  };
+
+  const visibleModules = channelsLoading
+    ? MODULES.filter(m => m.alwaysShow)
+    : MODULES.filter(m => {
+        if (m.alwaysShow) return true;
+        if (m.channelRequired) return channelMap[m.channelRequired] ?? false;
+        return true;
+      });
+
+  // Split into active / completed
+  const activeModules: (DashboardModule & { completion: number })[] = [];
+  const completedModules: (DashboardModule & { completion: number })[] = [];
+
+  for (const mod of visibleModules) {
+    const completion = mod.getCompletion?.(dashData) ?? 0;
+    // "Créer un contenu" is always active, never completed
+    if (mod.id === "content") {
+      activeModules.push({ ...mod, completion: 0 });
+    } else if (completion >= 100) {
+      completedModules.push({ ...mod, completion });
+    } else {
+      activeModules.push({ ...mod, completion });
+    }
+  }
+
+  // Sort active: in progress first (higher completion), then todo
+  activeModules.sort((a, b) => {
+    // content always at end of active
+    if (a.id === "content") return 1;
+    if (b.id === "content") return -1;
+    // In progress before todo
+    if (a.completion > 0 && b.completion === 0) return -1;
+    if (a.completion === 0 && b.completion > 0) return 1;
+    // Higher completion first
+    return b.completion - a.completion;
+  });
+
+  const quickActions = getQuickActions(dashData);
+  const tip = getDynamicTip(dashData);
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <AiDisclaimerBanner />
       <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4">
+
         {/* Header */}
         <div className="mb-2">
           <h1 className="font-display text-[22px] sm:text-[30px] font-bold text-foreground">
             Hey <span className="text-primary">{profile.prenom}</span>, on avance sur quoi aujourd'hui ?
           </h1>
           <p className="mt-1 text-[15px] text-muted-foreground">
-            Choisis un pilier de ta communication. On te guide étape par étape.
+            Choisis un pilier ou lance une action rapide.
           </p>
         </div>
 
-        {/* Suggestion d'ordre */}
+        {/* Dynamic tip */}
         <div className="rounded-[10px] bg-rose-pale px-4 py-3 mb-6">
           <p className="text-[13px] text-muted-foreground">
-            💡 <span className="font-bold text-bordeaux">Notre conseil</span> : commence par le Branding, c'est la base de tout. Ensuite Instagram, puis le reste. Mais c'est toi qui décides.
+            💡 <span className="font-bold text-bordeaux">{tip}</span>
           </p>
         </div>
 
-        {/* Missions summary */}
-        {missionsTotal > 0 && (
-          <Link to="/mon-plan" className="block mb-6">
-            <div className="rounded-2xl border border-border bg-card p-4 hover:border-primary/40 transition-all hover:shadow-card-hover hover:-translate-y-px">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-bold text-foreground">🎯 Cette semaine : {missionsDone}/{missionsTotal} missions faites</p>
-                <span className="flex items-center gap-1 text-xs text-primary font-medium">
-                  Voir mon plan <ArrowRight className="h-3.5 w-3.5" />
-                </span>
-              </div>
-              <Progress value={missionsTotal > 0 ? (missionsDone / missionsTotal) * 100 : 0} className="h-2" />
+        {/* Quick actions */}
+        <div className="mb-8">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">⚡ Actions rapides</p>
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
+            {quickActions.map((action) => (
+              <button
+                key={action.route + action.label}
+                onClick={() => navigate(action.route)}
+                className="shrink-0 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/5 hover:border-primary/50 transition-colors"
+              >
+                <span>{action.emoji}</span>
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Active modules grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          {activeModules.map((mod) => (
+            <ModuleCard key={mod.id} mod={mod} data={dashData} />
+          ))}
+        </div>
+
+        {/* Completed modules */}
+        {completedModules.length > 0 && (
+          <div className="mb-8">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">✅ Terminés</p>
+            <div className="space-y-2">
+              {completedModules.map((mod) => (
+                <CompletedModuleRow key={mod.id} mod={mod} data={dashData} />
+              ))}
             </div>
-          </Link>
+          </div>
         )}
 
-        {/* Module grid — filtered by active channels */}
-        <ChannelFilteredModules brandingCompletion={brandingCompletion} />
-
-        {/* Routines */}
-        <div className="mb-8">
-          <SmartRoutinesPanel />
-        </div>
-
-        {/* Extra sections */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <LivesWidget />
-          <CommunityWidget />
-          <StudioWidget />
-          <ServicesWidget />
-        </div>
-
-        {/* Conseil du jour */}
-        <div className="rounded-none rounded-r-2xl bg-rose-pale border-l-4 border-primary px-5 py-4">
-          <p className="font-mono-ui text-[11px] font-semibold text-primary uppercase tracking-wide mb-2">
-            💡 Le conseil du jour
-          </p>
-          <p className="text-sm text-foreground leading-relaxed italic">"{conseil}"</p>
+        {/* Add channel link */}
+        <div className="text-center py-4">
+          <Link to="/profil" className="text-xs text-muted-foreground hover:text-primary transition-colors">
+            📱 Tu veux ajouter un canal ? <span className="underline">Modifier dans le profil →</span>
+          </Link>
         </div>
       </main>
     </div>
   );
 }
 
-/* ─── Channel-filtered modules ─── */
-function ChannelFilteredModules({ brandingCompletion }: { brandingCompletion: BrandingCompletion }) {
-  const { hasInstagram, hasLinkedin, hasPinterest, hasWebsite, loading } = useActiveChannels();
+/* ── Active Module Card (large or medium) ── */
+function ModuleCard({ mod, data }: { mod: DashboardModule & { completion: number }; data: DashboardData }) {
+  const navigate = useNavigate();
+  const completion = mod.completion;
+  const nextStep = mod.getNextStep?.(data);
+  const isNotStarted = completion === 0 && mod.id !== "content";
+  const isInProgress = completion > 0 && completion < 100;
 
-  // Channel-to-module mapping
-  const CHANNEL_MODULES = new Set<string>();
-  // Always show these
-  CHANNEL_MODULES.add("branding");
-  if (hasInstagram) CHANNEL_MODULES.add("instagram");
-  if (hasLinkedin) CHANNEL_MODULES.add("linkedin");
-  if (hasPinterest) CHANNEL_MODULES.add("pinterest");
-  if (hasWebsite) { CHANNEL_MODULES.add("siteweb"); }
-  // Always show these universal modules
-  CHANNEL_MODULES.add("seo");
-  CHANNEL_MODULES.add("emailing");
-  CHANNEL_MODULES.add("presse");
+  // "Créer un contenu" special card
+  if (mod.id === "content") {
+    return (
+      <div
+        onClick={() => navigate(mod.route)}
+        className="rounded-2xl border-2 border-primary/30 bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all"
+      >
+        <div className="flex items-center gap-3 mb-2">
+          <span className="text-2xl">{mod.emoji}</span>
+          <h3 className="font-display text-lg font-bold text-foreground">{mod.title}</h3>
+        </div>
+        <p className="text-[13px] text-muted-foreground mb-3">{mod.description}</p>
+        <p className="text-sm font-semibold text-primary">Créer un contenu →</p>
+      </div>
+    );
+  }
 
-  const filtered = loading ? MODULES : MODULES.filter(m => CHANNEL_MODULES.has(m.id));
+  // Large card (not started)
+  if (isNotStarted) {
+    return (
+      <div
+        onClick={() => mod.externalUrl ? window.open(mod.externalUrl, "_blank") : navigate(mod.route)}
+        className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all"
+      >
+        <div className="flex items-center gap-3 mb-2">
+          <span className="text-2xl">{mod.emoji}</span>
+          <h3 className="font-display text-lg font-bold text-foreground">{mod.title}</h3>
+        </div>
+        <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">{mod.description}</p>
+        <div className="mb-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] text-muted-foreground">{mod.shortTitle} : 0% complété</span>
+          </div>
+          <Progress value={0} className="h-2" />
+        </div>
+        <p className="text-sm font-semibold text-primary flex items-center gap-1">
+          {nextStep || `Commencer ${mod.shortTitle}`} <ArrowRight className="h-3.5 w-3.5" />
+        </p>
+      </div>
+    );
+  }
 
+  // Medium card (in progress)
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-      {filtered.map((mod) => (
-        <ModuleCardComponent key={mod.id} mod={mod} brandingCompletion={mod.id === "branding" ? brandingCompletion : undefined} />
-      ))}
+    <div
+      onClick={() => navigate(mod.route)}
+      className="rounded-2xl border border-border bg-card p-4 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xl">{mod.emoji}</span>
+          <h3 className="font-display text-base font-bold text-foreground">{mod.title}</h3>
+        </div>
+        <span className="text-xs font-semibold text-muted-foreground">{completion}%</span>
+      </div>
+      <Progress value={completion} className="h-2 mb-2" />
+      {nextStep && (
+        <p className="text-[13px] text-muted-foreground">
+          Prochaine étape : <span className="text-foreground font-medium">{nextStep}</span>
+        </p>
+      )}
+      <p className="text-sm font-semibold text-primary mt-1">Continuer →</p>
     </div>
   );
 }
 
-/* ─── Module Card ─── */
-function ModuleCardComponent({ mod, brandingCompletion }: { mod: ModuleCard; brandingCompletion?: BrandingCompletion }) {
-  const isActive = mod.id === "branding";
+/* ── Completed module row (mini) ── */
+function CompletedModuleRow({ mod, data }: { mod: DashboardModule & { completion: number }; data: DashboardData }) {
+  const navigate = useNavigate();
+  const detail = mod.getCompletedDetail?.(data);
+  const route = mod.completedRoute || mod.route;
 
-  const sectionBadges = brandingCompletion ? [
-    { emoji: "👑", label: "Histoire", score: brandingCompletion.storytelling },
-    { emoji: "👩‍💻", label: "Persona", score: brandingCompletion.persona },
-    { emoji: "❤️", label: "Proposition", score: brandingCompletion.proposition },
-    { emoji: "🎨", label: "Ton", score: brandingCompletion.tone },
-    { emoji: "🍒", label: "Stratégie", score: brandingCompletion.strategy },
-  ] : null;
-
-  const inner = (
+  return (
     <div
-      className={`relative rounded-2xl border bg-card p-5 transition-all duration-[250ms] ${
-        mod.disabled
-          ? "opacity-45 cursor-default"
-          : "hover:shadow-card-hover hover:-translate-y-px cursor-pointer"
-      } ${
-        isActive
-          ? "border-primary border-2 before:absolute before:top-0 before:left-4 before:right-4 before:h-[3px] before:bg-primary before:rounded-b-full"
-          : "border-border"
-      }`}
+      onClick={() => navigate(route)}
+      className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
     >
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-2xl">{mod.emoji}</span>
-        <span className={`font-mono-ui text-[11px] font-semibold px-2 py-0.5 rounded-md ${badgeClass(mod.badge.variant)}`}>
-          {mod.badge.label}
-        </span>
+      <div className="flex items-center gap-2.5">
+        <span className="text-lg">{mod.emoji}</span>
+        <span className="text-sm font-semibold text-foreground">{mod.shortTitle}</span>
+        <span className="text-xs font-semibold text-[#2E7D32] bg-[#E8F5E9] px-1.5 py-0.5 rounded">✅ Complet</span>
+        {detail && <span className="text-xs text-muted-foreground hidden sm:inline">{detail}</span>}
       </div>
-
-      <h3 className="font-display text-lg font-bold text-foreground mb-1">{mod.title}</h3>
-      <p className="text-[13px] text-muted-foreground leading-relaxed mb-3">{mod.description}</p>
-
-      <div className="flex flex-wrap gap-1.5 mb-4">
-        {mod.chips.map((chip) => (
-          <span
-            key={chip}
-            className={`font-mono-ui text-[10px] font-medium px-2 py-0.5 rounded-md ${
-              mod.disabled ? "bg-secondary text-muted-foreground" : "bg-rose-pale text-bordeaux"
-            }`}
-          >
-            {chip}
-          </span>
-        ))}
-      </div>
-
-      {brandingCompletion && (
-        <div className="mb-3">
-          <div className="flex items-center justify-between mb-1">
-            <span className="font-mono-ui text-[11px] text-muted-foreground">Branding : {brandingCompletion.total}% complété</span>
-            {brandingCompletion.total === 100 && (
-              <span className="font-mono-ui text-[10px] font-semibold text-[#2E7D32] bg-[#E8F5E9] px-1.5 py-0.5 rounded">✅ Complet</span>
-            )}
-          </div>
-          <Progress value={brandingCompletion.total} className="h-2 mb-2" />
-          <div className="flex flex-wrap gap-1.5">
-            {sectionBadges?.map((s) => (
-              <span
-                key={s.label}
-                className={`font-mono-ui text-[9px] font-semibold px-1.5 py-0.5 rounded ${
-                  s.score === 100
-                    ? "bg-[#E8F5E9] text-[#2E7D32]"
-                    : s.score > 0
-                      ? "bg-accent text-accent-foreground"
-                      : "bg-secondary text-muted-foreground"
-                }`}
-              >
-                {s.emoji} {s.score === 100 ? "✅" : s.score > 0 ? `${s.score}%` : "À faire"}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <p className={`text-sm font-semibold ${mod.disabled ? "text-muted-foreground" : "text-primary"}`}>
-        {mod.cta}
-      </p>
+      <span className="text-xs text-primary font-medium">Voir →</span>
     </div>
   );
-
-  if (mod.disabled) return inner;
-
-  if (mod.externalUrl) {
-    return (
-      <a href={mod.externalUrl} target="_blank" rel="noopener noreferrer">
-        {inner}
-      </a>
-    );
-  }
-
-  return <Link to={mod.route!}>{inner}</Link>;
 }
