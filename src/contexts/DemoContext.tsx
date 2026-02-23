@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from "react";
+import { createContext, useContext, useReducer, useCallback, useMemo, ReactNode } from "react";
 
 export interface DemoData {
   profile: { first_name: string; activity: string; activity_type?: string };
@@ -42,7 +42,6 @@ export interface DemoData {
     points_faibles: { titre: string; detail: string; priorite: string; module: string }[];
     plan_action: { titre: string; temps: string; module: string }[];
   };
-  // Demo plan data
   plan?: string;
   credits_monthly?: number;
   credits_used?: number;
@@ -87,38 +86,70 @@ interface DemoContextType {
   deactivateDemo: () => void;
 }
 
+interface DemoState {
+  isDemoMode: boolean;
+  demoData: DemoData | null;
+  demoName: string;
+  demoActivity: string;
+}
+
+type DemoAction =
+  | { type: "ACTIVATE"; data: DemoData; name: string; activity: string }
+  | { type: "DEACTIVATE" };
+
+function demoReducer(state: DemoState, action: DemoAction): DemoState {
+  switch (action.type) {
+    case "ACTIVATE":
+      return {
+        isDemoMode: true,
+        demoData: {
+          ...action.data,
+          plan: "now_pilot",
+          credits_monthly: 300,
+          credits_used: 16,
+          plan_expires_at: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+        demoName: action.name,
+        demoActivity: action.activity,
+      };
+    case "DEACTIVATE":
+      return { isDemoMode: false, demoData: null, demoName: "", demoActivity: "" };
+    default:
+      return state;
+  }
+}
+
+const initialState: DemoState = {
+  isDemoMode: false,
+  demoData: null,
+  demoName: "",
+  demoActivity: "",
+};
+
 const DemoContext = createContext<DemoContextType | undefined>(undefined);
 
 export function DemoProvider({ children }: { children: ReactNode }) {
-  const [isDemoMode, setIsDemoMode] = useState(false);
-  const [demoData, setDemoData] = useState<DemoData | null>(null);
-  const [demoName, setDemoName] = useState("");
-  const [demoActivity, setDemoActivity] = useState("");
+  const [state, dispatch] = useReducer(demoReducer, initialState);
 
   const activateDemo = useCallback((data: DemoData, name: string, activity: string) => {
-    // Always inject now_pilot plan data into demo
-    setDemoData({
-      ...data,
-      plan: "now_pilot",
-      credits_monthly: 300,
-      credits_used: 16,
-      plan_expires_at: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString(),
-    });
-    setDemoName(name);
-    setDemoActivity(activity);
-    setIsDemoMode(true);
+    dispatch({ type: "ACTIVATE", data, name, activity });
   }, []);
 
   const deactivateDemo = useCallback(() => {
-    setDemoData(null);
-    setDemoName("");
-    setDemoActivity("");
-    setIsDemoMode(false);
+    dispatch({ type: "DEACTIVATE" });
   }, []);
 
   const value = useMemo<DemoContextType>(
-    () => ({ isDemoMode, demoData, demoName, demoActivity, demoCoaching: DEMO_COACHING, activateDemo, deactivateDemo }),
-    [isDemoMode, demoData, demoName, demoActivity, activateDemo, deactivateDemo]
+    () => ({
+      isDemoMode: state.isDemoMode,
+      demoData: state.demoData,
+      demoName: state.demoName,
+      demoActivity: state.demoActivity,
+      demoCoaching: DEMO_COACHING,
+      activateDemo,
+      deactivateDemo,
+    }),
+    [state, activateDemo, deactivateDemo]
   );
 
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;
