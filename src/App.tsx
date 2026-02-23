@@ -2,7 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DemoProvider } from "@/contexts/DemoContext";
 import DemoBanner from "@/components/demo/DemoBanner";
@@ -97,23 +98,22 @@ import AssistantButton from "./components/assistant/AssistantButton";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <ErrorBoundary>
-        <AuthProvider>
-          <DemoProvider>
-          <DemoBanner />
-          <AssistantButton />
-          <Routes>
+function AnimatedRoutes() {
+  const location = useLocation();
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={location.pathname}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2, ease: "easeInOut" }}
+      >
+        <Routes location={location}>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/connexion" element={<LoginPage />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {/* /plan is handled below as a protected route */}
             <Route path="/now-studio" element={<Navigate to="/studio/discover" replace />} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/welcome" element={<ProtectedRoute><WelcomePage /></ProtectedRoute>} />
@@ -215,7 +215,24 @@ const App = () => (
             <Route path="/instagram/calendrier" element={<Navigate to="/calendrier?canal=instagram" replace />} />
             <Route path="/instagram/atelier" element={<Navigate to="/atelier?canal=instagram" replace />} />
             <Route path="*" element={<NotFound />} />
-          </Routes>
+        </Routes>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <ErrorBoundary>
+        <AuthProvider>
+          <DemoProvider>
+          <DemoBanner />
+          <AssistantButton />
+          <AnimatedRoutes />
         </DemoProvider>
         </AuthProvider>
         </ErrorBoundary>

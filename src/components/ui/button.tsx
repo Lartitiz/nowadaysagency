@@ -5,11 +5,11 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-[15px] font-semibold font-body ring-offset-background transition-all duration-[250ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-[15px] font-semibold font-body ring-offset-background transition-all duration-[250ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.97]",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-cta rounded-pill hover:bg-bordeaux hover:-translate-y-px hover:shadow-strong",
+        default: "bg-primary text-primary-foreground shadow-cta rounded-pill hover:bg-bordeaux hover:-translate-y-px hover:shadow-strong btn-pulse",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-md",
         outline: "border-[1.5px] border-border bg-card text-foreground rounded-[10px] hover:border-primary hover:text-primary",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-pill",

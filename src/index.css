@@ -181,6 +181,32 @@
   animation: confetti-fall 3s ease-out forwards;
 }
 
+/* ═══ Micro-interactions ═══ */
+
+/* Card hover lift */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(251, 61, 128, 0.08),
+              0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.card-hover:active {
+  transform: translateY(0px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Button CTA pulse */
+@keyframes btn-pulse {
+  0%   { box-shadow: 0 0 0 0 hsla(var(--primary), 0.4); }
+  70%  { box-shadow: 0 0 0 12px hsla(var(--primary), 0); }
+  100% { box-shadow: 0 0 0 0 hsla(var(--primary), 0); }
+}
+.btn-pulse:active {
+  animation: btn-pulse 0.4s ease-out;
+}
+
 /* Mobile bottom tab bar spacing — add padding so content isn't hidden behind fixed tab bar */
 @media (max-width: 1023px) {
   body {
