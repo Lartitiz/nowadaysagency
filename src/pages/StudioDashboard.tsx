@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 const CALENDLY_URL = "https://calendly.com/laetitia-mattioli/appel-decouverte-academy";
-const WHATSAPP_URL = "https://wa.me/33600000000";
+const WHATSAPP_URL = "https://wa.me/33614133921";
 
 interface Coaching {
   id: string;
