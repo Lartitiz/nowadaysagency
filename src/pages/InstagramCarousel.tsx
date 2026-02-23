@@ -88,12 +88,23 @@ export default function InstagramCarousel() {
   const [offers, setOffers] = useState<any[]>([]);
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
+  const [calendarPostId, setCalendarPostId] = useState<string | null>(null);
+
+  // Objective mapping from calendar objectifs to carousel objectives
+  const OBJECTIF_TO_CAROUSEL: Record<string, string> = {
+    visibilite: "shares",
+    confiance: "community",
+    vente: "conversion",
+    credibilite: "saves",
+  };
 
   // Persist form state to sessionStorage
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "carousel-form",
     { step, carouselType, objective, subject, selectedOffer, slideCount },
     (saved) => {
+      // Don't restore draft if we're coming from calendar
+      if (searchParams.get("calendar_id")) return;
       if (saved.carouselType) setCarouselType(saved.carouselType);
       if (saved.objective) setObjective(saved.objective);
       if (saved.subject) setSubject(saved.subject);
@@ -110,6 +121,62 @@ export default function InstagramCarousel() {
       if (data) setOffers(data);
     });
   }, [user?.id]);
+
+  // Pre-fill from calendar post
+  useEffect(() => {
+    const calId = searchParams.get("calendar_id");
+    if (!calId || !user) return;
+
+    const loadCalendarPost = async () => {
+      const { data: post } = await supabase
+        .from("calendar_posts")
+        .select("*")
+        .eq("id", calId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!post) return;
+
+      setCalendarPostId(post.id);
+      if (post.theme) setSubject(post.theme);
+
+      // Map objectif
+      if (post.objectif && OBJECTIF_TO_CAROUSEL[post.objectif]) {
+        setObjective(OBJECTIF_TO_CAROUSEL[post.objectif]);
+      }
+
+      // Map angle to carousel type
+      const carouselTypeParam = searchParams.get("carousel_type");
+      if (carouselTypeParam) {
+        setCarouselType(carouselTypeParam);
+        setStep(2); // Skip type selection
+      } else if (post.angle) {
+        const ANGLE_MAP: Record<string, string> = {
+          "Storytelling": "storytelling",
+          "Mythe à déconstruire": "mythe_realite",
+          "Coup de gueule": "prise_de_position",
+          "Enquête / décryptage": "prise_de_position",
+          "Conseil contre-intuitif": "tips",
+          "Test grandeur nature": "etude_de_cas",
+          "Before / After": "before_after",
+          "Histoire cliente": "etude_de_cas",
+          "Regard philosophique": "prise_de_position",
+          "Surf sur l'actu": "prise_de_position",
+        };
+        if (ANGLE_MAP[post.angle]) {
+          setCarouselType(ANGLE_MAP[post.angle]);
+          setStep(2); // Skip type selection
+        }
+      }
+
+      // Pre-fill notes into subject if subject is empty
+      if (!post.theme && post.notes) {
+        setSubject(post.notes);
+      }
+    };
+
+    loadCalendarPost();
+  }, [user?.id, searchParams]);
 
   const typeObj = CAROUSEL_TYPES.find(t => t.id === carouselType);
 
@@ -158,12 +225,25 @@ export default function InstagramCarousel() {
       setPublishingTip(parsed.publishing_tip || "");
 
       // Save to DB
-      await supabase.from("generated_carousels" as any).insert({
+      const insertRes = await supabase.from("generated_carousels" as any).insert({
         user_id: user.id, carousel_type: carouselType, subject, objective,
         hook_text: hookText, slide_count: slideCount,
         slides: parsed.slides, caption: `${parsed.caption?.hook}\n\n${parsed.caption?.body}\n\n${parsed.caption?.cta}`,
         hashtags: parsed.caption?.hashtags, quality_score: parsed.quality_check?.score,
-      });
+        calendar_post_id: calendarPostId || null,
+      }).select("id").single();
+
+      // Update calendar post if linked
+      if (calendarPostId && insertRes.data) {
+        await supabase.from("calendar_posts").update({
+          status: "ready",
+          generated_content_id: (insertRes.data as any).id,
+          generated_content_type: "carousel",
+          content_draft: parsed.slides?.map((s: any) => `${s.title}\n${s.body || ""}`).join("\n\n"),
+          accroche: hookText,
+          updated_at: new Date().toISOString(),
+        }).eq("id", calendarPostId);
+      }
 
       setStep(4);
       clearDraft(); // Clear sessionStorage draft after successful generation
