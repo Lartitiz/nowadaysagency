@@ -12,6 +12,8 @@ import { ClipboardList, MessageSquare, Sparkles, History } from "lucide-react";
 import EditableField from "@/components/branding/EditableField";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import BrandingCoachingHistory from "@/components/branding/BrandingCoachingHistory";
+import BrandingSuggestionsCard from "@/components/branding/BrandingSuggestionsCard";
+import { useBrandingSuggestions } from "@/hooks/use-branding-suggestions";
 import { DEMO_DATA } from "@/lib/demo-data";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -270,9 +272,15 @@ export default function BrandingSectionPage() {
   const completionPct = Math.round((filledCount / totalFields) * 100);
   const emptyCount = totalFields - filledCount;
 
-  const handleFieldUpdate = (field: string, value: string) => {
+  const { suggestions, suggestionId, showSuggestions, checkImpact, dismissSuggestions } = useBrandingSuggestions();
+
+  const handleFieldUpdate = (field: string, value: string, oldValue?: string) => {
     setData(prev => ({ ...prev, [field]: value }));
     setLastUpdated(new Date().toISOString());
+    // Check cross-module impact for structural fields
+    if (oldValue && oldValue !== value) {
+      checkImpact(field, oldValue, value);
+    }
   };
 
   const switchToCoaching = () => setActiveTab("coaching");
@@ -330,6 +338,16 @@ export default function BrandingSectionPage() {
 
           {/* FICHE TAB */}
           <TabsContent value="fiche">
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="mb-6">
+                <BrandingSuggestionsCard
+                  suggestions={suggestions}
+                  triggerField=""
+                  suggestionId={suggestionId}
+                  onDismiss={dismissSuggestions}
+                />
+              </div>
+            )}
             <div className="space-y-0">
               {config.fields.map(field => (
                 <EditableField

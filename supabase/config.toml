@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.mini-audit-instagram]
 verify_jwt = false
+
+[functions.analyze-branding-impact]
+verify_jwt = false
