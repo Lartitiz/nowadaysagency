@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CalendarDays, Clock, Video, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, CalendarDays, Clock, Video, MessageCircle, ChevronDown, ChevronUp, Lock, Download, ExternalLink, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { LAETITIA_WHATSAPP } from "@/lib/constants";
 import { getFocusIcon, getSessionTypeIcon } from "@/lib/coaching-constants";
-import JournalTimeline from "@/components/coaching/JournalTimeline";
+import { toast } from "sonner";
 
 interface Program {
   id: string;
@@ -64,6 +64,10 @@ interface Deliverable {
   status: string;
   delivered_at: string | null;
   route: string | null;
+  file_url: string | null;
+  file_name: string | null;
+  assigned_session_id: string | null;
+  seen_by_client: boolean;
 }
 
 export default function AccompagnementPage() {
@@ -74,7 +78,7 @@ export default function AccompagnementPage() {
   const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
   const [loading, setLoading] = useState(true);
   const [noProgram, setNoProgram] = useState(false);
-  const [expandedSession, setExpandedSession] = useState<string | null>(null);
+  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user) return;
@@ -91,9 +95,29 @@ export default function AccompagnementPage() {
         (supabase.from("coaching_deliverables" as any) as any).select("*").eq("program_id", prog.id).order("created_at"),
       ]);
 
-      setSessions((sessRes.data || []) as Session[]);
+      const sessionsData = (sessRes.data || []) as Session[];
+      const deliverablesData = (delRes.data || []) as Deliverable[];
+
+      setSessions(sessionsData);
       setActions((actRes.data || []) as Action[]);
-      setDeliverables((delRes.data || []) as Deliverable[]);
+      setDeliverables(deliverablesData);
+
+      // Auto-expand the last completed session
+      const completedSessions = sessionsData.filter(s => s.status === "completed");
+      if (completedSessions.length > 0) {
+        setExpandedSessions(new Set([completedSessions[completedSessions.length - 1].id]));
+      }
+
+      // Mark unseen deliverables as seen
+      const unseen = deliverablesData.filter(d => d.status === "delivered" && !d.seen_by_client);
+      if (unseen.length > 0) {
+        unseen.forEach(d => toast("✨ Nouveau livrable débloqué : " + d.title + " !", { duration: 4000 }));
+        const ids = unseen.map(d => d.id);
+        await (supabase.from("coaching_deliverables" as any) as any)
+          .update({ seen_by_client: true }).in("id", ids);
+        setDeliverables(prev => prev.map(d => ids.includes(d.id) ? { ...d, seen_by_client: true } : d));
+      }
+
       setLoading(false);
     })();
   }, [user?.id]);
@@ -105,6 +129,14 @@ export default function AccompagnementPage() {
       completed_at: newCompleted ? new Date().toISOString() : null,
     }).eq("id", action.id);
     setActions(prev => prev.map(a => a.id === action.id ? { ...a, completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null } : a));
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedSessions(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   };
 
   if (noProgram) {
@@ -138,9 +170,6 @@ export default function AccompagnementPage() {
   }
 
   const progressPct = Math.round(((program.current_month || 1) / 6) * 100);
-  const nextSession = sessions.find(s => s.status === "scheduled" && s.scheduled_date);
-  const nextUnscheduled = sessions.find(s => s.status === "scheduled" && !s.scheduled_date);
-  const upcomingSession = nextSession || nextUnscheduled;
 
   const DEFAULT_CALENDLY = "https://calendly.com/laetitia-mattioli/atelier-2h";
   const calendlyUrl = program.calendly_link || DEFAULT_CALENDLY;
@@ -154,10 +183,9 @@ export default function AccompagnementPage() {
     window.open(url.toString(), "_blank");
   };
 
-  const fondationSessions = sessions.filter(s => s.session_type && ["launch", "strategy", "checkpoint"].includes(s.session_type));
-  const focusSessions = sessions.filter(s => !s.session_type || s.session_type === "focus");
-  const pendingActions = actions.filter(a => !a.completed);
-  const recentDone = actions.filter(a => a.completed && a.completed_at && new Date(a.completed_at) > new Date(Date.now() - 7 * 86400000));
+  // Deliverables recap
+  const unlockedDeliverables = deliverables.filter(d => d.status === "delivered");
+  const delivProgressPct = deliverables.length > 0 ? Math.round((unlockedDeliverables.length / deliverables.length) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-8">
@@ -188,114 +216,37 @@ export default function AccompagnementPage() {
           </div>
         </div>
 
-        {/* PROCHAINE SESSION */}
-        {upcomingSession && (
-          <div className="rounded-2xl border-2 border-primary/30 bg-card p-6">
-            <h2 className="font-display text-lg font-bold text-foreground mb-3 flex items-center gap-2">
-              <CalendarDays className="h-5 w-5 text-primary" /> Prochaine session
-            </h2>
-            <div className="space-y-2">
-              <p className="font-semibold text-foreground flex items-center gap-2">
-                <span>{getSessionIcon(upcomingSession)}</span>
-                {upcomingSession.title || "À définir"}
-              </p>
-              <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                {upcomingSession.scheduled_date && (
-                  <span className="flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" /> {format(new Date(upcomingSession.scheduled_date), "EEEE d MMMM · HH'h'mm", { locale: fr })}</span>
-                )}
-                <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {upcomingSession.duration_minutes} min</span>
-              </div>
-              {upcomingSession.focus && <p className="text-sm text-muted-foreground">🎯 {upcomingSession.focus}</p>}
-              {upcomingSession.prep_notes && (
-                <div className="rounded-xl bg-rose-pale p-3 mt-2">
-                  <p className="text-xs font-semibold text-primary mb-1">💡 Avant la session, pense à :</p>
-                  <p className="text-sm text-foreground whitespace-pre-line">{upcomingSession.prep_notes}</p>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2 mt-2">
-                {upcomingSession.scheduled_date ? (
-                  <>
-                    {upcomingSession.meeting_link && (
-                      <Button asChild className="rounded-full gap-2">
-                        <a href={upcomingSession.meeting_link} target="_blank" rel="noopener noreferrer">
-                          <Video className="h-4 w-4" /> Rejoindre l'appel
-                        </a>
-                      </Button>
-                    )}
-                    <Button onClick={handleBookSession} variant="outline" className="rounded-full gap-2 text-sm">
-                      <CalendarDays className="h-4 w-4" /> Modifier le créneau
-                    </Button>
-                  </>
-                ) : (
-                  <Button onClick={handleBookSession} className="rounded-full gap-2">
-                    <CalendarDays className="h-4 w-4" /> Réserver mon créneau
-                  </Button>
-                )}
-              </div>
+        {/* MON PARCOURS — Unified Timeline */}
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h2 className="font-display text-lg font-bold text-foreground mb-5">🗓️ Mon parcours</h2>
+
+          <div className="relative">
+            {/* Vertical line */}
+            <div className="absolute left-[11px] top-3 bottom-3 w-0.5 bg-border" />
+
+            <div className="space-y-4">
+              {sessions.map(session => (
+                <SessionCard
+                  key={session.id}
+                  session={session}
+                  expanded={expandedSessions.has(session.id)}
+                  onToggle={() => toggleExpand(session.id)}
+                  actions={actions.filter(a => a.session_id === session.id)}
+                  deliverables={deliverables.filter(d => d.assigned_session_id === session.id)}
+                  onToggleAction={toggleAction}
+                  onBookSession={handleBookSession}
+                />
+              ))}
             </div>
           </div>
-        )}
-
-        {/* MON PARCOURS */}
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="font-display text-lg font-bold text-foreground mb-4">🗓️ Mon parcours</h2>
-
-          {/* Fondations */}
-          {fondationSessions.length > 0 && (
-            <div className="mb-5">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Les fondations</p>
-              <div className="space-y-2">
-                {fondationSessions.map(s => (
-                  <SessionRow key={s.id} session={s} expanded={expandedSession === s.id} onToggle={() => setExpandedSession(expandedSession === s.id ? null : s.id)} actions={actions.filter(a => a.session_id === s.id)} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Focus */}
-          {focusSessions.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">On fait ensemble</p>
-              <div className="space-y-2">
-                {focusSessions.map(s => (
-                  <SessionRow key={s.id} session={s} expanded={expandedSession === s.id} onToggle={() => setExpandedSession(expandedSession === s.id ? null : s.id)} actions={actions.filter(a => a.session_id === s.id)} />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* ACTIONS */}
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="font-display text-lg font-bold text-foreground mb-3">📋 Mes actions</h2>
-          {pendingActions.length === 0 && recentDone.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucune action pour le moment.</p>
-          ) : (
-            <div className="space-y-2">
-              {pendingActions.map(a => (
-                <label key={a.id} className="flex items-start gap-3 cursor-pointer group">
-                  <Checkbox checked={false} onCheckedChange={() => toggleAction(a)} className="mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{a.title}</p>
-                    {a.due_date && <p className="text-xs text-muted-foreground">Deadline : {format(new Date(a.due_date), "d MMM", { locale: fr })}</p>}
-                  </div>
-                </label>
-              ))}
-              {recentDone.map(a => (
-                <label key={a.id} className="flex items-start gap-3 cursor-pointer opacity-60">
-                  <Checkbox checked onCheckedChange={() => toggleAction(a)} className="mt-0.5" />
-                  <div>
-                    <p className="text-sm line-through text-muted-foreground">{a.title}</p>
-                    {a.completed_at && <p className="text-xs text-muted-foreground">Fait le {format(new Date(a.completed_at), "d MMM", { locale: fr })}</p>}
-                  </div>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* JOURNAL + LIVRABLES */}
-        <JournalTimeline programId={program.id} />
+        {/* RÉCAP LIVRABLES */}
+        <DeliverablesRecap
+          deliverables={deliverables}
+          unlockedCount={unlockedDeliverables.length}
+          progressPct={delivProgressPct}
+        />
 
         {/* WHATSAPP */}
         <div className="rounded-2xl border border-border bg-card p-6">
@@ -318,6 +269,261 @@ export default function AccompagnementPage() {
   );
 }
 
+/* ═══════════════════════════════════════════════════════════
+   SESSION CARD — 3 states: completed, scheduled, upcoming
+   ═══════════════════════════════════════════════════════════ */
+function SessionCard({ session, expanded, onToggle, actions, deliverables, onToggleAction, onBookSession }: {
+  session: Session;
+  expanded: boolean;
+  onToggle: () => void;
+  actions: Action[];
+  deliverables: Deliverable[];
+  onToggleAction: (a: Action) => void;
+  onBookSession: () => void;
+}) {
+  const isCompleted = session.status === "completed";
+  const isScheduled = session.status === "scheduled" || session.status === "confirmed";
+  const hasDate = !!session.scheduled_date;
+  const isNext = isScheduled && hasDate;
+  const isUpcoming = isScheduled && !hasDate;
+
+  // Determine card style based on state
+  const borderClass = isCompleted
+    ? "border-l-[3px] border-l-[#2E7D32] border-t border-r border-b border-border"
+    : isNext
+    ? "border-l-[3px] border-l-primary border-t border-r border-b border-primary/20"
+    : "border-l-[3px] border-l-border border-t border-r border-b border-border/50";
+
+  const bgClass = isCompleted ? "bg-card" : isNext ? "bg-card" : "bg-muted/20";
+  const opacityClass = isUpcoming ? "opacity-70" : "";
+
+  const icon = getSessionIcon(session);
+  const statusIcon = isCompleted ? "✅" : hasDate ? "📅" : "🔜";
+
+  const unlockedDelivs = deliverables.filter(d => d.status === "delivered");
+  const lockedDelivs = deliverables.filter(d => d.status !== "delivered");
+
+  return (
+    <div className={`relative pl-8`}>
+      {/* Timeline dot */}
+      <div className={`absolute left-0 top-4 w-[22px] h-[22px] rounded-full ring-2 ring-background flex items-center justify-center text-[11px] ${
+        isCompleted ? "bg-[#2E7D32] text-white" : isNext ? "bg-primary text-white" : "bg-border text-muted-foreground"
+      }`}>
+        {isCompleted ? "✓" : session.session_number}
+      </div>
+
+      <div className={`rounded-xl ${borderClass} ${bgClass} ${opacityClass} p-4 transition-all`}>
+        {/* Header row */}
+        <button
+          onClick={isCompleted ? onToggle : undefined}
+          className={`w-full text-left flex items-center justify-between ${isCompleted ? "cursor-pointer" : "cursor-default"}`}
+        >
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <span className="text-sm">{statusIcon}</span>
+            <span className="text-sm">{icon}</span>
+            <span className="text-sm font-semibold text-foreground truncate">{session.title || "À définir"}</span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {session.scheduled_date && (
+              <span className="text-xs text-muted-foreground">
+                {format(new Date(session.scheduled_date), "d MMM", { locale: fr })}
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground">{formatDuration(session.duration_minutes)}</span>
+            {isCompleted && (
+              expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+          </div>
+        </button>
+
+        {/* COMPLETED — Expanded content */}
+        {isCompleted && expanded && (
+          <div className="mt-3 space-y-3 border-t border-border/50 pt-3">
+            {/* Summary */}
+            {session.summary && (
+              <p className="text-sm text-foreground/80 whitespace-pre-line leading-relaxed">{session.summary}</p>
+            )}
+
+            {/* Laetitia's note */}
+            {session.laetitia_note && (
+              <div className="rounded-xl bg-secondary/50 p-3">
+                <p className="text-xs font-semibold text-primary mb-1">💌 Mot de Laetitia :</p>
+                <p className="text-sm text-foreground italic whitespace-pre-line">{session.laetitia_note}</p>
+              </div>
+            )}
+
+            {/* Unlocked deliverables */}
+            {unlockedDelivs.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">✨ Livrables débloqués :</p>
+                <div className="space-y-1.5">
+                  {unlockedDelivs.map(d => (
+                    <div key={d.id} className="flex items-center justify-between rounded-lg border border-primary/20 bg-card p-2.5">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-3.5 w-3.5 text-primary" />
+                        <span className="text-sm font-medium text-foreground">{d.title}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {d.route && (
+                          <Link to={d.route} className="text-xs text-primary font-semibold hover:underline flex items-center gap-1">
+                            Voir <ExternalLink className="h-3 w-3" />
+                          </Link>
+                        )}
+                        {d.file_url && (
+                          <a href={d.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                            <Download className="h-3 w-3" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            {actions.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">📋 À faire :</p>
+                <div className="space-y-1.5">
+                  {actions.map(a => (
+                    <label key={a.id} className="flex items-start gap-2.5 cursor-pointer group">
+                      <Checkbox
+                        checked={a.completed}
+                        onCheckedChange={() => onToggleAction(a)}
+                        className="mt-0.5"
+                      />
+                      <span className={`text-sm ${a.completed ? "line-through text-muted-foreground" : "text-foreground group-hover:text-primary transition-colors"}`}>
+                        {a.title}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Modules updated */}
+            {session.modules_updated && session.modules_updated.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                <span className="text-xs text-muted-foreground mr-1">Modules :</span>
+                {session.modules_updated.map(m => <Badge key={m} variant="secondary" className="text-xs">{m}</Badge>)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SCHEDULED / NEXT — Show prep + actions + locked deliverables */}
+        {isScheduled && (
+          <div className="mt-2 space-y-3">
+            {/* Focus */}
+            {session.focus && <p className="text-xs text-muted-foreground">🎯 {session.focus}</p>}
+
+            {/* Prep notes */}
+            {session.prep_notes && (
+              <div className="rounded-xl bg-rose-pale p-3">
+                <p className="text-xs font-semibold text-primary mb-1">💡 Avant la session :</p>
+                <p className="text-sm text-foreground whitespace-pre-line">{session.prep_notes}</p>
+              </div>
+            )}
+
+            {/* Locked deliverables */}
+            {lockedDelivs.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5">🔒 Livrables prévus :</p>
+                {lockedDelivs.map(d => (
+                  <p key={d.id} className="text-xs text-muted-foreground flex items-center gap-1.5 ml-1">
+                    <Lock className="h-3 w-3" /> {d.title}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            {/* Booking buttons */}
+            <div className="flex flex-wrap gap-2">
+              {hasDate ? (
+                <>
+                  {session.meeting_link && (
+                    <Button asChild size="sm" className="rounded-full gap-2 text-xs">
+                      <a href={session.meeting_link} target="_blank" rel="noopener noreferrer">
+                        <Video className="h-3.5 w-3.5" /> Rejoindre l'appel
+                      </a>
+                    </Button>
+                  )}
+                  <Button onClick={onBookSession} size="sm" variant="outline" className="rounded-full gap-2 text-xs">
+                    <CalendarDays className="h-3.5 w-3.5" /> Modifier le créneau
+                  </Button>
+                </>
+              ) : (
+                <Button onClick={onBookSession} size="sm" className="rounded-full gap-2 text-xs">
+                  <CalendarDays className="h-3.5 w-3.5" /> Réserver mon créneau
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DELIVERABLES RECAP
+   ═══════════════════════════════════════════════════════════ */
+function DeliverablesRecap({ deliverables, unlockedCount, progressPct }: {
+  deliverables: Deliverable[];
+  unlockedCount: number;
+  progressPct: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  if (deliverables.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <button onClick={() => setExpanded(!expanded)} className="w-full text-left">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="font-display text-lg font-bold text-foreground">
+            🎁 Tes livrables · {unlockedCount}/{deliverables.length} débloqués
+          </h2>
+          {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        </div>
+        <Progress value={progressPct} className="h-2.5" />
+      </button>
+
+      {expanded && (
+        <div className="mt-4 space-y-2">
+          {deliverables.map(d => {
+            const isUnlocked = d.status === "delivered";
+            return (
+              <div key={d.id} className={`flex items-center justify-between rounded-lg border p-2.5 ${
+                isUnlocked ? "border-primary/20 bg-card" : "border-border/50 bg-muted/30 opacity-60"
+              }`}>
+                <div className="flex items-center gap-2">
+                  {isUnlocked ? <Sparkles className="h-3.5 w-3.5 text-primary" /> : <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
+                  <span className={`text-sm ${isUnlocked ? "font-medium text-foreground" : "text-muted-foreground"}`}>{d.title}</span>
+                </div>
+                {isUnlocked && (
+                  <div className="flex items-center gap-2">
+                    {d.route && (
+                      <Link to={d.route} className="text-xs text-primary font-semibold hover:underline flex items-center gap-1">
+                        Voir <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    )}
+                    {d.file_url && (
+                      <a href={d.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                        <Download className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Helpers ── */
 function getSessionIcon(session: Session): string {
   if (session.session_type && ["launch", "strategy", "checkpoint"].includes(session.session_type)) {
@@ -326,54 +532,9 @@ function getSessionIcon(session: Session): string {
   return getFocusIcon(session.focus_topic);
 }
 
-function getStatusIcon(session: Session): string {
-  if (session.status === "completed") return "✅";
-  if (session.scheduled_date) return "📅";
-  return "🔜";
-}
-
-/* ── Session Row ── */
-function SessionRow({ session, expanded, onToggle, actions }: { session: Session; expanded: boolean; onToggle: () => void; actions: Action[] }) {
-  const isCompleted = session.status === "completed";
-  const isFondation = session.session_type && ["launch", "strategy", "checkpoint"].includes(session.session_type);
-
-  return (
-    <div className={`rounded-xl border p-3 transition-all ${
-      isCompleted ? "border-[#2E7D32]/30 bg-[#E8F5E9]/30" :
-      isFondation ? "border-primary/20 bg-rose-pale/30" :
-      session.scheduled_date ? "border-border" : "border-border/50 opacity-70"
-    }`}>
-      <button onClick={isCompleted ? onToggle : undefined} className="w-full text-left flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span>{getStatusIcon(session)}</span>
-          <span>{getSessionIcon(session)}</span>
-          <span className="text-sm font-semibold text-foreground">{session.title || "À définir"}</span>
-          {session.scheduled_date && <span className="text-xs text-muted-foreground">· {format(new Date(session.scheduled_date), "d MMM", { locale: fr })}</span>}
-          <span className="text-xs text-muted-foreground">· {session.duration_minutes}min</span>
-        </div>
-        {isCompleted && (expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />)}
-      </button>
-
-      {!isCompleted && session.focus && <p className="text-xs text-muted-foreground mt-1 ml-7">{session.focus}</p>}
-
-      {isCompleted && expanded && (
-        <div className="mt-3 ml-7 space-y-2 border-t border-border/50 pt-3">
-          {session.summary && <p className="text-sm text-foreground whitespace-pre-line">{session.summary}</p>}
-          {session.modules_updated && session.modules_updated.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              <span className="text-xs text-muted-foreground mr-1">Modules :</span>
-              {session.modules_updated.map(m => <Badge key={m} variant="secondary" className="text-xs">{m}</Badge>)}
-            </div>
-          )}
-          {session.laetitia_note && <p className="text-sm italic text-muted-foreground">💬 {session.laetitia_note}</p>}
-          {actions.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground mb-1">Actions données :</p>
-              {actions.map(a => <p key={a.id} className="text-xs text-foreground">• {a.title} {a.completed ? "✅" : ""}</p>)}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+function formatDuration(mins: number): string {
+  if (mins < 60) return `${mins}min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h${m.toString().padStart(2, "0")}` : `${h}h`;
 }
