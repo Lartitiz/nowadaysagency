@@ -117,7 +117,7 @@ export default function AccompagnementPage() {
             <p className="text-sm text-muted-foreground">Programme Now Pilot · Avec Laetitia</p>
             <p className="text-sm text-muted-foreground">Cette section est en cours de mise en place. Laetitia te contactera pour planifier ta première session.</p>
             <Button asChild className="rounded-full gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white">
-              <a href="https://wa.me/33612345678" target="_blank" rel="noopener noreferrer">
+              <a href="https://wa.me/33614133921" target="_blank" rel="noopener noreferrer">
                 <MessageCircle className="h-4 w-4" /> Contacter Laetitia sur WhatsApp
               </a>
             </Button>
