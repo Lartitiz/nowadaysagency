@@ -161,15 +161,16 @@ export default function AbonnementPage() {
               onSelect={() => handleCheckout(STRIPE_PLANS.outil.priceId)}
               disabled={plan === "outil" || portalLoading}
             />
-            {/* Studio */}
-            <PlanCard
-              name="Now Studio"
-              price="250€/mois"
-              credits="300 crédits"
-              active={plan === "studio"}
-              onSelect={() => window.open("mailto:hello@nowadays.com?subject=Now Studio", "_blank")}
-              disabled={plan === "studio"}
-            />
+            {/* Now Pilot */}
+            <div className={`rounded-xl border-2 p-4 text-center transition-all border-border hover:border-primary/30`}>
+              <h3 className="font-display font-bold text-foreground">🤝 Now Pilot</h3>
+              <p className="text-lg font-semibold text-primary mt-1">250€/mois</p>
+              <p className="text-xs text-muted-foreground mt-0.5">300 crédits · 6 mois</p>
+              <p className="text-[11px] text-muted-foreground mt-1">✅ L'outil + 9 sessions avec Laetitia</p>
+              <Button size="sm" variant="outline" className="mt-3 rounded-full text-xs" onClick={() => window.open("https://calendly.com/laetitia-mattioli/rendez-vous-avec-laetitia", "_blank")}>
+                📞 Réserver un appel
+              </Button>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground mt-3 text-center">
             Pour changer de plan ou poser une question : <a href="mailto:laetitia@nowadaysagency.com" className="text-primary hover:underline">laetitia@nowadaysagency.com</a>

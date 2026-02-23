@@ -577,6 +577,202 @@ export type Database = {
           },
         ]
       }
+      coaching_actions: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          program_id: string
+          session_id: string | null
+          title: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          program_id: string
+          session_id?: string | null
+          title: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          program_id?: string
+          session_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coaching_actions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coaching_actions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coaching_deliverables: {
+        Row: {
+          created_at: string
+          delivered_at: string | null
+          id: string
+          program_id: string
+          route: string | null
+          status: string
+          title: string
+          type: string | null
+        }
+        Insert: {
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          program_id: string
+          route?: string | null
+          status?: string
+          title: string
+          type?: string | null
+        }
+        Update: {
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          program_id?: string
+          route?: string | null
+          status?: string
+          title?: string
+          type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coaching_deliverables_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coaching_programs: {
+        Row: {
+          calendly_link: string | null
+          client_user_id: string
+          coach_user_id: string
+          created_at: string
+          current_month: number
+          current_phase: string
+          end_date: string | null
+          id: string
+          start_date: string | null
+          status: string
+          whatsapp_link: string | null
+        }
+        Insert: {
+          calendly_link?: string | null
+          client_user_id: string
+          coach_user_id: string
+          created_at?: string
+          current_month?: number
+          current_phase?: string
+          end_date?: string | null
+          id?: string
+          start_date?: string | null
+          status?: string
+          whatsapp_link?: string | null
+        }
+        Update: {
+          calendly_link?: string | null
+          client_user_id?: string
+          coach_user_id?: string
+          created_at?: string
+          current_month?: number
+          current_phase?: string
+          end_date?: string | null
+          id?: string
+          start_date?: string | null
+          status?: string
+          whatsapp_link?: string | null
+        }
+        Relationships: []
+      }
+      coaching_sessions: {
+        Row: {
+          created_at: string
+          duration_minutes: number
+          focus: string | null
+          id: string
+          laetitia_note: string | null
+          meeting_link: string | null
+          modules_updated: string[] | null
+          phase: string
+          prep_notes: string | null
+          program_id: string
+          scheduled_date: string | null
+          session_number: number
+          status: string
+          summary: string | null
+          title: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number
+          focus?: string | null
+          id?: string
+          laetitia_note?: string | null
+          meeting_link?: string | null
+          modules_updated?: string[] | null
+          phase?: string
+          prep_notes?: string | null
+          program_id: string
+          scheduled_date?: string | null
+          session_number: number
+          status?: string
+          summary?: string | null
+          title?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number
+          focus?: string | null
+          id?: string
+          laetitia_note?: string | null
+          meeting_link?: string | null
+          modules_updated?: string[] | null
+          phase?: string
+          prep_notes?: string | null
+          program_id?: string
+          scheduled_date?: string | null
+          session_number?: number
+          status?: string
+          summary?: string | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coaching_sessions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       communication_plans: {
         Row: {
           active_days: Json | null
