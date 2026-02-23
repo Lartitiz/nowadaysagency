@@ -10,7 +10,7 @@ export default function DemoBanner() {
     <div className="sticky top-0 z-50 flex items-center justify-between px-4 py-2 bg-rose-pale text-foreground text-sm font-semibold border-b border-border">
       <div className="flex items-center gap-2">
         <Film className="h-4 w-4 text-primary" />
-        <span>Démo : {demoName} · {demoActivity}</span>
+        <span>🎬 Mode démo · {demoName}, {demoActivity}</span>
       </div>
       <button
         onClick={deactivateDemo}

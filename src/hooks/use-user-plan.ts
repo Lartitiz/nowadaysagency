@@ -74,7 +74,7 @@ export function useUserPlan(): UserPlanState {
       suggestion: { used: 2, limit: 30 },
       import: { used: 0, limit: 10 },
       adaptation: { used: 0, limit: 30 },
-      total: { used: demoData?.credits_used ?? 16, limit: demoData?.credits_monthly ?? 300 },
+      total: { used: demoData?.profile?.credits_used ?? 16, limit: demoData?.profile?.credits_monthly ?? 300 },
     };
     return {
       plan: "now_pilot",
