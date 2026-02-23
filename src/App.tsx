@@ -93,6 +93,7 @@ import AccompagnementPage from "./pages/AccompagnementPage";
 import AdminCoachingPage from "./pages/AdminCoachingPage";
 import NowPilotPage from "./pages/NowPilotPage";
 import NotFound from "./pages/NotFound";
+import AssistantButton from "./components/assistant/AssistantButton";
 
 const queryClient = new QueryClient();
 
@@ -106,6 +107,7 @@ const App = () => (
         <AuthProvider>
           <DemoProvider>
           <DemoBanner />
+          <AssistantButton />
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
