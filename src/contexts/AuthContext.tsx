@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useMemo, R
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { useDemoContext } from "@/contexts/DemoContext";
 
 interface AuthContextType {
   user: User | null;
@@ -15,12 +16,22 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { isDemoMode } = useDemoContext();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  // In demo mode, skip all Supabase auth and provide a fake user
   useEffect(() => {
+    if (!isDemoMode) return;
+    setUser({ id: "demo-user", email: "demo@nowadays.fr" } as User);
+    setSession(null);
+    setLoading(false);
+  }, [isDemoMode]);
+
+  useEffect(() => {
+    if (isDemoMode) return; // Skip Supabase auth entirely in demo mode
     let mounted = true;
     let initialSessionHandled = false;
 
@@ -150,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [navigate]);
+  }, [navigate, isDemoMode]);
 
   // Memoize callback functions to prevent context value changes
   const signUp = useCallback(async (email: string, password: string) => {
