@@ -46,6 +46,7 @@ interface DashboardData {
   weekPostsTotal: number;
   nextPost: { date: string; theme: string } | null;
   planData: PlanData | null;
+  recommendations: { id: string; titre: string | null; route: string; completed: boolean | null }[];
 }
 
 /* ── Welcome messages ── */
@@ -73,7 +74,7 @@ export default function Dashboard() {
     igAuditScore: null, liAuditScore: null,
     contactCount: 0, prospectCount: 0, prospectConversation: 0, prospectOffered: 0,
     calendarPostCount: 0, weekPostsPublished: 0, weekPostsTotal: 0, nextPost: null,
-    planData: null,
+    planData: null, recommendations: [],
   });
   const { hasInstagram, hasLinkedin, hasWebsite, hasSeo, loading: channelsLoading, channels } = useActiveChannels();
 
@@ -84,7 +85,7 @@ export default function Dashboard() {
     const weekEnd = format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
 
     const fetchAll = async () => {
-      const [profRes, brandingData, igAuditRes, liAuditRes, contactRes, prospectRes, prospectConvRes, prospectOffRes, calendarRes, weekPostsRes, weekPublishedRes, nextPostRes, planConfigRes] = await Promise.all([
+      const [profRes, brandingData, igAuditRes, liAuditRes, contactRes, prospectRes, prospectConvRes, prospectOffRes, calendarRes, weekPostsRes, weekPublishedRes, nextPostRes, planConfigRes, recsRes] = await Promise.all([
         supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq("user_id", user.id).single(),
         fetchBrandingData(user.id),
         supabase.from("instagram_audit").select("score_global").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
@@ -98,6 +99,7 @@ export default function Dashboard() {
         supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("date", weekStart).lte("date", weekEnd).eq("status", "published"),
         supabase.from("calendar_posts").select("date, theme").eq("user_id", user.id).gte("date", format(now, "yyyy-MM-dd")).order("date", { ascending: true }).limit(1).maybeSingle(),
         supabase.from("user_plan_config").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("audit_recommendations").select("id, titre, route, completed").eq("user_id", user.id).order("position", { ascending: true }).limit(5),
       ]);
 
       if (profRes.data) setProfile(profRes.data as UserProfile);
@@ -124,6 +126,7 @@ export default function Dashboard() {
         weekPostsPublished: weekPublishedRes.count ?? 0,
         nextPost: nextPostRes.data ? { date: nextPostRes.data.date, theme: nextPostRes.data.theme } : null,
         planData,
+        recommendations: recsRes.data || [],
       });
 
       // Coaching info for Now Pilot
@@ -190,6 +193,18 @@ export default function Dashboard() {
   const shownDynamic = dynamicTasks.slice(0, 3);
   const allDone = dynamicTasks.length === 0;
 
+  const toggleRecommendation = async (id: string, currentCompleted: boolean | null) => {
+    const newCompleted = !currentCompleted;
+    await supabase.from("audit_recommendations").update({
+      completed: newCompleted,
+      completed_at: newCompleted ? new Date().toISOString() : null,
+    }).eq("id", id);
+    setDashData(prev => ({
+      ...prev,
+      recommendations: prev.recommendations.map(r => r.id === id ? { ...r, completed: newCompleted } : r),
+    }));
+  };
+
   const fixedTasks = [
     { emoji: "📅", label: "Voir mon calendrier édito", sub: `${dashData.weekPostsPublished}/${dashData.weekPostsTotal} publiés cette semaine`, route: "/calendrier" },
     { emoji: "💬", label: "Faire ma routine d'engagement", route: "/instagram/engagement" },
@@ -251,6 +266,40 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
+
+        {/* ─── 3a. DIAGNOSTIC RECAP ─── */}
+        {dashData.recommendations.length > 0 && (
+          <div className="rounded-2xl border border-border bg-card p-5 mb-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">🔍</span>
+              <h2 className="font-display text-sm font-bold text-foreground">Ton diagnostic</h2>
+            </div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3 font-mono-ui">🎯 Tes priorités :</p>
+            <div className="space-y-2.5">
+              {dashData.recommendations.map(r => (
+                <div key={r.id} className="flex items-center gap-3">
+                  <button
+                    onClick={() => toggleRecommendation(r.id, r.completed)}
+                    className={`h-5 w-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                      r.completed ? "bg-primary border-primary" : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    {r.completed && <span className="text-primary-foreground text-xs">✓</span>}
+                  </button>
+                  <span className={`text-sm flex-1 ${r.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                    {r.titre}
+                  </span>
+                  <button
+                    onClick={() => navigate(r.route)}
+                    className="text-xs text-primary font-medium shrink-0 hover:underline"
+                  >
+                    Y aller →
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ─── 3b. HUB — Quick Tasks Grid ─── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
