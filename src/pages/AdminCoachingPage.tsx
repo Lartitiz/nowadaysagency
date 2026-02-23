@@ -228,7 +228,7 @@ function AddClientDialog({ open, onOpenChange, coachUserId, onCreated }: { open:
     setCreating(true);
 
     // Find user by email in profiles (case-insensitive)
-    const { data: profile } = await (supabase.from("profiles" as any) as any).select("user_id").ilike("email", email.trim()).maybeSingle();
+    const { data: profile } = await (supabase.from("profiles" as any) as any).select("user_id, prenom").ilike("email", email.trim()).maybeSingle();
     if (!profile) {
       toast.error(
         "Aucun compte trouvé avec l'email « " + email.trim() + " ». Vérifie l'orthographe ou demande-lui de créer son compte d'abord."
@@ -238,6 +238,16 @@ function AddClientDialog({ open, onOpenChange, coachUserId, onCreated }: { open:
     }
 
     const clientUserId = (profile as any).user_id;
+    const clientName = (profile as any).prenom || email.trim();
+
+    // Check if a program already exists
+    const { data: existingProg } = await (supabase.from("coaching_programs" as any) as any).select("id, status").eq("client_user_id", clientUserId).maybeSingle();
+    if (existingProg) {
+      toast.info("Un programme existe déjà pour " + clientName + ".");
+      setCreating(false);
+      return;
+    }
+
     const endDate = new Date(startDate);
     endDate.setMonth(endDate.getMonth() + 6);
 
@@ -247,7 +257,7 @@ function AddClientDialog({ open, onOpenChange, coachUserId, onCreated }: { open:
       coach_user_id: coachUserId,
       start_date: startDate,
       end_date: format(endDate, "yyyy-MM-dd"),
-      whatsapp_link: whatsapp || null,
+      whatsapp_link: whatsapp || "https://wa.me/33614133921",
     } as any).select().single() as any);
 
     if (error) {
@@ -274,7 +284,10 @@ function AddClientDialog({ open, onOpenChange, coachUserId, onCreated }: { open:
     }));
     await (supabase.from("coaching_deliverables" as any).insert(delivsToInsert as any) as any);
 
-    toast.success("Programme créé !");
+    // Update client plan to now_pilot
+    await (supabase.from("profiles" as any).update({ current_plan: "now_pilot" } as any).eq("user_id", clientUserId) as any);
+
+    toast.success("Programme créé pour " + clientName + " !");
     setEmail("");
     setWhatsapp("");
     setCreating(false);

@@ -3527,6 +3527,7 @@ export type Database = {
           current_plan: string | null
           differentiation_text: string | null
           differentiation_type: string | null
+          email: string | null
           expressions_cles: string
           id: string
           instagram_bio: string | null
@@ -3584,6 +3585,7 @@ export type Database = {
           current_plan?: string | null
           differentiation_text?: string | null
           differentiation_type?: string | null
+          email?: string | null
           expressions_cles?: string
           id?: string
           instagram_bio?: string | null
@@ -3641,6 +3643,7 @@ export type Database = {
           current_plan?: string | null
           differentiation_text?: string | null
           differentiation_type?: string | null
+          email?: string | null
           expressions_cles?: string
           id?: string
           instagram_bio?: string | null
