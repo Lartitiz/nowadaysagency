@@ -2526,6 +2526,62 @@ export type Database = {
         }
         Relationships: []
       }
+      intake_questionnaires: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          extracted_data: Json | null
+          id: string
+          is_complete: boolean | null
+          kickoff_summary: string | null
+          messages: Json | null
+          missing_topics: Json | null
+          program_id: string | null
+          question_count: number | null
+          suggested_agenda: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          extracted_data?: Json | null
+          id?: string
+          is_complete?: boolean | null
+          kickoff_summary?: string | null
+          messages?: Json | null
+          missing_topics?: Json | null
+          program_id?: string | null
+          question_count?: number | null
+          suggested_agenda?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          extracted_data?: Json | null
+          id?: string
+          is_complete?: boolean | null
+          kickoff_summary?: string | null
+          messages?: Json | null
+          missing_topics?: Json | null
+          program_id?: string | null
+          question_count?: number | null
+          suggested_agenda?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_questionnaires_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       launch_plan_contents: {
         Row: {
           accroche: string | null

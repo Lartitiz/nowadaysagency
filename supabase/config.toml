@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.branding-coaching]
 verify_jwt = false
+
+[functions.mini-audit-instagram]
+verify_jwt = false
