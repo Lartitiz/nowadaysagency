@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { startOfWeek, endOfWeek, format, addDays, isToday } from "date-fns";
@@ -68,6 +69,7 @@ interface Props {
 
 export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
   const { user } = useAuth();
+  const { isDemoMode, demoData } = useDemoContext();
   const navigate = useNavigate();
   const [weekPosts, setWeekPosts] = useState<WeekPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,6 +79,28 @@ export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
   const sunday = endOfWeek(now, { weekStartsOn: 1 });
 
   const fetchData = useCallback(async () => {
+    if (isDemoMode) {
+      // Use demo data
+      if (demoData) {
+        const demoPosts: WeekPost[] = demoData.calendar_posts
+          .filter(p => p.planned_day)
+          .map((p, i) => ({
+            id: `demo-${i}`,
+            date: p.planned_day,
+            theme: p.title,
+            format: p.format === "carousel" ? "post_carrousel" : p.format === "reel" ? "reel" : "post_photo",
+            status: i === 0 ? "published" : "planned",
+            canal: "instagram",
+            content_type_emoji: null,
+            stories_count: null,
+            stories_structure: null,
+          }));
+        setWeekPosts(demoPosts);
+      }
+      setLoading(false);
+      return;
+    }
+
     if (!user) return;
     const weekStart = format(monday, "yyyy-MM-dd");
     const weekEnd = format(sunday, "yyyy-MM-dd");
@@ -91,13 +115,19 @@ export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
 
     setWeekPosts((data as WeekPost[]) || []);
     setLoading(false);
-  }, [user?.id]);
+  }, [user?.id, isDemoMode]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   const markAsPublished = async (postId: string) => {
+    if (isDemoMode) {
+      setWeekPosts(prev => prev.map(p => p.id === postId ? { ...p, status: "published" } : p));
+      toast.success(MESSAGES.success.published);
+      return;
+    }
+
     const { error } = await supabase
       .from("calendar_posts")
       .update({ status: "published", updated_at: new Date().toISOString() })
@@ -129,10 +159,8 @@ export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
   const total = weekPosts.length;
   const percentage = total > 0 ? Math.round((published / total) * 100) : 0;
 
-  // Next unpublished
   const todayStr = format(now, "yyyy-MM-dd");
   const nextPost = weekPosts.find(p => p.status !== "published" && p.date >= todayStr);
-
   const hasContent = weekPosts.length > 0;
 
   return (
@@ -179,8 +207,6 @@ export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
                   {d.dateNum}
                 </span>
                 {d.isToday && <div className="w-1 h-1 rounded-full bg-primary" />}
-
-                {/* Format icons for this day */}
                 <div className="flex flex-col items-center gap-0.5 mt-1 min-h-[24px]">
                   {d.posts.map((post) => {
                     const icon = getPostIcon(post);
@@ -236,7 +262,6 @@ export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
           )}
         </>
       ) : (
-        /* Empty state */
         <div className="flex flex-col items-center justify-center py-6 text-center">
           <p className="text-sm text-muted-foreground mb-1">
             Rien de prévu cette semaine.

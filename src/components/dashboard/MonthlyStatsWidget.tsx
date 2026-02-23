@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -11,7 +12,6 @@ interface Props {
   animationDelay?: number;
 }
 
-/* Monthly objectives based on available time */
 function getMonthlyObjectives(weeklyTime: string): { posts: number; routineDays: number } {
   switch (weeklyTime) {
     case "15min":
@@ -42,6 +42,7 @@ function getMonthMessage(pubPercent: number, routinePercent: number): string {
 
 export default function MonthlyStatsWidget({ animationDelay = 0 }: Props) {
   const { user } = useAuth();
+  const { isDemoMode, demoData } = useDemoContext();
   const navigate = useNavigate();
   const [monthPublished, setMonthPublished] = useState(0);
   const [monthRoutineDays, setMonthRoutineDays] = useState(0);
@@ -55,6 +56,15 @@ export default function MonthlyStatsWidget({ animationDelay = 0 }: Props) {
   const monthEnd = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd");
 
   const fetchData = useCallback(async () => {
+    if (isDemoMode && demoData) {
+      setMonthPublished(1);
+      setMonthRoutineDays(2);
+      setMonthAiUsage(demoData.profile.credits_used);
+      setObjectives(getMonthlyObjectives("2_5h"));
+      setLoading(false);
+      return;
+    }
+
     if (!user) return;
 
     const [pubRes, routineRes, aiRes, configRes] = await Promise.all([
@@ -90,7 +100,7 @@ export default function MonthlyStatsWidget({ animationDelay = 0 }: Props) {
     const weeklyTime = (configRes.data as any)?.weekly_time?.toString() || "2_5h";
     setObjectives(getMonthlyObjectives(weeklyTime));
     setLoading(false);
-  }, [user?.id, monthStart, monthEnd]);
+  }, [user?.id, isDemoMode, monthStart, monthEnd]);
 
   useEffect(() => {
     fetchData();
@@ -116,7 +126,6 @@ export default function MonthlyStatsWidget({ animationDelay = 0 }: Props) {
       style={{ animationDelay: `${animationDelay}s`, animationFillMode: "forwards" }}
       onClick={() => navigate("/instagram/stats")}
     >
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-heading text-base font-bold text-white">
           📊 Mon mois de {monthName}
@@ -126,9 +135,7 @@ export default function MonthlyStatsWidget({ animationDelay = 0 }: Props) {
         </span>
       </div>
 
-      {/* Stats rows */}
       <div className="space-y-3">
-        {/* Publications */}
         <div className="flex items-center gap-3">
           <span className="text-xs text-white/60 w-24 shrink-0">Publications</span>
           <div className="flex-1">
@@ -142,7 +149,6 @@ export default function MonthlyStatsWidget({ animationDelay = 0 }: Props) {
           </span>
         </div>
 
-        {/* Routine */}
         <div className="flex items-center gap-3">
           <span className="text-xs text-white/60 w-24 shrink-0">Routine</span>
           <div className="flex-1">
@@ -156,7 +162,6 @@ export default function MonthlyStatsWidget({ animationDelay = 0 }: Props) {
           </span>
         </div>
 
-        {/* AI credits */}
         <div className="flex items-center gap-3">
           <span className="text-xs text-white/60 w-24 shrink-0">Crédits IA</span>
           <div className="flex-1">
@@ -171,7 +176,6 @@ export default function MonthlyStatsWidget({ animationDelay = 0 }: Props) {
         </div>
       </div>
 
-      {/* Message */}
       <p className="text-xs text-white/50 mt-4 italic">{message}</p>
     </div>
   );
