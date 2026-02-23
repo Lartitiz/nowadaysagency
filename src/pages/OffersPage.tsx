@@ -3,7 +3,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Plus, Pencil, Eye, Sparkles, Gift, Gem, Mic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -98,12 +97,6 @@ export default function OffersPage() {
                       {offer.price_text && (
                         <p className="text-xs text-muted-foreground mb-2">{offer.price_text}</p>
                       )}
-                      <div className="flex items-center gap-2 mb-3">
-                        <Progress value={pct} className="h-1.5 flex-1" />
-                        <span className={`font-mono-ui text-[10px] font-semibold shrink-0 ${isComplete ? "text-[#2E7D32]" : "text-muted-foreground"}`}>
-                          {isComplete ? "✅ Complète" : `${pct}%`}
-                        </span>
-                      </div>
                       <Button
                         size="sm"
                         variant={isComplete ? "outline" : "default"}

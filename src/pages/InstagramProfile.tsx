@@ -159,11 +159,6 @@ export default function InstagramProfile() {
                 {scoreBadge(audit.score_global).label}
               </span>
             </div>
-            {validatedCount > 0 && (
-              <p className="text-center text-xs text-muted-foreground mb-3">
-                {validatedCount}/{SECTIONS.length} sections validées
-              </p>
-            )}
             <div className="flex flex-wrap justify-center gap-3 mb-4">
               {SECTIONS.map(s => {
                 const sc = getScore(s.key);
