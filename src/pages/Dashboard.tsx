@@ -12,8 +12,6 @@ import { useActiveChannels, ALL_CHANNELS } from "@/hooks/use-active-channels";
 import { computePlan, type PlanData } from "@/lib/plan-engine";
 import { startOfWeek, endOfWeek, format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useDemoContext } from "@/contexts/DemoContext";
-import BrandingAuditCard, { DEMO_AUDIT, type AuditResult } from "@/components/dashboard/BrandingAuditCard";
 
 /* ── Types ── */
 export interface UserProfile {
@@ -63,17 +61,13 @@ function getWelcomeMessage(): string {
   const idx = new Date().getDate() % WELCOME_MESSAGES.length;
   return WELCOME_MESSAGES[idx];
 }
-
 /* ── Main component ── */
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { isPilot } = useUserPlan();
-  const { isDemoMode } = useDemoContext();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [coachingInfo, setCoachingInfo] = useState<{ phase: string; month: number; nextSession: { date: string; title: string } | null } | null>(null);
-  const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
-  const [auditLoading, setAuditLoading] = useState(false);
   const [dashData, setDashData] = useState<DashboardData>({
     brandingCompletion: { storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 },
     igAuditScore: null, liAuditScore: null,
@@ -83,93 +77,27 @@ export default function Dashboard() {
   });
   const { hasInstagram, hasLinkedin, hasWebsite, hasSeo, loading: channelsLoading, channels } = useActiveChannels();
 
-  /* ── Fetch branding audit ── */
-  const fetchAudit = async () => {
-    if (isDemoMode) {
-      setAuditResult(DEMO_AUDIT);
-      return;
-    }
-    if (!user) return;
-    setAuditLoading(true);
-    try {
-      const { data } = await supabase
-        .from("branding_audits")
-        .select("score_global, points_forts, points_faibles, plan_action, created_at")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (data && data.score_global != null) {
-        const strengths = Array.isArray(data.points_forts)
-          ? (data.points_forts as any[]).map((p: any) => typeof p === "string" ? p : p.titre || p.title || "")
-          : [];
-        const weaknesses = Array.isArray(data.points_faibles)
-          ? (data.points_faibles as any[]).map((p: any) => typeof p === "string" ? p : p.titre || p.title || "")
-          : [];
-        const recommendations = Array.isArray(data.plan_action)
-          ? (data.plan_action as any[]).map((a: any) => ({
-              title: a.titre || a.title || "",
-              priority: a.priorite || a.priority || "medium",
-              category: a.module || a.category || "",
-              action_route: a.route || a.action_route || "/branding",
-            }))
-          : [];
-
-        setAuditResult({
-          score: data.score_global,
-          date: data.created_at,
-          strengths,
-          weaknesses,
-          recommendations,
-        });
-      } else {
-        setAuditResult(null);
-      }
-    } catch {
-      setAuditResult(null);
-    } finally {
-      setAuditLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (!user && !isDemoMode) return;
-
-    if (isDemoMode) {
-      setProfile({
-        prenom: "Léa",
-        activite: "Photographe portrait",
-        type_activite: "photo",
-        cible: "",
-        probleme_principal: "",
-        piliers: [],
-        tons: [],
-        plan_start_date: null,
-      });
-      setAuditResult(DEMO_AUDIT);
-      return;
-    }
-
+    if (!user) return;
     const now = new Date();
     const weekStart = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
     const weekEnd = format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
 
     const fetchAll = async () => {
       const [profRes, brandingData, igAuditRes, liAuditRes, contactRes, prospectRes, prospectConvRes, prospectOffRes, calendarRes, weekPostsRes, weekPublishedRes, nextPostRes, planConfigRes] = await Promise.all([
-        supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq("user_id", user!.id).single(),
-        fetchBrandingData(user!.id),
-        supabase.from("instagram_audit").select("score_global").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("linkedin_audit").select("score_global").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user!.id).eq("contact_type", "network"),
-        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user!.id).eq("contact_type", "prospect"),
-        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user!.id).eq("contact_type", "prospect").eq("prospect_stage", "in_conversation"),
-        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user!.id).eq("contact_type", "prospect").eq("prospect_stage", "offer_sent"),
-        supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user!.id),
-        supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user!.id).gte("date", weekStart).lte("date", weekEnd),
-        supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user!.id).gte("date", weekStart).lte("date", weekEnd).eq("status", "published"),
-        supabase.from("calendar_posts").select("date, theme").eq("user_id", user!.id).gte("date", format(now, "yyyy-MM-dd")).order("date", { ascending: true }).limit(1).maybeSingle(),
-        supabase.from("user_plan_config").select("*").eq("user_id", user!.id).maybeSingle(),
+        supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq("user_id", user.id).single(),
+        fetchBrandingData(user.id),
+        supabase.from("instagram_audit").select("score_global").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("linkedin_audit").select("score_global").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "network"),
+        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "prospect"),
+        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "prospect").eq("prospect_stage", "in_conversation"),
+        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "prospect").eq("prospect_stage", "offer_sent"),
+        supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+        supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("date", weekStart).lte("date", weekEnd),
+        supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("date", weekStart).lte("date", weekEnd).eq("status", "published"),
+        supabase.from("calendar_posts").select("date, theme").eq("user_id", user.id).gte("date", format(now, "yyyy-MM-dd")).order("date", { ascending: true }).limit(1).maybeSingle(),
+        supabase.from("user_plan_config").select("*").eq("user_id", user.id).maybeSingle(),
       ]);
 
       if (profRes.data) setProfile(profRes.data as UserProfile);
@@ -181,7 +109,7 @@ export default function Dashboard() {
         main_goal: (planConfigRes.data as any)?.main_goal || "visibility",
       };
       let planData: PlanData | null = null;
-      try { planData = await computePlan(user!.id, config); } catch {}
+      try { planData = await computePlan(user.id, config); } catch {}
 
       setDashData({
         brandingCompletion: bc,
@@ -202,7 +130,7 @@ export default function Dashboard() {
       if (isPilot) {
         const { data: prog } = await (supabase.from("coaching_programs" as any) as any)
           .select("current_phase, current_month, id")
-          .eq("client_user_id", user!.id)
+          .eq("client_user_id", user.id)
           .eq("status", "active")
           .maybeSingle();
         if (prog) {
@@ -221,10 +149,8 @@ export default function Dashboard() {
         }
       }
     };
-
     fetchAll();
-    fetchAudit();
-  }, [user?.id, isDemoMode]);
+  }, [user?.id]);
 
   if (!profile) {
     return (
@@ -241,13 +167,42 @@ export default function Dashboard() {
   const brandingDone = dashData.brandingCompletion.total >= 100;
   const comingSoonChannels = ALL_CHANNELS.filter(c => c.comingSoon && channels.includes(c.id));
 
+  /* ── Dynamic tasks logic ── */
+  const dynamicTasks: { emoji: string; label: string; sub?: string; route: string; priority?: boolean }[] = [];
+
+  if (!brandingDone) {
+    dynamicTasks.push({ emoji: "🎨", label: "Poser mon branding", sub: "C'est la base de tout le reste", route: "/branding", priority: true });
+  }
+  if (dashData.weekPostsPublished === 0 && dashData.weekPostsTotal > 0) {
+    dynamicTasks.push({ emoji: "✏️", label: "Publier mon contenu de la semaine", sub: `${dashData.weekPostsPublished}/${dashData.weekPostsTotal} publiés`, route: "/calendrier", priority: true });
+  }
+  if (hasLinkedin && dashData.liAuditScore == null) {
+    dynamicTasks.push({ emoji: "💼", label: "Optimiser mon profil LinkedIn", route: "/linkedin/profil" });
+  }
+  if (hasSeo) {
+    dynamicTasks.push({ emoji: "🔍", label: "Améliorer mon SEO", route: "https://referencement-seo.lovable.app/" });
+  }
+  if (hasWebsite) {
+    dynamicTasks.push({ emoji: "🌐", label: "Rédiger ma page d'accueil", route: "/site/accueil" });
+  }
+
+  // Max 3 dynamic tasks
+  const shownDynamic = dynamicTasks.slice(0, 3);
+  const allDone = dynamicTasks.length === 0;
+
+  const fixedTasks = [
+    { emoji: "📅", label: "Voir mon calendrier édito", sub: `${dashData.weekPostsPublished}/${dashData.weekPostsTotal} publiés cette semaine`, route: "/calendrier" },
+    { emoji: "💬", label: "Faire ma routine d'engagement", route: "/instagram/engagement" },
+    { emoji: "📊", label: "Explorer mes stats", sub: dashData.igAuditScore != null ? `Score audit : ${dashData.igAuditScore}/100` : undefined, route: "/instagram/stats" },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <AiDisclaimerBanner />
       <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4 animate-fade-in">
 
-        {/* ─── Welcome ─── */}
+        {/* ─── 2. Welcome ─── */}
         <div className="mb-6">
           <h1 className="font-display text-[22px] sm:text-[28px] font-bold text-foreground leading-tight">
             Hey <span className="text-primary">{profile.prenom}</span>,{" "}
@@ -261,50 +216,74 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* ─── 1. AUDIT DE MON BRANDING (première section) ─── */}
-        <div className="mb-6">
-          <BrandingAuditCard
-            audit={auditResult}
-            loading={auditLoading}
-            userId={user?.id}
-            onRelaunch={() => {
-              setAuditLoading(true);
-              // Navigate to the audit page to relaunch
-              navigate("/branding/audit");
-            }}
-          />
+        {/* ─── 3. HUB — Hero Card ─── */}
+        <div
+          className="rounded-2xl p-6 mb-4 cursor-pointer group
+            bg-gradient-to-br from-rose-pale via-secondary to-rose-medium/30
+            border border-primary/10 hover:shadow-strong hover:-translate-y-0.5 transition-all duration-200"
+          onClick={() => navigate("/instagram/creer")}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h2 className="font-display text-lg font-bold text-foreground">Créer un contenu</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-5">
+            Post, carousel, reel, article... c'est parti.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: "Post Instagram", route: "/instagram/creer" },
+              { label: "Carousel", route: "/instagram/carousel" },
+              { label: "Reel", route: "/instagram/reels" },
+              { label: "Post LinkedIn", route: "/linkedin/post" },
+              { label: "Article de blog", route: "/site/accueil" },
+            ].map((item) => (
+              <button
+                key={item.route + item.label}
+                onClick={(e) => { e.stopPropagation(); navigate(item.route); }}
+                className="text-xs font-medium px-3.5 py-2 rounded-xl
+                  bg-card/80 border border-primary/15 text-foreground
+                  hover:bg-accent hover:border-accent hover:text-accent-foreground
+                  transition-all duration-150"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* ─── 2. ACCOMPAGNEMENT (si Now Pilot) ─── */}
-        {isPilot && (
-          <div className="mb-6">
-            <div
-              onClick={() => navigate("/accompagnement")}
-              className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-3 cursor-pointer
-                hover:shadow-card transition-all duration-200"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-base">🤝</span>
-                {coachingInfo?.nextSession ? (
-                  <span className="text-sm text-muted-foreground">
-                    📅 Prochaine session : <span className="font-medium text-foreground">
-                      {format(new Date(coachingInfo.nextSession.date), "d MMM", { locale: fr })}
-                      {coachingInfo.nextSession.title ? ` · ${coachingInfo.nextSession.title}` : ""}
-                    </span>
-                  </span>
-                ) : (
-                  <span className="text-sm text-muted-foreground">
-                    Pas de session prévue — <span className="text-primary font-medium">Réserver →</span>
-                  </span>
-                )}
-              </div>
-              <ArrowRight className="h-4 w-4 text-primary shrink-0" />
-            </div>
-          </div>
-        )}
+        {/* ─── 3b. HUB — Quick Tasks Grid ─── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+          {/* Fixed tasks */}
+          {fixedTasks.map(t => (
+            <TaskChip key={t.label} emoji={t.emoji} label={t.label} sub={t.sub} onClick={() => navigate(t.route)} />
+          ))}
 
-        {/* ─── 3. MES ESPACES DE TRAVAIL ─── */}
-        <div className="mb-6">
+          {/* Dynamic tasks */}
+          {shownDynamic.map(t => (
+            <TaskChip
+              key={t.label}
+              emoji={t.emoji}
+              label={t.label}
+              sub={t.sub}
+              priority={t.priority}
+              onClick={() => {
+                if (t.route.startsWith("http")) { window.open(t.route, "_blank"); }
+                else { navigate(t.route); }
+              }}
+            />
+          ))}
+
+          {/* All done */}
+          {allDone && (
+            <div className="col-span-full flex items-center justify-center py-3 text-sm text-muted-foreground font-mono-ui">
+              Tu gères ! Tout est à jour 🎉
+            </div>
+          )}
+        </div>
+
+        {/* ─── 4. ESPACES — Compact tracking ─── */}
+        <div className="mb-8">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4 font-mono-ui">
             Mes espaces
           </p>
@@ -341,43 +320,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ─── 4. MON CALENDRIER + CRÉER ─── */}
-        <div
-          className="rounded-2xl p-6 mb-4 cursor-pointer group
-            bg-gradient-to-br from-rose-pale via-secondary to-rose-medium/30
-            border border-primary/10 hover:shadow-strong hover:-translate-y-0.5 transition-all duration-200"
-          onClick={() => navigate("/instagram/creer")}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h2 className="font-display text-lg font-bold text-foreground">Créer un contenu</h2>
-          </div>
-          <p className="text-sm text-muted-foreground mb-5">
-            Post, carousel, reel, article... c'est parti.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: "Post Instagram", route: "/instagram/creer" },
-              { label: "Carousel", route: "/instagram/carousel" },
-              { label: "Reel", route: "/instagram/reels" },
-              { label: "Post LinkedIn", route: "/linkedin/post" },
-              { label: "Article de blog", route: "/site/accueil" },
-            ].map((item) => (
-              <button
-                key={item.route + item.label}
-                onClick={(e) => { e.stopPropagation(); navigate(item.route); }}
-                className="text-xs font-medium px-3.5 py-2 rounded-xl
-                  bg-card/80 border border-primary/15 text-foreground
-                  hover:bg-accent hover:border-accent hover:text-accent-foreground
-                  transition-all duration-150"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ─── BRANDING — Compact banner ─── */}
+        {/* ─── 5. BRANDING — Compact banner ─── */}
         <div className="mb-4">
           {brandingDone ? (
             <div
@@ -419,7 +362,35 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* ─── COMING SOON ─── */}
+        {/* ─── 6. ACCOMPAGNEMENT — Ultra compact ─── */}
+        {isPilot && (
+          <div className="mb-4">
+            <div
+              onClick={() => navigate("/accompagnement")}
+              className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-3 cursor-pointer
+                hover:shadow-card transition-all duration-200"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-base">🤝</span>
+                {coachingInfo?.nextSession ? (
+                  <span className="text-sm text-muted-foreground">
+                    📅 Prochaine session : <span className="font-medium text-foreground">
+                      {format(new Date(coachingInfo.nextSession.date), "d MMM", { locale: fr })}
+                      {coachingInfo.nextSession.title ? ` · ${coachingInfo.nextSession.title}` : ""}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-sm text-muted-foreground">
+                    Pas de session prévue — <span className="text-primary font-medium">Réserver →</span>
+                  </span>
+                )}
+              </div>
+              <ArrowRight className="h-4 w-4 text-primary shrink-0" />
+            </div>
+          </div>
+        )}
+
+        {/* ─── 7. COMING SOON ─── */}
         {comingSoonChannels.length > 0 && (
           <div className="mb-8 rounded-2xl bg-gradient-to-r from-rose-pale via-card to-accent/10 border border-border p-5">
             <div className="flex items-center gap-2 mb-1">
@@ -451,6 +422,27 @@ export default function Dashboard() {
 /* ═══════════════════════════════════════════════════════════ */
 /*  Sub-components                                            */
 /* ═══════════════════════════════════════════════════════════ */
+
+/* ── Task Chip ── */
+function TaskChip({ emoji, label, sub, priority, onClick }: {
+  emoji: string; label: string; sub?: string; priority?: boolean; onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-3 text-left rounded-xl border px-4 py-3.5
+        bg-card cursor-pointer hover:border-primary hover:-translate-y-px hover:shadow-card
+        transition-all duration-200
+        ${priority ? "border-l-[3px] border-l-accent border-t-rose-soft border-r-rose-soft border-b-rose-soft bg-accent/5" : "border-rose-soft"}`}
+    >
+      <span className="text-lg shrink-0">{emoji}</span>
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{label}</p>
+        {sub && <p className="text-xs text-muted-foreground font-mono-ui truncate mt-0.5">{sub}</p>}
+      </div>
+    </button>
+  );
+}
 
 /* ── Space Card (with description, no progress bar) ── */
 function SpaceCard({ emoji, title, desc, onClick, external }: {
