@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useDemoContext } from "@/contexts/DemoContext";
 
 type Plan = "free" | "outil" | "studio" | "now_pilot";
 
@@ -52,14 +53,45 @@ interface UserPlanState {
   remainingTotal: () => number;
   isPaid: boolean;
   isStudio: boolean;
+  isPilot: boolean;
   refresh: () => Promise<void>;
 }
 
 export function useUserPlan(): UserPlanState {
   const { user } = useAuth();
+  const { isDemoMode, demoData } = useDemoContext();
   const [plan, setPlan] = useState<Plan>("free");
   const [usage, setUsage] = useState<Record<string, CategoryUsage>>({});
   const [loading, setLoading] = useState(true);
+
+  // In demo mode, return now_pilot with fake usage
+  if (isDemoMode) {
+    const demoUsage: Record<string, CategoryUsage> = {
+      content: { used: 8, limit: 150 },
+      audit: { used: 1, limit: 15 },
+      dm_comment: { used: 4, limit: 50 },
+      bio_profile: { used: 1, limit: 15 },
+      suggestion: { used: 2, limit: 30 },
+      import: { used: 0, limit: 10 },
+      adaptation: { used: 0, limit: 30 },
+      total: { used: demoData?.credits_used ?? 16, limit: demoData?.credits_monthly ?? 300 },
+    };
+    return {
+      plan: "now_pilot",
+      loading: false,
+      usage: demoUsage,
+      canUseFeature: (f: Feature) => NOW_PILOT_FEATURES.includes(f),
+      canGenerate: () => true,
+      canAudit: () => true,
+      remainingGenerations: () => 100,
+      remainingAudits: () => 14,
+      remainingTotal: () => 284,
+      isPaid: true,
+      isStudio: false,
+      isPilot: true,
+      refresh: async () => {},
+    };
+  }
 
   const load = useCallback(async () => {
     if (!user) {
