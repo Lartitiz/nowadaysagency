@@ -36,6 +36,16 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     import: 10,
     adaptation: 30,
   },
+  now_pilot: {
+    total: 300,
+    content: 150,
+    audit: 15,
+    dm_comment: 50,
+    bio_profile: 15,
+    suggestion: 30,
+    import: 10,
+    adaptation: 30,
+  },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {

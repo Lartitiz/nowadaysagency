@@ -2,14 +2,15 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
-type Plan = "free" | "outil" | "studio";
+type Plan = "free" | "outil" | "studio" | "now_pilot";
 
 type Feature =
   | "branding" | "persona" | "audit_basic" | "generation_limited" | "community_read"
   | "generation_unlimited" | "import_stats" | "prospection" | "comments_generator"
   | "dm_generator" | "audit_unlimited" | "offer_workshop" | "lives" | "community_write"
   | "contacts_strategiques" | "routine_engagement" | "editorial_line" | "calendar"
-  | "coaching" | "studio_space" | "laetitia_validation" | "studio_lives" | "direct_channel" | "binome";
+  | "coaching" | "studio_space" | "laetitia_validation" | "studio_lives" | "direct_channel" | "binome"
+  | "whatsapp" | "assistant_chat";
 
 const FREE_FEATURES: Feature[] = [
   "branding", "persona", "audit_basic", "generation_limited", "community_read",
@@ -25,6 +26,11 @@ const OUTIL_FEATURES: Feature[] = [
 const STUDIO_FEATURES: Feature[] = [
   ...OUTIL_FEATURES,
   "coaching", "studio_space", "laetitia_validation", "studio_lives", "direct_channel", "binome",
+];
+
+const NOW_PILOT_FEATURES: Feature[] = [
+  ...OUTIL_FEATURES,
+  "coaching", "whatsapp", "assistant_chat", "direct_channel", "binome",
 ];
 
 export type AiCategory = "content" | "audit" | "dm_comment" | "bio_profile" | "suggestion" | "import" | "adaptation";
@@ -82,6 +88,7 @@ export function useUserPlan(): UserPlanState {
   const canUseFeature = useCallback(
     (feature: Feature) => {
       switch (plan) {
+        case "now_pilot": return NOW_PILOT_FEATURES.includes(feature);
         case "studio": return STUDIO_FEATURES.includes(feature);
         case "outil": return OUTIL_FEATURES.includes(feature);
         default: return FREE_FEATURES.includes(feature);
@@ -130,6 +137,7 @@ export function useUserPlan(): UserPlanState {
     remainingTotal,
     isPaid: plan !== "free",
     isStudio: plan === "studio",
+    isPilot: plan === "now_pilot",
     refresh: load,
   };
 }
