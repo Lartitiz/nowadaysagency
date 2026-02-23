@@ -198,6 +198,23 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     const params = new URLSearchParams();
     if (calendarId) params.set("calendar_id", calendarId);
 
+    // Pass rich context via state for all generators
+    const state = {
+      fromCalendar: true,
+      calendarPostId: calendarId,
+      theme,
+      objectif,
+      angle,
+      format,
+      notes,
+      postDate: selectedDate,
+      // Launch context
+      launchId: editingPost?.launch_id,
+      contentType: editingPost?.content_type,
+      category: editingPost?.category,
+      objective: editingPost?.objective,
+    };
+
     // Determine route based on format
     const fmt = format || "post_carrousel";
     if (fmt === "post_carrousel" || fmt === "carousel") {
@@ -205,14 +222,14 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       if (angle && ANGLE_TO_CAROUSEL[angle]) {
         params.set("carousel_type", ANGLE_TO_CAROUSEL[angle]);
       }
-      navigate(`/instagram/carousel?${params.toString()}`);
+      navigate(`/instagram/carousel?${params.toString()}`, { state });
     } else if (fmt === "reel") {
-      navigate(`/instagram/reels?${params.toString()}`);
+      navigate(`/instagram/reels?${params.toString()}`, { state });
     } else if (fmt === "story_serie") {
-      navigate(`/instagram/stories?${params.toString()}`);
+      navigate(`/instagram/stories?${params.toString()}`, { state });
     } else {
       // Default: atelier for regular posts
-      navigate(`/atelier?canal=${postCanal || "instagram"}&${params.toString()}`);
+      navigate(`/atelier?canal=${postCanal || "instagram"}&${params.toString()}`, { state });
     }
   };
 

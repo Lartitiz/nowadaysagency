@@ -1,3 +1,5 @@
+// ============= Full file contents =============
+
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -9,13 +11,13 @@ interface ChecklistItem {
 }
 
 interface Props {
-  hasHook: boolean;
-  hasSticker: boolean;
-  hasCTA: boolean;
-  hasFaceCam: boolean;
+  hasHook?: boolean;
+  hasSticker?: boolean;
+  hasCTA?: boolean;
+  hasFaceCam?: boolean;
 }
 
-export default function StoryChecklist({ hasHook, hasSticker, hasCTA, hasFaceCam }: Props) {
+export default function StoryChecklist({ hasHook = false, hasSticker = false, hasCTA = false, hasFaceCam = false }: Props) {
   const items: ChecklistItem[] = [
     { id: "hook", label: "Hook fort dans les 1-2 premières secondes de story 1", autoChecked: hasHook, manual: false },
     { id: "lisible", label: "Texte lisible en 3-5 secondes max par story", autoChecked: true, manual: false },

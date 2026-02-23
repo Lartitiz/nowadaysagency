@@ -1,3 +1,5 @@
+// ============= Full file contents =============
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -28,12 +30,13 @@ export interface SubjectPickerResult {
 interface SubjectPickerProps {
   onComplete: (result: SubjectPickerResult) => void;
   brandingContext?: string;
+  initialSubject?: string;
 }
 
 type Path = null | "fuzzy" | "precise" | "none";
 
-export default function SubjectPicker({ onComplete, brandingContext }: SubjectPickerProps) {
-  const [path, setPath] = useState<Path>(null);
+export default function SubjectPicker({ onComplete, brandingContext, initialSubject }: SubjectPickerProps) {
+  const [path, setPath] = useState<Path>(initialSubject ? "precise" : null);
 
   // Fuzzy path state
   const [fuzzyStep, setFuzzyStep] = useState<"input" | "clarify">("input");
@@ -44,7 +47,7 @@ export default function SubjectPicker({ onComplete, brandingContext }: SubjectPi
   const [clarifyLoading, setClarifyLoading] = useState(false);
 
   // Precise path state
-  const [preciseSubject, setPreciseSubject] = useState("");
+  const [preciseSubject, setPreciseSubject] = useState(initialSubject || "");
   const [preciseDetails, setPreciseDetails] = useState("");
 
   // No idea path state
@@ -247,7 +250,7 @@ export default function SubjectPicker({ onComplete, brandingContext }: SubjectPi
   if (path === "precise") {
     return (
       <div className="space-y-4">
-        <button onClick={() => setPath(null)} className="text-xs text-primary hover:underline">← Changer de parcours</button>
+        {!initialSubject && <button onClick={() => setPath(null)} className="text-xs text-primary hover:underline">← Changer de parcours</button>}
         <h2 className="font-display text-lg font-bold text-foreground">✍️ Dis-moi tout</h2>
 
         <div>

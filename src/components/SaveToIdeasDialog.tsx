@@ -1,3 +1,5 @@
+// ============= Full file contents =============
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -18,7 +20,7 @@ const TAG_OPTIONS = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  contentType: "stories" | "reel" | "post_instagram" | "post_linkedin";
+  contentType: "story" | "reel" | "post_instagram" | "post_linkedin";
   subject: string;
   contentData: any;
   personalElements?: any;
@@ -62,8 +64,8 @@ export function SaveToIdeasDialog({
     if (!user) return;
     setSaving(true);
 
-    const contentEmoji = contentType === "stories" ? "📱" : contentType === "reel" ? "🎬" : "📸";
-    const formatLabel = contentType === "stories" ? "story_serie" : contentType === "reel" ? "reel" : format || "post";
+    const contentEmoji = contentType === "story" ? "📱" : contentType === "reel" ? "🎬" : "📸";
+    const formatLabel = contentType === "story" ? "story_serie" : contentType === "reel" ? "reel" : format || "post";
 
     const { error } = await supabase.from("saved_ideas").insert({
       user_id: user.id,
