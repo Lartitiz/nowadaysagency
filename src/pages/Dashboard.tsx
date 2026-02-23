@@ -196,19 +196,59 @@ export default function Dashboard() {
       <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4">
 
         {/* 1. Header */}
-        <div className="mb-2">
+        <div className="mb-4">
           <h1 className="font-display text-[22px] sm:text-[30px] font-bold text-foreground">
             Hey <span className="text-primary">{profile.prenom}</span>, on avance sur quoi aujourd'hui ?
           </h1>
           <p className="mt-1 text-[15px] text-muted-foreground">Choisis un pilier ou lance une action rapide.</p>
         </div>
 
-        {/* 2. Conseil du jour */}
+        {/* 2. Fondations — toujours visible, toujours en haut */}
+        <div className="mb-6">
+          {brandingDone ? (
+            <div className="rounded-xl border border-border bg-card px-4 py-3 space-y-1.5">
+              <div onClick={() => navigate("/branding")}
+                className="flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">🎨</span>
+                  <span className="text-sm font-semibold text-foreground">Mon Branding</span>
+                  <span className="text-xs font-semibold text-[#2E7D32] bg-[#E8F5E9] px-1.5 py-0.5 rounded">✅</span>
+                </div>
+                <span className="text-xs text-primary font-medium">Voir ma synthèse →</span>
+              </div>
+              {dashData.igAuditScore != null && (
+                <div onClick={() => navigate("/instagram/audit")}
+                  className="flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">🔍</span>
+                    <span className="text-sm text-muted-foreground">Dernier audit : <span className="font-semibold text-foreground">{dashData.igAuditScore}/100</span></span>
+                  </div>
+                  <span className="text-xs text-primary font-medium">Voir →</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div onClick={() => navigate("/branding")}
+              className="rounded-xl border border-border bg-card px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">🎨</span>
+                  <span className="text-sm font-semibold text-foreground">Mon Branding</span>
+                  <span className="text-xs text-muted-foreground">· {dashData.brandingCompletion.total}%</span>
+                </div>
+                <span className="text-xs text-primary font-medium">{dashData.brandingCompletion.total > 0 ? "Continuer →" : "Commencer →"}</span>
+              </div>
+              <p className="text-[12px] text-muted-foreground mt-1">Pose les bases de ta communication.</p>
+            </div>
+          )}
+        </div>
+
+        {/* 3. Conseil du jour */}
         <div className="rounded-[10px] bg-rose-pale px-4 py-3 mb-6">
           <p className="text-[13px] text-muted-foreground">💡 <span className="font-bold text-bordeaux">{tip}</span></p>
         </div>
 
-        {/* 3. Actions rapides */}
+        {/* 4. Actions rapides */}
         <div className="mb-8">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">⚡ Actions rapides</p>
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
@@ -221,7 +261,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* 4. Section principale */}
+        {/* 5. Cards canaux */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           {/* Instagram card */}
           {!channelsLoading && hasInstagram && (
@@ -246,30 +286,7 @@ export default function Dashboard() {
 
           {/* SEO card (external tool) */}
           {!channelsLoading && hasSeo && <SeoExternalCard />}
-
-          {/* Branding (seulement si pas complété) */}
-          {!brandingDone && (
-            <ChannelSetupCard emoji="🎨" title="Mon Branding" completion={dashData.brandingCompletion.total}
-              nextStep={brandingNextStep || "Continuer le branding"} route="/branding" descKey="branding"
-              missingLabel={getBrandingMissing(dashData.brandingCompletion)} />
-          )}
         </div>
-
-        {/* 5. Fondations (si branding complété) */}
-        {brandingDone && (
-          <div className="mb-8">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">🧱 Mes fondations</p>
-            <div className="space-y-2">
-              <FoundationRow emoji="🎨" label="Branding" detail="Complet" route="/branding" linkLabel="Voir ma synthèse →" />
-              {dashData.igAuditScore != null && (
-                <FoundationRow emoji="🔍" label="Audit Instagram" detail={`${dashData.igAuditScore}/100`} route="/instagram/audit" linkLabel="Voir l'audit →" />
-              )}
-              {dashData.liAuditScore != null && (
-                <FoundationRow emoji="💼" label="Audit LinkedIn" detail={`${dashData.liAuditScore}/100`} route="/linkedin/audit" linkLabel="Voir l'audit →" />
-              )}
-            </div>
-          </div>
-        )}
 
         {/* 6. Bientôt disponibles */}
         {comingSoonChannels.length > 0 && (
@@ -285,7 +302,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* 7. Lien ajouter un canal */}
+        {/* 7. Lien modifier mes canaux */}
         <div className="text-center py-4">
           <Link to="/profil" className="text-xs text-muted-foreground hover:text-primary transition-colors">
             📱 Tu veux ajouter un canal ? <span className="underline">Modifier dans le profil →</span>
