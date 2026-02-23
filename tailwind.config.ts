@@ -15,9 +15,10 @@ export default {
     extend: {
       fontFamily: {
         sans: ['"IBM Plex Sans"', "system-ui", "sans-serif"],
-        display: ["Libre Baskerville", "serif"],
+        heading: ['"Libre Baskerville"', "Georgia", "serif"],
+        display: ['"Libre Baskerville"', "Georgia", "serif"],
         body: ['"IBM Plex Sans"', "system-ui", "sans-serif"],
-        "mono-ui": ["IBM Plex Mono", "monospace"],
+        "mono-ui": ['"IBM Plex Mono"', "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
