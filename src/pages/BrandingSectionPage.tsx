@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClipboardList, MessageSquare, Sparkles, History } from "lucide-react";
 import EditableField from "@/components/branding/EditableField";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
+import BrandingRecapRenderer from "@/components/branding/BrandingRecapRenderer";
 import BrandingCoachingHistory from "@/components/branding/BrandingCoachingHistory";
 import BrandingSuggestionsCard from "@/components/branding/BrandingSuggestionsCard";
 import { useBrandingSuggestions } from "@/hooks/use-branding-suggestions";
@@ -348,20 +349,13 @@ export default function BrandingSectionPage() {
                 />
               </div>
             )}
-            <div className="space-y-0">
-              {config.fields.map(field => (
-                <EditableField
-                  key={field.key}
-                  label={field.label}
-                  value={data[field.key] || ""}
-                  field={field.key}
-                  table={field.table || config.table}
-                  multiline={field.multiline !== false}
-                  onUpdated={handleFieldUpdate}
-                  onStartCoaching={switchToCoaching}
-                />
-              ))}
-            </div>
+            <BrandingRecapRenderer
+              section={section}
+              data={data}
+              table={config.table}
+              onUpdated={handleFieldUpdate}
+              onStartCoaching={switchToCoaching}
+            />
 
             {lastUpdated && (
               <p className="text-xs text-muted-foreground mt-4">
