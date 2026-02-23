@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Sparkles, Mic, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -97,6 +97,9 @@ export default function InstagramStories() {
   const navigate = useNavigate();
   const location = useLocation();
   const highlightState = location.state as any;
+  const [searchParams] = useSearchParams();
+  const calendarId = searchParams.get("calendar_id");
+  const calendarState = location.state as any;
 
   // Form state
   const [step, setStep] = useState(1);
@@ -119,433 +122,331 @@ export default function InstagramStories() {
   const [preGenEnergy, setPreGenEnergy] = useState("");
   const [preGenMessage, setPreGenMessage] = useState("");
 
-  // Hook selection for story 1
-  const [selectedHookOption, setSelectedHookOption] = useState<"a" | "b" | null>(null);
+  // Results
+  const [sequenceResult, setSequenceResult] = useState<SequenceResult | null>(null);
+  const [loading, setLoading] = useState(false);
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
-  // Persist form state to sessionStorage
+  // Pre-fill from calendar
+  useEffect(() => {
+    if (calendarState?.fromCalendar) {
+      if (calendarState.theme) setSubject(calendarState.theme);
+      if (calendarState.objectif) setObjective(calendarState.objectif);
+      if (calendarState.notes) setSubject((prev) => prev ? `${prev}\n\nNotes: ${calendarState.notes}` : calendarState.notes);
+    } else if (calendarId && user) {
+      // Fallback: fetch if no state passed
+      supabase.from("calendar_posts").select("*").eq("id", calendarId).single().then(({ data }) => {
+        if (data) {
+          if (data.theme) setSubject(data.theme);
+          if (data.objectif) setObjective(data.objectif);
+          if (data.notes) setSubject((prev) => prev ? `${prev}\n\nNotes: ${data.notes}` : data.notes);
+        }
+      });
+    }
+  }, [calendarId, user, calendarState]);
+
+  // Persist form state
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "stories-form",
-    { step, objective, priceRange, timeAvailable, faceCam, subject, subjectDetails, rawIdea, clarifyContext, subjectDirection, isLaunch, preGenVecu, preGenEnergy, preGenMessage },
+    { step, objective, priceRange, timeAvailable, faceCam, subject, subjectDetails, rawIdea, clarifyContext, subjectDirection, isLaunch, subjectDone },
     (saved) => {
+      // Don't restore if coming from calendar/ideas
+      if (location.state || searchParams.get("calendar_id")) return;
+      
+      if (saved.step) setStep(saved.step);
       if (saved.objective) setObjective(saved.objective);
       if (saved.priceRange) setPriceRange(saved.priceRange);
       if (saved.timeAvailable) setTimeAvailable(saved.timeAvailable);
       if (saved.faceCam) setFaceCam(saved.faceCam);
-      if (saved.subject) { setSubject(saved.subject); setSubjectDone(true); }
+      if (saved.subject) setSubject(saved.subject);
       if (saved.subjectDetails) setSubjectDetails(saved.subjectDetails);
       if (saved.rawIdea) setRawIdea(saved.rawIdea);
       if (saved.clarifyContext) setClarifyContext(saved.clarifyContext);
       if (saved.subjectDirection) setSubjectDirection(saved.subjectDirection);
       if (saved.isLaunch) setIsLaunch(saved.isLaunch);
-      if (saved.preGenVecu) setPreGenVecu(saved.preGenVecu);
-      if (saved.preGenEnergy) setPreGenEnergy(saved.preGenEnergy);
-      if (saved.preGenMessage) setPreGenMessage(saved.preGenMessage);
-      if (saved.step && saved.step > 1 && saved.step < 6) setStep(saved.step);
+      if (saved.subjectDone) setSubjectDone(saved.subjectDone);
     }
   );
 
-  // Pre-fill from highlights navigation
+  // Fetch branding context
   useEffect(() => {
-    if (highlightState?.fromHighlights) {
-      if (highlightState.objective) setObjective(highlightState.objective);
-      if (highlightState.price_range) setPriceRange(highlightState.price_range);
-      if (highlightState.time_available) setTimeAvailable(highlightState.time_available);
-      if (highlightState.face_cam) setFaceCam(highlightState.face_cam);
-      if (highlightState.subject) { setSubject(highlightState.subject); setSubjectDone(true); }
-      setStep(3);
+    const fetchBranding = async () => {
+      if (!user) return;
+      const { data } = await supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle();
+      if (data) {
+        setBrandingCtx(`Ton: ${data.tone_register || "Authentique"}\nCible: ${data.target_description || "Entrepreneures"}\nMission: ${data.mission || ""}`);
+      }
+    };
+    fetchBranding();
+  }, [user]);
+
+  // View mode
+  useEffect(() => {
+    if (highlightState?.viewSequenceId && user) {
+      setLoading(true);
+      // Fetch sequence logic (mock for now as we don't store sequences separately yet in this view)
+      // In real app, we would fetch from 'generated_stories' or similar
+      setLoading(false);
     }
-  }, []);
+  }, [highlightState, user]);
 
-  // Pre-fetch branding context for SubjectPicker
-  useEffect(() => {
-    if (user && !brandingCtx) fetchBrandingContext().then(setBrandingCtx);
-  }, [user?.id]);
-
-  // Result state
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<SequenceResult | null>(null);
-
-  const handleGenerate = async (isDaily = false, retryCount = 0) => {
+  const handleGenerate = async (quickMode = false) => {
     if (!user) return;
     setLoading(true);
-
     try {
-      const preGenAnswers = (preGenVecu || preGenEnergy || preGenMessage) ? {
-        vecu: preGenVecu || undefined,
-        energy: preGenEnergy || undefined,
-        message_cle: preGenMessage || undefined,
-      } : undefined;
-
-      console.log("Stories generation started", { userId: user.id, subject, isDaily, retryCount });
-
-      const { data: brandRes, error: fnError } = await supabase.functions.invoke("stories-ai", {
+      const { data, error } = await supabase.functions.invoke("stories-ai", {
         body: {
-          type: isDaily ? "daily" : "generate",
-          objective,
+          type: "sequence",
+          objective: quickMode ? "connexion" : objective,
           price_range: priceRange,
-          time_available: timeAvailable,
-          face_cam: faceCam,
-          subject,
-          subject_details: subjectDetails || undefined,
-          raw_idea: rawIdea || undefined,
-          clarify_context: clarifyContext || undefined,
-          direction: subjectDirection || undefined,
+          time_available: quickMode ? "5min" : timeAvailable,
+          face_cam: quickMode ? "mixte" : faceCam,
+          subject: quickMode ? "Ma journée (quick gen)" : subject,
+          subject_details: subjectDetails,
+          subject_direction: subjectDirection,
+          branding_context: brandingCtx,
           is_launch: isLaunch,
-          branding_context: await fetchBrandingContext(),
-          pre_gen_answers: isDaily ? undefined : preGenAnswers,
+          pre_gen_answers: quickMode ? undefined : {
+            vecu: preGenVecu,
+            energy: preGenEnergy,
+            message: preGenMessage,
+          }
         },
       });
 
-      // Handle edge function invocation error
-      if (fnError) {
-        console.error("Edge function error:", fnError);
-        throw new Error(fnError.message || "Erreur de connexion au serveur");
-      }
-
-      // Handle error returned in response body
-      if (brandRes?.error) {
-        const errMsg = brandRes.error === "limit_reached"
-          ? (brandRes.message || "Tu as atteint ta limite de générations ce mois-ci.")
-          : brandRes.error;
-
-        // Auto-retry on overload (max 2 retries)
-        if ((errMsg.includes("surchargé") || errMsg.includes("529") || errMsg.includes("Overloaded")) && retryCount < 2) {
-          console.log(`Retrying stories generation (attempt ${retryCount + 1})...`);
-          toast.info("Serveur IA chargé, nouvelle tentative...");
-          await new Promise(r => setTimeout(r, 3000 * (retryCount + 1)));
-          return handleGenerate(isDaily, retryCount + 1);
-        }
-
-        toast.error(errMsg);
-        setLoading(false);
-        return;
-      }
-
-      const raw = brandRes?.content || "";
+      if (error) throw error;
+      const raw = data?.content || "";
       const jsonStr = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      const parsed: SequenceResult = JSON.parse(jsonStr);
-      setResult(parsed);
-      setSelectedHookOption(null);
-
-      console.log("Stories generation completed", { success: true, totalStories: parsed.total_stories });
-
-      // Save to DB
-      const { error: saveError } = await supabase.from("stories_sequences" as any).insert({
-        user_id: user.id,
-        objective: isDaily ? "quotidien" : objective,
-        price_range: priceRange || null,
-        time_available: isDaily ? "10min" : timeAvailable,
-        face_cam: isDaily ? "mixte" : faceCam,
-        subject: subject || null,
-        is_launch: isLaunch,
-        structure_type: parsed.structure_type,
-        total_stories: parsed.total_stories,
-        sequence_result: parsed as any,
-      });
-
-      if (saveError) console.error("Save error:", saveError);
-      setStep(6); // Results step
-      clearDraft(); // Clear sessionStorage draft after successful generation
-    } catch (e: any) {
-      console.error("Stories generation failed:", e);
-      const msg = e?.message || "Erreur inconnue";
-      toast.error(`Erreur : ${msg}`, { description: "Réessaie dans quelques instants." });
+      const parsed = JSON.parse(jsonStr);
+      
+      setSequenceResult(parsed);
+      setStep(5); // Result view
+      clearDraft(); // Clear draft on success
+    } catch (e) {
+      console.error(e);
+      toast.error("Erreur lors de la génération.");
     }
     setLoading(false);
   };
 
-  const fetchBrandingContext = async (): Promise<string> => {
-    if (!user) return "";
-    const lines: string[] = [];
-
-    const [profRes, toneRes, propRes, stratRes, editoRes] = await Promise.all([
-      supabase.from("brand_profile").select("mission, offer, target_description, tone_register, key_expressions, things_to_avoid").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_profile").select("voice_description, tone_style, tone_humor, combat_cause").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_proposition").select("version_final").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq("user_id", user.id).maybeSingle(),
-      supabase.from("instagram_editorial_line").select("main_objective, pillars, preferred_formats, posts_frequency, stories_frequency").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    ]);
-
-    const p = profRes.data;
-    if (p) {
-      if (p.mission) lines.push(`Mission : ${p.mission}`);
-      if (p.offer) lines.push(`Offre : ${p.offer}`);
-      if (p.target_description) lines.push(`Cible : ${p.target_description}`);
-      if (p.tone_register) lines.push(`Registre : ${p.tone_register}`);
-      if (p.key_expressions) lines.push(`Expressions clés : ${p.key_expressions}`);
-      if (p.things_to_avoid) lines.push(`À éviter : ${p.things_to_avoid}`);
-    }
-    const t = toneRes.data;
-    if (t) {
-      if (t.voice_description) lines.push(`Voix : ${t.voice_description}`);
-      if (t.combat_cause) lines.push(`Cause : ${t.combat_cause}`);
-    }
-    if (propRes.data?.version_final) lines.push(`Proposition : ${propRes.data.version_final}`);
-    const s = stratRes.data;
-    if (s?.pillar_major) lines.push(`Pilier majeur : ${s.pillar_major}`);
-    const e = editoRes.data;
-    if (e) {
-      if (e.main_objective) lines.push(`Objectif Instagram : ${e.main_objective}`);
-      if (e.stories_frequency) lines.push(`Fréquence stories : ${e.stories_frequency}`);
-    }
-
-    return lines.length ? `CONTEXTE BRANDING :\n${lines.join("\n")}` : "";
-  };
-
   const handleAddToCalendar = async (dateStr: string) => {
-    if (!user || !result) return;
+    if (!user || !sequenceResult) return;
+
+    if (calendarId) {
+      const { error } = await supabase.from("calendar_posts")
+        .update({
+          stories_count: sequenceResult.total_stories,
+          stories_structure: sequenceResult.structure_label,
+          stories_objective: objective,
+          status: "ready",
+          story_sequence_detail: {
+            stories: sequenceResult.stories,
+            stickers_used: sequenceResult.stickers_used,
+            garde_fou_alerte: sequenceResult.garde_fou_alerte,
+            personal_tip: sequenceResult.personal_tip,
+          } as any,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", calendarId);
+      
+      if (error) {
+        toast.error("Erreur lors de la mise à jour");
+      } else {
+        toast.success("Séquence mise à jour !");
+        setShowCalendarDialog(false);
+      }
+      return;
+    }
+
     const { error } = await supabase.from("calendar_posts").insert({
       user_id: user.id,
       date: dateStr,
-      theme: subject || `Stories : ${result.structure_label}`,
+      theme: subject || sequenceResult.structure_label,
       canal: "instagram",
       format: "story_serie",
       objectif: objective,
-      stories_count: result.total_stories,
-      stories_structure: result.structure_label,
-      stories_objective: objective,
-      content_draft: result.stories.map((s) => `Story ${s.number} (${s.role}) : ${s.text}`).join("\n\n"),
       status: "ready",
+      stories_count: sequenceResult.total_stories,
+      stories_structure: sequenceResult.structure_label,
+      stories_objective: objective,
+      stories_timing: {},
       story_sequence_detail: {
-        ...result,
-        personal_elements: {
-          vecu: preGenVecu || null,
-          energy: preGenEnergy || null,
-          message_cle: preGenMessage || null,
-        },
+        stories: sequenceResult.stories,
+        stickers_used: sequenceResult.stickers_used,
+        garde_fou_alerte: sequenceResult.garde_fou_alerte,
+        personal_tip: sequenceResult.personal_tip,
       } as any,
     });
     setShowCalendarDialog(false);
-    if (error) {
-      toast.error("Erreur lors de l'ajout au calendrier");
-    } else {
-      toast.success("Séquence ajoutée au calendrier !");
-    }
+    if (error) toast.error("Erreur lors de l'ajout");
+    else toast.success("Séquence ajoutée au calendrier !");
   };
 
-  const handleCopyAll = () => {
-    if (!result) return;
-    const text = result.stories
-      .map((s) => `${s.timing_emoji} STORY ${s.number} · ${s.role}\n${s.format_label}\n\n${s.text}${s.sticker ? `\n\n🎯 Sticker : ${s.sticker.label}${s.sticker.options ? ` → ${s.sticker.options.join(" / ")}` : ""}` : ""}`)
-      .join("\n\n───────────────\n\n");
+  const handleCopySequence = () => {
+    if (!sequenceResult) return;
+    const text = sequenceResult.stories.map(s => `STORY ${s.number} (${s.timing})\n${s.format_label}\n\n"${s.text}"\n\n🎯 Sticker: ${s.sticker ? `${s.sticker.label}` : "Aucun"}\n💡 Tip: ${s.tip}`).join("\n\n───────────────\n\n");
     navigator.clipboard.writeText(text);
     toast.success("Séquence copiée !");
   };
 
-  const handleSelectHook = (option: "a" | "b") => {
-    if (!result) return;
-    setSelectedHookOption(option);
-    const hookOpts = result.stories[0]?.hook_options;
-    if (hookOpts) {
-      const newText = option === "a" ? hookOpts.option_a.text : hookOpts.option_b.text;
-      const updatedStories = [...result.stories];
-      updatedStories[0] = { ...updatedStories[0], text: newText };
-      setResult({ ...result, stories: updatedStories });
-    }
-  };
-
-  const timingColor = (timing: string) => {
-    switch (timing) {
-      case "matin": return "bg-rose-pale text-primary";
-      case "midi": return "bg-secondary text-secondary-foreground";
-      case "soir": return "bg-accent text-accent-foreground";
-      default: return "bg-muted text-muted-foreground";
-    }
-  };
-
-  // Render loading
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-16 text-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">L'IA crée ta séquence stories...</p>
+          <p className="text-muted-foreground">L'IA imagine ta séquence de stories...</p>
         </main>
       </div>
     );
   }
 
-  // Results step
-  if (step === 6 && result) {
-    const story1 = result.stories[0];
-    const hasHookOptions = story1?.hook_options?.option_a && story1?.hook_options?.option_b;
-
+  // ── STEP 5: Result ──
+  if (step === 5 && sequenceResult) {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-          <button onClick={() => { setStep(1); setResult(null); setPreGenVecu(""); setPreGenEnergy(""); setPreGenMessage(""); setSubjectDone(false); setSubjectDetails(""); setRawIdea(""); setClarifyContext(""); setSubjectDirection(""); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
+          <button onClick={() => { setStep(1); setSequenceResult(null); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
             <ArrowLeft className="h-4 w-4" /> Nouvelle séquence
           </button>
 
           <div className="mb-6">
-            <h1 className="font-display text-2xl font-bold text-foreground">📱 Ta séquence stories</h1>
+            <h1 className="font-display text-2xl font-bold text-foreground">📱 Ta séquence Stories</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Type : {result.structure_label} · {result.total_stories} stories · ~{result.estimated_time}
+              {sequenceResult.total_stories} stories · {sequenceResult.structure_label} · {sequenceResult.estimated_time}
             </p>
-            {result.stickers_used?.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">Stickers : {result.stickers_used.join(", ")}</p>
-            )}
           </div>
 
-          {result.garde_fou_alerte && (
+          {sequenceResult.garde_fou_alerte && (
             <div className="mb-6 rounded-xl border border-primary/30 bg-rose-pale p-4 text-sm text-foreground">
-              {result.garde_fou_alerte}
+              ⚠️ {sequenceResult.garde_fou_alerte}
             </div>
           )}
 
-          {/* Hook options for story 1 */}
-          {hasHookOptions && !selectedHookOption && (
-            <div className="mb-6 rounded-2xl border border-primary/30 bg-card p-5">
-              <h2 className="font-display text-base font-bold text-foreground mb-1">🎬 Story 1 · Choisis ton accroche</h2>
-              <p className="text-xs text-muted-foreground mb-4">La story 1, c'est l'apéro. Pas le plat principal. Moins tu en dis, plus on veut la suite.</p>
-              <div className="space-y-3">
-                <button
-                  onClick={() => handleSelectHook("a")}
-                  className="w-full rounded-xl border border-border bg-background p-4 text-left hover:border-primary transition-colors"
-                >
-                  <p className="text-xs font-semibold text-primary mb-1">Option A : {story1.hook_options!.option_a.label}</p>
-                  <p className="text-[15px] font-medium text-foreground">"{story1.hook_options!.option_a.text}"</p>
-                  <p className="text-xs text-muted-foreground mt-1">{story1.hook_options!.option_a.word_count} mots · {story1.format_label}</p>
-                </button>
-                <button
-                  onClick={() => handleSelectHook("b")}
-                  className="w-full rounded-xl border border-border bg-background p-4 text-left hover:border-primary transition-colors"
-                >
-                  <p className="text-xs font-semibold text-primary mb-1">Option B : {story1.hook_options!.option_b.label}</p>
-                  <p className="text-[15px] font-medium text-foreground">"{story1.hook_options!.option_b.text}"</p>
-                  <p className="text-xs text-muted-foreground mt-1">{story1.hook_options!.option_b.word_count} mots · {story1.format_label}</p>
-                </button>
-              </div>
+          {sequenceResult.personal_tip && (
+            <div className="mb-6 rounded-xl border border-dashed border-accent bg-accent/10 p-4 text-sm text-foreground">
+              💡 {sequenceResult.personal_tip}
             </div>
           )}
 
-          <div className="space-y-4">
-            {result.stories.map((story) => (
-              <div key={story.number} className="rounded-2xl border border-border bg-card p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${timingColor(story.timing)}`}>
-                    {story.timing_emoji} {story.timing.charAt(0).toUpperCase() + story.timing.slice(1)}
-                  </span>
-                  <span className="font-display text-sm font-bold text-foreground">
-                    Story {story.number} · {story.role}
-                  </span>
-                </div>
-
-                <p className="text-xs text-muted-foreground mb-2">{story.format_label}</p>
-
-                <p className="text-[15px] leading-relaxed text-foreground whitespace-pre-line">{story.text}</p>
-
-                {story.sous_titres_needed && (
-                  <p className="mt-2 text-xs text-muted-foreground">💡 Prévois les sous-titres (60-80% regardent sans le son)</p>
+          {/* Stories list */}
+          <div className="space-y-6">
+            {sequenceResult.stories.map((story, i) => (
+              <div key={i} className="relative pl-8 md:pl-0">
+                {/* Connector line for mobile */}
+                {i < sequenceResult.stories.length - 1 && (
+                  <div className="absolute left-[15px] top-10 bottom-[-24px] w-0.5 bg-border md:hidden" />
                 )}
-
-                {story.sticker && (
-                  <div className="mt-3 rounded-xl border border-primary/20 bg-rose-pale p-3">
-                    <p className="text-sm font-semibold text-primary">🎯 {story.sticker.label}</p>
-                    {story.sticker.options && (
-                      <p className="text-xs text-muted-foreground mt-0.5">{story.sticker.options.join(" / ")}</p>
-                    )}
+                
+                <div className="rounded-2xl border border-border bg-card p-5 space-y-3 relative">
+                  {/* Badge number */}
+                  <div className="absolute -left-3 top-5 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center border-2 border-background md:static md:w-auto md:h-auto md:bg-transparent md:text-primary md:border-none md:justify-start md:mb-2 md:inline-flex md:items-center md:gap-2">
+                    <span className="hidden md:inline">STORY {story.number}</span>
+                    <span className="md:hidden">{story.number}</span>
+                    <span className="hidden md:inline-block text-muted-foreground font-normal text-xs ml-2">
+                      {story.timing_emoji} {story.timing}
+                    </span>
                   </div>
-                )}
 
-                {story.tip && (
-                  <p className="mt-3 text-xs text-muted-foreground italic">💡 {story.tip}</p>
-                )}
+                  <div className="flex items-center gap-2 mb-2 md:hidden">
+                    <span className="text-xs text-muted-foreground">{story.timing_emoji} {story.timing}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full border bg-accent/10 text-accent-foreground border-accent/20">
+                      {story.format_label}
+                    </span>
+                    {story.face_cam && <span className="text-xs text-muted-foreground">🎥 Face cam</span>}
+                  </div>
+
+                  <p className="text-[15px] leading-relaxed text-foreground whitespace-pre-line">
+                    "{story.text}"
+                  </p>
+
+                  {story.sticker && (
+                    <div className="border-l-[3px] border-primary bg-primary/5 rounded-r-lg px-4 py-2 mt-3">
+                      <p className="text-sm font-bold text-primary">
+                        🎯 Sticker : {story.sticker.label}
+                        {story.sticker.options && <span className="font-normal text-foreground"> → {story.sticker.options.join(" / ")}</span>}
+                      </p>
+                      {story.sticker.placement && (
+                        <p className="text-xs text-muted-foreground mt-0.5">Position : {story.sticker.placement}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {story.hook_options && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                      <div className="rounded-lg border border-dashed border-border p-3 bg-muted/20">
+                        <span className="text-xs font-bold text-muted-foreground mb-1 block">Option A ({story.hook_options.option_a.label})</span>
+                        <p className="text-sm italic">"{story.hook_options.option_a.text}"</p>
+                      </div>
+                      <div className="rounded-lg border border-dashed border-border p-3 bg-muted/20">
+                        <span className="text-xs font-bold text-muted-foreground mb-1 block">Option B ({story.hook_options.option_b.label})</span>
+                        <p className="text-sm italic">"{story.hook_options.option_b.text}"</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {story.tip && (
+                    <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1.5">
+                      <span className="text-accent mt-0.5">💡</span> {story.tip}
+                    </p>
+                  )}
+                </div>
               </div>
             ))}
           </div>
 
-          {/* Post-generation micro-copy */}
-          <div className="mt-6 rounded-2xl border border-dashed border-primary/30 bg-rose-pale p-5">
-            <p className="font-display text-sm font-bold text-foreground mb-2">🚲 Séquence prête. Maintenant fais-la sonner comme toi.</p>
-            <div className="space-y-1.5 text-sm text-muted-foreground">
-              <p>□ Ajoute un truc vécu (story 1 ou 2)</p>
-              <p>□ Dis le face cam avec TES mots (pas au mot près)</p>
-              <p>□ Vérifie que le hook arrête le swipe</p>
-              <p>□ Ajoute les sous-titres sur les face cam</p>
-            </div>
-            <p className="mt-3 text-xs text-muted-foreground italic">L'IA structure. Toi, tu incarnes.</p>
-            {result.personal_tip && (
-              <p className="mt-2 text-xs text-primary font-medium">💡 {result.personal_tip}</p>
-            )}
+          <div className="mt-8 rounded-2xl border border-border bg-card p-5">
+            <StoryChecklist />
           </div>
 
-          {/* Checklist */}
-          <div className="mt-6">
-            <StoryChecklist
-              hasHook={!!(result.stories[0]?.text)}
-              hasSticker={result.stories.some(s => s.sticker !== null)}
-              hasCTA={result.stories.some(s => s.role?.toLowerCase().includes("cta") || s.text?.toLowerCase().includes("dm") || s.text?.toLowerCase().includes("écris"))}
-              hasFaceCam={result.stories.some(s => s.face_cam)}
-            />
-          </div>
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button variant="outline" size="sm" onClick={handleCopyAll}>
-              <Copy className="h-4 w-4" /> Copier tout
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => { setResult(null); setStep(1); }}>
-              <RefreshCw className="h-4 w-4" /> Regénérer
-            </Button>
-            <Button size="sm" onClick={() => setShowCalendarDialog(true)}>
-              <CalendarDays className="h-4 w-4" /> Ajouter au calendrier
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowIdeasDialog(true)}>
-              <Lightbulb className="h-4 w-4" /> Sauvegarder dans mes idées
-            </Button>
+          {/* Actions */}
+          <div className="mt-6 flex flex-wrap gap-3 pb-12">
+            <Button variant="outline" size="sm" onClick={handleCopySequence}><Copy className="h-4 w-4" /> Copier tout</Button>
+            <Button size="sm" onClick={() => setShowCalendarDialog(true)}><CalendarDays className="h-4 w-4" /> Ajouter au calendrier</Button>
+            <Button variant="outline" size="sm" onClick={() => setShowIdeasDialog(true)}><Lightbulb className="h-4 w-4" /> Sauvegarder</Button>
           </div>
 
           <AddToCalendarDialog
             open={showCalendarDialog}
             onOpenChange={setShowCalendarDialog}
             onConfirm={handleAddToCalendar}
-            contentLabel={`📱 ${result.total_stories} stories · ${result.structure_label}`}
+            contentLabel={`📱 Séquence Stories · ${sequenceResult.structure_label}`}
             contentEmoji="📱"
           />
 
           <SaveToIdeasDialog
             open={showIdeasDialog}
             onOpenChange={setShowIdeasDialog}
-            contentType="stories"
-            subject={subject || result.structure_label}
+            contentType="story"
+            subject={subject || sequenceResult.structure_label}
             objectif={objective}
             sourceModule="stories_generator"
-            contentData={{
-              ...result,
-              personal_elements: {
-                vecu: preGenVecu || null,
-                energy: preGenEnergy || null,
-                message_cle: preGenMessage || null,
-              },
-            }}
-            personalElements={preGenVecu || preGenEnergy || preGenMessage ? {
-              vecu: preGenVecu || null,
-              energy: preGenEnergy || null,
-              message_cle: preGenMessage || null,
-            } : null}
+            contentData={sequenceResult}
           />
         </main>
       </div>
     );
   }
 
-  // Steps 1-5 form
+  // ── FORM FLOW ──
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-        <Link to={new URLSearchParams(window.location.search).get("from") || "/instagram/creer"} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
-          <ArrowLeft className="h-4 w-4" /> Retour
-        </Link>
-
-        <h1 className="font-display text-2xl font-bold text-foreground mb-2">📱 Générateur de Stories</h1>
-        <p className="text-sm text-muted-foreground mb-4">
-          Crée des séquences stories complètes avec le bon sticker et le bon CTA.
-        </p>
+        <div className="mb-8">
+          <Link to="/atelier" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary mb-4 transition-colors">
+            <ArrowLeft className="h-4 w-4" /> Retour à l'atelier
+          </Link>
+          <h1 className="font-display text-3xl font-bold text-foreground">Créer une séquence de Stories</h1>
+          <p className="text-muted-foreground mt-2">
+            L'IA structure tes stories pour engager ta communauté sans y passer des heures.
+          </p>
+        </div>
 
         {draftRestored && (
           <DraftRestoredBanner
@@ -597,35 +498,41 @@ export default function InstagramStories() {
                 onClick={() => { setObjective(o.id); setStep(o.id === "vente" ? 1.5 : 2); }}
                 className={`rounded-2xl border p-4 text-left transition-all ${objective === o.id ? "border-primary bg-rose-pale" : "border-border bg-card hover:border-primary/50"}`}
               >
-                <span className="text-lg">{o.emoji}</span>
-                <p className="font-display text-sm font-bold mt-1">{o.label}</p>
-                <p className="text-xs text-muted-foreground">{o.desc}</p>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{o.emoji}</span>
+                  <div>
+                    <p className="font-bold text-sm text-foreground">{o.label}</p>
+                    <p className="text-xs text-muted-foreground">{o.desc}</p>
+                  </div>
+                </div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Step 1.5: Price range (only for vente) */}
-        {objective === "vente" && step >= 1.5 && (
+        {/* Step 1.5: Price range (if sales) */}
+        {step >= 1.5 && objective === "vente" && (
           <div className="mb-8">
-            <h2 className="font-display text-lg font-bold text-foreground mb-3">Quelle gamme de prix ?</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {PRICE_RANGES.map((pr) => (
+            <h2 className="font-display text-lg font-bold text-foreground mb-3">Tu vends quoi ?</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {PRICE_RANGES.map((p) => (
                 <button
-                  key={pr.id}
-                  onClick={() => { setPriceRange(pr.id); setStep(2); }}
-                  className={`rounded-2xl border p-4 text-left transition-all ${priceRange === pr.id ? "border-primary bg-rose-pale" : "border-border bg-card hover:border-primary/50"}`}
+                  key={p.id}
+                  onClick={() => { setPriceRange(p.id); setStep(2); }}
+                  className={`rounded-2xl border p-4 text-left transition-all ${priceRange === p.id ? "border-primary bg-rose-pale" : "border-border bg-card hover:border-primary/50"}`}
                 >
-                  <span className="text-lg">{pr.emoji}</span>
-                  <p className="font-display text-sm font-bold mt-1">{pr.label}</p>
-                  <p className="text-xs text-muted-foreground">{pr.desc}</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xl">{p.emoji}</span>
+                    <span className="font-bold text-sm">{p.label}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground ml-7">{p.desc}</p>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Step 2: Constraints */}
+        {/* Step 2: Time & Face Cam */}
         {step >= 2 && (
           <div className="mb-8 space-y-6">
             <div>
@@ -677,25 +584,8 @@ export default function InstagramStories() {
                 setSubjectDone(true);
               }}
               brandingContext={brandingCtx}
+              initialSubject={subject}
             />
-
-            <div className="mt-4">
-              <h2 className="font-display text-sm font-bold text-foreground mb-2">Tu es en période de lancement ?</h2>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setIsLaunch(true)}
-                  className={`rounded-xl border px-4 py-2 text-sm transition-all ${isLaunch ? "border-primary bg-rose-pale font-bold" : "border-border bg-card"}`}
-                >
-                  🚀 Oui
-                </button>
-                <button
-                  onClick={() => setIsLaunch(false)}
-                  className={`rounded-xl border px-4 py-2 text-sm transition-all ${!isLaunch ? "border-primary bg-rose-pale font-bold" : "border-border bg-card"}`}
-                >
-                  🌊 Non
-                </button>
-              </div>
-            </div>
           </div>
         )}
 

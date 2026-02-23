@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import BaseReminder from "@/components/BaseReminder";
 import ContentScoring from "@/components/ContentScoring";
 import FeedbackLoop from "@/components/FeedbackLoop";
@@ -6,7 +6,7 @@ import PreGenQuestions, { PreGenAnswers } from "@/components/PreGenQuestions";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Info, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -121,7 +121,33 @@ const HOOK_TYPE_EMOJIS: Record<string, string> = {
 export default function InstagramReels() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const calendarId = searchParams.get("calendar_id");
+  const calendarState = location.state as any;
 
+  // Pre-fill from calendar
+  useEffect(() => {
+    if (calendarState?.fromCalendar) {
+      if (calendarState.theme) setSubject(calendarState.theme);
+      if (calendarState.objectif) setObjective(calendarState.objectif);
+      if (calendarState.notes) setSubject((prev) => prev ? `${prev}\n\nNotes: ${calendarState.notes}` : calendarState.notes);
+      
+      // Auto-start if we have enough info
+      if (calendarState.theme && !hooks.length) {
+        // Optional: could trigger handleGenerateHooks here if we wanted auto-start
+      }
+    } else if (calendarId && user) {
+      // Fallback: fetch if no state passed (e.g. direct link)
+      supabase.from("calendar_posts").select("*").eq("id", calendarId).single().then(({ data }) => {
+        if (data) {
+          if (data.theme) setSubject(data.theme);
+          if (data.objectif) setObjective(data.objectif);
+          if (data.notes) setSubject((prev) => prev ? `${prev}\n\nNotes: ${data.notes}` : data.notes);
+        }
+      });
+    }
+  }, [calendarId, user, calendarState]);
   // Flow state — steps: 1=objective, 2=facecam, 3=subject, 4=time, 5=launch, 6=hooks, 6.5=preGenQ, 7=script
   const [step, setStep] = useState(1);
   const [objective, setObjective] = useState("");
@@ -289,6 +315,53 @@ export default function InstagramReels() {
 
   const handleAddToCalendar = async (dateStr: string) => {
     if (!user || !scriptResult) return;
+
+    const contentData = {
+      type: "reel",
+      format_type: scriptResult.format_type,
+      format_label: scriptResult.format_label,
+      duree_cible: scriptResult.duree_cible,
+      script: scriptResult.script,
+      caption: scriptResult.caption,
+      hashtags: scriptResult.hashtags,
+      cover_text: scriptResult.cover_text,
+      alt_text: scriptResult.alt_text,
+      amplification_stories: scriptResult.amplification_stories,
+      hook: selectedHook ? {
+        text: selectedHook.text,
+        type: selectedHook.type,
+        type_label: selectedHook.type_label,
+        text_overlay: selectedHook.text_overlay,
+      } : null,
+      personal_elements: preGenAnswers ? {
+        vecu: preGenAnswers.anecdote || null,
+        punchline: preGenAnswers.conviction || null,
+      } : null,
+    };
+
+    // Update existing calendar post if we came from one
+    if (calendarId) {
+      const { error } = await supabase.from("calendar_posts")
+        .update({
+          story_sequence_detail: contentData as any,
+          status: "ready", // Mark as ready since content is generated
+          content_draft: scriptResult.script.map(s => `[${s.timing}] ${s.texte_parle}`).join("\n\n"),
+          accroche: selectedHook?.text || "",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", calendarId);
+      
+      if (error) {
+        toast.error("Erreur lors de la mise à jour");
+      } else {
+        toast.success("Post mis à jour dans le calendrier !");
+        setShowCalendarDialog(false);
+        // Optional: navigate back to calendar?
+      }
+      return;
+    }
+
+    // Create new post
     const { error } = await supabase.from("calendar_posts").insert({
       user_id: user.id,
       date: dateStr,
@@ -299,28 +372,7 @@ export default function InstagramReels() {
       content_draft: scriptResult.script.map(s => `[${s.timing}] ${s.texte_parle}`).join("\n\n"),
       accroche: selectedHook?.text || "",
       status: "ready",
-      story_sequence_detail: {
-        type: "reel",
-        format_type: scriptResult.format_type,
-        format_label: scriptResult.format_label,
-        duree_cible: scriptResult.duree_cible,
-        script: scriptResult.script,
-        caption: scriptResult.caption,
-        hashtags: scriptResult.hashtags,
-        cover_text: scriptResult.cover_text,
-        alt_text: scriptResult.alt_text,
-        amplification_stories: scriptResult.amplification_stories,
-        hook: selectedHook ? {
-          text: selectedHook.text,
-          type: selectedHook.type,
-          type_label: selectedHook.type_label,
-          text_overlay: selectedHook.text_overlay,
-        } : null,
-        personal_elements: preGenAnswers ? {
-          vecu: preGenAnswers.anecdote || null,
-          punchline: preGenAnswers.conviction || null,
-        } : null,
-      } as any,
+      story_sequence_detail: contentData as any,
     });
     setShowCalendarDialog(false);
     if (error) toast.error("Erreur lors de l'ajout");
