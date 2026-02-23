@@ -6,7 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, ChevronDown, ChevronUp, ArrowRight, RefreshCw, ExternalLink, Check, MessageCircle } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, ArrowRight, RefreshCw, ExternalLink, Check, MessageCircle, Square, CheckSquare } from "lucide-react";
 import AuditCoachingPanel from "@/components/audit/AuditCoachingPanel";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -30,11 +30,13 @@ interface AuditResult {
   extraction_branding?: Record<string, any>;
 }
 
-interface CompletedRec {
+interface AuditRec {
   id: string;
   module: string;
+  label: string;
   completed: boolean;
   completed_at: string | null;
+  position: number | null;
 }
 
 /* ─── Pillar metadata ─── */
@@ -118,8 +120,8 @@ export default function BrandingAuditResultPage() {
   const [coachingRecId, setCoachingRecId] = useState<string | undefined>();
   const [coachingConseil, setCoachingConseil] = useState<string | undefined>();
 
-  // Recommendation completion tracking
-  const [completedRecs, setCompletedRecs] = useState<Record<string, CompletedRec>>({});
+  // Recommendation completion tracking — keyed by rec ID
+  const [auditRecs, setAuditRecs] = useState<AuditRec[]>([]);
 
   const loadAuditData = useCallback(async () => {
     if (!user || !id) return;
@@ -149,24 +151,25 @@ export default function BrandingAuditResultPage() {
     setLoading(false);
   }, [user, id]);
 
-  const loadCompletedRecs = useCallback(async () => {
-    if (!user) return;
+  const loadAuditRecs = useCallback(async () => {
+    if (!user || !id) return;
     const { data } = await supabase
       .from("audit_recommendations")
-      .select("id, module, completed, completed_at")
+      .select("id, module, label, completed, completed_at, position")
       .eq("user_id", user.id)
-      .eq("completed", true);
-    if (data) {
-      const map: Record<string, CompletedRec> = {};
-      data.forEach(r => { map[r.module] = r as CompletedRec; });
-      setCompletedRecs(map);
-    }
-  }, [user]);
+      .eq("audit_id", id)
+      .order("position", { ascending: true });
+    if (data) setAuditRecs(data as AuditRec[]);
+  }, [user, id]);
+
+  // Build a lookup by module for pillar section
+  const completedRecs: Record<string, AuditRec> = {};
+  auditRecs.forEach(r => { if (r.completed) completedRecs[r.module] = r; });
 
   useEffect(() => {
     loadAuditData();
-    loadCompletedRecs();
-  }, [loadAuditData, loadCompletedRecs]);
+    loadAuditRecs();
+  }, [loadAuditData, loadAuditRecs]);
 
   const handleNavigate = (route: string) => {
     if (route.startsWith("http")) {
@@ -204,7 +207,20 @@ export default function BrandingAuditResultPage() {
   };
 
   const handleCoachingComplete = () => {
-    loadCompletedRecs();
+    loadAuditRecs();
+  };
+
+  const toggleRecCompletion = async (recId: string, currentlyCompleted: boolean) => {
+    const newCompleted = !currentlyCompleted;
+    // Optimistic update
+    setAuditRecs(prev => prev.map(r => r.id === recId ? { ...r, completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null } : r));
+    await supabase
+      .from("audit_recommendations")
+      .update({
+        completed: newCompleted,
+        completed_at: newCompleted ? new Date().toISOString() : null,
+      })
+      .eq("id", recId);
   };
 
   const isModuleCompleted = (coachingModule: string) => !!completedRecs[coachingModule];
@@ -391,58 +407,146 @@ export default function BrandingAuditResultPage() {
             </div>
           )}
 
-          {/* Plan d'action */}
-          {result.plan_action_recommande?.length > 0 && (
+          {/* Plan d'action avec checkboxes */}
+          {auditRecs.length > 0 && (() => {
+            const recCompletedCount = auditRecs.filter(r => r.completed).length;
+            const recTotal = auditRecs.length;
+            const recProgress = recTotal > 0 ? Math.round((recCompletedCount / recTotal) * 100) : 0;
+            const allRecsDone = recCompletedCount === recTotal;
+            // Sort: incomplete first (by position), then completed
+            const sortedRecs = [...auditRecs].sort((a, b) => {
+              if (a.completed && !b.completed) return 1;
+              if (!a.completed && b.completed) return -1;
+              return (a.position || 99) - (b.position || 99);
+            });
+
+            return (
+              <div>
+                <h3 className="font-display font-bold text-sm mb-3">Plan d'action recommandé</h3>
+                {/* Progress */}
+                <div className="rounded-xl border border-border bg-card p-4 mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-foreground">{recCompletedCount}/{recTotal} actions complétées</p>
+                    <span className="text-xs text-muted-foreground">{recProgress}%</span>
+                  </div>
+                  <Progress value={recProgress} className="h-2" />
+                </div>
+
+                <div className="space-y-2">
+                  {sortedRecs.map((rec) => {
+                    const matchingAction = result.plan_action_recommande?.find(a => {
+                      const coachMod = getCoachingModuleForAction(a);
+                      return coachMod === rec.module || a.module === rec.module;
+                    });
+                    const route = matchingAction ? getRouteForAction(matchingAction) : (MODULE_ROUTES[rec.module] || "/branding");
+                    const isExternal = route.startsWith("http");
+                    const completedDateStr = rec.completed && rec.completed_at
+                      ? (() => { try { return format(new Date(rec.completed_at), "d MMM", { locale: fr }); } catch { return null; } })()
+                      : null;
+
+                    return (
+                      <div
+                        key={rec.id}
+                        className={`rounded-xl border transition-colors p-4 flex items-center gap-3 ${
+                          rec.completed
+                            ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20"
+                            : "border-border bg-card"
+                        }`}
+                      >
+                        {/* Checkbox */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleRecCompletion(rec.id, rec.completed); }}
+                          className="shrink-0 text-foreground hover:text-primary transition-colors"
+                          aria-label={rec.completed ? "Marquer comme non fait" : "Marquer comme fait"}
+                        >
+                          {rec.completed ? (
+                            <CheckSquare className="h-5 w-5 text-emerald-600" />
+                          ) : (
+                            <Square className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </button>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium truncate ${rec.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                            {rec.label}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {rec.completed && completedDateStr ? `Fait le ${completedDateStr}` : (matchingAction?.temps_estime || "")}
+                          </p>
+                        </div>
+
+                        {/* Navigation button */}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="shrink-0 gap-1 text-xs px-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isExternal) {
+                              window.open(route, "_blank", "noopener,noreferrer");
+                            } else {
+                              const coachMod = getCoachingModuleForAction(matchingAction || { module: rec.module });
+                              if (coachMod && !rec.completed) {
+                                openCoachingForAction(matchingAction || { module: rec.module, action: rec.label });
+                              } else {
+                                handleNavigate(route);
+                              }
+                            }
+                          }}
+                        >
+                          {isExternal ? (
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          ) : rec.completed ? (
+                            <>Voir <ArrowRight className="h-3 w-3" /></>
+                          ) : (
+                            <><MessageCircle className="h-3.5 w-3.5 text-primary" /> <ArrowRight className="h-3 w-3" /></>
+                          )}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Celebration when all done */}
+                {allRecsDone && (
+                  <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 p-4 text-center mt-3">
+                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300 mb-2">
+                      🎉 Bravo ! Toutes les actions sont complétées.
+                    </p>
+                    <Button size="sm" variant="outline" onClick={() => navigate("/branding/audit")} className="gap-1.5 text-xs">
+                      <RefreshCw className="h-3 w-3" /> Refaire un audit pour mesurer ta progression
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Fallback: show plan_action if no audit_recommendations exist */}
+          {auditRecs.length === 0 && result.plan_action_recommande?.length > 0 && (
             <div>
               <h3 className="font-display font-bold text-sm mb-3">Plan d'action recommandé</h3>
               <div className="space-y-2">
                 {result.plan_action_recommande.map((a, i) => {
                   const route = getRouteForAction(a);
                   const isExternal = route.startsWith("http");
-                  const coachMod = getCoachingModuleForAction(a);
-                  const completed = coachMod ? isModuleCompleted(coachMod) : false;
-                  const completedDate = coachMod ? getCompletedDate(coachMod) : null;
-
                   return (
                     <button
                       key={i}
                       onClick={() => {
-                        if (completed) {
-                          handleNavigate(route);
-                        } else if (coachMod) {
-                          openCoachingForAction(a);
-                        } else {
-                          handleNavigate(route);
-                        }
+                        const coachMod = getCoachingModuleForAction(a);
+                        if (coachMod) openCoachingForAction(a);
+                        else handleNavigate(route);
                       }}
-                      className={`w-full rounded-xl border transition-colors p-4 text-left flex items-center gap-3 ${
-                        completed
-                          ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20"
-                          : "border-border bg-card hover:bg-muted/50"
-                      }`}
+                      className="w-full rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors p-4 text-left flex items-center gap-3"
                     >
-                      {completed ? (
-                        <span className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-600 text-xs font-bold flex items-center justify-center shrink-0">
-                          <Check className="h-3.5 w-3.5" />
-                        </span>
-                      ) : (
-                        <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">{a.priorite}</span>
-                      )}
+                      <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">{a.priorite}</span>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium truncate ${completed ? "line-through text-muted-foreground" : ""}`}>{a.action}</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {completed && completedDate ? `Fait le ${completedDate}` : a.temps_estime}
-                        </p>
+                        <p className="text-sm font-medium truncate">{a.action}</p>
+                        <p className="text-[10px] text-muted-foreground">{a.temps_estime}</p>
                       </div>
-                      {isExternal ? (
-                        <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
-                      ) : completed ? (
-                        <span className="text-xs text-emerald-600 font-medium shrink-0">Voir →</span>
-                      ) : coachMod ? (
-                        <MessageCircle className="h-4 w-4 text-primary shrink-0" />
-                      ) : (
-                        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                      )}
+                      {isExternal ? <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" /> : <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />}
                     </button>
                   );
                 })}
