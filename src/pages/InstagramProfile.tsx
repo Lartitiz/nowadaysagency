@@ -6,6 +6,8 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sparkles, PenLine, BookmarkCheck, Pin, Palette, BarChart3 } from "lucide-react";
+import { useDemoContext } from "@/contexts/DemoContext";
+import { DEMO_DATA } from "@/lib/demo-data";
 
 interface AuditData {
   score_global: number;
@@ -52,12 +54,34 @@ function scoreBadge(score: number | null) {
 
 export default function InstagramProfile() {
   const { user } = useAuth();
+  const { isDemoMode } = useDemoContext();
   const [audit, setAudit] = useState<AuditData | null>(null);
   const [loading, setLoading] = useState(true);
   const [validations, setValidations] = useState<ValidationStatus[]>([]);
   const [snippets, setSnippets] = useState<ProfileSnippets>({});
 
   useEffect(() => {
+    if (isDemoMode) {
+      setAudit({
+        score_global: DEMO_DATA.audit.score,
+        score_nom: 70,
+        score_bio: 45,
+        score_stories: 55,
+        score_epingles: 60,
+        score_feed: 75,
+        score_edito: 65,
+        resume: "Profil cohérent visuellement mais manque de CTA et de structure dans les highlights.",
+      });
+      setSnippets({
+        instagram_display_name: "Léa Portraits",
+        instagram_bio: DEMO_DATA.bio,
+        instagram_highlights: ["Séances", "Avis", "Coulisses"],
+        instagram_pillars: DEMO_DATA.branding.editorial.pillars.map(p => p.name),
+      });
+      setValidations([{ section: "feed", status: "validated" }]);
+      setLoading(false);
+      return;
+    }
     if (!user) return;
     const fetchData = async () => {
       const [{ data: auditData }, { data: valData }, { data: profileData }] = await Promise.all([
@@ -84,7 +108,7 @@ export default function InstagramProfile() {
       setLoading(false);
     };
     fetchData();
-  }, [user?.id]);
+  }, [user?.id, isDemoMode]);
 
   const getScore = (key: string): number | null => {
     if (!audit) return null;

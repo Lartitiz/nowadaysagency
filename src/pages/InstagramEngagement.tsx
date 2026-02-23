@@ -13,6 +13,8 @@ import ContactsSection, { type Contact } from "@/components/engagement/ContactsS
 import TipsSection from "@/components/engagement/TipsSection";
 import ProspectionSection from "@/components/prospection/ProspectionSection";
 import Confetti from "@/components/Confetti";
+import { useDemoContext } from "@/contexts/DemoContext";
+import { DEMO_DATA } from "@/lib/demo-data";
 
 function getMonday(d: Date) {
   const day = d.getDay();
@@ -32,6 +34,7 @@ function getDayIndex() {
 export default function InstagramEngagement() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isDemoMode } = useDemoContext();
   const [showConfetti, setShowConfetti] = useState(false);
   const [activeTab, setActiveTab] = useState("engagement");
 
@@ -53,6 +56,21 @@ export default function InstagramEngagement() {
   const threshold = Math.ceil(items.length * 0.6);
 
   useEffect(() => {
+    if (isDemoMode) {
+      setCurrentStreak(2);
+      setBestStreak(5);
+      setWeekChecks([true, true, false, false, false, false, false]);
+      setChecked(["reply_stories", "like_target"]);
+      setContacts(DEMO_DATA.contacts.map((c, i) => ({
+        id: `demo-${i}`,
+        pseudo: c.name,
+        tag: c.type === "prospect" ? "prospect" : c.type === "client" ? "client" : "paire",
+        description: null,
+        notes: c.note,
+        last_interaction: null,
+      })));
+      return;
+    }
     if (!user) return;
     const load = async () => {
       const { data: launches } = await supabase
