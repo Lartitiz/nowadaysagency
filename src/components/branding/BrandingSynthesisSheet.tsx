@@ -236,7 +236,7 @@ function SectionSep() {
 /* ── Level 2 section card (Cible, Ton, Offres) ── */
 function SectionCard({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm p-5 sm:p-6 space-y-4">
+    <div className="rounded-xl border border-border bg-card shadow-sm p-5 sm:p-6 space-y-6">
       <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2 uppercase tracking-wide">
         <span>{emoji}</span> {title}
       </h3>
