@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,9 +6,10 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, SkipForward, Film } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, SkipForward, Film, Upload, X, Plus, Trash2 } from "lucide-react";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { getActivityExamples } from "@/lib/activity-examples";
 
 /* ────────────────────────────────────────────── constants */
 
@@ -70,7 +71,24 @@ const TIME_OPTIONS = [
   { key: "more", emoji: "🔥", label: "Plus de 2 heures" },
 ];
 
-const TOTAL_STEPS = 9; // steps 1-9 (step 0 is welcome, not counted in progress)
+const TONE_OPTIONS = [
+  { key: "chaleureux", emoji: "🤗", label: "Chaleureux" },
+  { key: "direct", emoji: "🎯", label: "Direct" },
+  { key: "fun", emoji: "😄", label: "Fun" },
+  { key: "expert", emoji: "🧠", label: "Expert" },
+  { key: "engage", emoji: "💪", label: "Engagé" },
+  { key: "doux", emoji: "🌿", label: "Doux" },
+  { key: "inspirant", emoji: "✨", label: "Inspirant" },
+  { key: "provoc", emoji: "🔥", label: "Provoc" },
+];
+
+const VALUE_CHIPS = [
+  "Authenticité", "Éthique", "Créativité", "Féminisme",
+  "Slow", "Écologie", "Bienveillance", "Liberté",
+  "Beauté", "Transmission", "Inclusivité", "Audace",
+];
+
+const TOTAL_STEPS = 16; // 0=welcome, 1-8=phase1, 9=import, 10-15=branding, 16=building
 
 /* ────────────────────────────────────────────── types */
 
@@ -85,6 +103,26 @@ interface Answers {
   temps: string;
   instagram: string;
   website: string;
+}
+
+interface BrandingAnswers {
+  positioning: string;
+  mission: string;
+  target_description: string;
+  tone_keywords: string[];
+  offers: { name: string; price: string; description: string }[];
+  values: string[];
+}
+
+interface UploadedFile {
+  id: string;
+  name: string;
+  url: string;
+}
+
+interface AuditResults {
+  documents: any;
+  isLoading: boolean;
 }
 
 /* ────────────────────────────────────────────── animation */
@@ -105,8 +143,19 @@ export default function Onboarding() {
 
   const demoDefaults = demoData?.onboarding;
 
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => {
+    if (isDemoMode) return 0;
+    const saved = localStorage.getItem("lac_onboarding_step");
+    return saved ? parseInt(saved, 10) : 0;
+  });
   const [saving, setSaving] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [auditResults, setAuditResults] = useState<AuditResults>({
+    documents: null,
+    isLoading: false,
+  });
+
   const [answers, setAnswers] = useState<Answers>({
     prenom: isDemoMode ? (demoDefaults?.prenom ?? "") : (localStorage.getItem("lac_prenom") || ""),
     activite: isDemoMode ? (demoDefaults?.activite ?? "") : (localStorage.getItem("lac_activite") || ""),
@@ -120,7 +169,23 @@ export default function Onboarding() {
     website: isDemoMode ? "www.leaportraits.fr" : "",
   });
 
-  // Check if onboarding already completed (real mode only)
+  const [brandingAnswers, setBrandingAnswers] = useState<BrandingAnswers>({
+    positioning: isDemoMode ? (demoData?.branding.positioning ?? "") : "",
+    mission: isDemoMode ? (demoData?.branding.mission ?? "") : "",
+    target_description: isDemoMode ? (demoData?.persona.frustrations ?? "") : "",
+    tone_keywords: isDemoMode ? ([...(demoData?.branding.tone?.keywords ?? [])]) : [],
+    offers: isDemoMode ? (demoData?.offers?.map(o => ({ name: o.name, price: o.price, description: o.description })) ?? []) : [{ name: "", price: "", description: "" }],
+    values: isDemoMode ? ([...(demoData?.branding.values ?? [])]) : [],
+  });
+
+  // Persist step
+  useEffect(() => {
+    if (!isDemoMode) {
+      localStorage.setItem("lac_onboarding_step", String(step));
+    }
+  }, [step, isDemoMode]);
+
+  // Check if onboarding already completed
   useEffect(() => {
     if (isDemoMode || !user) return;
     const check = async () => {
@@ -140,21 +205,129 @@ export default function Onboarding() {
     setAnswers(prev => ({ ...prev, [key]: value }));
   }, []);
 
+  const setBranding = useCallback(<K extends keyof BrandingAnswers>(key: K, value: BrandingAnswers[K]) => {
+    setBrandingAnswers(prev => ({ ...prev, [key]: value }));
+  }, []);
+
   const next = useCallback(() => setStep(s => s + 1), []);
   const prev = useCallback(() => setStep(s => Math.max(0, s - 1)), []);
 
-  const progress = step === 0 ? 0 : (step / TOTAL_STEPS) * 100;
+  const progress = step === 0 ? 0 : step >= TOTAL_STEPS ? 100 : (step / TOTAL_STEPS) * 100;
 
-  // Keyboard shortcut: Escape → back
+  // Keyboard shortcut
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && step > 0) prev();
+      if (e.key === "Escape" && step > 0 && step < TOTAL_STEPS) prev();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [step, prev]);
 
-  /* ── save ── */
+  // Launch background audits when entering phase 3 (step 10)
+  const auditsLaunched = useRef(false);
+  useEffect(() => {
+    if (isDemoMode || !user || auditsLaunched.current) return;
+    if (step < 10) return;
+    auditsLaunched.current = true;
+    setAuditResults(prev => ({ ...prev, isLoading: true }));
+
+    const promises: Promise<void>[] = [];
+
+    if (uploadedFiles.length > 0) {
+      promises.push(
+        supabase.functions
+          .invoke("analyze-documents", {
+            body: { user_id: user.id, document_ids: uploadedFiles.map(f => f.id) },
+          })
+          .then(res => {
+            if (res.data?.extracted_data) {
+              setAuditResults(prev => ({ ...prev, documents: res.data.extracted_data }));
+              // Pre-fill branding answers from documents
+              const d = res.data.extracted_data;
+              setBrandingAnswers(prev => ({
+                positioning: prev.positioning || d.positioning || "",
+                mission: prev.mission || d.mission || "",
+                target_description: prev.target_description || d.target_description || "",
+                tone_keywords: prev.tone_keywords.length > 0 ? prev.tone_keywords : (d.tone_keywords || []),
+                offers: prev.offers[0]?.name ? prev.offers : (d.offers?.length ? d.offers : prev.offers),
+                values: prev.values.length > 0 ? prev.values : (d.values || []),
+              }));
+            }
+          })
+          .catch(e => console.error("Document analysis failed:", e))
+      );
+    }
+
+    Promise.allSettled(promises).then(() => {
+      setAuditResults(prev => ({ ...prev, isLoading: false }));
+    });
+  }, [step, isDemoMode, user?.id, uploadedFiles]);
+
+  /* ── file upload ── */
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || !user) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(files).slice(0, 5 - uploadedFiles.length)) {
+        const ext = file.name.split(".").pop()?.toLowerCase();
+        const allowed = ["pdf", "docx", "doc", "txt", "md", "png", "jpg", "jpeg", "webp"];
+        if (!ext || !allowed.includes(ext)) {
+          toast({ title: "Format non supporté", description: `${file.name} ignoré`, variant: "destructive" });
+          continue;
+        }
+
+        const filePath = `${user.id}/onboarding/${Date.now()}_${file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from("onboarding-uploads")
+          .upload(filePath, file);
+
+        if (uploadError) {
+          console.error("Upload error:", uploadError);
+          toast({ title: "Erreur", description: `Upload de ${file.name} échoué`, variant: "destructive" });
+          continue;
+        }
+
+        const { data: urlData } = supabase.storage
+          .from("onboarding-uploads")
+          .getPublicUrl(filePath);
+
+        const { data: docRecord } = await supabase
+          .from("user_documents")
+          .insert({
+            user_id: user.id,
+            file_name: file.name,
+            file_url: filePath,
+            file_type: ext,
+            context: "onboarding",
+          })
+          .select("id")
+          .single();
+
+        if (docRecord) {
+          setUploadedFiles(prev => [...prev, {
+            id: docRecord.id,
+            name: file.name,
+            url: filePath,
+          }]);
+        }
+      }
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeFile = async (fileId: string) => {
+    const file = uploadedFiles.find(f => f.id === fileId);
+    if (file) {
+      await supabase.storage.from("onboarding-uploads").remove([file.url]);
+      await supabase.from("user_documents").delete().eq("id", fileId);
+    }
+    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
+  };
+
+  /* ── save all ── */
   const handleFinish = async () => {
     if (isDemoMode) {
       skipDemoOnboarding();
@@ -164,7 +337,7 @@ export default function Onboarding() {
     if (!user) return;
     setSaving(true);
     try {
-      // Update profiles
+      // 1. PROFILES
       const { data: existingProfile } = await supabase
         .from("profiles").select("id").eq("user_id", user.id).maybeSingle();
 
@@ -178,6 +351,8 @@ export default function Onboarding() {
         main_goal: answers.objectif,
         weekly_time: answers.temps,
         onboarding_completed: true,
+        onboarding_completed_at: new Date().toISOString(),
+        onboarding_step: TOTAL_STEPS,
       };
       if (answers.instagram) profileData.instagram_username = answers.instagram.replace(/^@/, "");
       if (answers.website) profileData.website_url = answers.website;
@@ -188,10 +363,9 @@ export default function Onboarding() {
         await supabase.from("profiles").insert({ user_id: user.id, ...profileData });
       }
 
-      // Update user_plan_config
+      // 2. user_plan_config
       const { data: existingConfig } = await supabase
         .from("user_plan_config").select("id").eq("user_id", user.id).maybeSingle();
-
       const configData = {
         main_goal: answers.objectif,
         level: "beginner",
@@ -205,10 +379,49 @@ export default function Onboarding() {
         await supabase.from("user_plan_config").insert({ user_id: user.id, ...configData });
       }
 
+      // 3. BRAND_PROFILE (upsert)
+      const { data: existingBrand } = await supabase
+        .from("brand_profile").select("id").eq("user_id", user.id).maybeSingle();
+      const brandData = {
+        positioning: brandingAnswers.positioning || null,
+        mission: brandingAnswers.mission || null,
+        values: brandingAnswers.values.length > 0 ? brandingAnswers.values : null,
+        tone_keywords: brandingAnswers.tone_keywords.length > 0 ? brandingAnswers.tone_keywords : null,
+      };
+      if (existingBrand) {
+        await supabase.from("brand_profile").update(brandData).eq("user_id", user.id);
+      } else {
+        await supabase.from("brand_profile").insert({ user_id: user.id, ...brandData });
+      }
+
+      // 4. PERSONA (upsert description)
+      if (brandingAnswers.target_description) {
+        const { data: existingPersona } = await supabase
+          .from("persona").select("id").eq("user_id", user.id).maybeSingle();
+        if (existingPersona) {
+          await supabase.from("persona").update({ description: brandingAnswers.target_description }).eq("user_id", user.id);
+        } else {
+          await supabase.from("persona").insert({ user_id: user.id, description: brandingAnswers.target_description });
+        }
+      }
+
+      // 5. OFFERS (insert)
+      const validOffers = brandingAnswers.offers.filter(o => o.name.trim());
+      if (validOffers.length > 0) {
+        await supabase.from("user_offers").insert(
+          validOffers.map((o, i) => ({
+            user_id: user.id,
+            name: o.name,
+            price: o.price || null,
+            description: o.description || null,
+            sort_order: i,
+          }))
+        );
+      }
+
       localStorage.removeItem("lac_prenom");
       localStorage.removeItem("lac_activite");
-
-      // Step 9 (building screen) will navigate after animation
+      localStorage.removeItem("lac_onboarding_step");
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     } finally {
@@ -221,8 +434,20 @@ export default function Onboarding() {
     navigate("/dashboard", { replace: true });
   };
 
+  const getPlaceholder = (field: string) => {
+    const examples = getActivityExamples(answers.activity_type || answers.activite);
+    const map: Record<string, string> = {
+      positioning: (examples as any).post_examples?.[0] || "Ex: Je capture la confiance. Photographe portrait pour les femmes entrepreneures.",
+      mission: "Ex: Rendre visible les femmes qui créent. Par l'image, par le regard, par la confiance.",
+      target: "Ex: Marion, 35 ans, solopreneuse créative. Elle a besoin de photos pro mais repousse toujours...",
+    };
+    return map[field] || "";
+  };
+
+  const isCurrentStep = step < TOTAL_STEPS;
+
   return (
-    <div className="min-h-screen bg-[hsl(340,100%,97%)] flex flex-col">
+    <div className="min-h-screen bg-[hsl(var(--rose-pale))] flex flex-col">
       {/* Demo skip banner */}
       {isDemoMode && (
         <div className="sticky top-0 z-50 flex items-center justify-between px-4 py-2.5 bg-secondary border-b border-border">
@@ -238,7 +463,7 @@ export default function Onboarding() {
       )}
 
       {/* Progress bar */}
-      {step > 0 && step < 9 && (
+      {step > 0 && isCurrentStep && (
         <div className="fixed top-0 left-0 right-0 z-40 h-1 bg-border/30">
           <div
             className="h-full bg-primary transition-all duration-500 ease-out"
@@ -248,7 +473,7 @@ export default function Onboarding() {
       )}
 
       {/* Back button */}
-      {step > 0 && step < 9 && (
+      {step > 0 && isCurrentStep && (
         <button
           onClick={prev}
           className="fixed top-4 left-4 z-40 text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 transition-colors"
@@ -269,6 +494,7 @@ export default function Onboarding() {
               exit="exit"
               transition={{ duration: 0.3, ease: "easeOut" }}
             >
+              {/* PHASE 1: QUI ES-TU */}
               {step === 0 && <WelcomeScreen onNext={next} />}
               {step === 1 && <PrenomScreen value={answers.prenom} onChange={v => set("prenom", v)} onNext={next} />}
               {step === 2 && <ActiviteScreen prenom={answers.prenom} value={answers.activite} onChange={v => set("activite", v)} onNext={next} />}
@@ -277,8 +503,77 @@ export default function Onboarding() {
               {step === 5 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setTimeout(next, 500); }} />}
               {step === 6 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setTimeout(next, 500); }} />}
               {step === 7 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setTimeout(next, 500); }} />}
-              {step === 8 && <InstagramScreen answers={answers} set={set} onNext={() => { next(); handleFinish(); }} onSkip={() => { next(); handleFinish(); }} />}
-              {step === 9 && <BuildingScreen prenom={answers.prenom} onDone={() => navigate("/welcome")} />}
+              {step === 8 && <InstagramScreen answers={answers} set={set} onNext={next} onSkip={next} />}
+
+              {/* PHASE 2: NOURRIR L'OUTIL */}
+              {step === 9 && (
+                <ImportScreen
+                  files={uploadedFiles}
+                  uploading={uploading}
+                  onUpload={handleFileUpload}
+                  onRemove={removeFile}
+                  onNext={next}
+                  onSkip={next}
+                />
+              )}
+
+              {/* PHASE 3: BRANDING CONVERSATIONNEL */}
+              {step === 10 && (
+                <PositioningScreen
+                  value={brandingAnswers.positioning}
+                  onChange={v => setBranding("positioning", v)}
+                  placeholder={getPlaceholder("positioning")}
+                  hasAiSuggestion={!!auditResults.documents?.positioning && !brandingAnswers.positioning}
+                  onNext={next}
+                />
+              )}
+              {step === 11 && (
+                <MissionScreen
+                  value={brandingAnswers.mission}
+                  onChange={v => setBranding("mission", v)}
+                  placeholder={getPlaceholder("mission")}
+                  onNext={next}
+                />
+              )}
+              {step === 12 && (
+                <TargetScreen
+                  value={brandingAnswers.target_description}
+                  onChange={v => setBranding("target_description", v)}
+                  placeholder={getPlaceholder("target")}
+                  onNext={next}
+                />
+              )}
+              {step === 13 && (
+                <ToneScreen
+                  value={brandingAnswers.tone_keywords}
+                  onChange={v => setBranding("tone_keywords", v)}
+                  onNext={next}
+                />
+              )}
+              {step === 14 && (
+                <OffersScreen
+                  value={brandingAnswers.offers}
+                  onChange={v => setBranding("offers", v)}
+                  onNext={next}
+                />
+              )}
+              {step === 15 && (
+                <ValuesScreen
+                  value={brandingAnswers.values}
+                  onChange={v => setBranding("values", v)}
+                  onNext={() => { next(); handleFinish(); }}
+                />
+              )}
+
+              {/* ÉCRAN FINAL */}
+              {step === TOTAL_STEPS && (
+                <BuildingScreen
+                  prenom={answers.prenom}
+                  brandingAnswers={brandingAnswers}
+                  answers={answers}
+                  onDone={() => navigate("/welcome")}
+                />
+              )}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -288,7 +583,7 @@ export default function Onboarding() {
 }
 
 /* ════════════════════════════════════════════════════════
-   SCREEN COMPONENTS
+   SCREEN COMPONENTS - PHASE 1
    ════════════════════════════════════════════════════════ */
 
 function WelcomeScreen({ onNext }: { onNext: () => void }) {
@@ -302,7 +597,7 @@ function WelcomeScreen({ onNext }: { onNext: () => void }) {
           Avant de commencer, j'ai besoin de te poser quelques questions pour personnaliser ton espace.
         </p>
         <p className="text-sm text-muted-foreground">
-          Ça prend 2 minutes. Promis.
+          Ça prend 5 minutes. Promis.
         </p>
         <p className="text-xs text-muted-foreground/70 italic">
           Tu peux répondre en tapant ou en vocal 🎤
@@ -316,16 +611,43 @@ function WelcomeScreen({ onNext }: { onNext: () => void }) {
 }
 
 /* ── Text input with voice ── */
-function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = true }: {
+function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = true, multiline = false }: {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
   onEnter?: () => void;
   autoFocus?: boolean;
+  multiline?: boolean;
 }) {
   const { isListening, toggle } = useSpeechRecognition(
     (transcript) => onChange(value ? value + " " + transcript : transcript),
   );
+
+  if (multiline) {
+    return (
+      <div className="relative w-full">
+        <textarea
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          autoFocus={autoFocus}
+          rows={4}
+          className="w-full text-base p-4 pr-12 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50 resize-none"
+        />
+        <button
+          type="button"
+          onClick={toggle}
+          className={`absolute right-3 bottom-3 p-2 rounded-full transition-all ${
+            isListening
+              ? "bg-destructive text-destructive-foreground animate-pulse"
+              : "bg-muted text-muted-foreground hover:bg-secondary"
+          }`}
+        >
+          🎤
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full">
@@ -377,9 +699,7 @@ function ActiviteScreen({ prenom, value, onChange, onNext }: { prenom: string; v
         <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
           Enchanté·e {prenom} !<br />Tu fais quoi dans la vie ?
         </h1>
-        <p className="text-sm text-muted-foreground italic">
-          en une phrase, comme tu le dirais à quelqu'un dans un café
-        </p>
+        <p className="text-sm text-muted-foreground italic">en une phrase, comme tu le dirais à quelqu'un dans un café</p>
       </div>
       <VoiceInput value={value} onChange={onChange} placeholder="Photographe portrait pour entrepreneures" onEnter={canNext ? onNext : undefined} />
       <div className="text-center">
@@ -400,9 +720,7 @@ function TypeScreen({ value, detailValue, onChange, onDetailChange, onNext }: {
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-          Tu te reconnais dans quoi ?
-        </h1>
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Tu te reconnais dans quoi ?</h1>
         <p className="text-sm text-muted-foreground italic">choisis ce qui te correspond le mieux</p>
       </div>
       <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1">
@@ -411,16 +729,10 @@ function TypeScreen({ value, detailValue, onChange, onDetailChange, onNext }: {
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">{section.label}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {section.items.map(t => (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => onChange(t.key)}
+                <button key={t.key} type="button" onClick={() => onChange(t.key)}
                   className={`relative text-left rounded-xl border-2 px-4 py-3.5 transition-all duration-200 ${
-                    value === t.key
-                      ? "border-primary bg-secondary shadow-sm"
-                      : "border-border bg-card hover:border-primary/40 hover:bg-secondary/30"
-                  }`}
-                >
+                    value === t.key ? "border-primary bg-secondary shadow-sm" : "border-border bg-card hover:border-primary/40 hover:bg-secondary/30"
+                  }`}>
                   <div className="flex items-start gap-3">
                     <span className="text-2xl leading-none mt-0.5">{t.emoji}</span>
                     <div className="flex-1 min-w-0">
@@ -434,17 +746,11 @@ function TypeScreen({ value, detailValue, onChange, onDetailChange, onNext }: {
             </div>
           </div>
         ))}
-        {/* Autre */}
         <div>
-          <button
-            type="button"
-            onClick={() => onChange("autre")}
+          <button type="button" onClick={() => onChange("autre")}
             className={`w-full text-left rounded-xl border-2 px-4 py-3.5 transition-all duration-200 ${
-              showDetail
-                ? "border-primary bg-secondary shadow-sm"
-                : "border-border bg-card hover:border-primary/40 hover:bg-secondary/30"
-            }`}
-          >
+              showDetail ? "border-primary bg-secondary shadow-sm" : "border-border bg-card hover:border-primary/40 hover:bg-secondary/30"
+            }`}>
             <span className="flex items-center gap-3">
               <span className="text-2xl">✏️</span>
               <span className="text-sm font-semibold text-foreground">Autre</span>
@@ -453,15 +759,10 @@ function TypeScreen({ value, detailValue, onChange, onDetailChange, onNext }: {
           </button>
           {showDetail && (
             <div className="mt-3 space-y-3">
-              <input
-                type="text"
-                value={detailValue}
-                onChange={e => onDetailChange(e.target.value)}
+              <input type="text" value={detailValue} onChange={e => onDetailChange(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && detailValue.trim()) onNext(); }}
-                placeholder="Décris ton activité en quelques mots"
-                autoFocus
-                className="w-full text-base p-3 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50"
-              />
+                placeholder="Décris ton activité en quelques mots" autoFocus
+                className="w-full text-base p-3 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50" />
               <div className="text-center">
                 <Button onClick={onNext} disabled={!detailValue.trim()} className="rounded-full px-8">Suivant →</Button>
               </div>
@@ -475,36 +776,23 @@ function TypeScreen({ value, detailValue, onChange, onDetailChange, onNext }: {
 
 function CanauxScreen({ value, onChange, onNext }: { value: string[]; onChange: (v: string[]) => void; onNext: () => void }) {
   const toggle = (key: string) => {
-    if (key === "none") {
-      onChange(["none"]);
-      return;
-    }
+    if (key === "none") { onChange(["none"]); return; }
     const without = value.filter(v => v !== "none");
-    if (without.includes(key)) {
-      onChange(without.filter(v => v !== key));
-    } else {
-      onChange([...without, key]);
-    }
+    if (without.includes(key)) onChange(without.filter(v => v !== key));
+    else onChange([...without, key]);
   };
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-          Tu communiques où aujourd'hui ?
-        </h1>
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Tu communiques où aujourd'hui ?</h1>
         <p className="text-sm text-muted-foreground italic">sélectionne tout ce que tu utilises, même un petit peu</p>
       </div>
       <div className="flex flex-wrap justify-center gap-3">
         {CHANNELS.map(c => (
-          <button
-            key={c.key}
-            onClick={() => toggle(c.key)}
+          <button key={c.key} onClick={() => toggle(c.key)}
             className={`px-5 py-3 rounded-full border-2 text-sm font-medium transition-all ${
-              value.includes(c.key)
-                ? "border-primary bg-secondary text-primary"
-                : "border-border bg-card text-foreground hover:border-primary/40"
-            }`}
-          >
+              value.includes(c.key) ? "border-primary bg-secondary text-primary" : "border-border bg-card text-foreground hover:border-primary/40"
+            }`}>
             {c.emoji} {c.label}
           </button>
         ))}
@@ -520,9 +808,7 @@ function BlocageScreen({ value, onChange }: { value: string; onChange: (v: strin
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-          C'est quoi ton plus gros blocage en com' aujourd'hui ?
-        </h1>
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">C'est quoi ton plus gros blocage en com' aujourd'hui ?</h1>
         <p className="text-sm text-muted-foreground italic">ce qui te fait soupirer quand tu y penses</p>
       </div>
       <div className="space-y-3">
@@ -538,9 +824,7 @@ function ObjectifScreen({ value, onChange }: { value: string; onChange: (v: stri
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-          Et si tout marchait bien dans 6 mois, ça ressemblerait à quoi ?
-        </h1>
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Et si tout marchait bien dans 6 mois, ça ressemblerait à quoi ?</h1>
       </div>
       <div className="space-y-3">
         {OBJECTIVES.map(o => (
@@ -555,9 +839,7 @@ function TempsScreen({ value, onChange }: { value: string; onChange: (v: string)
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-          Tu peux consacrer combien de temps à ta com' par semaine ?
-        </h1>
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Tu peux consacrer combien de temps à ta com' par semaine ?</h1>
         <p className="text-sm text-muted-foreground italic">sois honnête, on s'adapte</p>
       </div>
       <div className="space-y-3">
@@ -578,57 +860,399 @@ function InstagramScreen({ answers, set, onNext, onSkip }: {
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-          Dernière chose :<br />ton @ Instagram ?
-        </h1>
-        <p className="text-sm text-muted-foreground italic">
-          pour qu'on puisse analyser ton profil et te donner des conseils personnalisés
-        </p>
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Ton @ Instagram ?</h1>
+        <p className="text-sm text-muted-foreground italic">pour analyser ton profil et te donner des conseils personnalisés</p>
       </div>
       <div className="space-y-6">
-        <div>
-          <input
-            type="text"
-            value={answers.instagram}
-            onChange={e => set("instagram", e.target.value)}
-            placeholder="@"
-            autoFocus
-            className="w-full text-xl p-4 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50"
-          />
-        </div>
+        <input type="text" value={answers.instagram} onChange={e => set("instagram", e.target.value)}
+          placeholder="@" autoFocus
+          className="w-full text-xl p-4 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50" />
         <div>
           <p className="text-sm text-muted-foreground mb-2">Et ton site web ? <span className="italic">(optionnel)</span></p>
-          <input
-            type="text"
-            value={answers.website}
-            onChange={e => set("website", e.target.value)}
+          <input type="text" value={answers.website} onChange={e => set("website", e.target.value)}
             placeholder="https://"
-            className="w-full text-xl p-4 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50"
-          />
+            className="w-full text-xl p-4 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50" />
         </div>
       </div>
       <div className="flex justify-center gap-4">
-        <Button variant="ghost" onClick={onSkip} className="rounded-full text-muted-foreground">
-          Passer →
-        </Button>
-        <Button onClick={onNext} className="rounded-full px-8">
-          C'est parti ! 🚀
-        </Button>
+        <Button variant="ghost" onClick={onSkip} className="rounded-full text-muted-foreground">Passer →</Button>
+        <Button onClick={onNext} className="rounded-full px-8">Suivant →</Button>
       </div>
     </div>
   );
 }
 
-function BuildingScreen({ prenom, onDone }: { prenom: string; onDone: () => void }) {
+/* ════════════════════════════════════════════════════════
+   SCREEN COMPONENTS - PHASE 2: IMPORT
+   ════════════════════════════════════════════════════════ */
+
+function ImportScreen({ files, uploading, onUpload, onRemove, onNext, onSkip }: {
+  files: UploadedFile[];
+  uploading: boolean;
+  onUpload: (files: FileList | null) => void;
+  onRemove: (id: string) => void;
+  onNext: () => void;
+  onSkip: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="space-y-8">
+      <div className="text-center space-y-3">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+          Tu as des documents qui décrivent ta marque ?
+        </h1>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Un brief, un PDF, un moodboard... tout ce qui m'aide à mieux te connaître.
+        </p>
+        <p className="text-xs text-muted-foreground/70 italic">
+          (c'est optionnel, mais ça me permet de pré-remplir ton espace)
+        </p>
+      </div>
+
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+        onDrop={e => { e.preventDefault(); e.stopPropagation(); onUpload(e.dataTransfer.files); }}
+        className="border-2 border-dashed border-border rounded-2xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-colors"
+      >
+        <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
+        <p className="text-sm font-medium text-foreground">📎 Glisse tes fichiers ici</p>
+        <p className="text-xs text-muted-foreground mt-1">ou clique pour importer</p>
+        <p className="text-xs text-muted-foreground/70 mt-2">PDF, Word, PNG, JPG · Max 5 fichiers</p>
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept=".pdf,.docx,.doc,.txt,.md,.png,.jpg,.jpeg,.webp"
+          onChange={e => onUpload(e.target.files)}
+          className="hidden"
+        />
+      </div>
+
+      {uploading && (
+        <p className="text-sm text-muted-foreground text-center animate-pulse">Upload en cours...</p>
+      )}
+
+      {files.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Fichiers importés :</p>
+          {files.map(f => (
+            <div key={f.id} className="flex items-center gap-3 bg-card rounded-xl border border-border px-4 py-2.5">
+              <span className="text-sm">📄</span>
+              <span className="text-sm text-foreground flex-1 truncate">{f.name}</span>
+              <button onClick={() => onRemove(f.id)} className="text-muted-foreground hover:text-destructive transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex justify-center gap-4">
+        <Button variant="ghost" onClick={onSkip} className="rounded-full text-muted-foreground">Passer →</Button>
+        {files.length > 0 && (
+          <Button onClick={onNext} className="rounded-full px-8">Suivant →</Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════
+   SCREEN COMPONENTS - PHASE 3: BRANDING
+   ════════════════════════════════════════════════════════ */
+
+function PositioningScreen({ value, onChange, placeholder, hasAiSuggestion, onNext }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  hasAiSuggestion: boolean;
+  onNext: () => void;
+}) {
+  return (
+    <div className="space-y-8">
+      <div className="text-center space-y-2">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+          Comment tu présenterais ce que tu fais à quelqu'un dans un café ?
+        </h1>
+        <p className="text-sm text-muted-foreground italic">en 2-3 phrases, comme tu le dirais à l'oral</p>
+      </div>
+      {hasAiSuggestion && value && (
+        <p className="text-xs text-primary flex items-center gap-1.5 justify-center">
+          ✨ Suggestion basée sur tes documents
+        </p>
+      )}
+      <VoiceInput value={value} onChange={onChange} placeholder={placeholder} multiline />
+      <div className="text-center">
+        <Button onClick={onNext} disabled={!value.trim()} className="rounded-full px-8">Suivant →</Button>
+      </div>
+    </div>
+  );
+}
+
+function MissionScreen({ value, onChange, placeholder, onNext }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  onNext: () => void;
+}) {
+  return (
+    <div className="space-y-8">
+      <div className="text-center space-y-2">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+          C'est quoi ta mission profonde ?
+        </h1>
+        <p className="text-sm text-muted-foreground italic">Le truc qui te fait te lever le matin, au-delà de gagner ta vie.</p>
+      </div>
+      <VoiceInput value={value} onChange={onChange} placeholder={placeholder} multiline />
+      <div className="text-center">
+        <Button onClick={onNext} disabled={!value.trim()} className="rounded-full px-8">Suivant →</Button>
+      </div>
+    </div>
+  );
+}
+
+function TargetScreen({ value, onChange, placeholder, onNext }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  onNext: () => void;
+}) {
+  return (
+    <div className="space-y-8">
+      <div className="text-center space-y-2">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+          Décris ta cliente idéale en quelques mots.
+        </h1>
+        <p className="text-sm text-muted-foreground italic">Qui est-elle ? Qu'est-ce qui la bloque ? Qu'est-ce qu'elle veut ?</p>
+      </div>
+      <VoiceInput value={value} onChange={onChange} placeholder={placeholder} multiline />
+      <div className="text-center">
+        <Button onClick={onNext} disabled={!value.trim()} className="rounded-full px-8">Suivant →</Button>
+      </div>
+    </div>
+  );
+}
+
+function ToneScreen({ value, onChange, onNext }: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  onNext: () => void;
+}) {
+  const toggle = (key: string) => {
+    if (value.includes(key)) {
+      onChange(value.filter(v => v !== key));
+    } else if (value.length < 3) {
+      onChange([...value, key]);
+    }
+  };
+  const atMax = value.length >= 3;
+
+  return (
+    <div className="space-y-8">
+      <div className="text-center space-y-2">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+          Si ta marque était une personne, elle parlerait comment ?
+        </h1>
+        <p className="text-sm text-muted-foreground italic">choisis 2-3 mots</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {TONE_OPTIONS.map(t => {
+          const selected = value.includes(t.key);
+          const disabled = atMax && !selected;
+          return (
+            <button key={t.key} onClick={() => toggle(t.key)} disabled={disabled}
+              className={`px-4 py-3.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                selected
+                  ? "border-primary bg-secondary text-primary"
+                  : disabled
+                    ? "border-border bg-muted/50 text-muted-foreground/50 cursor-not-allowed"
+                    : "border-border bg-card text-foreground hover:border-primary/40"
+              }`}>
+              {t.emoji} {t.label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="text-center">
+        <Button onClick={onNext} disabled={value.length < 2} className="rounded-full px-8">Suivant →</Button>
+      </div>
+    </div>
+  );
+}
+
+function OffersScreen({ value, onChange, onNext }: {
+  value: { name: string; price: string; description: string }[];
+  onChange: (v: { name: string; price: string; description: string }[]) => void;
+  onNext: () => void;
+}) {
+  const updateOffer = (idx: number, field: string, val: string) => {
+    const updated = [...value];
+    updated[idx] = { ...updated[idx], [field]: val };
+    onChange(updated);
+  };
+  const addOffer = () => {
+    if (value.length < 3) onChange([...value, { name: "", price: "", description: "" }]);
+  };
+  const removeOffer = (idx: number) => {
+    if (value.length > 1) onChange(value.filter((_, i) => i !== idx));
+  };
+
+  const canNext = value.some(o => o.name.trim());
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+          C'est quoi ton offre principale ?
+        </h1>
+        <p className="text-sm text-muted-foreground italic">celle qui te fait vivre ou que tu veux pousser en priorité</p>
+      </div>
+
+      <div className="space-y-6">
+        {value.map((offer, idx) => (
+          <div key={idx} className="space-y-3 bg-card rounded-xl border border-border p-4">
+            {value.length > 1 && (
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold text-muted-foreground">Offre {idx + 1}</span>
+                <button onClick={() => removeOffer(idx)} className="text-muted-foreground hover:text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Nom de l'offre</label>
+              <Input value={offer.name} onChange={e => updateOffer(idx, "name", e.target.value)} placeholder="Ex: Séance Confiance" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Prix</label>
+              <Input value={offer.price} onChange={e => updateOffer(idx, "price", e.target.value)} placeholder="Ex: 350€" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">En une phrase, elle sert à quoi ?</label>
+              <VoiceInput value={offer.description} onChange={v => updateOffer(idx, "description", v)} placeholder="Ex: Séance portrait 2h avec coaching posture inclus" autoFocus={false} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {value.length < 3 && (
+        <button onClick={addOffer} className="text-sm text-primary font-medium flex items-center gap-1.5 mx-auto hover:underline">
+          <Plus className="h-4 w-4" /> Ajouter une autre offre
+        </button>
+      )}
+
+      <div className="text-center">
+        <Button onClick={onNext} disabled={!canNext} className="rounded-full px-8">Suivant →</Button>
+      </div>
+    </div>
+  );
+}
+
+function ValuesScreen({ value, onChange, onNext }: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  onNext: () => void;
+}) {
+  const updateValue = (idx: number, val: string) => {
+    const updated = [...value];
+    if (idx < updated.length) {
+      updated[idx] = val;
+    } else {
+      updated.push(val);
+    }
+    onChange(updated);
+  };
+
+  const addChip = (chip: string) => {
+    if (value.includes(chip)) return;
+    if (value.length < 3) {
+      onChange([...value, chip]);
+    } else {
+      // Replace last empty one
+      const emptyIdx = value.findIndex(v => !v.trim());
+      if (emptyIdx >= 0) {
+        const updated = [...value];
+        updated[emptyIdx] = chip;
+        onChange(updated);
+      }
+    }
+  };
+
+  // Ensure 3 slots
+  const slots = [value[0] || "", value[1] || "", value[2] || ""];
+  const canNext = slots.filter(s => s.trim()).length >= 2;
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+          3 valeurs qui portent ton projet ?
+        </h1>
+      </div>
+
+      <div className="space-y-3">
+        {slots.map((val, idx) => (
+          <Input
+            key={idx}
+            value={val}
+            onChange={e => updateValue(idx, e.target.value)}
+            placeholder={`${idx + 1}.`}
+          />
+        ))}
+      </div>
+
+      <div>
+        <p className="text-xs text-muted-foreground mb-2">Ou choisis parmi :</p>
+        <div className="flex flex-wrap gap-2">
+          {VALUE_CHIPS.map(chip => {
+            const isSelected = value.includes(chip);
+            return (
+              <button key={chip} onClick={() => addChip(chip)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                  isSelected
+                    ? "border-primary bg-secondary text-primary"
+                    : "border-border bg-card text-foreground hover:border-primary/40"
+                }`}>
+                {chip}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="text-center">
+        <Button onClick={onNext} disabled={!canNext} className="rounded-full px-8">Terminer →</Button>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════
+   BUILDING SCREEN
+   ════════════════════════════════════════════════════════ */
+
+function BuildingScreen({ prenom, brandingAnswers, answers, onDone }: {
+  prenom: string;
+  brandingAnswers: BrandingAnswers;
+  answers: Answers;
+  onDone: () => void;
+}) {
   const [lines, setLines] = useState<number>(0);
   const [showButton, setShowButton] = useState(false);
 
   const steps = [
-    "Tes canaux sont configurés",
-    "Ton profil est enregistré",
-    "Tes premières recommandations arrivent",
-    "Ton tableau de bord se met en place…",
+    { label: "Ton profil est enregistré", done: true },
+    { label: "Ton positionnement est posé", done: !!brandingAnswers.positioning },
+    { label: "Ta cible est définie", done: !!brandingAnswers.target_description },
+    { label: "Tes offres sont enregistrées", done: brandingAnswers.offers.some(o => o.name.trim()) },
+    { label: "Ton ton est choisi", done: brandingAnswers.tone_keywords.length >= 2 },
+    { label: "Tes valeurs sont posées", done: brandingAnswers.values.filter(v => v.trim()).length >= 2 },
   ];
+
+  const filledCount = steps.filter(s => s.done).length;
+  const completionPct = Math.round((filledCount / steps.length) * 100);
 
   useEffect(() => {
     const timers: NodeJS.Timeout[] = [];
@@ -643,9 +1267,9 @@ function BuildingScreen({ prenom, onDone }: { prenom: string; onDone: () => void
     <div className="text-center space-y-8">
       <div className="space-y-2">
         <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-          Parfait {prenom} !
+          Merci {prenom} ! 🌸
         </h1>
-        <p className="text-base text-muted-foreground">Je prépare ton espace...</p>
+        <p className="text-base text-muted-foreground">Ton espace prend forme...</p>
       </div>
       <div className="space-y-4 text-left max-w-sm mx-auto">
         {steps.map((s, i) => (
@@ -656,15 +1280,30 @@ function BuildingScreen({ prenom, onDone }: { prenom: string; onDone: () => void
             transition={{ duration: 0.35 }}
             className="flex items-center gap-3"
           >
-            {i < lines - 1 || (i === steps.length - 1 && lines === steps.length) ? (
-              <span className="text-lg">✅</span>
-            ) : i < lines ? (
-              <span className="text-lg animate-spin">🔄</span>
-            ) : null}
-            <span className={`text-sm ${i < lines ? "text-foreground" : "text-muted-foreground/40"}`}>{s}</span>
+            {i < lines && (
+              <span className="text-lg">{s.done ? "✅" : "⬜"}</span>
+            )}
+            <span className={`text-sm ${i < lines ? "text-foreground" : "text-muted-foreground/40"}`}>{s.label}</span>
           </motion.div>
         ))}
       </div>
+
+      {lines >= steps.length && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+          <p className="text-lg font-semibold text-foreground">
+            Ton branding est complété à {completionPct}% !
+          </p>
+          <div className="w-48 mx-auto h-2 bg-border/40 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-primary rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${completionPct}%` }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+            />
+          </div>
+        </motion.div>
+      )}
+
       {showButton && (
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
           <Button onClick={onDone} size="lg" className="rounded-full px-8 gap-2">
@@ -678,25 +1317,17 @@ function BuildingScreen({ prenom, onDone }: { prenom: string; onDone: () => void
 
 /* ────────────────────────────────────────────── shared */
 
-function ChoiceCard({ emoji, label, selected, onClick, fullWidth }: {
+function ChoiceCard({ emoji, label, selected, onClick }: {
   emoji: string;
   label: string;
   selected: boolean;
   onClick: () => void;
-  fullWidth?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`text-left rounded-xl border-2 px-5 py-4 transition-all duration-200 ${
-        fullWidth ? "col-span-2" : ""
-      } ${
-        selected
-          ? "border-primary bg-secondary shadow-sm"
-          : "border-border bg-card hover:border-primary/40 hover:bg-secondary/30"
-      }`}
-    >
+    <button type="button" onClick={onClick}
+      className={`w-full text-left rounded-xl border-2 px-5 py-4 transition-all duration-200 ${
+        selected ? "border-primary bg-secondary shadow-sm" : "border-border bg-card hover:border-primary/40 hover:bg-secondary/30"
+      }`}>
       <span className="flex items-center gap-3">
         <span className="text-xl">{emoji}</span>
         <span className="text-sm font-medium text-foreground flex-1">{label}</span>
