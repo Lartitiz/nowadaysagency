@@ -44,6 +44,20 @@
     --rose-pale: 340 100% 97%;
     --placeholder: 275 30% 80%;
 
+    /* ── Status colors ─────────────────────── */
+    --success: 160 84% 39%;
+    --success-bg: 152 81% 96%;
+    --warning: 25 95% 53%;
+    --warning-bg: 33 100% 96%;
+    --error: 0 91% 71%;
+    --error-bg: 0 86% 97%;
+
+    /* ── Primary shades ────────────────────── */
+    --primary-hover: 338 78% 53%;
+    --primary-light: 338 100% 71%;
+    --primary-soft: 338 100% 90%;
+
+    /* ── Bento ─────────────────────────────── */
     --bento-dark: 330 100% 15%;
     --bento-lavande: 270 60% 94%;
     --bento-mint: 160 50% 92%;
@@ -56,6 +70,7 @@
     --shadow-bento: 0 2px 16px rgba(145, 1, 75, 0.06);
     --shadow-bento-hover: 0 8px 32px rgba(145, 1, 75, 0.12);
 
+    /* ── Calendar status ───────────────────── */
     --cal-idea: 220 13% 91%;
     --cal-idea-border: 220 9% 76%;
     --cal-drafting: 48 100% 69%;
@@ -65,6 +80,7 @@
     --cal-published: 142 76% 92%;
     --cal-published-border: 142 71% 45%;
 
+    /* ── Objectives ────────────────────────── */
     --obj-visibilite: 217 91% 60%;
     --obj-visibilite-bg: 217 91% 95%;
     --obj-confiance: 38 92% 50%;
@@ -74,6 +90,7 @@
     --obj-credibilite: 271 81% 56%;
     --obj-credibilite-bg: 271 81% 94%;
 
+    /* ── Sidebar ───────────────────────────── */
     --sidebar-background: 340 100% 97%;
     --sidebar-foreground: 270 25% 17%;
     --sidebar-primary: 338 96% 61%;
@@ -83,10 +100,22 @@
     --sidebar-border: 330 30% 92%;
     --sidebar-ring: 338 96% 61%;
 
+    /* ── Shadows ────────────────────────────── */
     --shadow-card: 0 2px 20px rgba(145, 1, 75, 0.08);
     --shadow-card-hover: 0 4px 24px rgba(145, 1, 75, 0.12);
     --shadow-strong: 0 8px 40px rgba(145, 1, 75, 0.12);
     --shadow-cta: 0 4px 16px rgba(251, 61, 128, 0.3);
+    --shadow-focus: 0 0 0 3px hsl(338 96% 61% / 0.2);
+
+    /* ── Glassmorphism ─────────────────────── */
+    --glass-bg: hsl(0 0% 100% / 0.95);
+    --glass-border: hsl(0 0% 100% / 0.5);
+    --overlay-bg: hsl(330 100% 28% / 0.15);
+
+    /* ── Transitions ───────────────────────── */
+    --transition-fast: 150ms ease;
+    --transition-base: 200ms ease;
+    --transition-slow: 300ms ease;
   }
 
   .dark {

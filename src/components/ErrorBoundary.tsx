@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { MESSAGES } from "@/lib/messages";
 
 interface Props {
   children: ReactNode;
@@ -28,25 +29,22 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ hasError: false, error: null });
   };
 
-  handleReload = () => {
-    window.location.reload();
-  };
-
   handleGoHome = () => {
     window.location.href = "/dashboard";
   };
 
   render() {
     if (this.state.hasError) {
+      const msg = MESSAGES.errors.generic;
       return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="min-h-screen bg-rose-pale flex items-center justify-center p-6">
           <div className="max-w-md w-full text-center space-y-6">
             <div className="text-5xl">😵</div>
             <h1 className="font-display text-2xl font-bold text-foreground">
-              Oups, quelque chose a planté
+              {msg.title}
             </h1>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Pas de panique ! Tes données sont sauvegardées. Tu peux réessayer ou revenir au tableau de bord.
+              {msg.body}
             </p>
             {this.state.error && (
               <details className="text-left rounded-xl border border-border bg-muted/30 p-3">
