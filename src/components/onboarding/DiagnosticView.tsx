@@ -3,6 +3,7 @@ import { motion, useInView, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { type DiagnosticData, getScoreMessage } from "@/lib/diagnostic-data";
+import Confetti from "@/components/Confetti";
 
 interface Props {
   data: DiagnosticData;
@@ -324,8 +325,16 @@ function ChannelBar({ emoji, label, score }: { emoji: string; label: string; sco
 
 /* ═══ Section 7: Final ═══ */
 function FinalSection({ onComplete }: { onComplete: () => void }) {
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowConfetti(true), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div className="text-center space-y-6 py-8">
+      {showConfetti && <Confetti />}
       <h2 className="text-[28px] md:text-[32px] font-display font-bold text-foreground leading-tight">
         Maintenant, tu sais d'où tu pars.
       </h2>
