@@ -138,7 +138,7 @@ export default function SettingsPage() {
     toast({ title: "Compte supprimé. À bientôt peut-être 💛" });
   };
 
-  const planLabel = subInfo?.plan === "studio" ? "Now Studio" : subInfo?.plan === "outil" ? "Outil" : "Gratuit";
+  const planLabel = subInfo?.plan === "now_pilot" ? "Now Pilot" : subInfo?.plan === "studio" ? "Now Studio" : subInfo?.plan === "outil" ? "Outil" : "Gratuit";
 
   return (
     <div className="min-h-screen bg-background">
@@ -370,7 +370,7 @@ const QUOTA_CATEGORIES = [
 
 function AiQuotaDisplay() {
   const { plan, usage, isPaid } = useUserPlan();
-  const planLabel = plan === "studio" ? "Now Studio (250€/mois)" : plan === "outil" ? "Outil (39€/mois)" : "Gratuit";
+  const planLabel = plan === "now_pilot" ? "Now Pilot" : plan === "studio" ? "Now Studio (250€/mois)" : plan === "outil" ? "Outil (39€/mois)" : "Gratuit";
   const total = usage.total;
   const nextMonth = new Date();
   nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
