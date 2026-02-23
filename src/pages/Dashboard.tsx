@@ -53,11 +53,9 @@ interface QuickAction { label: string; emoji: string; route: string; priority: n
 function getQuickActions(data: DashboardData): QuickAction[] {
   const actions: QuickAction[] = [];
   actions.push({ label: "Créer un post", emoji: "✨", route: "/instagram/creer", priority: 1 });
-  if (data.contactCount >= 3) actions.push({ label: "Commenter 3 comptes", emoji: "💬", route: "/contacts", priority: 2 });
-  if (data.prospectCount > 0) actions.push({ label: "Relancer un prospect", emoji: "📩", route: "/contacts", priority: 3 });
-  if (data.calendarPostCount > 0) actions.push({ label: "Voir mon calendrier", emoji: "📅", route: "/calendrier", priority: 4 });
-  if (data.brandingCompletion.total < 100) actions.push({ label: "Continuer mon branding", emoji: "🎨", route: "/branding", priority: 5 });
-  if (data.igAuditScore == null) actions.push({ label: "Faire mon audit", emoji: "🔍", route: "/instagram/audit", priority: 6 });
+  actions.push({ label: "Routine engagement", emoji: "💬", route: "/instagram/routine", priority: 2 });
+  actions.push({ label: "Voir mon calendrier", emoji: "📅", route: "/calendrier", priority: 3 });
+  if (data.prospectCount > 0) actions.push({ label: "Relancer un prospect", emoji: "📩", route: "/contacts", priority: 4 });
   return actions.sort((a, b) => a.priority - b.priority).slice(0, 4);
 }
 
@@ -232,17 +230,11 @@ export default function Dashboard() {
                   route="/linkedin" />
           )}
 
+          {/* Site Web / Blog card */}
+          {!channelsLoading && hasWebsite && <WebsiteCard />}
+
           {/* SEO card (external tool) */}
           {!channelsLoading && hasSeo && <SeoExternalCard />}
-
-          {/* Créer un contenu */}
-          <CreateContentCard hasInstagram={hasInstagram} hasLinkedin={hasLinkedin} />
-
-          {/* Mes contacts */}
-          <ContactsCard data={dashData} />
-
-          {/* Mon calendrier */}
-          <CalendarCard data={dashData} />
 
           {/* Branding (seulement si pas complété) */}
           {!brandingDone && (
@@ -380,99 +372,28 @@ function MiniBtn({ label, onClick }: { label: string; onClick: () => void }) {
   );
 }
 
-/* ── Create Content Card ── */
-function CreateContentCard({ hasInstagram, hasLinkedin }: { hasInstagram: boolean; hasLinkedin: boolean }) {
+/* ── Website Card ── */
+function WebsiteCard() {
   const navigate = useNavigate();
+  // TODO: could fetch actual page count from DB; for now show setup mode
   return (
-    <div onClick={() => navigate("/instagram/creer")} className="rounded-2xl border-2 border-primary/30 bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
-      <div className="flex items-center gap-3 mb-3">
-        <span className="text-2xl">✨</span>
-        <h3 className="font-display text-lg font-bold text-foreground">Créer un contenu</h3>
+    <div onClick={() => navigate("/site")}
+      className="rounded-2xl border border-border bg-card p-4 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xl">🌐</span>
+          <h3 className="font-display text-base font-bold text-foreground">Mon Site Web</h3>
+        </div>
       </div>
-      <div className="flex flex-wrap gap-2 mb-3">
-        {hasInstagram && (
-          <>
-            <MiniBtn label="📝 Post" onClick={() => navigate("/instagram/creer")} />
-            <MiniBtn label="🎠 Carrousel" onClick={() => navigate("/instagram/carousel")} />
-            <MiniBtn label="🎬 Reel" onClick={() => navigate("/instagram/reels")} />
-            <MiniBtn label="📱 Story" onClick={() => navigate("/instagram/stories")} />
-          </>
-        )}
-        {hasLinkedin && <MiniBtn label="💼 LinkedIn" onClick={() => navigate("/linkedin/post")} />}
-      </div>
-      <p className="text-[13px] text-muted-foreground">
-        💡 Tu as une idée ? <button onClick={() => navigate("/instagram/creer")} className="text-primary font-medium hover:underline">Trouve-moi le bon format →</button>
+      <p className="text-[13px] text-muted-foreground mb-2">
+        Rédige les textes de ton site : page d'accueil, à propos, pages de vente.
       </p>
-    </div>
-  );
-}
-
-/* ── Contacts Card ── */
-function ContactsCard({ data }: { data: DashboardData }) {
-  const navigate = useNavigate();
-  const hasAny = data.contactCount > 0 || data.prospectCount > 0;
-
-  return (
-    <div onClick={() => navigate("/contacts")} className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
-      <div className="flex items-center gap-3 mb-3">
-        <span className="text-2xl">👥</span>
-        <h3 className="font-display text-lg font-bold text-foreground">Mes Contacts</h3>
+      <div className="flex flex-wrap gap-2">
+        <MiniBtn label="📄 Page d'accueil" onClick={() => navigate("/site/accueil")} />
+        <MiniBtn label="📄 À propos" onClick={() => navigate("/site/a-propos")} />
+        <MiniBtn label="📄 Témoignages" onClick={() => navigate("/site/temoignages")} />
       </div>
-      {hasAny ? (
-        <>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3 text-[13px] text-muted-foreground">
-            <span>👥 {data.contactCount} contacts réseau</span>
-            <span>🎯 {data.prospectCount} prospects</span>
-            {data.prospectConversation > 0 && <span>💬 {data.prospectConversation} en conversation</span>}
-            {data.prospectOffered > 0 && <span>📩 {data.prospectOffered} offre proposée</span>}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <MiniBtn label="👥 Mon réseau" onClick={() => navigate("/contacts")} />
-            <MiniBtn label="🎯 Mes prospects" onClick={() => navigate("/contacts")} />
-          </div>
-        </>
-      ) : (
-        <p className="text-[13px] text-muted-foreground">
-          Ajoute tes premiers contacts stratégiques.{" "}
-          <button onClick={() => navigate("/contacts")} className="text-primary font-medium hover:underline">Commencer →</button>
-        </p>
-      )}
-    </div>
-  );
-}
-
-/* ── Calendar Card ── */
-function CalendarCard({ data }: { data: DashboardData }) {
-  const navigate = useNavigate();
-  const hasWeekPosts = data.weekPostsTotal > 0;
-
-  return (
-    <div onClick={() => navigate("/calendrier")} className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
-      <div className="flex items-center gap-3 mb-3">
-        <span className="text-2xl">📅</span>
-        <h3 className="font-display text-lg font-bold text-foreground">Mon Calendrier</h3>
-      </div>
-      {hasWeekPosts ? (
-        <>
-          <div className="space-y-1 mb-3 text-[13px] text-muted-foreground">
-            <p>Cette semaine : <span className="font-medium text-foreground">{data.weekPostsPublished}/{data.weekPostsTotal} posts prévus</span></p>
-            {data.nextPost && (
-              <p>Prochain post : <span className="font-medium text-foreground">
-                {format(new Date(data.nextPost.date), "EEEE", { locale: fr })} "{data.nextPost.theme}"
-              </span></p>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <MiniBtn label="📅 Voir le calendrier" onClick={() => navigate("/calendrier")} />
-            <MiniBtn label="+ Planifier un post" onClick={() => navigate("/calendrier")} />
-          </div>
-        </>
-      ) : (
-        <p className="text-[13px] text-muted-foreground">
-          Aucun post prévu cette semaine.{" "}
-          <button onClick={() => navigate("/calendrier")} className="text-primary font-medium hover:underline">Planifier →</button>
-        </p>
-      )}
+      <p className="text-sm font-semibold text-primary mt-2">Commencer →</p>
     </div>
   );
 }
