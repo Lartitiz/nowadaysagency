@@ -12,6 +12,7 @@ import AuditInsight, { useAuditInsight } from "@/components/AuditInsight";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { Link } from "react-router-dom";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
+import { useDemoContext } from "@/contexts/DemoContext";
 
 /* ═══════════════════════════════════════════════
    TYPES
@@ -73,6 +74,7 @@ export default function InstagramBio() {
   const { toast } = useToast();
   useAuditInsight("bio");
   const activityExamples = useActivityExamples();
+  const { isDemoMode, demoData } = useDemoContext();
 
   // Profile data
   const [profile, setProfile] = useState<any>(null);
@@ -108,6 +110,26 @@ export default function InstagramBio() {
 
   // Load profile, branding, and existing validation
   useEffect(() => {
+    if (isDemoMode) {
+      // Demo mode: inject fake data directly
+      setProfile({ prenom: demoData?.profile.first_name, activite: demoData?.profile.activity, instagram_username: "lea_portraits" });
+      setBrandingCtx({
+        positioning: demoData?.branding.positioning || "",
+        valueProposition: demoData?.branding.unique_proposition || "",
+        target: demoData?.persona.situation || "",
+        tone: demoData?.branding.tone?.description || "",
+        keywords: demoData?.branding.tone?.keywords?.join(", ") || "",
+        story: demoData?.story_summary || "",
+        offer: demoData?.offers?.[0]?.name || "",
+        mission: demoData?.branding.mission || "",
+        combats: "",
+      });
+      setBrandingLoaded(true);
+      setValidatedBio(demoData?.bio || null);
+      setValidatedAt("2026-02-20T10:00:00Z");
+      setView("validated");
+      return;
+    }
     if (!user || brandingLoaded) return;
     const load = async () => {
       const [{ data: prof }, { data: val }, { data: bp }, { data: persona }, { data: prop }, { data: strat }, { data: story }] = await Promise.all([
@@ -155,7 +177,7 @@ export default function InstagramBio() {
       }
     };
     load();
-  }, [user?.id]);
+  }, [user?.id, isDemoMode]);
 
   const brandingFilled = brandingCtx
     ? [brandingCtx.positioning, brandingCtx.valueProposition, brandingCtx.target, brandingCtx.tone].filter(Boolean).length

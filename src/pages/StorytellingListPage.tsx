@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useDemoContext } from "@/contexts/DemoContext";
 
 interface StorytellingRow {
   id: string;
@@ -55,10 +56,27 @@ export default function StorytellingListPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { isDemoMode, demoData } = useDemoContext();
   const [items, setItems] = useState<StorytellingRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchItems = async () => {
+    if (isDemoMode) {
+      setItems([{
+        id: "demo-story",
+        title: "Mon histoire de photographe",
+        story_type: "fondatrice",
+        source: "stepper",
+        is_primary: true,
+        step_7_polished: demoData?.story_summary || "",
+        imported_text: null,
+        pitch_short: "Je capture la confiance.",
+        created_at: "2026-02-10T10:00:00Z",
+        completed: true,
+      }]);
+      setLoading(false);
+      return;
+    }
     if (!user) return;
     const { data } = await supabase
       .from("storytelling")
@@ -69,7 +87,7 @@ export default function StorytellingListPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchItems(); }, [user?.id]);
+  useEffect(() => { fetchItems(); }, [user?.id, isDemoMode]);
 
   const setPrimary = async (id: string) => {
     await supabase.from("storytelling").update({ is_primary: true } as any).eq("id", id);
