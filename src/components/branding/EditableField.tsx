@@ -40,6 +40,16 @@ export default function EditableField({
     try {
       if (recordId && idField) {
         await (supabase.from(table as any) as any).update({ [field]: editValue, updated_at: new Date().toISOString() }).eq(idField, recordId);
+      } else if (table === "storytelling") {
+        // storytelling uses id, not user_id upsert
+        const { data: existing } = await (supabase.from("storytelling" as any) as any)
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("is_primary", true)
+          .maybeSingle();
+        if (existing) {
+          await (supabase.from("storytelling" as any) as any).update({ [field]: editValue, updated_at: new Date().toISOString() }).eq("id", existing.id);
+        }
       } else {
         await (supabase.from(table as any) as any).upsert({ user_id: user.id, [field]: editValue, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
       }

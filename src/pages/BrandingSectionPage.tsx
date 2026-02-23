@@ -39,14 +39,19 @@ const SECTION_CONFIGS: Record<Section, SectionConfig> = {
     emoji: "📖",
     title: "Mon histoire",
     parentLabel: "Branding",
-    table: "brand_profile",
+    table: "storytelling",
+    idField: "id",
     fields: [
-      { key: "story_origin", label: "Comment tout a commencé" },
-      { key: "story_turning_point", label: "Le déclic" },
-      { key: "story_struggles", label: "Les galères" },
-      { key: "story_unique", label: "Ce qui me rend unique" },
-      { key: "story_vision", label: "Ma vision" },
-      { key: "story_full", label: "Mon histoire complète" },
+      { key: "step_1_raw", label: "Mon point de départ" },
+      { key: "step_2_location", label: "Le contexte" },
+      { key: "step_3_action", label: "Ce que j'ai fait" },
+      { key: "step_4_thoughts", label: "Ce que je pensais" },
+      { key: "step_5_emotions", label: "Ce que je ressentais" },
+      { key: "step_6_full_story", label: "Mon histoire brute" },
+      { key: "step_7_polished", label: "Mon histoire complète" },
+      { key: "pitch_short", label: "Pitch court" },
+      { key: "pitch_medium", label: "Pitch moyen" },
+      { key: "pitch_long", label: "Pitch long" },
     ],
   },
   persona: {
@@ -124,12 +129,16 @@ const SECTION_CONFIGS: Record<Section, SectionConfig> = {
 
 const DEMO_FICHE_DATA: Record<Section, Record<string, string>> = {
   story: {
-    story_origin: "J'ai commencé la photo à 22 ans, un peu par hasard. Je faisais des portraits de mes amies et un jour, une d'entre elles m'a demandé de shooter sa marque.",
-    story_turning_point: "Le jour où une cliente m'a dit 'c'est la première fois que je me trouve belle en photo', j'ai compris que mon métier allait au-delà de la technique.",
-    story_struggles: "2 ans à galérer avec les réseaux, à poster dans le vide sans retour. Le syndrome de l'imposteur, les comparaisons avec d'autres photographes plus expérimentées.",
-    story_unique: "Je coache la posture avant de shooter. Mes clientes repartent confiantes, pas juste avec de belles photos.",
-    story_vision: "Un monde où chaque femme ose se montrer telle qu'elle est, sans filtre, sans excuses.",
-    story_full: "",
+    step_1_raw: "",
+    step_2_location: "",
+    step_3_action: "",
+    step_4_thoughts: "",
+    step_5_emotions: "",
+    step_6_full_story: "",
+    step_7_polished: "Petite, j'étais déjà fascinée par les mots. Mon premier déclic, c'était en 3e : un article publié dans le journal local...",
+    pitch_short: "J'accompagne les femmes et les collectifs engagé·es à bâtir une présence en ligne éthique et joyeuse.",
+    pitch_medium: "",
+    pitch_long: "",
   },
   persona: {
     target_description: "Femme entrepreneure, 30-45 ans, créatrice ou coach, qui lance ou fait évoluer son activité. Elle veut une image qui la représente vraiment.",
@@ -214,11 +223,17 @@ export default function BrandingSectionPage() {
 
     const load = async () => {
       const table = config.table;
-      const columns = config.fields.map(f => f.key).join(", ") + ", updated_at";
-      const { data: row } = await (supabase.from(table as any) as any)
+      const columns = config.fields.map(f => f.key).join(", ") + ", updated_at, id";
+      let query = (supabase.from(table as any) as any)
         .select(columns)
-        .eq("user_id", user.id)
-        .maybeSingle();
+        .eq("user_id", user.id);
+      
+      // storytelling table uses is_primary flag
+      if (table === "storytelling") {
+        query = query.eq("is_primary", true);
+      }
+      
+      const { data: row } = await query.maybeSingle();
       if (row) {
         setData(row);
         setLastUpdated(row.updated_at || null);
@@ -357,19 +372,20 @@ export default function BrandingSectionPage() {
                   section={section}
                   onComplete={() => {
                     setActiveTab("fiche");
-                    // Reload data
                     if (!isDemoMode && user) {
-                      const columns = config.fields.map(f => f.key).join(", ") + ", updated_at";
-                      (supabase.from(config.table as any) as any)
+                      const columns = config.fields.map(f => f.key).join(", ") + ", updated_at, id";
+                      let query = (supabase.from(config.table as any) as any)
                         .select(columns)
-                        .eq("user_id", user.id)
-                        .maybeSingle()
-                        .then(({ data: row }: any) => {
-                          if (row) {
-                            setData(row);
-                            setLastUpdated(row.updated_at || null);
-                          }
-                        });
+                        .eq("user_id", user.id);
+                      if (config.table === "storytelling") {
+                        query = query.eq("is_primary", true);
+                      }
+                      query.maybeSingle().then(({ data: row }: any) => {
+                        if (row) {
+                          setData(row);
+                          setLastUpdated(row.updated_at || null);
+                        }
+                      });
                     }
                   }}
                   onBack={() => setActiveTab("fiche")}
