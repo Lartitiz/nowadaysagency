@@ -6,18 +6,20 @@ import AppHeader from "@/components/AppHeader";
 import AiDisclaimerBanner from "@/components/AiDisclaimerBanner";
 import { Progress } from "@/components/ui/progress";
 import { useUserPlan } from "@/hooks/use-user-plan";
-import { ArrowRight, Sparkles, Check } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { useActiveChannels, ALL_CHANNELS } from "@/hooks/use-active-channels";
 import { computePlan, type PlanData } from "@/lib/plan-engine";
-import { startOfWeek, endOfWeek, format, getDay, addDays, isToday, isBefore } from "date-fns";
+import { startOfWeek, endOfWeek, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import BentoGrid from "@/components/dashboard/BentoGrid";
 import BentoCard from "@/components/dashboard/BentoCard";
 import SpaceBentoCard from "@/components/dashboard/SpaceBentoCard";
 import { spaceModules } from "@/config/dashboardModules";
 import BadgesWidget from "@/components/dashboard/BadgesWidget";
-import WeeklyProgressWidget from "@/components/dashboard/WeeklyProgressWidget";
+import WeekCalendarWidget from "@/components/dashboard/WeekCalendarWidget";
+import EngagementRoutineWidget from "@/components/dashboard/EngagementRoutineWidget";
+import MonthlyStatsWidget from "@/components/dashboard/MonthlyStatsWidget";
 import { checkBadges } from "@/lib/badges";
 
 /* ── Types ── */
@@ -54,8 +56,6 @@ interface DashboardData {
   nextPost: { date: string; theme: string } | null;
   planData: PlanData | null;
   recommendations: { id: string; titre: string | null; route: string; completed: boolean | null }[];
-  weekCalendarDays: string[];
-  streakDays: boolean[];
 }
 
 /* ── Welcome messages ── */
@@ -85,7 +85,6 @@ export default function Dashboard() {
     contactCount: 0, prospectCount: 0, prospectConversation: 0, prospectOffered: 0,
     calendarPostCount: 0, weekPostsPublished: 0, weekPostsTotal: 0, nextPost: null,
     planData: null, recommendations: [],
-    weekCalendarDays: [], streakDays: Array(7).fill(false),
   });
   const { hasInstagram, hasLinkedin, hasWebsite, hasSeo, loading: channelsLoading, channels } = useActiveChannels();
 
@@ -96,7 +95,7 @@ export default function Dashboard() {
     const weekEnd = format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
 
     const fetchAll = async () => {
-      const [profRes, brandingData, igAuditRes, liAuditRes, contactRes, prospectRes, prospectConvRes, prospectOffRes, calendarRes, weekPostsRes, weekPublishedRes, nextPostRes, planConfigRes, recsRes, weekCalRes, streakRes] = await Promise.all([
+      const [profRes, brandingData, igAuditRes, liAuditRes, contactRes, prospectRes, prospectConvRes, prospectOffRes, calendarRes, weekPostsRes, weekPublishedRes, nextPostRes, planConfigRes, recsRes] = await Promise.all([
         supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq("user_id", user.id).single(),
         fetchBrandingData(user.id),
         supabase.from("instagram_audit").select("score_global").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
@@ -111,10 +110,6 @@ export default function Dashboard() {
         supabase.from("calendar_posts").select("date, theme").eq("user_id", user.id).gte("date", format(now, "yyyy-MM-dd")).order("date", { ascending: true }).limit(1).maybeSingle(),
         supabase.from("user_plan_config").select("*").eq("user_id", user.id).maybeSingle(),
         supabase.from("audit_recommendations").select("id, titre, route, completed").eq("user_id", user.id).order("position", { ascending: true }).limit(5),
-        // Week calendar posts (dates with content)
-        supabase.from("calendar_posts").select("date").eq("user_id", user.id).gte("date", weekStart).lte("date", weekEnd),
-        // Streak data
-        supabase.from("engagement_checklist_logs").select("log_date").eq("user_id", user.id).gte("log_date", weekStart).lte("log_date", weekEnd),
       ]);
 
       if (profRes.data) setProfile(profRes.data as UserProfile);
@@ -127,17 +122,6 @@ export default function Dashboard() {
       };
       let planData: PlanData | null = null;
       try { planData = await computePlan(user.id, config); } catch {}
-
-      // Build week calendar days with content
-      const weekCalDays = (weekCalRes.data || []).map((p: any) => p.date);
-
-      // Build streak days (Mon-Sun)
-      const streakDates = (streakRes.data || []).map((d: any) => d.log_date);
-      const monday = startOfWeek(now, { weekStartsOn: 1 });
-      const streak = Array(7).fill(false).map((_, i) => {
-        const day = format(addDays(monday, i), "yyyy-MM-dd");
-        return streakDates.includes(day);
-      });
 
       setDashData({
         brandingCompletion: bc,
@@ -153,8 +137,6 @@ export default function Dashboard() {
         nextPost: nextPostRes.data ? { date: nextPostRes.data.date, theme: nextPostRes.data.theme } : null,
         planData,
         recommendations: recsRes.data || [],
-        weekCalendarDays: weekCalDays,
-        streakDays: streak,
       });
 
       // Coaching info for Now Pilot
@@ -211,23 +193,6 @@ export default function Dashboard() {
       recommendations: prev.recommendations.map(r => r.id === id ? { ...r, completed: newCompleted } : r),
     }));
   };
-
-  // Mini calendar data
-  const now = new Date();
-  const monday = startOfWeek(now, { weekStartsOn: 1 });
-  const weekDays = Array(7).fill(null).map((_, i) => {
-    const d = addDays(monday, i);
-    return {
-      label: format(d, "EEEEE", { locale: fr }).toUpperCase(),
-      date: format(d, "yyyy-MM-dd"),
-      isToday: isToday(d),
-      hasContent: dashData.weekCalendarDays.includes(format(d, "yyyy-MM-dd")),
-      isPast: isBefore(d, now) && !isToday(d),
-    };
-  });
-
-  const auditScore = dashData.igAuditScore ?? 71;
-  const scorePercent = auditScore;
 
   let delayIdx = 0;
   const nextDelay = () => { delayIdx++; return delayIdx * 0.05; };
@@ -308,119 +273,15 @@ export default function Dashboard() {
            ROW 2 — Calendrier + Engagement + Stats
            ═══════════════════════════════════════ */}
         <BentoGrid>
-          {/* Calendrier édito — left column */}
-          <BentoCard
-            title=""
-            colSpan={6}
-            rowSpan={3}
-            variant="default"
-            onClick={() => navigate("/calendrier")}
-            animationDelay={nextDelay()}
-          >
-            <div className="flex items-center gap-2.5 mb-4">
-              <span className="text-xl bg-accent/30 w-9 h-9 flex items-center justify-center rounded-xl">📅</span>
-              <h3 className="font-heading text-base font-bold text-foreground">Calendrier édito</h3>
-            </div>
-
-            {/* Mini calendar grid */}
-            <div className="grid grid-cols-7 gap-1.5 mb-5">
-              {weekDays.map((d) => (
-                <div key={d.date} className="flex flex-col items-center gap-1">
-                  <span className="text-[10px] font-mono-ui text-muted-foreground">{d.label}</span>
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-medium transition-colors
-                    ${d.isToday ? "bg-primary text-primary-foreground" : ""}
-                    ${d.hasContent && !d.isToday ? "bg-rose-pale text-primary" : ""}
-                    ${!d.hasContent && !d.isToday ? "bg-muted/50 text-muted-foreground" : ""}
-                  `}>
-                    {format(new Date(d.date), "d")}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-auto">
-              <p className="text-muted-foreground text-sm">
-                <span className="font-heading text-2xl font-bold text-primary mr-1">{dashData.weekPostsPublished}</span>
-                <span className="text-muted-foreground">/{dashData.weekPostsTotal} publiés cette semaine</span>
-              </p>
-            </div>
-          </BentoCard>
-
-          {/* Routine d'engagement — right top */}
-          <BentoCard
-            title=""
-            colSpan={6}
-            rowSpan={1}
-            variant="default"
-            onClick={() => navigate("/instagram/routine")}
-            animationDelay={nextDelay()}
-          >
-            <h3 className="font-heading text-base font-bold text-foreground mb-3">💬 Routine d'engagement</h3>
-            <div className="flex items-center justify-between gap-2">
-              {["L", "M", "M", "J", "V", "S", "D"].map((day, i) => (
-                <div key={i} className="flex flex-col items-center gap-1.5">
-                  <span className="text-[10px] font-mono-ui text-muted-foreground">{day}</span>
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors
-                    ${dashData.streakDays[i]
-                      ? "bg-rose-pale border border-primary/20"
-                      : "bg-muted/40 border border-border"
-                    }`}
-                  >
-                    {dashData.streakDays[i] && <Check className="h-3.5 w-3.5 text-primary" />}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </BentoCard>
-
-          {/* Explorer mes stats — right bottom (dark) */}
-          <BentoCard
-            title=""
-            colSpan={6}
-            rowSpan={2}
-            variant="dark"
-            onClick={() => navigate("/instagram/stats")}
-            animationDelay={nextDelay()}
-          >
-            <h3 className="font-body text-sm font-medium text-white/60 mb-2">Explorer mes stats</h3>
-            <div className="mb-4">
-              <span className="font-heading text-[3.5rem] font-bold text-white leading-none">{auditScore}</span>
-              <span className="text-white/40 text-xl font-heading ml-1">/100</span>
-            </div>
-            <div className="w-full h-2.5 rounded-xl bg-white/10 overflow-hidden">
-              <div
-                className="h-full rounded-xl bg-gradient-to-r from-accent to-primary transition-all duration-700"
-                style={{ width: `${scorePercent}%` }}
-              />
-            </div>
-            <p className="text-xs text-white/50 mt-2 font-body">Score audit Instagram</p>
-          </BentoCard>
+          <WeekCalendarWidget animationDelay={nextDelay()} />
+          <EngagementRoutineWidget animationDelay={nextDelay()} />
+          <MonthlyStatsWidget animationDelay={nextDelay()} />
         </BentoGrid>
 
         {/* ═══════════════════════════════════════
-           ROW 3 — Three action blocks
+           ROW 3 — Action blocks (SEO + Homepage)
            ═══════════════════════════════════════ */}
         <BentoGrid>
-          {/* Publier mon contenu */}
-          <BentoCard
-            title=""
-            colSpan={4}
-            rowSpan={2}
-            variant="accent"
-            onClick={() => navigate("/calendrier")}
-            animationDelay={nextDelay()}
-          >
-            <span className="text-2xl mb-2 block">📝</span>
-            <h3 className="font-heading text-base font-bold text-foreground mb-1">Publier mon contenu</h3>
-            <p className="text-sm text-muted-foreground mb-4">Tes posts de la semaine.</p>
-            <div className="mt-auto">
-              <p className="font-heading text-2xl font-bold text-foreground">
-                {dashData.weekPostsPublished}<span className="text-muted-foreground text-sm font-body">/{dashData.weekPostsTotal}</span>
-              </p>
-              <p className="text-xs text-muted-foreground mb-2">publiés</p>
-              <Progress value={dashData.weekPostsTotal > 0 ? (dashData.weekPostsPublished / dashData.weekPostsTotal) * 100 : 0} className="h-1.5" />
-            </div>
-          </BentoCard>
 
           {/* Améliorer mon SEO */}
           {hasSeo && (
@@ -548,7 +409,6 @@ export default function Dashboard() {
         {/* ═══════════════════════════════════════
            WEEKLY PROGRESS + BADGES
            ═══════════════════════════════════════ */}
-        <WeeklyProgressWidget animationDelay={nextDelay()} brandingCompletion={dashData.brandingCompletion.total} />
         <BadgesWidget animationDelay={nextDelay()} />
 
         {/* ═══════════════════════════════════════
