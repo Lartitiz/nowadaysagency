@@ -1,0 +1,335 @@
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Plus, GripVertical, MoreVertical, Trash2, CalendarIcon } from "lucide-react";
+import { useDraggable } from "@dnd-kit/core";
+import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
+import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+
+export interface SavedIdea {
+  id: string;
+  titre: string;
+  format: string | null;
+  objectif: string | null;
+  notes: string | null;
+  status: string;
+  canal: string | null;
+  content_draft: string | null;
+  content_data: any;
+  source_module: string | null;
+  planned_date: string | null;
+  calendar_post_id: string | null;
+}
+
+const FORMAT_ICONS: Record<string, string> = {
+  post: "📝", carousel: "🎠", reel: "🎬", story: "📱", linkedin: "💼",
+  post_carrousel: "🎠", post_photo: "📝", story_serie: "📱",
+};
+
+const OBJECTIVE_COLORS: Record<string, string> = {
+  visibilite: "text-blue-600", confiance: "text-green-600", vente: "text-orange-600",
+  visibility: "text-blue-600", trust: "text-green-600", sales: "text-orange-600",
+};
+
+const FORMAT_FILTERS = [
+  { id: "all", label: "Tous" },
+  { id: "post", label: "📝 Posts" },
+  { id: "carousel", label: "🎠 Carrousels" },
+  { id: "reel", label: "🎬 Reels" },
+  { id: "story", label: "📱 Stories" },
+];
+
+interface Props {
+  onIdeaPlanned: () => void; // refresh calendar after idea is planned
+  isMobile?: boolean;
+}
+
+export function CalendarIdeasSidebar({ onIdeaPlanned, isMobile }: Props) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [ideas, setIdeas] = useState<SavedIdea[]>([]);
+  const [filter, setFilter] = useState("all");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [planDialogIdea, setPlanDialogIdea] = useState<SavedIdea | null>(null);
+  const [planDate, setPlanDate] = useState<Date | undefined>();
+
+  const fetchIdeas = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("saved_ideas")
+      .select("id, titre, format, objectif, notes, status, canal, content_draft, content_data, source_module, planned_date, calendar_post_id")
+      .eq("user_id", user.id)
+      .is("calendar_post_id", null)
+      .order("created_at", { ascending: false });
+    if (data) setIdeas(data as SavedIdea[]);
+  };
+
+  useEffect(() => { fetchIdeas(); }, [user?.id]);
+
+  const filteredIdeas = filter === "all"
+    ? ideas
+    : ideas.filter(i => {
+        const f = i.format || "";
+        if (filter === "post") return f.includes("post") || f === "" ;
+        if (filter === "carousel") return f.includes("carrousel") || f === "carousel";
+        if (filter === "reel") return f === "reel";
+        if (filter === "story") return f.includes("story");
+        return true;
+      });
+
+  const handleDeleteIdea = async (id: string) => {
+    await supabase.from("saved_ideas").delete().eq("id", id);
+    setIdeas(prev => prev.filter(i => i.id !== id));
+    toast({ title: "Idée supprimée" });
+  };
+
+  const handleMobilePlan = async () => {
+    if (!planDialogIdea || !planDate || !user) return;
+    const dateStr = format(planDate, "yyyy-MM-dd");
+    // Create calendar post from idea
+    const { data: newPost } = await supabase.from("calendar_posts").insert({
+      user_id: user.id,
+      date: dateStr,
+      theme: planDialogIdea.titre,
+      status: "idea",
+      canal: planDialogIdea.canal || "instagram",
+      objectif: planDialogIdea.objectif,
+      format: planDialogIdea.format,
+      notes: planDialogIdea.notes,
+      content_draft: planDialogIdea.content_draft,
+    }).select("id").single();
+
+    if (newPost) {
+      await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: dateStr }).eq("id", planDialogIdea.id);
+    }
+    setPlanDialogIdea(null);
+    fetchIdeas();
+    onIdeaPlanned();
+    toast({ title: `Idée planifiée le ${format(planDate, "d MMMM", { locale: fr })}` });
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-display text-sm font-bold text-foreground">💡 Mes idées</h3>
+        <span className="text-xs text-muted-foreground">{ideas.length}</span>
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-1 flex-wrap mb-3">
+        {FORMAT_FILTERS.map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)}
+            className={cn("text-[11px] px-2 py-1 rounded-full border transition-colors",
+              filter === f.id ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/40")}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Ideas list */}
+      <div className="flex-1 overflow-y-auto space-y-1.5 min-h-0">
+        {filteredIdeas.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-4">Aucune idée en attente</p>
+        )}
+        {filteredIdeas.map(idea => (
+          isMobile
+            ? <MobileIdeaCard key={idea.id} idea={idea} onDelete={handleDeleteIdea} onPlan={() => { setPlanDialogIdea(idea); setPlanDate(undefined); }} />
+            : <DraggableIdeaCard key={idea.id} idea={idea} onDelete={handleDeleteIdea} />
+        ))}
+      </div>
+
+      {/* Add idea button */}
+      <button onClick={() => setShowAddForm(true)}
+        className="mt-3 w-full text-center text-xs font-medium text-primary hover:underline py-2 border border-dashed border-primary/30 rounded-lg hover:bg-primary/5 transition-colors">
+        + Ajouter une idée
+      </button>
+
+      {/* Add idea dialog */}
+      <AddIdeaDialog open={showAddForm} onOpenChange={setShowAddForm} onAdded={fetchIdeas} />
+
+      {/* Mobile plan dialog */}
+      <Dialog open={!!planDialogIdea} onOpenChange={open => { if (!open) setPlanDialogIdea(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4" /> Planifier l'idée
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">« {planDialogIdea?.titre} »</p>
+          <Calendar mode="single" selected={planDate} onSelect={setPlanDate}
+            disabled={date => date < new Date(new Date().setHours(0, 0, 0, 0))}
+            className={cn("p-3 pointer-events-auto mx-auto")} locale={fr} />
+          <Button onClick={handleMobilePlan} disabled={!planDate} className="w-full rounded-pill">
+            {planDate ? `Planifier le ${format(planDate, "d MMMM", { locale: fr })}` : "Choisis une date"}
+          </Button>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/* ── Draggable idea card (desktop) ── */
+function DraggableIdeaCard({ idea, onDelete }: { idea: SavedIdea; onDelete: (id: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `idea-${idea.id}`,
+    data: { type: "idea", idea },
+  });
+  const style: React.CSSProperties = {
+    transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
+  const icon = FORMAT_ICONS[idea.format || ""] || "📝";
+  const objColor = OBJECTIVE_COLORS[idea.objectif || ""] || "text-muted-foreground";
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-start gap-1 group rounded-lg border border-border bg-card p-2 hover:border-primary/30 transition-colors">
+      <span {...attributes} {...listeners}
+        className="cursor-grab opacity-0 group-hover:opacity-60 transition-opacity shrink-0 touch-none mt-0.5">
+        <GripVertical className="h-3 w-3 text-muted-foreground" />
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-foreground truncate">{icon} {idea.titre}</p>
+        <p className={cn("text-[10px] truncate", objColor)}>
+          {idea.format || "Post"} {idea.objectif ? `· ${idea.objectif}` : ""}
+        </p>
+        {idea.status && idea.status !== "idea" && (
+          <p className="text-[10px] text-muted-foreground capitalize">{idea.status}</p>
+        )}
+      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <MoreVertical className="h-3 w-3 text-muted-foreground" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="text-xs">
+          <DropdownMenuItem onClick={() => onDelete(idea.id)} className="text-destructive">
+            <Trash2 className="h-3 w-3 mr-1" /> Supprimer
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+/* ── Mobile idea card ── */
+function MobileIdeaCard({ idea, onDelete, onPlan }: { idea: SavedIdea; onDelete: (id: string) => void; onPlan: () => void }) {
+  const icon = FORMAT_ICONS[idea.format || ""] || "📝";
+  const objColor = OBJECTIVE_COLORS[idea.objectif || ""] || "text-muted-foreground";
+
+  return (
+    <div className="flex items-start gap-2 rounded-lg border border-border bg-card p-2.5">
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-foreground truncate">{icon} {idea.titre}</p>
+        <p className={cn("text-[10px] truncate", objColor)}>
+          {idea.format || "Post"} {idea.objectif ? `· ${idea.objectif}` : ""}
+        </p>
+      </div>
+      <div className="flex gap-1 shrink-0">
+        <button onClick={onPlan} className="text-[10px] text-primary font-medium px-2 py-1 rounded border border-primary/30 hover:bg-primary/5">
+          📅 Planifier
+        </button>
+        <button onClick={() => onDelete(idea.id)} className="text-muted-foreground hover:text-destructive p-1">
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Add Idea Dialog ── */
+function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenChange: (o: boolean) => void; onAdded: () => void }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [title, setTitle] = useState("");
+  const [ideaFormat, setIdeaFormat] = useState("post");
+  const [objective, setObjective] = useState("visibilite");
+  const [notes, setNotes] = useState("");
+
+  const handleAdd = async () => {
+    if (!user || !title.trim()) return;
+    await supabase.from("saved_ideas").insert({
+      user_id: user.id,
+      titre: title.trim(),
+      format: ideaFormat,
+      angle: "",
+      objectif: objective,
+      notes: notes || null,
+      status: "idea",
+      canal: ideaFormat === "linkedin" ? "linkedin" : "instagram",
+    });
+    toast({ title: "Idée ajoutée !" });
+    setTitle(""); setNotes("");
+    onOpenChange(false);
+    onAdded();
+  };
+
+  const FORMAT_OPTIONS = [
+    { id: "post", label: "📝 Post" },
+    { id: "carousel", label: "🎠 Carrousel" },
+    { id: "reel", label: "🎬 Reel" },
+    { id: "story", label: "📱 Story" },
+    { id: "linkedin", label: "💼 LinkedIn" },
+  ];
+
+  const OBJ_OPTIONS = [
+    { id: "visibilite", label: "👀 Visibilité" },
+    { id: "confiance", label: "🤝 Confiance" },
+    { id: "vente", label: "💰 Vente" },
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="font-display">💡 Nouvelle idée</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 mt-2">
+          <div>
+            <label className="text-xs font-medium mb-1 block">Titre</label>
+            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Mon idée de contenu..." className="rounded-[10px] h-10 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs font-medium mb-1 block">Format</label>
+            <div className="flex flex-wrap gap-1.5">
+              {FORMAT_OPTIONS.map(f => (
+                <button key={f.id} onClick={() => setIdeaFormat(f.id)}
+                  className={cn("text-xs px-2.5 py-1 rounded-full border transition-all",
+                    ideaFormat === f.id ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40")}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium mb-1 block">Objectif</label>
+            <div className="flex flex-wrap gap-1.5">
+              {OBJ_OPTIONS.map(o => (
+                <button key={o.id} onClick={() => setObjective(o.id)}
+                  className={cn("text-xs px-2.5 py-1 rounded-full border transition-all",
+                    objective === o.id ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40")}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium mb-1 block">Notes (optionnel)</label>
+            <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Idées en vrac..." className="rounded-[10px] min-h-[50px] text-sm" />
+          </div>
+          <Button onClick={handleAdd} disabled={!title.trim()} className="w-full rounded-pill">
+            Ajouter l'idée
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

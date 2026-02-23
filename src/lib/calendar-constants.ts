@@ -60,6 +60,8 @@ export interface CalendarPost {
   format?: string | null;
   content_draft?: string | null;
   accroche?: string | null;
+  generated_content_id?: string | null;
+  generated_content_type?: string | null;
   // Stories-specific
   stories_count?: number | null;
   stories_objective?: string | null;
