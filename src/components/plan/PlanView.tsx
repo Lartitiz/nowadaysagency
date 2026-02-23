@@ -126,6 +126,10 @@ function StepCard({ step, navigate }: { step: PlanStep; navigate: (path: string)
 
   const handleClick = () => {
     if (step.status === "locked" || step.comingSoon) return;
+    if (step.route.startsWith("http")) {
+      window.open(step.route, "_blank", "noopener,noreferrer");
+      return;
+    }
     navigate(step.route);
   };
 

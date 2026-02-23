@@ -490,10 +490,9 @@ function SeoExternalCard() {
       </div>
       <p className="text-[13px] text-muted-foreground mb-3">Ton SEO Toolkit est disponible en ligne.</p>
       <a
-        href="https://seo.nowadaysagency.com"
+        href="https://referencement-seo.lovable.app/"
         target="_blank"
         rel="noopener noreferrer"
-        onClick={(e) => e.stopPropagation()}
         className="text-xs font-medium px-3 py-1.5 rounded-full border border-primary/20 text-primary hover:bg-primary/5 transition-colors inline-flex items-center gap-1"
       >
         🔗 Ouvrir le SEO Toolkit →
