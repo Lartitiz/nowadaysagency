@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -46,12 +47,12 @@ export default function LinkedInHub() {
     if (!user) return;
     const fetch = async () => {
       const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+      const monthStart = toLocalDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+      const monthEnd = toLocalDateStr(new Date(now.getFullYear(), now.getMonth() + 1, 0));
       const day = now.getDay();
       const mondayDate = new Date(now);
       mondayDate.setDate(now.getDate() - day + (day === 0 ? -6 : 1));
-      const monday = mondayDate.toISOString().split("T")[0];
+      const monday = toLocalDateStr(mondayDate);
 
       const [profileRes, expRes, recoRes, weeklyRes, ideasRes, calRes] = await Promise.all([
         supabase.from("linkedin_profile").select("title_done, url_done, photo_done, banner_done").eq("user_id", user.id).maybeSingle(),

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn, toLocalDateStr } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -32,7 +32,7 @@ export function AddToCalendarDialog({
   const [selectedDate, setSelectedDate] = useState<Date>(defaultDate || tomorrow);
 
   const handleConfirm = () => {
-    const dateStr = selectedDate.toISOString().split("T")[0];
+    const dateStr = toLocalDateStr(selectedDate);
     onConfirm(dateStr);
   };
 

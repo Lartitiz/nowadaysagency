@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { toLocalDateStr } from "@/lib/utils";
 import UpgradeGate from "@/components/UpgradeGate";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,7 +21,7 @@ function getMonday(d: Date) {
 }
 
 function getTodayStr() {
-  return new Date().toISOString().split("T")[0];
+  return toLocalDateStr(new Date());
 }
 
 function getDayIndex() {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
@@ -120,10 +121,10 @@ export default function SmartRoutinesPanel() {
     let s = 0;
     const d = new Date();
     // Check today first; if not done, start from yesterday
-    if (!completedDates.has(d.toISOString().split("T")[0])) {
+    if (!completedDates.has(toLocalDateStr(d))) {
       d.setDate(d.getDate() - 1);
     }
-    while (completedDates.has(d.toISOString().split("T")[0])) {
+    while (completedDates.has(toLocalDateStr(d))) {
       s++;
       d.setDate(d.getDate() - 1);
     }
@@ -161,7 +162,7 @@ export default function SmartRoutinesPanel() {
   const monthTasks = useMemo(() => tasks.filter(t => t.recurrence === "monthly"), [tasks]);
 
   const isCompleted = (taskId: string, period: "day" | "week" | "month") => {
-    const todayStr = now.toISOString().split("T")[0];
+    const todayStr = toLocalDateStr(now);
     return completions.some(c => {
       if (c.routine_task_id !== taskId) return false;
       if (period === "day") return c.completed_at?.startsWith(todayStr);
@@ -174,7 +175,7 @@ export default function SmartRoutinesPanel() {
   const toggleCompletion = async (taskId: string, recurrence: string) => {
     if (!user) return;
     const period = recurrence === "daily" ? "day" : recurrence === "monthly" ? "month" : "week";
-    const todayStr = now.toISOString().split("T")[0];
+    const todayStr = toLocalDateStr(now);
 
     const existing = completions.find(c => {
       if (c.routine_task_id !== taskId) return false;
@@ -190,7 +191,7 @@ export default function SmartRoutinesPanel() {
       await supabase.from("routine_completions").insert([{
         user_id: user.id,
         task_id: taskId,
-        period_start: now.toISOString().split("T")[0],
+        period_start: toLocalDateStr(now),
         routine_task_id: taskId,
         week: weekId,
         month: monthId,

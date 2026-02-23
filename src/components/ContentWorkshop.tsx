@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -449,7 +450,7 @@ function PlanifierButton({ idea, userId, toast }: { idea: Idea; userId?: string;
   const handleSelect = async (d: Date | undefined) => {
     if (!d || !userId) return;
     setDate(d);
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = toLocalDateStr(d);
     const { error } = await supabase.from("calendar_posts").insert({
       user_id: userId,
       date: dateStr,

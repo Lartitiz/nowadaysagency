@@ -7,7 +7,7 @@ import { WeekRecapBar } from "./WeekRecapBar";
 import { AddPostMenu } from "./AddPostMenu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
+import { cn, toLocalDateStr } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -48,7 +48,7 @@ function DroppableDay({
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
   onAddIdea: (dateStr: string) => void;
 }) {
-  const isPast = new Date(dateStr + "T00:00:00") < new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
+  const isPast = new Date(dateStr + "T00:00:00") < new Date(toLocalDateStr(new Date()) + "T00:00:00");
   const { setNodeRef, isOver } = useDroppable({ id: dateStr });
   const maxVisible = 3;
 
@@ -125,7 +125,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
 
   const confirmMobileMove = () => {
     if (!moveDialogPost || !moveDate || !onMovePost) return;
-    const newDateStr = moveDate.toISOString().split("T")[0];
+    const newDateStr = toLocalDateStr(moveDate);
     if (newDateStr !== moveDialogPost.date) {
       onMovePost(moveDialogPost.id, newDateStr);
     }
@@ -138,7 +138,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
       <>
         <div className="space-y-2">
           {calendarDays.filter((d) => d.inMonth).map((d) => {
-            const dateStr = d.date.toISOString().split("T")[0];
+             const dateStr = toLocalDateStr(d.date);
             const dayPosts = postsByDate[dateStr] || [];
             const isToday = dateStr === todayStr;
             if (dayPosts.length === 0 && !isToday) return null;
@@ -205,7 +205,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
   for (let i = 0; i < calendarDays.length; i += 7) {
     const weekPosts: CalendarPost[] = [];
     for (let j = i; j < i + 7 && j < calendarDays.length; j++) {
-      const dateStr = calendarDays[j].date.toISOString().split("T")[0];
+      const dateStr = toLocalDateStr(calendarDays[j].date);
       weekPosts.push(...(postsByDate[dateStr] || []));
     }
     weekRows.push(weekPosts);
@@ -228,7 +228,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
           <div key={weekIdx}>
             <div className="grid grid-cols-7">
               {weekSlice.map((d, i) => {
-                const dateStr = d.date.toISOString().split("T")[0];
+                const dateStr = toLocalDateStr(d.date);
                 const dayPosts = postsByDate[dateStr] || [];
                 const isToday = dateStr === todayStr;
                 return (
