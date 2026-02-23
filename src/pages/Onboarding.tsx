@@ -234,9 +234,9 @@ export default function Onboarding() {
     }
   }, [restoredFromSave]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Check if onboarding already completed
+  // Check if onboarding already completed — but skip if we're in diagnostic phase
   useEffect(() => {
-    if (isDemoMode || !user) return;
+    if (isDemoMode || !user || step >= 16) return;
     const check = async () => {
       const { data: config } = await supabase
         .from("user_plan_config")
@@ -248,7 +248,7 @@ export default function Onboarding() {
       }
     };
     check();
-  }, [user?.id, isDemoMode, navigate]);
+  }, [user?.id, isDemoMode, navigate, step]);
 
   const set = useCallback(<K extends keyof Answers>(key: K, value: Answers[K]) => {
     setAnswers(prev => ({ ...prev, [key]: value }));
@@ -390,8 +390,7 @@ export default function Onboarding() {
   /* ── save all ── */
   const handleFinish = async () => {
     if (isDemoMode) {
-      skipDemoOnboarding();
-      navigate("/dashboard", { replace: true });
+      // Don't navigate — let diagnostic loading (step 16) show
       return;
     }
     if (!user) return;
@@ -503,22 +502,24 @@ export default function Onboarding() {
       navigate("/dashboard", { replace: true });
       return;
     }
-    if (!user || !diagnosticData) {
+    if (!user) {
       navigate("/dashboard", { replace: true });
       return;
     }
     try {
-      const recs = diagnosticData.priorities.map((p, i) => ({
-        user_id: user.id,
-        titre: p.title,
-        label: p.title,
-        module: p.channel,
-        route: p.route,
-        priorite: p.impact,
-        temps_estime: p.time,
-        position: i + 1,
-      }));
-      await supabase.from("audit_recommendations").insert(recs);
+      if (diagnosticData) {
+        const recs = diagnosticData.priorities.map((p, i) => ({
+          user_id: user.id,
+          titre: p.title,
+          label: p.title,
+          module: p.channel,
+          route: p.route,
+          priorite: p.impact,
+          temps_estime: p.time,
+          position: i + 1,
+        }));
+        await supabase.from("audit_recommendations").insert(recs);
+      }
     } catch (e) {
       console.error("Failed to save diagnostic:", e);
     }
