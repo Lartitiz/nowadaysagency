@@ -22,13 +22,20 @@ interface PillarDetail {
   recommandation: string | null;
 }
 
+interface PointFaibleAction {
+  module: string;
+  label: string;
+  route: string;
+  conseil: string;
+}
+
 interface AuditResult {
   score_global: number;
   synthese: string;
   points_forts: { titre: string; detail: string; source: string }[];
-  points_faibles: { titre: string; detail: string; source: string; priorite: string }[];
+  points_faibles: { titre: string; detail: string; source: string; priorite: string; action?: PointFaibleAction }[];
   audit_detail: Record<string, PillarDetail>;
-  plan_action_recommande: { priorite: number; action: string; module: string; temps_estime: string; lien: string }[];
+  plan_action_recommande: { priorite: number; action: string; module: string; temps_estime: string; lien: string; conseil?: string }[];
   extraction_branding?: Record<string, any>;
 }
 
@@ -378,6 +385,13 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
 }) {
   const scoreColor = result.score_global >= 75 ? "text-emerald-500" : result.score_global >= 50 ? "text-amber-500" : "text-red-500";
 
+  const navigateWithContext = (route: string, conseil?: string, module?: string) => {
+    if (conseil && module) {
+      sessionStorage.setItem("audit_recommendation", JSON.stringify({ module, conseil }));
+    }
+    navigate(route);
+  };
+
   return (
     <div className="space-y-6">
       {/* Date */}
@@ -424,6 +438,18 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
                 <p className="text-sm font-medium text-foreground">{p.priorite === "haute" ? "🔴" : "🟡"} {p.titre}</p>
                 <p className="text-xs text-muted-foreground mt-1">{p.detail}</p>
                 <p className="text-[10px] text-muted-foreground/70 mt-1">Priorité : {p.priorite}</p>
+                {p.action && (
+                  <div className="mt-3 pt-3 border-t border-border/50">
+                    <p className="text-xs text-muted-foreground mb-2">💡 {p.action.conseil}</p>
+                    <Button
+                      size="sm"
+                      className="gap-1.5 text-xs"
+                      onClick={() => navigateWithContext(p.action!.route, p.action!.conseil, p.action!.module)}
+                    >
+                      {p.action.label} <ArrowRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -472,10 +498,11 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
       {/* Plan d'action */}
       {result.plan_action_recommande?.length > 0 && (
         <div>
-          <h3 className="font-display font-bold text-sm mb-3">Plan d'action recommandé</h3>
+          <h3 className="font-display font-bold text-sm mb-2">📋 Ton plan d'action</h3>
+          <p className="text-xs text-muted-foreground mb-3">Par quoi commencer ? Voici l'ordre recommandé :</p>
           <div className="space-y-2">
             {result.plan_action_recommande.map((a, i) => (
-              <button key={i} onClick={() => navigate(a.lien)} className="w-full rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors p-4 text-left flex items-center gap-3">
+              <button key={i} onClick={() => navigateWithContext(a.lien, a.conseil, a.module)} className="w-full rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors p-4 text-left flex items-center gap-3">
                 <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">{a.priorite}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{a.action}</p>

@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import BrandingPrompt from "@/components/BrandingPrompt";
+import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -411,6 +412,7 @@ export default function CalendarPage() {
         {isInstagramRoute && (
           <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Calendrier éditorial" />
         )}
+        <AuditRecommendationBanner />
         <div className="mb-6">
           <h1 className="font-display text-[22px] sm:text-3xl md:text-4xl font-bold text-foreground">
             Mon calendrier éditorial
