@@ -75,9 +75,9 @@ export default function InstagramHub() {
         </Link>
 
         <div className="mb-8">
-          <h1 className="font-display text-[26px] sm:text-3xl font-bold text-bordeaux">Mon Instagram</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Tout ce dont tu as besoin pour structurer et animer ton compte Instagram.
+         <h1 className="font-display text-[26px] sm:text-3xl font-bold text-bordeaux">📱 Mon Instagram</h1>
+          <p className="mt-1 text-[15px] text-muted-foreground">
+            Audite ton profil, génère des contenus, optimise ta bio : tout pour qu'Instagram bosse pour toi (et pas l'inverse).
           </p>
         </div>
 
@@ -89,18 +89,12 @@ export default function InstagramHub() {
               emoji="👤"
               title="Mon profil"
               desc="Audit complet : bio, feed, stories à la une, posts épinglés, nom."
-              badge={progress.auditScore !== null ? `${progress.auditScore}/100` : "À configurer"}
             />
             <HubCard
               to="/instagram/stats"
               emoji="📈"
               title="Mes stats"
               desc="Tes KPIs mensuels : Instagram, site, CA. Avec graphiques d'évolution."
-              badge={progress.statsUpToDate
-                ? (progress.statsFollowersDiff !== null
-                  ? `${progress.statsFollowers} abo (${progress.statsFollowersDiff > 0 ? "+" : ""}${progress.statsFollowersDiff})`
-                  : `${progress.statsFollowers} abo`)
-                : "⚠️ Stats pas remplies"}
             />
           </div>
         </ZoneSection>
@@ -135,7 +129,6 @@ export default function InstagramHub() {
             emoji="💬"
             title="Routine d'engagement"
             desc="Tes actions hebdo pour créer du lien avec ta communauté."
-            badge={progress.engagementWeekly}
           />
         </ZoneSection>
 
@@ -147,21 +140,18 @@ export default function InstagramHub() {
               emoji="📅"
               title="Calendrier"
               desc="Planifie tes posts."
-              badge={`${progress.calendarCount} post${progress.calendarCount !== 1 ? "s" : ""} ce mois`}
             />
             <HubCard
               to="/atelier?canal=instagram"
               emoji="💡"
               title="Mes idées"
               desc="Ta banque d'idées sauvegardées."
-              badge={`${progress.ideasCount} idée${progress.ideasCount !== 1 ? "s" : ""}`}
             />
             <HubCard
               to="/instagram/lancement"
               emoji="🚀"
               title="Mon lancement"
               desc="Plan de lancement guidé."
-              badge={`${progress.launchCount} lancement${progress.launchCount !== 1 ? "s" : ""}`}
             />
           </div>
         </ZoneSection>

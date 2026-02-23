@@ -410,9 +410,9 @@ export default function CalendarPage() {
         <AuditRecommendationBanner />
         <div className="mb-6">
           <h1 className="font-display text-[22px] sm:text-3xl md:text-4xl font-bold text-foreground">
-            Mon calendrier éditorial
+            📅 Mon calendrier éditorial
           </h1>
-          <p className="mt-2 text-muted-foreground">Planifie et organise tes publications.</p>
+          <p className="mt-1 text-[15px] text-muted-foreground">Planifie tes contenus, visualise ta semaine, ne te demande plus jamais « je poste quoi aujourd'hui ».</p>
         </div>
 
         <BrandingPrompt section="strategie" />
