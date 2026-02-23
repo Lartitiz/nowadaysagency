@@ -6,13 +6,12 @@ import AppHeader from "@/components/AppHeader";
 import AiDisclaimerBanner from "@/components/AiDisclaimerBanner";
 import { Progress } from "@/components/ui/progress";
 import { useUserPlan } from "@/hooks/use-user-plan";
-import { ArrowRight, Calendar, BarChart3, Globe, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { useActiveChannels, ALL_CHANNELS } from "@/hooks/use-active-channels";
 import { computePlan, type PlanData } from "@/lib/plan-engine";
 import { startOfWeek, endOfWeek, format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useActivityExamples } from "@/hooks/use-activity-examples";
 
 /* ── Types ── */
 export interface UserProfile {
@@ -79,10 +78,9 @@ function getLiCompletion(d: DashboardData): number {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const activityExamples = useActivityExamples();
   const { isPilot } = useUserPlan();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [coachingInfo, setCoachingInfo] = useState<{ phase: string; month: number; nextSession: { date: string; title: string } | null; actionsDone: number; actionsTotal: number } | null>(null);
+  const [coachingInfo, setCoachingInfo] = useState<{ phase: string; month: number; nextSession: { date: string; title: string } | null } | null>(null);
   const [dashData, setDashData] = useState<DashboardData>({
     brandingCompletion: { storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 },
     igAuditScore: null, liAuditScore: null,
@@ -90,7 +88,7 @@ export default function Dashboard() {
     calendarPostCount: 0, weekPostsPublished: 0, weekPostsTotal: 0, nextPost: null,
     planData: null,
   });
-  const { hasInstagram, hasLinkedin, hasPinterest, hasWebsite, hasNewsletter, hasSeo, loading: channelsLoading, channels } = useActiveChannels();
+  const { hasInstagram, hasLinkedin, hasWebsite, hasSeo, loading: channelsLoading, channels } = useActiveChannels();
 
   useEffect(() => {
     if (!user) return;
@@ -141,7 +139,7 @@ export default function Dashboard() {
         planData,
       });
 
-      // Fetch coaching info for Now Pilot
+      // Coaching info for Now Pilot
       if (isPilot) {
         const { data: prog } = await (supabase.from("coaching_programs" as any) as any)
           .select("current_phase, current_month, id")
@@ -149,28 +147,17 @@ export default function Dashboard() {
           .eq("status", "active")
           .maybeSingle();
         if (prog) {
-          const [nextSessRes, actionsRes, actionsDoneRes] = await Promise.all([
-            (supabase.from("coaching_sessions" as any) as any)
-              .select("scheduled_date, title")
-              .eq("program_id", prog.id)
-              .eq("status", "scheduled")
-              .order("scheduled_date", { ascending: true })
-              .limit(1)
-              .maybeSingle(),
-            (supabase.from("coaching_actions" as any) as any)
-              .select("id", { count: "exact", head: true })
-              .eq("program_id", prog.id),
-            (supabase.from("coaching_actions" as any) as any)
-              .select("id", { count: "exact", head: true })
-              .eq("program_id", prog.id)
-              .eq("completed", true),
-          ]);
+          const { data: nextSess } = await (supabase.from("coaching_sessions" as any) as any)
+            .select("scheduled_date, title")
+            .eq("program_id", prog.id)
+            .eq("status", "scheduled")
+            .order("scheduled_date", { ascending: true })
+            .limit(1)
+            .maybeSingle();
           setCoachingInfo({
             phase: prog.current_phase,
             month: prog.current_month,
-            nextSession: nextSessRes.data ? { date: nextSessRes.data.scheduled_date, title: nextSessRes.data.title } : null,
-            actionsDone: actionsDoneRes.count ?? 0,
-            actionsTotal: actionsRes.count ?? 0,
+            nextSession: nextSess ? { date: nextSess.scheduled_date, title: nextSess.title } : null,
           });
         }
       }
@@ -195,6 +182,35 @@ export default function Dashboard() {
   const brandingDone = dashData.brandingCompletion.total >= 100;
   const comingSoonChannels = ALL_CHANNELS.filter(c => c.comingSoon && channels.includes(c.id));
 
+  /* ── Dynamic tasks logic ── */
+  const dynamicTasks: { emoji: string; label: string; sub?: string; route: string; priority?: boolean }[] = [];
+
+  if (!brandingDone) {
+    dynamicTasks.push({ emoji: "🎨", label: "Poser mon branding", sub: "C'est la base de tout le reste", route: "/branding", priority: true });
+  }
+  if (dashData.weekPostsPublished === 0 && dashData.weekPostsTotal > 0) {
+    dynamicTasks.push({ emoji: "✏️", label: "Publier mon contenu de la semaine", sub: `${dashData.weekPostsPublished}/${dashData.weekPostsTotal} publiés`, route: "/calendrier", priority: true });
+  }
+  if (hasLinkedin && liCompletion < 50) {
+    dynamicTasks.push({ emoji: "💼", label: "Optimiser mon profil LinkedIn", route: "/linkedin/profil" });
+  }
+  if (hasSeo) {
+    dynamicTasks.push({ emoji: "🔍", label: "Améliorer mon SEO", route: "https://referencement-seo.lovable.app/" });
+  }
+  if (hasWebsite) {
+    dynamicTasks.push({ emoji: "🌐", label: "Rédiger ma page d'accueil", route: "/site/accueil" });
+  }
+
+  // Max 3 dynamic tasks
+  const shownDynamic = dynamicTasks.slice(0, 3);
+  const allDone = dynamicTasks.length === 0;
+
+  const fixedTasks = [
+    { emoji: "📅", label: "Voir mon calendrier édito", sub: `${dashData.weekPostsPublished}/${dashData.weekPostsTotal} publiés cette semaine`, route: "/calendrier" },
+    { emoji: "💬", label: "Faire ma routine d'engagement", route: "/instagram/engagement" },
+    { emoji: "📊", label: "Explorer mes stats", sub: dashData.igAuditScore != null ? `Score audit : ${dashData.igAuditScore}/100` : undefined, route: "/instagram/stats" },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -215,213 +231,179 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* ─── 3. HUB D'ACTIONS ─── */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-8">
-          {/* Main card — Créer un contenu */}
-          <div
-            className="lg:col-span-3 rounded-2xl p-6 cursor-pointer group
-              bg-gradient-to-br from-rose-pale via-secondary to-rose-medium/30
-              border border-primary/10 hover:shadow-strong hover:-translate-y-0.5 transition-all duration-200"
-            onClick={() => navigate("/instagram/creer")}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <h2 className="font-display text-lg font-bold text-foreground">Créer un contenu</h2>
-            </div>
-            <p className="text-sm text-muted-foreground mb-5">
-              Post, carousel, reel, article... c'est parti.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { label: "Post Instagram", route: "/instagram/creer" },
-                { label: "Carousel", route: "/instagram/carousel" },
-                { label: "Reel", route: "/instagram/reels" },
-                { label: "Post LinkedIn", route: "/linkedin/post" },
-                { label: "Article de blog", route: "/site/accueil" },
-              ].map((item) => (
-                <button
-                  key={item.route + item.label}
-                  onClick={(e) => { e.stopPropagation(); navigate(item.route); }}
-                  className="text-xs font-medium px-3.5 py-2 rounded-xl
-                    bg-card/80 border border-primary/15 text-foreground
-                    hover:bg-primary hover:text-primary-foreground hover:border-primary
-                    transition-all duration-150"
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
+        {/* ─── 3. HUB — Hero Card ─── */}
+        <div
+          className="rounded-2xl p-6 mb-4 cursor-pointer group
+            bg-gradient-to-br from-rose-pale via-secondary to-rose-medium/30
+            border border-primary/10 hover:shadow-strong hover:-translate-y-0.5 transition-all duration-200"
+          onClick={() => navigate("/instagram/creer")}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h2 className="font-display text-lg font-bold text-foreground">Créer un contenu</h2>
           </div>
-
-          {/* 3 secondary cards */}
-          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
-            {/* Calendrier */}
-            <HubCard
-              icon={<Calendar className="h-4 w-4 text-primary" />}
-              title="Mon calendrier édito"
-              subtitle="Planifie et visualise tes publications"
-              badge={`${dashData.weekPostsPublished}/${dashData.weekPostsTotal} publiés cette semaine`}
-              onClick={() => navigate("/calendrier")}
-            />
-            {/* Site & SEO */}
-            <HubCard
-              icon={<Globe className="h-4 w-4 text-primary" />}
-              title="Mon site & SEO"
-              subtitle="Pages, articles, référencement"
-              onClick={() => navigate("/site")}
-            />
-            {/* Stats & Audits */}
-            <HubCard
-              icon={<BarChart3 className="h-4 w-4 text-primary" />}
-              title="Mes stats & audits"
-              subtitle="Analyse ta visibilité et ta progression"
-              badge={dashData.igAuditScore != null ? `Score audit : ${dashData.igAuditScore}/100` : undefined}
-              badgeProgress={dashData.igAuditScore ?? undefined}
-              onClick={() => navigate("/instagram/audit")}
-            />
+          <p className="text-sm text-muted-foreground mb-5">
+            Post, carousel, reel, article... c'est parti.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: "Post Instagram", route: "/instagram/creer" },
+              { label: "Carousel", route: "/instagram/carousel" },
+              { label: "Reel", route: "/instagram/reels" },
+              { label: "Post LinkedIn", route: "/linkedin/post" },
+              { label: "Article de blog", route: "/site/accueil" },
+            ].map((item) => (
+              <button
+                key={item.route + item.label}
+                onClick={(e) => { e.stopPropagation(); navigate(item.route); }}
+                className="text-xs font-medium px-3.5 py-2 rounded-xl
+                  bg-card/80 border border-primary/15 text-foreground
+                  hover:bg-accent hover:border-accent hover:text-accent-foreground
+                  transition-all duration-150"
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* ─── 4. ESPACES DE TRAVAIL ─── */}
+        {/* ─── 3b. HUB — Quick Tasks Grid ─── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+          {/* Fixed tasks */}
+          {fixedTasks.map(t => (
+            <TaskChip key={t.label} emoji={t.emoji} label={t.label} sub={t.sub} onClick={() => navigate(t.route)} />
+          ))}
+
+          {/* Dynamic tasks */}
+          {shownDynamic.map(t => (
+            <TaskChip
+              key={t.label}
+              emoji={t.emoji}
+              label={t.label}
+              sub={t.sub}
+              priority={t.priority}
+              onClick={() => {
+                if (t.route.startsWith("http")) { window.open(t.route, "_blank"); }
+                else { navigate(t.route); }
+              }}
+            />
+          ))}
+
+          {/* All done */}
+          {allDone && (
+            <div className="col-span-full flex items-center justify-center py-3 text-sm text-muted-foreground font-mono-ui">
+              Tu gères ! Tout est à jour 🎉
+            </div>
+          )}
+        </div>
+
+        {/* ─── 4. ESPACES — Compact tracking ─── */}
         <div className="mb-8">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4 font-mono-ui">
-            Mes espaces de travail
+            Mes espaces
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Instagram */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {!channelsLoading && hasInstagram && (
-              igCompletion >= 100
-                ? <WorkspaceReadyCard
-                    emoji="📱" title="Instagram" score={dashData.igAuditScore}
-                    weekLabel={`${dashData.weekPostsPublished}/${dashData.weekPostsTotal} posts publiés`}
-                    actions={[
-                      { label: "Créer un contenu", route: "/instagram/creer" },
-                      { label: "Analyser mon profil", route: "/instagram/audit" },
-                      { label: "Routine engagement", route: "/instagram/routine" },
-                      { label: "Calendrier édito", route: "/calendrier" },
-                      { label: "Mes stats", route: "/instagram/stats" },
-                    ]}
-                    onCardClick={() => navigate("/instagram")}
-                  />
-                : <WorkspaceSetupCard
-                    emoji="📱" title="Instagram" completion={igCompletion}
-                    desc="Optimise ton profil, génère tes contenus et développe ta communauté."
-                    nextStep={dashData.igAuditScore == null ? "Faire ton audit Instagram" : "Planifier ton premier contenu"}
-                    route="/instagram"
-                  />
-            )}
-
-            {/* Site Web */}
-            {!channelsLoading && hasWebsite && (
-              <WorkspaceSetupCard
-                emoji="🌐" title="Site Web" completion={0}
-                desc="Rédige les textes de ton site : page d'accueil, à propos, pages de vente."
-                nextStep="Rédiger ta page d'accueil"
-                route="/site"
+              <SpaceCard
+                emoji="📱" title="Instagram"
+                completion={igCompletion}
+                score={dashData.igAuditScore}
+                weekLabel={`${dashData.weekPostsPublished}/${dashData.weekPostsTotal} publiés`}
+                onClick={() => navigate("/instagram")}
               />
             )}
-
-            {/* LinkedIn */}
-            {!channelsLoading && hasLinkedin && (
-              liCompletion >= 100
-                ? <WorkspaceReadyCard
-                    emoji="💼" title="LinkedIn" score={dashData.liAuditScore}
-                    weekLabel="0/1 post publié"
-                    actions={[
-                      { label: "Créer un post", route: "/linkedin/post" },
-                      { label: "Calendrier édito", route: "/calendrier?canal=linkedin" },
-                      { label: "Mes stats", route: "/linkedin/audit" },
-                    ]}
-                    onCardClick={() => navigate("/linkedin")}
-                  />
-                : <WorkspaceSetupCard
-                    emoji="💼" title="LinkedIn" completion={liCompletion}
-                    desc="Travaille ta présence professionnelle : profil, posts stratégiques et réseau."
-                    nextStep={dashData.liAuditScore == null ? "Auditer ton profil LinkedIn" : "Optimiser ton profil"}
-                    route="/linkedin"
-                  />
+            {!channelsLoading && hasWebsite && (
+              <SpaceCard emoji="🌐" title="Site Web" completion={0} onClick={() => navigate("/site")} />
             )}
-
-            {/* SEO */}
+            {!channelsLoading && hasLinkedin && (
+              <SpaceCard
+                emoji="💼" title="LinkedIn"
+                completion={liCompletion}
+                score={dashData.liAuditScore}
+                onClick={() => navigate("/linkedin")}
+              />
+            )}
             {!channelsLoading && hasSeo && (
-              <div className="rounded-2xl border border-border bg-card p-5 opacity-[0.92]">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-xl">🔍</span>
-                    <h3 className="font-display text-base font-bold text-foreground">SEO</h3>
+              <div
+                onClick={() => window.open("https://referencement-seo.lovable.app/", "_blank")}
+                className="rounded-2xl border border-border bg-card p-4 cursor-pointer
+                  hover:shadow-card hover:-translate-y-px transition-all duration-200 opacity-[0.88]"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🔍</span>
+                    <h3 className="font-display text-sm font-bold text-foreground">SEO</h3>
+                    <span className="text-[10px] font-mono-ui text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">Externe</span>
                   </div>
-                  <span className="text-xs font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-lg">🔗 Externe</span>
+                  <ArrowRight className="h-3.5 w-3.5 text-primary" />
                 </div>
-                <p className="text-[13px] text-muted-foreground mb-3">Améliore ton référencement pour être trouvée sur Google.</p>
-                <a
-                  href="https://referencement-seo.lovable.app/"
-                  target="_blank" rel="noopener noreferrer"
-                  className="text-xs font-medium px-3 py-1.5 rounded-xl border border-primary/20 text-primary hover:bg-primary/5 transition-colors inline-flex items-center gap-1"
-                >
-                  Ouvrir le SEO Toolkit →
-                </a>
               </div>
             )}
           </div>
         </div>
 
-        {/* ─── 5. BRANDING ─── */}
-        <div className="mb-6">
+        {/* ─── 5. BRANDING — Compact banner ─── */}
+        <div className="mb-4">
           {brandingDone ? (
             <div
               onClick={() => navigate("/branding")}
-              className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-4 cursor-pointer hover:shadow-card-hover hover:-translate-y-0.5 transition-all"
+              className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-3.5 cursor-pointer
+                hover:shadow-card hover:-translate-y-px transition-all duration-200"
             >
-              <div className="flex items-center gap-3">
-                <span className="text-lg">🎨</span>
-                <span className="text-sm font-bold text-foreground">Mon Branding</span>
-                <span className="text-xs font-semibold text-[hsl(142,71%,45%)] bg-[hsl(142,76%,92%)] px-2 py-0.5 rounded-lg">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <span className="text-lg shrink-0">🎨</span>
+                <span className="text-sm font-bold text-foreground shrink-0">Mon Branding</span>
+                <span className="text-xs font-mono-ui text-muted-foreground shrink-0">
                   Score : {dashData.brandingCompletion.total}/100
                 </span>
+                <Progress value={dashData.brandingCompletion.total} className="h-1.5 flex-1 max-w-[120px] ml-2" />
               </div>
-              <span className="text-xs text-primary font-medium flex items-center gap-1">
+              <span className="text-xs text-primary font-medium flex items-center gap-1 shrink-0 ml-3">
                 Voir ma synthèse <ArrowRight className="h-3 w-3" />
               </span>
             </div>
           ) : (
             <div
               onClick={() => navigate("/branding")}
-              className="rounded-2xl border border-primary/20 bg-gradient-to-r from-rose-pale to-card px-5 py-4 cursor-pointer hover:shadow-card-hover hover:-translate-y-0.5 transition-all"
+              className="flex items-center justify-between rounded-2xl border border-accent/40 bg-accent/10 px-5 py-3.5 cursor-pointer
+                hover:shadow-card hover:-translate-y-px transition-all duration-200"
             >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  <span className="text-lg">🎨</span>
-                  <span className="text-sm font-bold text-foreground">Mon Branding</span>
-                  <span className="text-xs text-muted-foreground font-mono-ui">{dashData.brandingCompletion.total}%</span>
+              <div className="flex items-center gap-3">
+                <span className="text-lg">🎨</span>
+                <div>
+                  <span className="text-sm font-bold text-foreground">Pose ton branding, c'est la base de tout le reste</span>
+                  {dashData.brandingCompletion.total > 0 && (
+                    <p className="text-xs text-muted-foreground font-mono-ui mt-0.5">{dashData.brandingCompletion.total}% complété</p>
+                  )}
                 </div>
-                <span className="text-xs text-primary font-medium flex items-center gap-1">
-                  {dashData.brandingCompletion.total > 0 ? "Continuer" : "Poser mon branding"} <ArrowRight className="h-3 w-3" />
-                </span>
               </div>
-              <Progress value={dashData.brandingCompletion.total} className="h-1.5" />
+              <span className="text-xs font-semibold text-accent-foreground bg-accent px-3 py-1.5 rounded-xl shrink-0 ml-3">
+                {dashData.brandingCompletion.total > 0 ? "Continuer →" : "Commencer →"}
+              </span>
             </div>
           )}
         </div>
 
-        {/* ─── 6. ACCOMPAGNEMENT ─── */}
+        {/* ─── 6. ACCOMPAGNEMENT — Ultra compact ─── */}
         {isPilot && (
-          <div className="mb-6">
+          <div className="mb-4">
             <div
               onClick={() => navigate("/accompagnement")}
-              className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-3 cursor-pointer hover:shadow-card transition-all"
+              className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-3 cursor-pointer
+                hover:shadow-card transition-all duration-200"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <span className="text-base">🤝</span>
                 {coachingInfo?.nextSession ? (
                   <span className="text-sm text-muted-foreground">
-                    Prochaine session : <span className="font-medium text-foreground">
+                    📅 Prochaine session : <span className="font-medium text-foreground">
                       {format(new Date(coachingInfo.nextSession.date), "d MMM", { locale: fr })}
                       {coachingInfo.nextSession.title ? ` · ${coachingInfo.nextSession.title}` : ""}
                     </span>
                   </span>
                 ) : (
                   <span className="text-sm text-muted-foreground">
-                    Pas de session prévue — <span className="text-primary font-medium">Réserver un créneau</span>
+                    Pas de session prévue — <span className="text-primary font-medium">Réserver →</span>
                   </span>
                 )}
               </div>
@@ -433,14 +415,14 @@ export default function Dashboard() {
         {/* ─── 7. COMING SOON ─── */}
         {comingSoonChannels.length > 0 && (
           <div className="mb-8 rounded-2xl bg-gradient-to-r from-rose-pale via-card to-accent/10 border border-border p-5">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-1">
               <span className="text-base">🚀</span>
               <h3 className="font-display text-sm font-bold text-foreground">
                 Bientôt : {comingSoonChannels.map(c => c.label).join(" & ")}
               </h3>
             </div>
             <p className="text-xs text-muted-foreground mb-3 font-mono-ui">
-              On y travaille pour toi. Bientôt dans ton Assistant.
+              On y travaille pour toi.
             </p>
             <button className="text-xs font-medium px-3.5 py-2 rounded-xl bg-accent text-accent-foreground hover:opacity-90 transition-opacity">
               Me prévenir →
@@ -448,7 +430,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Footer link */}
+        {/* Footer */}
         <div className="text-center py-4">
           <Link to="/profil" className="text-xs text-muted-foreground hover:text-primary transition-colors font-mono-ui">
             📱 Tu veux ajouter un canal ? <span className="underline">Modifier dans le profil →</span>
@@ -463,115 +445,64 @@ export default function Dashboard() {
 /*  Sub-components                                            */
 /* ═══════════════════════════════════════════════════════════ */
 
-/* ── Hub Card (secondary) ── */
-function HubCard({ icon, title, subtitle, badge, badgeProgress, onClick }: {
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  badge?: string;
-  badgeProgress?: number;
-  onClick: () => void;
+/* ── Task Chip ── */
+function TaskChip({ emoji, label, sub, priority, onClick }: {
+  emoji: string; label: string; sub?: string; priority?: boolean; onClick: () => void;
 }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-3 text-left rounded-xl border px-4 py-3.5
+        bg-card cursor-pointer hover:border-primary hover:-translate-y-px hover:shadow-card
+        transition-all duration-200
+        ${priority ? "border-l-[3px] border-l-accent border-t-rose-soft border-r-rose-soft border-b-rose-soft bg-accent/5" : "border-rose-soft"}`}
+    >
+      <span className="text-lg shrink-0">{emoji}</span>
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{label}</p>
+        {sub && <p className="text-xs text-muted-foreground font-mono-ui truncate mt-0.5">{sub}</p>}
+      </div>
+    </button>
+  );
+}
+
+/* ── Space Card (compact tracking) ── */
+function SpaceCard({ emoji, title, completion, score, weekLabel, onClick }: {
+  emoji: string; title: string; completion: number; score?: number | null; weekLabel?: string; onClick: () => void;
+}) {
+  const notStarted = completion === 0 && score == null;
   return (
     <div
       onClick={onClick}
-      className="rounded-2xl border border-primary/10 bg-card p-4 cursor-pointer
-        hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200"
-    >
-      <div className="flex items-center gap-2 mb-1">
-        {icon}
-        <h3 className="font-display text-sm font-bold text-foreground">{title}</h3>
-      </div>
-      <p className="text-xs text-muted-foreground mb-2">{subtitle}</p>
-      {badge && (
-        <p className="text-xs text-muted-foreground font-mono-ui">{badge}</p>
-      )}
-      {badgeProgress != null && (
-        <Progress value={badgeProgress} className="h-1 mt-1.5" />
-      )}
-    </div>
-  );
-}
-
-/* ── Workspace Setup Card ── */
-function WorkspaceSetupCard({ emoji, title, completion, desc, nextStep, route }: {
-  emoji: string; title: string; completion: number; desc: string; nextStep: string; route: string;
-}) {
-  const navigate = useNavigate();
-  const notStarted = completion === 0;
-  return (
-    <div
-      onClick={() => navigate(route)}
-      className={`rounded-2xl border border-border bg-card p-5 cursor-pointer
-        hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200
-        ${notStarted ? "opacity-[0.88]" : ""}`}
+      className={`rounded-2xl border border-border bg-card p-4 cursor-pointer
+        hover:shadow-card hover:-translate-y-px transition-all duration-200
+        ${notStarted ? "opacity-80" : ""}`}
     >
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xl">{emoji}</span>
-          <h3 className="font-display text-base font-bold text-foreground">{title}</h3>
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{emoji}</span>
+          <h3 className="font-display text-sm font-bold text-foreground">{title}</h3>
         </div>
-        {notStarted ? (
-          <span className="text-xs text-muted-foreground font-mono-ui">🔒 Pas commencé</span>
-        ) : (
-          <span className="text-xs font-semibold text-muted-foreground font-mono-ui">{completion}%</span>
-        )}
-      </div>
-      <Progress value={completion} className="h-1.5 mb-3" />
-      <p className="text-[13px] text-muted-foreground mb-2">{desc}</p>
-      <p className="text-[13px] text-muted-foreground">
-        Prochaine étape : <span className="text-foreground font-medium">{nextStep}</span>
-      </p>
-      <p className="text-sm font-semibold text-primary mt-2 flex items-center gap-1">
-        {completion > 0 ? "Continuer" : "Commencer"} <ArrowRight className="h-3.5 w-3.5" />
-      </p>
-    </div>
-  );
-}
-
-/* ── Workspace Ready Card ── */
-function WorkspaceReadyCard({ emoji, title, score, weekLabel, actions, onCardClick }: {
-  emoji: string;
-  title: string;
-  score: number | null;
-  weekLabel: string;
-  actions: { label: string; route: string }[];
-  onCardClick: () => void;
-}) {
-  const navigate = useNavigate();
-  return (
-    <div
-      onClick={onCardClick}
-      className="rounded-2xl border border-border bg-card p-5 cursor-pointer
-        hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200"
-    >
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xl">{emoji}</span>
-          <h3 className="font-display text-base font-bold text-foreground">{title}</h3>
+        <div className="flex items-center gap-2">
+          {notStarted ? (
+            <span className="text-[10px] font-mono-ui text-muted-foreground">⏳ Pas commencé</span>
+          ) : completion >= 100 ? (
+            <span className="text-[10px] font-mono-ui text-foreground bg-secondary px-1.5 py-0.5 rounded-md">✅ Configuré</span>
+          ) : (
+            <span className="text-[10px] font-mono-ui text-muted-foreground">{completion}%</span>
+          )}
+          <ArrowRight className="h-3.5 w-3.5 text-primary" />
         </div>
-        <span className="text-xs font-semibold text-[hsl(142,71%,45%)] bg-[hsl(142,76%,92%)] px-2 py-0.5 rounded-lg">✅ Prêt</span>
       </div>
-      <div className="space-y-1 mb-3 text-[13px] text-muted-foreground">
-        {score != null && (
-          <div>
-            <p className="mb-1">📊 Dernier audit : <span className="font-medium text-foreground">{score}/100</span></p>
-            <Progress value={score} className="h-1" />
+      {!notStarted && (
+        <>
+          <Progress value={completion} className="h-1.5 mb-2" />
+          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground font-mono-ui">
+            {score != null && <span>Audit : {score}/100</span>}
+            {weekLabel && <span>Cette semaine : {weekLabel}</span>}
           </div>
-        )}
-        <p>📅 Cette semaine : <span className="font-medium text-foreground">{weekLabel}</span></p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {actions.map((a) => (
-          <button
-            key={a.route + a.label}
-            onClick={(e) => { e.stopPropagation(); navigate(a.route); }}
-            className="text-xs font-medium px-3 py-1.5 rounded-xl border border-primary/20 text-primary hover:bg-primary/5 transition-colors"
-          >
-            {a.label}
-          </button>
-        ))}
-      </div>
+        </>
+      )}
     </div>
   );
 }
