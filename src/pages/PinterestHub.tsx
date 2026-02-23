@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -23,8 +24,8 @@ export default function PinterestHub() {
     if (!user) return;
     const load = async () => {
       const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+      const monthStart = toLocalDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+      const monthEnd = toLocalDateStr(new Date(now.getFullYear(), now.getMonth() + 1, 0));
       const [profRes, boardRes, pinRes, ideasRes, calRes] = await Promise.all([
         supabase.from("pinterest_profile").select("pro_account_done, photo_done, name_done, bio_done, url_done").eq("user_id", user.id).maybeSingle(),
         supabase.from("pinterest_boards").select("id", { count: "exact", head: true }).eq("user_id", user.id),

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
@@ -78,7 +79,7 @@ export default function CalendarPage() {
     const prefillTheme = searchParams.get("prefill_theme");
     const prefillContent = searchParams.get("prefill_content");
     if (prefillTheme) {
-      const today = new Date().toISOString().split("T")[0];
+      const today = toLocalDateStr(new Date());
       setSelectedDate(today);
       setPrefillData({ theme: prefillTheme, notes: prefillContent || "" });
       setDialogOpen(true);
@@ -111,11 +112,11 @@ export default function CalendarPage() {
     if (!user) return;
     let startDate: string, endDate: string;
     if (viewMode === "week") {
-      startDate = weekDays[0].toISOString().split("T")[0];
-      endDate = weekDays[6].toISOString().split("T")[0];
+      startDate = toLocalDateStr(weekDays[0]);
+      endDate = toLocalDateStr(weekDays[6]);
     } else {
-      startDate = new Date(year, month, 1).toISOString().split("T")[0];
-      endDate = new Date(year, month + 1, 0).toISOString().split("T")[0];
+      startDate = toLocalDateStr(new Date(year, month, 1));
+      endDate = toLocalDateStr(new Date(year, month + 1, 0));
     }
     const { data } = await supabase
       .from("calendar_posts")
@@ -162,7 +163,7 @@ export default function CalendarPage() {
   }, [filteredPosts]);
 
   const weekPosts = useMemo(() => {
-    return weekDays.flatMap(d => postsByDate[d.toISOString().split("T")[0]] || []);
+    return weekDays.flatMap(d => postsByDate[toLocalDateStr(d)] || []);
   }, [weekDays, postsByDate]);
 
   /** Open dialog for creating a new post via the "Juste une idée" flow */
@@ -329,7 +330,7 @@ export default function CalendarPage() {
   const nextWeek = () => setCurrentDate(new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 7));
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = toLocalDateStr(new Date());
   const weekLabel = `Semaine du ${weekDays[0].toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}`;
   const monthName = currentDate.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 

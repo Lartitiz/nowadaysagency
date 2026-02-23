@@ -57,6 +57,7 @@ import PropositionRecapPage from "./pages/PropositionRecapPage";
 import StrategiePage from "./pages/StrategiePage";
 import StrategieRecapPage from "./pages/StrategieRecapPage";
 import OffersPage from "./pages/OffersPage";
+import ConnectionCheckPage from "./pages/ConnectionCheckPage";
 import OfferWorkshopPage from "./pages/OfferWorkshopPage";
 import LinkedInHub from "./pages/LinkedInHub";
 import LinkedInAudit from "./pages/LinkedInAudit";
@@ -152,6 +153,7 @@ function AnimatedRoutes() {
             <Route path="/contacts" element={<ProtectedRoute><ContactsPage /></ProtectedRoute>} />
             <Route path="/profil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/parametres" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            <Route path="/parametres/connexions" element={<ProtectedRoute><ConnectionCheckPage /></ProtectedRoute>} />
             <Route path="/abonnement" element={<ProtectedRoute><AbonnementPage /></ProtectedRoute>} />
             <Route path="/accompagnement" element={<ProtectedRoute><AccompagnementPage /></ProtectedRoute>} />
             <Route path="/admin/coaching" element={<ProtectedRoute><AdminCoachingPage /></ProtectedRoute>} />

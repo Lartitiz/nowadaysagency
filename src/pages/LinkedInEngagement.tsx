@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -40,12 +41,12 @@ export default function LinkedInEngagement() {
   const [messagesDone, setMessagesDone] = useState(0);
   const [history, setHistory] = useState<any[]>([]);
 
-  const monday = useMemo(() => getMonday(new Date()).toISOString().split("T")[0], []);
+  const monday = useMemo(() => toLocalDateStr(getMonday(new Date())), []);
   const sunday = useMemo(() => {
     const m = getMonday(new Date());
     const s = new Date(m);
     s.setDate(s.getDate() + 6);
-    return s.toISOString().split("T")[0];
+    return toLocalDateStr(s);
   }, []);
 
   const targets = TARGETS[objective] || TARGETS[5];

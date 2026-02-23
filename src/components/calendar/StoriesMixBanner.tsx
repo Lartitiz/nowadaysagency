@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toLocalDateStr } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -79,7 +80,7 @@ export function StoriesMixBanner({ weekDays, isLaunchWeek = false }: Props) {
     navigate("/instagram/stories", {
       state: {
         fromCalendarMix: true,
-        weekDays: weekDays.map((d) => d.toISOString().split("T")[0]),
+        weekDays: weekDays.map((d) => toLocalDateStr(d)),
         mix,
       },
     });

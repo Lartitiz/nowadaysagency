@@ -7,7 +7,7 @@ import { WeekRecapBar } from "./WeekRecapBar";
 import { AddPostMenu } from "./AddPostMenu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
+import { cn, toLocalDateStr } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -48,7 +48,7 @@ function DroppableWeekDay({
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
   onAddIdea: (dateStr: string) => void;
 }) {
-  const isPast = new Date(dateStr + "T00:00:00") < new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
+  const isPast = new Date(dateStr + "T00:00:00") < new Date(toLocalDateStr(new Date()) + "T00:00:00");
   const { setNodeRef, isOver } = useDroppable({ id: dateStr });
   const dayLabel = date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
 
@@ -123,7 +123,7 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
 
-  const weekAllPosts = weekDays.flatMap((d) => postsByDate[d.toISOString().split("T")[0]] || []);
+  const weekAllPosts = weekDays.flatMap((d) => postsByDate[toLocalDateStr(d)] || []);
 
   const handleMobileMove = (post: CalendarPost) => {
     setMoveDialogPost(post);
@@ -132,7 +132,7 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
 
   const confirmMobileMove = () => {
     if (!moveDialogPost || !moveDate || !onMovePost) return;
-    const newDateStr = moveDate.toISOString().split("T")[0];
+    const newDateStr = toLocalDateStr(moveDate);
     if (newDateStr !== moveDialogPost.date) {
       onMovePost(moveDialogPost.id, newDateStr);
     }
@@ -146,7 +146,7 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
       <>
         <div className="space-y-2">
           {weekDays.map((d) => {
-            const dateStr = d.toISOString().split("T")[0];
+            const dateStr = toLocalDateStr(d);
             const dayPosts = postsByDate[dateStr] || [];
             return (
               <MobileWeekDay
@@ -189,7 +189,7 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
       <div className="rounded-2xl bg-card border border-border overflow-hidden">
         <div className="flex">
           {weekDays.map((d) => {
-            const dateStr = d.toISOString().split("T")[0];
+            const dateStr = toLocalDateStr(d);
             const dayPosts = postsByDate[dateStr] || [];
             return (
               <DroppableWeekDay

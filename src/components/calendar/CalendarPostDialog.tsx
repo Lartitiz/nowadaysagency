@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
+import { cn, toLocalDateStr } from "@/lib/utils";
 import { Trash2, ChevronDown, Sparkles, Zap, Copy, RefreshCw, Loader2, Undo2, CalendarIcon } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
 import { ANGLES, STATUSES, OBJECTIFS, type CalendarPost } from "@/lib/calendar-constants";
@@ -399,7 +399,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                     selected={new Date(selectedDate + "T00:00:00")}
                     onSelect={(d) => {
                       if (d && onDateChange && editingPost) {
-                        const newDateStr = d.toISOString().split("T")[0];
+                        const newDateStr = toLocalDateStr(d);
                         onDateChange(editingPost.id, newDateStr);
                       }
                     }}
