@@ -12,6 +12,8 @@ import StickerGuide from "@/components/engagement/StickerGuide";
 import StoryChecklist from "@/components/stories/StoryChecklist";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
+import { useFormPersist } from "@/hooks/use-form-persist";
+import { DraftRestoredBanner } from "@/components/DraftRestoredBanner";
 
 // Types
 interface StorySticker {
@@ -122,6 +124,28 @@ export default function InstagramStories() {
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
+  // Persist form state to sessionStorage
+  const { restored: draftRestored, clearDraft } = useFormPersist(
+    "stories-form",
+    { step, objective, priceRange, timeAvailable, faceCam, subject, subjectDetails, rawIdea, clarifyContext, subjectDirection, isLaunch, preGenVecu, preGenEnergy, preGenMessage },
+    (saved) => {
+      if (saved.objective) setObjective(saved.objective);
+      if (saved.priceRange) setPriceRange(saved.priceRange);
+      if (saved.timeAvailable) setTimeAvailable(saved.timeAvailable);
+      if (saved.faceCam) setFaceCam(saved.faceCam);
+      if (saved.subject) { setSubject(saved.subject); setSubjectDone(true); }
+      if (saved.subjectDetails) setSubjectDetails(saved.subjectDetails);
+      if (saved.rawIdea) setRawIdea(saved.rawIdea);
+      if (saved.clarifyContext) setClarifyContext(saved.clarifyContext);
+      if (saved.subjectDirection) setSubjectDirection(saved.subjectDirection);
+      if (saved.isLaunch) setIsLaunch(saved.isLaunch);
+      if (saved.preGenVecu) setPreGenVecu(saved.preGenVecu);
+      if (saved.preGenEnergy) setPreGenEnergy(saved.preGenEnergy);
+      if (saved.preGenMessage) setPreGenMessage(saved.preGenMessage);
+      if (saved.step && saved.step > 1 && saved.step < 6) setStep(saved.step);
+    }
+  );
+
   // Pre-fill from highlights navigation
   useEffect(() => {
     if (highlightState?.fromHighlights) {
@@ -223,6 +247,7 @@ export default function InstagramStories() {
 
       if (saveError) console.error("Save error:", saveError);
       setStep(6); // Results step
+      clearDraft(); // Clear sessionStorage draft after successful generation
     } catch (e: any) {
       console.error("Stories generation failed:", e);
       const msg = e?.message || "Erreur inconnue";
@@ -518,9 +543,22 @@ export default function InstagramStories() {
         </Link>
 
         <h1 className="font-display text-2xl font-bold text-foreground mb-2">📱 Générateur de Stories</h1>
-        <p className="text-sm text-muted-foreground mb-8">
+        <p className="text-sm text-muted-foreground mb-4">
           Crée des séquences stories complètes avec le bon sticker et le bon CTA.
         </p>
+
+        {draftRestored && (
+          <DraftRestoredBanner
+            onContinue={() => {}}
+            onDiscard={() => {
+              clearDraft();
+              setStep(1); setObjective(""); setPriceRange(""); setTimeAvailable(""); setFaceCam("");
+              setSubject(""); setSubjectDetails(""); setRawIdea(""); setClarifyContext("");
+              setSubjectDirection(""); setIsLaunch(false); setSubjectDone(false);
+              setPreGenVecu(""); setPreGenEnergy(""); setPreGenMessage("");
+            }}
+          />
+        )}
 
         {/* Sticker guide toggle */}
         {showStickerGuide ? (

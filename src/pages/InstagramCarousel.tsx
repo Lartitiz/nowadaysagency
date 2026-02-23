@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { useSearchParams } from "react-router-dom";
+import { useFormPersist } from "@/hooks/use-form-persist";
+import { DraftRestoredBanner } from "@/components/DraftRestoredBanner";
 
 // ── Types ──
 interface CarouselType {
@@ -87,6 +89,20 @@ export default function InstagramCarousel() {
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
+  // Persist form state to sessionStorage
+  const { restored: draftRestored, clearDraft } = useFormPersist(
+    "carousel-form",
+    { step, carouselType, objective, subject, selectedOffer, slideCount },
+    (saved) => {
+      if (saved.carouselType) setCarouselType(saved.carouselType);
+      if (saved.objective) setObjective(saved.objective);
+      if (saved.subject) setSubject(saved.subject);
+      if (saved.selectedOffer) setSelectedOffer(saved.selectedOffer);
+      if (saved.slideCount) setSlideCount(saved.slideCount);
+      if (saved.step && saved.step > 1 && saved.step < 4) setStep(saved.step);
+    }
+  );
+
   // Load offers for dropdown
   useEffect(() => {
     if (!user) return;
@@ -150,6 +166,7 @@ export default function InstagramCarousel() {
       });
 
       setStep(4);
+      clearDraft(); // Clear sessionStorage draft after successful generation
     } catch (e: any) {
       console.error(e);
       toast.error("Erreur lors de la génération du carrousel.");
@@ -573,7 +590,18 @@ export default function InstagramCarousel() {
         <ProgressBar step={1} />
 
         <h2 className="font-display text-xl font-bold text-foreground mb-1">🎠 Quel type de carrousel ?</h2>
-        <p className="text-sm text-muted-foreground mb-6">Chaque format a sa structure optimale.</p>
+        <p className="text-sm text-muted-foreground mb-4">Chaque format a sa structure optimale.</p>
+
+        {draftRestored && (
+          <DraftRestoredBanner
+            onContinue={() => {}}
+            onDiscard={() => {
+              clearDraft();
+              setStep(1); setCarouselType(""); setObjective(""); setSubject("");
+              setSelectedOffer(""); setSlideCount(7);
+            }}
+          />
+        )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {CAROUSEL_TYPES.map((t) => (

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -29,8 +29,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (event, currentSession) => {
         if (!mounted) return;
 
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+        // Only update session ref if token actually changed to avoid re-renders
+        setSession(prev => {
+          if (prev?.access_token === currentSession?.access_token) return prev;
+          return currentSession;
+        });
+        setUser(prev => {
+          if (prev?.id === currentSession?.user?.id) return prev;
+          return currentSession?.user ?? null;
+        });
 
         // Only set loading false on INITIAL_SESSION or if initial load already done
         if (event === 'INITIAL_SESSION' || initialSessionHandled) {
@@ -123,15 +130,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.auth.getSession().then(({ data: { session: refreshedSession } }) => {
           if (!mounted) return;
           if (refreshedSession) {
-            // Only update session token, avoid creating new user reference
-            // to prevent cascading useEffect re-runs across all form pages
-            setSession(refreshedSession);
+            // Only update if token actually changed
+            setSession(prev => {
+              if (prev?.access_token === refreshedSession.access_token) return prev;
+              return refreshedSession;
+            });
             setUser(prev => {
               if (prev?.id === refreshedSession.user?.id) return prev;
               return refreshedSession.user;
             });
           }
-          // Do NOT redirect if session is null here — let onAuthStateChange handle SIGNED_OUT
         });
       }
     };
@@ -144,27 +152,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [navigate]);
 
-  const signUp = async (email: string, password: string) => {
+  // Memoize callback functions to prevent context value changes
+  const signUp = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: window.location.origin },
     });
     if (error) throw error;
-  };
+  }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
-  };
+  }, []);
+
+  // Memoize the context value to prevent unnecessary re-renders of all consumers
+  const value = useMemo<AuthContextType>(
+    () => ({ user, session, loading, signUp, signIn, signOut }),
+    [user, session, loading, signUp, signIn, signOut]
+  );
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
