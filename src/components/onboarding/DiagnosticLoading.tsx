@@ -32,8 +32,14 @@ export default function DiagnosticLoading({
 
   useEffect(() => {
     if (isDemoMode) {
-      setTimeout(() => onReady(DEMO_DIAGNOSTIC), 200);
-      return;
+      // Show animated loading in demo too, but faster (3s)
+      const timers = [
+        setTimeout(() => setChecks(c => ({ ...c, ig: true })), 500),
+        setTimeout(() => setChecks(c => ({ ...c, web: true })), 1000),
+        setTimeout(() => setChecks(c => ({ ...c, docs: true })), 1500),
+        setTimeout(() => onReady(DEMO_DIAGNOSTIC), 3000),
+      ];
+      return () => timers.forEach(clearTimeout);
     }
 
     const timers = [
@@ -52,9 +58,9 @@ export default function DiagnosticLoading({
   useEffect(() => {
     const interval = setInterval(() => {
       setPhraseIdx(p => (p + 1) % LOADING_PHRASES.length);
-    }, 2500);
+    }, isDemoMode ? 1000 : 2500);
     return () => clearInterval(interval);
-  }, []);
+  }, [isDemoMode]);
 
   const getStatus = (key: "ig" | "web" | "docs", has: boolean) => {
     if (!has) return "—";

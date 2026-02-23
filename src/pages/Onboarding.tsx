@@ -164,7 +164,7 @@ export default function Onboarding() {
   const [answers, setAnswers] = useState<Answers>({
     prenom: isDemoMode ? (demoDefaults?.prenom ?? "") : (localStorage.getItem("lac_prenom") || ""),
     activite: isDemoMode ? (demoDefaults?.activite ?? "") : (localStorage.getItem("lac_activite") || ""),
-    activity_type: isDemoMode ? "artisane" : "",
+    activity_type: isDemoMode ? "art_design" : "",
     activity_detail: "",
     canaux: isDemoMode ? ["instagram", "website", "newsletter"] : [],
     blocage: isDemoMode ? "invisible" : "",
@@ -177,8 +177,8 @@ export default function Onboarding() {
   const [brandingAnswers, setBrandingAnswers] = useState<BrandingAnswers>({
     positioning: isDemoMode ? (demoData?.branding.positioning ?? "") : "",
     mission: isDemoMode ? (demoData?.branding.mission ?? "") : "",
-    target_description: isDemoMode ? (demoData?.persona.frustrations ?? "") : "",
-    tone_keywords: isDemoMode ? ([...(demoData?.branding.tone?.keywords ?? [])]) : [],
+    target_description: isDemoMode ? "Femme entrepreneure, 30-45 ans, qui a lancé son activité depuis 1-3 ans. Elle sait qu'elle a besoin de photos pro mais elle repousse parce qu'elle ne se trouve pas photogénique. Elle veut des images qui lui ressemblent, pas des photos corporate sans âme." : "",
+    tone_keywords: isDemoMode ? ["chaleureux", "direct", "inspirant"] : [],
     offers: isDemoMode ? (demoData?.offers?.map(o => ({ name: o.name, price: o.price, description: o.description })) ?? []) : [{ name: "", price: "", description: "" }],
     values: isDemoMode ? ([...(demoData?.branding.values ?? [])]) : [],
   });
@@ -544,7 +544,7 @@ export default function Onboarding() {
         <div className="sticky top-0 z-50 flex items-center justify-between px-4 py-2.5 bg-secondary border-b border-border">
           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <Film className="h-4 w-4 text-primary" />
-            <span>🎬 Mode démo · {demoData?.profile.first_name}, {demoData?.profile.activity_type}</span>
+            <span>🎬 Mode démo · {demoData?.profile.first_name}, {demoData?.profile.activity}</span>
           </div>
           <Button variant="outline" size="sm" onClick={handleSkipDemo} className="h-8 text-xs gap-1.5 border-primary/30 hover:bg-primary/5">
             <SkipForward className="h-3.5 w-3.5" />
@@ -601,12 +601,13 @@ export default function Onboarding() {
                 {/* PHASE 2: NOURRIR L'OUTIL */}
                 {step === 9 && (
                   <ImportScreen
-                    files={uploadedFiles}
+                    files={isDemoMode ? [{ id: "demo-file", name: "Brief_Lea_Portraits.pdf", url: "" }] : uploadedFiles}
                     uploading={uploading}
-                    onUpload={handleFileUpload}
-                    onRemove={removeFile}
+                    onUpload={isDemoMode ? () => {} : handleFileUpload}
+                    onRemove={isDemoMode ? () => {} : removeFile}
                     onNext={next}
                     onSkip={next}
+                    isDemoMode={isDemoMode}
                   />
                 )}
 
@@ -1002,13 +1003,14 @@ function InstagramScreen({ answers, set, onNext, onSkip }: {
    SCREEN COMPONENTS - PHASE 2: IMPORT
    ════════════════════════════════════════════════════════ */
 
-function ImportScreen({ files, uploading, onUpload, onRemove, onNext, onSkip }: {
+function ImportScreen({ files, uploading, onUpload, onRemove, onNext, onSkip, isDemoMode }: {
   files: UploadedFile[];
   uploading: boolean;
   onUpload: (files: FileList | null) => void;
   onRemove: (id: string) => void;
   onNext: () => void;
   onSkip: () => void;
+  isDemoMode?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -1026,25 +1028,27 @@ function ImportScreen({ files, uploading, onUpload, onRemove, onNext, onSkip }: 
         </p>
       </div>
 
-      <div
-        onClick={() => inputRef.current?.click()}
-        onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
-        onDrop={e => { e.preventDefault(); e.stopPropagation(); onUpload(e.dataTransfer.files); }}
-        className="border-2 border-dashed border-border rounded-2xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-colors"
-      >
-        <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
-        <p className="text-sm font-medium text-foreground">📎 Glisse tes fichiers ici</p>
-        <p className="text-xs text-muted-foreground mt-1">ou clique pour importer</p>
-        <p className="text-xs text-muted-foreground/70 mt-2">PDF, Word, PNG, JPG · Max 5 fichiers</p>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept=".pdf,.docx,.doc,.txt,.md,.png,.jpg,.jpeg,.webp"
-          onChange={e => onUpload(e.target.files)}
-          className="hidden"
-        />
-      </div>
+      {!isDemoMode && (
+        <div
+          onClick={() => inputRef.current?.click()}
+          onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+          onDrop={e => { e.preventDefault(); e.stopPropagation(); onUpload(e.dataTransfer.files); }}
+          className="border-2 border-dashed border-border rounded-2xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-colors"
+        >
+          <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
+          <p className="text-sm font-medium text-foreground">📎 Glisse tes fichiers ici</p>
+          <p className="text-xs text-muted-foreground mt-1">ou clique pour importer</p>
+          <p className="text-xs text-muted-foreground/70 mt-2">PDF, Word, PNG, JPG · Max 5 fichiers</p>
+          <input
+            ref={inputRef}
+            type="file"
+            multiple
+            accept=".pdf,.docx,.doc,.txt,.md,.png,.jpg,.jpeg,.webp"
+            onChange={e => onUpload(e.target.files)}
+            className="hidden"
+          />
+        </div>
+      )}
 
       {uploading && (
         <p className="text-sm text-muted-foreground text-center animate-pulse">Upload en cours...</p>
