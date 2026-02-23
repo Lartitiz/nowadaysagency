@@ -19,18 +19,18 @@ export const DEMO_DATA = {
   // ── BRANDING ──
   branding: {
     positioning:
-      "Je capture la confiance. Photographe portrait pour les femmes entrepreneures qui veulent se montrer telles qu'elles sont.",
+      "Je capture la confiance. Photographe portrait pour les femmes entrepreneures qui veulent enfin se montrer telles qu'elles sont, sans filtre, sans masque.",
     mission:
-      "Rendre visible les femmes qui créent et entreprennent. Par l'image, par le regard, par la confiance.",
+      "Rendre visible celles qui n'osent pas se montrer. Parce que quand une femme assume son image, elle assume aussi son business.",
     unique_proposition:
       "Des séances portrait avec coaching posture inclus — pour se sentir à l'aise devant l'objectif et obtenir des photos qui te ressemblent.",
-    values: ["Authenticité", "Confiance", "Féminisme", "Beauté"],
+    values: ["Authenticité", "Féminisme", "Slow"],
     story:
       "J'ai commencé par les mariages. Payée au lance-pierre, épuisée chaque weekend. Un jour une cliente m'a dit « c'est la première fois que je me trouve belle en photo ». Ce jour-là j'ai compris : je ne fais pas des photos, je fais de la confiance.",
     tone: {
       description:
-        "Direct et chaleureux. Comme une amie photographe : franche, bienveillante, un peu cash.",
-      keywords: ["chaleureux", "direct", "complice", "cash"],
+        "Direct et chaleureux. Comme une amie photographe : franche, bienveillante, inspirante.",
+      keywords: ["chaleureux", "direct", "inspirant"],
     },
     editorial: {
       pillars: [
@@ -47,15 +47,15 @@ export const DEMO_DATA = {
   // ── PERSONA ──
   persona: {
     prenom: "Marion",
-    age: "32-42 ans",
-    metier: "Solopreneuse créative (coach, graphiste, artisane)",
+    age: "30-45 ans",
+    metier: "Femme entrepreneure qui a lancé son activité depuis 1-3 ans",
     situation:
-      "Installée depuis 2-3 ans, a besoin de photos pro pour ses réseaux et son site",
+      "Elle sait qu'elle a besoin de photos pro mais elle repousse parce qu'elle ne se trouve pas photogénique.",
     ca: "35-80k€",
     frustrations:
-      "Elle utilise des selfies ou des photos d'il y a 3 ans. Elle sait que ça freine sa crédibilité mais elle repousse toujours. Elle a peur de ne pas être photogénique, de paraître fausse.",
+      "Ne se trouve pas photogénique. Photos corporate sans âme. Repousse toujours la séance.",
     desires:
-      "Des photos qui lui ressemblent vraiment. Se sentir à l'aise devant l'objectif. Avoir du contenu visuel pro pour 6 mois.",
+      "Des images qui lui ressemblent. Se sentir confiante et visible. Du contenu pro pour ses réseaux.",
     phrase_signature:
       "J'aimerais bien avoir de belles photos mais je suis tellement pas à l'aise devant un objectif...",
   },
@@ -63,22 +63,16 @@ export const DEMO_DATA = {
   // ── OFFRES ──
   offers: [
     {
-      name: "Séance Confiance",
-      price: "350€",
+      name: "Séance Révélation",
+      price: "450€",
       description:
-        "Séance portrait de 2h en lumière naturelle. 15 photos retouchées. Coaching posture inclus.",
+        "Séance portrait de 2h en studio ou en extérieur. Coaching posture inclus. 15 photos retouchées livrées sous 10 jours.",
     },
     {
-      name: "Pack Contenu 6 mois",
+      name: "Pack Personal Branding",
       price: "890€",
       description:
-        "Séance de 3h + 40 photos variées (portraits, mises en situation, détails). De quoi alimenter tes réseaux pendant 6 mois.",
-    },
-    {
-      name: "Journée Branding Complet",
-      price: "1 500€",
-      description:
-        "Une journée complète : portraits, mises en situation, produits, locaux. 80+ photos. Direction artistique incluse.",
+        "Séance complète + photos pour site, réseaux et supports print. Direction artistique incluse.",
     },
   ],
 
@@ -278,17 +272,17 @@ export const DEMO_DATA = {
   // ── ONBOARDING (pré-rempli) ──
   onboarding: {
     prenom: "Léa",
-    activite: "Photographe portrait pour entrepreneures",
-    activity_type: "photo_video",
+    activite: "Photographe portraitiste spécialisée dans les portraits de femmes entrepreneures",
+    activity_type: "art_design",
     canaux: ["instagram", "website", "newsletter"],
     blocage: "invisible",
     objectif: "visibility",
-    temps: "2h",
+    temps: "30min",
     instagram: "@lea_portraits",
     website: "www.leaportraits.fr",
     mainGoal: "visibility",
     level: "intermediate",
-    weeklyTime: "2_5h",
+    weeklyTime: "30min",
   },
 } as const;
 
