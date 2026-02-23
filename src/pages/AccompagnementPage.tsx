@@ -73,7 +73,7 @@ interface Deliverable {
 
 export default function AccompagnementPage() {
   const { user } = useAuth();
-  const { isDemoMode, demoData } = useDemoContext();
+  const { isDemoMode, demoData, demoPlan } = useDemoContext();
   const [program, setProgram] = useState<Program | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
@@ -83,6 +83,12 @@ export default function AccompagnementPage() {
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    // In demo free mode, skip loading
+    if (isDemoMode && demoPlan === "free") {
+      setLoading(false);
+      setNoProgram(true);
+      return;
+    }
     if (isDemoMode && demoData) {
       const c = demoData.coaching;
       setProgram({
@@ -181,7 +187,7 @@ export default function AccompagnementPage() {
 
       setLoading(false);
     })();
-  }, [user?.id, isDemoMode]);
+  }, [user?.id, isDemoMode, demoPlan]);
 
   const toggleAction = async (action: Action) => {
     const newCompleted = !action.completed;
@@ -201,6 +207,44 @@ export default function AccompagnementPage() {
   };
 
   if (noProgram) {
+    // Demo free mode: show sales preview
+    if (isDemoMode && demoPlan === "free") {
+      return (
+        <div className="min-h-screen bg-background pb-20 lg:pb-8">
+          <AppHeader />
+          <main className="mx-auto max-w-2xl px-4 py-8 animate-fade-in">
+            <div className="rounded-2xl bg-rose-pale border border-primary/10 p-8 text-center space-y-6">
+              <span className="text-5xl block">🤝</span>
+              <h1 className="font-display text-2xl font-bold text-foreground">L'accompagnement Now Pilot, c'est quoi ?</h1>
+              <div className="text-left space-y-3 max-w-md mx-auto">
+                {[
+                  "6 mois de stratégie co-construite",
+                  "Sessions visio 2h/mois avec Laetitia",
+                  "WhatsApp jours ouvrés",
+                  "Tous les outils débloqués",
+                  "Plan de com' personnalisé",
+                  "300 crédits IA / mois",
+                ].map((item) => (
+                  <div key={item} className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">✓</span>
+                    <p className="text-sm text-foreground">{item}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground">250€/mois · Engagement 6 mois</p>
+              <Button
+                className="rounded-full gap-2"
+                onClick={() => window.open("https://calendly.com/laetitia-mattioli/appel-decouverte", "_blank")}
+              >
+                <CalendarDays className="h-4 w-4" />
+                Réserver un appel découverte →
+              </Button>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-background pb-20 lg:pb-8">
         <AppHeader />
