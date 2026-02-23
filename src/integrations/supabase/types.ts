@@ -44,6 +44,36 @@ export type Database = {
         }
         Relationships: []
       }
+      assistant_undo_log: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          previous_data: Json | null
+          record_id: string | null
+          table_name: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          previous_data?: Json | null
+          record_id?: string | null
+          table_name: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          previous_data?: Json | null
+          record_id?: string | null
+          table_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       audit_recommendations: {
         Row: {
           audit_id: string | null
