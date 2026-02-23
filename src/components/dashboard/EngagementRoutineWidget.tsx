@@ -38,7 +38,7 @@ export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
     const [logsRes, streakRes] = await Promise.all([
       supabase
         .from("engagement_checklist_logs")
-        .select("log_date")
+        .select("log_date, streak_maintained")
         .eq("user_id", user.id)
         .gte("log_date", weekStart)
         .lte("log_date", weekEnd),
@@ -49,27 +49,22 @@ export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
         .maybeSingle(),
     ]);
 
-    const logDates = (logsRes.data || []).map((d: any) => d.log_date);
+    const logMap = new Map((logsRes.data || []).map((d: any) => [d.log_date, d.streak_maintained]));
     const dots = Array.from({ length: 7 }, (_, i) => {
       const day = format(addDays(monday, i), "yyyy-MM-dd");
-      return logDates.includes(day);
+      return logMap.get(day) === true;
     });
     setWeekDots(dots);
-    setTodayDone(logDates.includes(todayStr));
+    setTodayDone(logMap.get(todayStr) === true);
 
     if (streakRes.data) {
       setStreakCount(streakRes.data.current_streak || 0);
     } else {
+      // Count consecutive done days from today backwards using the week data
       let streak = 0;
-      for (let i = 0; i < 30; i++) {
-        const d = format(subDays(now, i), "yyyy-MM-dd");
-        if (logDates.includes(d) || (i === 0 && !logDates.includes(d))) {
-          if (logDates.includes(d)) streak++;
-          else if (i === 0) continue;
-          else break;
-        } else {
-          break;
-        }
+      for (let i = dots.length - 1; i >= 0; i--) {
+        if (dots[i]) streak++;
+        else if (i < dots.length - 1) break;
       }
       setStreakCount(streak);
     }
