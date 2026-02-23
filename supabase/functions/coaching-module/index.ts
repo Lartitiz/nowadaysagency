@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { phase, module, answers, rec_id } = body;
+    const { phase, module, answers, rec_id, previous_diagnostic, adjustment_feedback, iteration_history, iteration } = body;
 
     if (!module || !phase) {
       return new Response(JSON.stringify({ error: "module et phase requis" }), {
@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
     }
 
     // Quota check
-    const category = phase === "questions" ? "suggestion" : "content";
+    const category = phase === "questions" ? "suggestion" : "suggestion";
     const quota = await checkQuota(user.id, category);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {
@@ -246,7 +246,97 @@ Pour le module editorial, propose piliers de contenu.`;
       });
     }
 
-    return new Response(JSON.stringify({ error: "Phase inconnue. Utilise 'questions' ou 'diagnostic'." }), {
+    if (phase === "adjust") {
+      // PHASE 3: Adjust previous diagnostic based on user feedback
+      if (!previous_diagnostic || !adjustment_feedback) {
+        return new Response(JSON.stringify({ error: "Diagnostic précédent et feedback requis" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const updateMap = MODULE_UPDATE_MAP[module] || MODULE_UPDATE_MAP.persona;
+
+      // Build iteration history context
+      let historyContext = "";
+      if (iteration_history && Array.isArray(iteration_history) && iteration_history.length > 0) {
+        historyContext = "\nHISTORIQUE DES ITÉRATIONS PRÉCÉDENTES :\n" +
+          iteration_history.map((h: any, i: number) => 
+            `--- Itération ${i + 1} ---\nDiagnostic : ${h.diagnostic}\nFeedback utilisatrice : ${h.feedback || "Aucun"}`
+          ).join("\n\n");
+      }
+
+      const systemPrompt = `Tu es une consultante en communication bienveillante et experte. Tu accompagnes des solopreneuses créatives.
+
+CONTEXTE DE L'AUDIT :
+${audit ? `Score global : ${audit.score_global}/100\nSynthèse : ${audit.synthese}` : "Pas d'audit disponible"}
+
+BRANDING ACTUEL :
+${branding ? JSON.stringify({ mission: branding.mission, offer: branding.offer, target_description: branding.target_description, voice_description: branding.voice_description }) : "Pas encore rempli"}
+
+MODULE : ${module}
+
+RÉPONSES ORIGINALES DE L'UTILISATRICE :
+${answers ? answers.map((a: any, i: number) => `Q${i + 1}: ${a.question}\nR${i + 1}: ${a.answer}`).join("\n\n") : "Non disponibles"}
+
+TA PROPOSITION PRÉCÉDENTE :
+Diagnostic : ${previous_diagnostic.diagnostic}
+${previous_diagnostic.pourquoi ? `Raisonnement : ${previous_diagnostic.pourquoi}` : ""}
+Textes proposés : ${JSON.stringify(previous_diagnostic.proposals)}
+${historyContext}
+
+FEEDBACK DE L'UTILISATRICE (itération ${iteration || 1}) :
+"${adjustment_feedback}"
+
+MISSION :
+L'utilisatrice veut que tu AJUSTES ta proposition en tenant compte de son feedback.
+- Garde ce qui fonctionnait dans ta proposition précédente
+- Modifie UNIQUEMENT ce qu'elle demande de changer
+- Explique brièvement ce que tu as ajusté et pourquoi
+
+TON STYLE :
+- Direct et chaleureux, tutoiement
+- Tu expliques ce que tu as changé par rapport à avant
+- Pas de jargon marketing
+
+RETOURNE UNIQUEMENT un JSON :
+{
+  "diagnostic": "Texte du diagnostic ajusté (3-5 phrases, mentionne ce qui a changé)",
+  "pourquoi": "Explication de l'ajustement (2-3 phrases)",
+  "consequences": ["Ce que ça change concrètement 1", "2", "3"],
+  "proposals": [
+    {"label": "Nom du champ en français", "field": "nom_du_champ_technique", "value": "Texte proposé ajusté"},
+    ...
+  ]
+}
+
+Pour le module persona, propose : description, frustrations, desires, phrase_signature, prenom, age, metier, situation.
+Pour le module tone, propose : tone_register, tone_style, combat_cause, key_expressions.
+Pour le module bio, propose : mission, offer, target_description.
+Pour le module story, propose des éléments narratifs clés.
+Pour le module offers, propose nom, description, bénéfices.
+Pour le module editorial, propose piliers de contenu.`;
+
+      const raw = await callAnthropicSimple("claude-sonnet-4-5-20250929", systemPrompt, "Ajuste ta proposition en tenant compte du feedback.", 0.5, 4000);
+
+      let result;
+      try {
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("No JSON");
+        result = JSON.parse(jsonMatch[0]);
+      } catch {
+        console.error("Failed to parse coaching adjust:", raw);
+        return new Response(JSON.stringify({ error: "Erreur lors de l'ajustement. Réessaie." }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      await logUsage(user.id, "suggestion", "coaching_adjust");
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Phase inconnue. Utilise 'questions', 'diagnostic' ou 'adjust'." }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

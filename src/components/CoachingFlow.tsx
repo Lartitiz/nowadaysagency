@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { Loader2, ArrowRight, ArrowLeft, Check, Lightbulb, X, Sparkles, RotateCcw } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, Check, Lightbulb, X, Sparkles, RotateCcw, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
 interface CoachingFlowProps {
@@ -33,7 +33,9 @@ interface DiagnosticResult {
   proposals: Proposal[];
 }
 
-type Phase = "intro" | "questions" | "diagnostic" | "done";
+const MAX_ADJUSTMENTS = 3;
+
+type Phase = "intro" | "questions" | "diagnostic" | "adjust" | "done";
 
 export default function CoachingFlow({ module, recId, conseil, onComplete, onSkip }: CoachingFlowProps) {
   const { user } = useAuth();
@@ -47,7 +49,11 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
   const [editedProposals, setEditedProposals] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
-  // Load questions on mount
+  // Iterative refinement state
+  const [adjustmentFeedback, setAdjustmentFeedback] = useState("");
+  const [iterationCount, setIterationCount] = useState(0);
+  const [previousDiagnostics, setPreviousDiagnostics] = useState<Array<{ diagnostic: DiagnosticResult; feedback: string | null }>>([]);
+
   useEffect(() => {
     loadQuestions();
   }, []);
@@ -92,7 +98,8 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setDiagnostic(data);
-      // Initialize edited proposals
+      setIterationCount(0);
+      setPreviousDiagnostics([]);
       const edited: Record<string, string> = {};
       (data.proposals || []).forEach((p: Proposal) => { edited[p.field] = p.value; });
       setEditedProposals(edited);
@@ -104,18 +111,86 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
     }
   };
 
+  const handleAdjust = async () => {
+    if (!adjustmentFeedback.trim() || !diagnostic) return;
+    setLoading(true);
+    setPhase("diagnostic");
+    try {
+      const answersPayload = questions.map((q, i) => ({
+        question: q.question,
+        answer: answers[i] || "",
+      }));
+
+      // Build history of previous iterations
+      const history = previousDiagnostics.map(d => ({
+        diagnostic: d.diagnostic.diagnostic,
+        proposals: d.diagnostic.proposals,
+        feedback: d.feedback,
+      }));
+
+      const { data, error } = await supabase.functions.invoke("coaching-module", {
+        body: {
+          phase: "adjust",
+          module,
+          answers: answersPayload,
+          rec_id: recId,
+          previous_diagnostic: {
+            diagnostic: diagnostic.diagnostic,
+            pourquoi: diagnostic.pourquoi,
+            proposals: diagnostic.proposals,
+          },
+          adjustment_feedback: adjustmentFeedback,
+          iteration_history: history,
+          iteration: iterationCount + 1,
+        },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+
+      // Store previous diagnostic with feedback
+      setPreviousDiagnostics(prev => [...prev, { diagnostic, feedback: adjustmentFeedback }]);
+      setDiagnostic(data);
+      setIterationCount(prev => prev + 1);
+      setAdjustmentFeedback("");
+
+      const edited: Record<string, string> = {};
+      (data.proposals || []).forEach((p: Proposal) => { edited[p.field] = p.value; });
+      setEditedProposals(edited);
+    } catch (e: any) {
+      toast.error(e.message || "Erreur lors de l'ajustement");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegenerate = () => {
+    if (iterationCount >= MAX_ADJUSTMENTS) {
+      // Max reached — show message handled in UI
+      return;
+    }
+    setPhase("adjust");
+  };
+
+  const handleRestartFresh = () => {
+    setDiagnostic(null);
+    setPreviousDiagnostics([]);
+    setIterationCount(0);
+    setAdjustmentFeedback("");
+    setPhase("questions");
+    setCurrentQ(0);
+    setAnswers(new Array(questions.length).fill(""));
+  };
+
   const handleValidate = async () => {
     if (!user || !diagnostic) return;
     setSaving(true);
     try {
-      // Collect edited values
       const updates: Record<string, string> = {};
       diagnostic.proposals.forEach(p => {
         updates[p.field] = editedProposals[p.field] || p.value;
       });
 
       if (module === "persona") {
-        // Persona stores data in a JSONB "portrait" column — merge proposals into it
         const { data: personaRow } = await supabase
           .from("persona")
           .select("id, portrait, portrait_prenom")
@@ -123,16 +198,12 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
           .maybeSingle();
 
         const existingPortrait = (personaRow?.portrait as Record<string, any>) || {};
-
-        // Map proposal fields into the portrait JSONB structure
         const portraitUpdates: Record<string, any> = { ...existingPortrait };
-        
-        // Direct top-level fields
-        if (updates.prenom) { portraitUpdates.prenom = updates.prenom; }
-        if (updates.phrase_signature) { portraitUpdates.phrase_signature = updates.phrase_signature; }
-        if (updates.description) { portraitUpdates.description = updates.description; }
 
-        // qui_elle_est sub-object
+        if (updates.prenom) portraitUpdates.prenom = updates.prenom;
+        if (updates.phrase_signature) portraitUpdates.phrase_signature = updates.phrase_signature;
+        if (updates.description) portraitUpdates.description = updates.description;
+
         if (updates.age || updates.metier || updates.situation || updates.ca || updates.temps_com) {
           portraitUpdates.qui_elle_est = { ...(existingPortrait.qui_elle_est || {}) };
           if (updates.age) portraitUpdates.qui_elle_est.age = updates.age;
@@ -142,7 +213,6 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
           if (updates.temps_com) portraitUpdates.qui_elle_est.temps_com = updates.temps_com;
         }
 
-        // Array fields — AI returns text, split into array items
         if (updates.frustrations) {
           portraitUpdates.frustrations = updates.frustrations.split(/\n|·|•|-/).map((s: string) => s.trim()).filter(Boolean);
         }
@@ -180,7 +250,6 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
           if (error) throw error;
         }
       } else {
-        // Other modules: direct column update
         const tableMap: Record<string, string> = {
           offers: "offers",
           bio: "brand_profile",
@@ -207,7 +276,6 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
         }
       }
 
-      // Mark recommendation as completed
       if (recId) {
         await supabase
           .from("audit_recommendations")
@@ -224,13 +292,6 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleRegenerate = () => {
-    setDiagnostic(null);
-    setPhase("questions");
-    setCurrentQ(0);
-    setAnswers(new Array(questions.length).fill(""));
   };
 
   if (loading && phase === "intro") {
@@ -276,7 +337,6 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
       {/* Questions */}
       {phase === "questions" && questions.length > 0 && (
         <div className="rounded-2xl border border-border bg-card p-6 space-y-5 animate-fade-in" key={currentQ}>
-          {/* Progress */}
           <div className="flex items-center gap-2">
             <div className="flex gap-1 flex-1">
               {questions.map((_, i) => (
@@ -290,7 +350,6 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
             </span>
           </div>
 
-          {/* Question */}
           <div>
             <p className="text-sm font-medium text-foreground leading-relaxed mb-4">
               🤔 {questions[currentQ].question}
@@ -307,7 +366,6 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
             />
           </div>
 
-          {/* Navigation */}
           <div className="flex justify-between">
             <Button variant="ghost" size="sm" onClick={() => setCurrentQ(Math.max(0, currentQ - 1))} disabled={currentQ === 0} className="gap-1">
               <ArrowLeft className="h-3.5 w-3.5" /> Précédent
@@ -327,7 +385,9 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
       {phase === "diagnostic" && loading && (
         <div className="rounded-2xl border border-border bg-card p-8 text-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
-          <p className="text-sm font-medium text-foreground">L'IA analyse tes réponses…</p>
+          <p className="text-sm font-medium text-foreground">
+            {iterationCount > 0 ? "L'IA ajuste sa proposition…" : "L'IA analyse tes réponses…"}
+          </p>
           <p className="text-xs text-muted-foreground mt-1">Ça prend quelques secondes.</p>
         </div>
       )}
@@ -335,11 +395,18 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
       {/* Diagnostic result */}
       {phase === "diagnostic" && !loading && diagnostic && (
         <div className="space-y-4 animate-fade-in">
+          {/* Iteration badge */}
+          {iterationCount > 0 && (
+            <div className="text-xs text-muted-foreground text-right">
+              Ajustement {iterationCount}/{MAX_ADJUSTMENTS} · 1 crédit
+            </div>
+          )}
+
           {/* Diagnostic text */}
           <div className="rounded-2xl border border-primary/20 bg-card p-6 space-y-4">
             <h3 className="font-display font-bold text-foreground flex items-center gap-2">
               <Lightbulb className="h-5 w-5 text-primary" />
-              Voilà ce que je te propose
+              {iterationCount > 0 ? "Proposition ajustée" : "Voilà ce que je te propose"}
             </h3>
             <p className="text-sm text-foreground leading-relaxed">{diagnostic.diagnostic}</p>
             
@@ -366,7 +433,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
           {/* Editable proposals */}
           <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
             <h4 className="font-display font-bold text-sm text-foreground">Proposition de textes</h4>
-            <p className="text-xs text-muted-foreground">Tu peux modifier avant de valider.</p>
+            <p className="text-xs text-muted-foreground">Tu peux modifier directement avant de valider.</p>
             
             {diagnostic.proposals.map((p) => (
               <div key={p.field}>
@@ -386,12 +453,82 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               Valider et mettre à jour mon branding
             </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleRegenerate} className="flex-1 gap-1.5 text-xs">
-                <RotateCcw className="h-3.5 w-3.5" /> Reproposer
+
+            {iterationCount < MAX_ADJUSTMENTS ? (
+              <Button variant="outline" onClick={handleRegenerate} className="w-full gap-1.5 text-xs">
+                <RotateCcw className="h-3.5 w-3.5" /> Repropose-moi autre chose
               </Button>
-              <Button variant="ghost" onClick={onSkip} className="flex-1 text-xs">
-                Passer en mode formulaire
+            ) : (
+              <div className="rounded-xl border border-border bg-muted/50 p-4 space-y-3 text-center">
+                <p className="text-xs text-muted-foreground">
+                  Tu as ajusté 3 fois. Tu peux modifier les textes directement ci-dessus, ou recommencer le coaching.
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={handleRestartFresh} className="flex-1 text-xs gap-1.5">
+                    <RotateCcw className="h-3.5 w-3.5" /> Recommencer depuis le début
+                  </Button>
+                  <Button variant="ghost" onClick={onSkip} className="flex-1 text-xs">
+                    Mode formulaire
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Adjust phase — feedback input */}
+      {phase === "adjust" && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Show current diagnostic summary */}
+          {diagnostic && (
+            <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+              <h4 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
+                <Lightbulb className="h-4 w-4 text-primary" />
+                Proposition actuelle
+              </h4>
+              <p className="text-sm text-muted-foreground leading-relaxed">{diagnostic.diagnostic}</p>
+              <div className="space-y-1">
+                {diagnostic.proposals.map(p => (
+                  <div key={p.field} className="text-xs text-muted-foreground">
+                    <span className="font-semibold text-foreground">{p.label} :</span>{" "}
+                    {(editedProposals[p.field] || p.value).slice(0, 80)}…
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Feedback input */}
+          <div className="rounded-2xl border border-primary/20 bg-card p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              <h4 className="font-display font-bold text-sm text-foreground">Tu veux ajuster ?</h4>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Dis-moi ce qui ne va pas ou ce que tu veux changer :
+            </p>
+            <Textarea
+              value={adjustmentFeedback}
+              onChange={e => setAdjustmentFeedback(e.target.value)}
+              placeholder={'Ex: "La cible est trop large, je veux cibler uniquement les céramistes" ou "Le ton est trop formel" ou "Ajoute le fait qu\'elle a des enfants"'}
+              className="min-h-[100px] text-sm"
+            />
+            <div className="flex flex-col gap-2">
+              <Button
+                onClick={handleAdjust}
+                disabled={!adjustmentFeedback.trim()}
+                className="w-full gap-2"
+              >
+                <Sparkles className="h-4 w-4" />
+                Ajuster la proposition
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setPhase("diagnostic")}
+                className="w-full text-xs"
+              >
+                ✅ Finalement c'est bon, je valide
               </Button>
             </div>
           </div>
