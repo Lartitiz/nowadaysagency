@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake } from "lucide-react";
-import DemoFormDialog from "@/components/demo/DemoFormDialog";
+import { useDemoContext } from "@/contexts/DemoContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { Progress } from "@/components/ui/progress";
 import NotificationBell from "@/components/NotificationBell";
@@ -54,7 +54,8 @@ export default function AppHeader() {
   const location = useLocation();
   const navigate = useNavigate();
   const { plan, usage, isPilot } = useUserPlan();
-  const [demoOpen, setDemoOpen] = useState(false);
+  const { activateDemo } = useDemoContext();
+  const handleDemoClick = () => { activateDemo(); navigate("/onboarding"); };
   const [hasCoaching, setHasCoaching] = useState(false);
   const [coachingMonth, setCoachingMonth] = useState<number | null>(null);
   const [coachingPhase, setCoachingPhase] = useState<string | null>(null);
@@ -137,7 +138,7 @@ export default function AppHeader() {
               isPilot={isPilot}
               coachingMonth={coachingMonth}
               coachingPhase={coachingPhase}
-              onDemoClick={() => setDemoOpen(true)}
+              onDemoClick={handleDemoClick}
             />
           </div>
         </div>
@@ -185,7 +186,7 @@ export default function AppHeader() {
               isPilot={isPilot}
               coachingMonth={coachingMonth}
               coachingPhase={coachingPhase}
-              onDemoClick={() => setDemoOpen(true)}
+              onDemoClick={handleDemoClick}
             />
           </div>
         </div>
@@ -215,7 +216,7 @@ export default function AppHeader() {
               isPilot={isPilot}
               coachingMonth={coachingMonth}
               coachingPhase={coachingPhase}
-              onDemoClick={() => setDemoOpen(true)}
+              onDemoClick={handleDemoClick}
             />
           </div>
         </div>
@@ -241,9 +242,6 @@ export default function AppHeader() {
           })}
         </div>
       </nav>
-
-      {/* Demo dialog (admin only) */}
-      {isAdmin && <DemoFormDialog open={demoOpen} onOpenChange={setDemoOpen} />}
     </>
   );
 }

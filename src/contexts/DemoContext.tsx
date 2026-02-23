@@ -1,4 +1,5 @@
-import { createContext, useContext, useReducer, useCallback, useMemo, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from "react";
+import { DEMO_DATA, type DemoDataType } from "@/lib/demo-data";
 
 export interface DemoData {
   profile: { first_name: string; activity: string; activity_type?: string };
@@ -48,109 +49,53 @@ export interface DemoData {
   plan_expires_at?: string;
 }
 
-export const DEMO_COACHING = {
-  formula: "now_pilot",
-  duration_months: 6,
-  price_monthly: 250,
-  current_month: 2,
-  total_sessions: 7,
-  sessions: [
-    { number: 1, type: "launch", title: "Atelier de lancement", status: "completed", date: "2026-02-10", duration: 90, summary: "On a posé ton positionnement et ta mission." },
-    { number: 2, type: "strategy", title: "Atelier Stratégique", status: "scheduled", date: "2026-02-25", duration: 120 },
-    { number: 3, type: "checkpoint", title: "Point d'étape", status: "scheduled", duration: 60 },
-    { number: 4, type: "focus", focus_topic: "instagram_content", title: "Création contenus Instagram", status: "scheduled", duration: 120 },
-    { number: 5, type: "focus", focus_topic: "website", title: "Site web / pages de vente", status: "scheduled", duration: 120 },
-    { number: 6, type: "focus", focus_topic: "newsletter", title: "Newsletter / emailing", status: "scheduled", duration: 60 },
-    { number: 7, type: "focus", focus_topic: null, title: "À définir ensemble", status: "scheduled", duration: 60 },
-  ],
-  actions: [
-    { title: "Lister 5 sujets passion", completed: false },
-    { title: "Regarder mes 5 meilleurs posts", completed: false },
-    { title: "Valider mon positionnement", completed: true },
-  ],
-  deliverables: [
-    { title: "Audit de communication", status: "delivered" },
-    { title: "Branding complet", status: "delivered" },
-    { title: "Portrait cible", status: "delivered" },
-    { title: "Ligne éditoriale", status: "pending" },
-    { title: "Calendrier 3 mois", status: "pending" },
-  ],
-};
+export const DEMO_COACHING = DEMO_DATA.coaching;
 
 interface DemoContextType {
   isDemoMode: boolean;
-  demoData: DemoData | null;
+  demoData: DemoDataType | null;
   demoName: string;
   demoActivity: string;
   demoCoaching: typeof DEMO_COACHING;
-  activateDemo: (data: DemoData, name: string, activity: string) => void;
+  showDemoOnboarding: boolean;
+  activateDemo: () => void;
+  skipDemoOnboarding: () => void;
   deactivateDemo: () => void;
 }
-
-interface DemoState {
-  isDemoMode: boolean;
-  demoData: DemoData | null;
-  demoName: string;
-  demoActivity: string;
-}
-
-type DemoAction =
-  | { type: "ACTIVATE"; data: DemoData; name: string; activity: string }
-  | { type: "DEACTIVATE" };
-
-function demoReducer(state: DemoState, action: DemoAction): DemoState {
-  switch (action.type) {
-    case "ACTIVATE":
-      return {
-        isDemoMode: true,
-        demoData: {
-          ...action.data,
-          plan: "now_pilot",
-          credits_monthly: 300,
-          credits_used: 16,
-          plan_expires_at: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        demoName: action.name,
-        demoActivity: action.activity,
-      };
-    case "DEACTIVATE":
-      return { isDemoMode: false, demoData: null, demoName: "", demoActivity: "" };
-    default:
-      return state;
-  }
-}
-
-const initialState: DemoState = {
-  isDemoMode: false,
-  demoData: null,
-  demoName: "",
-  demoActivity: "",
-};
 
 const DemoContext = createContext<DemoContextType | undefined>(undefined);
 
 export function DemoProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(demoReducer, initialState);
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [showDemoOnboarding, setShowDemoOnboarding] = useState(true);
 
-  const activateDemo = useCallback((data: DemoData, name: string, activity: string) => {
-    dispatch({ type: "ACTIVATE", data, name, activity });
+  const activateDemo = useCallback(() => {
+    setIsDemoMode(true);
+    setShowDemoOnboarding(true);
+  }, []);
+
+  const skipDemoOnboarding = useCallback(() => {
+    setShowDemoOnboarding(false);
   }, []);
 
   const deactivateDemo = useCallback(() => {
-    dispatch({ type: "DEACTIVATE" });
+    setIsDemoMode(false);
+    setShowDemoOnboarding(true);
   }, []);
 
   const value = useMemo<DemoContextType>(
     () => ({
-      isDemoMode: state.isDemoMode,
-      demoData: state.demoData,
-      demoName: state.demoName,
-      demoActivity: state.demoActivity,
+      isDemoMode,
+      demoData: isDemoMode ? DEMO_DATA : null,
+      demoName: isDemoMode ? DEMO_DATA.profile.first_name : "",
+      demoActivity: isDemoMode ? DEMO_DATA.profile.activity : "",
       demoCoaching: DEMO_COACHING,
+      showDemoOnboarding: isDemoMode && showDemoOnboarding,
       activateDemo,
+      skipDemoOnboarding,
       deactivateDemo,
     }),
-    [state, activateDemo, deactivateDemo]
+    [isDemoMode, showDemoOnboarding, activateDemo, skipDemoOnboarding, deactivateDemo]
   );
 
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;
