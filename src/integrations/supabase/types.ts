@@ -574,6 +574,42 @@ export type Database = {
         }
         Relationships: []
       }
+      branding_suggestions: {
+        Row: {
+          created_at: string
+          id: string
+          resolved_at: string | null
+          status: string
+          suggestions: Json | null
+          trigger_field: string
+          trigger_new_value: string | null
+          trigger_old_value: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          resolved_at?: string | null
+          status?: string
+          suggestions?: Json | null
+          trigger_field: string
+          trigger_new_value?: string | null
+          trigger_old_value?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          resolved_at?: string | null
+          status?: string
+          suggestions?: Json | null
+          trigger_field?: string
+          trigger_new_value?: string | null
+          trigger_old_value?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       branding_summary: {
         Row: {
           branding_hash: string | null

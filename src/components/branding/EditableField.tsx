@@ -13,7 +13,7 @@ interface EditableFieldProps {
   table: string;
   idField?: string;
   recordId?: string;
-  onUpdated?: (field: string, value: string) => void;
+  onUpdated?: (field: string, value: string, oldValue?: string) => void;
   onStartCoaching?: () => void;
   multiline?: boolean;
   className?: string;
@@ -29,8 +29,9 @@ export default function EditableField({
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
+    const oldValue = value || "";
     if (isDemoMode) {
-      onUpdated?.(field, editValue);
+      onUpdated?.(field, editValue, typeof oldValue === 'string' ? oldValue : undefined);
       setIsEditing(false);
       toast.success("C'est noté !");
       return;
@@ -53,7 +54,7 @@ export default function EditableField({
       } else {
         await (supabase.from(table as any) as any).upsert({ user_id: user.id, [field]: editValue, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
       }
-      onUpdated?.(field, editValue);
+      onUpdated?.(field, editValue, typeof oldValue === 'string' ? oldValue : undefined);
       setIsEditing(false);
       toast.success("C'est noté !");
     } catch {
