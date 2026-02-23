@@ -30,6 +30,7 @@ export default function SpaceBentoCard({
         border border-border/50
         shadow-[var(--shadow-bento)]
         hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px]
+        active:translate-y-0 active:shadow-[var(--shadow-bento)]
         transition-all duration-[250ms] ease-out
         cursor-pointer
         opacity-0 animate-reveal-up
