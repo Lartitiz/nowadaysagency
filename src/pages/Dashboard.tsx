@@ -6,12 +6,16 @@ import AppHeader from "@/components/AppHeader";
 import AiDisclaimerBanner from "@/components/AiDisclaimerBanner";
 import { Progress } from "@/components/ui/progress";
 import { useUserPlan } from "@/hooks/use-user-plan";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, Check } from "lucide-react";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { useActiveChannels, ALL_CHANNELS } from "@/hooks/use-active-channels";
 import { computePlan, type PlanData } from "@/lib/plan-engine";
-import { startOfWeek, endOfWeek, format } from "date-fns";
+import { startOfWeek, endOfWeek, format, getDay, addDays, isToday, isBefore } from "date-fns";
 import { fr } from "date-fns/locale";
+import BentoGrid from "@/components/dashboard/BentoGrid";
+import BentoCard from "@/components/dashboard/BentoCard";
+import SpaceBentoCard from "@/components/dashboard/SpaceBentoCard";
+import { spaceModules } from "@/config/dashboardModules";
 
 /* ── Types ── */
 export interface UserProfile {
@@ -47,6 +51,8 @@ interface DashboardData {
   nextPost: { date: string; theme: string } | null;
   planData: PlanData | null;
   recommendations: { id: string; titre: string | null; route: string; completed: boolean | null }[];
+  weekCalendarDays: string[];
+  streakDays: boolean[];
 }
 
 /* ── Welcome messages ── */
@@ -62,6 +68,7 @@ function getWelcomeMessage(): string {
   const idx = new Date().getDate() % WELCOME_MESSAGES.length;
   return WELCOME_MESSAGES[idx];
 }
+
 /* ── Main component ── */
 export default function Dashboard() {
   const { user } = useAuth();
@@ -75,6 +82,7 @@ export default function Dashboard() {
     contactCount: 0, prospectCount: 0, prospectConversation: 0, prospectOffered: 0,
     calendarPostCount: 0, weekPostsPublished: 0, weekPostsTotal: 0, nextPost: null,
     planData: null, recommendations: [],
+    weekCalendarDays: [], streakDays: Array(7).fill(false),
   });
   const { hasInstagram, hasLinkedin, hasWebsite, hasSeo, loading: channelsLoading, channels } = useActiveChannels();
 
@@ -85,7 +93,7 @@ export default function Dashboard() {
     const weekEnd = format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
 
     const fetchAll = async () => {
-      const [profRes, brandingData, igAuditRes, liAuditRes, contactRes, prospectRes, prospectConvRes, prospectOffRes, calendarRes, weekPostsRes, weekPublishedRes, nextPostRes, planConfigRes, recsRes] = await Promise.all([
+      const [profRes, brandingData, igAuditRes, liAuditRes, contactRes, prospectRes, prospectConvRes, prospectOffRes, calendarRes, weekPostsRes, weekPublishedRes, nextPostRes, planConfigRes, recsRes, weekCalRes, streakRes] = await Promise.all([
         supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq("user_id", user.id).single(),
         fetchBrandingData(user.id),
         supabase.from("instagram_audit").select("score_global").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
@@ -100,6 +108,10 @@ export default function Dashboard() {
         supabase.from("calendar_posts").select("date, theme").eq("user_id", user.id).gte("date", format(now, "yyyy-MM-dd")).order("date", { ascending: true }).limit(1).maybeSingle(),
         supabase.from("user_plan_config").select("*").eq("user_id", user.id).maybeSingle(),
         supabase.from("audit_recommendations").select("id, titre, route, completed").eq("user_id", user.id).order("position", { ascending: true }).limit(5),
+        // Week calendar posts (dates with content)
+        supabase.from("calendar_posts").select("date").eq("user_id", user.id).gte("date", weekStart).lte("date", weekEnd),
+        // Streak data
+        supabase.from("engagement_checklist_logs").select("log_date").eq("user_id", user.id).gte("log_date", weekStart).lte("log_date", weekEnd),
       ]);
 
       if (profRes.data) setProfile(profRes.data as UserProfile);
@@ -112,6 +124,17 @@ export default function Dashboard() {
       };
       let planData: PlanData | null = null;
       try { planData = await computePlan(user.id, config); } catch {}
+
+      // Build week calendar days with content
+      const weekCalDays = (weekCalRes.data || []).map((p: any) => p.date);
+
+      // Build streak days (Mon-Sun)
+      const streakDates = (streakRes.data || []).map((d: any) => d.log_date);
+      const monday = startOfWeek(now, { weekStartsOn: 1 });
+      const streak = Array(7).fill(false).map((_, i) => {
+        const day = format(addDays(monday, i), "yyyy-MM-dd");
+        return streakDates.includes(day);
+      });
 
       setDashData({
         brandingCompletion: bc,
@@ -127,6 +150,8 @@ export default function Dashboard() {
         nextPost: nextPostRes.data ? { date: nextPostRes.data.date, theme: nextPostRes.data.theme } : null,
         planData,
         recommendations: recsRes.data || [],
+        weekCalendarDays: weekCalDays,
+        streakDays: streak,
       });
 
       // Coaching info for Now Pilot
@@ -167,31 +192,7 @@ export default function Dashboard() {
     );
   }
 
-  const brandingDone = dashData.brandingCompletion.total >= 100;
   const comingSoonChannels = ALL_CHANNELS.filter(c => c.comingSoon && channels.includes(c.id));
-
-  /* ── Dynamic tasks logic ── */
-  const dynamicTasks: { emoji: string; label: string; sub?: string; route: string; priority?: boolean }[] = [];
-
-  if (!brandingDone) {
-    dynamicTasks.push({ emoji: "🎨", label: "Poser mon branding", sub: "C'est la base de tout le reste", route: "/branding", priority: true });
-  }
-  if (dashData.weekPostsPublished === 0 && dashData.weekPostsTotal > 0) {
-    dynamicTasks.push({ emoji: "✏️", label: "Publier mon contenu de la semaine", sub: `${dashData.weekPostsPublished}/${dashData.weekPostsTotal} publiés`, route: "/calendrier", priority: true });
-  }
-  if (hasLinkedin && dashData.liAuditScore == null) {
-    dynamicTasks.push({ emoji: "💼", label: "Optimiser mon profil LinkedIn", route: "/linkedin/profil" });
-  }
-  if (hasSeo) {
-    dynamicTasks.push({ emoji: "🔍", label: "Améliorer mon SEO", route: "https://referencement-seo.lovable.app/" });
-  }
-  if (hasWebsite) {
-    dynamicTasks.push({ emoji: "🌐", label: "Rédiger ma page d'accueil", route: "/site/accueil" });
-  }
-
-  // Max 3 dynamic tasks
-  const shownDynamic = dynamicTasks.slice(0, 3);
-  const allDone = dynamicTasks.length === 0;
 
   const toggleRecommendation = async (id: string, currentCompleted: boolean | null) => {
     const newCompleted = !currentCompleted;
@@ -205,74 +206,288 @@ export default function Dashboard() {
     }));
   };
 
-  const fixedTasks = [
-    { emoji: "📅", label: "Voir mon calendrier édito", sub: `${dashData.weekPostsPublished}/${dashData.weekPostsTotal} publiés cette semaine`, route: "/calendrier" },
-    { emoji: "💬", label: "Faire ma routine d'engagement", route: "/instagram/engagement" },
-    { emoji: "📊", label: "Explorer mes stats", sub: dashData.igAuditScore != null ? `Score audit : ${dashData.igAuditScore}/100` : undefined, route: "/instagram/stats" },
-  ];
+  // Mini calendar data
+  const now = new Date();
+  const monday = startOfWeek(now, { weekStartsOn: 1 });
+  const weekDays = Array(7).fill(null).map((_, i) => {
+    const d = addDays(monday, i);
+    return {
+      label: format(d, "EEEEE", { locale: fr }).toUpperCase(),
+      date: format(d, "yyyy-MM-dd"),
+      isToday: isToday(d),
+      hasContent: dashData.weekCalendarDays.includes(format(d, "yyyy-MM-dd")),
+      isPast: isBefore(d, now) && !isToday(d),
+    };
+  });
+
+  const auditScore = dashData.igAuditScore ?? 71;
+  const scorePercent = auditScore;
+
+  let delayIdx = 0;
+  const nextDelay = () => { delayIdx++; return delayIdx * 0.05; };
+
+  // Determine which spaces to show
+  const activeSpaces = spaceModules.filter(s => {
+    if (channelsLoading) return false;
+    if (s.id === "instagram") return hasInstagram;
+    if (s.id === "website") return hasWebsite;
+    if (s.id === "linkedin") return hasLinkedin;
+    if (s.id === "seo") return hasSeo;
+    return s.enabled;
+  });
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <AiDisclaimerBanner />
-      <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4 animate-fade-in">
+      <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4">
 
-        {/* ─── 2. Welcome ─── */}
-        <div className="mb-6">
-          <h1 className="font-display text-[22px] sm:text-[28px] font-bold text-foreground leading-tight">
+        {/* ─── Greeting ─── */}
+        <div className="mb-8">
+          <h1 className="font-heading text-[22px] sm:text-[28px] font-bold text-foreground leading-tight">
             Hey <span className="text-primary">{profile.prenom}</span>,{" "}
             {isPilot && coachingInfo
               ? <>programme Now Pilot · Mois {coachingInfo.month}/6 🤝</>
               : <>{getWelcomeMessage()}</>
             }
           </h1>
-          <p className="mt-1 text-[14px] text-muted-foreground font-mono-ui">
+          <p className="mt-1 text-[14px] text-muted-foreground font-body">
             Ton espace coaching + outils de com'.
           </p>
         </div>
 
-        {/* ─── 3. HUB — Hero Card ─── */}
-        <div
-          className="rounded-2xl p-6 mb-4 cursor-pointer group
-            bg-gradient-to-br from-rose-pale via-secondary to-rose-medium/30
-            border border-primary/10 hover:shadow-strong hover:-translate-y-0.5 transition-all duration-200"
-          onClick={() => navigate("/instagram/creer")}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h2 className="font-display text-lg font-bold text-foreground">Créer un contenu</h2>
-          </div>
-          <p className="text-sm text-muted-foreground mb-5">
-            Post, carousel, reel, article... c'est parti.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: "Post Instagram", route: "/instagram/creer" },
-              { label: "Carousel", route: "/instagram/carousel" },
-              { label: "Reel", route: "/instagram/reels" },
-              { label: "Post LinkedIn", route: "/linkedin/post" },
-              { label: "Article de blog", route: "/site/accueil" },
-            ].map((item) => (
-              <button
-                key={item.route + item.label}
-                onClick={(e) => { e.stopPropagation(); navigate(item.route); }}
-                className="text-xs font-medium px-3.5 py-2 rounded-xl
-                  bg-card/80 border border-primary/15 text-foreground
-                  hover:bg-accent hover:border-accent hover:text-accent-foreground
-                  transition-all duration-150"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* ═══════════════════════════════════════
+           ROW 1 — Hero "Créer un contenu"
+           ═══════════════════════════════════════ */}
+        <BentoGrid>
+          <BentoCard
+            title=""
+            colSpan={12}
+            rowSpan={2}
+            variant="highlight"
+            onClick={() => navigate("/instagram/creer")}
+            animationDelay={nextDelay()}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <h2 className="font-heading text-lg sm:text-xl font-bold text-foreground">Créer un contenu</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-5">
+              Post, carousel, reel, article... c'est parti.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: "Post Instagram", route: "/instagram/creer" },
+                { label: "Carousel", route: "/instagram/carousel" },
+                { label: "Reel", route: "/instagram/reels" },
+                { label: "Post LinkedIn", route: "/linkedin/post" },
+                { label: "Article de blog", route: "/site/accueil" },
+              ].map((item) => (
+                <button
+                  key={item.route + item.label}
+                  onClick={(e) => { e.stopPropagation(); navigate(item.route); }}
+                  className="text-xs font-medium px-3.5 py-2 rounded-xl
+                    bg-card/80 border border-primary/15 text-foreground
+                    hover:bg-primary hover:text-primary-foreground hover:border-primary
+                    transition-all duration-150"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </BentoCard>
+        </BentoGrid>
 
-        {/* ─── 3a. DIAGNOSTIC RECAP ─── */}
+        {/* ═══════════════════════════════════════
+           ROW 2 — Calendrier + Engagement + Stats
+           ═══════════════════════════════════════ */}
+        <BentoGrid>
+          {/* Calendrier édito — left column */}
+          <BentoCard
+            title=""
+            colSpan={6}
+            rowSpan={3}
+            variant="default"
+            onClick={() => navigate("/calendrier")}
+            animationDelay={nextDelay()}
+          >
+            <div className="flex items-center gap-2.5 mb-4">
+              <span className="text-xl bg-accent/30 w-9 h-9 flex items-center justify-center rounded-xl">📅</span>
+              <h3 className="font-heading text-base font-bold text-foreground">Calendrier édito</h3>
+            </div>
+
+            {/* Mini calendar grid */}
+            <div className="grid grid-cols-7 gap-1.5 mb-5">
+              {weekDays.map((d) => (
+                <div key={d.date} className="flex flex-col items-center gap-1">
+                  <span className="text-[10px] font-mono-ui text-muted-foreground">{d.label}</span>
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-medium transition-colors
+                    ${d.isToday ? "bg-primary text-primary-foreground" : ""}
+                    ${d.hasContent && !d.isToday ? "bg-rose-pale text-primary" : ""}
+                    ${!d.hasContent && !d.isToday ? "bg-muted/50 text-muted-foreground" : ""}
+                  `}>
+                    {format(new Date(d.date), "d")}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-auto">
+              <p className="text-muted-foreground text-sm">
+                <span className="font-heading text-2xl font-bold text-primary mr-1">{dashData.weekPostsPublished}</span>
+                <span className="text-muted-foreground">/{dashData.weekPostsTotal} publiés cette semaine</span>
+              </p>
+            </div>
+          </BentoCard>
+
+          {/* Routine d'engagement — right top */}
+          <BentoCard
+            title=""
+            colSpan={6}
+            rowSpan={1}
+            variant="default"
+            onClick={() => navigate("/instagram/routine")}
+            animationDelay={nextDelay()}
+          >
+            <h3 className="font-heading text-base font-bold text-foreground mb-3">💬 Routine d'engagement</h3>
+            <div className="flex items-center justify-between gap-2">
+              {["L", "M", "M", "J", "V", "S", "D"].map((day, i) => (
+                <div key={i} className="flex flex-col items-center gap-1.5">
+                  <span className="text-[10px] font-mono-ui text-muted-foreground">{day}</span>
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors
+                    ${dashData.streakDays[i]
+                      ? "bg-rose-pale border border-primary/20"
+                      : "bg-muted/40 border border-border"
+                    }`}
+                  >
+                    {dashData.streakDays[i] && <Check className="h-3.5 w-3.5 text-primary" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </BentoCard>
+
+          {/* Explorer mes stats — right bottom (dark) */}
+          <BentoCard
+            title=""
+            colSpan={6}
+            rowSpan={2}
+            variant="dark"
+            onClick={() => navigate("/instagram/stats")}
+            animationDelay={nextDelay()}
+          >
+            <h3 className="font-body text-sm font-medium text-white/60 mb-2">Explorer mes stats</h3>
+            <div className="mb-4">
+              <span className="font-heading text-[3.5rem] font-bold text-white leading-none">{auditScore}</span>
+              <span className="text-white/40 text-xl font-heading ml-1">/100</span>
+            </div>
+            <div className="w-full h-2.5 rounded-xl bg-white/10 overflow-hidden">
+              <div
+                className="h-full rounded-xl bg-gradient-to-r from-accent to-primary transition-all duration-700"
+                style={{ width: `${scorePercent}%` }}
+              />
+            </div>
+            <p className="text-xs text-white/50 mt-2 font-body">Score audit Instagram</p>
+          </BentoCard>
+        </BentoGrid>
+
+        {/* ═══════════════════════════════════════
+           ROW 3 — Three action blocks
+           ═══════════════════════════════════════ */}
+        <BentoGrid>
+          {/* Publier mon contenu */}
+          <BentoCard
+            title=""
+            colSpan={4}
+            rowSpan={2}
+            variant="accent"
+            onClick={() => navigate("/calendrier")}
+            animationDelay={nextDelay()}
+          >
+            <span className="text-2xl mb-2 block">📝</span>
+            <h3 className="font-heading text-base font-bold text-foreground mb-1">Publier mon contenu</h3>
+            <p className="text-sm text-muted-foreground mb-4">Tes posts de la semaine.</p>
+            <div className="mt-auto">
+              <p className="font-heading text-2xl font-bold text-foreground">
+                {dashData.weekPostsPublished}<span className="text-muted-foreground text-sm font-body">/{dashData.weekPostsTotal}</span>
+              </p>
+              <p className="text-xs text-muted-foreground mb-2">publiés</p>
+              <Progress value={dashData.weekPostsTotal > 0 ? (dashData.weekPostsPublished / dashData.weekPostsTotal) * 100 : 0} className="h-1.5" />
+            </div>
+          </BentoCard>
+
+          {/* Améliorer mon SEO */}
+          {hasSeo && (
+            <BentoCard
+              title=""
+              colSpan={4}
+              rowSpan={2}
+              variant="default"
+              borderColor="hsl(var(--primary))"
+              onClick={() => window.open("https://referencement-seo.lovable.app/", "_blank")}
+              animationDelay={nextDelay()}
+            >
+              <span className="text-2xl mb-2 block">🔍</span>
+              <h3 className="font-heading text-base font-bold text-foreground mb-1">Améliorer mon SEO</h3>
+              <p className="text-sm text-muted-foreground mb-4">Référencement & mots-clés.</p>
+              <div className="flex flex-wrap gap-1.5 mt-auto">
+                {["visibilité", "mots-clés", "ranking"].map(kw => (
+                  <span key={kw} className="text-[10px] font-mono-ui font-medium px-2 py-1 rounded-lg bg-rose-pale text-primary">
+                    {kw}
+                  </span>
+                ))}
+              </div>
+            </BentoCard>
+          )}
+
+          {/* Rédiger ma page d'accueil */}
+          {hasWebsite && (
+            <BentoCard
+              title=""
+              colSpan={hasSeo ? 4 : 8}
+              rowSpan={2}
+              bgColor="bg-gradient-to-br from-[hsl(var(--bento-lavande))] to-rose-pale border border-border/50 text-foreground"
+              onClick={() => navigate("/site/accueil")}
+              animationDelay={nextDelay()}
+            >
+              <span className="text-2xl mb-2 block">🌐</span>
+              <h3 className="font-heading text-base font-bold text-foreground mb-1">Rédiger ma page d'accueil</h3>
+              <p className="text-sm text-muted-foreground">Textes et structure de ta home.</p>
+            </BentoCard>
+          )}
+
+          {/* Branding fallback if no SEO/website */}
+          {!hasSeo && !hasWebsite && (
+            <BentoCard
+              title=""
+              colSpan={8}
+              rowSpan={2}
+              variant="default"
+              onClick={() => navigate("/branding")}
+              animationDelay={nextDelay()}
+            >
+              <span className="text-2xl mb-2 block">🎨</span>
+              <h3 className="font-heading text-base font-bold text-foreground mb-1">Mon Branding</h3>
+              <p className="text-sm text-muted-foreground mb-3">La base de tout le reste.</p>
+              <div className="flex items-center gap-3">
+                <Progress value={dashData.brandingCompletion.total} className="h-1.5 flex-1" />
+                <span className="text-xs font-mono-ui text-muted-foreground">{dashData.brandingCompletion.total}%</span>
+              </div>
+            </BentoCard>
+          )}
+        </BentoGrid>
+
+        {/* ═══════════════════════════════════════
+           DIAGNOSTIC RECAP (if recommendations exist)
+           ═══════════════════════════════════════ */}
         {dashData.recommendations.length > 0 && (
-          <div className="rounded-2xl border border-border bg-card p-5 mb-4">
+          <div
+            className="rounded-[20px] border border-border bg-card p-5 mb-6 shadow-[var(--shadow-bento)] opacity-0 animate-reveal-up"
+            style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
+          >
             <div className="flex items-center gap-2 mb-3">
               <span className="text-lg">🔍</span>
-              <h2 className="font-display text-sm font-bold text-foreground">Ton diagnostic</h2>
+              <h2 className="font-heading text-sm font-bold text-foreground">Ton diagnostic</h2>
             </div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3 font-mono-ui">🎯 Tes priorités :</p>
             <div className="space-y-2.5">
@@ -280,7 +495,7 @@ export default function Dashboard() {
                 <div key={r.id} className="flex items-center gap-3">
                   <button
                     onClick={() => toggleRecommendation(r.id, r.completed)}
-                    className={`h-5 w-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                    className={`h-5 w-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${
                       r.completed ? "bg-primary border-primary" : "border-border hover:border-primary/50"
                     }`}
                   >
@@ -301,81 +516,41 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ─── 3b. HUB — Quick Tasks Grid ─── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
-          {/* Fixed tasks */}
-          {fixedTasks.map(t => (
-            <TaskChip key={t.label} emoji={t.emoji} label={t.label} sub={t.sub} onClick={() => navigate(t.route)} />
-          ))}
-
-          {/* Dynamic tasks */}
-          {shownDynamic.map(t => (
-            <TaskChip
-              key={t.label}
-              emoji={t.emoji}
-              label={t.label}
-              sub={t.sub}
-              priority={t.priority}
-              onClick={() => {
-                if (t.route.startsWith("http")) { window.open(t.route, "_blank"); }
-                else { navigate(t.route); }
-              }}
-            />
-          ))}
-
-          {/* All done */}
-          {allDone && (
-            <div className="col-span-full flex items-center justify-center py-3 text-sm text-muted-foreground font-mono-ui">
-              Tu gères ! Tout est à jour 🎉
-            </div>
-          )}
-        </div>
-
-        {/* ─── 4. ESPACES — Compact tracking ─── */}
-        <div className="mb-8">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4 font-mono-ui">
-            Mes espaces
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {!channelsLoading && hasInstagram && (
-              <SpaceCard
-                emoji="📱" title="Instagram"
-                desc="Audite ton profil, génère des contenus, optimise ta bio : tout pour qu'Instagram bosse pour toi."
-                onClick={() => navigate("/instagram")}
+        {/* ═══════════════════════════════════════
+           ROW 4 — Mes Espaces
+           ═══════════════════════════════════════ */}
+        {activeSpaces.length > 0 && (
+          <BentoGrid sectionLabel="MES ESPACES">
+            {activeSpaces.map((space) => (
+              <SpaceBentoCard
+                key={space.id}
+                title={space.title}
+                subtitle={space.subtitle}
+                icon={space.icon}
+                gradient={space.gradient}
+                badge={space.badge}
+                onClick={() => {
+                  if (space.external) window.open(space.route, "_blank");
+                  else navigate(space.route);
+                }}
+                animationDelay={nextDelay()}
               />
-            )}
-            {!channelsLoading && hasWebsite && (
-              <SpaceCard
-                emoji="🌐" title="Site Web"
-                desc="Analyse ton site, améliore ton SEO, retravaille tes pages pour que Google te trouve."
-                onClick={() => navigate("/site")}
-              />
-            )}
-            {!channelsLoading && hasLinkedin && (
-              <SpaceCard
-                emoji="💼" title="LinkedIn"
-                desc="Optimise ton profil, crée des posts pro, développe ton réseau : LinkedIn c'est pas ennuyeux, promis."
-                onClick={() => navigate("/linkedin")}
-              />
-            )}
-            {!channelsLoading && hasSeo && (
-              <SpaceCard
-                emoji="🔍" title="SEO"
-                desc="Trouve tes mots-clés, optimise tes pages, améliore ta visibilité sans pub."
-                onClick={() => window.open("https://referencement-seo.lovable.app/", "_blank")}
-                external
-              />
-            )}
-          </div>
-        </div>
+            ))}
+          </BentoGrid>
+        )}
 
-        {/* ─── 5. BRANDING — Compact banner ─── */}
-        <div className="mb-4">
-          {brandingDone ? (
+        {/* ═══════════════════════════════════════
+           BRANDING BANNER
+           ═══════════════════════════════════════ */}
+        <div
+          className="rounded-[20px] shadow-[var(--shadow-bento)] opacity-0 animate-reveal-up mb-4"
+          style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
+        >
+          {dashData.brandingCompletion.total >= 100 ? (
             <div
               onClick={() => navigate("/branding")}
-              className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-3.5 cursor-pointer
-                hover:shadow-card hover:-translate-y-px transition-all duration-200"
+              className="flex items-center justify-between rounded-[20px] border border-border bg-card px-5 py-3.5 cursor-pointer
+                hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px] transition-all duration-[250ms]"
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <span className="text-lg shrink-0">🎨</span>
@@ -392,8 +567,8 @@ export default function Dashboard() {
           ) : (
             <div
               onClick={() => navigate("/branding")}
-              className="flex items-center justify-between rounded-2xl border border-accent/40 bg-accent/10 px-5 py-3.5 cursor-pointer
-                hover:shadow-card hover:-translate-y-px transition-all duration-200"
+              className="flex items-center justify-between rounded-[20px] border border-accent/40 bg-accent/10 px-5 py-3.5 cursor-pointer
+                hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px] transition-all duration-[250ms]"
             >
               <div className="flex items-center gap-3">
                 <span className="text-lg">🎨</span>
@@ -411,13 +586,18 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* ─── 6. ACCOMPAGNEMENT — Ultra compact ─── */}
+        {/* ═══════════════════════════════════════
+           ACCOMPAGNEMENT (Now Pilot)
+           ═══════════════════════════════════════ */}
         {isPilot && (
-          <div className="mb-4">
+          <div
+            className="rounded-[20px] shadow-[var(--shadow-bento)] opacity-0 animate-reveal-up mb-4"
+            style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
+          >
             <div
               onClick={() => navigate("/accompagnement")}
-              className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-3 cursor-pointer
-                hover:shadow-card transition-all duration-200"
+              className="flex items-center justify-between rounded-[20px] border border-border bg-card px-5 py-3 cursor-pointer
+                hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px] transition-all duration-[250ms]"
             >
               <div className="flex items-center gap-2">
                 <span className="text-base">🤝</span>
@@ -439,12 +619,15 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ─── 7. COMING SOON ─── */}
+        {/* ─── Coming Soon ─── */}
         {comingSoonChannels.length > 0 && (
-          <div className="mb-8 rounded-2xl bg-gradient-to-r from-rose-pale via-card to-accent/10 border border-border p-5">
+          <div
+            className="rounded-[20px] bg-gradient-to-r from-rose-pale via-card to-accent/10 border border-border p-5 mb-8 shadow-[var(--shadow-bento)] opacity-0 animate-reveal-up"
+            style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
+          >
             <div className="flex items-center gap-2 mb-1">
               <span className="text-base">🚀</span>
-              <h3 className="font-display text-sm font-bold text-foreground">
+              <h3 className="font-heading text-sm font-bold text-foreground">
                 Bientôt : {comingSoonChannels.map(c => c.label).join(" & ")}
               </h3>
             </div>
@@ -464,54 +647,6 @@ export default function Dashboard() {
           </Link>
         </div>
       </main>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════ */
-/*  Sub-components                                            */
-/* ═══════════════════════════════════════════════════════════ */
-
-/* ── Task Chip ── */
-function TaskChip({ emoji, label, sub, priority, onClick }: {
-  emoji: string; label: string; sub?: string; priority?: boolean; onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-3 text-left rounded-xl border px-4 py-3.5
-        bg-card cursor-pointer hover:border-primary hover:-translate-y-px hover:shadow-card
-        transition-all duration-200
-        ${priority ? "border-l-[3px] border-l-accent border-t-rose-soft border-r-rose-soft border-b-rose-soft bg-accent/5" : "border-rose-soft"}`}
-    >
-      <span className="text-lg shrink-0">{emoji}</span>
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{label}</p>
-        {sub && <p className="text-xs text-muted-foreground font-mono-ui truncate mt-0.5">{sub}</p>}
-      </div>
-    </button>
-  );
-}
-
-/* ── Space Card (with description, no progress bar) ── */
-function SpaceCard({ emoji, title, desc, onClick, external }: {
-  emoji: string; title: string; desc: string; onClick: () => void; external?: boolean;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      className="rounded-2xl border border-border bg-card p-4 cursor-pointer
-        hover:shadow-card hover:-translate-y-px transition-all duration-200"
-    >
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">{emoji}</span>
-          <h3 className="font-display text-sm font-bold text-foreground">{title}</h3>
-          {external && <span className="text-[10px] font-mono-ui text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">Externe</span>}
-        </div>
-        <ArrowRight className="h-3.5 w-3.5 text-primary" />
-      </div>
-      <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
     </div>
   );
 }
