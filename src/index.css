@@ -120,7 +120,7 @@
   }
 
   .font-body {
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
   }
 
   .font-mono-ui {

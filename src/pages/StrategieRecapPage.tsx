@@ -174,7 +174,7 @@ export default function StrategieRecapPage() {
 
           {/* Concept créatif */}
           <div style={{ background: "#FFF4F8", borderLeft: "4px solid #fb3d80", padding: "24px", borderRadius: "0 12px 12px 0", marginBottom: 32 }}>
-            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", marginBottom: 8 }}>Mon concept créatif</p>
+            <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", marginBottom: 8 }}>Mon concept créatif</p>
             <EditableText
               value={summary.concept_short}
               onSave={(v) => saveRecapField(["concept_short"], v)}
@@ -197,7 +197,7 @@ export default function StrategieRecapPage() {
 
           {/* Piliers */}
           <div style={{ marginBottom: 32 }}>
-            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", marginBottom: 16 }}>Mes piliers de contenu</p>
+            <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", marginBottom: 16 }}>Mes piliers de contenu</p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
               {summary.pillars.map((p, i) => {
                 const isMajor = p.type === "major";
@@ -231,7 +231,7 @@ export default function StrategieRecapPage() {
           {/* Facettes */}
           {summary.facets?.length > 0 && (
             <div style={{ marginBottom: 32 }}>
-              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", marginBottom: 12 }}>Mes facettes</p>
+              <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", marginBottom: 12 }}>Mes facettes</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {summary.facets.map((f, i) => (
                   <span key={i} style={{ padding: "6px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "#F8F4FF", color: "#6B5E7B" }}>{f}</span>
@@ -242,7 +242,7 @@ export default function StrategieRecapPage() {
 
           {/* Mix de contenu */}
           <div style={{ marginBottom: 32 }}>
-            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", marginBottom: 16 }}>Mon mix de contenu</p>
+            <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", marginBottom: 16 }}>Mon mix de contenu</p>
             <p style={{ fontSize: 12, color: "#9CA3AF", marginBottom: 12 }}>Sur 10 posts :</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <MixBar emoji="👁️" label="Visibilité" value={summary.content_mix.visibility} color="#fb3d80" />
@@ -262,7 +262,7 @@ export default function StrategieRecapPage() {
           {/* Gestes créatifs */}
           {summary.creative_gestures?.length > 0 && (
             <div style={{ marginBottom: 32 }}>
-              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", marginBottom: 12 }}>Les gestes créatifs de ma signature</p>
+              <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", marginBottom: 12 }}>Les gestes créatifs de ma signature</p>
               <ol style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
                 {summary.creative_gestures.map((g, i) => (
                   <li key={i} className="flex items-start gap-2.5" style={{ fontSize: 14, color: "#1a1a2e" }}>

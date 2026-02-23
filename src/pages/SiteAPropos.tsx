@@ -250,7 +250,7 @@ export default function SiteAPropos() {
           {data.values_blocks && data.values_blocks.length > 0 && (
             <div className="mb-8">
               <div className="flex items-center justify-between mb-3">
-                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B" }}>
+                <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B" }}>
                   ❤️ Mes valeurs
                 </p>
                 <button onClick={() => copyText(data.values_blocks!.map(v => `${v.title}\n${v.description}`).join("\n\n"))}
@@ -334,7 +334,7 @@ function SectionBlock({
   return (
     <div className={isLast ? "" : "mb-8"}>
       <div className="flex items-center justify-between mb-2">
-        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B" }}>
+        <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B" }}>
           {label}
         </p>
         <div className="flex items-center gap-2">
