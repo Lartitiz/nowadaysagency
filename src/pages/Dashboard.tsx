@@ -178,6 +178,17 @@ export default function Dashboard() {
     return null;
   })();
 
+  function getBrandingMissing(bc: BrandingCompletion): string | undefined {
+    const missing: string[] = [];
+    if (bc.storytelling === 0) missing.push("ton histoire");
+    if (bc.persona === 0) missing.push("ta cible");
+    if (bc.proposition === 0) missing.push("ta proposition de valeur");
+    if (bc.tone === 0) missing.push("ton ton de voix");
+    if (bc.strategy === 0) missing.push("ta ligne éditoriale");
+    if (missing.length === 0 || bc.total === 0) return undefined;
+    return missing.slice(0, 2).join(", ");
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -218,7 +229,7 @@ export default function Dashboard() {
               ? <ChannelDailyCard channel="instagram" data={dashData} />
               : <ChannelSetupCard emoji="📱" title="Mon Instagram" completion={igCompletion}
                   nextStep={dashData.igAuditScore == null ? "Faire ton audit Instagram" : "Planifier ton premier contenu"}
-                  route="/instagram" />
+                  route="/instagram" descKey="instagram" />
           )}
 
           {/* LinkedIn card */}
@@ -227,7 +238,7 @@ export default function Dashboard() {
               ? <ChannelDailyCard channel="linkedin" data={dashData} />
               : <ChannelSetupCard emoji="💼" title="Mon LinkedIn" completion={liCompletion}
                   nextStep={dashData.liAuditScore == null ? "Auditer ton profil LinkedIn" : "Optimiser ton profil"}
-                  route="/linkedin" />
+                  route="/linkedin" descKey="linkedin" />
           )}
 
           {/* Site Web / Blog card */}
@@ -239,7 +250,8 @@ export default function Dashboard() {
           {/* Branding (seulement si pas complété) */}
           {!brandingDone && (
             <ChannelSetupCard emoji="🎨" title="Mon Branding" completion={dashData.brandingCompletion.total}
-              nextStep={brandingNextStep || "Continuer le branding"} route="/branding" />
+              nextStep={brandingNextStep || "Continuer le branding"} route="/branding" descKey="branding"
+              missingLabel={getBrandingMissing(dashData.brandingCompletion)} />
           )}
         </div>
 
@@ -288,14 +300,39 @@ export default function Dashboard() {
 /*  Sub-components                                            */
 /* ═══════════════════════════════════════════════════════════ */
 
+/* ── Channel descriptions ── */
+const CHANNEL_DESCRIPTIONS: Record<string, { setup: string; ready: string | null }> = {
+  instagram: {
+    setup: "Optimise ton profil, génère tes contenus et développe ta communauté sur Instagram.",
+    ready: "Crée tes contenus, suis tes stats et développe ta communauté sur Instagram.",
+  },
+  linkedin: {
+    setup: "Travaille ta présence professionnelle : profil optimisé, posts stratégiques et réseau ciblé.",
+    ready: "Publie du contenu stratégique et développe ton réseau professionnel sur LinkedIn.",
+  },
+  website: {
+    setup: "Rédige les textes de ton site : page d'accueil, à propos, pages de vente et articles de blog.",
+    ready: "Rédige et améliore les textes de ton site : pages, articles de blog, pages de vente.",
+  },
+  seo: {
+    setup: "Améliore ton référencement naturel pour être trouvée sur Google par tes client·es idéales.",
+    ready: "Améliore ton référencement naturel pour être trouvée sur Google par tes client·es idéales.",
+  },
+  branding: {
+    setup: "Pose les bases de ta communication : positionnement, cible idéale, ton de voix, histoire et offres.",
+    ready: null,
+  },
+};
+
 /* ── Channel Setup Card (< 100%) ── */
-function ChannelSetupCard({ emoji, title, completion, nextStep, route }: {
-  emoji: string; title: string; completion: number; nextStep: string; route: string;
+function ChannelSetupCard({ emoji, title, completion, nextStep, route, descKey, missingLabel }: {
+  emoji: string; title: string; completion: number; nextStep: string; route: string; descKey?: string; missingLabel?: string;
 }) {
   const navigate = useNavigate();
+  const desc = descKey ? CHANNEL_DESCRIPTIONS[descKey]?.setup : null;
   return (
     <div onClick={() => navigate(route)}
-      className="rounded-2xl border border-border bg-card p-4 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
+      className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2.5">
           <span className="text-xl">{emoji}</span>
@@ -303,11 +340,14 @@ function ChannelSetupCard({ emoji, title, completion, nextStep, route }: {
         </div>
         <span className="text-xs font-semibold text-muted-foreground">{completion}%</span>
       </div>
-      <Progress value={completion} className="h-2 mb-2" />
-      <p className="text-[13px] text-muted-foreground">
-        Prochaine étape : <span className="text-foreground font-medium">{nextStep}</span>
-      </p>
-      <p className="text-sm font-semibold text-primary mt-1">Continuer →</p>
+      <Progress value={completion} className="h-2 mb-3" />
+      {desc && <p className="text-[13px] text-muted-foreground mb-3">{desc}</p>}
+      {missingLabel ? (
+        <p className="text-[13px] text-muted-foreground mb-1">Il te manque : <span className="text-foreground font-medium">{missingLabel}</span></p>
+      ) : (
+        <p className="text-[13px] text-muted-foreground mb-1">Prochaine étape : <span className="text-foreground font-medium">{nextStep}</span></p>
+      )}
+      <p className="text-sm font-semibold text-primary mt-1">{completion > 0 ? "Continuer →" : "Commencer →"}</p>
     </div>
   );
 }
@@ -319,13 +359,14 @@ function ChannelDailyCard({ channel, data }: { channel: "instagram" | "linkedin"
   if (channel === "instagram") {
     return (
       <div onClick={() => navigate("/instagram")} className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2.5">
             <span className="text-xl">📱</span>
             <h3 className="font-display text-base font-bold text-foreground">Mon Instagram</h3>
           </div>
           <span className="text-xs font-semibold text-[#2E7D32] bg-[#E8F5E9] px-2 py-0.5 rounded-full">✅ Prêt</span>
         </div>
+        <p className="text-[13px] text-muted-foreground mb-3">{CHANNEL_DESCRIPTIONS.instagram.ready}</p>
         <div className="space-y-1 mb-3 text-[13px] text-muted-foreground">
           {data.igAuditScore != null && <p>📊 Dernier audit : <span className="font-medium text-foreground">{data.igAuditScore}/100</span></p>}
           <p>📅 Cette semaine : <span className="font-medium text-foreground">{data.weekPostsPublished}/{data.weekPostsTotal} posts publiés</span></p>
@@ -333,7 +374,7 @@ function ChannelDailyCard({ channel, data }: { channel: "instagram" | "linkedin"
         <div className="flex flex-wrap gap-2">
           <MiniBtn label="✨ Créer un contenu" onClick={() => navigate("/instagram/creer")} />
           <MiniBtn label="🔍 Analyser mon profil" onClick={() => navigate("/instagram/audit")} />
-          <MiniBtn label="💬 Routine d'engagement" onClick={() => navigate("/contacts")} />
+          <MiniBtn label="💬 Routine engagement" onClick={() => navigate("/contacts")} />
           <MiniBtn label="📅 Calendrier édito" onClick={() => navigate("/calendrier")} />
           <MiniBtn label="📊 Mes stats" onClick={() => navigate("/instagram/stats")} />
         </div>
@@ -344,19 +385,22 @@ function ChannelDailyCard({ channel, data }: { channel: "instagram" | "linkedin"
   // LinkedIn
   return (
     <div onClick={() => navigate("/linkedin")} className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2.5">
           <span className="text-xl">💼</span>
           <h3 className="font-display text-base font-bold text-foreground">Mon LinkedIn</h3>
         </div>
         <span className="text-xs font-semibold text-[#2E7D32] bg-[#E8F5E9] px-2 py-0.5 rounded-full">✅ Prêt</span>
       </div>
+      <p className="text-[13px] text-muted-foreground mb-3">{CHANNEL_DESCRIPTIONS.linkedin.ready}</p>
       <div className="space-y-1 mb-3 text-[13px] text-muted-foreground">
         {data.liAuditScore != null && <p>📊 Dernier audit : <span className="font-medium text-foreground">{data.liAuditScore}/100</span></p>}
+        <p>📅 Cette semaine : <span className="font-medium text-foreground">0/1 post publié</span></p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <MiniBtn label="✨ Créer un post LI" onClick={() => navigate("/linkedin/post")} />
-        <MiniBtn label="🔍 Refaire l'audit" onClick={() => navigate("/linkedin/audit")} />
+        <MiniBtn label="✨ Créer un post LinkedIn" onClick={() => navigate("/linkedin/post")} />
+        <MiniBtn label="📅 Calendrier édito" onClick={() => navigate("/calendrier?canal=linkedin")} />
+        <MiniBtn label="📊 Mes stats" onClick={() => navigate("/linkedin/audit")} />
       </div>
     </div>
   );
@@ -375,25 +419,36 @@ function MiniBtn({ label, onClick }: { label: string; onClick: () => void }) {
 /* ── Website Card ── */
 function WebsiteCard() {
   const navigate = useNavigate();
-  // TODO: could fetch actual page count from DB; for now show setup mode
+  // TODO: could fetch actual page count from DB to switch between setup/ready
+  const isReady = false; // placeholder — flip when pages are written
   return (
     <div onClick={() => navigate("/site")}
-      className="rounded-2xl border border-border bg-card p-4 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
+      className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2.5">
           <span className="text-xl">🌐</span>
           <h3 className="font-display text-base font-bold text-foreground">Mon Site Web</h3>
         </div>
+        {isReady && <span className="text-xs font-semibold text-[#2E7D32] bg-[#E8F5E9] px-2 py-0.5 rounded-full">✅ Prêt</span>}
       </div>
-      <p className="text-[13px] text-muted-foreground mb-2">
-        Rédige les textes de ton site : page d'accueil, à propos, pages de vente.
+      <p className="text-[13px] text-muted-foreground mb-3">
+        {isReady ? CHANNEL_DESCRIPTIONS.website.ready : CHANNEL_DESCRIPTIONS.website.setup}
       </p>
-      <div className="flex flex-wrap gap-2">
-        <MiniBtn label="📄 Page d'accueil" onClick={() => navigate("/site/accueil")} />
-        <MiniBtn label="📄 À propos" onClick={() => navigate("/site/a-propos")} />
-        <MiniBtn label="📄 Témoignages" onClick={() => navigate("/site/temoignages")} />
-      </div>
-      <p className="text-sm font-semibold text-primary mt-2">Commencer →</p>
+      {!isReady && (
+        <>
+          <Progress value={0} className="h-2 mb-3" />
+          <p className="text-[13px] text-muted-foreground mb-1">Prochaine étape : <span className="text-foreground font-medium">Rédiger ta page d'accueil</span></p>
+          <p className="text-sm font-semibold text-primary mt-1">Commencer →</p>
+        </>
+      )}
+      {isReady && (
+        <div className="flex flex-wrap gap-2">
+          <MiniBtn label="📄 Page d'accueil" onClick={() => navigate("/site/accueil")} />
+          <MiniBtn label="📄 À propos" onClick={() => navigate("/site/a-propos")} />
+          <MiniBtn label="📄 Mes offres" onClick={() => navigate("/site/capture")} />
+          <MiniBtn label="✨ Écrire un article de blog" onClick={() => navigate("/site/accueil")} />
+        </div>
+      )}
     </div>
   );
 }
@@ -402,14 +457,14 @@ function WebsiteCard() {
 function SeoExternalCard() {
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2.5">
           <span className="text-xl">🔍</span>
           <h3 className="font-display text-base font-bold text-foreground">Mon SEO</h3>
         </div>
         <span className="text-xs font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">🔗 Externe</span>
       </div>
-      <p className="text-[13px] text-muted-foreground mb-3">Ton SEO Toolkit est disponible en ligne.</p>
+      <p className="text-[13px] text-muted-foreground mb-3">{CHANNEL_DESCRIPTIONS.seo.setup}</p>
       <a
         href="https://referencement-seo.lovable.app/"
         target="_blank"
