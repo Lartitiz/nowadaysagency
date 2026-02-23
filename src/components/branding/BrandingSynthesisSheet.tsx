@@ -817,7 +817,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             })()}
 
             <button
-              onClick={() => navigate("/branding/audit")}
+              onClick={() => navigate(`/branding/audit/${brandingAudit.id}`)}
               className="text-sm text-primary font-medium hover:underline inline-flex items-center gap-1"
             >
               Voir l'audit complet <ExternalLink className="h-3.5 w-3.5" />
