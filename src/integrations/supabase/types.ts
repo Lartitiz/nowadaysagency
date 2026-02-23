@@ -707,10 +707,14 @@ export type Database = {
           created_at: string
           current_month: number
           current_phase: string
+          duration_months: number | null
           end_date: string | null
+          formula: string | null
           id: string
+          price_monthly: number | null
           start_date: string | null
           status: string
+          total_focus_sessions: number | null
           whatsapp_link: string | null
         }
         Insert: {
@@ -720,10 +724,14 @@ export type Database = {
           created_at?: string
           current_month?: number
           current_phase?: string
+          duration_months?: number | null
           end_date?: string | null
+          formula?: string | null
           id?: string
+          price_monthly?: number | null
           start_date?: string | null
           status?: string
+          total_focus_sessions?: number | null
           whatsapp_link?: string | null
         }
         Update: {
@@ -733,10 +741,14 @@ export type Database = {
           created_at?: string
           current_month?: number
           current_phase?: string
+          duration_months?: number | null
           end_date?: string | null
+          formula?: string | null
           id?: string
+          price_monthly?: number | null
           start_date?: string | null
           status?: string
+          total_focus_sessions?: number | null
           whatsapp_link?: string | null
         }
         Relationships: []
@@ -746,6 +758,8 @@ export type Database = {
           created_at: string
           duration_minutes: number
           focus: string | null
+          focus_label: string | null
+          focus_topic: string | null
           id: string
           laetitia_note: string | null
           meeting_link: string | null
@@ -755,6 +769,7 @@ export type Database = {
           program_id: string
           scheduled_date: string | null
           session_number: number
+          session_type: string | null
           status: string
           summary: string | null
           title: string | null
@@ -763,6 +778,8 @@ export type Database = {
           created_at?: string
           duration_minutes?: number
           focus?: string | null
+          focus_label?: string | null
+          focus_topic?: string | null
           id?: string
           laetitia_note?: string | null
           meeting_link?: string | null
@@ -772,6 +789,7 @@ export type Database = {
           program_id: string
           scheduled_date?: string | null
           session_number: number
+          session_type?: string | null
           status?: string
           summary?: string | null
           title?: string | null
@@ -780,6 +798,8 @@ export type Database = {
           created_at?: string
           duration_minutes?: number
           focus?: string | null
+          focus_label?: string | null
+          focus_topic?: string | null
           id?: string
           laetitia_note?: string | null
           meeting_link?: string | null
@@ -789,6 +809,7 @@ export type Database = {
           program_id?: string
           scheduled_date?: string | null
           session_number?: number
+          session_type?: string | null
           status?: string
           summary?: string | null
           title?: string | null

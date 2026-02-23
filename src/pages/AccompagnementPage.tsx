@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CalendarDays, Clock, Video, ExternalLink, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, CalendarDays, Clock, Video, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { LAETITIA_WHATSAPP } from "@/lib/constants";
+import { getFocusIcon, getSessionTypeIcon } from "@/lib/coaching-constants";
 
 interface Program {
   id: string;
@@ -21,6 +22,9 @@ interface Program {
   status: string;
   start_date: string | null;
   end_date: string | null;
+  formula: string | null;
+  duration_months: number | null;
+  price_monthly: number | null;
 }
 
 interface Session {
@@ -37,6 +41,9 @@ interface Session {
   summary: string | null;
   modules_updated: string[] | null;
   laetitia_note: string | null;
+  session_type: string | null;
+  focus_topic: string | null;
+  focus_label: string | null;
 }
 
 interface Action {
@@ -71,18 +78,10 @@ export default function AccompagnementPage() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: prog } = await (supabase
-        .from("coaching_programs" as any) as any)
-        .select("*")
-        .eq("client_user_id", user.id)
-        .eq("status", "active")
-        .maybeSingle();
+      const { data: prog } = await (supabase.from("coaching_programs" as any) as any)
+        .select("*").eq("client_user_id", user.id).eq("status", "active").maybeSingle();
 
-      if (!prog) {
-        setNoProgram(true);
-        setLoading(false);
-        return;
-      }
+      if (!prog) { setNoProgram(true); setLoading(false); return; }
       setProgram(prog as Program);
 
       const [sessRes, actRes, delRes] = await Promise.all([
@@ -132,18 +131,16 @@ export default function AccompagnementPage() {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        </div>
+        <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       </div>
     );
   }
 
-  const progressPct = Math.round((program.current_month / 6) * 100);
-  const phaseLabel = program.current_month <= 3 ? "🔧 Stratégie" : "🤝 Binôme";
+  const progressPct = Math.round(((program.current_month || 1) / 6) * 100);
   const nextSession = sessions.find(s => s.status === "scheduled" && s.scheduled_date);
-  const strategySessions = sessions.filter(s => s.phase === "strategy");
-  const binomeSessions = sessions.filter(s => s.phase === "binome");
+
+  const fondationSessions = sessions.filter(s => s.session_type && ["launch", "strategy", "checkpoint"].includes(s.session_type));
+  const focusSessions = sessions.filter(s => !s.session_type || s.session_type === "focus");
   const pendingActions = actions.filter(a => !a.completed);
   const recentDone = actions.filter(a => a.completed && a.completed_at && new Date(a.completed_at) > new Date(Date.now() - 7 * 86400000));
 
@@ -158,22 +155,25 @@ export default function AccompagnementPage() {
             <span className="text-2xl">🤝</span>
             <div>
               <h1 className="font-display text-xl font-bold text-foreground">Mon accompagnement</h1>
-              <p className="text-sm text-muted-foreground">Programme Now Pilot · Avec Laetitia</p>
+              <p className="text-sm text-muted-foreground">Programme Now Pilot · 6 mois · Avec Laetitia</p>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground mb-2">Phase : {phaseLabel} · Mois {program.current_month}/6</p>
+          <p className="text-sm text-muted-foreground mb-2">Mois {program.current_month || 1}/6</p>
           <Progress value={progressPct} className="h-2.5" />
           <p className="text-xs text-muted-foreground mt-1 text-right">{progressPct}%</p>
         </div>
 
         {/* PROCHAINE SESSION */}
-        <div className="rounded-2xl border-2 border-primary/30 bg-card p-6">
-          <h2 className="font-display text-lg font-bold text-foreground mb-3 flex items-center gap-2">
-            <CalendarDays className="h-5 w-5 text-primary" /> Prochaine session
-          </h2>
-          {nextSession ? (
+        {nextSession && (
+          <div className="rounded-2xl border-2 border-primary/30 bg-card p-6">
+            <h2 className="font-display text-lg font-bold text-foreground mb-3 flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-primary" /> Prochaine session
+            </h2>
             <div className="space-y-2">
-              <p className="font-semibold text-foreground">{nextSession.title}</p>
+              <p className="font-semibold text-foreground flex items-center gap-2">
+                <span>{getSessionIcon(nextSession)}</span>
+                {nextSession.title}
+              </p>
               <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
                 {nextSession.scheduled_date && (
                   <span className="flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" /> {format(new Date(nextSession.scheduled_date), "EEEE d MMMM · HH'h'mm", { locale: fr })}</span>
@@ -195,31 +195,31 @@ export default function AccompagnementPage() {
                 </Button>
               )}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Pas de session programmée pour le moment. Laetitia te recontactera bientôt.</p>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* MES SESSIONS */}
+        {/* MON PARCOURS */}
         <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="font-display text-lg font-bold text-foreground mb-4">📚 Mes sessions</h2>
+          <h2 className="font-display text-lg font-bold text-foreground mb-4">🗓️ Mon parcours</h2>
 
-          {strategySessions.length > 0 && (
-            <div className="mb-4">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🔧 Phase Stratégie (mois 1-3)</p>
+          {/* Fondations */}
+          {fondationSessions.length > 0 && (
+            <div className="mb-5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Les fondations</p>
               <div className="space-y-2">
-                {strategySessions.map(s => (
+                {fondationSessions.map(s => (
                   <SessionRow key={s.id} session={s} expanded={expandedSession === s.id} onToggle={() => setExpandedSession(expandedSession === s.id ? null : s.id)} actions={actions.filter(a => a.session_id === s.id)} />
                 ))}
               </div>
             </div>
           )}
 
-          {binomeSessions.length > 0 && (
+          {/* Focus */}
+          {focusSessions.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🤝 Phase Binôme (mois 4-6)</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">On fait ensemble</p>
               <div className="space-y-2">
-                {binomeSessions.map(s => (
+                {focusSessions.map(s => (
                   <SessionRow key={s.id} session={s} expanded={expandedSession === s.id} onToggle={() => setExpandedSession(expandedSession === s.id ? null : s.id)} actions={actions.filter(a => a.session_id === s.id)} />
                 ))}
               </div>
@@ -227,7 +227,7 @@ export default function AccompagnementPage() {
           )}
         </div>
 
-        {/* ACTIONS EN COURS */}
+        {/* ACTIONS */}
         <div className="rounded-2xl border border-border bg-card p-6">
           <h2 className="font-display text-lg font-bold text-foreground mb-3">📋 Mes actions</h2>
           {pendingActions.length === 0 && recentDone.length === 0 ? (
@@ -275,7 +275,7 @@ export default function AccompagnementPage() {
           </div>
         </div>
 
-        {/* CONTACTER LAETITIA */}
+        {/* WHATSAPP */}
         <div className="rounded-2xl border border-border bg-card p-6">
           <h2 className="font-display text-lg font-bold text-foreground mb-3">💬 Contacter Laetitia</h2>
           {program.whatsapp_link ? (
@@ -296,23 +296,44 @@ export default function AccompagnementPage() {
   );
 }
 
+/* ── Helpers ── */
+function getSessionIcon(session: Session): string {
+  if (session.session_type && ["launch", "strategy", "checkpoint"].includes(session.session_type)) {
+    return getSessionTypeIcon(session.session_type);
+  }
+  return getFocusIcon(session.focus_topic);
+}
+
+function getStatusIcon(session: Session): string {
+  if (session.status === "completed") return "✅";
+  if (session.scheduled_date) return "📅";
+  return "🔜";
+}
+
 /* ── Session Row ── */
 function SessionRow({ session, expanded, onToggle, actions }: { session: Session; expanded: boolean; onToggle: () => void; actions: Action[] }) {
   const isCompleted = session.status === "completed";
-  const hasDate = !!session.scheduled_date;
+  const isFondation = session.session_type && ["launch", "strategy", "checkpoint"].includes(session.session_type);
 
   return (
-    <div className={`rounded-xl border p-3 transition-all ${isCompleted ? "border-[#2E7D32]/30 bg-[#E8F5E9]/30" : hasDate ? "border-border" : "border-border/50 opacity-60"}`}>
+    <div className={`rounded-xl border p-3 transition-all ${
+      isCompleted ? "border-[#2E7D32]/30 bg-[#E8F5E9]/30" :
+      isFondation ? "border-primary/20 bg-rose-pale/30" :
+      session.scheduled_date ? "border-border" : "border-border/50 opacity-70"
+    }`}>
       <button onClick={isCompleted ? onToggle : undefined} className="w-full text-left flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span>{isCompleted ? "✅" : hasDate ? "📅" : "🔒"}</span>
-          <span className="text-sm font-semibold text-foreground">Session {session.session_number}</span>
+          <span>{getStatusIcon(session)}</span>
+          <span>{getSessionIcon(session)}</span>
+          <span className="text-sm font-semibold text-foreground">{session.title || "À définir"}</span>
           {session.scheduled_date && <span className="text-xs text-muted-foreground">· {format(new Date(session.scheduled_date), "d MMM", { locale: fr })}</span>}
-          {session.title && <span className="text-xs text-muted-foreground">· {session.title}</span>}
+          <span className="text-xs text-muted-foreground">· {session.duration_minutes}min</span>
         </div>
         {isCompleted && (expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />)}
       </button>
+
       {!isCompleted && session.focus && <p className="text-xs text-muted-foreground mt-1 ml-7">{session.focus}</p>}
+
       {isCompleted && expanded && (
         <div className="mt-3 ml-7 space-y-2 border-t border-border/50 pt-3">
           {session.summary && <p className="text-sm text-foreground whitespace-pre-line">{session.summary}</p>}
@@ -322,15 +343,11 @@ function SessionRow({ session, expanded, onToggle, actions }: { session: Session
               {session.modules_updated.map(m => <Badge key={m} variant="secondary" className="text-xs">{m}</Badge>)}
             </div>
           )}
-          {session.laetitia_note && (
-            <p className="text-sm italic text-muted-foreground">💬 {session.laetitia_note}</p>
-          )}
+          {session.laetitia_note && <p className="text-sm italic text-muted-foreground">💬 {session.laetitia_note}</p>}
           {actions.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-1">Actions données :</p>
-              {actions.map(a => (
-                <p key={a.id} className="text-xs text-foreground">• {a.title} {a.completed ? "✅" : ""}</p>
-              ))}
+              {actions.map(a => <p key={a.id} className="text-xs text-foreground">• {a.title} {a.completed ? "✅" : ""}</p>)}
             </div>
           )}
         </div>
