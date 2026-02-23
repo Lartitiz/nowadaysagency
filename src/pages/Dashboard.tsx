@@ -22,6 +22,8 @@ import BadgesWidget from "@/components/dashboard/BadgesWidget";
 import WeekCalendarWidget from "@/components/dashboard/WeekCalendarWidget";
 import EngagementRoutineWidget from "@/components/dashboard/EngagementRoutineWidget";
 import MonthlyStatsWidget from "@/components/dashboard/MonthlyStatsWidget";
+import LaetitiaCoachingCard from "@/components/dashboard/LaetitiaCoachingCard";
+import DiscoveryCoachingCard from "@/components/dashboard/DiscoveryCoachingCard";
 import { checkBadges } from "@/lib/badges";
 
 /* ── Types ── */
@@ -396,6 +398,15 @@ export default function Dashboard() {
 
           {/* Branding is now in Mes Espaces */}
         </BentoGrid>
+
+        {/* ═══════════════════════════════════════
+           COACHING CARD — Laetitia or Discovery
+           ═══════════════════════════════════════ */}
+        {isPilot ? (
+          <LaetitiaCoachingCard animationDelay={nextDelay()} />
+        ) : (
+          <DiscoveryCoachingCard animationDelay={nextDelay()} />
+        )}
 
         {/* ═══════════════════════════════════════
            DIAGNOSTIC RECAP (if recommendations exist)
