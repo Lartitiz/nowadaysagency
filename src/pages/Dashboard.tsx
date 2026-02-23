@@ -306,6 +306,29 @@ export default function Dashboard() {
         </BentoGrid>
 
         {/* ═══════════════════════════════════════
+           MES ESPACES
+           ═══════════════════════════════════════ */}
+        {activeSpaces.length > 0 && (
+          <BentoGrid sectionLabel="MES ESPACES">
+            {activeSpaces.map((space) => (
+              <SpaceBentoCard
+                key={space.id}
+                title={space.title}
+                subtitle={space.subtitle}
+                icon={space.icon}
+                gradient={space.gradient}
+                badge={space.badge}
+                onClick={() => {
+                  if (space.external) window.open(space.route, "_blank");
+                  else navigate(space.route);
+                }}
+                animationDelay={nextDelay()}
+              />
+            ))}
+          </BentoGrid>
+        )}
+
+        {/* ═══════════════════════════════════════
            ROW 2 — Calendrier + Engagement + Stats
            ═══════════════════════════════════════ */}
         <BentoGrid>
@@ -419,28 +442,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ═══════════════════════════════════════
-           ROW 4 — Mes Espaces
-           ═══════════════════════════════════════ */}
-        {activeSpaces.length > 0 && (
-          <BentoGrid sectionLabel="MES ESPACES">
-            {activeSpaces.map((space) => (
-              <SpaceBentoCard
-                key={space.id}
-                title={space.title}
-                subtitle={space.subtitle}
-                icon={space.icon}
-                gradient={space.gradient}
-                badge={space.badge}
-                onClick={() => {
-                  if (space.external) window.open(space.route, "_blank");
-                  else navigate(space.route);
-                }}
-                animationDelay={nextDelay()}
-              />
-            ))}
-          </BentoGrid>
-        )}
+        {/* (Espaces moved above) */}
 
         {/* ═══════════════════════════════════════
            WEEKLY PROGRESS + BADGES
