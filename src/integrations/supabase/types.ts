@@ -4708,6 +4708,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_badges: {
+        Row: {
+          badge_id: string
+          id: string
+          seen: boolean
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          badge_id: string
+          id?: string
+          seen?: boolean
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          badge_id?: string
+          id?: string
+          seen?: boolean
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_documents: {
         Row: {
           context: string | null

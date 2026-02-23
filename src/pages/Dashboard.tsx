@@ -16,6 +16,9 @@ import BentoGrid from "@/components/dashboard/BentoGrid";
 import BentoCard from "@/components/dashboard/BentoCard";
 import SpaceBentoCard from "@/components/dashboard/SpaceBentoCard";
 import { spaceModules } from "@/config/dashboardModules";
+import BadgesWidget from "@/components/dashboard/BadgesWidget";
+import WeeklyProgressWidget from "@/components/dashboard/WeeklyProgressWidget";
+import { checkBadges } from "@/lib/badges";
 
 /* ── Types ── */
 export interface UserProfile {
@@ -176,6 +179,9 @@ export default function Dashboard() {
           });
         }
       }
+
+      // Check badges on load
+      checkBadges(user.id, bc.total);
     };
     fetchAll();
   }, [user?.id]);
@@ -538,6 +544,12 @@ export default function Dashboard() {
             ))}
           </BentoGrid>
         )}
+
+        {/* ═══════════════════════════════════════
+           WEEKLY PROGRESS + BADGES
+           ═══════════════════════════════════════ */}
+        <WeeklyProgressWidget animationDelay={nextDelay()} brandingCompletion={dashData.brandingCompletion.total} />
+        <BadgesWidget animationDelay={nextDelay()} />
 
         {/* ═══════════════════════════════════════
            BRANDING BANNER
