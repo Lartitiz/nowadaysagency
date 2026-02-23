@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
+import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
@@ -263,6 +264,7 @@ export default function StorytellingPage() {
       <AppHeader />
       <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mes storytellings" parentTo="/branding/storytelling" currentLabel="Rédiger" />
+        <AuditRecommendationBanner />
 
         <h1 className="font-display text-[26px] font-bold text-foreground mb-1">Ton histoire</h1>
         <p className="text-[15px] text-muted-foreground italic mb-8">

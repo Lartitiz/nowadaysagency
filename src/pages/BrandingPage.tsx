@@ -8,6 +8,7 @@ import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw } from "luci
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { supabase } from "@/integrations/supabase/client";
 import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
+import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import BrandingImportBlock from "@/components/branding/BrandingImportBlock";
 import BrandingImportReview from "@/components/branding/BrandingImportReview";
 import type { BrandingExtraction } from "@/lib/branding-import-types";
@@ -161,6 +162,7 @@ export default function BrandingPage() {
           Retour au hub
         </Link>
 
+        <AuditRecommendationBanner />
         <h1 className="font-display text-[26px] font-bold text-foreground mb-2">Mon Branding</h1>
         <p className="text-[15px] text-muted-foreground mb-6">
           C'est ici que tout commence. Plus tu remplis, plus L'Assistant Com' te connaît et te propose des idées qui te ressemblent.

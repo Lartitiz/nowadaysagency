@@ -194,6 +194,28 @@ RÈGLES :
 - Le plan d'action recommandé est ordonné par priorité
 - Écris en français, tutoie l'utilisatrice
 
+TABLE DE MAPPING DES ACTIONS :
+Pour chaque point faible, associe UNE action concrète faisable dans l'outil en utilisant cette table :
+| Thème | module | route | label |
+|-------|--------|-------|-------|
+| Cible floue/large/mal définie | persona | /persona | Retravailler ma cible |
+| Positionnement flou/absent | branding | /branding | Clarifier mon positionnement |
+| Offres pas claires/invisibles | offers | /offres | Reformuler mes offres |
+| Bio pas optimisée | bio | /instagram/bio | Optimiser ma bio |
+| Storytelling absent/faible | story | /branding/storytelling | Écrire mon histoire |
+| Ton incohérent/pas défini | tone | /branding/ton | Définir mon ton |
+| Pas de ligne éditoriale | editorial | /strategie | Créer ma ligne édito |
+| Identité visuelle incohérente | branding | /branding | Travailler mon identité |
+| Pas de stratégie de contenu | calendar | /calendrier | Planifier mes contenus |
+| Highlights pas organisés | instagram | /instagram/highlights | Structurer mon profil IG |
+| Pas de preuve sociale | content | /creer | Créer un post témoignage |
+| Engagement faible | contacts | /instagram/engagement | Lancer ma routine engagement |
+| Pas de CTA clair | bio | /instagram/bio | Ajouter un CTA dans ma bio |
+| Cohérence cross-canal manque | branding | /branding | Unifier ma communication |
+| Fréquence irrégulière | calendar | /calendrier | Créer mon calendrier |
+
+Le conseil doit être en 1-2 phrases, actionnable, et le label du bouton doit commencer par un verbe.
+
 RETOURNE UNIQUEMENT un objet JSON valide avec cette structure exacte :
 {
   "score_global": 72,
@@ -202,7 +224,18 @@ RETOURNE UNIQUEMENT un objet JSON valide avec cette structure exacte :
     {"titre": "...", "detail": "...", "source": "site_web"}
   ],
   "points_faibles": [
-    {"titre": "...", "detail": "...", "source": "instagram + site_web", "priorite": "haute"}
+    {
+      "titre": "...", 
+      "detail": "...", 
+      "source": "instagram + site_web", 
+      "priorite": "haute",
+      "action": {
+        "module": "persona",
+        "label": "Retravailler ma cible",
+        "route": "/persona",
+        "conseil": "Redéfinis ta cliente idéale. Concentre-toi sur 1 persona principal."
+      }
+    }
   ],
   "audit_detail": {
     "positionnement": {"score": 80, "statut": "bon", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "..."},
@@ -215,7 +248,7 @@ RETOURNE UNIQUEMENT un objet JSON valide avec cette structure exacte :
     "contenu": {"score": 65, "statut": "bon", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "..."}
   },
   "plan_action_recommande": [
-    {"priorite": 1, "action": "...", "module": "branding", "temps_estime": "30 min", "lien": "/branding"}
+    {"priorite": 1, "action": "...", "module": "branding", "temps_estime": "30 min", "lien": "/branding", "conseil": "Conseil court pour cette action."}
   ],
   "extraction_branding": {
     "positioning": {"value": "...", "confidence": "high"},
@@ -275,6 +308,37 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
       plan_action: auditResult.plan_action_recommande || null,
       extraction_branding: auditResult.extraction_branding || null,
     });
+
+    // Save audit recommendations
+    const recommendations = (auditResult.points_faibles || [])
+      .filter((pf: any) => pf.action?.route)
+      .map((pf: any) => ({
+        user_id: user.id,
+        audit_id: undefined as string | undefined, // will be set after insert
+        module: pf.action.module,
+        route: pf.action.route,
+        label: pf.action.label,
+        conseil: pf.action.conseil,
+        priorite: pf.priorite || "moyenne",
+      }));
+
+    // Get the audit ID we just inserted
+    const { data: lastAudit } = await sbService
+      .from("branding_audits")
+      .select("id")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastAudit && recommendations.length > 0) {
+      // Delete old recommendations for this user
+      await sbService.from("audit_recommendations").delete().eq("user_id", user.id);
+      // Insert new ones
+      await sbService.from("audit_recommendations").insert(
+        recommendations.map((r: any) => ({ ...r, audit_id: lastAudit.id }))
+      );
+    }
 
     // Log usage
     await logUsage(user.id, "audit", "audit_branding");

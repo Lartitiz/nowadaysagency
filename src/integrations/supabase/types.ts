@@ -44,6 +44,56 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_recommendations: {
+        Row: {
+          audit_id: string | null
+          completed: boolean | null
+          completed_at: string | null
+          conseil: string | null
+          created_at: string | null
+          id: string
+          label: string
+          module: string
+          priorite: string | null
+          route: string
+          user_id: string
+        }
+        Insert: {
+          audit_id?: string | null
+          completed?: boolean | null
+          completed_at?: string | null
+          conseil?: string | null
+          created_at?: string | null
+          id?: string
+          label: string
+          module: string
+          priorite?: string | null
+          route: string
+          user_id: string
+        }
+        Update: {
+          audit_id?: string | null
+          completed?: boolean | null
+          completed_at?: string | null
+          conseil?: string | null
+          created_at?: string | null
+          id?: string
+          label?: string
+          module?: string
+          priorite?: string | null
+          route?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_recommendations_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "branding_audits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_validations: {
         Row: {
           created_at: string

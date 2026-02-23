@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
+import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
@@ -289,6 +290,7 @@ export default function InstagramBio() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Optimiser ma bio" useFromParam />
+        <AuditRecommendationBanner />
 
         <h1 className="font-display text-[26px] font-bold text-foreground">✍️ Optimiser ma bio</h1>
         <p className="mt-2 text-sm text-muted-foreground mb-6">

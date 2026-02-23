@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
+import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { useToast } from "@/hooks/use-toast";
@@ -181,6 +182,7 @@ export default function PersonaPage() {
       <AppHeader />
       <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Mon client·e idéal·e" />
+        <AuditRecommendationBanner />
         <h1 className="font-display text-[26px] font-bold text-foreground mb-1">Ton client·e idéal·e</h1>
         <p className="text-[15px] text-muted-foreground italic mb-8">
           On va construire le portrait de la personne que tu veux toucher. Pas une fiche froide : un vrai portrait vivant.
