@@ -406,6 +406,8 @@ export type Database = {
           created_at: string
           date: string
           format: string | null
+          generated_content_id: string | null
+          generated_content_type: string | null
           id: string
           launch_id: string | null
           notes: string | null
@@ -438,6 +440,8 @@ export type Database = {
           created_at?: string
           date: string
           format?: string | null
+          generated_content_id?: string | null
+          generated_content_type?: string | null
           id?: string
           launch_id?: string | null
           notes?: string | null
@@ -470,6 +474,8 @@ export type Database = {
           created_at?: string
           date?: string
           format?: string | null
+          generated_content_id?: string | null
+          generated_content_type?: string | null
           id?: string
           launch_id?: string | null
           notes?: string | null
