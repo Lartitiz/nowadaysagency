@@ -13,6 +13,7 @@ import { fr } from "date-fns/locale";
 import { LAETITIA_WHATSAPP } from "@/lib/constants";
 import { getFocusIcon, getSessionTypeIcon } from "@/lib/coaching-constants";
 import { toast } from "sonner";
+import { useDemoContext } from "@/contexts/DemoContext";
 
 interface Program {
   id: string;
@@ -72,6 +73,7 @@ interface Deliverable {
 
 export default function AccompagnementPage() {
   const { user } = useAuth();
+  const { isDemoMode, demoData } = useDemoContext();
   const [program, setProgram] = useState<Program | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
@@ -81,6 +83,65 @@ export default function AccompagnementPage() {
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    if (isDemoMode && demoData) {
+      const c = demoData.coaching;
+      setProgram({
+        id: "demo-prog",
+        current_phase: "strategy",
+        current_month: c.current_month,
+        whatsapp_link: null,
+        calendly_link: null,
+        status: "active",
+        start_date: "2026-01-15",
+        end_date: "2026-07-15",
+        formula: c.formula,
+        duration_months: c.duration_months,
+        price_monthly: c.price_monthly,
+      });
+      const demoSessions: Session[] = c.sessions.map(s => ({
+        id: `demo-sess-${s.number}`,
+        session_number: s.number,
+        phase: s.type,
+        title: s.title,
+        focus: null,
+        scheduled_date: "date" in s ? (s as any).date : null,
+        duration_minutes: s.duration,
+        meeting_link: null,
+        status: s.status,
+        prep_notes: null,
+        summary: ("summary" in s ? (s as any).summary : null) || null,
+        modules_updated: null,
+        laetitia_note: null,
+        session_type: s.type,
+        focus_topic: ("focus_topic" in s ? (s as any).focus_topic : null) || null,
+        focus_label: null,
+      }));
+      setSessions(demoSessions);
+      setActions(c.actions.map((a, i) => ({
+        id: `demo-act-${i}`,
+        title: a.title,
+        description: null,
+        due_date: null,
+        completed: a.completed,
+        completed_at: a.completed ? "2026-02-15T10:00:00Z" : null,
+        session_id: null,
+      })));
+      setDeliverables(c.deliverables.map((d, i) => ({
+        id: `demo-del-${i}`,
+        title: d.title,
+        type: null,
+        status: d.status === "delivered" ? "delivered" : "pending",
+        delivered_at: d.status === "delivered" ? "2026-02-10T10:00:00Z" : null,
+        route: null,
+        file_url: null,
+        file_name: null,
+        assigned_session_id: null,
+        seen_by_client: true,
+      })));
+      setExpandedSessions(new Set(["demo-sess-2"]));
+      setLoading(false);
+      return;
+    }
     if (!user) return;
     (async () => {
       const { data: prog } = await (supabase.from("coaching_programs" as any) as any)
@@ -120,7 +181,7 @@ export default function AccompagnementPage() {
 
       setLoading(false);
     })();
-  }, [user?.id]);
+  }, [user?.id, isDemoMode]);
 
   const toggleAction = async (action: Action) => {
     const newCompleted = !action.completed;

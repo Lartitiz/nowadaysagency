@@ -8,9 +8,11 @@ import PlanView from "@/components/plan/PlanView";
 import { computePlan, type PlanData, type PlanConfig } from "@/lib/plan-engine";
 import { Loader2, ClipboardList, BarChart3, Construction } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useDemoContext } from "@/contexts/DemoContext";
 
 export default function CommPlanPage() {
   const { user } = useAuth();
+  const { isDemoMode } = useDemoContext();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<PlanConfig | null>(null);
@@ -18,6 +20,50 @@ export default function CommPlanPage() {
   const [showSetup, setShowSetup] = useState(false);
 
   useEffect(() => {
+    if (isDemoMode) {
+      const demoCfg: PlanConfig = { weekly_time: "30min", channels: ["instagram", "site", "newsletter"], main_goal: "visibility" };
+      setConfig(demoCfg);
+      // Build a demo plan with some steps done
+      const demoPlan: PlanData = {
+        config: demoCfg,
+        progressPercent: 42,
+        totalMinutesRemaining: 180,
+        completedCount: 5,
+        totalCount: 12,
+        phases: [
+          {
+            id: "foundations", title: "🏗️ Les fondations", emoji: "🏗️", locked: false,
+            steps: [
+              { id: "s1", label: "Positionnement", description: "Définis ce que tu fais et pour qui", duration: 15, route: "/branding", status: "done" },
+              { id: "s2", label: "Persona", description: "Portrait de ta cliente idéale", duration: 20, route: "/branding/persona", status: "done" },
+              { id: "s3", label: "Ton & valeurs", description: "Ton identité de marque", duration: 15, route: "/branding/ton-style", status: "done" },
+              { id: "s4", label: "Storytelling", description: "Ton histoire de fondatrice", duration: 30, route: "/branding/storytelling", status: "done" },
+            ],
+          },
+          {
+            id: "instagram", title: "📱 Instagram", emoji: "📱", locked: false,
+            steps: [
+              { id: "s5", label: "Bio Instagram", description: "Optimise ta bio", duration: 10, route: "/instagram/bio", status: "done", detail: "✅ Validée" },
+              { id: "s6", label: "Highlights", description: "Structure tes highlights", duration: 30, route: "/instagram/highlights", status: "in_progress" },
+              { id: "s7", label: "Calendrier", description: "Planifie tes contenus", duration: 20, route: "/calendar", status: "todo" },
+              { id: "s8", label: "Routine engagement", description: "15 min/jour", duration: 15, route: "/instagram/engagement", status: "todo" },
+            ],
+          },
+          {
+            id: "site", title: "🌐 Site web", emoji: "🌐", locked: false,
+            steps: [
+              { id: "s9", label: "Page d'accueil", description: "Ton message principal", duration: 30, route: "/site/accueil", status: "todo" },
+              { id: "s10", label: "Page à propos", description: "Ton histoire", duration: 20, route: "/site/a-propos", status: "todo" },
+              { id: "s11", label: "Témoignages", description: "Preuve sociale", duration: 15, route: "/site/testimonials", status: "todo" },
+              { id: "s12", label: "Page capture", description: "Collecte des emails", duration: 20, route: "/site/capture", status: "todo" },
+            ],
+          },
+        ],
+      };
+      setPlan(demoPlan);
+      setLoading(false);
+      return;
+    }
     if (!user?.id) return;
     (async () => {
       const { data } = await supabase
@@ -40,7 +86,7 @@ export default function CommPlanPage() {
       }
       setLoading(false);
     })();
-  }, [user?.id]);
+  }, [user?.id, isDemoMode]);
 
   const handleSaveConfig = useCallback(async (cfg: PlanConfig) => {
     if (!user) return;
