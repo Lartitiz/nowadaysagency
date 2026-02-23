@@ -143,7 +143,7 @@ export default function InstagramStories() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SequenceResult | null>(null);
 
-  const handleGenerate = async (isDaily = false) => {
+  const handleGenerate = async (isDaily = false, retryCount = 0) => {
     if (!user) return;
     setLoading(true);
 
@@ -154,7 +154,9 @@ export default function InstagramStories() {
         message_cle: preGenMessage || undefined,
       } : undefined;
 
-      const { data: brandRes } = await supabase.functions.invoke("stories-ai", {
+      console.log("Stories generation started", { userId: user.id, subject, isDaily, retryCount });
+
+      const { data: brandRes, error: fnError } = await supabase.functions.invoke("stories-ai", {
         body: {
           type: isDaily ? "daily" : "generate",
           objective,
@@ -172,8 +174,27 @@ export default function InstagramStories() {
         },
       });
 
+      // Handle edge function invocation error
+      if (fnError) {
+        console.error("Edge function error:", fnError);
+        throw new Error(fnError.message || "Erreur de connexion au serveur");
+      }
+
+      // Handle error returned in response body
       if (brandRes?.error) {
-        toast.error(brandRes.error);
+        const errMsg = brandRes.error === "limit_reached"
+          ? (brandRes.message || "Tu as atteint ta limite de générations ce mois-ci.")
+          : brandRes.error;
+
+        // Auto-retry on overload (max 2 retries)
+        if ((errMsg.includes("surchargé") || errMsg.includes("529") || errMsg.includes("Overloaded")) && retryCount < 2) {
+          console.log(`Retrying stories generation (attempt ${retryCount + 1})...`);
+          toast.info("Serveur IA chargé, nouvelle tentative...");
+          await new Promise(r => setTimeout(r, 3000 * (retryCount + 1)));
+          return handleGenerate(isDaily, retryCount + 1);
+        }
+
+        toast.error(errMsg);
         setLoading(false);
         return;
       }
@@ -183,6 +204,8 @@ export default function InstagramStories() {
       const parsed: SequenceResult = JSON.parse(jsonStr);
       setResult(parsed);
       setSelectedHookOption(null);
+
+      console.log("Stories generation completed", { success: true, totalStories: parsed.total_stories });
 
       // Save to DB
       const { error: saveError } = await supabase.from("stories_sequences" as any).insert({
@@ -200,9 +223,10 @@ export default function InstagramStories() {
 
       if (saveError) console.error("Save error:", saveError);
       setStep(6); // Results step
-    } catch (e) {
-      console.error(e);
-      toast.error("Erreur lors de la génération. Réessaie.");
+    } catch (e: any) {
+      console.error("Stories generation failed:", e);
+      const msg = e?.message || "Erreur inconnue";
+      toast.error(`Erreur : ${msg}`, { description: "Réessaie dans quelques instants." });
     }
     setLoading(false);
   };

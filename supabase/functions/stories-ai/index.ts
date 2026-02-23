@@ -156,11 +156,16 @@ Réponds UNIQUEMENT avec le JSON.`;
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (e) {
+  } catch (e: any) {
     console.error("stories-ai error:", e);
+    const status = e?.status || 500;
+    let message = e instanceof Error ? e.message : "Erreur inconnue";
+    if (status === 529 || message.includes("529") || message.includes("Overloaded")) {
+      message = "Le serveur IA est temporairement surchargé. Réessaie dans quelques secondes.";
+    }
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: message, status }),
+      { status: status >= 400 && status < 600 ? status : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
