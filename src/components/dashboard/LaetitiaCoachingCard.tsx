@@ -31,10 +31,11 @@ export default function LaetitiaCoachingCard({ animationDelay = 0 }: { animation
     if (!user?.id) return;
 
     (async () => {
+      // RLS controls access — query any active program visible to this user
       const { data: prog } = await (supabase.from("coaching_programs" as any) as any)
         .select("dashboard_message, whatsapp_link, calendly_link")
-        .eq("client_user_id", user.id)
         .eq("status", "active")
+        .limit(1)
         .maybeSingle();
       if (prog) {
         setData({
