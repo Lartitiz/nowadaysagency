@@ -170,6 +170,46 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     });
   };
 
+  // Angle → carousel type mapping
+  const ANGLE_TO_CAROUSEL: Record<string, string> = {
+    "Storytelling": "storytelling",
+    "Mythe à déconstruire": "mythe_realite",
+    "Coup de gueule": "prise_de_position",
+    "Enquête / décryptage": "prise_de_position",
+    "Conseil contre-intuitif": "tips",
+    "Test grandeur nature": "etude_de_cas",
+    "Before / After": "before_after",
+    "Histoire cliente": "etude_de_cas",
+    "Regard philosophique": "prise_de_position",
+    "Surf sur l'actu": "prise_de_position",
+  };
+
+  const handleNavigateToGenerator = (mode: "generate" | "regenerate" | "view") => {
+    // Save first
+    handleSave();
+
+    const calendarId = editingPost?.id;
+    const params = new URLSearchParams();
+    if (calendarId) params.set("calendar_id", calendarId);
+
+    // Determine route based on format
+    const fmt = format || "post_carrousel";
+    if (fmt === "post_carrousel" || fmt === "carousel") {
+      // Also pass carousel type hint from angle
+      if (angle && ANGLE_TO_CAROUSEL[angle]) {
+        params.set("carousel_type", ANGLE_TO_CAROUSEL[angle]);
+      }
+      navigate(`/instagram/carousel?${params.toString()}`);
+    } else if (fmt === "reel") {
+      navigate(`/instagram/reels?${params.toString()}`);
+    } else if (fmt === "story_serie") {
+      navigate(`/instagram/stories?${params.toString()}`);
+    } else {
+      // Default: atelier for regular posts
+      navigate(`/atelier?canal=${postCanal || "instagram"}&${params.toString()}`);
+    }
+  };
+
   const handleViewStoriesSequence = () => {
     if (editingPost?.stories_sequence_id) {
       navigate("/instagram/stories", {
@@ -411,13 +451,49 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           {/* Separator */}
           <div className="border-t border-border" />
 
+          {/* Generate button — main CTA */}
+          {editingPost && theme.trim() && (
+            <div>
+              <label className="text-sm font-medium mb-2 block">✨ Générer</label>
+              {editingPost.generated_content_id ? (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleNavigateToGenerator("view")}
+                    variant="outline"
+                    className="flex-1 rounded-pill gap-1.5"
+                    size="sm"
+                  >
+                    👁️ Voir le contenu
+                  </Button>
+                  <Button
+                    onClick={() => handleNavigateToGenerator("regenerate")}
+                    variant="outline"
+                    className="flex-1 rounded-pill gap-1.5"
+                    size="sm"
+                  >
+                    <RefreshCw className="h-3 w-3" /> Régénérer
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => handleNavigateToGenerator("generate")}
+                  className="w-full rounded-pill gap-2"
+                  size="lg"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Générer le contenu →
+                </Button>
+              )}
+            </div>
+          )}
+
           {/* Rédaction section */}
           <div>
-            <label className="text-sm font-medium mb-2 block">✍️ Rédaction</label>
+            <label className="text-sm font-medium mb-2 block">✍️ Rédaction rapide</label>
 
             {!angle ? (
               <p className="text-xs italic text-muted-foreground">
-                💡 Choisis un angle pour débloquer la rédaction.
+                💡 Choisis un angle pour débloquer la rédaction rapide.
               </p>
             ) : contentDraft && !isEditing ? (
               /* Content exists - show preview */
@@ -484,7 +560,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             <Collapsible>
               <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors w-full">
                 <span>📝 Comment produire ce post</span>
-                <ChevronDown className="h-4 w-4 transition-transform [[data-state=open]>&]:rotate-180" />
+                <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3">
                 <ol className="space-y-3 text-[13px] leading-relaxed text-foreground">
@@ -501,8 +577,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
           {/* Actions */}
           <div className="flex gap-2 pt-2">
-            <Button onClick={handleSave} disabled={!theme.trim()} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux">
-              Enregistrer
+            <Button onClick={handleSave} disabled={!theme.trim()} variant="outline" className="flex-1 rounded-pill">
+              💾 Enregistrer
             </Button>
             {onUnplan && editingPost && (
               <Button variant="outline" size="icon" onClick={onUnplan} className="rounded-full text-muted-foreground hover:text-primary" title="Remettre en idée">
