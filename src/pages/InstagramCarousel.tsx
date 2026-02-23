@@ -7,13 +7,15 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ArrowLeft, ArrowRight, Copy, RefreshCw, CalendarDays, Sparkles, Check, AlertTriangle } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Copy, RefreshCw, CalendarDays, Sparkles, Check, AlertTriangle, SkipForward } from "lucide-react";
 import { toast } from "sonner";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { useSearchParams } from "react-router-dom";
 import { useFormPersist } from "@/hooks/use-form-persist";
 import { DraftRestoredBanner } from "@/components/DraftRestoredBanner";
+import MicButton from "@/components/MicButton";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 
 // ── Types ──
 interface CarouselType {
@@ -41,6 +43,10 @@ interface TopicSuggestion {
   subject: string; why_now: string; angle: string;
 }
 
+interface AngleSuggestion {
+  id: string; emoji: string; title: string; description: string;
+}
+
 // ── Constants ──
 const CAROUSEL_TYPES: CarouselType[] = [
   { id: "tips", emoji: "💡", label: "Tips / Astuces", desc: "Conseils pratiques", difficulty: "Facile", slides: "5-7" },
@@ -64,17 +70,97 @@ const OBJECTIVES = [
   { id: "community", emoji: "💛", label: "Communauté (lien)" },
 ];
 
+// ── Deepening questions per carousel type ──
+const DEEPENING_QUESTIONS: Record<string, { question: string; placeholder: string }[]> = {
+  prise_de_position: [
+    { question: "C'est quoi le truc qui t'énerve ou que tu veux déconstruire sur ce sujet ? Le mythe, l'idée reçue, le cliché que tu veux combattre.", placeholder: "Le mythe, l'idée reçue, le cliché..." },
+    { question: "Quelle est TA position ? En une phrase, ce que tu défends vraiment.", placeholder: "Ce que tu défends..." },
+    { question: "Tu as un exemple concret, une anecdote ou un vécu qui illustre ta position ?", placeholder: "Une anecdote, un moment client, un vécu..." },
+  ],
+  tips: [
+    { question: "Quel problème concret tu résous avec ces tips ? La galère que ta cible vit au quotidien.", placeholder: "La galère que ta cible vit..." },
+    { question: "Quel est LE tip le plus contre-intuitif ou surprenant que tu veux partager ?", placeholder: "Le tip qui surprend..." },
+    { question: "Il y a une erreur courante que ta cible fait sur ce sujet ?", placeholder: "L'erreur classique..." },
+  ],
+  tutoriel: [
+    { question: "Quel problème concret tu résous avec ces tips ? La galère que ta cible vit au quotidien.", placeholder: "La galère que ta cible vit..." },
+    { question: "Quel est LE tip le plus contre-intuitif ou surprenant que tu veux partager ?", placeholder: "Le tip qui surprend..." },
+    { question: "Il y a une erreur courante que ta cible fait sur ce sujet ?", placeholder: "L'erreur classique..." },
+  ],
+  storytelling: [
+    { question: "Raconte-moi le moment déclencheur. Le jour, la scène, ce qui s'est passé.", placeholder: "Le moment, la scène..." },
+    { question: "Qu'est-ce que tu as ressenti à ce moment-là ? Et qu'est-ce que ça a changé ensuite ?", placeholder: "Ce que tu as ressenti..." },
+    { question: "Quel est le message ou la leçon que tu veux que les gens retiennent de cette histoire ?", placeholder: "La leçon à retenir..." },
+  ],
+  etude_de_cas: [
+    { question: "C'est qui cette cliente ? Son contexte, sa situation de départ (sans la nommer si elle ne veut pas).", placeholder: "Son contexte, sa situation..." },
+    { question: "Qu'est-ce que vous avez fait concrètement ensemble ? Les actions clés.", placeholder: "Les actions concrètes..." },
+    { question: "Le résultat ? Qu'est-ce qui a changé pour elle ? (concret, pas juste 'elle est contente')", placeholder: "Les résultats concrets..." },
+  ],
+  mythe_realite: [
+    { question: "C'est quoi le mythe que tu veux exploser ? La croyance que tout le monde répète.", placeholder: "Le mythe à déconstruire..." },
+    { question: "Pourquoi c'est faux ? Ton argument principal.", placeholder: "Ton argument..." },
+    { question: "Quelle est la réalité alternative que tu proposes ?", placeholder: "La réalité que tu défends..." },
+  ],
+  before_after: [
+    { question: "Décris le AVANT : la situation galère, le problème concret, ce que ça fait au quotidien.", placeholder: "La situation avant..." },
+    { question: "Décris le APRÈS : ce qui a changé, le résultat concret, le nouveau quotidien.", placeholder: "La situation après..." },
+    { question: "Qu'est-ce qui a permis cette transformation ? Le déclic ou l'action clé.", placeholder: "Le déclic..." },
+  ],
+  checklist: [
+    { question: "C'est quoi le thème exact de ta liste ? Pour qui et dans quel contexte ?", placeholder: "Le thème, pour qui..." },
+    { question: "Donne-moi 3-4 éléments que tu veux absolument inclure.", placeholder: "Les éléments clés..." },
+    { question: "Il y a un élément surprise ou peu connu que tu voudrais ajouter ?", placeholder: "L'élément surprise..." },
+  ],
+  comparatif: [
+    { question: "C'est quoi les 2 options que tu compares ? Et dans quel contexte ?", placeholder: "Option A vs Option B..." },
+    { question: "Pour toi, quelle est la meilleure option et pourquoi ?", placeholder: "Ton verdict..." },
+    { question: "Il y a un critère que les gens oublient souvent dans cette comparaison ?", placeholder: "Le critère oublié..." },
+  ],
+  promo: [
+    { question: "Quel est le problème n°1 que ton offre résout ?", placeholder: "Le problème principal..." },
+    { question: "C'est quoi le résultat concret qu'une cliente peut attendre ?", placeholder: "Le résultat attendu..." },
+    { question: "Tu as un témoignage ou un résultat chiffré à partager ?", placeholder: "Témoignage, résultat..." },
+  ],
+  coulisses: [
+    { question: "C'est les coulisses de quoi exactement ?", placeholder: "Les coulisses de..." },
+    { question: "Quel aspect surprendrait le plus les gens ?", placeholder: "Ce qui surprendrait..." },
+  ],
+  photo_dump: [
+    { question: "C'est quoi l'ambiance / le moment que tu veux transmettre ?", placeholder: "L'ambiance, le moment..." },
+    { question: "Il y a un message derrière ces photos ?", placeholder: "Le message..." },
+  ],
+};
+
+// Fallback questions
+const DEFAULT_QUESTIONS = [
+  { question: "Quel message tu veux faire passer avec ce carrousel ?", placeholder: "Le message principal..." },
+  { question: "Tu as un vécu ou un exemple concret à partager ?", placeholder: "Une anecdote, un exemple..." },
+  { question: "Qu'est-ce que tu veux que les gens fassent après ?", placeholder: "Le CTA, l'action..." },
+];
+
 export default function InstagramCarousel() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
 
-  // Flow: 1=type, 2=context, 3=hooks+structure, 4=slides, 5=caption
+  // Flow: 1=type, 2=context, 3=deepening questions, 4=angles, 5=hooks+structure, 6=slides+caption
   const [step, setStep] = useState(1);
   const [carouselType, setCarouselType] = useState("");
   const [objective, setObjective] = useState("");
   const [subject, setSubject] = useState("");
   const [selectedOffer, setSelectedOffer] = useState("");
   const [slideCount, setSlideCount] = useState(7);
+  
+  // Deepening questions state
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [deepeningAnswers, setDeepeningAnswers] = useState<Record<string, string>>({});
+  const [activeMicField, setActiveMicField] = useState<string | null>(null);
+  
+  // Angles state
+  const [angles, setAngles] = useState<AngleSuggestion[]>([]);
+  const [chosenAngle, setChosenAngle] = useState<AngleSuggestion | null>(null);
+  
+  // Hooks & slides state
   const [hooks, setHooks] = useState<Hook[]>([]);
   const [selectedHook, setSelectedHook] = useState("");
   const [customHook, setCustomHook] = useState("");
@@ -90,6 +176,26 @@ export default function InstagramCarousel() {
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
   const [calendarPostId, setCalendarPostId] = useState<string | null>(null);
 
+  // Speech recognition for deepening questions
+  const { isListening, isSupported, toggle, error: micError } = useSpeechRecognition((text) => {
+    if (activeMicField) {
+      setDeepeningAnswers(prev => ({
+        ...prev,
+        [activeMicField]: (prev[activeMicField] || "") + (prev[activeMicField] ? " " : "") + text,
+      }));
+    }
+  });
+
+  const handleMic = (field: string) => {
+    if (isListening && activeMicField === field) {
+      toggle();
+      return;
+    }
+    if (isListening) toggle();
+    setActiveMicField(field);
+    setTimeout(() => toggle(), 50);
+  };
+
   // Objective mapping from calendar objectifs to carousel objectives
   const OBJECTIF_TO_CAROUSEL: Record<string, string> = {
     visibilite: "shares",
@@ -103,7 +209,6 @@ export default function InstagramCarousel() {
     "carousel-form",
     { step, carouselType, objective, subject, selectedOffer, slideCount },
     (saved) => {
-      // Don't restore draft if we're coming from calendar
       if (searchParams.get("calendar_id")) return;
       if (saved.carouselType) setCarouselType(saved.carouselType);
       if (saved.objective) setObjective(saved.objective);
@@ -140,16 +245,14 @@ export default function InstagramCarousel() {
       setCalendarPostId(post.id);
       if (post.theme) setSubject(post.theme);
 
-      // Map objectif
       if (post.objectif && OBJECTIF_TO_CAROUSEL[post.objectif]) {
         setObjective(OBJECTIF_TO_CAROUSEL[post.objectif]);
       }
 
-      // Map angle to carousel type
       const carouselTypeParam = searchParams.get("carousel_type");
       if (carouselTypeParam) {
         setCarouselType(carouselTypeParam);
-        setStep(2); // Skip type selection
+        setStep(2);
       } else if (post.angle) {
         const ANGLE_MAP: Record<string, string> = {
           "Storytelling": "storytelling",
@@ -165,11 +268,10 @@ export default function InstagramCarousel() {
         };
         if (ANGLE_MAP[post.angle]) {
           setCarouselType(ANGLE_MAP[post.angle]);
-          setStep(2); // Skip type selection
+          setStep(2);
         }
       }
 
-      // Pre-fill notes into subject if subject is empty
       if (!post.theme && post.notes) {
         setSubject(post.notes);
       }
@@ -179,21 +281,46 @@ export default function InstagramCarousel() {
   }, [user?.id, searchParams]);
 
   const typeObj = CAROUSEL_TYPES.find(t => t.id === carouselType);
+  const questions = DEEPENING_QUESTIONS[carouselType] || DEFAULT_QUESTIONS;
 
   // ── API calls ──
+  const handleGenerateAngles = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("carousel-ai", {
+        body: { type: "suggest_angles", carousel_type: carouselType, subject, objective, deepening_answers: deepeningAnswers },
+      });
+      if (error) throw error;
+      const raw = data?.content || "";
+      const jsonStr = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+      const parsed = JSON.parse(jsonStr);
+      setAngles(parsed.angles || []);
+      setStep(4);
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Erreur lors de la suggestion d'angles.");
+    }
+    setLoading(false);
+  };
+
   const handleGenerateHooks = async () => {
     if (!user || !subject.trim()) return;
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("carousel-ai", {
-        body: { type: "hooks", carousel_type: carouselType, subject, objective, slide_count: slideCount },
+        body: {
+          type: "hooks", carousel_type: carouselType, subject, objective, slide_count: slideCount,
+          deepening_answers: Object.values(deepeningAnswers).some(v => v.trim()) ? deepeningAnswers : undefined,
+          chosen_angle: chosenAngle || undefined,
+        },
       });
       if (error) throw error;
       const raw = data?.content || "";
       const jsonStr = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
       const parsed = JSON.parse(jsonStr);
       setHooks(parsed.hooks || []);
-      setStep(3);
+      setStep(5);
     } catch (e: any) {
       console.error(e);
       toast.error("Erreur lors de la génération des accroches.");
@@ -213,6 +340,8 @@ export default function InstagramCarousel() {
           type: "slides", carousel_type: carouselType, subject, objective,
           selected_hook: hookText, slide_count: slideCount,
           selected_offer: offerCtx ? `${offerCtx.name} (${offerCtx.price_text || "gratuit"})` : null,
+          deepening_answers: Object.values(deepeningAnswers).some(v => v.trim()) ? deepeningAnswers : undefined,
+          chosen_angle: chosenAngle || undefined,
         },
       });
       if (error) throw error;
@@ -224,7 +353,6 @@ export default function InstagramCarousel() {
       setQualityCheck(parsed.quality_check || null);
       setPublishingTip(parsed.publishing_tip || "");
 
-      // Save to DB
       const insertRes = await supabase.from("generated_carousels" as any).insert({
         user_id: user.id, carousel_type: carouselType, subject, objective,
         hook_text: hookText, slide_count: slideCount,
@@ -233,7 +361,6 @@ export default function InstagramCarousel() {
         calendar_post_id: calendarPostId || null,
       }).select("id").single();
 
-      // Update calendar post if linked
       if (calendarPostId && insertRes.data) {
         await supabase.from("calendar_posts").update({
           status: "ready",
@@ -245,8 +372,8 @@ export default function InstagramCarousel() {
         }).eq("id", calendarPostId);
       }
 
-      setStep(4);
-      clearDraft(); // Clear sessionStorage draft after successful generation
+      setStep(6);
+      clearDraft();
     } catch (e: any) {
       console.error(e);
       toast.error("Erreur lors de la génération du carrousel.");
@@ -276,6 +403,20 @@ export default function InstagramCarousel() {
       toast.error("Erreur lors de la suggestion de sujets.");
     }
     setLoadingTopics(false);
+  };
+
+  const handleSkipQuestions = () => {
+    // Skip questions and angles, go directly to hooks
+    handleGenerateHooks();
+  };
+
+  const handleNextQuestion = () => {
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(prev => prev + 1);
+    } else {
+      // All questions answered → generate angles
+      handleGenerateAngles();
+    }
   };
 
   const handleCopyAll = () => {
@@ -318,22 +459,30 @@ export default function InstagramCarousel() {
     return "text-muted-foreground";
   };
 
+  const totalSteps = 6;
+  const stepLabels = ["Type", "Contexte", "Questions", "Angle", "Accroche", "Carrousel"];
+
   // ── Loading state ──
   if (loading) {
+    const loadingMessages: Record<number, string> = {
+      3: "L'IA analyse tes réponses et propose des angles...",
+      4: "L'IA prépare tes accroches...",
+      5: "L'IA rédige ton carrousel...",
+    };
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-16 text-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">{step < 4 ? "L'IA prépare tes accroches..." : "L'IA rédige ton carrousel..."}</p>
+          <p className="text-muted-foreground">{loadingMessages[step] || "L'IA travaille..."}</p>
           <p className="text-xs text-muted-foreground mt-2">✨ Ça peut prendre quelques secondes.</p>
         </main>
       </div>
     );
   }
 
-  // ═══ STEP 4+5: SLIDES RESULT + CAPTION ═══
-  if (step >= 4 && slides.length > 0) {
+  // ═══ STEP 6: SLIDES RESULT + CAPTION ═══
+  if (step >= 6 && slides.length > 0) {
     const fullCaptionText = caption ? `${caption.hook}\n\n${caption.body}\n\n${caption.cta}` : "";
     const captionWords = countWords(fullCaptionText);
     const hashtagCount = caption?.hashtags?.length || 0;
@@ -348,8 +497,11 @@ export default function InstagramCarousel() {
             <div>
               <h1 className="font-display text-2xl font-bold text-foreground">🎠 Ton carrousel</h1>
               <p className="mt-1 text-sm text-muted-foreground">{typeObj?.emoji} {typeObj?.label} · {slides.length} slides · Objectif : {OBJECTIVES.find(o => o.id === objective)?.label}</p>
+              {chosenAngle && (
+                <p className="text-xs text-primary mt-0.5">{chosenAngle.emoji} Angle : {chosenAngle.title}</p>
+              )}
             </div>
-            <Button variant="outline" size="sm" onClick={() => { setStep(1); setSlides([]); setHooks([]); setCaption(null); }} className="gap-1.5 text-xs">
+            <Button variant="outline" size="sm" onClick={() => { setStep(1); setSlides([]); setHooks([]); setCaption(null); setAngles([]); setChosenAngle(null); setDeepeningAnswers({}); setCurrentQuestion(0); }} className="gap-1.5 text-xs">
               <RefreshCw className="h-3.5 w-3.5" /> Nouveau
             </Button>
           </div>
@@ -464,7 +616,7 @@ export default function InstagramCarousel() {
               <Button size="sm" variant="outline" onClick={() => setShowIdeasDialog(true)} className="rounded-full gap-1.5 text-xs">
                 💾 Sauvegarder
               </Button>
-              <Button size="sm" variant="outline" onClick={() => { setStep(3); setSlides([]); setCaption(null); }} className="rounded-full gap-1.5 text-xs">
+              <Button size="sm" variant="outline" onClick={() => { setStep(5); setSlides([]); setCaption(null); }} className="rounded-full gap-1.5 text-xs">
                 <RefreshCw className="h-3.5 w-3.5" /> Régénérer
               </Button>
             </div>
@@ -492,14 +644,14 @@ export default function InstagramCarousel() {
     );
   }
 
-  // ═══ STEP 3: HOOKS + STRUCTURE ═══
-  if (step === 3) {
+  // ═══ STEP 5: HOOKS + STRUCTURE ═══
+  if (step === 5) {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 animate-fade-in">
           <SubPageHeader parentLabel="Créer" parentTo="/instagram/creer" currentLabel="Carrousel" useFromParam breadcrumbs={[{ label: "Dashboard", to: "/dashboard" }, { label: "Créer", to: "/instagram/creer" }]} />
-          <ProgressBar step={3} />
+          <ProgressBar step={5} total={totalSteps} labels={stepLabels} />
 
           <h2 className="font-display text-xl font-bold text-foreground mb-1">🎠 Structure & accroche</h2>
           <p className="text-sm text-muted-foreground mb-6">Choisis ton hook et ajuste le nombre de slides.</p>
@@ -555,12 +707,143 @@ export default function InstagramCarousel() {
           </div>
 
           <div className="flex items-center justify-between">
-            <Button variant="ghost" size="sm" onClick={() => setStep(2)} className="gap-1.5">
+            <Button variant="ghost" size="sm" onClick={() => setStep(chosenAngle ? 4 : 2)} className="gap-1.5">
               <ArrowLeft className="h-4 w-4" /> Retour
             </Button>
             <Button onClick={handleGenerateSlides} disabled={!selectedHook && !customHook.trim()} className="rounded-full gap-1.5">
               Générer le carrousel <ArrowRight className="h-4 w-4" />
             </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // ═══ STEP 4: ANGLES ═══
+  if (step === 4) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 animate-fade-in">
+          <SubPageHeader parentLabel="Créer" parentTo="/instagram/creer" currentLabel="Carrousel" useFromParam breadcrumbs={[{ label: "Dashboard", to: "/dashboard" }, { label: "Créer", to: "/instagram/creer" }]} />
+          <ProgressBar step={4} total={totalSteps} labels={stepLabels} />
+
+          <h2 className="font-display text-xl font-bold text-foreground mb-1">🎯 Choisis un angle</h2>
+          <p className="text-sm text-muted-foreground mb-6">D'après ce que tu m'as dit, voilà 3 façons d'aborder ce sujet :</p>
+
+          <div className="space-y-3 mb-6">
+            {angles.map((angle) => (
+              <button
+                key={angle.id}
+                onClick={() => {
+                  setChosenAngle(angle);
+                  handleGenerateHooks();
+                }}
+                className="w-full rounded-2xl border-2 border-border bg-card p-5 text-left transition-all hover:border-primary hover:shadow-md group"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">{angle.emoji}</span>
+                  <div>
+                    <p className="font-display font-bold text-foreground group-hover:text-primary transition-colors">{angle.title}</p>
+                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{angle.description}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" size="sm" onClick={() => { setStep(3); setCurrentQuestion(0); }} className="gap-1.5">
+              <ArrowLeft className="h-4 w-4" /> Retour
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleGenerateAngles} className="rounded-full gap-1.5 text-xs">
+              <RefreshCw className="h-3.5 w-3.5" /> Propose-moi d'autres angles
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // ═══ STEP 3: DEEPENING QUESTIONS ═══
+  if (step === 3) {
+    const q = questions[currentQuestion];
+    const fieldKey = `q${currentQuestion + 1}`;
+    const currentAnswer = deepeningAnswers[fieldKey] || "";
+
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 animate-fade-in">
+          <SubPageHeader parentLabel="Créer" parentTo="/instagram/creer" currentLabel="Carrousel" useFromParam breadcrumbs={[{ label: "Dashboard", to: "/dashboard" }, { label: "Créer", to: "/instagram/creer" }]} />
+          <ProgressBar step={3} total={totalSteps} labels={stepLabels} />
+
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                  💬 Avant de rédiger, quelques questions
+                </h2>
+                <span className="text-xs text-muted-foreground font-mono">{step}/{totalSteps}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {typeObj?.emoji} {typeObj?.label} · Pour que le contenu soit vraiment à toi (pas un truc générique).
+              </p>
+            </div>
+
+            {/* Question indicator */}
+            <div className="flex items-center gap-1.5">
+              {questions.map((_, i) => (
+                <div key={i} className={`h-1.5 rounded-full flex-1 transition-colors ${i <= currentQuestion ? "bg-primary" : "bg-muted"}`} />
+              ))}
+              <span className="text-xs text-muted-foreground ml-2">Question {currentQuestion + 1}/{questions.length}</span>
+            </div>
+
+            {/* Current question */}
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-foreground leading-relaxed">
+                🤔 {q.question}
+              </p>
+              <div className="relative">
+                <TextareaWithVoice
+                  value={currentAnswer}
+                  onChange={(e) => setDeepeningAnswers(prev => ({ ...prev, [fieldKey]: e.target.value }))}
+                  placeholder={q.placeholder}
+                  className="min-h-[100px]"
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-2">
+              <Button
+                variant="ghost" size="sm"
+                onClick={() => {
+                  if (currentQuestion > 0) setCurrentQuestion(prev => prev - 1);
+                  else setStep(2);
+                }}
+                className="gap-1.5"
+              >
+                <ArrowLeft className="h-4 w-4" /> {currentQuestion > 0 ? "Précédent" : "Retour"}
+              </Button>
+              <Button onClick={handleNextQuestion} className="rounded-full gap-1.5">
+                {currentQuestion < questions.length - 1 ? (
+                  <>Suivant <ArrowRight className="h-4 w-4" /></>
+                ) : (
+                  <>Proposer des angles <Sparkles className="h-4 w-4" /></>
+                )}
+              </Button>
+            </div>
+
+            {/* Skip button */}
+            <div className="text-center pt-1">
+              <button
+                onClick={handleSkipQuestions}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
+              >
+                <SkipForward className="h-3 w-3" /> Passer les questions, générer directement
+              </button>
+            </div>
           </div>
         </main>
       </div>
@@ -574,7 +857,7 @@ export default function InstagramCarousel() {
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 animate-fade-in">
           <SubPageHeader parentLabel="Créer" parentTo="/instagram/creer" currentLabel="Carrousel" useFromParam breadcrumbs={[{ label: "Dashboard", to: "/dashboard" }, { label: "Créer", to: "/instagram/creer" }]} />
-          <ProgressBar step={2} />
+          <ProgressBar step={2} total={totalSteps} labels={stepLabels} />
 
           <h2 className="font-display text-xl font-bold text-foreground mb-1">🎠 Contexte du carrousel</h2>
           <p className="text-sm text-muted-foreground mb-6">{typeObj?.emoji} {typeObj?.label}</p>
@@ -652,7 +935,7 @@ export default function InstagramCarousel() {
             <Button variant="ghost" size="sm" onClick={() => setStep(1)} className="gap-1.5">
               <ArrowLeft className="h-4 w-4" /> Retour
             </Button>
-            <Button onClick={handleGenerateHooks} disabled={!subject.trim() || !objective} className="rounded-full gap-1.5">
+            <Button onClick={() => { setStep(3); setCurrentQuestion(0); }} disabled={!subject.trim() || !objective} className="rounded-full gap-1.5">
               Suivant <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
@@ -667,7 +950,7 @@ export default function InstagramCarousel() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 animate-fade-in">
         <SubPageHeader parentLabel="Créer" parentTo="/instagram/creer" currentLabel="Carrousel" useFromParam breadcrumbs={[{ label: "Dashboard", to: "/dashboard" }, { label: "Créer", to: "/instagram/creer" }]} />
-        <ProgressBar step={1} />
+        <ProgressBar step={1} total={totalSteps} labels={stepLabels} />
 
         <h2 className="font-display text-xl font-bold text-foreground mb-1">🎠 Quel type de carrousel ?</h2>
         <p className="text-sm text-muted-foreground mb-4">Chaque format a sa structure optimale.</p>
@@ -707,17 +990,15 @@ export default function InstagramCarousel() {
 
 // ── Sub-components ──
 
-function ProgressBar({ step }: { step: number }) {
-  const steps = ["Type", "Contexte", "Accroche", "Slides", "Caption"];
+function ProgressBar({ step, total, labels }: { step: number; total: number; labels: string[] }) {
   return (
     <div className="flex items-center gap-1 mb-6">
-      {steps.map((s, i) => (
+      {labels.map((s, i) => (
         <div key={s} className="flex items-center gap-1 flex-1">
           <div className={`h-1.5 rounded-full flex-1 transition-colors ${i + 1 <= step ? "bg-primary" : "bg-muted"}`} />
-          {i < steps.length - 1 && <div className="w-0" />}
         </div>
       ))}
-      <span className="text-xs text-muted-foreground ml-2 shrink-0">{step}/5</span>
+      <span className="text-xs text-muted-foreground ml-2 shrink-0">{step}/{total}</span>
     </div>
   );
 }

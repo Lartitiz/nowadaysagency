@@ -36,7 +36,7 @@ serve(async (req) => {
     const body = await req.json();
     const { type } = body;
 
-    const category = type === "suggest_topics" ? "suggestion" : "content";
+    const category = (type === "suggest_topics" || type === "suggest_angles") ? "suggestion" : "content";
     const quotaCheck = await checkQuota(user.id, category);
     if (!quotaCheck.allowed) {
       return new Response(
@@ -57,6 +57,8 @@ serve(async (req) => {
       userPrompt = buildSlidesPrompt(body);
     } else if (type === "suggest_topics") {
       userPrompt = buildSuggestTopicsPrompt(body);
+    } else if (type === "suggest_angles") {
+      userPrompt = buildSuggestAnglesPrompt(body);
     } else {
       return new Response(JSON.stringify({ error: "Type invalide" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -124,19 +126,35 @@ RETOURNE UNIQUEMENT un JSON valide, sans texte avant ou après, sans backticks.`
 }
 
 function buildHooksPrompt(body: any): string {
-  const { carousel_type, subject, objective, slide_count } = body;
+  const { carousel_type, subject, objective, slide_count, deepening_answers, chosen_angle } = body;
+  
+  let deepeningCtx = "";
+  if (deepening_answers) {
+    const answers = Object.entries(deepening_answers)
+      .filter(([, v]) => v && (v as string).trim())
+      .map(([k, v]) => `- ${k}: ${v}`)
+      .join("\n");
+    if (answers) deepeningCtx = `\nRÉPONSES DE L'UTILISATRICE (utilise son vécu, ses mots, ses exemples) :\n${answers}\n`;
+  }
+
+  let angleCtx = "";
+  if (chosen_angle) {
+    angleCtx = `\nANGLE CHOISI : "${chosen_angle.title}" — ${chosen_angle.description}\nLes hooks DOIVENT coller à cet angle.\n`;
+  }
+
   return `DEMANDE : Propose 3 accroches (hooks) pour un carrousel Instagram.
 
 Type de carrousel : ${carousel_type}
 Sujet : ${subject}
 Objectif : ${objective}
 Nombre de slides : ${slide_count || 7}
-
+${deepeningCtx}${angleCtx}
 RÈGLES HOOKS CARROUSEL :
 - MAXIMUM 12 MOTS par hook
 - Doit stopper le scroll
 - Spécifique au sujet, pas générique
 - 3 types DIFFÉRENTS de hooks
+${deepeningCtx ? "- ANCRE les hooks dans le vécu et les mots de l'utilisatrice" : ""}
 
 Retourne ce JSON exact :
 {
@@ -149,9 +167,23 @@ Retourne ce JSON exact :
 }
 
 function buildSlidesPrompt(body: any): string {
-  const { carousel_type, subject, objective, selected_hook, slide_count, selected_offer } = body;
+  const { carousel_type, subject, objective, selected_hook, slide_count, selected_offer, deepening_answers, chosen_angle } = body;
 
   const structureGuide = getStructureGuide(carousel_type);
+
+  let deepeningCtx = "";
+  if (deepening_answers) {
+    const answers = Object.entries(deepening_answers)
+      .filter(([, v]) => v && (v as string).trim())
+      .map(([k, v]) => `- ${k}: ${v}`)
+      .join("\n");
+    if (answers) deepeningCtx = `\nRÉPONSES DE L'UTILISATRICE (intègre son vécu, ses mots, ses exemples dans les slides) :\n${answers}\n`;
+  }
+
+  let angleCtx = "";
+  if (chosen_angle) {
+    angleCtx = `\nANGLE ÉDITORIAL CHOISI : "${chosen_angle.title}" — ${chosen_angle.description}\nLe carrousel DOIT suivre cet angle.\n`;
+  }
 
   return `DEMANDE : Générer un carrousel Instagram complet, slide par slide.
 
@@ -161,7 +193,7 @@ Objectif : ${objective}
 Hook choisi : "${selected_hook}"
 Nombre de slides : ${slide_count || 7}
 ${selected_offer ? `Offre à mentionner : ${selected_offer}` : "Pas d'offre à mentionner."}
-
+${deepeningCtx}${angleCtx}
 STRUCTURE RECOMMANDÉE POUR CE TYPE :
 ${structureGuide}
 
@@ -173,6 +205,7 @@ RÈGLES :
 - Headlines de 4-7 mots, commencer par un verbe d'action
 - Caption différente du hook slide 1
 - Hashtags : 3-8, mix large + niche
+${deepeningCtx ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}
 
 Retourne ce JSON exact :
 {
@@ -226,6 +259,40 @@ Retourne ce JSON exact :
     { "subject": "...", "why_now": "...", "angle": "..." },
     { "subject": "...", "why_now": "...", "angle": "..." },
     { "subject": "...", "why_now": "...", "angle": "..." }
+  ]
+}`;
+}
+
+function buildSuggestAnglesPrompt(body: any): string {
+  const { carousel_type, subject, objective, deepening_answers } = body;
+
+  let deepeningCtx = "";
+  if (deepening_answers) {
+    const answers = Object.entries(deepening_answers)
+      .filter(([, v]) => v && (v as string).trim())
+      .map(([k, v]) => `- ${k}: ${v}`)
+      .join("\n");
+    if (answers) deepeningCtx = `\nRÉPONSES DE L'UTILISATRICE :\n${answers}\n`;
+  }
+
+  return `DEMANDE : Propose 3 angles éditoriaux pour un carrousel Instagram, basés sur les réponses de l'utilisatrice.
+
+Type de carrousel : ${carousel_type}
+Sujet : ${subject}
+Objectif : ${objective}
+${deepeningCtx}
+
+Chaque angle doit être :
+- DIFFÉRENT des autres (approche narrative, ton, structure)
+- ANCRÉ dans les réponses de l'utilisatrice (utilise ses mots, son vécu)
+- CONCRET (pas juste "angle personnel" mais comment concrètement)
+
+Retourne ce JSON exact :
+{
+  "angles": [
+    { "id": "A", "emoji": "🔥", "title": "Titre court de l'angle (3-5 mots)", "description": "2 phrases max décrivant comment le carrousel serait construit avec cet angle." },
+    { "id": "B", "emoji": "📖", "title": "...", "description": "..." },
+    { "id": "C", "emoji": "🎯", "title": "...", "description": "..." }
   ]
 }`;
 }
