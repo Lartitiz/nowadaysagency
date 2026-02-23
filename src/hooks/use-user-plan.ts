@@ -59,24 +59,22 @@ interface UserPlanState {
 
 export function useUserPlan(): UserPlanState {
   const { user } = useAuth();
-  const { isDemoMode, demoData } = useDemoContext();
-  const [plan, setPlan] = useState<Plan>(isDemoMode ? "now_pilot" : "free");
+  const { isDemoMode, demoData, demoPlan } = useDemoContext();
+  const demoPlanResolved: Plan = isDemoMode ? (demoPlan as Plan) : "free";
+  const [plan, setPlan] = useState<Plan>(isDemoMode ? demoPlanResolved : "free");
   const [usage, setUsage] = useState<Record<string, CategoryUsage>>(() => {
     if (isDemoMode) {
-      return {
-        content: { used: 8, limit: 150 },
-        audit: { used: 1, limit: 15 },
-        dm_comment: { used: 4, limit: 50 },
-        bio_profile: { used: 1, limit: 15 },
-        suggestion: { used: 2, limit: 30 },
-        import: { used: 0, limit: 10 },
-        adaptation: { used: 0, limit: 30 },
-        total: { used: demoData?.profile?.credits_used ?? 16, limit: demoData?.profile?.credits_monthly ?? 300 },
-      };
+      return getDemoUsage(demoPlan, demoData);
     }
     return {};
   });
   const [loading, setLoading] = useState(!isDemoMode);
+
+  // Update usage when demoPlan changes
+  useEffect(() => {
+    if (!isDemoMode) return;
+    setUsage(getDemoUsage(demoPlan, demoData));
+  }, [isDemoMode, demoPlan, demoData]);
 
   const load = useCallback(async () => {
     if (isDemoMode || !user) {
@@ -102,9 +100,11 @@ export function useUserPlan(): UserPlanState {
     load();
   }, [load]);
 
+  const effectivePlan: Plan = isDemoMode ? demoPlanResolved : plan;
+
   const canUseFeature = useCallback(
     (feature: Feature) => {
-      const p = isDemoMode ? "now_pilot" : plan;
+      const p = isDemoMode ? demoPlanResolved : plan;
       switch (p) {
         case "now_pilot": return NOW_PILOT_FEATURES.includes(feature);
         case "studio": return STUDIO_FEATURES.includes(feature);
@@ -112,42 +112,43 @@ export function useUserPlan(): UserPlanState {
         default: return FREE_FEATURES.includes(feature);
       }
     },
-    [plan, isDemoMode]
+    [plan, isDemoMode, demoPlanResolved]
   );
 
   const canGenerate = useCallback((category: AiCategory = "content") => {
-    if (isDemoMode) return true;
+    if (isDemoMode && demoPlan === "now_pilot") return true;
     const cat = usage[category];
     const total = usage.total;
     if (!cat || !total) return true;
     if (cat.limit === 0) return false;
     return cat.used < cat.limit && total.used < total.limit;
-  }, [usage, isDemoMode]);
+  }, [usage, isDemoMode, demoPlan]);
 
   const canAudit = useCallback(() => {
     return canGenerate("audit");
   }, [canGenerate]);
 
   const remainingGenerations = useCallback((category: AiCategory = "content") => {
-    if (isDemoMode) return 100;
+    if (isDemoMode && demoPlan === "now_pilot") return 100;
     const cat = usage[category];
     if (!cat) return Infinity;
     return Math.max(0, cat.limit - cat.used);
-  }, [usage, isDemoMode]);
+  }, [usage, isDemoMode, demoPlan]);
 
   const remainingAudits = useCallback(() => {
     return remainingGenerations("audit");
   }, [remainingGenerations]);
 
   const remainingTotal = useCallback(() => {
-    if (isDemoMode) return 284;
+    if (isDemoMode && demoPlan === "now_pilot") return 284;
+    if (isDemoMode && demoPlan === "free") return 2;
     const total = usage.total;
     if (!total) return Infinity;
     return Math.max(0, total.limit - total.used);
-  }, [usage, isDemoMode]);
+  }, [usage, isDemoMode, demoPlan]);
 
   return {
-    plan: isDemoMode ? "now_pilot" : plan,
+    plan: effectivePlan,
     loading,
     usage,
     canUseFeature,
@@ -156,9 +157,34 @@ export function useUserPlan(): UserPlanState {
     remainingGenerations,
     remainingAudits,
     remainingTotal,
-    isPaid: isDemoMode || plan !== "free",
+    isPaid: (isDemoMode && demoPlan === "now_pilot") || (!isDemoMode && plan !== "free"),
     isStudio: !isDemoMode && plan === "studio",
-    isPilot: isDemoMode || plan === "now_pilot",
+    isPilot: (isDemoMode && demoPlan === "now_pilot") || (!isDemoMode && plan === "now_pilot"),
     refresh: load,
+  };
+}
+
+function getDemoUsage(demoPlan: string, demoData: any): Record<string, CategoryUsage> {
+  if (demoPlan === "free") {
+    return {
+      content: { used: 8, limit: 10 },
+      audit: { used: 1, limit: 1 },
+      dm_comment: { used: 0, limit: 0 },
+      bio_profile: { used: 1, limit: 3 },
+      suggestion: { used: 0, limit: 0 },
+      import: { used: 0, limit: 0 },
+      adaptation: { used: 0, limit: 0 },
+      total: { used: 8, limit: 10 },
+    };
+  }
+  return {
+    content: { used: 8, limit: 150 },
+    audit: { used: 1, limit: 15 },
+    dm_comment: { used: 4, limit: 50 },
+    bio_profile: { used: 1, limit: 15 },
+    suggestion: { used: 2, limit: 30 },
+    import: { used: 0, limit: 10 },
+    adaptation: { used: 0, limit: 30 },
+    total: { used: demoData?.profile?.credits_used ?? 16, limit: demoData?.profile?.credits_monthly ?? 300 },
   };
 }

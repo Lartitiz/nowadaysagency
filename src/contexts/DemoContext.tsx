@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from "react";
 import { DEMO_DATA, type DemoDataType } from "@/lib/demo-data";
 
+export type DemoPlan = "free" | "now_pilot";
+
 export interface DemoData {
   profile: { first_name: string; activity: string; activity_type?: string };
   branding: {
@@ -57,6 +59,8 @@ interface DemoContextType {
   demoName: string;
   demoActivity: string;
   demoCoaching: typeof DEMO_COACHING;
+  demoPlan: DemoPlan;
+  setDemoPlan: (plan: DemoPlan) => void;
   showDemoOnboarding: boolean;
   activateDemo: () => void;
   skipDemoOnboarding: () => void;
@@ -68,10 +72,12 @@ const DemoContext = createContext<DemoContextType | undefined>(undefined);
 export function DemoProvider({ children }: { children: ReactNode }) {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [showDemoOnboarding, setShowDemoOnboarding] = useState(true);
+  const [demoPlan, setDemoPlan] = useState<DemoPlan>("now_pilot");
 
   const activateDemo = useCallback(() => {
     setIsDemoMode(true);
     setShowDemoOnboarding(true);
+    setDemoPlan("now_pilot");
   }, []);
 
   const skipDemoOnboarding = useCallback(() => {
@@ -81,6 +87,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const deactivateDemo = useCallback(() => {
     setIsDemoMode(false);
     setShowDemoOnboarding(true);
+    setDemoPlan("now_pilot");
   }, []);
 
   const value = useMemo<DemoContextType>(
@@ -90,12 +97,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       demoName: isDemoMode ? DEMO_DATA.profile.first_name : "",
       demoActivity: isDemoMode ? DEMO_DATA.profile.activity : "",
       demoCoaching: DEMO_COACHING,
+      demoPlan,
+      setDemoPlan,
       showDemoOnboarding: isDemoMode && showDemoOnboarding,
       activateDemo,
       skipDemoOnboarding,
       deactivateDemo,
     }),
-    [isDemoMode, showDemoOnboarding, activateDemo, skipDemoOnboarding, deactivateDemo]
+    [isDemoMode, showDemoOnboarding, demoPlan, activateDemo, skipDemoOnboarding, deactivateDemo]
   );
 
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;
