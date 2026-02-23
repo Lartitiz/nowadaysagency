@@ -169,7 +169,7 @@ export default function AbonnementPage() {
             />
           </div>
           <p className="text-xs text-muted-foreground mt-3 text-center">
-            Pour changer de plan ou poser une question : <a href="mailto:hello@nowadays.com" className="text-primary hover:underline">hello@nowadays.com</a>
+            Pour changer de plan ou poser une question : <a href="mailto:laetitia@nowadaysagency.com" className="text-primary hover:underline">laetitia@nowadaysagency.com</a>
           </p>
         </div>
 
