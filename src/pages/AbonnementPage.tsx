@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CreditCard, Loader2, ArrowRight } from "lucide-react";
+import { CreditCard, Loader2, ArrowRight, Zap, ChevronDown, ChevronUp } from "lucide-react";
 import { useUserPlan, type AiCategory } from "@/hooks/use-user-plan";
 import { STRIPE_PLANS } from "@/lib/stripe-config";
 import { Link } from "react-router-dom";
@@ -20,6 +20,24 @@ const QUOTA_CATEGORIES: { key: AiCategory; emoji: string; label: string }[] = [
   { key: "adaptation", emoji: "🔄", label: "Adaptations" },
 ];
 
+const CREDIT_PACKS = [
+  { credits: 20, price: "4,90€", unitPrice: "~0,25€/crédit", badge: null },
+  { credits: 50, price: "9,90€", unitPrice: "~0,20€/crédit", badge: "Le + populaire" },
+  { credits: 100, price: "14,90€", unitPrice: "~0,15€/crédit", badge: "Meilleur prix" },
+] as const;
+
+function getProgressColor(pct: number): string {
+  if (pct >= 80) return "bg-destructive";
+  if (pct >= 50) return "bg-primary";
+  return "bg-primary/60";
+}
+
+function getNextRenewalDate(): string {
+  const next = new Date();
+  next.setMonth(next.getMonth() + 1, 1);
+  return next.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+}
+
 export default function AbonnementPage() {
   const { user } = useAuth();
   const { plan, usage, isPaid, isPilot, refresh } = useUserPlan();
@@ -27,9 +45,9 @@ export default function AbonnementPage() {
   const [subInfo, setSubInfo] = useState<any>(null);
   const [loadingSub, setLoadingSub] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
 
   useEffect(() => {
-    // Always refresh credits on mount for fresh data
     refresh();
 
     (async () => {
@@ -62,10 +80,22 @@ export default function AbonnementPage() {
     setPortalLoading(false);
   };
 
+  const handleBuyPack = (credits: number, price: string) => {
+    const email = user?.email || "";
+    const text = encodeURIComponent(
+      `Bonjour Laetitia, je voudrais acheter un pack de ${credits} crédits (${price}). Mon email : ${email}`
+    );
+    window.open(`https://wa.me/33612345678?text=${text}`, "_blank");
+  };
+
   const planLabel = subInfo?.plan === "now_pilot" ? "🤝 Now Pilot" : subInfo?.plan === "studio" ? "Now Studio" : subInfo?.plan === "outil" ? "Outil" : "Gratuit";
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;
+  const totalPct = totalLimit > 0 ? Math.round((totalUsed / totalLimit) * 100) : 0;
+  const totalRemaining = Math.max(0, totalLimit - totalUsed);
+  const isExhausted = totalRemaining === 0;
   const monthName = new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  const renewalDate = getNextRenewalDate();
 
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-8">
@@ -125,37 +155,130 @@ export default function AbonnementPage() {
 
         {/* ─── Crédits IA ─── */}
         <div className="rounded-2xl border border-border bg-card p-6 mb-4">
-          <h2 className="font-display text-lg font-bold text-foreground mb-4">
-            Mes crédits IA · {monthName}
-          </h2>
-          <div className="space-y-3">
-            {QUOTA_CATEGORIES.map(cat => {
-              const catUsage = usage[cat.key];
-              if (!catUsage || catUsage.limit === 0) return null;
-              const pct = catUsage.limit > 0 ? Math.round((catUsage.used / catUsage.limit) * 100) : 0;
-              return (
-                <div key={cat.key} className="flex items-center gap-3">
-                  <span className="text-base w-6 text-center shrink-0">{cat.emoji}</span>
-                  <span className="text-sm font-medium w-28 shrink-0">{cat.label}</span>
-                  <Progress value={pct} className="flex-1 h-2" />
-                  <span className="text-xs font-mono-ui text-muted-foreground w-14 text-right shrink-0">
-                    {catUsage.used}/{catUsage.limit}
-                  </span>
-                </div>
-              );
-            })}
+          <div className="flex items-center gap-2 mb-4">
+            <Zap className="h-5 w-5 text-primary" />
+            <h2 className="font-display text-lg font-bold text-foreground">Mes crédits IA</h2>
           </div>
-          <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
-            <span className="text-sm font-medium text-foreground">Total</span>
-            <span className="text-sm font-mono-ui font-semibold text-primary">{totalUsed}/{totalLimit}</span>
+
+          {/* Global bar */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Crédits mensuels : {totalUsed}/{totalLimit} utilisés</span>
+              <span className={`font-mono-ui font-semibold ${isExhausted ? "text-destructive" : "text-foreground"}`}>
+                {totalPct}%
+              </span>
+            </div>
+            <div className="relative h-3 w-full overflow-hidden rounded-full bg-secondary">
+              <div
+                className={`h-full rounded-full transition-all ${getProgressColor(totalPct)}`}
+                style={{ width: `${Math.min(totalPct, 100)}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Se renouvellent le {renewalDate}
+            </p>
           </div>
+
+          {/* Category detail toggle */}
+          <button
+            onClick={() => setShowDetail(!showDetail)}
+            className="flex items-center gap-1 mt-4 text-xs text-primary hover:underline"
+          >
+            {showDetail ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            {showDetail ? "Masquer le détail" : "Voir le détail"}
+          </button>
+
+          {showDetail && (
+            <div className="mt-3 space-y-3 pt-3 border-t border-border">
+              <p className="text-xs font-semibold text-muted-foreground mb-2">📊 Détail des crédits ce mois</p>
+              {QUOTA_CATEGORIES.map(cat => {
+                const catUsage = usage[cat.key];
+                if (!catUsage || catUsage.limit === 0) return null;
+                const pct = catUsage.limit > 0 ? Math.round((catUsage.used / catUsage.limit) * 100) : 0;
+                return (
+                  <div key={cat.key}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-muted-foreground">{cat.emoji} {cat.label}</span>
+                      <span className="text-xs font-mono-ui text-muted-foreground">{catUsage.used}/{catUsage.limit}</span>
+                    </div>
+                    <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className={`h-full rounded-full transition-all ${getProgressColor(pct)}`}
+                        style={{ width: `${Math.min(pct, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Exhausted state */}
+          {isExhausted && (
+            <div className="mt-4 p-4 rounded-xl bg-destructive/5 border border-destructive/20">
+              <p className="text-sm font-semibold text-foreground">😅 Plus de crédits ce mois-ci !</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Tu as utilisé tous tes crédits. Ils se renouvellent le {renewalDate}.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">En attendant, tu peux recharger :</p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {CREDIT_PACKS.map(pack => (
+                  <Button
+                    key={pack.credits}
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full text-xs gap-1"
+                    onClick={() => handleBuyPack(pack.credits, pack.price)}
+                  >
+                    <Zap className="h-3 w-3" /> +{pack.credits} · {pack.price}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Recharger section ── */}
+          {!isExhausted && (
+            <div className="mt-5 pt-4 border-t border-border">
+              <p className="text-sm font-semibold text-foreground mb-1">Besoin de plus de crédits ce mois-ci ?</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Les crédits bonus s'ajoutent à ton quota mensuel. Ils n'expirent pas et sont utilisés en dernier.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {CREDIT_PACKS.map(pack => (
+                  <div
+                    key={pack.credits}
+                    className="rounded-xl border border-border p-4 text-center hover:border-primary/40 transition-all relative"
+                  >
+                    {pack.badge && (
+                      <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-full whitespace-nowrap">
+                        {pack.badge}
+                      </span>
+                    )}
+                    <p className="text-sm font-semibold text-foreground flex items-center justify-center gap-1">
+                      <Zap className="h-4 w-4 text-primary" /> {pack.credits} crédits
+                    </p>
+                    <p className="text-lg font-bold text-primary mt-1">{pack.price}</p>
+                    <p className="text-[11px] text-muted-foreground">{pack.unitPrice}</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full mt-3 text-xs w-full"
+                      onClick={() => handleBuyPack(pack.credits, pack.price)}
+                    >
+                      Acheter
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ─── Changer de plan ─── */}
         <div className="rounded-2xl border border-border bg-card p-6 mb-4">
           <h2 className="font-display text-lg font-bold text-foreground mb-4">Changer de plan</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Gratuit */}
             <PlanCard
               name="Gratuit"
               price="0€"
@@ -164,7 +287,6 @@ export default function AbonnementPage() {
               onSelect={() => {}}
               disabled
             />
-            {/* Outil */}
             <PlanCard
               name="Outil"
               price="39€/mois"
@@ -173,7 +295,6 @@ export default function AbonnementPage() {
               onSelect={() => handleCheckout(STRIPE_PLANS.outil.priceId)}
               disabled={plan === "outil" || portalLoading}
             />
-            {/* Now Pilot */}
             <div className={`rounded-xl border-2 p-4 text-center transition-all ${
               plan === "now_pilot" ? "border-primary bg-rose-pale" : "border-border hover:border-primary/30"
             }`}>

@@ -233,10 +233,15 @@ function AvatarMenu({ initial, firstName, planLabel, totalUsed, totalLimit, tota
             className="w-full mt-2 group/credits"
           >
             <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
-              <span>Crédits IA</span>
-              <span className="font-mono-ui font-semibold">{totalUsed}/{totalLimit}</span>
+              <span className="flex items-center gap-1">⚡ Crédits IA</span>
+              <span className={`font-mono-ui font-semibold ${totalPercent >= 90 ? "text-destructive" : totalPercent >= 70 ? "text-orange-500" : ""}`}>
+                {totalLimit - totalUsed}/{totalLimit}
+              </span>
             </div>
             <Progress value={totalPercent} className="h-1.5" />
+            {totalPercent >= 90 && (
+              <p className="text-[10px] text-destructive mt-0.5 text-left">Crédits presque épuisés</p>
+            )}
           </button>
         </div>
         <DropdownMenuSeparator />
