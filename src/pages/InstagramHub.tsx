@@ -3,7 +3,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
-import { ArrowLeft, User, BarChart3, Sparkles, MessageCircle, CheckSquare, CalendarDays, Lightbulb, Rocket } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import FirstTimeTooltip from "@/components/FirstTimeTooltip";
 
 interface ProgressData {
   auditScore: number | null;
@@ -84,18 +85,12 @@ export default function InstagramHub() {
         {/* ─── ZONE 1 : ANALYSER ─── */}
         <ZoneSection emoji="📊" title="Analyser">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <HubCard
-              to="/instagram/profil"
-              emoji="👤"
-              title="Mon profil"
-              desc="Audit complet : bio, feed, stories à la une, posts épinglés, nom."
-            />
-            <HubCard
-              to="/instagram/stats"
-              emoji="📈"
-              title="Mes stats"
-              desc="Tes KPIs mensuels : Instagram, site, CA. Avec graphiques d'évolution."
-            />
+            <FirstTimeTooltip id="instagram-profil" text="Analyse ton profil : bio, feed, cohérence visuelle.">
+              <HubCard to="/instagram/profil" emoji="👤" title="Mon profil" desc="Audit complet : bio, feed, stories à la une, posts épinglés, nom." />
+            </FirstTimeTooltip>
+            <FirstTimeTooltip id="instagram-stats" text="Tes KPIs mensuels avec graphiques d'évolution.">
+              <HubCard to="/instagram/stats" emoji="📈" title="Mes stats" desc="Tes KPIs mensuels : Instagram, site, CA. Avec graphiques d'évolution." />
+            </FirstTimeTooltip>
           </div>
         </ZoneSection>
 
