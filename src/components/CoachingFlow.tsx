@@ -108,35 +108,102 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
     if (!user || !diagnostic) return;
     setSaving(true);
     try {
-      // Save proposals to the appropriate branding table
+      // Collect edited values
       const updates: Record<string, string> = {};
       diagnostic.proposals.forEach(p => {
         updates[p.field] = editedProposals[p.field] || p.value;
       });
 
-      // Determine which table to update based on module
-      const tableMap: Record<string, string> = {
-        persona: "persona",
-        offers: "offers",
-        bio: "brand_profile",
-        story: "storytelling",
-        tone: "brand_profile",
-        editorial: "brand_strategy",
-        branding: "brand_profile",
-      };
-      const table = tableMap[module];
-      if (table) {
-        // Check if record exists
-        const { data: existing } = await supabase
-          .from(table as any)
-          .select("id")
+      if (module === "persona") {
+        // Persona stores data in a JSONB "portrait" column — merge proposals into it
+        const { data: personaRow } = await supabase
+          .from("persona")
+          .select("id, portrait, portrait_prenom")
           .eq("user_id", user.id)
           .maybeSingle();
 
-        if (existing) {
-          await supabase.from(table as any).update(updates).eq("user_id", user.id);
+        const existingPortrait = (personaRow?.portrait as Record<string, any>) || {};
+
+        // Map proposal fields into the portrait JSONB structure
+        const portraitUpdates: Record<string, any> = { ...existingPortrait };
+        
+        // Direct top-level fields
+        if (updates.prenom) { portraitUpdates.prenom = updates.prenom; }
+        if (updates.phrase_signature) { portraitUpdates.phrase_signature = updates.phrase_signature; }
+        if (updates.description) { portraitUpdates.description = updates.description; }
+
+        // qui_elle_est sub-object
+        if (updates.age || updates.metier || updates.situation || updates.ca || updates.temps_com) {
+          portraitUpdates.qui_elle_est = { ...(existingPortrait.qui_elle_est || {}) };
+          if (updates.age) portraitUpdates.qui_elle_est.age = updates.age;
+          if (updates.metier) portraitUpdates.qui_elle_est.metier = updates.metier;
+          if (updates.situation) portraitUpdates.qui_elle_est.situation = updates.situation;
+          if (updates.ca) portraitUpdates.qui_elle_est.ca = updates.ca;
+          if (updates.temps_com) portraitUpdates.qui_elle_est.temps_com = updates.temps_com;
+        }
+
+        // Array fields — AI returns text, split into array items
+        if (updates.frustrations) {
+          portraitUpdates.frustrations = updates.frustrations.split(/\n|·|•|-/).map((s: string) => s.trim()).filter(Boolean);
+        }
+        if (updates.desires || updates.objectifs) {
+          const raw = updates.desires || updates.objectifs;
+          portraitUpdates.objectifs = raw.split(/\n|·|•|-/).map((s: string) => s.trim()).filter(Boolean);
+        }
+        if (updates.ce_quelle_dit || updates.ses_mots) {
+          const raw = updates.ce_quelle_dit || updates.ses_mots;
+          portraitUpdates.ses_mots = raw.split(/\n|·|•|-|"/).map((s: string) => s.trim()).filter(Boolean);
+        }
+        if (updates.mots_resonnent) {
+          portraitUpdates.ses_mots = updates.mots_resonnent.split(/,|·|•/).map((s: string) => s.trim()).filter(Boolean);
+        }
+        if (updates.mots_eviter) {
+          portraitUpdates.comment_parler = { ...(existingPortrait.comment_parler || {}) };
+          portraitUpdates.comment_parler.fuir = updates.mots_eviter.split(/,|·|•/).map((s: string) => s.trim()).filter(Boolean);
+        }
+        if (updates.blocages) {
+          portraitUpdates.blocages = updates.blocages.split(/\n|·|•|-/).map((s: string) => s.trim()).filter(Boolean);
+        }
+
+        const portraitPrenom = updates.prenom || portraitUpdates.prenom || personaRow?.portrait_prenom || "";
+
+        if (personaRow) {
+          const { error } = await supabase
+            .from("persona")
+            .update({ portrait: portraitUpdates as any, portrait_prenom: portraitPrenom })
+            .eq("id", personaRow.id);
+          if (error) throw error;
         } else {
-          await supabase.from(table as any).insert({ ...updates, user_id: user.id });
+          const { error } = await supabase
+            .from("persona")
+            .insert({ user_id: user.id, portrait: portraitUpdates as any, portrait_prenom: portraitPrenom } as any);
+          if (error) throw error;
+        }
+      } else {
+        // Other modules: direct column update
+        const tableMap: Record<string, string> = {
+          offers: "offers",
+          bio: "brand_profile",
+          story: "storytelling",
+          tone: "brand_profile",
+          editorial: "brand_strategy",
+          branding: "brand_profile",
+        };
+        const table = tableMap[module];
+        if (table) {
+          const { data: existing } = await supabase
+            .from(table as any)
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          if (existing) {
+            const { error } = await supabase.from(table as any).update(updates).eq("user_id", user.id);
+            if (error) throw error;
+          } else {
+            const { error } = await supabase.from(table as any).insert({ ...updates, user_id: user.id });
+            if (error) throw error;
+          }
         }
       }
 
@@ -152,6 +219,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
       setPhase("done");
       onComplete();
     } catch (e: any) {
+      console.error("COACHING SAVE ERROR:", e);
       toast.error(e.message || "Erreur de sauvegarde");
     } finally {
       setSaving(false);
