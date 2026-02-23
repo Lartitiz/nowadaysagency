@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Plus, GripVertical, CalendarIcon } from "lucide-react";
-import { DndContext, DragOverlay, closestCenter, type DragStartEvent, type DragEndEvent, useDroppable, useDraggable } from "@dnd-kit/core";
+import { GripVertical, CalendarIcon } from "lucide-react";
+import { useDroppable, useDraggable } from "@dnd-kit/core";
 import { type CalendarPost } from "@/lib/calendar-constants";
 import { CalendarContentCard, CalendarContentCardMini } from "./CalendarContentCard";
 import { WeekRecapBar } from "./WeekRecapBar";
+import { AddPostMenu } from "./AddPostMenu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ interface Props {
   onCreatePost: (dateStr: string) => void;
   onEditPost: (post: CalendarPost) => void;
   onMovePost?: (postId: string, newDate: string) => void;
+  onAddIdea?: (dateStr: string) => void;
 }
 
 /* ── Draggable content card (desktop) ── */
@@ -48,10 +50,11 @@ function DraggableCard({ post, onClick }: { post: CalendarPost; onClick: () => v
 
 /* ── Droppable day cell (desktop) ── */
 function DroppableDay({
-  dateStr, dayNum, inMonth, isToday, posts, onCreatePost, onEditPost,
+  dateStr, dayNum, inMonth, isToday, posts, onCreatePost, onEditPost, onAddIdea,
 }: {
   dateStr: string; dayNum: number; inMonth: boolean; isToday: boolean;
-  posts: CalendarPost[]; onCreatePost: () => void; onEditPost: (p: CalendarPost) => void;
+  posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
+  onAddIdea: (dateStr: string) => void;
 }) {
   const isPast = new Date(dateStr + "T00:00:00") < new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
   const { setNodeRef, isOver } = useDroppable({ id: dateStr, disabled: isPast });
@@ -72,10 +75,7 @@ function DroppableDay({
           {dayNum}
         </span>
         {inMonth && (
-          <button onClick={onCreatePost}
-            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary">
-            <Plus className="h-3.5 w-3.5" />
-          </button>
+          <AddPostMenu dateStr={dateStr} onAddIdea={onAddIdea} />
         )}
       </div>
       <div className="space-y-0">
@@ -119,29 +119,12 @@ function MobilePostCard({ post, onClick, onMove }: { post: CalendarPost; onClick
   );
 }
 
-/* ── Main component ── */
-export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost }: Props) {
-  const [activePost, setActivePost] = useState<CalendarPost | null>(null);
+/* ── Main component (no DndContext — parent provides it) ── */
+export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea }: Props) {
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
 
-  const allPosts = Object.values(postsByDate).flat();
-
-  const handleDragStart = (event: DragStartEvent) => {
-    const post = allPosts.find((p) => p.id === event.active.id);
-    setActivePost(post || null);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    setActivePost(null);
-    const { active, over } = event;
-    if (!over || !onMovePost) return;
-    const newDate = over.id as string;
-    const postId = active.id as string;
-    const currentPost = allPosts.find((p) => p.id === postId);
-    if (!currentPost || currentPost.date === newDate) return;
-    onMovePost(postId, newDate);
-  };
+  const addIdeaHandler = onAddIdea || onCreatePost;
 
   const handleMobileMove = (post: CalendarPost) => {
     setMoveDialogPost(post);
@@ -173,9 +156,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
                   <span className={`text-sm font-bold ${isToday ? "text-primary" : "text-foreground"}`}>
                     {d.date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" })}
                   </span>
-                  <button onClick={() => onCreatePost(dateStr)} className="text-muted-foreground hover:text-primary">
-                    <Plus className="h-4 w-4" />
-                  </button>
+                  <AddPostMenu dateStr={dateStr} onAddIdea={addIdeaHandler} />
                 </div>
                 <div>
                   {dayPosts.slice(0, 1).map((p) => (
@@ -227,8 +208,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
     );
   }
 
-  /* ── Desktop view with DnD ── */
-  // Compute week rows for recap
+  /* ── Desktop view (Droppable only, no DndContext) ── */
   const weekRows: CalendarPost[][] = [];
   for (let i = 0; i < calendarDays.length; i += 7) {
     const weekPosts: CalendarPost[] = [];
@@ -240,58 +220,48 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
   }
 
   return (
-    <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="rounded-2xl bg-card border border-border overflow-hidden">
-        {/* Header */}
-        <div className="grid grid-cols-7 border-b border-border">
-          {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((d) => (
-            <div key={d} className="px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {d}
-            </div>
-          ))}
-        </div>
-        {/* Days grid with week recaps */}
-        {Array.from({ length: Math.ceil(calendarDays.length / 7) }, (_, weekIdx) => {
-          const weekSlice = calendarDays.slice(weekIdx * 7, weekIdx * 7 + 7);
-          return (
-            <div key={weekIdx}>
-              <div className="grid grid-cols-7">
-                {weekSlice.map((d, i) => {
-                  const dateStr = d.date.toISOString().split("T")[0];
-                  const dayPosts = postsByDate[dateStr] || [];
-                  const isToday = dateStr === todayStr;
-                  return (
-                    <DroppableDay
-                      key={weekIdx * 7 + i}
-                      dateStr={dateStr}
-                      dayNum={d.date.getDate()}
-                      inMonth={d.inMonth}
-                      isToday={isToday}
-                      posts={dayPosts}
-                      onCreatePost={() => onCreatePost(dateStr)}
-                      onEditPost={onEditPost}
-                    />
-                  );
-                })}
-              </div>
-              {weekRows[weekIdx] && weekRows[weekIdx].length > 0 && (
-                <div className="border-b border-border bg-muted/30 px-2">
-                  <WeekRecapBar posts={weekRows[weekIdx]} compact />
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Drag overlay */}
-      <DragOverlay>
-        {activePost ? (
-          <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg text-xs font-medium max-w-[180px]">
-            <span className="truncate block">{activePost.content_type_emoji || ""} {activePost.theme}</span>
+    <div className="rounded-2xl bg-card border border-border overflow-hidden">
+      {/* Header */}
+      <div className="grid grid-cols-7 border-b border-border">
+        {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((d) => (
+          <div key={d} className="px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            {d}
           </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+        ))}
+      </div>
+      {/* Days grid with week recaps */}
+      {Array.from({ length: Math.ceil(calendarDays.length / 7) }, (_, weekIdx) => {
+        const weekSlice = calendarDays.slice(weekIdx * 7, weekIdx * 7 + 7);
+        return (
+          <div key={weekIdx}>
+            <div className="grid grid-cols-7">
+              {weekSlice.map((d, i) => {
+                const dateStr = d.date.toISOString().split("T")[0];
+                const dayPosts = postsByDate[dateStr] || [];
+                const isToday = dateStr === todayStr;
+                return (
+                  <DroppableDay
+                    key={weekIdx * 7 + i}
+                    dateStr={dateStr}
+                    dayNum={d.date.getDate()}
+                    inMonth={d.inMonth}
+                    isToday={isToday}
+                    posts={dayPosts}
+                    onCreatePost={onCreatePost}
+                    onEditPost={onEditPost}
+                    onAddIdea={addIdeaHandler}
+                  />
+                );
+              })}
+            </div>
+            {weekRows[weekIdx] && weekRows[weekIdx].length > 0 && (
+              <div className="border-b border-border bg-muted/30 px-2">
+                <WeekRecapBar posts={weekRows[weekIdx]} compact />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
