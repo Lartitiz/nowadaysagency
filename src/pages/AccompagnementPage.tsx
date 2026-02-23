@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { LAETITIA_WHATSAPP } from "@/lib/constants";
 import { getFocusIcon, getSessionTypeIcon } from "@/lib/coaching-constants";
+import JournalTimeline from "@/components/coaching/JournalTimeline";
 
 interface Program {
   id: string;
@@ -256,24 +257,8 @@ export default function AccompagnementPage() {
           )}
         </div>
 
-        {/* LIVRABLES */}
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="font-display text-lg font-bold text-foreground mb-3">📦 Mes livrables</h2>
-          <div className="space-y-2">
-            {deliverables.map(d => (
-              <div key={d.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span>{d.status === "delivered" ? "✅" : "🔜"}</span>
-                  <p className="text-sm font-medium text-foreground">{d.title}</p>
-                  {d.delivered_at && <span className="text-xs text-muted-foreground">· {format(new Date(d.delivered_at), "d MMM", { locale: fr })}</span>}
-                </div>
-                {d.status === "delivered" && d.route && (
-                  <Link to={d.route} className="text-xs text-primary font-semibold hover:underline">Voir →</Link>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* JOURNAL + LIVRABLES */}
+        <JournalTimeline programId={program.id} />
 
         {/* WHATSAPP */}
         <div className="rounded-2xl border border-border bg-card p-6">

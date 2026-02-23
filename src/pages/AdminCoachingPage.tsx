@@ -27,6 +27,7 @@ import {
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import AdminJournalEditor from "@/components/coaching/AdminJournalEditor";
 
 /* ═══════════════════════════════════════════════════════════
    TYPES
@@ -465,28 +466,8 @@ function ProgramDetailView({
           )}
         </section>
 
-        {/* ── LIVRABLES ── */}
-        <section className="rounded-2xl border border-border bg-card p-5 mb-6">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Livrables ({deliverables.length})</p>
-          <div className="space-y-2">
-            {deliverables.map(d => (
-              <div key={d.id} className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={d.status === "delivered"}
-                  onCheckedChange={c => updateDeliverable(d.id, { status: c ? "delivered" : "pending", delivered_at: c ? new Date().toISOString() : null })}
-                />
-                <input
-                  className="flex-1 bg-transparent text-foreground text-sm border-none focus:outline-none focus:bg-muted/30 rounded px-1 py-0.5 transition-colors"
-                  defaultValue={d.title}
-                  onBlur={e => { if (e.target.value !== d.title) updateDeliverable(d.id, { title: e.target.value }); }}
-                />
-                {savedField === "deliv-" + d.id && <span className="text-[11px] text-primary animate-fade-in">💾</span>}
-                <button onClick={() => deleteDeliverable(d.id)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
-              </div>
-            ))}
-          </div>
-          <button onClick={addDeliverable} className="text-xs text-primary font-semibold hover:underline mt-2">+ Ajouter un livrable</button>
-        </section>
+        {/* ── JOURNAL + LIVRABLES (new system) ── */}
+        <AdminJournalEditor programId={program.id} clientName={program.client_name || "Cliente"} />
 
         {/* ── ACTIONS ── */}
         <section className="rounded-2xl border border-border bg-card p-5 mb-6">
