@@ -227,10 +227,12 @@ function AddClientDialog({ open, onOpenChange, coachUserId, onCreated }: { open:
     if (!email.trim()) return toast.error("Email requis");
     setCreating(true);
 
-    // Find user by email in profiles
-    const { data: profile } = await (supabase.from("profiles" as any) as any).select("user_id").eq("email", email.trim()).maybeSingle();
+    // Find user by email in profiles (case-insensitive)
+    const { data: profile } = await (supabase.from("profiles" as any) as any).select("user_id").ilike("email", email.trim()).maybeSingle();
     if (!profile) {
-      toast.error("Aucun compte trouvé avec cet email");
+      toast.error(
+        "Aucun compte trouvé avec l'email « " + email.trim() + " ». Vérifie l'orthographe ou demande-lui de créer son compte d'abord."
+      );
       setCreating(false);
       return;
     }

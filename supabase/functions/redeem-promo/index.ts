@@ -115,6 +115,96 @@ serve(async (req) => {
       { onConflict: "user_id" }
     );
 
+    // If now_pilot, auto-create coaching program + sessions + deliverables
+    if (promo.plan_granted === "now_pilot") {
+      // Check if program already exists
+      const { data: existingProg } = await supabase
+        .from("coaching_programs")
+        .select("id")
+        .eq("client_user_id", userId)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (!existingProg) {
+        // Find coach (Laetitia)
+        const { data: coachProfile } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .eq("email", "laetitia@nowadaysagency.com")
+          .maybeSingle();
+
+        const startDate = new Date().toISOString().split("T")[0];
+        const endD = new Date();
+        endD.setMonth(endD.getMonth() + 6);
+        const endDate = endD.toISOString().split("T")[0];
+
+        const { data: prog } = await supabase
+          .from("coaching_programs")
+          .insert({
+            client_user_id: userId,
+            coach_user_id: coachProfile?.user_id || userId,
+            start_date: startDate,
+            end_date: endDate,
+            current_phase: "strategy",
+            current_month: 1,
+            whatsapp_link: "https://wa.me/33614133921",
+            status: "active",
+          })
+          .select()
+          .single();
+
+        if (prog) {
+          // Create 9 sessions
+          const sessions = [
+            { n: 1, phase: "strategy", title: "Audit + positionnement", dur: 90 },
+            { n: 2, phase: "strategy", title: "Cible, offres, ton", dur: 90 },
+            { n: 3, phase: "strategy", title: "Ligne éditoriale", dur: 90 },
+            { n: 4, phase: "strategy", title: "Calendrier + templates", dur: 90 },
+            { n: 5, phase: "strategy", title: "Contenus + mise en place (1)", dur: 90 },
+            { n: 6, phase: "strategy", title: "Contenus + mise en place (2)", dur: 90 },
+            { n: 7, phase: "binome", title: "Revue mensuelle · Mois 4", dur: 120 },
+            { n: 8, phase: "binome", title: "Revue mensuelle · Mois 5", dur: 120 },
+            { n: 9, phase: "binome", title: "Bilan + autonomie · Mois 6", dur: 120 },
+          ];
+
+          await supabase.from("coaching_sessions").insert(
+            sessions.map((s) => ({
+              program_id: prog.id,
+              session_number: s.n,
+              phase: s.phase,
+              title: s.title,
+              duration_minutes: s.dur,
+              status: "scheduled",
+            }))
+          );
+
+          // Create 10 deliverables
+          const deliverables = [
+            { title: "Audit de communication", type: "audit", route: "/audit-branding" },
+            { title: "Branding complet", type: "branding", route: "/branding" },
+            { title: "Portrait cible", type: "persona", route: "/branding/cible" },
+            { title: "Offres reformulées", type: "offers", route: "/branding/offres" },
+            { title: "Ligne éditoriale", type: "editorial", route: "/branding/editorial" },
+            { title: "Calendrier 3 mois", type: "calendar", route: "/calendrier" },
+            { title: "Bio optimisée", type: "bio", route: "/instagram/bio" },
+            { title: "10-15 contenus prêts", type: "content", route: "/calendrier" },
+            { title: "Templates Canva", type: "templates", route: null },
+            { title: "Plan de com' 6 mois", type: "plan", route: "/plan" },
+          ];
+
+          await supabase.from("coaching_deliverables").insert(
+            deliverables.map((d) => ({
+              program_id: prog.id,
+              title: d.title,
+              type: d.type,
+              route: d.route,
+              status: "pending",
+            }))
+          );
+        }
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
       plan: promo.plan_granted,
