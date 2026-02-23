@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import BrandingImportBlock from "@/components/branding/BrandingImportBlock";
 import BrandingImportReview from "@/components/branding/BrandingImportReview";
+import CoachingFlow from "@/components/CoachingFlow";
 import type { BrandingExtraction } from "@/lib/branding-import-types";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -70,6 +71,7 @@ const CARDS: BrandingCard[] = [
 export default function BrandingPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [primaryStoryId, setPrimaryStoryId] = useState<string | null>(null);
@@ -78,6 +80,12 @@ export default function BrandingPage() {
   const [importExtraction, setImportExtraction] = useState<BrandingExtraction | null>(null);
   const [showImportBlock, setShowImportBlock] = useState(false);
   const [lastAudit, setLastAudit] = useState<any>(null);
+
+  // Coaching mode from audit
+  const fromAudit = searchParams.get("from") === "audit";
+  const coachingModule = searchParams.get("module");
+  const coachingRecId = searchParams.get("rec_id") || undefined;
+  const [coachingActive, setCoachingActive] = useState(fromAudit && !!coachingModule);
 
   useEffect(() => {
     if (!user) return;
@@ -162,7 +170,27 @@ export default function BrandingPage() {
           Retour au hub
         </Link>
 
-        <AuditRecommendationBanner />
+        {!coachingActive && <AuditRecommendationBanner />}
+
+        {/* Coaching flow from audit */}
+        {coachingActive && coachingModule && (
+          <div className="mb-6">
+            <CoachingFlow
+              module={coachingModule}
+              recId={coachingRecId}
+              onComplete={async () => {
+                setCoachingActive(false);
+                setSearchParams({});
+                await reloadCompletion();
+              }}
+              onSkip={() => {
+                setCoachingActive(false);
+                setSearchParams({});
+              }}
+            />
+          </div>
+        )}
+
         <h1 className="font-display text-[26px] font-bold text-foreground mb-2">Mon Branding</h1>
         <p className="text-[15px] text-muted-foreground mb-6">
           C'est ici que tout commence. Plus tu remplis, plus L'Assistant Com' te connaît et te propose des idées qui te ressemblent.

@@ -27,15 +27,15 @@ interface AuditResult {
 }
 
 /* ─── Pillar metadata + action mapping ─── */
-const PILLAR_META: Record<string, { emoji: string; label: string; route: string; actionLabel: string }> = {
-  positionnement: { emoji: "🎯", label: "Positionnement", route: "/branding", actionLabel: "Clarifier mon positionnement" },
-  cible: { emoji: "👤", label: "Cible", route: "/branding", actionLabel: "Retravailler ma cible" },
-  ton_voix: { emoji: "🗣️", label: "Ton / Voix", route: "/branding", actionLabel: "Définir mon ton" },
-  offres: { emoji: "🎁", label: "Offres", route: "/branding", actionLabel: "Reformuler mes offres" },
-  storytelling: { emoji: "📖", label: "Storytelling", route: "/branding", actionLabel: "Écrire mon histoire" },
-  identite_visuelle: { emoji: "🎨", label: "Identité visuelle", route: "/branding", actionLabel: "Travailler mon identité" },
-  coherence_cross_canal: { emoji: "🔗", label: "Cohérence canaux", route: "/branding", actionLabel: "Unifier ma communication" },
-  contenu: { emoji: "📝", label: "Contenu", route: "/instagram/creer", actionLabel: "Créer du contenu" },
+const PILLAR_META: Record<string, { emoji: string; label: string; route: string; coachingModule: string; actionLabel: string }> = {
+  positionnement: { emoji: "🎯", label: "Positionnement", route: "/branding", coachingModule: "branding", actionLabel: "Clarifier mon positionnement" },
+  cible: { emoji: "👤", label: "Cible", route: "/branding", coachingModule: "persona", actionLabel: "Retravailler ma cible" },
+  ton_voix: { emoji: "🗣️", label: "Ton / Voix", route: "/branding", coachingModule: "tone", actionLabel: "Définir mon ton" },
+  offres: { emoji: "🎁", label: "Offres", route: "/branding", coachingModule: "offers", actionLabel: "Reformuler mes offres" },
+  storytelling: { emoji: "📖", label: "Storytelling", route: "/branding", coachingModule: "story", actionLabel: "Écrire mon histoire" },
+  identite_visuelle: { emoji: "🎨", label: "Identité visuelle", route: "/branding", coachingModule: "branding", actionLabel: "Travailler mon identité" },
+  coherence_cross_canal: { emoji: "🔗", label: "Cohérence canaux", route: "/branding", coachingModule: "branding", actionLabel: "Unifier ma communication" },
+  contenu: { emoji: "📝", label: "Contenu", route: "/instagram/creer", coachingModule: "editorial", actionLabel: "Créer du contenu" },
 };
 
 /* ─── Fixed route mapping for plan d'action ─── */
@@ -223,7 +223,7 @@ export default function BrandingAuditResultPage() {
               <h3 className="font-display font-bold text-sm mb-3">Détail par pilier</h3>
               <div className="space-y-2">
                 {Object.entries(result.audit_detail).map(([key, pillar]) => {
-                  const meta = PILLAR_META[key] || { emoji: "📋", label: key, route: "/branding", actionLabel: "Travailler ce pilier" };
+                  const meta = PILLAR_META[key] || { emoji: "📋", label: key, route: "/branding", coachingModule: "branding", actionLabel: "Travailler ce pilier" };
                   const isExpanded = expandedPillar === key;
                   return (
                     <div key={key} className="rounded-xl border border-border bg-card overflow-hidden">
@@ -253,7 +253,12 @@ export default function BrandingAuditResultPage() {
                             size="sm"
                             variant="ghost"
                             className="w-full mt-2 gap-2 justify-center"
-                            onClick={() => handleNavigate(meta.route)}
+                            onClick={() => {
+                              const route = meta.route.startsWith("http")
+                                ? meta.route
+                                : `${meta.route}?from=audit&module=${meta.coachingModule}`;
+                              handleNavigate(route);
+                            }}
                           >
                             {meta.emoji} {meta.actionLabel}
                             <ArrowRight className="h-3.5 w-3.5" />
