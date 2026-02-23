@@ -236,7 +236,7 @@ export default function BrandingPage() {
                   )}
 
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="text-xs flex-1" onClick={() => navigate("/branding/audit")}>
+                    <Button size="sm" variant="outline" className="text-xs flex-1" onClick={() => navigate(`/branding/audit/${lastAudit.id}`)}>
                       Voir l'audit complet →
                     </Button>
                     <Button size="sm" variant="ghost" className="text-xs gap-1" onClick={() => navigate("/branding/audit")}>
