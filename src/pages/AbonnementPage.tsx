@@ -22,7 +22,7 @@ const QUOTA_CATEGORIES: { key: AiCategory; emoji: string; label: string }[] = [
 
 export default function AbonnementPage() {
   const { user } = useAuth();
-  const { plan, usage, isPaid, refresh } = useUserPlan();
+  const { plan, usage, isPaid, isPilot, refresh } = useUserPlan();
 
   const [subInfo, setSubInfo] = useState<any>(null);
   const [loadingSub, setLoadingSub] = useState(true);
@@ -62,7 +62,7 @@ export default function AbonnementPage() {
     setPortalLoading(false);
   };
 
-  const planLabel = subInfo?.plan === "studio" ? "Now Studio" : subInfo?.plan === "outil" ? "Outil" : "Gratuit";
+  const planLabel = subInfo?.plan === "now_pilot" ? "🤝 Now Pilot" : subInfo?.plan === "studio" ? "Now Studio" : subInfo?.plan === "outil" ? "Outil" : "Gratuit";
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;
   const monthName = new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
@@ -94,7 +94,19 @@ export default function AbonnementPage() {
                 <span className="font-semibold text-primary">{subInfo?.source === "promo" ? "💎 " : ""}{planLabel}</span>
                 {subInfo?.plan === "outil" && " · 39€/mois"}
                 {subInfo?.plan === "studio" && " · 250€/mois"}
+                {subInfo?.plan === "now_pilot" && " · 250€/mois"}
               </p>
+              {subInfo?.plan === "now_pilot" && (
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-muted-foreground">🎯 Accompagnement 6 mois · 9 sessions avec Laetitia</p>
+                  <p className="text-xs text-muted-foreground">💡 300 crédits IA / mois</p>
+                  <Link to="/accompagnement">
+                    <Button size="sm" variant="outline" className="rounded-full mt-1 text-xs">
+                      🤝 Voir mon accompagnement →
+                    </Button>
+                  </Link>
+                </div>
+              )}
               {subInfo?.source === "promo" && subInfo?.current_period_end && (
                 <p className="text-xs text-muted-foreground">🎁 Expire le {new Date(subInfo.current_period_end).toLocaleDateString("fr-FR")}</p>
               )}
@@ -162,14 +174,20 @@ export default function AbonnementPage() {
               disabled={plan === "outil" || portalLoading}
             />
             {/* Now Pilot */}
-            <div className={`rounded-xl border-2 p-4 text-center transition-all border-border hover:border-primary/30`}>
+            <div className={`rounded-xl border-2 p-4 text-center transition-all ${
+              plan === "now_pilot" ? "border-primary bg-rose-pale" : "border-border hover:border-primary/30"
+            }`}>
               <h3 className="font-display font-bold text-foreground">🤝 Now Pilot</h3>
               <p className="text-lg font-semibold text-primary mt-1">250€/mois</p>
               <p className="text-xs text-muted-foreground mt-0.5">300 crédits · 6 mois</p>
               <p className="text-[11px] text-muted-foreground mt-1">✅ L'outil + 9 sessions avec Laetitia</p>
-              <Button size="sm" variant="outline" className="mt-3 rounded-full text-xs" onClick={() => window.open("https://calendly.com/laetitia-mattioli/rendez-vous-avec-laetitia", "_blank")}>
-                📞 Réserver un appel
-              </Button>
+              {plan === "now_pilot" ? (
+                <span className="inline-block mt-3 text-xs font-semibold text-primary">Plan actuel ✓</span>
+              ) : (
+                <Button size="sm" variant="outline" className="mt-3 rounded-full text-xs" onClick={() => window.open("https://calendly.com/laetitia-mattioli/rendez-vous-avec-laetitia", "_blank")}>
+                  📞 Réserver un appel
+                </Button>
+              )}
             </div>
           </div>
           <p className="text-xs text-muted-foreground mt-3 text-center">
