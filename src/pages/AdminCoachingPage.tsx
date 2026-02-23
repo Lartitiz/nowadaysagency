@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -15,7 +15,7 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Plus, ChevronRight, AlertTriangle, ArrowLeft, GripVertical, Trash2, Pause, Play } from "lucide-react";
+import { Loader2, Plus, ChevronRight, AlertTriangle, ArrowLeft, GripVertical, Trash2, Pause, Play, Upload, Unlock } from "lucide-react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -27,7 +27,7 @@ import {
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import AdminJournalEditor from "@/components/coaching/AdminJournalEditor";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 
 /* ═══════════════════════════════════════════════════════════
    TYPES
@@ -64,6 +64,7 @@ interface SessionData {
   summary: string | null;
   modules_updated: string[] | null;
   laetitia_note: string | null;
+  private_notes: string | null;
   program_id: string;
   session_type: string | null;
   focus_topic: string | null;
@@ -79,6 +80,9 @@ interface DeliverableData {
   route: string | null;
   status: string;
   delivered_at: string | null;
+  file_url: string | null;
+  file_name: string | null;
+  assigned_session_id: string | null;
 }
 
 interface ActionData {
@@ -160,7 +164,6 @@ export default function AdminCoachingPage() {
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
-  // If a program is selected, show the detail view
   if (selectedProgramId) {
     const program = programs.find(p => p.id === selectedProgramId);
     if (!program) { setSelectedProgramId(null); return null; }
@@ -251,7 +254,7 @@ export default function AdminCoachingPage() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   PROGRAM DETAIL VIEW — Full page, inline editing
+   PROGRAM DETAIL VIEW
    ═══════════════════════════════════════════════════════════ */
 function ProgramDetailView({
   program, sessions: initialSessions, onBack, onReload,
@@ -261,7 +264,6 @@ function ProgramDetailView({
   onBack: () => void;
   onReload: () => void;
 }) {
-  const navigate = useNavigate();
   const [sessions, setSessions] = useState(initialSessions);
   const [deliverables, setDeliverables] = useState<DeliverableData[]>([]);
   const [actions, setActions] = useState<ActionData[]>([]);
@@ -269,10 +271,6 @@ function ProgramDetailView({
   const [addingSession, setAddingSession] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
-  const [prepOpen, setPrepOpen] = useState<SessionData | null>(null);
-  const [recapOpen, setRecapOpen] = useState<SessionData | null>(null);
-
-  // Inline field saving state
   const [savedField, setSavedField] = useState<string | null>(null);
 
   const showSaved = (field: string) => {
@@ -280,17 +278,17 @@ function ProgramDetailView({
     setTimeout(() => setSavedField(null), 1200);
   };
 
-  // Load deliverables and actions
   useEffect(() => {
     (async () => {
-      const { data: d } = await (supabase.from("coaching_deliverables" as any).select("*").eq("program_id", program.id).order("created_at") as any);
-      setDeliverables((d || []) as DeliverableData[]);
-      const { data: a } = await (supabase.from("coaching_actions" as any).select("*").eq("program_id", program.id).order("created_at") as any);
-      setActions((a || []) as ActionData[]);
+      const [dRes, aRes] = await Promise.all([
+        (supabase.from("coaching_deliverables" as any).select("*").eq("program_id", program.id).order("created_at") as any),
+        (supabase.from("coaching_actions" as any).select("*").eq("program_id", program.id).order("created_at") as any),
+      ]);
+      setDeliverables((dRes.data || []) as DeliverableData[]);
+      setActions((aRes.data || []) as ActionData[]);
     })();
   }, [program.id]);
 
-  // Reload sessions from parent
   useEffect(() => { setSessions(initialSessions); }, [initialSessions]);
 
   const updateProgram = async (field: string, value: any) => {
@@ -309,7 +307,6 @@ function ProgramDetailView({
     await (supabase.from("coaching_sessions" as any).delete().eq("id", id) as any);
     setSessions(prev => {
       const remaining = prev.filter(s => s.id !== id);
-      // Renumber
       remaining.sort((a, b) => a.session_number - b.session_number);
       remaining.forEach((s, i) => {
         s.session_number = i + 1;
@@ -334,14 +331,11 @@ function ProgramDetailView({
       status: "scheduled",
       scheduled_date: data.scheduled_date || null,
     } as any).select().single() as any);
-    if (inserted) {
-      setSessions(prev => [...prev, inserted as SessionData]);
-    }
+    if (inserted) setSessions(prev => [...prev, inserted as SessionData]);
     setAddingSession(false);
     toast.success("Session ajoutée !");
   };
 
-  // Drag and drop
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -350,7 +344,6 @@ function ProgramDetailView({
       const oldIdx = prev.findIndex(s => s.id === active.id);
       const newIdx = prev.findIndex(s => s.id === over.id);
       const reordered = arrayMove(prev, oldIdx, newIdx);
-      // Update numbers in DB
       reordered.forEach((s, i) => {
         s.session_number = i + 1;
         (supabase.from("coaching_sessions" as any).update({ session_number: i + 1 } as any).eq("id", s.id) as any);
@@ -360,18 +353,18 @@ function ProgramDetailView({
   };
 
   // Deliverable CRUD
-  const addDeliverable = async () => {
+  const addDeliverable = async (assignedSessionId?: string) => {
     const { data: d } = await (supabase.from("coaching_deliverables" as any).insert({
       program_id: program.id,
       title: "Nouveau livrable",
       status: "pending",
+      assigned_session_id: assignedSessionId || null,
     } as any).select().single() as any);
     if (d) setDeliverables(prev => [...prev, d as DeliverableData]);
   };
   const updateDeliverable = async (id: string, updates: Record<string, any>) => {
     await (supabase.from("coaching_deliverables" as any).update(updates as any).eq("id", id) as any);
     setDeliverables(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
-    showSaved("deliv-" + id);
   };
   const deleteDeliverable = async (id: string) => {
     await (supabase.from("coaching_deliverables" as any).delete().eq("id", id) as any);
@@ -379,9 +372,10 @@ function ProgramDetailView({
   };
 
   // Action CRUD
-  const addAction = async () => {
+  const addAction = async (sessionId?: string) => {
     const { data: a } = await (supabase.from("coaching_actions" as any).insert({
       program_id: program.id,
+      session_id: sessionId || null,
       title: "Nouvelle action",
     } as any).select().single() as any);
     if (a) setActions(prev => [...prev, a as ActionData]);
@@ -396,13 +390,22 @@ function ProgramDetailView({
     setActions(prev => prev.filter(a => a.id !== id));
   };
 
+  // File upload
+  const uploadFile = async (deliverableId: string, file: File) => {
+    const path = `${program.id}/${deliverableId}/${file.name}`;
+    const { error } = await supabase.storage.from("deliverables").upload(path, file, { upsert: true });
+    if (error) { toast.error("Erreur upload : " + error.message); return; }
+    const { data: urlData } = supabase.storage.from("deliverables").getPublicUrl(path);
+    await updateDeliverable(deliverableId, { file_url: urlData.publicUrl, file_name: file.name });
+    toast.success("📎 Fichier uploadé !");
+  };
+
   const isPaused = program.status === "paused";
 
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-8">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-4 py-8 animate-fade-in">
-        {/* Header */}
         <button onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4">
           <ArrowLeft className="h-4 w-4" /> Retour aux clientes
         </button>
@@ -432,7 +435,6 @@ function ProgramDetailView({
                   <SelectItem value="completed">🏁 Terminé</SelectItem>
                 </SelectContent>
               </Select>
-              {savedField === "status" && <span className="text-[11px] text-primary animate-fade-in">💾</span>}
             </div>
             <InlineField label="WhatsApp" value={program.whatsapp_link || ""} onSave={v => updateProgram("whatsapp_link", v)} saved={savedField === "whatsapp_link"} />
             <InlineField label="Calendly" value={program.calendly_link || ""} onSave={v => updateProgram("calendly_link", v)} saved={savedField === "calendly_link"} />
@@ -450,8 +452,6 @@ function ProgramDetailView({
                     key={s.id}
                     session={s}
                     onEdit={() => setEditingSession(s)}
-                    onPrepare={() => setPrepOpen(s)}
-                    onRecap={() => setRecapOpen(s)}
                     savedField={savedField}
                   />
                 ))}
@@ -466,23 +466,41 @@ function ProgramDetailView({
           )}
         </section>
 
-        {/* ── JOURNAL + LIVRABLES (new system) ── */}
-        <AdminJournalEditor programId={program.id} clientName={program.client_name || "Cliente"} />
+        {/* ── LIVRABLES ── */}
+        <section className="rounded-2xl border border-border bg-card p-5 mb-6">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+            🎁 Livrables ({deliverables.filter(d => d.status === "delivered").length}/{deliverables.length} débloqués)
+          </p>
+          <div className="space-y-2">
+            {deliverables.map(d => (
+              <AdminDeliverableRow
+                key={d.id}
+                deliverable={d}
+                sessions={sessions}
+                onUpdate={updateDeliverable}
+                onDelete={deleteDeliverable}
+                onUpload={uploadFile}
+              />
+            ))}
+          </div>
+          <button onClick={() => addDeliverable()} className="text-xs text-primary font-semibold hover:underline mt-2">+ Ajouter un livrable</button>
+        </section>
 
         {/* ── ACTIONS ── */}
         <section className="rounded-2xl border border-border bg-card p-5 mb-6">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Actions en cours ({actions.filter(a => !a.completed).length})</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Actions ({actions.filter(a => !a.completed).length} en cours)</p>
           <div className="space-y-2">
             {actions.map(a => (
               <div key={a.id} className="flex items-center gap-2 text-sm">
                 <Checkbox checked={a.completed} onCheckedChange={c => toggleAction(a.id, !!c)} />
                 <span className={`flex-1 ${a.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>{a.title}</span>
+                {a.session_id && <span className="text-[10px] text-muted-foreground">S{sessions.find(s => s.id === a.session_id)?.session_number}</span>}
                 {a.due_date && <span className="text-xs text-muted-foreground">{format(new Date(a.due_date), "d MMM", { locale: fr })}</span>}
                 <button onClick={() => deleteAction(a.id)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
               </div>
             ))}
           </div>
-          <button onClick={addAction} className="text-xs text-primary font-semibold hover:underline mt-2">+ Ajouter une action</button>
+          <button onClick={() => addAction()} className="text-xs text-primary font-semibold hover:underline mt-2">+ Ajouter une action</button>
         </section>
 
         {/* ── ZONE DANGER ── */}
@@ -491,18 +509,15 @@ function ProgramDetailView({
           <div className="flex flex-wrap gap-3">
             {!isPaused ? (
               <Button variant="outline" size="sm" className="rounded-full text-sm gap-2 border-secondary text-secondary-foreground hover:bg-secondary/30" onClick={() => setPauseDialogOpen(true)}>
-                <Pause className="h-3.5 w-3.5" /> Mettre en pause le programme
+                <Pause className="h-3.5 w-3.5" /> Mettre en pause
               </Button>
             ) : (
-              <Button variant="outline" size="sm" className="rounded-full text-sm gap-2 border-primary text-primary hover:bg-primary/10" onClick={async () => {
-                await updateProgram("status", "active");
-                toast.success("Programme repris !");
-              }}>
-                <Play className="h-3.5 w-3.5" /> Reprendre le programme
+              <Button variant="outline" size="sm" className="rounded-full text-sm gap-2 border-primary text-primary hover:bg-primary/10" onClick={async () => { await updateProgram("status", "active"); toast.success("Programme repris !"); }}>
+                <Play className="h-3.5 w-3.5" /> Reprendre
               </Button>
             )}
             <Button variant="outline" size="sm" className="rounded-full text-sm gap-2 border-destructive text-destructive hover:bg-destructive/10" onClick={() => setDeleteDialogOpen(true)}>
-              <Trash2 className="h-3.5 w-3.5" /> Supprimer cette cliente et son programme
+              <Trash2 className="h-3.5 w-3.5" /> Supprimer
             </Button>
           </div>
         </section>
@@ -511,13 +526,20 @@ function ProgramDetailView({
         {editingSession && (
           <SessionEditDialog
             session={editingSession}
+            sessions={sessions}
+            deliverables={deliverables}
+            actions={actions}
             onUpdate={(id, u) => { updateSession(id, u); setEditingSession(prev => prev ? { ...prev, ...u } : null); }}
             onDelete={deleteSession}
             onClose={() => setEditingSession(null)}
+            onAddAction={addAction}
+            onDeleteAction={deleteAction}
+            onToggleAction={toggleAction}
+            onUpdateDeliverable={updateDeliverable}
+            onAddDeliverable={addDeliverable}
+            onUploadFile={uploadFile}
           />
         )}
-        {prepOpen && <PrepSessionDialog session={prepOpen} onClose={() => { setPrepOpen(null); onReload(); }} />}
-        {recapOpen && <RecapSessionDialog session={recapOpen} onClose={() => { setRecapOpen(null); onReload(); }} />}
         <PauseDialog open={pauseDialogOpen} clientName={program.client_name || ""} onConfirm={async () => { await updateProgram("status", "paused"); setPauseDialogOpen(false); toast.success("Programme en pause"); }} onCancel={() => setPauseDialogOpen(false)} />
         <DeleteClientDialog
           open={deleteDialogOpen}
@@ -531,7 +553,7 @@ function ProgramDetailView({
             await (supabase.from("coaching_sessions" as any).delete().eq("program_id", program.id) as any);
             await (supabase.from("coaching_programs" as any).delete().eq("id", program.id) as any);
             await (supabase.from("profiles" as any).update({ current_plan: "outil" } as any).eq("user_id", program.client_user_id) as any);
-            toast.success("Programme supprimé. " + (program.client_name || "La cliente") + " est repassée en plan Outil.");
+            toast.success("Programme supprimé.");
             onBack();
           }}
           onCancel={() => setDeleteDialogOpen(false)}
@@ -552,13 +574,7 @@ function InlineField({ label, value, type = "text", suffix, onSave, saved }: {
   return (
     <div className="flex items-center gap-2">
       <span className="text-muted-foreground text-sm w-20 shrink-0">{label}</span>
-      <input
-        type={type}
-        className="flex-1 bg-transparent text-foreground text-sm border-none focus:outline-none focus:bg-muted/30 rounded px-1 py-0.5 transition-colors min-w-0"
-        value={draft}
-        onChange={e => setDraft(e.target.value)}
-        onBlur={() => { if (draft !== value) onSave(draft); }}
-      />
+      <input type={type} className="flex-1 bg-transparent text-foreground text-sm border-none focus:outline-none focus:bg-muted/30 rounded px-1 py-0.5 transition-colors min-w-0" value={draft} onChange={e => setDraft(e.target.value)} onBlur={() => { if (draft !== value) onSave(draft); }} />
       {suffix && <span className="text-xs text-muted-foreground shrink-0">{suffix}</span>}
       {saved && <span className="text-[11px] text-primary animate-fade-in shrink-0">💾</span>}
     </div>
@@ -568,8 +584,8 @@ function InlineField({ label, value, type = "text", suffix, onSave, saved }: {
 /* ═══════════════════════════════════════════════════════════
    SORTABLE SESSION ROW
    ═══════════════════════════════════════════════════════════ */
-function SortableSessionRow({ session, onEdit, onPrepare, onRecap, savedField }: {
-  session: SessionData; onEdit: () => void; onPrepare: () => void; onRecap: () => void; savedField: string | null;
+function SortableSessionRow({ session, onEdit, savedField }: {
+  session: SessionData; onEdit: () => void; savedField: string | null;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: session.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
@@ -588,23 +604,28 @@ function SortableSessionRow({ session, onEdit, onPrepare, onRecap, savedField }:
       {session.scheduled_date && <span className="text-xs text-muted-foreground">{format(new Date(session.scheduled_date), "d MMM", { locale: fr })}</span>}
       <span className="text-sm">{statusIcon}</span>
       {savedField === "session-" + session.id && <span className="text-[11px] text-primary animate-fade-in">💾</span>}
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        {!isCompleted && <button onClick={onPrepare} className="text-xs text-muted-foreground hover:text-foreground" title="Préparer">📝</button>}
-        {!isCompleted && <button onClick={onRecap} className="text-xs text-muted-foreground hover:text-foreground" title="Compte-rendu">📋</button>}
-        <button onClick={onEdit} className="text-xs text-muted-foreground hover:text-foreground" title="Modifier">✏️</button>
-      </div>
+      <button onClick={onEdit} className="text-xs text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity" title="Modifier">✏️</button>
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════
-   SESSION EDIT DIALOG
+   SESSION EDIT DIALOG — Full editing with deliverables + actions
    ═══════════════════════════════════════════════════════════ */
-function SessionEditDialog({ session, onUpdate, onDelete, onClose }: {
+function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate, onDelete, onClose, onAddAction, onDeleteAction, onToggleAction, onUpdateDeliverable, onAddDeliverable, onUploadFile }: {
   session: SessionData;
+  sessions: SessionData[];
+  deliverables: DeliverableData[];
+  actions: ActionData[];
   onUpdate: (id: string, u: Record<string, any>) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
+  onAddAction: (sessionId?: string) => void;
+  onDeleteAction: (id: string) => void;
+  onToggleAction: (id: string, completed: boolean) => void;
+  onUpdateDeliverable: (id: string, updates: Record<string, any>) => void;
+  onAddDeliverable: (sessionId?: string) => void;
+  onUploadFile: (deliverableId: string, file: File) => void;
 }) {
   const [title, setTitle] = useState(session.title || "");
   const [sessionType, setSessionType] = useState(session.session_type || "focus");
@@ -615,8 +636,14 @@ function SessionEditDialog({ session, onUpdate, onDelete, onClose }: {
   const [meetingLink, setMeetingLink] = useState(session.meeting_link || "");
   const [status, setStatus] = useState(session.status);
   const [prepNotes, setPrepNotes] = useState(session.prep_notes || "");
+  const [summary, setSummary] = useState(session.summary || "");
   const [laetitiaNote, setLaetitiaNote] = useState(session.laetitia_note || "");
+  const [privateNotes, setPrivateNotes] = useState(session.private_notes || "");
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const sessionDeliverables = deliverables.filter(d => d.assigned_session_id === session.id);
+  const unassignedDeliverables = deliverables.filter(d => !d.assigned_session_id);
+  const sessionActions = actions.filter(a => a.session_id === session.id);
 
   const handleSave = () => {
     const scheduled = date ? (time ? `${date}T${time}:00` : date) : null;
@@ -624,7 +651,8 @@ function SessionEditDialog({ session, onUpdate, onDelete, onClose }: {
       title, session_type: sessionType, focus_topic: focusTopic || null,
       duration_minutes: duration, scheduled_date: scheduled,
       meeting_link: meetingLink || null, status,
-      prep_notes: prepNotes || null, laetitia_note: laetitiaNote || null,
+      prep_notes: prepNotes || null, summary: summary || null,
+      laetitia_note: laetitiaNote || null, private_notes: privateNotes || null,
     });
     toast.success("Session mise à jour !");
     onClose();
@@ -632,121 +660,200 @@ function SessionEditDialog({ session, onUpdate, onDelete, onClose }: {
 
   return (
     <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>Session {session.session_number}</span>
-          </DialogTitle>
+          <DialogTitle>Session {session.session_number} · {session.title || "À définir"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
-          {/* Type */}
+          {/* ── INFOS ── */}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Infos</p>
           <div>
             <Label className="text-xs text-muted-foreground">Type</Label>
             <div className="flex flex-wrap gap-2 mt-1">
               {SESSION_TYPES.map(t => (
-                <Button key={t.value} type="button" size="sm" variant={sessionType === t.value ? "default" : "outline"} className="rounded-full text-xs" onClick={() => setSessionType(t.value)}>
-                  {t.label}
-                </Button>
+                <Button key={t.value} type="button" size="sm" variant={sessionType === t.value ? "default" : "outline"} className="rounded-full text-xs" onClick={() => setSessionType(t.value)}>{t.label}</Button>
               ))}
             </div>
           </div>
-
-          {/* Focus (if type=focus) */}
           {sessionType === "focus" && (
             <div>
               <Label className="text-xs text-muted-foreground">Focus</Label>
-              <Select value={focusTopic || "none"} onValueChange={v => {
-                const topic = v === "none" ? "" : v;
-                setFocusTopic(topic);
-                if (topic && topic !== "custom") setTitle(getFocusLabel(topic));
-                if (!topic) setTitle("À définir ensemble");
-              }}>
+              <Select value={focusTopic || "none"} onValueChange={v => { const topic = v === "none" ? "" : v; setFocusTopic(topic); if (topic && topic !== "custom") setTitle(getFocusLabel(topic)); }}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">💬 À définir</SelectItem>
-                  {FOCUS_TOPICS.map(t => (
-                    <SelectItem key={t.value} value={t.value}>{t.icon} {t.label}</SelectItem>
-                  ))}
+                  {FOCUS_TOPICS.map(t => (<SelectItem key={t.value} value={t.value}>{t.icon} {t.label}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
           )}
-
-          {/* Title */}
-          <div>
-            <Label className="text-xs text-muted-foreground">Titre</Label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} className="mt-1" />
-          </div>
-
-          {/* Date + Time */}
+          <div><Label className="text-xs text-muted-foreground">Titre</Label><Input value={title} onChange={e => setTitle(e.target.value)} className="mt-1" /></div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs text-muted-foreground">Date</Label>
-              <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Heure</Label>
-              <Input type="time" value={time} onChange={e => setTime(e.target.value)} className="mt-1" />
-            </div>
+            <div><Label className="text-xs text-muted-foreground">Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1" /></div>
+            <div><Label className="text-xs text-muted-foreground">Heure</Label><Input type="time" value={time} onChange={e => setTime(e.target.value)} className="mt-1" /></div>
           </div>
-
-          {/* Duration */}
           <div>
             <Label className="text-xs text-muted-foreground">Durée</Label>
             <div className="flex gap-2 mt-1">
-              {DURATION_OPTIONS.map(d => (
-                <Button key={d.value} type="button" size="sm" variant={duration === d.value ? "default" : "outline"} className="rounded-full text-xs" onClick={() => setDuration(d.value)}>
-                  {d.label}
-                </Button>
-              ))}
+              {DURATION_OPTIONS.map(d => (<Button key={d.value} type="button" size="sm" variant={duration === d.value ? "default" : "outline"} className="rounded-full text-xs" onClick={() => setDuration(d.value)}>{d.label}</Button>))}
             </div>
           </div>
-
-          {/* Meeting link */}
-          <div>
-            <Label className="text-xs text-muted-foreground">Lien visio</Label>
-            <Input value={meetingLink} onChange={e => setMeetingLink(e.target.value)} placeholder="https://meet.google.com/xxx" className="mt-1" />
-          </div>
-
-          {/* Status */}
+          <div><Label className="text-xs text-muted-foreground">Lien visio</Label><Input value={meetingLink} onChange={e => setMeetingLink(e.target.value)} placeholder="https://meet.google.com/xxx" className="mt-1" /></div>
           <div>
             <Label className="text-xs text-muted-foreground">Statut</Label>
             <div className="flex gap-2 mt-1">
-              {STATUS_OPTIONS.map(s => (
-                <Button key={s.value} type="button" size="sm" variant={status === s.value ? "default" : "outline"} className="rounded-full text-xs" onClick={() => setStatus(s.value)}>
-                  {s.label}
-                </Button>
-              ))}
+              {STATUS_OPTIONS.map(s => (<Button key={s.value} type="button" size="sm" variant={status === s.value ? "default" : "outline"} className="rounded-full text-xs" onClick={() => setStatus(s.value)}>{s.label}</Button>))}
             </div>
           </div>
 
-          {/* Prep notes */}
-          <div>
-            <Label className="text-xs text-muted-foreground">Préparation pour la cliente <span className="text-[10px]">(visible dans son espace)</span></Label>
-            <Textarea value={prepNotes} onChange={e => setPrepNotes(e.target.value)} className="mt-1 min-h-[60px]" placeholder="Prépare 5 sujets qui te passionnent…" />
-          </div>
+          {/* ── COMPTE-RENDU ── */}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Compte-rendu (visible par la cliente)</p>
+          <VoiceTextarea value={summary} onChange={setSummary} placeholder="On a posé les fondations de ta com'..." />
 
-          {/* Private notes */}
-          <div>
-            <Label className="text-xs text-muted-foreground">Mes notes <span className="text-[10px]">(privé, pas visible par la cliente)</span></Label>
-            <Textarea value={laetitiaNote} onChange={e => setLaetitiaNote(e.target.value)} className="mt-1 min-h-[60px]" placeholder="Penser à revoir sa bio…" />
-          </div>
+          {/* ── MOT PERSO ── */}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Mot perso (visible, en italique rose)</p>
+          <VoiceTextarea value={laetitiaNote} onChange={setLaetitiaNote} placeholder="Un mot d'encouragement personnel..." />
 
-          <div className="flex gap-2">
+          {/* ── PRÉPA CLIENTE ── */}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prépa cliente (visible avant la session)</p>
+          <Textarea value={prepNotes} onChange={e => setPrepNotes(e.target.value)} className="min-h-[60px] text-sm" placeholder="Regarde tes 10 derniers posts..." />
+
+          {/* ── NOTES PRIVÉES ── */}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes privées (PAS visible par la cliente)</p>
+          <Textarea value={privateNotes} onChange={e => setPrivateNotes(e.target.value)} className="min-h-[60px] text-sm" placeholder="Penser à revoir sa bio..." />
+
+          {/* ── LIVRABLES ── */}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Livrables de cette session</p>
+          <div className="space-y-2">
+            {sessionDeliverables.map(d => (
+              <SessionDeliverableRow key={d.id} deliverable={d} onUpdate={onUpdateDeliverable} onUpload={onUploadFile} />
+            ))}
+          </div>
+          {unassignedDeliverables.length > 0 && (
+            <div>
+              <p className="text-[11px] text-muted-foreground mb-1">Assigner un livrable existant :</p>
+              <div className="space-y-1">
+                {unassignedDeliverables.map(d => (
+                  <button key={d.id} onClick={() => onUpdateDeliverable(d.id, { assigned_session_id: session.id })} className="text-xs text-primary hover:underline block">
+                    + {d.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <button onClick={() => onAddDeliverable(session.id)} className="text-xs text-primary font-semibold hover:underline">+ Ajouter un livrable personnalisé</button>
+
+          {/* ── ACTIONS ── */}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Actions pour la cliente</p>
+          <div className="space-y-1.5">
+            {sessionActions.map(a => (
+              <div key={a.id} className="flex items-center gap-2 text-sm">
+                <Checkbox checked={a.completed} onCheckedChange={c => onToggleAction(a.id, !!c)} />
+                <span className={`flex-1 ${a.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>{a.title}</span>
+                <button onClick={() => onDeleteAction(a.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => onAddAction(session.id)} className="text-xs text-primary font-semibold hover:underline">+ Ajouter une action</button>
+
+          {/* ── SAVE / DELETE ── */}
+          <div className="flex gap-2 pt-2">
             <Button onClick={handleSave} className="flex-1 rounded-full">💾 Enregistrer</Button>
             {!confirmDelete ? (
-              <Button variant="outline" size="sm" className="rounded-full text-xs text-destructive border-destructive hover:bg-destructive/10" onClick={() => setConfirmDelete(true)}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+              <Button variant="outline" size="sm" className="rounded-full text-xs text-destructive border-destructive hover:bg-destructive/10" onClick={() => setConfirmDelete(true)}><Trash2 className="h-3.5 w-3.5" /></Button>
             ) : (
-              <Button variant="destructive" size="sm" className="rounded-full text-xs" onClick={() => onDelete(session.id)}>
-                Confirmer suppression
-              </Button>
+              <Button variant="destructive" size="sm" className="rounded-full text-xs" onClick={() => onDelete(session.id)}>Confirmer</Button>
             )}
           </div>
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* ── Session Deliverable Row (in dialog) ── */
+function SessionDeliverableRow({ deliverable, onUpdate, onUpload }: {
+  deliverable: DeliverableData;
+  onUpdate: (id: string, updates: Record<string, any>) => void;
+  onUpload: (id: string, file: File) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const isDelivered = deliverable.status === "delivered";
+  const [editTitle, setEditTitle] = useState(deliverable.title);
+
+  return (
+    <div className={`rounded-lg border p-2.5 space-y-1.5 ${isDelivered ? "border-green-300/50" : "border-border"}`}>
+      <div className="flex items-center gap-2">
+        <span className="text-sm">{isDelivered ? "✅" : "☐"}</span>
+        <input
+          className="text-sm font-medium text-foreground flex-1 bg-transparent border-none focus:outline-none"
+          value={editTitle}
+          onChange={e => setEditTitle(e.target.value)}
+          onBlur={() => { if (editTitle !== deliverable.title) onUpdate(deliverable.id, { title: editTitle }); }}
+        />
+        {!isDelivered && (
+          <Button size="sm" variant="ghost" className="h-6 text-[11px] text-primary" onClick={() => onUpdate(deliverable.id, { status: "delivered", delivered_at: new Date().toISOString(), seen_by_client: false })}>
+            <Unlock className="h-3 w-3 mr-1" /> Débloquer
+          </Button>
+        )}
+      </div>
+      <div className="flex items-center gap-2 ml-5 text-xs">
+        {deliverable.route && <span className="text-muted-foreground">→ {deliverable.route}</span>}
+        {deliverable.file_url ? (
+          <span className="text-muted-foreground">📎 {deliverable.file_name}</span>
+        ) : (
+          <>
+            <input ref={fileRef} type="file" className="hidden" onChange={e => { if (e.target.files?.[0]) onUpload(deliverable.id, e.target.files[0]); }} />
+            <button onClick={() => fileRef.current?.click()} className="text-primary hover:underline flex items-center gap-1"><Upload className="h-3 w-3" /> Uploader</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Admin Deliverable Row (main list) ── */
+function AdminDeliverableRow({ deliverable, sessions, onUpdate, onDelete, onUpload }: {
+  deliverable: DeliverableData;
+  sessions: SessionData[];
+  onUpdate: (id: string, updates: Record<string, any>) => void;
+  onDelete: (id: string) => void;
+  onUpload: (id: string, file: File) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const isDelivered = deliverable.status === "delivered";
+  const [editTitle, setEditTitle] = useState(deliverable.title);
+  const assignedSession = sessions.find(s => s.id === deliverable.assigned_session_id);
+
+  return (
+    <div className={`rounded-lg border p-2.5 flex items-center gap-2 ${isDelivered ? "border-green-300/50" : "border-border"}`}>
+      <span className="text-sm">{isDelivered ? "✅" : "🔒"}</span>
+      <input className="text-sm font-medium text-foreground flex-1 bg-transparent border-none focus:outline-none min-w-0" value={editTitle} onChange={e => setEditTitle(e.target.value)} onBlur={() => { if (editTitle !== deliverable.title) onUpdate(deliverable.id, { title: editTitle }); }} />
+      {assignedSession && <span className="text-[10px] text-muted-foreground shrink-0">S{assignedSession.session_number}</span>}
+      <Select value={deliverable.assigned_session_id || "none"} onValueChange={v => onUpdate(deliverable.id, { assigned_session_id: v === "none" ? null : v })}>
+        <SelectTrigger className="h-6 text-[10px] w-20 shrink-0"><SelectValue placeholder="Session" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">—</SelectItem>
+          {sessions.map(s => (<SelectItem key={s.id} value={s.id}>S{s.session_number}</SelectItem>))}
+        </SelectContent>
+      </Select>
+      {!isDelivered && (
+        <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px] text-primary shrink-0" onClick={() => onUpdate(deliverable.id, { status: "delivered", delivered_at: new Date().toISOString(), seen_by_client: false })}>
+          <Unlock className="h-3 w-3" />
+        </Button>
+      )}
+      {deliverable.file_url ? (
+        <span className="text-[10px] text-muted-foreground shrink-0">📎</span>
+      ) : (
+        <>
+          <input ref={fileRef} type="file" className="hidden" onChange={e => { if (e.target.files?.[0]) onUpload(deliverable.id, e.target.files[0]); }} />
+          <button onClick={() => fileRef.current?.click()} className="text-muted-foreground hover:text-primary shrink-0"><Upload className="h-3.5 w-3.5" /></button>
+        </>
+      )}
+      {deliverable.status !== "delivered" && (
+        <button onClick={() => onDelete(deliverable.id)} className="text-muted-foreground hover:text-destructive shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
+      )}
+    </div>
   );
 }
 
@@ -766,41 +873,24 @@ function AddSessionInline({ onAdd, onCancel }: { onAdd: (data: Partial<SessionDa
       <div>
         <Label className="text-xs text-muted-foreground">Type</Label>
         <div className="flex flex-wrap gap-2 mt-1">
-          {SESSION_TYPES.map(t => (
-            <Button key={t.value} type="button" size="sm" variant={sessionType === t.value ? "default" : "outline"} className="rounded-full text-xs" onClick={() => setSessionType(t.value)}>
-              {t.label}
-            </Button>
-          ))}
+          {SESSION_TYPES.map(t => (<Button key={t.value} type="button" size="sm" variant={sessionType === t.value ? "default" : "outline"} className="rounded-full text-xs" onClick={() => setSessionType(t.value)}>{t.label}</Button>))}
         </div>
       </div>
       {sessionType === "focus" && (
-        <Select value={focusTopic || "none"} onValueChange={v => {
-          const topic = v === "none" ? "" : v;
-          setFocusTopic(topic);
-          if (topic && topic !== "custom") setTitle(getFocusLabel(topic));
-          if (!topic) setTitle("À définir ensemble");
-        }}>
+        <Select value={focusTopic || "none"} onValueChange={v => { const topic = v === "none" ? "" : v; setFocusTopic(topic); if (topic && topic !== "custom") setTitle(getFocusLabel(topic)); if (!topic) setTitle("À définir ensemble"); }}>
           <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Focus…" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="none">💬 À définir</SelectItem>
-            {FOCUS_TOPICS.map(t => (
-              <SelectItem key={t.value} value={t.value}>{t.icon} {t.label}</SelectItem>
-            ))}
+            {FOCUS_TOPICS.map(t => (<SelectItem key={t.value} value={t.value}>{t.icon} {t.label}</SelectItem>))}
           </SelectContent>
         </Select>
       )}
       <div className="flex gap-2">
-        {DURATION_OPTIONS.filter(d => d.value >= 60).map(d => (
-          <Button key={d.value} type="button" size="sm" variant={duration === d.value ? "default" : "outline"} className="rounded-full text-xs" onClick={() => setDuration(d.value)}>
-            {d.label}
-          </Button>
-        ))}
+        {DURATION_OPTIONS.filter(d => d.value >= 60).map(d => (<Button key={d.value} type="button" size="sm" variant={duration === d.value ? "default" : "outline"} className="rounded-full text-xs" onClick={() => setDuration(d.value)}>{d.label}</Button>))}
       </div>
       <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" />
       <div className="flex gap-2">
-        <Button size="sm" className="rounded-full" onClick={() => onAdd({ session_type: sessionType, focus_topic: focusTopic || undefined, title, duration_minutes: duration, scheduled_date: date || undefined })}>
-          Ajouter
-        </Button>
+        <Button size="sm" className="rounded-full" onClick={() => onAdd({ session_type: sessionType, focus_topic: focusTopic || undefined, title, duration_minutes: duration, scheduled_date: date || undefined })}>Ajouter</Button>
         <Button size="sm" variant="outline" className="rounded-full" onClick={onCancel}>Annuler</Button>
       </div>
     </div>
@@ -808,42 +898,29 @@ function AddSessionInline({ onAdd, onCancel }: { onAdd: (data: Partial<SessionDa
 }
 
 /* ═══════════════════════════════════════════════════════════
-   DELETE CLIENT DIALOG — 2-step confirmation
+   DELETE / PAUSE DIALOGS
    ═══════════════════════════════════════════════════════════ */
 function DeleteClientDialog({ open, clientName, sessionCount, deliverableCount, actionCount, onConfirm, onCancel }: {
   open: boolean; clientName: string; sessionCount: number; deliverableCount: number; actionCount: number; onConfirm: () => Promise<void>; onCancel: () => void;
 }) {
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const isConfirmed = confirmText === "SUPPRIMER";
-
   return (
     <AlertDialog open={open} onOpenChange={v => { if (!v) onCancel(); }}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle className="flex items-center gap-2">⚠️ Supprimer le programme de {clientName} ?</AlertDialogTitle>
+          <AlertDialogTitle>⚠️ Supprimer le programme de {clientName} ?</AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-2 text-sm">
-              <p>Cette action va :</p>
-              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                <li>Supprimer toutes ses sessions ({sessionCount})</li>
-                <li>Supprimer tous ses livrables ({deliverableCount})</li>
-                <li>Supprimer toutes ses actions ({actionCount})</li>
-                <li>Repasser son plan en « Outil » (39€/mois)</li>
-              </ul>
-              <p className="text-muted-foreground">Son compte et ses données (branding, calendrier, contenus) restent intacts.</p>
-              <div className="pt-2">
-                <Label className="text-xs text-muted-foreground">Tape « SUPPRIMER » pour confirmer :</Label>
-                <Input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="SUPPRIMER" className="mt-1" />
-              </div>
+              <p>Supprime {sessionCount} sessions, {deliverableCount} livrables, {actionCount} actions. Le compte reste intact.</p>
+              <div className="pt-2"><Label className="text-xs text-muted-foreground">Tape « SUPPRIMER » :</Label><Input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="SUPPRIMER" className="mt-1" /></div>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onCancel}>Annuler</AlertDialogCancel>
-          <Button variant="destructive" disabled={!isConfirmed || deleting} onClick={async () => { setDeleting(true); await onConfirm(); setDeleting(false); }}>
-            {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            Supprimer définitivement
+          <Button variant="destructive" disabled={confirmText !== "SUPPRIMER" || deleting} onClick={async () => { setDeleting(true); await onConfirm(); setDeleting(false); }}>
+            {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Supprimer
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -851,18 +928,13 @@ function DeleteClientDialog({ open, clientName, sessionCount, deliverableCount, 
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
-   PAUSE DIALOG
-   ═══════════════════════════════════════════════════════════ */
 function PauseDialog({ open, clientName, onConfirm, onCancel }: { open: boolean; clientName: string; onConfirm: () => Promise<void>; onCancel: () => void }) {
   return (
     <AlertDialog open={open} onOpenChange={v => { if (!v) onCancel(); }}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>⏸️ Mettre en pause le programme de {clientName} ?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Le compteur de mois s'arrête. Les sessions à venir sont décalées. Le WhatsApp reste actif.
-          </AlertDialogDescription>
+          <AlertDialogTitle>⏸️ Mettre en pause {clientName} ?</AlertDialogTitle>
+          <AlertDialogDescription>Le compteur de mois s'arrête. Le WhatsApp reste actif.</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onCancel}>Annuler</AlertDialogCancel>
@@ -874,14 +946,9 @@ function PauseDialog({ open, clientName, onConfirm, onCancel }: { open: boolean;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   ADD CLIENT DIALOG — Rich creation form (unchanged logic)
+   ADD CLIENT DIALOG
    ═══════════════════════════════════════════════════════════ */
-interface FocusSessionInput {
-  focus_topic: string;
-  focus_label: string;
-  duration: number;
-  date: string;
-}
+interface FocusSessionInput { focus_topic: string; focus_label: string; duration: number; date: string; }
 
 function AddClientDialog({ open, onOpenChange, coachUserId, onCreated }: { open: boolean; onOpenChange: (v: boolean) => void; coachUserId: string; onCreated: () => void }) {
   const [email, setEmail] = useState("");
@@ -979,7 +1046,7 @@ function AddClientDialog({ open, onOpenChange, coachUserId, onCreated }: { open:
           </section>
           <section>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Les {focusSessions.length} sessions focus</p>
-            <p className="text-[11px] text-muted-foreground mb-3">💡 Les focus seront décidés lors de l'Atelier Stratégique. Tu peux les pré-remplir ou les laisser vides.</p>
+            <p className="text-[11px] text-muted-foreground mb-3">💡 Les focus seront décidés lors de l'Atelier Stratégique.</p>
             <div className="space-y-3">
               {focusSessions.map((fs, i) => (
                 <div key={i} className="rounded-xl border border-border p-3 space-y-2">
@@ -1013,12 +1080,11 @@ function AddClientDialog({ open, onOpenChange, coachUserId, onCreated }: { open:
           </section>
           <div className="rounded-xl bg-rose-pale/50 border border-primary/20 p-4 text-sm space-y-1">
             <p className="font-semibold text-foreground">🤝 Now Pilot · 6 mois · 250€/mois</p>
-            <p className="text-muted-foreground">{totalSessions} sessions · ~{totalHours}h d'accompagnement</p>
-            <p className="text-muted-foreground">+ WhatsApp illimité + Outil IA (300 crédits/mois)</p>
-            {startDate && endDate && <p className="text-muted-foreground">Début : {format(new Date(startDate), "d MMMM yyyy", { locale: fr })} → Fin : {format(endDate, "d MMMM yyyy", { locale: fr })}</p>}
+            <p className="text-muted-foreground">{totalSessions} sessions · ~{totalHours}h</p>
+            {startDate && endDate && <p className="text-muted-foreground">{format(new Date(startDate), "d MMM yyyy", { locale: fr })} → {format(endDate, "d MMM yyyy", { locale: fr })}</p>}
           </div>
           <Button onClick={handleCreate} disabled={creating} className="w-full rounded-full">
-            {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Créer le programme
+            {creating && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Créer le programme
           </Button>
         </div>
       </DialogContent>
@@ -1026,76 +1092,15 @@ function AddClientDialog({ open, onOpenChange, coachUserId, onCreated }: { open:
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
-   PREP & RECAP DIALOGS
-   ═══════════════════════════════════════════════════════════ */
-function PrepSessionDialog({ session, onClose }: { session: SessionData; onClose: () => void }) {
-  const [meetingLink, setMeetingLink] = useState(session.meeting_link || "");
-  const [focus, setFocus] = useState(session.focus || "");
-  const [prepNotes, setPrepNotes] = useState(session.prep_notes || "");
-  const [scheduledDate, setScheduledDate] = useState(session.scheduled_date ? format(new Date(session.scheduled_date), "yyyy-MM-dd'T'HH:mm") : "");
-  const [saving, setSaving] = useState(false);
-  const handleSave = async () => {
-    setSaving(true);
-    await (supabase.from("coaching_sessions" as any).update({ meeting_link: meetingLink || null, focus: focus || null, prep_notes: prepNotes || null, scheduled_date: scheduledDate || null } as any).eq("id", session.id) as any);
-    toast.success("Session préparée !"); setSaving(false); onClose();
-  };
-  return (
-    <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader><DialogTitle>📝 Préparer · {getSessionTypeIcon(session.session_type)} {session.title}</DialogTitle></DialogHeader>
-        <div className="space-y-4 pt-2">
-          <div><label className="text-sm font-medium">Date et heure</label><Input type="datetime-local" value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} /></div>
-          <div><label className="text-sm font-medium">Lien visio</label><Input value={meetingLink} onChange={e => setMeetingLink(e.target.value)} placeholder="https://meet.google.com/xxx" /></div>
-          <div><label className="text-sm font-medium">Ce que je veux aborder</label><Textarea className="min-h-[80px]" value={focus} onChange={e => setFocus(e.target.value)} /></div>
-          <div><label className="text-sm font-medium">Préparation pour la cliente</label><Textarea className="min-h-[80px]" value={prepNotes} onChange={e => setPrepNotes(e.target.value)} placeholder="· Lister 5 sujets passion" /></div>
-          <Button onClick={handleSave} disabled={saving} className="w-full rounded-full">{saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}💾 Enregistrer</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+/* ── Textarea with voice ── */
+function VoiceTextarea({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const { isListening, toggle } = useSpeechRecognition(
+    (transcript) => onChange(value ? value + " " + transcript : transcript),
   );
-}
-
-function RecapSessionDialog({ session, onClose }: { session: SessionData; onClose: () => void }) {
-  const [summary, setSummary] = useState(session.summary || "");
-  const [laetitiaNote, setLaetitiaNote] = useState(session.laetitia_note || "");
-  const [modules, setModules] = useState<string[]>(session.modules_updated || []);
-  const [actionInputs, setActionInputs] = useState<{ title: string; due_date: string }[]>([{ title: "", due_date: "" }]);
-  const [saving, setSaving] = useState(false);
-  const toggleModule = (m: string) => setModules(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
-  const handleSave = async () => {
-    setSaving(true);
-    await (supabase.from("coaching_sessions" as any).update({ status: "completed", summary: summary || null, modules_updated: modules, laetitia_note: laetitiaNote || null } as any).eq("id", session.id) as any);
-    const validActions = actionInputs.filter(a => a.title.trim());
-    if (validActions.length > 0) {
-      await (supabase.from("coaching_actions" as any) as any).insert(validActions.map(a => ({ program_id: session.program_id, session_id: session.id, title: a.title.trim(), due_date: a.due_date || null })));
-    }
-    toast.success("Session complétée !"); setSaving(false); onClose();
-  };
   return (
-    <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>📝 Compte-rendu · {getSessionTypeIcon(session.session_type)} {session.title}</DialogTitle></DialogHeader>
-        <div className="space-y-4 pt-2">
-          <div><label className="text-sm font-medium">Ce qu'on a fait</label><Textarea className="min-h-[96px]" value={summary} onChange={e => setSummary(e.target.value)} /></div>
-          <div>
-            <label className="text-sm font-medium">Modules mis à jour</label>
-            <div className="flex flex-wrap gap-2 mt-1">{ALL_MODULES.map(m => (<label key={m} className="flex items-center gap-1.5 cursor-pointer"><Checkbox checked={modules.includes(m)} onCheckedChange={() => toggleModule(m)} /><span className="text-sm">{m}</span></label>))}</div>
-          </div>
-          <div>
-            <label className="text-sm font-medium">Actions pour la cliente</label>
-            {actionInputs.map((a, i) => (
-              <div key={i} className="flex gap-2 mt-1">
-                <Input value={a.title} onChange={e => { const c = [...actionInputs]; c[i].title = e.target.value; setActionInputs(c); }} placeholder="Action" className="flex-1" />
-                <Input type="date" value={a.due_date} onChange={e => { const c = [...actionInputs]; c[i].due_date = e.target.value; setActionInputs(c); }} className="w-36" />
-              </div>
-            ))}
-            <button onClick={() => setActionInputs(prev => [...prev, { title: "", due_date: "" }])} className="text-xs text-primary font-semibold mt-1 hover:underline">+ Ajouter une action</button>
-          </div>
-          <div><label className="text-sm font-medium">Mon mot pour elle</label><Textarea className="min-h-[64px]" value={laetitiaNote} onChange={e => setLaetitiaNote(e.target.value)} /></div>
-          <Button onClick={handleSave} disabled={saving} className="w-full rounded-full">{saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}💾 Enregistrer et marquer complétée</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <div className="relative">
+      <Textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="min-h-[80px] text-sm pr-10" />
+      <button type="button" onClick={toggle} className={`absolute right-2 bottom-2 p-1.5 rounded-full transition-all ${isListening ? "bg-destructive text-destructive-foreground animate-pulse" : "bg-muted text-muted-foreground hover:bg-secondary"}`}>🎤</button>
+    </div>
   );
 }

@@ -660,6 +660,7 @@ export type Database = {
       }
       coaching_deliverables: {
         Row: {
+          assigned_session_id: string | null
           created_at: string
           delivered_at: string | null
           file_name: string | null
@@ -672,9 +673,9 @@ export type Database = {
           title: string
           type: string | null
           unlocked_at: string | null
-          unlocked_by_journal_id: string | null
         }
         Insert: {
+          assigned_session_id?: string | null
           created_at?: string
           delivered_at?: string | null
           file_name?: string | null
@@ -687,9 +688,9 @@ export type Database = {
           title: string
           type?: string | null
           unlocked_at?: string | null
-          unlocked_by_journal_id?: string | null
         }
         Update: {
+          assigned_session_id?: string | null
           created_at?: string
           delivered_at?: string | null
           file_name?: string | null
@@ -702,81 +703,20 @@ export type Database = {
           title?: string
           type?: string | null
           unlocked_at?: string | null
-          unlocked_by_journal_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "coaching_deliverables_assigned_session_id_fkey"
+            columns: ["assigned_session_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_sessions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "coaching_deliverables_program_id_fkey"
             columns: ["program_id"]
             isOneToOne: false
             referencedRelation: "coaching_programs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "coaching_deliverables_unlocked_by_journal_id_fkey"
-            columns: ["unlocked_by_journal_id"]
-            isOneToOne: false
-            referencedRelation: "coaching_journal"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      coaching_journal: {
-        Row: {
-          body: string | null
-          created_at: string
-          date: string | null
-          deliverable_ids: string[] | null
-          id: string
-          laetitia_note: string | null
-          month_number: number | null
-          program_id: string
-          session_id: string | null
-          status: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          body?: string | null
-          created_at?: string
-          date?: string | null
-          deliverable_ids?: string[] | null
-          id?: string
-          laetitia_note?: string | null
-          month_number?: number | null
-          program_id: string
-          session_id?: string | null
-          status?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          body?: string | null
-          created_at?: string
-          date?: string | null
-          deliverable_ids?: string[] | null
-          id?: string
-          laetitia_note?: string | null
-          month_number?: number | null
-          program_id?: string
-          session_id?: string | null
-          status?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "coaching_journal_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "coaching_programs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "coaching_journal_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "coaching_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -848,6 +788,7 @@ export type Database = {
           modules_updated: string[] | null
           phase: string
           prep_notes: string | null
+          private_notes: string | null
           program_id: string
           scheduled_date: string | null
           session_number: number
@@ -868,6 +809,7 @@ export type Database = {
           modules_updated?: string[] | null
           phase?: string
           prep_notes?: string | null
+          private_notes?: string | null
           program_id: string
           scheduled_date?: string | null
           session_number: number
@@ -888,6 +830,7 @@ export type Database = {
           modules_updated?: string[] | null
           phase?: string
           prep_notes?: string | null
+          private_notes?: string | null
           program_id?: string
           scheduled_date?: string | null
           session_number?: number
