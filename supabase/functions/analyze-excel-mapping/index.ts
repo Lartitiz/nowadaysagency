@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple } from "../_shared/anthropic.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -107,6 +108,8 @@ Règles :
     content = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
 
     const mapping = JSON.parse(content);
+
+    await logUsage(user.id, "import", "excel_mapping");
 
     return new Response(JSON.stringify(mapping), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

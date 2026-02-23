@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple } from "../_shared/anthropic.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -102,6 +104,14 @@ serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user }, error: authError2 } = await supabase.auth.getUser();
+    const userId = user?.id;
 
     // Anthropic API key checked in shared helper
 
@@ -296,7 +306,20 @@ Réponds en JSON :
         });
     }
 
+    if (userId) {
+      const quotaCheck = await checkQuota(userId, "content");
+      if (!quotaCheck.allowed) {
+        return new Response(JSON.stringify({ error: quotaCheck.message }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const content = await callAnthropicSimple("claude-sonnet-4-5-20250929", systemPrompt, userPrompt);
+
+    if (userId) {
+      await logUsage(userId, "content", "persona");
+    }
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple } from "../_shared/anthropic.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -202,7 +203,16 @@ RÈGLES :
       });
     }
 
+    const quotaCheck = await checkQuota(userId, "content");
+    if (!quotaCheck.allowed) {
+      return new Response(JSON.stringify({ error: quotaCheck.message }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const content = await callAnthropicSimple("claude-opus-4-6", systemPrompt, userPrompt);
+
+    await logUsage(userId, "content", "storytelling");
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
