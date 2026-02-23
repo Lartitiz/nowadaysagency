@@ -5,7 +5,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Trash2, ChevronDown, Sparkles, Zap, Copy, RefreshCw, Loader2 } from "lucide-react";
+import { Trash2, ChevronDown, Sparkles, Zap, Copy, RefreshCw, Loader2, Undo2 } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
 import { ANGLES, STATUSES, OBJECTIFS, type CalendarPost } from "@/lib/calendar-constants";
 import { FORMAT_EMOJIS, FORMAT_LABELS } from "@/lib/calendar-helpers";
@@ -30,10 +30,11 @@ interface Props {
   defaultCanal: string;
   onSave: (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format: string | null; content_draft: string | null; accroche: string | null }) => void;
   onDelete: () => void;
+  onUnplan?: () => void;
   prefillData?: { theme?: string; notes?: string } | null;
 }
 
-export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onDelete, prefillData }: Props) {
+export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onDelete, onUnplan, prefillData }: Props) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [theme, setTheme] = useState("");
@@ -251,6 +252,11 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               <Button onClick={() => onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche })} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux">
                 Enregistrer
               </Button>
+              {onUnplan && editingPost && (
+                <Button variant="outline" size="icon" onClick={onUnplan} className="rounded-full text-muted-foreground hover:text-primary" title="Remettre en idée">
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+              )}
               <Button variant="outline" size="icon" onClick={onDelete} className="rounded-full text-destructive hover:bg-destructive/10">
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -318,6 +324,11 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               <Button onClick={() => onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche })} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux">
                 Enregistrer
               </Button>
+              {onUnplan && editingPost && (
+                <Button variant="outline" size="icon" onClick={onUnplan} className="rounded-full text-muted-foreground hover:text-primary" title="Remettre en idée">
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+              )}
               <Button variant="outline" size="icon" onClick={onDelete} className="rounded-full text-destructive hover:bg-destructive/10">
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -493,6 +504,11 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             <Button onClick={handleSave} disabled={!theme.trim()} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux">
               Enregistrer
             </Button>
+            {onUnplan && editingPost && (
+              <Button variant="outline" size="icon" onClick={onUnplan} className="rounded-full text-muted-foreground hover:text-primary" title="Remettre en idée">
+                <Undo2 className="h-4 w-4" />
+              </Button>
+            )}
             {editingPost && (
               <Button variant="outline" size="icon" onClick={onDelete} className="rounded-full text-destructive hover:bg-destructive/10">
                 <Trash2 className="h-4 w-4" />

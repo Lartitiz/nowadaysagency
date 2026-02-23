@@ -8,7 +8,6 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -48,11 +47,12 @@ const FORMAT_FILTERS = [
 ];
 
 interface Props {
-  onIdeaPlanned: () => void; // refresh calendar after idea is planned
+  onIdeaPlanned: () => void;
+  onIdeaClick?: (idea: SavedIdea) => void;
   isMobile?: boolean;
 }
 
-export function CalendarIdeasSidebar({ onIdeaPlanned, isMobile }: Props) {
+export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [ideas, setIdeas] = useState<SavedIdea[]>([]);
@@ -74,11 +74,17 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, isMobile }: Props) {
 
   useEffect(() => { fetchIdeas(); }, [user?.id]);
 
+  // Expose refresh so parent can trigger after unplan
+  useEffect(() => {
+    (window as any).__refreshIdeasSidebar = fetchIdeas;
+    return () => { delete (window as any).__refreshIdeasSidebar; };
+  }, [user?.id]);
+
   const filteredIdeas = filter === "all"
     ? ideas
     : ideas.filter(i => {
         const f = i.format || "";
-        if (filter === "post") return f.includes("post") || f === "" ;
+        if (filter === "post") return f.includes("post") || f === "";
         if (filter === "carousel") return f.includes("carrousel") || f === "carousel";
         if (filter === "reel") return f === "reel";
         if (filter === "story") return f.includes("story");
@@ -94,7 +100,6 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, isMobile }: Props) {
   const handleMobilePlan = async () => {
     if (!planDialogIdea || !planDate || !user) return;
     const dateStr = format(planDate, "yyyy-MM-dd");
-    // Create calendar post from idea
     const { data: newPost } = await supabase.from("calendar_posts").insert({
       user_id: user.id,
       date: dateStr,
@@ -114,6 +119,12 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, isMobile }: Props) {
     fetchIdeas();
     onIdeaPlanned();
     toast({ title: `Idée planifiée le ${format(planDate, "d MMMM", { locale: fr })}` });
+  };
+
+  const handleIdeaClick = (idea: SavedIdea) => {
+    if (onIdeaClick) {
+      onIdeaClick(idea);
+    }
   };
 
   return (
@@ -141,8 +152,11 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, isMobile }: Props) {
         )}
         {filteredIdeas.map(idea => (
           isMobile
-            ? <MobileIdeaCard key={idea.id} idea={idea} onDelete={handleDeleteIdea} onPlan={() => { setPlanDialogIdea(idea); setPlanDate(undefined); }} />
-            : <DraggableIdeaCard key={idea.id} idea={idea} onDelete={handleDeleteIdea} />
+            ? <MobileIdeaCard key={idea.id} idea={idea} onDelete={handleDeleteIdea}
+                onPlan={() => { setPlanDialogIdea(idea); setPlanDate(undefined); }}
+                onClick={() => handleIdeaClick(idea)} />
+            : <DraggableIdeaCard key={idea.id} idea={idea} onDelete={handleDeleteIdea}
+                onClick={() => handleIdeaClick(idea)} />
         ))}
       </div>
 
@@ -177,7 +191,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, isMobile }: Props) {
 }
 
 /* ── Draggable idea card (desktop) ── */
-function DraggableIdeaCard({ idea, onDelete }: { idea: SavedIdea; onDelete: (id: string) => void }) {
+function DraggableIdeaCard({ idea, onDelete, onClick }: { idea: SavedIdea; onDelete: (id: string) => void; onClick: () => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `idea-${idea.id}`,
     data: { type: "idea", idea },
@@ -192,9 +206,13 @@ function DraggableIdeaCard({ idea, onDelete }: { idea: SavedIdea; onDelete: (id:
   const objColor = OBJECTIVE_COLORS[idea.objectif || ""] || "text-muted-foreground";
 
   return (
-    <div ref={setNodeRef} style={style} className="flex items-start gap-1 group rounded-lg border border-border bg-card p-2 hover:border-primary/30 transition-colors">
+    <div ref={setNodeRef} style={style}
+      className="flex items-start gap-1 group rounded-lg border border-border bg-card p-2 hover:border-primary/30 hover:bg-accent/30 transition-colors cursor-pointer"
+      onClick={onClick}
+    >
       <span {...attributes} {...listeners}
-        className="cursor-grab opacity-0 group-hover:opacity-60 transition-opacity shrink-0 touch-none mt-0.5">
+        className="cursor-grab opacity-0 group-hover:opacity-60 transition-opacity shrink-0 touch-none mt-0.5"
+        onClick={(e) => e.stopPropagation()}>
         <GripVertical className="h-3 w-3 text-muted-foreground" />
       </span>
       <div className="flex-1 min-w-0">
@@ -206,27 +224,20 @@ function DraggableIdeaCard({ idea, onDelete }: { idea: SavedIdea; onDelete: (id:
           <p className="text-[10px] text-muted-foreground capitalize">{idea.status}</p>
         )}
       </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          <MoreVertical className="h-3 w-3 text-muted-foreground" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="text-xs">
-          <DropdownMenuItem onClick={() => onDelete(idea.id)} className="text-destructive">
-            <Trash2 className="h-3 w-3 mr-1" /> Supprimer
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
     </div>
   );
 }
 
 /* ── Mobile idea card ── */
-function MobileIdeaCard({ idea, onDelete, onPlan }: { idea: SavedIdea; onDelete: (id: string) => void; onPlan: () => void }) {
+function MobileIdeaCard({ idea, onDelete, onPlan, onClick }: { idea: SavedIdea; onDelete: (id: string) => void; onPlan: () => void; onClick: () => void }) {
   const icon = FORMAT_ICONS[idea.format || ""] || "📝";
   const objColor = OBJECTIVE_COLORS[idea.objectif || ""] || "text-muted-foreground";
 
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-border bg-card p-2.5">
+    <div
+      className="flex items-start gap-2 rounded-lg border border-border bg-card p-2.5 cursor-pointer hover:bg-accent/30 transition-colors"
+      onClick={onClick}
+    >
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium text-foreground truncate">{icon} {idea.titre}</p>
         <p className={cn("text-[10px] truncate", objColor)}>
@@ -234,10 +245,10 @@ function MobileIdeaCard({ idea, onDelete, onPlan }: { idea: SavedIdea; onDelete:
         </p>
       </div>
       <div className="flex gap-1 shrink-0">
-        <button onClick={onPlan} className="text-[10px] text-primary font-medium px-2 py-1 rounded border border-primary/30 hover:bg-primary/5">
-          📅 Planifier
+        <button onClick={(e) => { e.stopPropagation(); onPlan(); }} className="text-[10px] text-primary font-medium px-2 py-1 rounded border border-primary/30 hover:bg-primary/5">
+          📅
         </button>
-        <button onClick={() => onDelete(idea.id)} className="text-muted-foreground hover:text-destructive p-1">
+        <button onClick={(e) => { e.stopPropagation(); onDelete(idea.id); }} className="text-muted-foreground hover:text-destructive p-1">
           <Trash2 className="h-3 w-3" />
         </button>
       </div>

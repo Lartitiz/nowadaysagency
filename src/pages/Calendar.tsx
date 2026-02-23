@@ -16,7 +16,8 @@ import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
 import { CalendarLegend } from "@/components/calendar/CalendarLegend";
 import { CalendarCategoryFilters } from "@/components/calendar/CalendarCategoryFilters";
 import { StoriesMixBanner } from "@/components/calendar/StoriesMixBanner";
-import { CalendarIdeasSidebar } from "@/components/calendar/CalendarIdeasSidebar";
+import { CalendarIdeasSidebar, type SavedIdea } from "@/components/calendar/CalendarIdeasSidebar";
+import { IdeaDetailSheet } from "@/components/calendar/IdeaDetailSheet";
 import { CalendarWeekHeader } from "@/components/calendar/CalendarWeekHeader";
 import { DndContext, DragOverlay, closestCenter, type DragStartEvent, type DragEndEvent } from "@dnd-kit/core";
 
@@ -61,6 +62,8 @@ export default function CalendarPage() {
   const [mobileTab, setMobileTab] = useState<"calendar" | "ideas">("calendar");
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
   const [postsPerWeek, setPostsPerWeek] = useState(3);
+  const [selectedIdea, setSelectedIdea] = useState<SavedIdea | null>(null);
+  const [ideaDetailOpen, setIdeaDetailOpen] = useState(false);
 
   useEffect(() => {
     const urlCanal = searchParams.get("canal");
@@ -244,6 +247,44 @@ export default function CalendarPage() {
     }
   };
 
+  /** Unplan a post: move it back to saved_ideas */
+  const handleUnplan = async () => {
+    if (!editingPost || !user) return;
+    // Create or restore idea in saved_ideas
+    await supabase.from("saved_ideas").insert({
+      user_id: user.id,
+      titre: editingPost.theme,
+      format: editingPost.format || null,
+      objectif: editingPost.objectif || null,
+      notes: editingPost.notes || null,
+      status: "idea",
+      canal: editingPost.canal || "instagram",
+      content_draft: editingPost.content_draft || null,
+      angle: editingPost.angle || "",
+    });
+    // Delete calendar post
+    await supabase.from("calendar_posts").delete().eq("id", editingPost.id);
+    setDialogOpen(false);
+    fetchPosts();
+    // Refresh sidebar
+    (window as any).__refreshIdeasSidebar?.();
+    toast({ title: "Remis en idée !" });
+  };
+
+  const handleIdeaClick = (idea: SavedIdea) => {
+    setSelectedIdea(idea);
+    setIdeaDetailOpen(true);
+  };
+
+  const handleIdeaUpdated = () => {
+    (window as any).__refreshIdeasSidebar?.();
+  };
+
+  const handleIdeaPlannedFromSheet = () => {
+    fetchPosts();
+    (window as any).__refreshIdeasSidebar?.();
+  };
+
   // Unified Drag & Drop handler (sidebar ideas + calendar post moves)
   const handleDragStart = (event: DragStartEvent) => {
     const data = event.active.data.current;
@@ -395,7 +436,7 @@ export default function CalendarPage() {
 
         {isMobile ? (
           mobileTab === "calendar" ? calendarContent : (
-            <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} isMobile />
+            <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile />
           )
         ) : (
           <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -408,7 +449,7 @@ export default function CalendarPage() {
               {/* Sidebar (25%) */}
               <div className="w-[280px] shrink-0">
                 <div className="sticky top-24 border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
-                  <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} />
+                  <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} />
                 </div>
               </div>
             </div>
@@ -437,7 +478,16 @@ export default function CalendarPage() {
           defaultCanal={canalFilter}
           onSave={handleSave}
           onDelete={handleDelete}
+          onUnplan={editingPost ? handleUnplan : undefined}
           prefillData={prefillData}
+        />
+
+        <IdeaDetailSheet
+          idea={selectedIdea}
+          open={ideaDetailOpen}
+          onOpenChange={setIdeaDetailOpen}
+          onUpdated={handleIdeaUpdated}
+          onPlanned={handleIdeaPlannedFromSheet}
         />
       </main>
     </div>
