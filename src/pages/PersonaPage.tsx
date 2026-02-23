@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
+import CoachingFlow from "@/components/CoachingFlow";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +54,7 @@ const STEP_FIELDS: Record<number, (keyof PersonaData)[]> = {
 export default function PersonaPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [data, setData] = useState<PersonaData>(EMPTY);
   const [existingId, setExistingId] = useState<string | null>(null);
@@ -64,6 +66,15 @@ export default function PersonaPage() {
   const [profile, setProfile] = useState<any>(null);
   const [activeTextarea, setActiveTextarea] = useState<keyof PersonaData | null>(null);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Coaching mode detection
+  const fromAudit = searchParams.get("from") === "audit";
+  const recId = searchParams.get("rec_id") || undefined;
+  const [coachingMode, setCoachingMode] = useState(false);
+
+  useEffect(() => {
+    if (fromAudit && recId) setCoachingMode(true);
+  }, [fromAudit, recId]);
 
   useEffect(() => {
     if (!user || !loading) return;
@@ -182,7 +193,29 @@ export default function PersonaPage() {
       <AppHeader />
       <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Mon client·e idéal·e" />
-        <AuditRecommendationBanner />
+        {!coachingMode && <AuditRecommendationBanner />}
+
+        {/* Coaching mode */}
+        {coachingMode ? (
+          <div className="mb-8">
+            <h1 className="font-display text-[26px] font-bold text-foreground mb-4">Ton client·e idéal·e</h1>
+            <CoachingFlow
+              module="persona"
+              recId={recId}
+              conseil={sessionStorage.getItem("audit_recommendation") ? JSON.parse(sessionStorage.getItem("audit_recommendation")!).conseil : undefined}
+              onComplete={() => {
+                setCoachingMode(false);
+                sessionStorage.removeItem("audit_recommendation");
+                navigate("/mon-plan");
+              }}
+              onSkip={() => {
+                setCoachingMode(false);
+                sessionStorage.removeItem("audit_recommendation");
+              }}
+            />
+          </div>
+        ) : (
+          <>
         <h1 className="font-display text-[26px] font-bold text-foreground mb-1">Ton client·e idéal·e</h1>
         <p className="text-[15px] text-muted-foreground italic mb-8">
           On va construire le portrait de la personne que tu veux toucher. Pas une fiche froide : un vrai portrait vivant.
@@ -333,6 +366,7 @@ export default function PersonaPage() {
                   </Button>
                 </>
               )}
+
 
               {/* AI button */}
               <div className="mt-4 mb-4">

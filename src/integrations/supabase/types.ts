@@ -50,12 +50,18 @@ export type Database = {
           completed: boolean | null
           completed_at: string | null
           conseil: string | null
+          conseil_contextuel: string | null
           created_at: string | null
+          detail: string | null
           id: string
           label: string
+          label_bouton: string | null
           module: string
+          position: number | null
           priorite: string | null
           route: string
+          temps_estime: string | null
+          titre: string | null
           user_id: string
         }
         Insert: {
@@ -63,12 +69,18 @@ export type Database = {
           completed?: boolean | null
           completed_at?: string | null
           conseil?: string | null
+          conseil_contextuel?: string | null
           created_at?: string | null
+          detail?: string | null
           id?: string
           label: string
+          label_bouton?: string | null
           module: string
+          position?: number | null
           priorite?: string | null
           route: string
+          temps_estime?: string | null
+          titre?: string | null
           user_id: string
         }
         Update: {
@@ -76,12 +88,18 @@ export type Database = {
           completed?: boolean | null
           completed_at?: string | null
           conseil?: string | null
+          conseil_contextuel?: string | null
           created_at?: string | null
+          detail?: string | null
           id?: string
           label?: string
+          label_bouton?: string | null
           module?: string
+          position?: number | null
           priorite?: string | null
           route?: string
+          temps_estime?: string | null
+          titre?: string | null
           user_id?: string
         }
         Relationships: [

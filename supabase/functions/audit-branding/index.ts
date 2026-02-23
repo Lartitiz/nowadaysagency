@@ -309,17 +309,23 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
       extraction_branding: auditResult.extraction_branding || null,
     });
 
-    // Save audit recommendations
+    // Save audit recommendations with enhanced data
     const recommendations = (auditResult.points_faibles || [])
       .filter((pf: any) => pf.action?.route)
-      .map((pf: any) => ({
+      .map((pf: any, idx: number) => ({
         user_id: user.id,
-        audit_id: undefined as string | undefined, // will be set after insert
+        audit_id: undefined as string | undefined,
+        position: idx + 1,
+        titre: pf.titre,
+        detail: pf.detail,
+        conseil_contextuel: pf.action.conseil,
         module: pf.action.module,
         route: pf.action.route,
         label: pf.action.label,
+        label_bouton: pf.action.label,
         conseil: pf.action.conseil,
         priorite: pf.priorite || "moyenne",
+        temps_estime: (auditResult.plan_action_recommande || []).find((a: any) => a.module === pf.action.module)?.temps_estime || null,
       }));
 
     // Get the audit ID we just inserted

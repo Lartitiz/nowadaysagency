@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.audit-branding]
 verify_jwt = false
+
+[functions.coaching-module]
+verify_jwt = false
