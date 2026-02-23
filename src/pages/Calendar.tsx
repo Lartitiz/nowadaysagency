@@ -168,47 +168,11 @@ export default function CalendarPage() {
     setDialogOpen(true);
   };
 
-  /** Click on an existing post: navigate to the right generator OR open dialog */
+  /** Click on an existing post: always open the detail dialog first */
   const handlePostClick = (post: CalendarPost) => {
-    const route = getGeneratorRoute(post);
-    if (route) {
-      // Navigate to the format-specific generator with calendar context
-      navigate(`${route}?calendar_date=${post.date}`, {
-        state: {
-          fromCalendar: true,
-          calendarPostId: post.id,
-          theme: post.theme,
-          objectif: post.objectif || post.objective,
-          angle: post.angle,
-          format: post.format,
-          notes: post.notes,
-          postDate: post.date,
-          existingContent: post.content_draft,
-          existingAccroche: post.accroche,
-          generatedContentId: post.generated_content_id,
-          generatedContentType: post.generated_content_type,
-          launchId: post.launch_id,
-          contentType: post.content_type,
-          contentTypeEmoji: post.content_type_emoji,
-          category: post.category,
-          angleSuggestion: post.angle_suggestion,
-          chapter: (post as any)?.chapter,
-          chapterLabel: (post as any)?.chapter_label,
-          audiencePhase: (post as any)?.audience_phase,
-          // Stories-specific
-          storiesSequenceId: post.stories_sequence_id,
-          storiesCount: post.stories_count,
-          storiesObjective: post.stories_objective,
-          storiesStructure: post.stories_structure,
-          storySequenceDetail: post.story_sequence_detail,
-        },
-      });
-    } else {
-      // Fallback: open the edit dialog (for posts without a clear format)
-      setEditingPost(post);
-      setSelectedDate(post.date);
-      setDialogOpen(true);
-    }
+    setEditingPost(post);
+    setSelectedDate(post.date);
+    setDialogOpen(true);
   };
 
   const handleSave = async (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format?: string | null; content_draft?: string | null; accroche?: string | null }) => {
