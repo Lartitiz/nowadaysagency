@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CalendarDays, Clock, Video, ExternalLink, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
-import { Link, Navigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -106,7 +106,26 @@ export default function AccompagnementPage() {
     setActions(prev => prev.map(a => a.id === action.id ? { ...a, completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null } : a));
   };
 
-  if (noProgram) return <Navigate to="/dashboard" replace />;
+  if (noProgram) {
+    return (
+      <div className="min-h-screen bg-background pb-20 lg:pb-8">
+        <AppHeader />
+        <main className="mx-auto max-w-2xl px-4 py-8 animate-fade-in">
+          <div className="rounded-2xl border border-primary/20 bg-card p-6 text-center space-y-4">
+            <span className="text-4xl">🤝</span>
+            <h1 className="font-display text-xl font-bold text-foreground">Mon accompagnement</h1>
+            <p className="text-sm text-muted-foreground">Programme Now Pilot · Avec Laetitia</p>
+            <p className="text-sm text-muted-foreground">Cette section est en cours de mise en place. Laetitia te contactera pour planifier ta première session.</p>
+            <Button asChild className="rounded-full gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white">
+              <a href="https://wa.me/33612345678" target="_blank" rel="noopener noreferrer">
+                <MessageCircle className="h-4 w-4" /> Contacter Laetitia sur WhatsApp
+              </a>
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (loading || !program) {
     return (

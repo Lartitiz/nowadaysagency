@@ -3,6 +3,7 @@ import { X, Minus, Send, Loader2, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserPlan } from "@/hooks/use-user-plan";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -35,7 +36,9 @@ function getSuggestions(pathname: string): string[] {
   return ["💡 Une idée de post pour cette semaine", "📊 Comment améliorer ma com' ?"];
 }
 
-const WELCOME = `Hey ! Je connais ton branding, tes offres, ta cible. Pose-moi une question ou dis-moi ce que tu veux changer.\n\nExemples :\n· "Supprime mon offre Academy"\n· "Ajoute un post lundi sur le SEO"\n· "C'est quoi un bon taux d'engagement ?"\n· "Planifie 3 posts pour la semaine prochaine"`;
+const WELCOME_DEFAULT = `Hey ! Je connais ton branding, tes offres, ta cible. Pose-moi une question ou dis-moi ce que tu veux changer.\n\nExemples :\n· "Supprime mon offre Academy"\n· "Ajoute un post lundi sur le SEO"\n· "C'est quoi un bon taux d'engagement ?"\n· "Planifie 3 posts pour la semaine prochaine"`;
+
+const WELCOME_PILOT = `Hey ! Programme Now Pilot 🤝\nPose-moi une question ou dis-moi ce que tu veux changer.\n\nPour les questions stratégiques, n'hésite pas à écrire à Laetitia sur WhatsApp.\n\nExemples :\n· "Reformule ma bio"\n· "Planifie 3 posts pour la semaine"\n· "Analyse mes stats de la semaine"`;
 
 function isConfirmation(msg: string): boolean {
   const lower = msg.toLowerCase().trim();
@@ -48,8 +51,12 @@ export default function AssistantPanel({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
+  const { isPilot } = useUserPlan();
+
+  const welcomeMsg = isPilot ? WELCOME_PILOT : WELCOME_DEFAULT;
+
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "assistant", content: WELCOME },
+    { role: "assistant", content: welcomeMsg },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
