@@ -5,12 +5,14 @@ import { Link, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import AiDisclaimerBanner from "@/components/AiDisclaimerBanner";
 import { Progress } from "@/components/ui/progress";
-import { ArrowRight, Check, ExternalLink, Sparkles, MessageSquare, Mail, CalendarDays, Palette, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
-import { useActiveChannels } from "@/hooks/use-active-channels";
-import { computePlan, type PlanData, type PlanStep } from "@/lib/plan-engine";
+import { useActiveChannels, ALL_CHANNELS, type ChannelId } from "@/hooks/use-active-channels";
+import { computePlan, type PlanData } from "@/lib/plan-engine";
+import { startOfWeek, endOfWeek, format } from "date-fns";
+import { fr } from "date-fns/locale";
 
+/* ── Types ── */
 export interface UserProfile {
   prenom: string;
   activite: string;
@@ -30,197 +32,32 @@ export interface UserProfile {
   canaux?: string[];
 }
 
-/* ── Module definition ── */
-interface DashboardModule {
-  id: string;
-  emoji: string;
-  title: string;
-  shortTitle: string;
-  description: string;
-  route: string;
-  externalUrl?: string;
-  channelRequired?: string; // if set, only show when this channel is active
-  alwaysShow?: boolean;
-  getCompletion?: (data: DashboardData) => number;
-  getNextStep?: (data: DashboardData) => string | null;
-  getCompletedDetail?: (data: DashboardData) => string | null;
-  completedRoute?: string;
-}
-
 interface DashboardData {
   brandingCompletion: BrandingCompletion;
   igAuditScore: number | null;
   liAuditScore: number | null;
   contactCount: number;
   prospectCount: number;
+  prospectConversation: number;
+  prospectOffered: number;
   calendarPostCount: number;
+  weekPostsPublished: number;
+  weekPostsTotal: number;
+  nextPost: { date: string; theme: string } | null;
   planData: PlanData | null;
 }
 
-const MODULES: DashboardModule[] = [
-  {
-    id: "branding",
-    emoji: "🎨",
-    title: "Mon Branding",
-    shortTitle: "Branding",
-    description: "Pose les bases de ta marque : ta mission, ton positionnement, ta cible, ton ton.",
-    route: "/branding",
-    alwaysShow: true,
-    getCompletion: (d) => d.brandingCompletion.total,
-    getNextStep: (d) => {
-      if (d.brandingCompletion.storytelling === 0) return "Écrire ton histoire";
-      if (d.brandingCompletion.persona === 0) return "Définir ta cible";
-      if (d.brandingCompletion.proposition === 0) return "Affiner ta proposition de valeur";
-      if (d.brandingCompletion.tone === 0) return "Définir ton ton & tes combats";
-      if (d.brandingCompletion.strategy === 0) return "Créer ta stratégie de contenu";
-      return null;
-    },
-    completedRoute: "/branding",
-  },
-  {
-    id: "instagram",
-    emoji: "📱",
-    title: "Mon Instagram",
-    shortTitle: "Instagram",
-    description: "Optimise ton compte, trouve des idées de contenu, planifie tes posts.",
-    route: "/instagram",
-    channelRequired: "instagram",
-    getCompletion: (d) => {
-      let score = 0, total = 0;
-      total += 1; if (d.igAuditScore != null) score += 1;
-      total += 1; if (d.calendarPostCount > 0) score += 1;
-      return total > 0 ? Math.round((score / total) * 100) : 0;
-    },
-    getNextStep: (d) => {
-      if (d.igAuditScore == null) return "Faire ton audit Instagram";
-      if (d.calendarPostCount === 0) return "Planifier ton premier contenu";
-      return null;
-    },
-    getCompletedDetail: (d) => d.igAuditScore != null ? `Score audit : ${d.igAuditScore}/100` : null,
-  },
-  {
-    id: "linkedin",
-    emoji: "💼",
-    title: "Mon LinkedIn",
-    shortTitle: "LinkedIn",
-    description: "Optimise ton profil et développe ton réseau professionnel.",
-    route: "/linkedin",
-    channelRequired: "linkedin",
-    getCompletion: (d) => {
-      if (d.liAuditScore != null) return 50;
-      return 0;
-    },
-    getNextStep: (d) => {
-      if (d.liAuditScore == null) return "Auditer ton profil LinkedIn";
-      return "Optimiser ton profil";
-    },
-    getCompletedDetail: (d) => d.liAuditScore != null ? `Score : ${d.liAuditScore}/100` : null,
-  },
-  {
-    id: "pinterest",
-    emoji: "📌",
-    title: "Mon Pinterest",
-    shortTitle: "Pinterest",
-    description: "Transforme tes visuels en trafic durable.",
-    route: "/pinterest",
-    channelRequired: "pinterest",
-    getCompletion: () => 0,
-    getNextStep: () => "Configurer ton compte",
-  },
-  {
-    id: "calendar",
-    emoji: "📅",
-    title: "Mon Calendrier",
-    shortTitle: "Calendrier",
-    description: "Planifie tes contenus pour le mois. Vision claire de ce que tu publies.",
-    route: "/calendrier",
-    alwaysShow: true,
-    getCompletion: (d) => d.calendarPostCount > 0 ? 100 : 0,
-    getNextStep: () => "Créer ton calendrier éditorial",
-    getCompletedDetail: (d) => d.calendarPostCount > 0 ? `${d.calendarPostCount} post${d.calendarPostCount > 1 ? "s" : ""} planifié${d.calendarPostCount > 1 ? "s" : ""}` : null,
-  },
-  {
-    id: "contacts",
-    emoji: "👥",
-    title: "Mes Contacts",
-    shortTitle: "Contacts",
-    description: "Gère ton réseau stratégique et tes prospects.",
-    route: "/contacts",
-    alwaysShow: true,
-    getCompletion: (d) => {
-      if (d.contactCount >= 3 && d.prospectCount > 0) return 100;
-      if (d.contactCount > 0 || d.prospectCount > 0) return 50;
-      return 0;
-    },
-    getNextStep: (d) => {
-      if (d.contactCount < 3) return "Ajouter tes contacts stratégiques";
-      if (d.prospectCount === 0) return "Ajouter ton premier prospect";
-      return null;
-    },
-  },
-  {
-    id: "content",
-    emoji: "✨",
-    title: "Créer un contenu",
-    shortTitle: "Créer",
-    description: "Génère un post, un carrousel ou un reel avec l'aide de l'IA.",
-    route: "/instagram/creer",
-    alwaysShow: true,
-    getCompletion: () => 0, // Never "completed"
-    getNextStep: () => null,
-  },
-  {
-    id: "siteweb",
-    emoji: "🌐",
-    title: "Mon Site Web",
-    shortTitle: "Site Web",
-    description: "Rédige les textes de ton site : page d'accueil, à propos.",
-    route: "/site",
-    channelRequired: "site",
-    getCompletion: () => 0,
-    getNextStep: () => "Rédiger ta page d'accueil",
-  },
-];
-
-/* ── Quick actions logic ── */
-interface QuickAction {
-  label: string;
-  emoji: string;
-  route: string;
-  priority: number;
-}
+/* ── Quick actions ── */
+interface QuickAction { label: string; emoji: string; route: string; priority: number }
 
 function getQuickActions(data: DashboardData): QuickAction[] {
   const actions: QuickAction[] = [];
-
-  // Always: create content
   actions.push({ label: "Créer un post", emoji: "✨", route: "/instagram/creer", priority: 1 });
-
-  // Contacts > 3 → comment
-  if (data.contactCount >= 3) {
-    actions.push({ label: "Commenter 3 comptes", emoji: "💬", route: "/contacts", priority: 2 });
-  }
-
-  // Prospects pending
-  if (data.prospectCount > 0) {
-    actions.push({ label: "Relancer un prospect", emoji: "📩", route: "/contacts", priority: 3 });
-  }
-
-  // Calendar has posts
-  if (data.calendarPostCount > 0) {
-    actions.push({ label: "Voir mon calendrier", emoji: "📅", route: "/calendrier", priority: 4 });
-  }
-
-  // Branding not done
-  if (data.brandingCompletion.total < 100) {
-    actions.push({ label: "Continuer mon branding", emoji: "🎨", route: "/branding", priority: 5 });
-  }
-
-  // No audit
-  if (data.igAuditScore == null) {
-    actions.push({ label: "Faire mon audit", emoji: "🔍", route: "/instagram/audit", priority: 6 });
-  }
-
+  if (data.contactCount >= 3) actions.push({ label: "Commenter 3 comptes", emoji: "💬", route: "/contacts", priority: 2 });
+  if (data.prospectCount > 0) actions.push({ label: "Relancer un prospect", emoji: "📩", route: "/contacts", priority: 3 });
+  if (data.calendarPostCount > 0) actions.push({ label: "Voir mon calendrier", emoji: "📅", route: "/calendrier", priority: 4 });
+  if (data.brandingCompletion.total < 100) actions.push({ label: "Continuer mon branding", emoji: "🎨", route: "/branding", priority: 5 });
+  if (data.igAuditScore == null) actions.push({ label: "Faire mon audit", emoji: "🔍", route: "/instagram/audit", priority: 6 });
   return actions.sort((a, b) => a.priority - b.priority).slice(0, 4);
 }
 
@@ -233,6 +70,18 @@ function getDynamicTip(data: DashboardData): string {
   return "Continue comme ça ! Pense à checker tes stats pour voir ce qui marche.";
 }
 
+/* ── Channel completion helpers ── */
+function getIgCompletion(d: DashboardData): number {
+  let score = 0, total = 0;
+  total += 1; if (d.igAuditScore != null) score += 1;
+  total += 1; if (d.calendarPostCount > 0) score += 1;
+  return total > 0 ? Math.round((score / total) * 100) : 0;
+}
+
+function getLiCompletion(d: DashboardData): number {
+  return d.liAuditScore != null ? 50 : 0;
+}
+
 /* ── Main component ── */
 export default function Dashboard() {
   const { user } = useAuth();
@@ -240,26 +89,33 @@ export default function Dashboard() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [dashData, setDashData] = useState<DashboardData>({
     brandingCompletion: { storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 },
-    igAuditScore: null,
-    liAuditScore: null,
-    contactCount: 0,
-    prospectCount: 0,
-    calendarPostCount: 0,
+    igAuditScore: null, liAuditScore: null,
+    contactCount: 0, prospectCount: 0, prospectConversation: 0, prospectOffered: 0,
+    calendarPostCount: 0, weekPostsPublished: 0, weekPostsTotal: 0, nextPost: null,
     planData: null,
   });
-  const { hasInstagram, hasLinkedin, hasPinterest, hasWebsite, loading: channelsLoading, channels } = useActiveChannels();
+  const { hasInstagram, hasLinkedin, hasPinterest, hasWebsite, hasNewsletter, hasSeo, loading: channelsLoading, channels } = useActiveChannels();
 
   useEffect(() => {
     if (!user) return;
+    const now = new Date();
+    const weekStart = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
+    const weekEnd = format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
+
     const fetchAll = async () => {
-      const [profRes, brandingData, igAuditRes, liAuditRes, contactRes, prospectRes, calendarRes, planConfigRes] = await Promise.all([
+      const [profRes, brandingData, igAuditRes, liAuditRes, contactRes, prospectRes, prospectConvRes, prospectOffRes, calendarRes, weekPostsRes, weekPublishedRes, nextPostRes, planConfigRes] = await Promise.all([
         supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq("user_id", user.id).single(),
         fetchBrandingData(user.id),
         supabase.from("instagram_audit").select("score_global").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("linkedin_audit").select("score_global").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "network"),
         supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "prospect"),
+        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "prospect").eq("prospect_stage", "in_conversation"),
+        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "prospect").eq("prospect_stage", "offer_sent"),
         supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+        supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("date", weekStart).lte("date", weekEnd),
+        supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("date", weekStart).lte("date", weekEnd).eq("status", "published"),
+        supabase.from("calendar_posts").select("date, theme").eq("user_id", user.id).gte("date", format(now, "yyyy-MM-dd")).order("date", { ascending: true }).limit(1).maybeSingle(),
         supabase.from("user_plan_config").select("*").eq("user_id", user.id).maybeSingle(),
       ]);
 
@@ -280,7 +136,12 @@ export default function Dashboard() {
         liAuditScore: liAuditRes.data?.score_global ?? null,
         contactCount: contactRes.count ?? 0,
         prospectCount: prospectRes.count ?? 0,
+        prospectConversation: prospectConvRes.count ?? 0,
+        prospectOffered: prospectOffRes.count ?? 0,
         calendarPostCount: calendarRes.count ?? 0,
+        weekPostsTotal: weekPostsRes.count ?? 0,
+        weekPostsPublished: weekPublishedRes.count ?? 0,
+        nextPost: nextPostRes.data ? { date: nextPostRes.data.date, theme: nextPostRes.data.theme } : null,
         planData,
       });
     };
@@ -299,52 +160,25 @@ export default function Dashboard() {
     );
   }
 
-  // Filter modules by active channels
-  const channelMap: Record<string, boolean> = {
-    instagram: hasInstagram,
-    linkedin: hasLinkedin,
-    pinterest: hasPinterest,
-    site: hasWebsite,
-  };
-
-  const visibleModules = channelsLoading
-    ? MODULES.filter(m => m.alwaysShow)
-    : MODULES.filter(m => {
-        if (m.alwaysShow) return true;
-        if (m.channelRequired) return channelMap[m.channelRequired] ?? false;
-        return true;
-      });
-
-  // Split into active / completed
-  const activeModules: (DashboardModule & { completion: number })[] = [];
-  const completedModules: (DashboardModule & { completion: number })[] = [];
-
-  for (const mod of visibleModules) {
-    const completion = mod.getCompletion?.(dashData) ?? 0;
-    // "Créer un contenu" is always active, never completed
-    if (mod.id === "content") {
-      activeModules.push({ ...mod, completion: 0 });
-    } else if (completion >= 100) {
-      completedModules.push({ ...mod, completion });
-    } else {
-      activeModules.push({ ...mod, completion });
-    }
-  }
-
-  // Sort active: in progress first (higher completion), then todo
-  activeModules.sort((a, b) => {
-    // content always at end of active
-    if (a.id === "content") return 1;
-    if (b.id === "content") return -1;
-    // In progress before todo
-    if (a.completion > 0 && b.completion === 0) return -1;
-    if (a.completion === 0 && b.completion > 0) return 1;
-    // Higher completion first
-    return b.completion - a.completion;
-  });
-
+  const igCompletion = getIgCompletion(dashData);
+  const liCompletion = getLiCompletion(dashData);
+  const brandingDone = dashData.brandingCompletion.total >= 100;
   const quickActions = getQuickActions(dashData);
   const tip = getDynamicTip(dashData);
+
+  // Coming soon channels that are active in profile
+  const comingSoonChannels = ALL_CHANNELS.filter(c => c.comingSoon && channels.includes(c.id));
+
+  // Branding next step
+  const brandingNextStep = (() => {
+    const bc = dashData.brandingCompletion;
+    if (bc.storytelling === 0) return "Écrire ton histoire";
+    if (bc.persona === 0) return "Définir ta cible";
+    if (bc.proposition === 0) return "Affiner ta proposition de valeur";
+    if (bc.tone === 0) return "Définir ton ton & tes combats";
+    if (bc.strategy === 0) return "Créer ta stratégie de contenu";
+    return null;
+  })();
 
   return (
     <div className="min-h-screen bg-background">
@@ -352,60 +186,99 @@ export default function Dashboard() {
       <AiDisclaimerBanner />
       <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4">
 
-        {/* Header */}
+        {/* 1. Header */}
         <div className="mb-2">
           <h1 className="font-display text-[22px] sm:text-[30px] font-bold text-foreground">
             Hey <span className="text-primary">{profile.prenom}</span>, on avance sur quoi aujourd'hui ?
           </h1>
-          <p className="mt-1 text-[15px] text-muted-foreground">
-            Choisis un pilier ou lance une action rapide.
-          </p>
+          <p className="mt-1 text-[15px] text-muted-foreground">Choisis un pilier ou lance une action rapide.</p>
         </div>
 
-        {/* Dynamic tip */}
+        {/* 2. Conseil du jour */}
         <div className="rounded-[10px] bg-rose-pale px-4 py-3 mb-6">
-          <p className="text-[13px] text-muted-foreground">
-            💡 <span className="font-bold text-bordeaux">{tip}</span>
-          </p>
+          <p className="text-[13px] text-muted-foreground">💡 <span className="font-bold text-bordeaux">{tip}</span></p>
         </div>
 
-        {/* Quick actions */}
+        {/* 3. Actions rapides */}
         <div className="mb-8">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">⚡ Actions rapides</p>
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
-            {quickActions.map((action) => (
-              <button
-                key={action.route + action.label}
-                onClick={() => navigate(action.route)}
-                className="shrink-0 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/5 hover:border-primary/50 transition-colors"
-              >
-                <span>{action.emoji}</span>
-                {action.label}
+            {quickActions.map((a) => (
+              <button key={a.route + a.label} onClick={() => navigate(a.route)}
+                className="shrink-0 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/5 hover:border-primary/50 transition-colors">
+                <span>{a.emoji}</span>{a.label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Active modules grid */}
+        {/* 4. Section principale */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {activeModules.map((mod) => (
-            <ModuleCard key={mod.id} mod={mod} data={dashData} />
-          ))}
+          {/* Instagram card */}
+          {!channelsLoading && hasInstagram && (
+            igCompletion >= 100
+              ? <ChannelDailyCard channel="instagram" data={dashData} />
+              : <ChannelSetupCard emoji="📱" title="Mon Instagram" completion={igCompletion}
+                  nextStep={dashData.igAuditScore == null ? "Faire ton audit Instagram" : "Planifier ton premier contenu"}
+                  route="/instagram" />
+          )}
+
+          {/* LinkedIn card */}
+          {!channelsLoading && hasLinkedin && (
+            liCompletion >= 100
+              ? <ChannelDailyCard channel="linkedin" data={dashData} />
+              : <ChannelSetupCard emoji="💼" title="Mon LinkedIn" completion={liCompletion}
+                  nextStep={dashData.liAuditScore == null ? "Auditer ton profil LinkedIn" : "Optimiser ton profil"}
+                  route="/linkedin" />
+          )}
+
+          {/* Créer un contenu */}
+          <CreateContentCard hasInstagram={hasInstagram} hasLinkedin={hasLinkedin} />
+
+          {/* Mes contacts */}
+          <ContactsCard data={dashData} />
+
+          {/* Mon calendrier */}
+          <CalendarCard data={dashData} />
+
+          {/* Branding (seulement si pas complété) */}
+          {!brandingDone && (
+            <ChannelSetupCard emoji="🎨" title="Mon Branding" completion={dashData.brandingCompletion.total}
+              nextStep={brandingNextStep || "Continuer le branding"} route="/branding" />
+          )}
         </div>
 
-        {/* Completed modules */}
-        {completedModules.length > 0 && (
+        {/* 5. Fondations (si branding complété) */}
+        {brandingDone && (
           <div className="mb-8">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">✅ Terminés</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">🧱 Mes fondations</p>
             <div className="space-y-2">
-              {completedModules.map((mod) => (
-                <CompletedModuleRow key={mod.id} mod={mod} data={dashData} />
+              <FoundationRow emoji="🎨" label="Branding" detail="Complet" route="/branding" linkLabel="Voir ma synthèse →" />
+              {dashData.igAuditScore != null && (
+                <FoundationRow emoji="🔍" label="Audit Instagram" detail={`${dashData.igAuditScore}/100`} route="/instagram/audit" linkLabel="Voir l'audit →" />
+              )}
+              {dashData.liAuditScore != null && (
+                <FoundationRow emoji="💼" label="Audit LinkedIn" detail={`${dashData.liAuditScore}/100`} route="/linkedin/audit" linkLabel="Voir l'audit →" />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 6. Bientôt disponibles */}
+        {comingSoonChannels.length > 0 && (
+          <div className="mb-8">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">🔜 Bientôt disponibles</p>
+            <div className="space-y-1.5">
+              {comingSoonChannels.map(c => (
+                <p key={c.id} className="text-sm text-muted-foreground">
+                  {c.emoji} <span className="font-medium text-foreground">{c.label}</span> · On y travaille, tu seras prévenu·e
+                </p>
               ))}
             </div>
           </div>
         )}
 
-        {/* Add channel link */}
+        {/* 7. Lien ajouter un canal */}
         <div className="text-center py-4">
           <Link to="/profil" className="text-xs text-muted-foreground hover:text-primary transition-colors">
             📱 Tu veux ajouter un canal ? <span className="underline">Modifier dans le profil →</span>
@@ -416,98 +289,206 @@ export default function Dashboard() {
   );
 }
 
-/* ── Active Module Card (large or medium) ── */
-function ModuleCard({ mod, data }: { mod: DashboardModule & { completion: number }; data: DashboardData }) {
+/* ═══════════════════════════════════════════════════════════ */
+/*  Sub-components                                            */
+/* ═══════════════════════════════════════════════════════════ */
+
+/* ── Channel Setup Card (< 100%) ── */
+function ChannelSetupCard({ emoji, title, completion, nextStep, route }: {
+  emoji: string; title: string; completion: number; nextStep: string; route: string;
+}) {
   const navigate = useNavigate();
-  const completion = mod.completion;
-  const nextStep = mod.getNextStep?.(data);
-  const isNotStarted = completion === 0 && mod.id !== "content";
-  const isInProgress = completion > 0 && completion < 100;
-
-  // "Créer un contenu" special card
-  if (mod.id === "content") {
-    return (
-      <div
-        onClick={() => navigate(mod.route)}
-        className="rounded-2xl border-2 border-primary/30 bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all"
-      >
-        <div className="flex items-center gap-3 mb-2">
-          <span className="text-2xl">{mod.emoji}</span>
-          <h3 className="font-display text-lg font-bold text-foreground">{mod.title}</h3>
-        </div>
-        <p className="text-[13px] text-muted-foreground mb-3">{mod.description}</p>
-        <p className="text-sm font-semibold text-primary">Créer un contenu →</p>
-      </div>
-    );
-  }
-
-  // Large card (not started)
-  if (isNotStarted) {
-    return (
-      <div
-        onClick={() => mod.externalUrl ? window.open(mod.externalUrl, "_blank") : navigate(mod.route)}
-        className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all"
-      >
-        <div className="flex items-center gap-3 mb-2">
-          <span className="text-2xl">{mod.emoji}</span>
-          <h3 className="font-display text-lg font-bold text-foreground">{mod.title}</h3>
-        </div>
-        <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">{mod.description}</p>
-        <div className="mb-3">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] text-muted-foreground">{mod.shortTitle} : 0% complété</span>
-          </div>
-          <Progress value={0} className="h-2" />
-        </div>
-        <p className="text-sm font-semibold text-primary flex items-center gap-1">
-          {nextStep || `Commencer ${mod.shortTitle}`} <ArrowRight className="h-3.5 w-3.5" />
-        </p>
-      </div>
-    );
-  }
-
-  // Medium card (in progress)
   return (
-    <div
-      onClick={() => navigate(mod.route)}
-      className="rounded-2xl border border-border bg-card p-4 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all"
-    >
+    <div onClick={() => navigate(route)}
+      className="rounded-2xl border border-border bg-card p-4 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2.5">
-          <span className="text-xl">{mod.emoji}</span>
-          <h3 className="font-display text-base font-bold text-foreground">{mod.title}</h3>
+          <span className="text-xl">{emoji}</span>
+          <h3 className="font-display text-base font-bold text-foreground">{title}</h3>
         </div>
         <span className="text-xs font-semibold text-muted-foreground">{completion}%</span>
       </div>
       <Progress value={completion} className="h-2 mb-2" />
-      {nextStep && (
-        <p className="text-[13px] text-muted-foreground">
-          Prochaine étape : <span className="text-foreground font-medium">{nextStep}</span>
-        </p>
-      )}
+      <p className="text-[13px] text-muted-foreground">
+        Prochaine étape : <span className="text-foreground font-medium">{nextStep}</span>
+      </p>
       <p className="text-sm font-semibold text-primary mt-1">Continuer →</p>
     </div>
   );
 }
 
-/* ── Completed module row (mini) ── */
-function CompletedModuleRow({ mod, data }: { mod: DashboardModule & { completion: number }; data: DashboardData }) {
+/* ── Channel Daily Card (100%) ── */
+function ChannelDailyCard({ channel, data }: { channel: "instagram" | "linkedin"; data: DashboardData }) {
   const navigate = useNavigate();
-  const detail = mod.getCompletedDetail?.(data);
-  const route = mod.completedRoute || mod.route;
+
+  if (channel === "instagram") {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl">📱</span>
+            <h3 className="font-display text-base font-bold text-foreground">Mon Instagram</h3>
+          </div>
+          <span className="text-xs font-semibold text-[#2E7D32] bg-[#E8F5E9] px-2 py-0.5 rounded-full">✅ Prêt</span>
+        </div>
+        <div className="space-y-1 mb-3 text-[13px] text-muted-foreground">
+          {data.igAuditScore != null && <p>📊 Dernier audit : <span className="font-medium text-foreground">{data.igAuditScore}/100</span></p>}
+          <p>📅 Cette semaine : <span className="font-medium text-foreground">{data.weekPostsPublished}/{data.weekPostsTotal} posts publiés</span></p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <MiniBtn label="✨ Créer un post" onClick={() => navigate("/instagram/creer")} />
+          <MiniBtn label="🎠 Carrousel" onClick={() => navigate("/instagram/carousel")} />
+          <MiniBtn label="🎬 Reel" onClick={() => navigate("/instagram/reels")} />
+          <MiniBtn label="📊 Stats" onClick={() => navigate("/instagram/stats")} />
+          <MiniBtn label="📅 Calendrier" onClick={() => navigate("/calendrier")} />
+          <MiniBtn label="🔍 Refaire l'audit" onClick={() => navigate("/instagram/audit")} />
+        </div>
+      </div>
+    );
+  }
+
+  // LinkedIn
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xl">💼</span>
+          <h3 className="font-display text-base font-bold text-foreground">Mon LinkedIn</h3>
+        </div>
+        <span className="text-xs font-semibold text-[#2E7D32] bg-[#E8F5E9] px-2 py-0.5 rounded-full">✅ Prêt</span>
+      </div>
+      <div className="space-y-1 mb-3 text-[13px] text-muted-foreground">
+        {data.liAuditScore != null && <p>📊 Dernier audit : <span className="font-medium text-foreground">{data.liAuditScore}/100</span></p>}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <MiniBtn label="✨ Créer un post LI" onClick={() => navigate("/linkedin/post")} />
+        <MiniBtn label="🔍 Refaire l'audit" onClick={() => navigate("/linkedin/audit")} />
+      </div>
+    </div>
+  );
+}
+
+/* ── Mini button for daily cards ── */
+function MiniBtn({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className="text-xs font-medium px-3 py-1.5 rounded-full border border-primary/20 text-primary hover:bg-primary/5 transition-colors">
+      {label}
+    </button>
+  );
+}
+
+/* ── Create Content Card ── */
+function CreateContentCard({ hasInstagram, hasLinkedin }: { hasInstagram: boolean; hasLinkedin: boolean }) {
+  const navigate = useNavigate();
+  return (
+    <div className="rounded-2xl border-2 border-primary/30 bg-card p-5">
+      <div className="flex items-center gap-3 mb-3">
+        <span className="text-2xl">✨</span>
+        <h3 className="font-display text-lg font-bold text-foreground">Créer un contenu</h3>
+      </div>
+      <div className="flex flex-wrap gap-2 mb-3">
+        {hasInstagram && (
+          <>
+            <MiniBtn label="📝 Post" onClick={() => navigate("/instagram/creer")} />
+            <MiniBtn label="🎠 Carrousel" onClick={() => navigate("/instagram/carousel")} />
+            <MiniBtn label="🎬 Reel" onClick={() => navigate("/instagram/reels")} />
+            <MiniBtn label="📱 Story" onClick={() => navigate("/instagram/stories")} />
+          </>
+        )}
+        {hasLinkedin && <MiniBtn label="💼 LinkedIn" onClick={() => navigate("/linkedin/post")} />}
+      </div>
+      <p className="text-[13px] text-muted-foreground">
+        💡 Tu as une idée ? <button onClick={() => navigate("/instagram/creer")} className="text-primary font-medium hover:underline">Trouve-moi le bon format →</button>
+      </p>
+    </div>
+  );
+}
+
+/* ── Contacts Card ── */
+function ContactsCard({ data }: { data: DashboardData }) {
+  const navigate = useNavigate();
+  const hasAny = data.contactCount > 0 || data.prospectCount > 0;
 
   return (
-    <div
-      onClick={() => navigate(route)}
-      className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
-    >
-      <div className="flex items-center gap-2.5">
-        <span className="text-lg">{mod.emoji}</span>
-        <span className="text-sm font-semibold text-foreground">{mod.shortTitle}</span>
-        <span className="text-xs font-semibold text-[#2E7D32] bg-[#E8F5E9] px-1.5 py-0.5 rounded">✅ Complet</span>
-        {detail && <span className="text-xs text-muted-foreground hidden sm:inline">{detail}</span>}
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-center gap-3 mb-3">
+        <span className="text-2xl">👥</span>
+        <h3 className="font-display text-lg font-bold text-foreground">Mes Contacts</h3>
       </div>
-      <span className="text-xs text-primary font-medium">Voir →</span>
+      {hasAny ? (
+        <>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3 text-[13px] text-muted-foreground">
+            <span>👥 {data.contactCount} contacts réseau</span>
+            <span>🎯 {data.prospectCount} prospects</span>
+            {data.prospectConversation > 0 && <span>💬 {data.prospectConversation} en conversation</span>}
+            {data.prospectOffered > 0 && <span>📩 {data.prospectOffered} offre proposée</span>}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <MiniBtn label="👥 Mon réseau" onClick={() => navigate("/contacts")} />
+            <MiniBtn label="🎯 Mes prospects" onClick={() => navigate("/contacts")} />
+          </div>
+        </>
+      ) : (
+        <p className="text-[13px] text-muted-foreground">
+          Ajoute tes premiers contacts stratégiques.{" "}
+          <button onClick={() => navigate("/contacts")} className="text-primary font-medium hover:underline">Commencer →</button>
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ── Calendar Card ── */
+function CalendarCard({ data }: { data: DashboardData }) {
+  const navigate = useNavigate();
+  const hasWeekPosts = data.weekPostsTotal > 0;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-center gap-3 mb-3">
+        <span className="text-2xl">📅</span>
+        <h3 className="font-display text-lg font-bold text-foreground">Mon Calendrier</h3>
+      </div>
+      {hasWeekPosts ? (
+        <>
+          <div className="space-y-1 mb-3 text-[13px] text-muted-foreground">
+            <p>Cette semaine : <span className="font-medium text-foreground">{data.weekPostsPublished}/{data.weekPostsTotal} posts prévus</span></p>
+            {data.nextPost && (
+              <p>Prochain post : <span className="font-medium text-foreground">
+                {format(new Date(data.nextPost.date), "EEEE", { locale: fr })} "{data.nextPost.theme}"
+              </span></p>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <MiniBtn label="📅 Voir le calendrier" onClick={() => navigate("/calendrier")} />
+            <MiniBtn label="+ Planifier un post" onClick={() => navigate("/calendrier")} />
+          </div>
+        </>
+      ) : (
+        <p className="text-[13px] text-muted-foreground">
+          Aucun post prévu cette semaine.{" "}
+          <button onClick={() => navigate("/calendrier")} className="text-primary font-medium hover:underline">Planifier →</button>
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ── Foundation Row (mini) ── */
+function FoundationRow({ emoji, label, detail, route, linkLabel }: {
+  emoji: string; label: string; detail: string; route: string; linkLabel: string;
+}) {
+  const navigate = useNavigate();
+  return (
+    <div onClick={() => navigate(route)}
+      className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors">
+      <div className="flex items-center gap-2.5">
+        <span className="text-lg">{emoji}</span>
+        <span className="text-sm font-semibold text-foreground">{label}</span>
+        <span className="text-xs font-semibold text-[#2E7D32] bg-[#E8F5E9] px-1.5 py-0.5 rounded">✅ {detail}</span>
+      </div>
+      <span className="text-xs text-primary font-medium">{linkLabel}</span>
     </div>
   );
 }
