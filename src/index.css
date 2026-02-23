@@ -67,8 +67,8 @@
     --bento-violet: 270 50% 92%;
     --bento-violet-dark: 270 40% 50%;
     --bento-yellow: 50 100% 93%;
-    --shadow-bento: 0 2px 16px rgba(145, 1, 75, 0.06);
-    --shadow-bento-hover: 0 8px 32px rgba(145, 1, 75, 0.12);
+    --shadow-bento: 0 2px 12px rgba(145, 1, 75, 0.05);
+    --shadow-bento-hover: 0 12px 36px rgba(145, 1, 75, 0.14), 0 4px 12px rgba(0, 0, 0, 0.04);
 
     /* ── Calendar status ───────────────────── */
     --cal-idea: 220 13% 91%;

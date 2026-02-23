@@ -142,6 +142,7 @@ export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
         bg-card border border-border
         shadow-[var(--shadow-bento)]
         hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px]
+        active:translate-y-0 active:shadow-[var(--shadow-bento)]
         transition-all duration-[250ms] ease-out
         opacity-0 animate-reveal-up cursor-pointer"
       style={{ animationDelay: `${animationDelay}s`, animationFillMode: "forwards" }}

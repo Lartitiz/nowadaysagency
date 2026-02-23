@@ -110,6 +110,7 @@ export default function MonthlyStatsWidget({ animationDelay = 0 }: Props) {
         bg-[hsl(var(--bento-dark))] border-none text-white
         shadow-[var(--shadow-bento)]
         hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px]
+        active:translate-y-0 active:shadow-[var(--shadow-bento)]
         transition-all duration-[250ms] ease-out
         opacity-0 animate-reveal-up cursor-pointer"
       style={{ animationDelay: `${animationDelay}s`, animationFillMode: "forwards" }}
