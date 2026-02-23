@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Plus, GripVertical, CalendarIcon } from "lucide-react";
-import { DndContext, DragOverlay, closestCenter, type DragStartEvent, type DragEndEvent, useDroppable, useDraggable } from "@dnd-kit/core";
+import { GripVertical, CalendarIcon } from "lucide-react";
+import { useDroppable, useDraggable } from "@dnd-kit/core";
 import { type CalendarPost } from "@/lib/calendar-constants";
 import { CalendarContentCard } from "./CalendarContentCard";
 import { WeekRecapBar } from "./WeekRecapBar";
+import { AddPostMenu } from "./AddPostMenu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ interface Props {
   onCreatePost: (dateStr: string) => void;
   onEditPost: (post: CalendarPost) => void;
   onMovePost?: (postId: string, newDate: string) => void;
+  onAddIdea?: (dateStr: string) => void;
 }
 
 /* ── Draggable content card ── */
@@ -48,10 +50,11 @@ function DraggableWeekCard({ post, onClick }: { post: CalendarPost; onClick: () 
 
 /* ── Droppable day column ── */
 function DroppableWeekDay({
-  date, dateStr, isToday, posts, onCreatePost, onEditPost,
+  date, dateStr, isToday, posts, onCreatePost, onEditPost, onAddIdea,
 }: {
   date: Date; dateStr: string; isToday: boolean;
-  posts: CalendarPost[]; onCreatePost: () => void; onEditPost: (p: CalendarPost) => void;
+  posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
+  onAddIdea: (dateStr: string) => void;
 }) {
   const isPast = new Date(dateStr + "T00:00:00") < new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
   const { setNodeRef, isOver } = useDroppable({ id: dateStr, disabled: isPast });
@@ -70,10 +73,7 @@ function DroppableWeekDay({
         <span className={cn("text-xs font-semibold capitalize", isToday ? "text-primary font-bold" : "text-foreground")}>
           {dayLabel}
         </span>
-        <button onClick={onCreatePost}
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary">
-          <Plus className="h-3.5 w-3.5" />
-        </button>
+        <AddPostMenu dateStr={dateStr} onAddIdea={onAddIdea} />
       </div>
       <div className="space-y-1">
         {posts.map((p) => (
@@ -85,10 +85,10 @@ function DroppableWeekDay({
 }
 
 /* ── Mobile week day ── */
-function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost, onMove }: {
+function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost, onMove, onAddIdea }: {
   date: Date; dateStr: string; isToday: boolean;
-  posts: CalendarPost[]; onCreatePost: () => void; onEditPost: (p: CalendarPost) => void;
-  onMove: (post: CalendarPost) => void;
+  posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
+  onMove: (post: CalendarPost) => void; onAddIdea: (dateStr: string) => void;
 }) {
   const dayLabel = date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" });
   const [pressTimers, setPressTimers] = useState<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -108,9 +108,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
         <span className={`text-sm font-bold capitalize ${isToday ? "text-primary" : "text-foreground"}`}>
           {dayLabel}
         </span>
-        <button onClick={onCreatePost} className="text-muted-foreground hover:text-primary">
-          <Plus className="h-4 w-4" />
-        </button>
+        <AddPostMenu dateStr={dateStr} onAddIdea={onAddIdea} />
       </div>
       <div className="space-y-1">
         {posts.map((p) => (
@@ -128,30 +126,12 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
   );
 }
 
-/* ── Main ── */
-export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost }: Props) {
-  const [activePost, setActivePost] = useState<CalendarPost | null>(null);
+/* ── Main (no DndContext — parent provides it) ── */
+export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea }: Props) {
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
 
-  const allPosts = Object.values(postsByDate).flat();
   const weekAllPosts = weekDays.flatMap((d) => postsByDate[d.toISOString().split("T")[0]] || []);
-
-  const handleDragStart = (event: DragStartEvent) => {
-    const post = allPosts.find((p) => p.id === event.active.id);
-    setActivePost(post || null);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    setActivePost(null);
-    const { active, over } = event;
-    if (!over || !onMovePost) return;
-    const newDate = over.id as string;
-    const postId = active.id as string;
-    const currentPost = allPosts.find((p) => p.id === postId);
-    if (!currentPost || currentPost.date === newDate) return;
-    onMovePost(postId, newDate);
-  };
 
   const handleMobileMove = (post: CalendarPost) => {
     setMoveDialogPost(post);
@@ -167,6 +147,8 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
     setMoveDialogPost(null);
   };
 
+  const addIdeaHandler = onAddIdea || onCreatePost;
+
   if (isMobile) {
     return (
       <>
@@ -178,8 +160,9 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
               <MobileWeekDay
                 key={dateStr} date={d} dateStr={dateStr}
                 isToday={dateStr === todayStr} posts={dayPosts}
-                onCreatePost={() => onCreatePost(dateStr)}
+                onCreatePost={onCreatePost}
                 onEditPost={onEditPost} onMove={handleMobileMove}
+                onAddIdea={addIdeaHandler}
               />
             );
           })}
@@ -211,31 +194,23 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
 
   return (
     <>
-      <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="rounded-2xl bg-card border border-border overflow-hidden">
-          <div className="flex">
-            {weekDays.map((d) => {
-              const dateStr = d.toISOString().split("T")[0];
-              const dayPosts = postsByDate[dateStr] || [];
-              return (
-                <DroppableWeekDay
-                  key={dateStr} date={d} dateStr={dateStr}
-                  isToday={dateStr === todayStr} posts={dayPosts}
-                  onCreatePost={() => onCreatePost(dateStr)}
-                  onEditPost={onEditPost}
-                />
-              );
-            })}
-          </div>
+      <div className="rounded-2xl bg-card border border-border overflow-hidden">
+        <div className="flex">
+          {weekDays.map((d) => {
+            const dateStr = d.toISOString().split("T")[0];
+            const dayPosts = postsByDate[dateStr] || [];
+            return (
+              <DroppableWeekDay
+                key={dateStr} date={d} dateStr={dateStr}
+                isToday={dateStr === todayStr} posts={dayPosts}
+                onCreatePost={onCreatePost}
+                onEditPost={onEditPost}
+                onAddIdea={addIdeaHandler}
+              />
+            );
+          })}
         </div>
-        <DragOverlay>
-          {activePost ? (
-            <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg text-xs font-medium max-w-[180px]">
-              <span className="truncate block">{activePost.content_type_emoji || ""} {activePost.theme}</span>
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+      </div>
 
       {weekAllPosts.length > 0 && (
         <WeekRecapBar posts={weekAllPosts} compact={false} />

@@ -18,7 +18,28 @@ import { CalendarCategoryFilters } from "@/components/calendar/CalendarCategoryF
 import { StoriesMixBanner } from "@/components/calendar/StoriesMixBanner";
 import { CalendarIdeasSidebar } from "@/components/calendar/CalendarIdeasSidebar";
 import { CalendarWeekHeader } from "@/components/calendar/CalendarWeekHeader";
-import { DndContext, DragOverlay, closestCenter, type DragStartEvent, type DragEndEvent, useDroppable } from "@dnd-kit/core";
+import { DndContext, DragOverlay, closestCenter, type DragStartEvent, type DragEndEvent } from "@dnd-kit/core";
+
+/** Map a calendar post format to the correct generator route */
+function getGeneratorRoute(post: CalendarPost): string | null {
+  const fmt = post.format || "";
+  const isStories = !!(post.stories_count || post.stories_sequence_id || post.stories_structure);
+
+  if (isStories || fmt === "story" || fmt === "story_serie") return "/instagram/stories";
+  if (fmt === "reel") return "/instagram/reels";
+  if (fmt === "carousel" || fmt === "post_carrousel") return "/instagram/carousel";
+  if (fmt === "linkedin") return "/linkedin";
+  if (fmt === "post" || fmt === "post_photo") return "/instagram/creer";
+
+  // If generated_content_type is set, use that
+  const gct = post.generated_content_type || "";
+  if (gct === "carousel") return "/instagram/carousel";
+  if (gct === "reel") return "/instagram/reels";
+  if (gct === "story") return "/instagram/stories";
+  if (gct === "linkedin") return "/linkedin";
+
+  return null; // fallback to dialog
+}
 
 export default function CalendarPage() {
   const { user } = useAuth();
@@ -132,26 +153,58 @@ export default function CalendarPage() {
     return map;
   }, [filteredPosts]);
 
-  // Week posts for header
   const weekPosts = useMemo(() => {
     return weekDays.flatMap(d => postsByDate[d.toISOString().split("T")[0]] || []);
   }, [weekDays, postsByDate]);
 
+  /** Open dialog for creating a new post via the "Juste une idée" flow */
   const openCreateDialog = (dateStr: string) => {
     setSelectedDate(dateStr);
     setEditingPost(null);
     setDialogOpen(true);
   };
 
-  const openEditDialog = (post: CalendarPost) => {
-    // Route to the right generator based on format
-    const fmt = post.format || (post as any).format_technique || "";
-    if (fmt === "reel" || fmt === "post_carrousel" || fmt === "story_serie" || fmt === "story") {
-      // These have dedicated content viewers in the dialog
+  /** Click on an existing post: navigate to the right generator OR open dialog */
+  const handlePostClick = (post: CalendarPost) => {
+    const route = getGeneratorRoute(post);
+    if (route) {
+      // Navigate to the format-specific generator with calendar context
+      navigate(`${route}?calendar_date=${post.date}`, {
+        state: {
+          fromCalendar: true,
+          calendarPostId: post.id,
+          theme: post.theme,
+          objectif: post.objectif || post.objective,
+          angle: post.angle,
+          format: post.format,
+          notes: post.notes,
+          postDate: post.date,
+          existingContent: post.content_draft,
+          existingAccroche: post.accroche,
+          generatedContentId: post.generated_content_id,
+          generatedContentType: post.generated_content_type,
+          launchId: post.launch_id,
+          contentType: post.content_type,
+          contentTypeEmoji: post.content_type_emoji,
+          category: post.category,
+          angleSuggestion: post.angle_suggestion,
+          chapter: (post as any)?.chapter,
+          chapterLabel: (post as any)?.chapter_label,
+          audiencePhase: (post as any)?.audience_phase,
+          // Stories-specific
+          storiesSequenceId: post.stories_sequence_id,
+          storiesCount: post.stories_count,
+          storiesObjective: post.stories_objective,
+          storiesStructure: post.stories_structure,
+          storySequenceDetail: post.story_sequence_detail,
+        },
+      });
+    } else {
+      // Fallback: open the edit dialog (for posts without a clear format)
+      setEditingPost(post);
+      setSelectedDate(post.date);
+      setDialogOpen(true);
     }
-    setEditingPost(post);
-    setSelectedDate(post.date);
-    setDialogOpen(true);
   };
 
   const handleSave = async (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format?: string | null; content_draft?: string | null; accroche?: string | null }) => {
@@ -191,7 +244,7 @@ export default function CalendarPage() {
     }
   };
 
-  // Drag & Drop handler that supports ideas from sidebar
+  // Unified Drag & Drop handler (sidebar ideas + calendar post moves)
   const handleDragStart = (event: DragStartEvent) => {
     const data = event.active.data.current;
     if (data?.type === "idea") {
@@ -210,7 +263,6 @@ export default function CalendarPage() {
     const data = active.data.current;
 
     if (data?.type === "idea") {
-      // Drop idea onto calendar
       const idea = data.idea;
       const { data: newPost } = await supabase.from("calendar_posts").insert({
         user_id: user.id,
@@ -229,7 +281,6 @@ export default function CalendarPage() {
       fetchPosts();
       toast({ title: `"${idea.titre}" planifié !` });
     } else {
-      // Move existing post
       const postId = active.id as string;
       const currentPost = posts.find(p => p.id === postId);
       if (!currentPost || currentPost.date === newDate) return;
@@ -296,14 +347,16 @@ export default function CalendarPage() {
       {viewMode === "month" ? (
         <CalendarGrid
           calendarDays={calendarDays} postsByDate={postsByDate} todayStr={todayStr} isMobile={isMobile}
-          onCreatePost={openCreateDialog} onEditPost={openEditDialog} onMovePost={handleMovePost}
+          onCreatePost={openCreateDialog} onEditPost={handlePostClick} onMovePost={handleMovePost}
+          onAddIdea={openCreateDialog}
         />
       ) : (
         <>
           <StoriesMixBanner weekDays={weekDays} />
           <CalendarWeekGrid
             weekDays={weekDays} postsByDate={postsByDate} todayStr={todayStr} isMobile={isMobile}
-            onCreatePost={openCreateDialog} onEditPost={openEditDialog} onMovePost={handleMovePost}
+            onCreatePost={openCreateDialog} onEditPost={handlePostClick} onMovePost={handleMovePost}
+            onAddIdea={openCreateDialog}
           />
         </>
       )}
