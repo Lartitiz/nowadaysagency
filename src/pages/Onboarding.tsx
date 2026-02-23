@@ -151,6 +151,7 @@ export default function Onboarding() {
     const saved = localStorage.getItem("lac_onboarding_step");
     return saved ? parseInt(saved, 10) : 0;
   });
+  const [restoredFromSave, setRestoredFromSave] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -182,12 +183,56 @@ export default function Onboarding() {
     values: isDemoMode ? ([...(demoData?.branding.values ?? [])]) : [],
   });
 
-  // Persist step
+  // Persist step + all answers to localStorage
   useEffect(() => {
-    if (!isDemoMode) {
-      localStorage.setItem("lac_onboarding_step", String(step));
+    if (isDemoMode) return;
+    localStorage.setItem("lac_onboarding_step", String(step));
+    localStorage.setItem("lac_onboarding_answers", JSON.stringify(answers));
+    localStorage.setItem("lac_onboarding_branding", JSON.stringify(brandingAnswers));
+    localStorage.setItem("lac_onboarding_ts", new Date().toISOString());
+  }, [step, isDemoMode, answers, brandingAnswers]);
+
+  // Restore answers from localStorage on mount
+  useEffect(() => {
+    if (isDemoMode) return;
+    try {
+      const savedTs = localStorage.getItem("lac_onboarding_ts");
+      if (savedTs) {
+        const saved = new Date(savedTs);
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        if (saved < sevenDaysAgo) {
+          localStorage.removeItem("lac_onboarding_step");
+          localStorage.removeItem("lac_onboarding_answers");
+          localStorage.removeItem("lac_onboarding_branding");
+          localStorage.removeItem("lac_onboarding_ts");
+          return;
+        }
+      }
+      const savedAnswers = localStorage.getItem("lac_onboarding_answers");
+      const savedBranding = localStorage.getItem("lac_onboarding_branding");
+      const savedStep = localStorage.getItem("lac_onboarding_step");
+      if (savedAnswers) {
+        const parsed = JSON.parse(savedAnswers);
+        setAnswers(prev => ({ ...prev, ...parsed }));
+      }
+      if (savedBranding) {
+        const parsed = JSON.parse(savedBranding);
+        setBrandingAnswers(prev => ({ ...prev, ...parsed }));
+      }
+      if (savedStep && parseInt(savedStep, 10) > 0) {
+        setRestoredFromSave(true);
+      }
+    } catch { /* ignore parse errors */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Toast when restored
+  useEffect(() => {
+    if (restoredFromSave && step > 0) {
+      toast({ title: "On reprend où tu en étais 🌸" });
+      setRestoredFromSave(false);
     }
-  }, [step, isDemoMode]);
+  }, [restoredFromSave]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Check if onboarding already completed
   useEffect(() => {
@@ -216,7 +261,18 @@ export default function Onboarding() {
   const next = useCallback(() => setStep(s => s + 1), []);
   const prev = useCallback(() => setStep(s => Math.max(0, s - 1)), []);
 
-  const progress = step === 0 ? 0 : step >= TOTAL_STEPS ? 100 : (step / TOTAL_STEPS) * 100;
+  // Endowed progress: start at ~5% so step 0 already shows progress
+  const progress = step === 0 ? 5 : step >= TOTAL_STEPS ? 100 : Math.max(5, ((step + 1) / TOTAL_STEPS) * 100);
+
+  // Time remaining estimate
+  const getTimeRemaining = (currentStep: number): string => {
+    const stepsLeft = TOTAL_STEPS - currentStep;
+    if (stepsLeft <= 1) return "Presque fini !";
+    if (stepsLeft <= 3) return "Dernière ligne droite · ~1 min";
+    if (stepsLeft <= 5) return "Plus que ~2 min";
+    if (stepsLeft <= 8) return "Encore ~3 min";
+    return "~4 min";
+  };
 
   // Keyboard shortcut
   useEffect(() => {
@@ -426,6 +482,9 @@ export default function Onboarding() {
       localStorage.removeItem("lac_prenom");
       localStorage.removeItem("lac_activite");
       localStorage.removeItem("lac_onboarding_step");
+      localStorage.removeItem("lac_onboarding_answers");
+      localStorage.removeItem("lac_onboarding_branding");
+      localStorage.removeItem("lac_onboarding_ts");
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     } finally {
@@ -494,8 +553,8 @@ export default function Onboarding() {
         </div>
       )}
 
-      {/* Progress bar */}
-      {step > 0 && step <= 15 && (
+      {/* Progress bar — visible from step 0 */}
+      {step <= 15 && (
         <div className="fixed top-0 left-0 right-0 z-40 h-1 bg-border/30">
           <div
             className="h-full bg-primary transition-all duration-500 ease-out"
@@ -516,8 +575,9 @@ export default function Onboarding() {
 
       {/* Content */}
       {step <= 16 ? (
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className="max-w-lg w-full">
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <div className="max-w-lg w-full flex-1 flex items-center">
+            <div className="w-full">
             <AnimatePresence mode="wait">
               <motion.div
                 key={step}
@@ -615,7 +675,15 @@ export default function Onboarding() {
                 )}
               </motion.div>
             </AnimatePresence>
+            </div>
           </div>
+
+          {/* Time remaining indicator */}
+          {step > 0 && step <= 15 && (
+            <p className="text-center text-xs text-muted-foreground/60 pb-4 mt-2">
+              {getTimeRemaining(step)}
+            </p>
+          )}
         </div>
       ) : diagnosticData ? (
         <DiagnosticView
