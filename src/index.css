@@ -44,6 +44,18 @@
     --rose-pale: 340 100% 97%;
     --placeholder: 275 30% 80%;
 
+    --bento-dark: 330 100% 15%;
+    --bento-lavande: 270 60% 94%;
+    --bento-mint: 160 50% 92%;
+    --bento-mint-dark: 160 40% 40%;
+    --bento-blue: 220 60% 92%;
+    --bento-blue-dark: 220 50% 45%;
+    --bento-violet: 270 50% 92%;
+    --bento-violet-dark: 270 40% 50%;
+    --bento-yellow: 50 100% 93%;
+    --shadow-bento: 0 2px 16px rgba(145, 1, 75, 0.06);
+    --shadow-bento-hover: 0 8px 32px rgba(145, 1, 75, 0.12);
+
     --cal-idea: 220 13% 91%;
     --cal-idea-border: 220 9% 76%;
     --cal-drafting: 48 100% 69%;
