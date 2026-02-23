@@ -128,7 +128,7 @@ export default function AbonnementPage() {
               </p>
               {subInfo?.plan === "now_pilot" && (
                 <div className="mt-2 space-y-1">
-                  <p className="text-xs text-muted-foreground">🎯 Accompagnement 6 mois · 9 sessions avec Laetitia</p>
+                  <p className="text-xs text-muted-foreground">🎯 Accompagnement 6 mois · 7 sessions avec Laetitia</p>
                   <p className="text-xs text-muted-foreground">💡 300 crédits IA / mois</p>
                   <Link to="/accompagnement">
                     <Button size="sm" variant="outline" className="rounded-full mt-1 text-xs">
@@ -300,13 +300,20 @@ export default function AbonnementPage() {
             }`}>
               <h3 className="font-display font-bold text-foreground">🤝 Now Pilot</h3>
               <p className="text-lg font-semibold text-primary mt-1">250€/mois</p>
-              <p className="text-xs text-muted-foreground mt-0.5">300 crédits · 6 mois</p>
-              <p className="text-[11px] text-muted-foreground mt-1">✅ L'outil + 9 sessions avec Laetitia</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Engagement 6 mois</p>
+              <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5 text-left">
+                <p>✅ L'outil complet (300 crédits/mois)</p>
+                <p>✅ 3 sessions fondations</p>
+                <p>✅ 4 sessions focus personnalisées</p>
+                <p>✅ WhatsApp illimité 6 mois</p>
+                <p>✅ 7 sessions avec Laetitia (~12h)</p>
+                <p>✅ Comptes-rendus détaillés</p>
+              </div>
               {plan === "now_pilot" ? (
                 <span className="inline-block mt-3 text-xs font-semibold text-primary">Plan actuel ✓</span>
               ) : (
                 <Button size="sm" variant="outline" className="mt-3 rounded-full text-xs" onClick={() => window.open("https://calendly.com/laetitia-mattioli/rendez-vous-avec-laetitia", "_blank")}>
-                  📞 Réserver un appel
+                  📞 Réserver un appel découverte
                 </Button>
               )}
             </div>

@@ -49,18 +49,19 @@ export interface DemoData {
 }
 
 export const DEMO_COACHING = {
-  current_phase: "strategy",
+  formula: "now_pilot",
+  duration_months: 6,
+  price_monthly: 250,
   current_month: 2,
+  total_sessions: 7,
   sessions: [
-    { number: 1, title: "Audit + positionnement", status: "completed", date: "2026-02-10", summary: "On a posé ton positionnement et ta mission." },
-    { number: 2, title: "Cible, offres, ton", status: "completed", date: "2026-02-17", summary: "Marine définie. 3 offres reformulées." },
-    { number: 3, title: "Ligne éditoriale", status: "scheduled", date: "2026-02-25" },
-    { number: 4, title: "Calendrier + templates", status: "scheduled" },
-    { number: 5, title: "Contenus + mise en place", status: "locked" },
-    { number: 6, title: "Contenus + mise en place", status: "locked" },
-    { number: 7, title: "Revue mensuelle", status: "locked", phase: "binome" },
-    { number: 8, title: "Revue mensuelle", status: "locked", phase: "binome" },
-    { number: 9, title: "Bilan + autonomie", status: "locked", phase: "binome" },
+    { number: 1, type: "launch", title: "Atelier de lancement", status: "completed", date: "2026-02-10", duration: 90, summary: "On a posé ton positionnement et ta mission." },
+    { number: 2, type: "strategy", title: "Atelier Stratégique", status: "scheduled", date: "2026-02-25", duration: 120 },
+    { number: 3, type: "checkpoint", title: "Point d'étape", status: "scheduled", duration: 60 },
+    { number: 4, type: "focus", focus_topic: "instagram_content", title: "Création contenus Instagram", status: "scheduled", duration: 120 },
+    { number: 5, type: "focus", focus_topic: "website", title: "Site web / pages de vente", status: "scheduled", duration: 120 },
+    { number: 6, type: "focus", focus_topic: "newsletter", title: "Newsletter / emailing", status: "scheduled", duration: 60 },
+    { number: 7, type: "focus", focus_topic: null, title: "À définir ensemble", status: "scheduled", duration: 60 },
   ],
   actions: [
     { title: "Lister 5 sujets passion", completed: false },
