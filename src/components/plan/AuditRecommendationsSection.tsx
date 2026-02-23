@@ -60,6 +60,22 @@ export default function AuditRecommendationsSection() {
     setLoading(false);
   };
 
+  // Map stored routes (which may be incomplete) to actual app routes
+  const resolveRoute = (rec: Recommendation): string => {
+    const routeMap: Record<string, string> = {
+      "/persona": "/branding/persona",
+      "/instagram/bio": "/instagram/profil/bio",
+      "/instagram/highlights": "/instagram/profil/stories",
+      "/creer": "/instagram/creer",
+      "/strategie": "/branding/strategie",
+      "/storytelling": "/branding/storytelling",
+      "/ton": "/branding/ton",
+      "/proposition": "/branding/proposition",
+      "/offres": "/branding/offres",
+    };
+    return routeMap[rec.route] || rec.route;
+  };
+
   const navigateToModule = (rec: Recommendation) => {
     // SEO → external link
     if (rec.module === "seo" || rec.route.startsWith("http")) {
@@ -68,7 +84,8 @@ export default function AuditRecommendationsSection() {
     }
     const conseil = rec.conseil_contextuel || rec.conseil || rec.detail || "";
     sessionStorage.setItem("audit_recommendation", JSON.stringify({ module: rec.module, conseil }));
-    const route = `${rec.route}?from=audit&rec_id=${rec.id}`;
+    const resolvedRoute = resolveRoute(rec);
+    const route = `${resolvedRoute}?from=audit&rec_id=${rec.id}`;
     navigate(route);
   };
 
