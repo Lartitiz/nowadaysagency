@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 
 export type ChannelId = "instagram" | "linkedin" | "newsletter" | "pinterest" | "site" | "seo";
@@ -27,13 +28,21 @@ export interface ActiveChannels {
 
 export function useActiveChannels(): ActiveChannels {
   const { user } = useAuth();
+  const { isDemoMode, demoData } = useDemoContext();
   const [channels, setChannelsState] = useState<ChannelId[]>(["instagram"]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (isDemoMode) {
+      // Use demo channels
+      const demoChannels = ([...(demoData?.onboarding?.canaux || ["instagram", "site"])]) as ChannelId[];
+      setChannelsState(demoChannels);
+      setLoading(false);
+      return;
+    }
+
     if (!user?.id) return;
     (async () => {
-      // Read from profiles.canaux first, fallback to user_plan_config.channels
       const { data: profile } = await supabase
         .from("profiles")
         .select("canaux")
@@ -43,7 +52,6 @@ export function useActiveChannels(): ActiveChannels {
       if (profile?.canaux && Array.isArray(profile.canaux) && profile.canaux.length > 0) {
         setChannelsState(profile.canaux as ChannelId[]);
       } else {
-        // Fallback to user_plan_config
         const { data: planConfig } = await supabase
           .from("user_plan_config")
           .select("channels")
@@ -55,7 +63,7 @@ export function useActiveChannels(): ActiveChannels {
       }
       setLoading(false);
     })();
-  }, [user?.id]);
+  }, [user?.id, isDemoMode]);
 
   const setChannels = useCallback(async (newChannels: ChannelId[]) => {
     if (!user?.id) return;

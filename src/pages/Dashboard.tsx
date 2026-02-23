@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
@@ -75,6 +76,7 @@ function getWelcomeMessage(): string {
 /* ── Main component ── */
 export default function Dashboard() {
   const { user } = useAuth();
+  const { isDemoMode, demoData } = useDemoContext();
   const navigate = useNavigate();
   const { isPilot } = useUserPlan();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -88,8 +90,41 @@ export default function Dashboard() {
   });
   const { hasInstagram, hasLinkedin, hasWebsite, hasSeo, loading: channelsLoading, channels } = useActiveChannels();
 
+  // ── Demo mode: set static data immediately ──
   useEffect(() => {
-    if (!user) return;
+    if (!isDemoMode || !demoData) return;
+    setProfile({
+      prenom: demoData.profile.first_name,
+      activite: demoData.profile.activity,
+      type_activite: demoData.profile.activity_type,
+      cible: demoData.persona.metier,
+      probleme_principal: demoData.persona.frustrations,
+      piliers: demoData.branding.editorial.pillars.map(p => p.name),
+      tons: demoData.branding.tone.keywords as unknown as string[],
+      plan_start_date: null,
+    });
+    setDashData(prev => ({
+      ...prev,
+      brandingCompletion: { storytelling: 20, persona: 20, proposition: 20, tone: 15, strategy: 10, total: demoData.branding.completion },
+      igAuditScore: demoData.audit.score,
+      calendarPostCount: demoData.calendar_posts.length,
+      weekPostsTotal: 3,
+      weekPostsPublished: 1,
+      contactCount: demoData.contacts.length,
+      prospectCount: demoData.contacts.filter(c => c.type === "prospect").length,
+    }));
+    if (demoData.coaching) {
+      const nextSess = demoData.coaching.sessions.find(s => s.status === "scheduled" && 'date' in s);
+      setCoachingInfo({
+        phase: "onboarding",
+        month: demoData.coaching.current_month,
+        nextSession: nextSess && 'date' in nextSess ? { date: nextSess.date, title: nextSess.title } : null,
+      });
+    }
+  }, [isDemoMode, demoData]);
+
+  useEffect(() => {
+    if (!user || isDemoMode) return;
     const now = new Date();
     const weekStart = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
     const weekEnd = format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
@@ -166,7 +201,7 @@ export default function Dashboard() {
       checkBadges(user.id, bc.total);
     };
     fetchAll();
-  }, [user?.id]);
+  }, [user?.id, isDemoMode]);
 
   if (!profile) {
     return (
@@ -183,6 +218,7 @@ export default function Dashboard() {
   const comingSoonChannels = ALL_CHANNELS.filter(c => c.comingSoon && channels.includes(c.id));
 
   const toggleRecommendation = async (id: string, currentCompleted: boolean | null) => {
+    if (isDemoMode) return;
     const newCompleted = !currentCompleted;
     await supabase.from("audit_recommendations").update({
       completed: newCompleted,

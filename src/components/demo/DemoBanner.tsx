@@ -1,10 +1,17 @@
 import { useDemoContext } from "@/contexts/DemoContext";
+import { useNavigate } from "react-router-dom";
 import { Film, X } from "lucide-react";
 
 export default function DemoBanner() {
   const { isDemoMode, demoName, demoActivity, deactivateDemo } = useDemoContext();
+  const navigate = useNavigate();
 
   if (!isDemoMode) return null;
+
+  const handleQuit = () => {
+    deactivateDemo();
+    navigate("/");
+  };
 
   return (
     <div className="sticky top-0 z-50 flex items-center justify-between px-4 py-2 bg-rose-pale text-foreground text-sm font-semibold border-b border-border">
@@ -13,7 +20,7 @@ export default function DemoBanner() {
         <span>🎬 Mode démo · {demoName}, {demoActivity}</span>
       </div>
       <button
-        onClick={deactivateDemo}
+        onClick={handleQuit}
         className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
       >
         <X className="h-3.5 w-3.5" />

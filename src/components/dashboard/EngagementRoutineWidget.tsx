@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { startOfWeek, format, addDays, subDays } from "date-fns";
@@ -11,12 +12,21 @@ interface Props {
 
 export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
   const { user } = useAuth();
+  const { isDemoMode } = useDemoContext();
   const navigate = useNavigate();
   const [weekDots, setWeekDots] = useState<boolean[]>(Array(7).fill(false));
   const [streakCount, setStreakCount] = useState(0);
   const [todayDone, setTodayDone] = useState(false);
 
   const fetchData = useCallback(async () => {
+    if (isDemoMode) {
+      // Demo: show 3 days done this week
+      setWeekDots([true, true, true, false, false, false, false]);
+      setStreakCount(3);
+      setTodayDone(false);
+      return;
+    }
+
     if (!user) return;
 
     const now = new Date();
@@ -47,17 +57,15 @@ export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
     setWeekDots(dots);
     setTodayDone(logDates.includes(todayStr));
 
-    // Calculate streak from consecutive recent days
     if (streakRes.data) {
       setStreakCount(streakRes.data.current_streak || 0);
     } else {
-      // Fallback: count consecutive days from logs
       let streak = 0;
       for (let i = 0; i < 30; i++) {
         const d = format(subDays(now, i), "yyyy-MM-dd");
         if (logDates.includes(d) || (i === 0 && !logDates.includes(d))) {
           if (logDates.includes(d)) streak++;
-          else if (i === 0) continue; // today not done yet, skip
+          else if (i === 0) continue;
           else break;
         } else {
           break;
@@ -65,7 +73,7 @@ export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
       }
       setStreakCount(streak);
     }
-  }, [user?.id]);
+  }, [user?.id, isDemoMode]);
 
   useEffect(() => {
     fetchData();
@@ -86,7 +94,6 @@ export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
       style={{ animationDelay: `${animationDelay}s`, animationFillMode: "forwards" }}
       onClick={() => navigate("/instagram/engagement")}
     >
-      {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-heading text-base font-bold text-foreground">
           {todayDone ? "🔥" : "💬"} Routine d'engagement
@@ -108,7 +115,6 @@ export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
         )}
       </div>
 
-      {/* Week dots */}
       <div className="flex items-center justify-between gap-2">
         {dayLabels.map((label, i) => (
           <div key={i} className="flex flex-col items-center gap-1.5">
@@ -120,7 +126,6 @@ export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
         ))}
       </div>
 
-      {/* Streak */}
       {streakCount > 1 && (
         <p className="text-xs text-muted-foreground mt-2">
           {streakCount} jours de suite · Continue !
