@@ -96,6 +96,7 @@ import AdminCoachingPage from "./pages/AdminCoachingPage";
 import NowPilotPage from "./pages/NowPilotPage";
 import NotFound from "./pages/NotFound";
 import AssistantButton from "./components/assistant/AssistantButton";
+import BrandingCoachingPage from "./pages/BrandingCoachingPage";
 
 const queryClient = new QueryClient();
 
@@ -142,6 +143,7 @@ function AnimatedRoutes() {
             <Route path="/branding/strategie/recap" element={<ProtectedRoute><StrategieRecapPage /></ProtectedRoute>} />
             <Route path="/branding/offres" element={<ProtectedRoute><OffersPage /></ProtectedRoute>} />
             <Route path="/branding/offres/:id" element={<ProtectedRoute><OfferWorkshopPage /></ProtectedRoute>} />
+            <Route path="/branding/coaching" element={<ProtectedRoute><BrandingCoachingPage /></ProtectedRoute>} />
             <Route path="/plan" element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />
             <Route path="/mon-plan" element={<ProtectedRoute><CommPlanPage /></ProtectedRoute>} />
             <Route path="/pricing" element={<PricingPage />} />

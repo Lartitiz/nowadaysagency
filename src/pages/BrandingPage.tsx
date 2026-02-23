@@ -29,10 +29,10 @@ interface BrandingCard {
 
 const CARDS: BrandingCard[] = [
   {
-    emoji: "👑",
+    emoji: "📖",
     title: "Mon histoire",
-    description: "Écris ton histoire en 8 étapes guidées. L'IA t'aide à chaque moment.",
-    stepperRoute: "/branding/storytelling",
+    description: "Raconte ton histoire. L'IA te guide question par question.",
+    stepperRoute: "/branding/coaching?section=story",
     recapRoute: "/branding/storytelling/__PRIMARY__/recap",
     scoreKey: "storytelling",
   },
@@ -40,7 +40,7 @@ const CARDS: BrandingCard[] = [
     emoji: "👩‍💻",
     title: "Mon client·e idéal·e",
     description: "Comprends qui tu veux toucher, ce qui la bloque, ce qu'elle désire.",
-    stepperRoute: "/branding/persona",
+    stepperRoute: "/branding/coaching?section=persona",
     recapRoute: "/branding/persona/recap",
     scoreKey: "persona",
   },
@@ -48,7 +48,7 @@ const CARDS: BrandingCard[] = [
     emoji: "❤️",
     title: "Ma proposition de valeur",
     description: "Ce qui te rend unique. Les phrases que tu vas utiliser partout.",
-    stepperRoute: "/branding/proposition",
+    stepperRoute: "/branding/coaching?section=value_proposition",
     recapRoute: "/branding/proposition/recap",
     scoreKey: "proposition",
   },
@@ -56,7 +56,7 @@ const CARDS: BrandingCard[] = [
     emoji: "🎨",
     title: "Mon ton, mon style & mes combats",
     description: "Comment tu parles, ce que tu défends, tes limites. Tout ce qui fait que c'est toi.",
-    stepperRoute: "/branding/ton",
+    stepperRoute: "/branding/coaching?section=tone_style",
     recapRoute: "/branding/ton/recap",
     scoreKey: "tone",
   },
@@ -64,7 +64,7 @@ const CARDS: BrandingCard[] = [
     emoji: "🍒",
     title: "Ma stratégie de contenu",
     description: "Tes piliers, ton twist créatif. Ce qui donne une colonne vertébrale à tes contenus.",
-    stepperRoute: "/branding/strategie",
+    stepperRoute: "/branding/coaching?section=content_strategy",
     recapRoute: "/branding/strategie/recap",
     scoreKey: "strategy",
   },
@@ -415,7 +415,7 @@ export default function BrandingPage() {
               {/* Mes offres card */}
               <div
                 className="rounded-2xl border-2 bg-card p-5 transition-all border-primary/30 hover:border-primary hover:shadow-md cursor-pointer"
-                onClick={() => navigate("/branding/offres")}
+                onClick={() => navigate("/branding/coaching?section=offers")}
               >
                 <div className="flex items-start justify-between mb-3">
                   <span className="text-2xl">🎁</span>
@@ -427,10 +427,10 @@ export default function BrandingPage() {
                 <Button
                   size="sm"
                   className="rounded-pill text-xs w-full"
-                  onClick={(e) => { e.stopPropagation(); navigate("/branding/offres"); }}
+                  onClick={(e) => { e.stopPropagation(); navigate("/branding/coaching?section=offers"); }}
                 >
                   <Sparkles className="h-3.5 w-3.5 mr-1" />
-                  Voir mes offres
+                  Coaching offres
                 </Button>
               </div>
             </div>

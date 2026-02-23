@@ -182,6 +182,12 @@ export type Database = {
           combat_cause: string | null
           combat_fights: string | null
           combat_refusals: string | null
+          combats: string | null
+          content_editorial_line: string | null
+          content_formats: Json | null
+          content_frequency: string | null
+          content_pillars: Json | null
+          content_twist: string | null
           created_at: string
           id: string
           key_expressions: string | null
@@ -189,11 +195,20 @@ export type Database = {
           offer: string | null
           positioning: string | null
           recap_summary: Json | null
+          story_full: string | null
+          story_origin: string | null
+          story_struggles: string | null
+          story_turning_point: string | null
+          story_unique: string | null
+          story_vision: string | null
           target_beliefs: string | null
           target_description: string | null
           target_problem: string | null
           target_verbatims: string | null
           things_to_avoid: string | null
+          tone_description: string | null
+          tone_do: string | null
+          tone_dont: string | null
           tone_engagement: string | null
           tone_humor: string | null
           tone_keywords: Json | null
@@ -202,7 +217,13 @@ export type Database = {
           tone_style: string | null
           updated_at: string
           user_id: string
+          value_prop_difference: string | null
+          value_prop_problem: string | null
+          value_prop_proof: string | null
+          value_prop_sentence: string | null
+          value_prop_solution: string | null
           values: Json | null
+          visual_style: string | null
           voice_description: string | null
         }
         Insert: {
@@ -211,6 +232,12 @@ export type Database = {
           combat_cause?: string | null
           combat_fights?: string | null
           combat_refusals?: string | null
+          combats?: string | null
+          content_editorial_line?: string | null
+          content_formats?: Json | null
+          content_frequency?: string | null
+          content_pillars?: Json | null
+          content_twist?: string | null
           created_at?: string
           id?: string
           key_expressions?: string | null
@@ -218,11 +245,20 @@ export type Database = {
           offer?: string | null
           positioning?: string | null
           recap_summary?: Json | null
+          story_full?: string | null
+          story_origin?: string | null
+          story_struggles?: string | null
+          story_turning_point?: string | null
+          story_unique?: string | null
+          story_vision?: string | null
           target_beliefs?: string | null
           target_description?: string | null
           target_problem?: string | null
           target_verbatims?: string | null
           things_to_avoid?: string | null
+          tone_description?: string | null
+          tone_do?: string | null
+          tone_dont?: string | null
           tone_engagement?: string | null
           tone_humor?: string | null
           tone_keywords?: Json | null
@@ -231,7 +267,13 @@ export type Database = {
           tone_style?: string | null
           updated_at?: string
           user_id: string
+          value_prop_difference?: string | null
+          value_prop_problem?: string | null
+          value_prop_proof?: string | null
+          value_prop_sentence?: string | null
+          value_prop_solution?: string | null
           values?: Json | null
+          visual_style?: string | null
           voice_description?: string | null
         }
         Update: {
@@ -240,6 +282,12 @@ export type Database = {
           combat_cause?: string | null
           combat_fights?: string | null
           combat_refusals?: string | null
+          combats?: string | null
+          content_editorial_line?: string | null
+          content_formats?: Json | null
+          content_frequency?: string | null
+          content_pillars?: Json | null
+          content_twist?: string | null
           created_at?: string
           id?: string
           key_expressions?: string | null
@@ -247,11 +295,20 @@ export type Database = {
           offer?: string | null
           positioning?: string | null
           recap_summary?: Json | null
+          story_full?: string | null
+          story_origin?: string | null
+          story_struggles?: string | null
+          story_turning_point?: string | null
+          story_unique?: string | null
+          story_vision?: string | null
           target_beliefs?: string | null
           target_description?: string | null
           target_problem?: string | null
           target_verbatims?: string | null
           things_to_avoid?: string | null
+          tone_description?: string | null
+          tone_do?: string | null
+          tone_dont?: string | null
           tone_engagement?: string | null
           tone_humor?: string | null
           tone_keywords?: Json | null
@@ -260,7 +317,13 @@ export type Database = {
           tone_style?: string | null
           updated_at?: string
           user_id?: string
+          value_prop_difference?: string | null
+          value_prop_problem?: string | null
+          value_prop_proof?: string | null
+          value_prop_sentence?: string | null
+          value_prop_solution?: string | null
           values?: Json | null
+          visual_style?: string | null
           voice_description?: string | null
         }
         Relationships: []
@@ -468,6 +531,45 @@ export type Database = {
           site_url?: string | null
           sources_used?: Json | null
           synthese?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      branding_coaching_sessions: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          extracted_data: Json | null
+          id: string
+          is_complete: boolean | null
+          messages: Json | null
+          question_count: number | null
+          section: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          extracted_data?: Json | null
+          id?: string
+          is_complete?: boolean | null
+          messages?: Json | null
+          question_count?: number | null
+          section: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          extracted_data?: Json | null
+          id?: string
+          is_complete?: boolean | null
+          messages?: Json | null
+          question_count?: number | null
+          section?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -3149,8 +3251,10 @@ export type Database = {
           features_to_benefits: Json | null
           feelings_after: Json | null
           id: string
+          includes: Json | null
           linked_freebie_id: string | null
           name: string
+          objection_handler: string | null
           objections: Json | null
           offer_type: string
           price_amount: number | null
@@ -3160,6 +3264,7 @@ export type Database = {
           promise: string | null
           promise_long: string | null
           sales_line: string | null
+          target: string | null
           target_ideal: string | null
           target_not_for: string | null
           testimonials: Json | null
@@ -3182,8 +3287,10 @@ export type Database = {
           features_to_benefits?: Json | null
           feelings_after?: Json | null
           id?: string
+          includes?: Json | null
           linked_freebie_id?: string | null
           name?: string
+          objection_handler?: string | null
           objections?: Json | null
           offer_type?: string
           price_amount?: number | null
@@ -3193,6 +3300,7 @@ export type Database = {
           promise?: string | null
           promise_long?: string | null
           sales_line?: string | null
+          target?: string | null
           target_ideal?: string | null
           target_not_for?: string | null
           testimonials?: Json | null
@@ -3215,8 +3323,10 @@ export type Database = {
           features_to_benefits?: Json | null
           feelings_after?: Json | null
           id?: string
+          includes?: Json | null
           linked_freebie_id?: string | null
           name?: string
+          objection_handler?: string | null
           objections?: Json | null
           offer_type?: string
           price_amount?: number | null
@@ -3226,6 +3336,7 @@ export type Database = {
           promise?: string | null
           promise_long?: string | null
           sales_line?: string | null
+          target?: string | null
           target_ideal?: string | null
           target_not_for?: string | null
           testimonials?: Json | null
@@ -3247,11 +3358,18 @@ export type Database = {
       }
       persona: {
         Row: {
+          buying_triggers: Json | null
           completed: boolean | null
           created_at: string
           current_step: number | null
+          daily_life: string | null
+          demographics: Json | null
           description: string | null
+          desires: Json | null
+          frustrations_detail: Json | null
           id: string
+          objections: Json | null
+          persona_channels: Json | null
           pitch_long: string | null
           pitch_medium: string | null
           pitch_short: string | null
@@ -3272,11 +3390,18 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          buying_triggers?: Json | null
           completed?: boolean | null
           created_at?: string
           current_step?: number | null
+          daily_life?: string | null
+          demographics?: Json | null
           description?: string | null
+          desires?: Json | null
+          frustrations_detail?: Json | null
           id?: string
+          objections?: Json | null
+          persona_channels?: Json | null
           pitch_long?: string | null
           pitch_medium?: string | null
           pitch_short?: string | null
@@ -3297,11 +3422,18 @@ export type Database = {
           user_id: string
         }
         Update: {
+          buying_triggers?: Json | null
           completed?: boolean | null
           created_at?: string
           current_step?: number | null
+          daily_life?: string | null
+          demographics?: Json | null
           description?: string | null
+          desires?: Json | null
+          frustrations_detail?: Json | null
           id?: string
+          objections?: Json | null
+          persona_channels?: Json | null
           pitch_long?: string | null
           pitch_medium?: string | null
           pitch_short?: string | null
