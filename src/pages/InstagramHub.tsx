@@ -5,6 +5,8 @@ import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import FirstTimeTooltip from "@/components/FirstTimeTooltip";
+import { useDemoContext } from "@/contexts/DemoContext";
+import { DEMO_DATA } from "@/lib/demo-data";
 
 interface ProgressData {
   auditScore: number | null;
@@ -19,11 +21,25 @@ interface ProgressData {
 
 export default function InstagramHub() {
   const { user } = useAuth();
+  const { isDemoMode } = useDemoContext();
   const [progress, setProgress] = useState<ProgressData>({
     auditScore: null, ideasCount: 0, calendarCount: 0, launchCount: 0, engagementWeekly: "À faire", statsFollowers: null, statsFollowersDiff: null, statsUpToDate: false,
   });
 
   useEffect(() => {
+    if (isDemoMode) {
+      setProgress({
+        auditScore: DEMO_DATA.audit.score,
+        ideasCount: DEMO_DATA.calendar_posts.filter(p => !p.planned_day).length,
+        calendarCount: DEMO_DATA.calendar_posts.filter(p => p.planned_day).length,
+        launchCount: 0,
+        engagementWeekly: "4/10",
+        statsFollowers: 1247,
+        statsFollowersDiff: 38,
+        statsUpToDate: true,
+      });
+      return;
+    }
     if (!user) return;
     const fetchProgress = async () => {
       const now = new Date();

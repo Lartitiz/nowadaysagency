@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, Pencil, Eye, Sparkles, Gift, Gem, Mic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useDemoContext } from "@/contexts/DemoContext";
+import { DEMO_DATA } from "@/lib/demo-data";
 
 const TYPE_CONFIG = {
   paid: { label: "💎 Offres payantes", emoji: "💎", icon: Gem, color: "text-violet-600" },
@@ -16,10 +18,24 @@ const TYPE_CONFIG = {
 export default function OffersPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { isDemoMode } = useDemoContext();
   const [offers, setOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (isDemoMode) {
+      setOffers(DEMO_DATA.offers.map((o, i) => ({
+        id: `demo-offer-${i}`,
+        offer_type: "paid",
+        name: o.name,
+        price_text: o.price,
+        description: o.description,
+        completed: true,
+        completion_pct: 100,
+      })));
+      setLoading(false);
+      return;
+    }
     if (!user) return;
     supabase
       .from("offers")
@@ -30,7 +46,7 @@ export default function OffersPage() {
         setOffers(data || []);
         setLoading(false);
       });
-  }, [user?.id]);
+  }, [user?.id, isDemoMode]);
 
   const createOffer = async (type: string) => {
     if (!user) return;
