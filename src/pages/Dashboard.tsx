@@ -323,7 +323,7 @@ function ChannelDailyCard({ channel, data }: { channel: "instagram" | "linkedin"
 
   if (channel === "instagram") {
     return (
-      <div className="rounded-2xl border border-border bg-card p-5">
+      <div onClick={() => navigate("/instagram")} className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2.5">
             <span className="text-xl">📱</span>
@@ -349,7 +349,7 @@ function ChannelDailyCard({ channel, data }: { channel: "instagram" | "linkedin"
 
   // LinkedIn
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div onClick={() => navigate("/linkedin")} className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <span className="text-xl">💼</span>
@@ -382,7 +382,7 @@ function MiniBtn({ label, onClick }: { label: string; onClick: () => void }) {
 function CreateContentCard({ hasInstagram, hasLinkedin }: { hasInstagram: boolean; hasLinkedin: boolean }) {
   const navigate = useNavigate();
   return (
-    <div className="rounded-2xl border-2 border-primary/30 bg-card p-5">
+    <div onClick={() => navigate("/instagram/creer")} className="rounded-2xl border-2 border-primary/30 bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
       <div className="flex items-center gap-3 mb-3">
         <span className="text-2xl">✨</span>
         <h3 className="font-display text-lg font-bold text-foreground">Créer un contenu</h3>
@@ -411,7 +411,7 @@ function ContactsCard({ data }: { data: DashboardData }) {
   const hasAny = data.contactCount > 0 || data.prospectCount > 0;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div onClick={() => navigate("/contacts")} className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
       <div className="flex items-center gap-3 mb-3">
         <span className="text-2xl">👥</span>
         <h3 className="font-display text-lg font-bold text-foreground">Mes Contacts</h3>
@@ -445,7 +445,7 @@ function CalendarCard({ data }: { data: DashboardData }) {
   const hasWeekPosts = data.weekPostsTotal > 0;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div onClick={() => navigate("/calendrier")} className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-card-hover hover:-translate-y-px transition-all">
       <div className="flex items-center gap-3 mb-3">
         <span className="text-2xl">📅</span>
         <h3 className="font-display text-lg font-bold text-foreground">Mon Calendrier</h3>
