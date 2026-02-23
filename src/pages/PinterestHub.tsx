@@ -66,14 +66,14 @@ export default function PinterestHub() {
         </Link>
         <div className="mb-8">
           <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground">📌 Mon Pinterest</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Pinterest c'est un moteur de recherche visuel. Chaque épingle peut ramener du trafic pendant des mois. On optimise tout ça.</p>
+          <p className="mt-1 text-[15px] text-muted-foreground">Crée des épingles, planifie tes tableaux, génère du trafic : Pinterest c'est le moteur de recherche visuel que tout le monde oublie.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {CARDS.map((card, idx) => {
             const label = getLabel(idx);
             return (
               <Link key={card.to} to={card.to} className="group relative rounded-2xl border border-border bg-card p-6 hover:border-primary hover:shadow-md transition-all">
-                {label && <span className="absolute top-4 right-4 font-mono-ui text-[10px] font-semibold text-muted-foreground bg-rose-pale px-2 py-0.5 rounded-pill">{label}</span>}
+                
                 <span className="text-2xl mb-3 block">{card.emoji}</span>
                 <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">{card.title}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{card.desc}</p>

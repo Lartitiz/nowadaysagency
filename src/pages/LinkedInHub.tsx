@@ -107,8 +107,8 @@ export default function LinkedInHub() {
 
         <div className="mb-8">
           <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground">💼 Mon LinkedIn</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Ton profil LinkedIn, c'est ta vitrine pro. On va le rendre irrésistible.
+          <p className="mt-1 text-[15px] text-muted-foreground">
+            Optimise ton profil, crée des posts pro, développe ton réseau : LinkedIn c'est pas ennuyeux, promis.
           </p>
         </div>
 
@@ -121,11 +121,6 @@ export default function LinkedInHub() {
                 to={card.to}
                 className="group relative rounded-2xl border border-border bg-card p-6 hover:border-primary hover:shadow-md transition-all"
               >
-                {progressLabel && (
-                  <span className="absolute top-4 right-4 font-mono-ui text-[10px] font-semibold text-muted-foreground bg-rose-pale px-2 py-0.5 rounded-pill">
-                    {progressLabel}
-                  </span>
-                )}
                 <span className="text-2xl mb-3 block">{card.emoji}</span>
                 <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">
                   {card.title}

@@ -62,7 +62,7 @@ export default function SiteHub() {
         </Link>
         <div className="mb-8">
           <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground">🌐 Mon Site Web</h1>
-          <p className="mt-2 text-sm text-muted-foreground">L'IA rédige les textes de ton site à partir de ton branding. Tu n'as plus qu'à les copier-coller dans ton outil (Squarespace, WordPress, Shopify, Wix...).</p>
+          <p className="mt-1 text-[15px] text-muted-foreground">Analyse ton site, améliore ton SEO, retravaille tes pages : l'objectif c'est que Google te trouve avant tes concurrentes.</p>
         </div>
 
         {/* CMS selector */}
@@ -89,7 +89,7 @@ export default function SiteHub() {
         {/* Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {CARDS.map((card) => {
-            const label = card.to === "/site/accueil" && homepageStep > 0 ? `${Math.min(homepageStep, 10)}/10 étapes` : null;
+            const label: string | null = null;
             const inner = (
               <div className={`group relative rounded-2xl border bg-card p-6 transition-all ${card.disabled ? "opacity-45 cursor-default" : "hover:border-primary hover:shadow-md cursor-pointer"}`}>
                 {label && <span className="absolute top-4 right-4 font-mono-ui text-[10px] font-semibold text-muted-foreground bg-rose-pale px-2 py-0.5 rounded-pill">{label}</span>}
