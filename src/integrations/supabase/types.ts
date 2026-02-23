@@ -365,6 +365,30 @@ export type Database = {
         }
         Relationships: []
       }
+      branding_summary: {
+        Row: {
+          branding_hash: string | null
+          generated_at: string | null
+          id: string
+          summaries: Json | null
+          user_id: string
+        }
+        Insert: {
+          branding_hash?: string | null
+          generated_at?: string | null
+          id?: string
+          summaries?: Json | null
+          user_id: string
+        }
+        Update: {
+          branding_hash?: string | null
+          generated_at?: string | null
+          id?: string
+          summaries?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       calendar_posts: {
         Row: {
           accroche: string | null
