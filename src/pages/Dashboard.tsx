@@ -7,7 +7,7 @@ import AppHeader from "@/components/AppHeader";
 import AiDisclaimerBanner from "@/components/AiDisclaimerBanner";
 import { Progress } from "@/components/ui/progress";
 import { useUserPlan } from "@/hooks/use-user-plan";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import FirstTimeTooltip from "@/components/FirstTimeTooltip";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { useActiveChannels, ALL_CHANNELS } from "@/hooks/use-active-channels";
@@ -83,7 +83,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { isPilot } = useUserPlan();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [coachingInfo, setCoachingInfo] = useState<{ phase: string; month: number; nextSession: { date: string; title: string } | null } | null>(null);
+  const [coachingMonth, setCoachingMonth] = useState<number | null>(null);
   const [dashData, setDashData] = useState<DashboardData>({
     brandingCompletion: { storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 },
     igAuditScore: null, liAuditScore: null,
@@ -117,12 +117,7 @@ export default function Dashboard() {
       prospectCount: demoData.contacts.filter(c => c.type === "prospect").length,
     }));
     if (demoData.coaching) {
-      const nextSess = demoData.coaching.sessions.find(s => s.status === "scheduled" && 'date' in s);
-      setCoachingInfo({
-        phase: "onboarding",
-        month: demoData.coaching.current_month,
-        nextSession: nextSess && 'date' in nextSess ? { date: nextSess.date, title: nextSess.title } : null,
-      });
+      setCoachingMonth(demoData.coaching.current_month);
     }
   }, [isDemoMode, demoData]);
 
@@ -186,18 +181,7 @@ export default function Dashboard() {
           .limit(1)
           .maybeSingle();
         if (prog) {
-          const { data: nextSess } = await (supabase.from("coaching_sessions" as any) as any)
-            .select("scheduled_date, title")
-            .eq("program_id", prog.id)
-            .eq("status", "scheduled")
-            .order("scheduled_date", { ascending: true })
-            .limit(1)
-            .maybeSingle();
-          setCoachingInfo({
-            phase: prog.current_phase,
-            month: prog.current_month,
-            nextSession: nextSess ? { date: nextSess.scheduled_date, title: nextSess.title } : null,
-          });
+          setCoachingMonth(prog.current_month);
         }
       }
 
@@ -258,8 +242,8 @@ export default function Dashboard() {
         <div className="mb-8">
           <h1 className="font-heading text-[22px] sm:text-[28px] font-bold text-foreground leading-tight">
             Hey <span className="text-primary">{profile.prenom}</span>,{" "}
-            {isPilot && coachingInfo
-              ? <>programme Now Pilot · Mois {coachingInfo.month}/6 🤝</>
+            {isPilot && coachingMonth
+              ? <>programme Now Pilot · Mois {coachingMonth}/6 🤝</>
               : <>{getWelcomeMessage()}</>
             }
           </h1>
@@ -407,88 +391,6 @@ export default function Dashboard() {
           <LaetitiaCoachingCard animationDelay={nextDelay()} />
         ) : (
           <DiscoveryCoachingCard animationDelay={nextDelay()} />
-        )}
-
-        {/* ═══════════════════════════════════════
-           DIAGNOSTIC RECAP (if recommendations exist)
-           ═══════════════════════════════════════ */}
-        {dashData.recommendations.length > 0 && (
-          <div
-            className="rounded-[20px] border border-border bg-card p-5 mb-6 shadow-[var(--shadow-bento)] opacity-0 animate-reveal-up"
-            style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">🔍</span>
-              <h2 className="font-heading text-sm font-bold text-foreground">Ton diagnostic</h2>
-            </div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3 font-mono-ui">🎯 Tes priorités :</p>
-            <div className="space-y-2.5">
-              {dashData.recommendations.map(r => (
-                <div key={r.id} className="flex items-center gap-3">
-                  <button
-                    onClick={() => toggleRecommendation(r.id, r.completed)}
-                    className={`h-5 w-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${
-                      r.completed ? "bg-primary border-primary" : "border-border hover:border-primary/50"
-                    }`}
-                  >
-                    {r.completed && <span className="text-primary-foreground text-xs">✓</span>}
-                  </button>
-                  <span className={`text-sm flex-1 ${r.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                    {r.titre}
-                  </span>
-                  <button
-                    onClick={() => navigate(r.route)}
-                    className="text-xs text-primary font-medium shrink-0 hover:underline"
-                  >
-                    Y aller →
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* (Espaces moved above) */}
-
-        {/* ═══════════════════════════════════════
-           WEEKLY PROGRESS + BADGES
-           ═══════════════════════════════════════ */}
-        <BadgesWidget animationDelay={nextDelay()} />
-
-        {/* Branding is now in Mes Espaces — no standalone banner */}
-
-        {/* ═══════════════════════════════════════
-           ACCOMPAGNEMENT (Now Pilot)
-           ═══════════════════════════════════════ */}
-        {isPilot && (
-          <div
-            className="rounded-[20px] shadow-[var(--shadow-bento)] opacity-0 animate-reveal-up mb-4"
-            style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
-          >
-            <div
-              data-clickable="true"
-              onClick={() => navigate("/accompagnement")}
-              className="flex items-center justify-between rounded-[20px] border border-border bg-card px-5 py-3 cursor-pointer
-                hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px] transition-all duration-[250ms]"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-base">🤝</span>
-                {coachingInfo?.nextSession ? (
-                  <span className="text-sm text-muted-foreground">
-                    📅 Prochaine session : <span className="font-medium text-foreground">
-                      {format(new Date(coachingInfo.nextSession.date), "d MMM", { locale: fr })}
-                      {coachingInfo.nextSession.title ? ` · ${coachingInfo.nextSession.title}` : ""}
-                    </span>
-                  </span>
-                ) : (
-                  <span className="text-sm text-muted-foreground">
-                    Pas de session prévue — <span className="text-primary font-medium">Réserver →</span>
-                  </span>
-                )}
-              </div>
-              <ArrowRight className="h-4 w-4 text-primary shrink-0" />
-            </div>
-          </div>
         )}
 
         {/* ─── Coming Soon ─── */}
