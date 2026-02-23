@@ -242,3 +242,19 @@
     padding-bottom: 3.5rem; /* matches h-14 tab bar */
   }
 }
+
+/* ══════════════════════════════════════════
+   HOVER CARDS — Global clickable card lift
+   ══════════════════════════════════════════ */
+[data-clickable="true"] {
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+[data-clickable="true"]:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px hsla(var(--primary), 0.08),
+              0 2px 8px hsla(0, 0%, 0%, 0.04) !important;
+}
+[data-clickable="true"]:active {
+  transform: translateY(0px) !important;
+  box-shadow: 0 2px 8px hsla(0, 0%, 0%, 0.04) !important;
+}
