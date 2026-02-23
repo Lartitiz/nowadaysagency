@@ -195,26 +195,30 @@ RÈGLES :
 - Écris en français, tutoie l'utilisatrice
 
 TABLE DE MAPPING DES ACTIONS :
-Pour chaque point faible, associe UNE action concrète faisable dans l'outil en utilisant cette table :
-| Thème | module | route | label |
-|-------|--------|-------|-------|
-| Cible floue/large/mal définie | persona | /persona | Retravailler ma cible |
-| Positionnement flou/absent | branding | /branding | Clarifier mon positionnement |
-| Offres pas claires/invisibles | offers | /offres | Reformuler mes offres |
-| Bio pas optimisée | bio | /instagram/bio | Optimiser ma bio |
-| Storytelling absent/faible | story | /branding/storytelling | Écrire mon histoire |
-| Ton incohérent/pas défini | tone | /branding/ton | Définir mon ton |
-| Pas de ligne éditoriale | editorial | /strategie | Créer ma ligne édito |
-| Identité visuelle incohérente | branding | /branding | Travailler mon identité |
-| Pas de stratégie de contenu | calendar | /calendrier | Planifier mes contenus |
-| Highlights pas organisés | instagram | /instagram/highlights | Structurer mon profil IG |
-| Pas de preuve sociale | content | /creer | Créer un post témoignage |
-| Engagement faible | contacts | /instagram/engagement | Lancer ma routine engagement |
-| Pas de CTA clair | bio | /instagram/bio | Ajouter un CTA dans ma bio |
-| Cohérence cross-canal manque | branding | /branding | Unifier ma communication |
-| Fréquence irrégulière | calendar | /calendrier | Créer mon calendrier |
+Pour chaque point faible, associe UNE action concrète faisable dans l'outil en utilisant cette table.
+Le champ "module" DOIT être EXACTEMENT l'une de ces valeurs (liste fermée, pas d'autre valeur autorisée) :
+persona, positionnement, offres, bio, storytelling, ton, editorial, contenu, instagram, highlights, linkedin, calendrier, contacts, engagement, seo, branding
+
+| Thème | module | label |
+|-------|--------|-------|
+| Cible floue/large/mal définie | persona | Retravailler ma cible |
+| Positionnement flou/absent | positionnement | Clarifier mon positionnement |
+| Offres pas claires/invisibles | offres | Reformuler mes offres |
+| Bio pas optimisée | bio | Optimiser ma bio |
+| Storytelling absent/faible | storytelling | Écrire mon histoire |
+| Ton incohérent/pas défini | ton | Définir mon ton |
+| Pas de ligne éditoriale | editorial | Créer ma ligne édito |
+| Identité visuelle incohérente | branding | Travailler mon identité |
+| Pas de stratégie de contenu | calendrier | Planifier mes contenus |
+| Highlights pas organisés | highlights | Structurer mon profil IG |
+| Pas de preuve sociale | contenu | Créer un post témoignage |
+| Engagement faible | engagement | Lancer ma routine engagement |
+| Pas de CTA clair | bio | Ajouter un CTA dans ma bio |
+| Cohérence cross-canal manque | branding | Unifier ma communication |
+| Fréquence irrégulière | calendrier | Créer mon calendrier |
 
 Le conseil doit être en 1-2 phrases, actionnable, et le label du bouton doit commencer par un verbe.
+NE PAS mettre de route dans la réponse — le frontend gère les routes automatiquement.
 
 RETOURNE UNIQUEMENT un objet JSON valide avec cette structure exacte :
 {
@@ -232,7 +236,6 @@ RETOURNE UNIQUEMENT un objet JSON valide avec cette structure exacte :
       "action": {
         "module": "persona",
         "label": "Retravailler ma cible",
-        "route": "/persona",
         "conseil": "Redéfinis ta cliente idéale. Concentre-toi sur 1 persona principal."
       }
     }
@@ -248,7 +251,7 @@ RETOURNE UNIQUEMENT un objet JSON valide avec cette structure exacte :
     "contenu": {"score": 65, "statut": "bon", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "..."}
   },
   "plan_action_recommande": [
-    {"priorite": 1, "action": "...", "module": "branding", "temps_estime": "30 min", "lien": "/branding", "conseil": "Conseil court pour cette action."}
+    {"priorite": 1, "action": "...", "module": "branding", "temps_estime": "30 min", "conseil": "Conseil court pour cette action."}
   ],
   "extraction_branding": {
     "positioning": {"value": "...", "confidence": "high"},
