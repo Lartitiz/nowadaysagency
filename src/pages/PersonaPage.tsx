@@ -277,7 +277,7 @@ export default function PersonaPage() {
               <Collapsible>
                 <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors w-full mb-3">
                   <span>{stepDef.helpTitle}</span>
-                  <ChevronDown className="h-4 w-4 transition-transform [[data-state=open]>&]:rotate-180" />
+                  <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mb-4">
                   <div className="rounded-xl bg-rose-pale p-4 text-[13px] text-foreground leading-relaxed whitespace-pre-line">
@@ -395,6 +395,8 @@ export default function PersonaPage() {
                 </Button>
               </div>
             </div>
+          </>
+        )}
           </>
         )}
       </main>
