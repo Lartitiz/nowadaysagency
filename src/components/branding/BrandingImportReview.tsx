@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Check, Pencil, Loader2 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { BrandingExtraction, ExtractedField } from "@/lib/branding-import-types";
@@ -14,48 +16,115 @@ interface Props {
   onCancel: () => void;
 }
 
-function ConfidenceDots({ level }: { level: string }) {
-  const filled = level === 'high' ? 3 : level === 'medium' ? 2 : 1;
-  return (
-    <div className="flex items-center gap-0.5" title={`Confiance : ${level}`}>
-      {[1, 2, 3].map((i) => (
-        <span
-          key={i}
-          className={`w-2 h-2 rounded-full ${
-            i <= filled ? 'bg-primary' : 'bg-muted-foreground/20'
-          }`}
-        />
-      ))}
-    </div>
-  );
+type FieldChoice = "keep" | "replace" | "merge";
+
+interface FieldComparison {
+  key: keyof BrandingExtraction;
+  label: string;
+  emoji: string;
+  section: string;
+  current: string | null;
+  suggested: string | null;
+  choice: FieldChoice;
+  mergeText: string;
 }
+
+// Mapping from extraction field to DB table + column
+const FIELD_DB_MAP: Record<string, { table: string; column: string }> = {
+  positioning: { table: "brand_profile", column: "offer" },
+  mission: { table: "brand_profile", column: "mission" },
+  voice_description: { table: "brand_profile", column: "voice_description" },
+  key_expressions: { table: "brand_profile", column: "key_expressions" },
+  things_to_avoid: { table: "brand_profile", column: "things_to_avoid" },
+  combat_cause: { table: "brand_profile", column: "combat_cause" },
+  values: { table: "brand_proposition", column: "step_2b_values" },
+  unique_proposition: { table: "brand_proposition", column: "version_final" },
+  for_whom: { table: "brand_proposition", column: "step_3_for_whom" },
+  target_description: { table: "brand_profile", column: "target_description" },
+  target_frustrations: { table: "persona", column: "step_1_frustrations" },
+  target_desires: { table: "persona", column: "step_2_transformation" },
+  story: { table: "storytelling", column: "imported_text" },
+  content_pillars: { table: "brand_strategy", column: "pillar_major" },
+  channels: { table: "brand_profile", column: "channels" },
+  offers: { table: "brand_profile", column: "offer" },
+};
 
 export default function BrandingImportReview({ extraction, onDone, onCancel }: Props) {
   const { user } = useAuth();
-  const [fields, setFields] = useState<BrandingExtraction>({ ...extraction });
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [comparisons, setComparisons] = useState<FieldComparison[]>([]);
 
-  const updateField = (key: keyof BrandingExtraction, value: string) => {
-    setFields((prev) => ({
-      ...prev,
-      [key]: { ...prev[key], value: value || null },
-    }));
+  useEffect(() => {
+    if (user) loadExistingData();
+  }, [user]);
+
+  const loadExistingData = async () => {
+    if (!user) return;
+    try {
+      const [brandRes, personaRes, propRes, stratRes, storyRes] = await Promise.all([
+        supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("persona").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("brand_proposition").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("brand_strategy").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("storytelling").select("*").eq("user_id", user.id).limit(1).maybeSingle(),
+      ]);
+
+      const existing: Record<string, string | null> = {
+        positioning: brandRes.data?.offer || null,
+        mission: brandRes.data?.mission || null,
+        voice_description: brandRes.data?.voice_description || null,
+        key_expressions: brandRes.data?.key_expressions || null,
+        things_to_avoid: brandRes.data?.things_to_avoid || null,
+        combat_cause: brandRes.data?.combat_cause || null,
+        target_description: brandRes.data?.target_description || null,
+        values: propRes.data?.step_2b_values || null,
+        unique_proposition: propRes.data?.version_final || null,
+        for_whom: propRes.data?.step_3_for_whom || null,
+        target_frustrations: personaRes.data?.step_1_frustrations || null,
+        target_desires: personaRes.data?.step_2_transformation || null,
+        story: storyRes.data?.imported_text || null,
+        content_pillars: [stratRes.data?.pillar_major, stratRes.data?.pillar_minor_1, stratRes.data?.pillar_minor_2, stratRes.data?.pillar_minor_3].filter(Boolean).join(", ") || null,
+        channels: Array.isArray(brandRes.data?.channels) ? brandRes.data.channels.join(", ") : null,
+        offers: brandRes.data?.offer || null,
+      };
+
+      const comps: FieldComparison[] = [];
+      for (const [key, meta] of Object.entries(FIELD_META)) {
+        const suggested = extraction[key as keyof BrandingExtraction]?.value;
+        if (!suggested) continue; // Only show fields where audit extracted something
+
+        const current = existing[key] || null;
+        const hasExisting = !!current?.trim();
+
+        comps.push({
+          key: key as keyof BrandingExtraction,
+          label: meta.label,
+          emoji: meta.emoji,
+          section: meta.section,
+          current,
+          suggested,
+          choice: hasExisting ? "keep" : "replace",
+          mergeText: current || "",
+        });
+      }
+
+      setComparisons(comps);
+    } catch (e) {
+      console.error("Error loading existing data:", e);
+      toast.error("Erreur lors du chargement de tes données existantes.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Group fields by section
-  const sections = Object.entries(FIELD_META).reduce<
-    Record<string, { key: keyof BrandingExtraction; meta: typeof FIELD_META[keyof typeof FIELD_META]; field: ExtractedField }[]>
-  >((acc, [key, meta]) => {
-    const f = fields[key as keyof BrandingExtraction];
-    if (!acc[meta.section]) acc[meta.section] = [];
-    acc[meta.section].push({ key: key as keyof BrandingExtraction, meta, field: f });
-    return acc;
-  }, {});
+  const updateChoice = (idx: number, choice: FieldChoice) => {
+    setComparisons(prev => prev.map((c, i) => i === idx ? { ...c, choice, mergeText: choice === "merge" ? (c.current || c.suggested || "") : c.mergeText } : c));
+  };
 
-  const filledFields = Object.values(fields).filter((f) => f.value).length;
-  const notFoundFields = Object.entries(FIELD_META).filter(
-    ([key]) => !fields[key as keyof BrandingExtraction].value
-  );
+  const updateMergeText = (idx: number, text: string) => {
+    setComparisons(prev => prev.map((c, i) => i === idx ? { ...c, mergeText: text } : c));
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -64,115 +133,76 @@ export default function BrandingImportReview({ extraction, onDone, onCancel }: P
     try {
       const uid = user.id;
 
-      // Helper: only update if existing field is empty
-      const mergeIfEmpty = (existing: any, newVal: string | null) =>
-        existing ? existing : newVal;
+      // Collect final values per DB table
+      const updates: Record<string, Record<string, string>> = {};
 
-      // 1. brand_profile
-      const { data: existingBrand } = await supabase
-        .from("brand_profile")
-        .select("*")
-        .eq("user_id", uid)
-        .maybeSingle();
+      for (const comp of comparisons) {
+        if (comp.choice === "keep") continue;
 
-      const brandUpdate: Record<string, any> = {};
-      if (fields.mission.value) brandUpdate.mission = mergeIfEmpty(existingBrand?.mission, fields.mission.value);
-      if (fields.voice_description.value) brandUpdate.voice_description = mergeIfEmpty(existingBrand?.voice_description, fields.voice_description.value);
-      if (fields.key_expressions.value) brandUpdate.key_expressions = mergeIfEmpty(existingBrand?.key_expressions, fields.key_expressions.value);
-      if (fields.things_to_avoid.value) brandUpdate.things_to_avoid = mergeIfEmpty(existingBrand?.things_to_avoid, fields.things_to_avoid.value);
-      if (fields.combat_cause.value) brandUpdate.combat_cause = mergeIfEmpty(existingBrand?.combat_cause, fields.combat_cause.value);
-      if (fields.positioning.value) brandUpdate.offer = mergeIfEmpty(existingBrand?.offer, fields.positioning.value);
+        const finalValue = comp.choice === "replace" ? comp.suggested! : comp.mergeText;
+        if (!finalValue?.trim()) continue;
 
-      if (Object.keys(brandUpdate).length > 0) {
-        if (existingBrand) {
-          await supabase.from("brand_profile").update(brandUpdate).eq("user_id", uid);
-        } else {
-          await supabase.from("brand_profile").insert({ user_id: uid, ...brandUpdate });
+        const dbMapping = FIELD_DB_MAP[comp.key];
+        if (!dbMapping) continue;
+
+        // Special handling for content_pillars (split into multiple columns)
+        if (comp.key === "content_pillars") {
+          const pillars = finalValue.split(/[,;\n]/).map(p => p.trim()).filter(Boolean);
+          if (!updates["brand_strategy"]) updates["brand_strategy"] = {};
+          if (pillars[0]) updates["brand_strategy"]["pillar_major"] = pillars[0];
+          if (pillars[1]) updates["brand_strategy"]["pillar_minor_1"] = pillars[1];
+          if (pillars[2]) updates["brand_strategy"]["pillar_minor_2"] = pillars[2];
+          if (pillars[3]) updates["brand_strategy"]["pillar_minor_3"] = pillars[3];
+          continue;
         }
-      }
 
-      // 2. persona
-      const { data: existingPersona } = await supabase
-        .from("persona")
-        .select("*")
-        .eq("user_id", uid)
-        .maybeSingle();
-
-      const personaUpdate: Record<string, any> = {};
-      if (fields.target_frustrations.value) personaUpdate.step_1_frustrations = mergeIfEmpty(existingPersona?.step_1_frustrations, fields.target_frustrations.value);
-      if (fields.target_desires.value) personaUpdate.step_2_transformation = mergeIfEmpty(existingPersona?.step_2_transformation, fields.target_desires.value);
-
-      if (Object.keys(personaUpdate).length > 0) {
-        if (existingPersona) {
-          await supabase.from("persona").update(personaUpdate).eq("user_id", uid);
-        } else {
-          await supabase.from("persona").insert({ user_id: uid, ...personaUpdate });
+        // Special handling for channels (store as array)
+        if (comp.key === "channels") {
+          if (!updates["brand_profile"]) updates["brand_profile"] = {};
+          // Will be converted to array later
+          updates["brand_profile"]["__channels"] = finalValue;
+          continue;
         }
-      }
 
-      // 3. brand_proposition
-      const { data: existingProp } = await supabase
-        .from("brand_proposition")
-        .select("*")
-        .eq("user_id", uid)
-        .maybeSingle();
-
-      const propUpdate: Record<string, any> = {};
-      if (fields.positioning.value) propUpdate.step_1_what = mergeIfEmpty(existingProp?.step_1_what, fields.positioning.value);
-      if (fields.values.value) propUpdate.step_2b_values = mergeIfEmpty(existingProp?.step_2b_values, fields.values.value);
-      if (fields.for_whom.value) propUpdate.step_3_for_whom = mergeIfEmpty(existingProp?.step_3_for_whom, fields.for_whom.value);
-      if (fields.unique_proposition.value) propUpdate.version_final = mergeIfEmpty(existingProp?.version_final, fields.unique_proposition.value);
-
-      if (Object.keys(propUpdate).length > 0) {
-        if (existingProp) {
-          await supabase.from("brand_proposition").update(propUpdate).eq("user_id", uid);
-        } else {
-          await supabase.from("brand_proposition").insert({ user_id: uid, ...propUpdate });
-        }
-      }
-
-      // 4. brand_strategy (content pillars)
-      if (fields.content_pillars.value) {
-        const { data: existingStrat } = await supabase
-          .from("brand_strategy")
-          .select("*")
-          .eq("user_id", uid)
-          .maybeSingle();
-
-        const pillars = fields.content_pillars.value.split(/[,;\n]/).map((p) => p.trim()).filter(Boolean);
-        const stratUpdate: Record<string, any> = {};
-        if (pillars[0]) stratUpdate.pillar_major = mergeIfEmpty(existingStrat?.pillar_major, pillars[0]);
-        if (pillars[1]) stratUpdate.pillar_minor_1 = mergeIfEmpty(existingStrat?.pillar_minor_1, pillars[1]);
-        if (pillars[2]) stratUpdate.pillar_minor_2 = mergeIfEmpty(existingStrat?.pillar_minor_2, pillars[2]);
-        if (pillars[3]) stratUpdate.pillar_minor_3 = mergeIfEmpty(existingStrat?.pillar_minor_3, pillars[3]);
-
-        if (Object.keys(stratUpdate).length > 0) {
-          if (existingStrat) {
-            await supabase.from("brand_strategy").update(stratUpdate).eq("user_id", uid);
+        // Special handling for story
+        if (comp.key === "story") {
+          const { data: existingStory } = await supabase.from("storytelling").select("id").eq("user_id", uid).limit(1).maybeSingle();
+          if (existingStory) {
+            await supabase.from("storytelling").update({ imported_text: finalValue } as any).eq("user_id", uid);
           } else {
-            await supabase.from("brand_strategy").insert({ user_id: uid, ...stratUpdate });
+            await supabase.from("storytelling").insert({ user_id: uid, imported_text: finalValue, is_primary: true, completed: false } as any);
+          }
+          continue;
+        }
+
+        // Skip duplicate offers/positioning mapping
+        if (comp.key === "offers") continue; // positioning already maps to offer column
+
+        if (!updates[dbMapping.table]) updates[dbMapping.table] = {};
+        updates[dbMapping.table][dbMapping.column] = finalValue;
+      }
+
+      // Apply updates per table
+      for (const [table, fields] of Object.entries(updates)) {
+        const cleanFields: Record<string, any> = {};
+        for (const [col, val] of Object.entries(fields)) {
+          if (col === "__channels") {
+            cleanFields["channels"] = val.split(/[,;\n]/).map((c: string) => c.trim()).filter(Boolean);
+          } else {
+            cleanFields[col] = val;
           }
         }
-      }
 
-      // 5. storytelling (only if none exists)
-      if (fields.story.value) {
-        const { data: existingStories } = await supabase
-          .from("storytelling")
-          .select("id")
-          .eq("user_id", uid);
-
-        if (!existingStories || existingStories.length === 0) {
-          await supabase.from("storytelling").insert({
-            user_id: uid,
-            imported_text: fields.story.value,
-            is_primary: true,
-            completed: false,
-          });
+        const { data: existing } = await supabase.from(table as any).select("id").eq("user_id", uid).maybeSingle();
+        if (existing) {
+          await supabase.from(table as any).update(cleanFields).eq("user_id", uid);
+        } else {
+          await supabase.from(table as any).insert({ user_id: uid, ...cleanFields });
         }
       }
 
-      toast.success("Branding pré-rempli avec succès ! Tu peux ajuster chaque section.");
+      const changedCount = comparisons.filter(c => c.choice !== "keep").length;
+      toast.success(`✅ Branding mis à jour. ${changedCount} champ${changedCount > 1 ? "s" : ""} modifié${changedCount > 1 ? "s" : ""}.`);
       onDone();
     } catch (e: any) {
       console.error("Save error:", e);
@@ -182,72 +212,157 @@ export default function BrandingImportReview({ extraction, onDone, onCancel }: P
     }
   };
 
+  // Group by section
+  const sections: Record<string, FieldComparison[]> = {};
+  for (const comp of comparisons) {
+    if (!sections[comp.section]) sections[comp.section] = [];
+    sections[comp.section].push(comp);
+  }
+
+  const kept = comparisons.filter(c => c.choice === "keep");
+  const replaced = comparisons.filter(c => c.choice === "replace");
+  const merged = comparisons.filter(c => c.choice === "merge");
+  const changedCount = replaced.length + merged.length;
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-8 text-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
+        <p className="text-sm text-muted-foreground">Comparaison avec tes données actuelles…</p>
+      </div>
+    );
+  }
+
+  if (comparisons.length === 0) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-4">
+        <p className="text-sm text-muted-foreground">L'analyse n'a rien extrait de nouveau. Ton branding est peut-être déjà complet !</p>
+        <Button variant="outline" onClick={onCancel}>Retour</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
         <h2 className="font-display text-xl font-bold text-foreground mb-1">
-          ✨ Voilà ce qu'on a trouvé dans ton document
+          📋 Pré-remplir ton branding
         </h2>
         <p className="text-sm text-muted-foreground">
-          Vérifie et ajuste avant de valider. {filledFields} champ{filledFields > 1 ? 's' : ''} extrait{filledFields > 1 ? 's' : ''}.
+          L'audit a extrait des infos. Pour chaque champ, choisis ce que tu veux garder.
         </p>
       </div>
 
-      {/* Extracted fields by section */}
-      {Object.entries(sections).map(([sectionName, sectionFields]) => {
-        const hasAnyValue = sectionFields.some((sf) => sf.field.value);
-        if (!hasAnyValue) return null;
+      {/* Field comparisons by section */}
+      {Object.entries(sections).map(([sectionName, fields]) => (
+        <div key={sectionName} className="space-y-4">
+          <h3 className="font-display font-bold text-foreground text-sm flex items-center gap-2 border-b border-border pb-2">
+            <span>{fields[0].emoji}</span> {sectionName}
+          </h3>
 
-        return (
-          <div key={sectionName} className="space-y-3">
-            <h3 className="font-display font-bold text-foreground text-sm flex items-center gap-2">
-              <span>{sectionFields[0].meta.emoji}</span> {sectionName}
-            </h3>
-            {sectionFields
-              .filter((sf) => sf.field.value)
-              .map((sf) => (
-                <div key={sf.key} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-foreground">{sf.meta.label}</span>
-                    <ConfidenceDots level={sf.field.confidence} />
+          {fields.map((comp) => {
+            const idx = comparisons.indexOf(comp);
+            return (
+              <div key={comp.key} className="rounded-xl border border-border bg-card p-4 space-y-3">
+                <p className="text-sm font-semibold text-foreground">{comp.label}</p>
+
+                {/* Side by side or stacked comparison */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Current */}
+                  <div className="rounded-lg border border-border bg-background p-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Ce que tu as actuellement :</p>
+                    {comp.current?.trim() ? (
+                      <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{comp.current}</p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground/60 italic">— Vide —</p>
+                    )}
                   </div>
-                  <Textarea
-                    value={sf.field.value || ""}
-                    onChange={(e) => updateField(sf.key, e.target.value)}
-                    className="min-h-[60px] text-sm"
-                  />
-                </div>
-              ))}
-          </div>
-        );
-      })}
 
-      {/* Not found fields */}
-      {notFoundFields.length > 0 && (
-        <div className="rounded-xl bg-muted/40 border border-border p-4">
-          <p className="text-sm font-medium text-muted-foreground mb-2">❌ Non trouvé :</p>
-          <ul className="space-y-1">
-            {notFoundFields.map(([key, meta]) => (
-              <li key={key} className="text-xs text-muted-foreground">
-                · {meta.label}
-              </li>
-            ))}
-          </ul>
-          <p className="text-xs text-muted-foreground/70 mt-2 italic">
-            Tu pourras les remplir après dans le module Branding.
-          </p>
+                  {/* Suggested */}
+                  <div className="rounded-lg border border-primary/20 bg-[hsl(var(--rose-pale))] p-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Ce que l'audit propose :</p>
+                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{comp.suggested}</p>
+                  </div>
+                </div>
+
+                {/* Choice radio */}
+                <RadioGroup
+                  value={comp.choice}
+                  onValueChange={(v) => updateChoice(idx, v as FieldChoice)}
+                  className="space-y-2"
+                >
+                  <div className={`flex items-center gap-2.5 rounded-lg border p-2.5 transition-colors ${comp.choice === "keep" ? "border-primary/40 bg-primary/5" : "border-border"}`}>
+                    <RadioGroupItem value="keep" id={`${comp.key}-keep`} />
+                    <Label htmlFor={`${comp.key}-keep`} className="text-sm cursor-pointer flex-1">
+                      Garder mon texte actuel
+                    </Label>
+                  </div>
+
+                  <div className={`flex items-center gap-2.5 rounded-lg border p-2.5 transition-colors ${comp.choice === "replace" ? "border-primary/40 bg-primary/5" : "border-border"}`}>
+                    <RadioGroupItem value="replace" id={`${comp.key}-replace`} />
+                    <Label htmlFor={`${comp.key}-replace`} className="text-sm cursor-pointer flex-1">
+                      Remplacer par la suggestion
+                    </Label>
+                  </div>
+
+                  <div className={`rounded-lg border p-2.5 transition-colors ${comp.choice === "merge" ? "border-primary/40 bg-primary/5" : "border-border"}`}>
+                    <div className="flex items-center gap-2.5">
+                      <RadioGroupItem value="merge" id={`${comp.key}-merge`} />
+                      <Label htmlFor={`${comp.key}-merge`} className="text-sm cursor-pointer flex-1">
+                        Fusionner (je modifie moi-même)
+                      </Label>
+                    </div>
+                    {comp.choice === "merge" && (
+                      <div className="mt-2.5">
+                        <Textarea
+                          value={comp.mergeText}
+                          onChange={(e) => updateMergeText(idx, e.target.value)}
+                          className="min-h-[80px] text-sm bg-accent/40 border-accent"
+                          placeholder="Modifie le texte en t'inspirant de la suggestion…"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </RadioGroup>
+              </div>
+            );
+          })}
         </div>
-      )}
+      ))}
+
+      {/* Summary */}
+      <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+        <p className="text-sm font-semibold text-foreground">Résumé</p>
+        {kept.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            ✅ Garder : {kept.map(c => c.label).join(", ")}
+          </p>
+        )}
+        {replaced.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            🔄 Remplacer : {replaced.map(c => c.label).join(", ")}
+          </p>
+        )}
+        {merged.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            ✏️ Fusionner : {merged.map(c => c.label).join(", ")}
+          </p>
+        )}
+        {changedCount === 0 && (
+          <p className="text-xs text-muted-foreground italic">Aucune modification sélectionnée.</p>
+        )}
+      </div>
 
       {/* Action buttons */}
       <div className="flex flex-col sm:flex-row gap-3 pt-2">
-        <Button onClick={handleSave} disabled={saving || filledFields === 0} className="flex-1 gap-2">
+        <Button onClick={handleSave} disabled={saving || changedCount === 0} className="flex-1 gap-2" size="lg">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-          Valider et remplir mon branding
+          Appliquer mes choix ({changedCount} modification{changedCount > 1 ? "s" : ""})
         </Button>
         <Button variant="outline" onClick={onCancel} className="gap-2">
-          <Pencil className="h-4 w-4" />
-          Je préfère remplir manuellement
+          <ArrowLeft className="h-4 w-4" />
+          Annuler
         </Button>
       </div>
     </div>
