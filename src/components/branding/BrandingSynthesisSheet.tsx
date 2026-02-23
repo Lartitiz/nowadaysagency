@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Download, Copy, RefreshCw, ExternalLink, Loader2, Pencil } from "lucide-react";
+import { ArrowLeft, Download, Copy, RefreshCw, ExternalLink, Loader2, Pencil, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import html2canvas from "html2canvas";
@@ -45,6 +45,173 @@ function safeParseJson(val: any): any {
   try { return JSON.parse(val); } catch { return null; }
 }
 
+/* ── Smart text formatting ── */
+
+interface FormattedBlock {
+  type: "paragraph" | "heading" | "numbered-item" | "quote";
+  title?: string;
+  body?: string;
+  number?: number;
+  text: string;
+}
+
+function formatSmartText(raw: string): FormattedBlock[] {
+  if (!raw) return [];
+  const blocks: FormattedBlock[] = [];
+  // Split by numbered items like "1." "2." etc.
+  const numberedPattern = /(?:^|\n)\s*(\d+)\.\s*/;
+  const hasNumbered = numberedPattern.test(raw);
+
+  if (hasNumbered) {
+    // Split on numbered items
+    const parts = raw.split(/(?:^|\n)\s*\d+\.\s*/);
+    const numbers = raw.match(/(?:^|\n)\s*(\d+)\.\s*/g);
+    // Text before first number
+    const preamble = parts[0]?.trim();
+    if (preamble) {
+      blocks.push({ type: "paragraph", text: preamble });
+    }
+    for (let i = 1; i < parts.length; i++) {
+      const content = parts[i]?.trim();
+      if (!content) continue;
+      const num = numbers?.[i - 1]?.trim().replace(".", "") || String(i);
+      // First sentence = title, rest = body
+      const firstLine = content.split(/\n/)[0];
+      const rest = content.substring(firstLine.length).trim();
+      blocks.push({
+        type: "numbered-item",
+        number: parseInt(num),
+        title: firstLine,
+        body: rest || undefined,
+        text: content,
+      });
+    }
+    return blocks;
+  }
+
+  // Detect uppercase headings (lines that are ALL CAPS, min 4 chars)
+  const lines = raw.split("\n");
+  let currentParagraph: string[] = [];
+
+  const flushParagraph = () => {
+    const text = currentParagraph.join("\n").trim();
+    if (text) {
+      blocks.push({ type: "paragraph", text });
+    }
+    currentParagraph = [];
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushParagraph();
+      continue;
+    }
+    // Detect uppercase headings
+    if (trimmed.length >= 4 && trimmed === trimmed.toUpperCase() && /[A-ZÀ-Ÿ]/.test(trimmed)) {
+      flushParagraph();
+      // Convert to title case
+      const titleCase = trimmed.charAt(0) + trimmed.slice(1).toLowerCase();
+      blocks.push({ type: "heading", text: titleCase });
+    } else {
+      currentParagraph.push(trimmed);
+    }
+  }
+  flushParagraph();
+
+  return blocks;
+}
+
+const numberEmojis = ["0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"];
+
+function SmartFormattedText({ blocks }: { blocks: FormattedBlock[] }) {
+  return (
+    <div className="space-y-3">
+      {blocks.map((block, i) => {
+        if (block.type === "heading") {
+          return (
+            <p key={i} className="text-sm font-bold text-foreground mt-4 mb-1">
+              {block.text}
+            </p>
+          );
+        }
+        if (block.type === "numbered-item") {
+          const emoji = block.number != null && block.number >= 0 && block.number <= 9 ? numberEmojis[block.number] : `${block.number}.`;
+          return (
+            <div key={i} className="flex items-start gap-2.5">
+              <span className="shrink-0 text-sm">{emoji}</span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">{block.title}</p>
+                {block.body && (
+                  <p className="text-sm text-muted-foreground mt-0.5 break-words overflow-wrap-anywhere">{block.body}</p>
+                )}
+              </div>
+            </div>
+          );
+        }
+        // paragraph
+        return (
+          <p key={i} className="text-sm text-muted-foreground leading-relaxed break-words overflow-wrap-anywhere">
+            {block.text}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Collapsible long text ── */
+function CollapsibleText({ text, label, maxChars = 200, isQuote }: { text: string; label?: string; maxChars?: number; isQuote?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = text.length > maxChars;
+  const blocks = formatSmartText(text);
+  const hasStructure = blocks.some(b => b.type === "numbered-item" || b.type === "heading");
+
+  // For short text or structured text that fits, show directly
+  if (!isLong && !hasStructure) {
+    return (
+      <div className="break-words overflow-wrap-anywhere">
+        {isQuote ? (
+          <div className="rounded-lg bg-muted/30 border-l-2 border-primary/30 px-4 py-3">
+            <p className="text-sm text-foreground italic leading-relaxed">"{text}"</p>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground leading-relaxed">{text}</p>
+        )}
+      </div>
+    );
+  }
+
+  // Structured or long: show with collapsible
+  const previewBlocks = expanded ? blocks : blocks.slice(0, hasStructure ? 3 : 1);
+
+  return (
+    <div className="break-words overflow-wrap-anywhere">
+      {isQuote && !hasStructure ? (
+        <div className="rounded-lg bg-muted/30 border-l-2 border-primary/30 px-4 py-3">
+          <p className="text-sm text-foreground italic leading-relaxed">
+            {expanded ? `"${text}"` : `"${text.substring(0, maxChars)}…"`}
+          </p>
+        </div>
+      ) : (
+        <SmartFormattedText blocks={previewBlocks} />
+      )}
+      {(isLong || (hasStructure && blocks.length > 3)) && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="mt-2 text-xs text-primary font-medium hover:underline inline-flex items-center gap-1"
+        >
+          {expanded ? (
+            <>Réduire <ChevronUp className="h-3 w-3" /></>
+          ) : (
+            <>Lire la suite <ChevronDown className="h-3 w-3" /></>
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ── Empty state card ── */
 function EmptySection({ message, linkLabel, link }: { message: string; linkLabel: string; link: string }) {
   const navigate = useNavigate();
@@ -66,12 +233,27 @@ function SectionSep() {
   return <div className="border-t border-border my-8" />;
 }
 
-/* ── Section title ── */
-function SectionTitle({ emoji, title }: { emoji: string; title: string }) {
+/* ── Level 2 section card (Cible, Ton, Offres) ── */
+function SectionCard({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
   return (
-    <h3 className="font-display text-base font-bold text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
-      <span>{emoji}</span> {title}
-    </h3>
+    <div className="rounded-xl border border-border bg-card shadow-sm p-5 sm:p-6 space-y-4">
+      <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2 uppercase tracking-wide">
+        <span>{emoji}</span> {title}
+      </h3>
+      {children}
+    </div>
+  );
+}
+
+/* ── Level 3 section (no card, just separator) ── */
+function SectionLight({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-3">
+      <h3 className="font-display text-sm font-bold text-muted-foreground flex items-center gap-2 uppercase tracking-wide">
+        <span>{emoji}</span> {title}
+      </h3>
+      {children}
+    </div>
   );
 }
 
@@ -213,7 +395,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
   if (completionDetail.strategy === 0) missingParts.push("ta ligne éditoriale");
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-full overflow-x-hidden">
       {/* Top bar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <Button variant="ghost" size="sm" onClick={onClose} className="gap-1.5 text-muted-foreground">
@@ -234,7 +416,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
       </div>
 
       {/* Sheet content */}
-      <div ref={sheetRef} className="bg-card border border-border rounded-2xl p-6 sm:p-10 space-y-0">
+      <div ref={sheetRef} className="bg-card border border-border rounded-2xl p-4 sm:p-8 md:p-10 space-y-0 max-w-full overflow-hidden" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>
 
         {/* ═══ HEADER ═══ */}
         <div className="mb-8">
@@ -254,42 +436,44 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
           </div>
         </div>
 
-        {/* ═══ POSITIONNEMENT ═══ */}
+        {/* ═══ LEVEL 1 — POSITIONNEMENT (hero card) ═══ */}
         <SectionSep />
-        <SectionTitle emoji="🎯" title="Mon positionnement" />
+        <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2 uppercase tracking-wide mb-4">
+          <span>🎯</span> Mon positionnement
+        </h3>
 
         {proposition?.version_final || proposition?.version_one_liner || brand?.mission ? (
-          <>
-            {/* Hero positioning card */}
+          <div className="space-y-4">
+            {/* Hero positioning card — Level 1 emphasis */}
             {(proposition?.version_final || proposition?.version_one_liner) && (
-              <div className="rounded-xl bg-rose-pale border border-rose-soft p-5 sm:p-6 mb-4">
-                <p className="text-base sm:text-lg font-display font-bold text-foreground leading-relaxed italic">
+              <div className="rounded-xl bg-rose-pale border border-rose-soft p-5 sm:p-6">
+                <p className="text-lg sm:text-xl font-display font-bold text-foreground leading-relaxed italic text-center">
                   "{proposition.version_final || proposition.version_one_liner}"
                 </p>
               </div>
             )}
 
             {brand?.mission && (
-              <div className="mb-3">
+              <div>
                 <p className="text-sm font-semibold text-foreground mb-1">Ma mission</p>
-                <p className="text-sm text-muted-foreground">{brand.mission}</p>
+                <CollapsibleText text={brand.mission} />
               </div>
             )}
 
             {proposition?.step_2b_values && (
-              <div className="mb-3">
+              <div>
                 <p className="text-sm font-semibold text-foreground mb-1">Ce qui me rend unique</p>
-                <p className="text-sm text-muted-foreground">{proposition.step_2b_values}</p>
+                <CollapsibleText text={proposition.step_2b_values} />
               </div>
             )}
 
             {brand?.voice_description && (
-              <div className="mb-3">
+              <div>
                 <p className="text-sm font-semibold text-foreground mb-1">Mes valeurs</p>
                 <Tags items={parseStringList(brand.voice_description)} />
               </div>
             )}
-          </>
+          </div>
         ) : (
           <EmptySection
             message="Tu n'as pas encore défini ton positionnement."
@@ -298,12 +482,11 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
           />
         )}
 
-        {/* ═══ MA CIBLE ═══ */}
+        {/* ═══ LEVEL 2 — MA CIBLE (card) ═══ */}
         <SectionSep />
-        <SectionTitle emoji="👤" title="Ma cible" />
 
         {portrait ? (
-          <div className="space-y-4">
+          <SectionCard emoji="👤" title="Ma cible">
             {/* Portrait header */}
             <div>
               <p className="text-base font-semibold text-foreground">
@@ -328,7 +511,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
                 <ul className="space-y-1">
                   {portrait.objectifs.map((o: string, i: number) => (
                     <li key={i} className="text-sm text-foreground flex items-start gap-2">
-                      <span className="shrink-0">✨</span> {o}
+                      <span className="shrink-0">✨</span> <span className="break-words">{o}</span>
                     </li>
                   ))}
                 </ul>
@@ -339,7 +522,9 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             {portrait.blocages?.length > 0 && (
               <div>
                 <p className="text-sm font-semibold text-foreground mb-1.5">Son blocage principal</p>
-                <p className="text-sm text-muted-foreground italic">"{portrait.blocages[0]}"</p>
+                <div className="rounded-lg bg-muted/30 border-l-2 border-primary/30 px-4 py-3">
+                  <p className="text-sm text-foreground italic break-words">"{portrait.blocages[0]}"</p>
+                </div>
               </div>
             )}
 
@@ -347,43 +532,49 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             {portrait.ses_mots?.length > 0 && (
               <div>
                 <p className="text-sm font-semibold text-foreground mb-1.5">Sa phrase signature</p>
-                <p className="text-sm text-foreground italic flex items-start gap-2">
-                  <span className="shrink-0">💬</span>
-                  "{portrait.ses_mots[0]}"
-                </p>
+                <div className="rounded-lg bg-muted/30 border-l-2 border-primary/30 px-4 py-3">
+                  <p className="text-sm text-foreground italic flex items-start gap-2 break-words">
+                    <span className="shrink-0">💬</span>
+                    "{portrait.ses_mots[0]}"
+                  </p>
+                </div>
               </div>
             )}
-          </div>
+          </SectionCard>
         ) : persona ? (
-          <div className="space-y-3">
+          <SectionCard emoji="👤" title="Ma cible">
             {persona.step_1_frustrations && (
               <div>
                 <p className="text-sm font-semibold text-foreground mb-1">Ses frustrations</p>
-                <p className="text-sm text-muted-foreground">{persona.step_1_frustrations}</p>
+                <CollapsibleText text={persona.step_1_frustrations} />
               </div>
             )}
             {persona.step_2_transformation && (
               <div>
                 <p className="text-sm font-semibold text-foreground mb-1">Sa transformation souhaitée</p>
-                <p className="text-sm text-muted-foreground">{persona.step_2_transformation}</p>
+                <CollapsibleText text={persona.step_2_transformation} />
               </div>
             )}
             <p className="text-xs text-muted-foreground">Certaines infos manquent. <span className="text-primary cursor-pointer" onClick={() => navigate("/branding/persona")}>Compléter →</span></p>
-          </div>
+          </SectionCard>
         ) : (
-          <EmptySection
-            message="Tu n'as pas encore défini ta cible."
-            linkLabel="Définir ma cible →"
-            link="/branding/persona"
-          />
+          <>
+            <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2 uppercase tracking-wide mb-4">
+              <span>👤</span> Ma cible
+            </h3>
+            <EmptySection
+              message="Tu n'as pas encore défini ta cible."
+              linkLabel="Définir ma cible →"
+              link="/branding/persona"
+            />
+          </>
         )}
 
-        {/* ═══ MON TON ═══ */}
+        {/* ═══ LEVEL 2 — MON TON (card) ═══ */}
         <SectionSep />
-        <SectionTitle emoji="🗣️" title="Mon ton" />
 
         {brand && (brand.tone_register || brand.tone_style || brand.combat_cause) ? (
-          <div className="space-y-4">
+          <SectionCard emoji="🗣️" title="Mon ton">
             {/* Tone tags */}
             <Tags items={[brand.tone_register, brand.tone_style, brand.tone_level, brand.tone_humor, brand.tone_engagement].filter(Boolean)} />
 
@@ -391,7 +582,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             {brand.voice_description && (
               <div>
                 <p className="text-sm font-semibold text-foreground mb-1">Comment je parle à ma cible</p>
-                <p className="text-sm text-muted-foreground italic">"{brand.voice_description}"</p>
+                <CollapsibleText text={brand.voice_description} isQuote />
               </div>
             )}
 
@@ -408,63 +599,73 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
                 </div>
               </div>
             )}
-          </div>
+          </SectionCard>
         ) : (
-          <EmptySection
-            message="Tu n'as pas encore défini ton ton et tes combats."
-            linkLabel="Définir mon ton →"
-            link="/branding/ton"
-          />
+          <>
+            <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2 uppercase tracking-wide mb-4">
+              <span>🗣️</span> Mon ton
+            </h3>
+            <EmptySection
+              message="Tu n'as pas encore défini ton ton et tes combats."
+              linkLabel="Définir mon ton →"
+              link="/branding/ton"
+            />
+          </>
         )}
 
-        {/* ═══ MON HISTOIRE ═══ */}
+        {/* ═══ LEVEL 3 — MON HISTOIRE (light) ═══ */}
         <SectionSep />
-        <SectionTitle emoji="📖" title="Mon histoire" />
 
         {storytelling ? (
-          <div className="space-y-3">
+          <SectionLight emoji="📖" title="Mon histoire">
             {storytelling.pitch_short && (
-              <p className="text-sm text-foreground leading-relaxed">{storytelling.pitch_short}</p>
+              <CollapsibleText text={storytelling.pitch_short} />
             )}
             {!storytelling.pitch_short && (storytelling.step_7_polished || storytelling.step_6_full_story) && (
-              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4">
-                {(storytelling.step_7_polished || storytelling.step_6_full_story).substring(0, 300)}…
-              </p>
+              <CollapsibleText text={storytelling.step_7_polished || storytelling.step_6_full_story} maxChars={250} />
             )}
             {storytelling.recap_summary && (() => {
               const sr = storytelling.recap_summary as any;
               return (
                 <div className="space-y-1.5">
-                  {sr.before && <p className="text-sm text-foreground">🔵 <span className="font-medium">Avant :</span> {sr.before}</p>}
-                  {sr.trigger && <p className="text-sm text-foreground">💥 <span className="font-medium">Déclic :</span> {sr.trigger}</p>}
-                  {sr.after && <p className="text-sm text-foreground">🌱 <span className="font-medium">Après :</span> {sr.after}</p>}
+                  {sr.before && <p className="text-sm text-foreground break-words">🔵 <span className="font-medium">Avant :</span> {sr.before}</p>}
+                  {sr.trigger && <p className="text-sm text-foreground break-words">💥 <span className="font-medium">Déclic :</span> {sr.trigger}</p>}
+                  {sr.after && <p className="text-sm text-foreground break-words">🌱 <span className="font-medium">Après :</span> {sr.after}</p>}
                 </div>
               );
             })()}
-          </div>
+          </SectionLight>
         ) : (
-          <EmptySection
-            message="Tu n'as pas encore écrit ton histoire."
-            linkLabel="Écrire mon histoire →"
-            link="/branding/storytelling"
-          />
+          <SectionLight emoji="📖" title="Mon histoire">
+            <EmptySection
+              message="Tu n'as pas encore écrit ton histoire."
+              linkLabel="Écrire mon histoire →"
+              link="/branding/storytelling"
+            />
+          </SectionLight>
         )}
 
-        {/* ═══ MES OFFRES ═══ */}
+        {/* ═══ LEVEL 2 — MES OFFRES (card) ═══ */}
         <SectionSep />
-        <SectionTitle emoji="🎁" title="Mes offres" />
+        <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2 uppercase tracking-wide mb-4">
+          <span>🎁</span> Mes offres
+        </h3>
 
         {offers.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {offers.map((o) => (
-              <div key={o.id} className="rounded-xl border border-border bg-muted/20 p-4 space-y-1.5">
+              <div key={o.id} className="rounded-xl border border-border bg-card shadow-sm p-4 space-y-1.5">
                 <div className="flex items-center gap-2">
                   <span>🎁</span>
-                  <span className="font-semibold text-sm text-foreground">{o.name || "Sans nom"}</span>
+                  <span className="font-semibold text-sm text-foreground break-words">{o.name || "Sans nom"}</span>
                 </div>
                 {o.price_text && <p className="text-xs text-muted-foreground">{o.price_text}</p>}
-                {o.description_short && <p className="text-sm text-muted-foreground">{o.description_short}</p>}
-                {o.promise && <p className="text-sm text-muted-foreground italic">"{o.promise}"</p>}
+                {o.description_short && <p className="text-sm text-muted-foreground break-words">{o.description_short}</p>}
+                {o.promise && (
+                  <div className="rounded-lg bg-muted/30 border-l-2 border-primary/30 px-3 py-2">
+                    <p className="text-sm text-muted-foreground italic break-words">"{o.promise}"</p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -476,12 +677,11 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
           />
         )}
 
-        {/* ═══ MA LIGNE ÉDITORIALE ═══ */}
+        {/* ═══ LEVEL 3 — MA LIGNE ÉDITORIALE (light) ═══ */}
         <SectionSep />
-        <SectionTitle emoji="📝" title="Ma ligne éditoriale" />
 
         {strategy ? (
-          <div className="space-y-4">
+          <SectionLight emoji="📝" title="Ma ligne éditoriale">
             {/* Pillars */}
             {(strategy.pillar_major || strategy.pillar_minor_1) && (
               <div>
@@ -526,23 +726,23 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             {strategy.creative_concept && (
               <div>
                 <p className="text-sm font-semibold text-foreground mb-1">Mon twist créatif</p>
-                <p className="text-sm text-muted-foreground italic">"{strategy.creative_concept}"</p>
+                <CollapsibleText text={strategy.creative_concept} maxChars={200} />
               </div>
             )}
-          </div>
+          </SectionLight>
         ) : (
-          <EmptySection
-            message="Tu n'as pas encore défini ta ligne éditoriale."
-            linkLabel="Créer ma ligne →"
-            link="/branding/strategie"
-          />
+          <SectionLight emoji="📝" title="Ma ligne éditoriale">
+            <EmptySection
+              message="Tu n'as pas encore défini ta ligne éditoriale."
+              linkLabel="Créer ma ligne →"
+              link="/branding/strategie"
+            />
+          </SectionLight>
         )}
 
-        {/* ═══ MES CANAUX ═══ */}
+        {/* ═══ LEVEL 3 — MES CANAUX (light) ═══ */}
         <SectionSep />
-        <SectionTitle emoji="📱" title="Mes canaux" />
-
-        <div className="space-y-3">
+        <SectionLight emoji="📱" title="Mes canaux">
           <div className="flex flex-wrap gap-2">
             {allChannels.map((ch) => {
               const active = channels.includes(ch.id);
@@ -571,14 +771,13 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
               )}
             </div>
           )}
-        </div>
+        </SectionLight>
 
-        {/* ═══ MON DERNIER AUDIT ═══ */}
+        {/* ═══ LEVEL 3 — MON DERNIER AUDIT (light) ═══ */}
         <SectionSep />
-        <SectionTitle emoji="🔍" title="Mon dernier audit" />
 
         {brandingAudit ? (
-          <div className="space-y-3">
+          <SectionLight emoji="🔍" title="Mon dernier audit">
             {brandingAudit.score_global != null && (
               <div>
                 <div className="flex items-baseline gap-2 mb-2">
@@ -609,7 +808,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
                     {actions.map((a: any, i: number) => (
                       <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
                         <span className="font-semibold text-foreground shrink-0">{i + 1}.</span>
-                        <span>{a.action || a}</span>
+                        <span className="break-words">{a.action || a}</span>
                       </li>
                     ))}
                   </ol>
@@ -623,13 +822,15 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             >
               Voir l'audit complet <ExternalLink className="h-3.5 w-3.5" />
             </button>
-          </div>
+          </SectionLight>
         ) : (
-          <EmptySection
-            message="Tu n'as pas encore fait ton audit."
-            linkLabel="Lancer un audit →"
-            link="/branding/audit"
-          />
+          <SectionLight emoji="🔍" title="Mon dernier audit">
+            <EmptySection
+              message="Tu n'as pas encore fait ton audit."
+              linkLabel="Lancer un audit →"
+              link="/branding/audit"
+            />
+          </SectionLight>
         )}
 
         {/* ═══ FOOTER ACTIONS ═══ */}
