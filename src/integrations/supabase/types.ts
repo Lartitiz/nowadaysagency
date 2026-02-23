@@ -1204,6 +1204,30 @@ export type Database = {
         }
         Relationships: []
       }
+      dismissed_suggestions: {
+        Row: {
+          context_key: string
+          dismissed_at: string
+          id: string
+          suggestion_type: string
+          user_id: string
+        }
+        Insert: {
+          context_key: string
+          dismissed_at?: string
+          id?: string
+          suggestion_type: string
+          user_id: string
+        }
+        Update: {
+          context_key?: string
+          dismissed_at?: string
+          id?: string
+          suggestion_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       engagement_checklist_logs: {
         Row: {
           created_at: string | null

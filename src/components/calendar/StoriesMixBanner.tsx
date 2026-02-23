@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Pencil, X } from "lucide-react";
 
@@ -26,6 +28,16 @@ const LAUNCH_MIX: DayMix[] = [
   { day: "Ven", emoji: "💰", label: "Last call + urgence douce", objective: "vente" },
 ];
 
+/** Get ISO week key like "2026-W09" */
+function getWeekKey(date: Date): string {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+}
+
 interface Props {
   weekDays: Date[];
   isLaunchWeek?: boolean;
@@ -33,13 +45,37 @@ interface Props {
 
 export function StoriesMixBanner({ weekDays, isLaunchWeek = false }: Props) {
   const navigate = useNavigate();
-  const [dismissed, setDismissed] = useState(false);
+  const { user } = useAuth();
+  const [hidden, setHidden] = useState(true); // hidden by default until we check
   const mix = isLaunchWeek ? LAUNCH_MIX : CRUISE_MIX;
+  const weekKey = weekDays.length > 0 ? getWeekKey(weekDays[0]) : "";
 
-  if (dismissed) return null;
+  useEffect(() => {
+    if (!user || !weekKey) return;
+    supabase
+      .from("dismissed_suggestions" as any)
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("suggestion_type", "stories_week")
+      .eq("context_key", weekKey)
+      .maybeSingle()
+      .then(({ data }) => {
+        setHidden(!!data);
+      });
+  }, [user?.id, weekKey]);
+
+  const handleDismiss = async () => {
+    setHidden(true);
+    if (!user || !weekKey) return;
+    await (supabase.from("dismissed_suggestions" as any) as any).upsert(
+      { user_id: user.id, suggestion_type: "stories_week", context_key: weekKey },
+      { onConflict: "user_id,suggestion_type,context_key" }
+    );
+  };
+
+  if (hidden) return null;
 
   const handleGenerateAll = () => {
-    // Navigate to stories generator with the first day's context
     navigate("/instagram/stories", {
       state: {
         fromCalendarMix: true,
@@ -52,7 +88,7 @@ export function StoriesMixBanner({ weekDays, isLaunchWeek = false }: Props) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4 mb-4 relative">
       <button
-        onClick={() => setDismissed(true)}
+        onClick={handleDismiss}
         className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"
       >
         <X className="h-3.5 w-3.5" />
