@@ -20,7 +20,7 @@ import { StoriesMixBanner } from "@/components/calendar/StoriesMixBanner";
 import { CalendarIdeasSidebar, type SavedIdea } from "@/components/calendar/CalendarIdeasSidebar";
 import { IdeaDetailSheet } from "@/components/calendar/IdeaDetailSheet";
 import { CalendarWeekHeader } from "@/components/calendar/CalendarWeekHeader";
-import { DndContext, DragOverlay, closestCenter, type DragStartEvent, type DragEndEvent } from "@dnd-kit/core";
+import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from "@dnd-kit/core";
 
 /** Map a calendar post format to the correct generator route */
 function getGeneratorRoute(post: CalendarPost): string | null {
@@ -65,6 +65,10 @@ export default function CalendarPage() {
   const [postsPerWeek, setPostsPerWeek] = useState(3);
   const [selectedIdea, setSelectedIdea] = useState<SavedIdea | null>(null);
   const [ideaDetailOpen, setIdeaDetailOpen] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
 
   useEffect(() => {
     const urlCanal = searchParams.get("canal");
@@ -265,8 +269,34 @@ export default function CalendarPage() {
     setActiveDragItem(null);
     const { active, over } = event;
     if (!over || !user) return;
-    const newDate = over.id as string;
     const data = active.data.current;
+    const overId = over.id as string;
+
+    // Drop on ideas sidebar = unplan
+    if (overId === "ideas-sidebar") {
+      if (data?.type === "idea") return; // already an idea
+      const postId = active.id as string;
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+      await supabase.from("saved_ideas").insert({
+        user_id: user.id,
+        titre: post.theme,
+        format: post.format || null,
+        objectif: post.objectif || null,
+        notes: post.notes || null,
+        status: "idea",
+        canal: post.canal || "instagram",
+        content_draft: post.content_draft || null,
+        angle: post.angle || "",
+      });
+      await supabase.from("calendar_posts").delete().eq("id", post.id);
+      fetchPosts();
+      (window as any).__refreshIdeasSidebar?.();
+      toast({ title: "Remis en idée !" });
+      return;
+    }
+
+    const newDate = overId;
 
     if (data?.type === "idea") {
       const idea = data.idea;
@@ -285,6 +315,7 @@ export default function CalendarPage() {
         await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: newDate }).eq("id", idea.id);
       }
       fetchPosts();
+      (window as any).__refreshIdeasSidebar?.();
       toast({ title: `"${idea.titre}" planifié !` });
     } else {
       const postId = active.id as string;
@@ -405,7 +436,7 @@ export default function CalendarPage() {
             <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile />
           )
         ) : (
-          <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="flex gap-6">
               {/* Calendar area (75%) */}
               <div className="flex-1 min-w-0">

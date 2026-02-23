@@ -29,21 +29,13 @@ function DraggableWeekCard({ post, onClick }: { post: CalendarPost; onClick: () 
     transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
     opacity: isDragging ? 0.3 : 1,
     zIndex: isDragging ? 50 : undefined,
+    touchAction: "none",
+    cursor: "grab",
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="flex items-center gap-0.5 group/chip">
-      <span
-        {...attributes}
-        {...listeners}
-        className="cursor-grab opacity-0 group-hover/chip:opacity-60 transition-opacity shrink-0 touch-none"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <GripVertical className="h-3 w-3 text-muted-foreground" />
-      </span>
-      <div className="flex-1 min-w-0">
-        <CalendarContentCard post={post} onClick={onClick} variant="detailed" />
-      </div>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <CalendarContentCard post={post} onClick={onClick} variant="detailed" />
     </div>
   );
 }
@@ -57,7 +49,7 @@ function DroppableWeekDay({
   onAddIdea: (dateStr: string) => void;
 }) {
   const isPast = new Date(dateStr + "T00:00:00") < new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
-  const { setNodeRef, isOver } = useDroppable({ id: dateStr, disabled: isPast });
+  const { setNodeRef, isOver } = useDroppable({ id: dateStr });
   const dayLabel = date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
 
   return (

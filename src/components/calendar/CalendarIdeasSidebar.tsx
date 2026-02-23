@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, GripVertical, MoreVertical, Trash2, CalendarIcon } from "lucide-react";
-import { useDraggable } from "@dnd-kit/core";
+import { Plus, GripVertical, MoreVertical, Trash2, CalendarIcon, Undo2 } from "lucide-react";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Button } from "@/components/ui/button";
@@ -127,8 +127,18 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: P
     }
   };
 
+  const { setNodeRef: dropRef, isOver: isOverSidebar } = useDroppable({
+    id: "ideas-sidebar",
+    data: { type: "ideas_sidebar" },
+  });
+
   return (
-    <div className="flex flex-col h-full">
+    <div ref={dropRef} className={cn("flex flex-col h-full transition-colors rounded-xl", isOverSidebar && "bg-primary/10 ring-2 ring-primary/30 ring-inset")}>
+      {isOverSidebar && (
+        <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-primary bg-primary/5 rounded-lg py-2 mb-2 border border-dashed border-primary/40">
+          <Undo2 className="h-3.5 w-3.5" /> Remettre en idée
+        </div>
+      )}
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-display text-sm font-bold text-foreground">💡 Mes idées</h3>
         <span className="text-xs text-muted-foreground">{ideas.length}</span>
@@ -206,16 +216,11 @@ function DraggableIdeaCard({ idea, onDelete, onClick }: { idea: SavedIdea; onDel
   const objColor = OBJECTIVE_COLORS[idea.objectif || ""] || "text-muted-foreground";
 
   return (
-    <div ref={setNodeRef} style={style}
-      className="flex items-start gap-1 group rounded-lg border border-border bg-card p-2 hover:border-primary/30 hover:bg-accent/30 transition-colors cursor-pointer"
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}
+      className="rounded-lg border border-border bg-card p-2 hover:border-primary/30 hover:bg-accent/30 transition-colors cursor-grab"
       onClick={onClick}
     >
-      <span {...attributes} {...listeners}
-        className="cursor-grab opacity-0 group-hover:opacity-60 transition-opacity shrink-0 touch-none mt-0.5"
-        onClick={(e) => e.stopPropagation()}>
-        <GripVertical className="h-3 w-3 text-muted-foreground" />
-      </span>
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0">
         <p className="text-xs font-medium text-foreground truncate">{icon} {idea.titre}</p>
         <p className={cn("text-[10px] truncate", objColor)}>
           {idea.format || "Post"} {idea.objectif ? `· ${idea.objectif}` : ""}
