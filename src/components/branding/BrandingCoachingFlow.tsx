@@ -5,19 +5,19 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
 import { InputWithVoice } from "@/components/ui/input-with-voice";
-import { ArrowLeft, Loader2, Check, Sparkles, PartyPopper } from "lucide-react";
+import { ArrowLeft, Loader2, Check, Sparkles, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { DEMO_COACHING_DATA, type DemoCoachingQuestion } from "@/lib/demo-coaching-data";
 import Confetti from "@/components/Confetti";
+import { toast } from "sonner";
 
 type Section = "story" | "persona" | "value_proposition" | "tone_style" | "content_strategy" | "offers";
 
 interface Message {
+  id: string;
   role: "user" | "assistant";
   content: string;
 }
@@ -52,6 +52,10 @@ const LOADING_PHRASES = [
   "Hmm, voyons ce qu'on peut explorer...",
 ];
 
+function makeMsg(role: "user" | "assistant", content: string): Message {
+  return { id: crypto.randomUUID(), role, content };
+}
+
 interface BrandingCoachingFlowProps {
   section: Section;
   onComplete?: () => void;
@@ -76,6 +80,19 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
   const [showConfetti, setShowConfetti] = useState(false);
   const [hasExistingSession, setHasExistingSession] = useState(false);
   const [hasPrefilledData, setHasPrefilledData] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Refs to avoid stale closures
+  const messagesRef = useRef(messages);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  const questionIndexRef = useRef(questionIndex);
+  useEffect(() => { questionIndexRef.current = questionIndex; }, [questionIndex]);
+
+  // Mount/unmount debug
+  useEffect(() => {
+    console.log("[BrandingCoaching] MOUNTED section=", section);
+    return () => console.log("[BrandingCoaching] UNMOUNTED section=", section);
+  }, [section]);
 
   const meta = SECTION_META[section];
   const demoQuestions = isDemoMode ? DEMO_COACHING_DATA[section]?.questions : null;
@@ -96,19 +113,22 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
       if (data && data.messages && (data.messages as any[]).length > 0) {
         setHasExistingSession(true);
         if (data.is_complete) {
-          // Already completed, show recap
           setFinalSummary((data.extracted_data as any)?.final_summary || "");
           setCompletionPct(100);
           setPhase("complete");
         } else {
-          // Resume: restore messages and ask next question
-          setMessages(data.messages as unknown as Message[]);
+          // Ensure messages have IDs for stable keys
+          const restored = (data.messages as any[]).map((m: any) => ({
+            id: m.id || crypto.randomUUID(),
+            role: m.role,
+            content: m.content,
+          }));
+          setMessages(restored);
           setQuestionIndex(data.question_count || 0);
           setCompletionPct((data.extracted_data as any)?.completion_percentage || 5);
         }
       }
 
-      // Check if branding data exists (prefilled from onboarding)
       const { data: bp } = await supabase
         .from("brand_profile")
         .select("positioning, mission, values")
@@ -121,36 +141,109 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
     loadSession();
   }, [user?.id, section, isDemoMode]);
 
+  // Fetch context once and cache it for the session
+  const contextRef = useRef<any>(null);
   const fetchContext = useCallback(async () => {
+    if (contextRef.current) return contextRef.current;
     if (!user) return {};
     const [profileRes, brandRes, auditRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
       supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle(),
       supabase.from("branding_audits").select("score_global, points_forts, points_faibles").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
-    return {
+    const ctx = {
       profile: profileRes.data,
       branding: brandRes.data,
       audit: auditRes.data,
       existing_data: brandRes.data || {},
     };
+    contextRef.current = ctx;
+    return ctx;
   }, [user?.id]);
 
-  const askAI = useCallback(async (msgs: Message[]) => {
+  const askAI = useCallback(async (msgs: Message[]): Promise<AIResponse | null> => {
     setLoading(true);
+    setError(null);
     setLoadingPhrase(LOADING_PHRASES[Math.floor(Math.random() * LOADING_PHRASES.length)]);
 
     try {
       const context = await fetchContext();
-      const { data, error } = await supabase.functions.invoke("branding-coaching", {
-        body: { user_id: user!.id, section, messages: msgs, context },
+
+      // Limit message history sent to AI: first 2 + last 4 messages (max 6)
+      const simpleMsgs = msgs.map(m => ({ role: m.role, content: m.content }));
+      const limitedMsgs = simpleMsgs.length > 6
+        ? [...simpleMsgs.slice(0, 2), ...simpleMsgs.slice(-4)]
+        : simpleMsgs;
+
+      const { data, error: fnError } = await supabase.functions.invoke("branding-coaching", {
+        body: { user_id: user!.id, section, messages: limitedMsgs, context },
       });
-      if (error) throw error;
-      return data.response as AIResponse;
+
+      if (fnError) {
+        console.error("[BrandingCoaching] Edge function error:", fnError);
+        setError("L'IA a eu un blanc. Ça arrive 😅");
+        toast.error("L'IA a eu un blanc. Réessaie.");
+        return null;
+      }
+
+      // Parse response safely
+      let parsed: AIResponse;
+      try {
+        const raw = data?.response || data;
+        if (typeof raw === "string") {
+          const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+          parsed = JSON.parse(cleaned);
+        } else {
+          parsed = raw as AIResponse;
+        }
+      } catch (parseErr) {
+        console.error("[BrandingCoaching] JSON parse error:", parseErr, "raw:", data);
+        setError("Réponse inattendue de l'IA. Réessaie.");
+        toast.error("Réponse inattendue. Réessaie.");
+        return null;
+      }
+
+      if (!parsed || (!parsed.question && !parsed.is_complete)) {
+        console.error("[BrandingCoaching] Invalid response shape:", parsed);
+        setError("Réponse incomplète de l'IA. Réessaie.");
+        toast.error("Réponse incomplète. Réessaie.");
+        return null;
+      }
+
+      return parsed;
+    } catch (err) {
+      console.error("[BrandingCoaching] Unexpected error:", err);
+      setError("Quelque chose a coincé. Réessaie.");
+      toast.error("Quelque chose a coincé. Réessaie.");
+      return null;
     } finally {
       setLoading(false);
     }
   }, [user?.id, section, fetchContext]);
+
+  // Retry last failed call
+  const lastCallMsgsRef = useRef<Message[]>([]);
+  const handleRetry = useCallback(async () => {
+    setError(null);
+    const response = await askAI(lastCallMsgsRef.current);
+    if (!response) return;
+
+    const updatedMessages: Message[] = [
+      ...lastCallMsgsRef.current,
+      makeMsg("assistant", response.question || response.final_summary || ""),
+    ];
+    setMessages(updatedMessages);
+    setCompletionPct(response.completion_percentage || completionPct);
+
+    if (response.is_complete) {
+      setFinalSummary(response.final_summary || "");
+      setCompletionPct(100);
+      setShowConfetti(true);
+      setPhase("complete");
+      return;
+    }
+    setCurrentQuestion(response);
+  }, [askAI, completionPct]);
 
   const saveDemoAnswer = useCallback((q: DemoCoachingQuestion) => {
     setCompletionPct(q.completion_percentage);
@@ -160,7 +253,6 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
     setPhase("coaching");
 
     if (isDemoMode && demoQuestions) {
-      // Demo mode: show first question
       const first = demoQuestions[0];
       setCurrentQuestion({
         question: first.question,
@@ -175,9 +267,9 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
       return;
     }
 
-    // Real mode: if we have an existing session with messages, ask AI for next question
-    if (hasExistingSession && messages.length > 0) {
-      const response = await askAI(messages);
+    if (hasExistingSession && messagesRef.current.length > 0) {
+      lastCallMsgsRef.current = messagesRef.current;
+      const response = await askAI(messagesRef.current);
       if (response) {
         setCurrentQuestion(response);
         setCompletionPct(response.completion_percentage || 5);
@@ -185,14 +277,15 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
       return;
     }
 
-    // New session: ask first question
+    lastCallMsgsRef.current = [];
     const response = await askAI([]);
     if (response) {
       setCurrentQuestion(response);
-      setMessages([{ role: "assistant", content: response.question }]);
+      const initial = [makeMsg("assistant", response.question)];
+      setMessages(initial);
       setCompletionPct(response.completion_percentage || 5);
     }
-  }, [isDemoMode, demoQuestions, hasExistingSession, messages, askAI]);
+  }, [isDemoMode, demoQuestions, hasExistingSession, askAI]);
 
   const handleNext = useCallback(async () => {
     const userAnswer = currentQuestion?.question_type === "select" || currentQuestion?.question_type === "multi_select"
@@ -201,16 +294,16 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
 
     if (!userAnswer.trim()) return;
 
-    const nextIndex = questionIndex + 1;
+    const nextIndex = questionIndexRef.current + 1;
     setQuestionIndex(nextIndex);
     setAnswer("");
     setSelectedOptions([]);
+    setError(null);
 
     if (isDemoMode && demoQuestions) {
-      saveDemoAnswer(demoQuestions[questionIndex]);
+      saveDemoAnswer(demoQuestions[questionIndexRef.current]);
 
       if (nextIndex >= demoQuestions.length) {
-        // Complete
         setFinalSummary(DEMO_COACHING_DATA[section]?.final_summary || "");
         setCompletionPct(100);
         setShowConfetti(true);
@@ -218,7 +311,6 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
         return;
       }
 
-      // Simulate loading delay
       setLoading(true);
       setLoadingPhrase(LOADING_PHRASES[Math.floor(Math.random() * LOADING_PHRASES.length)]);
       await new Promise(r => setTimeout(r, 500));
@@ -238,25 +330,27 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
       return;
     }
 
-    // Real mode
+    // Real mode — use ref for latest messages to avoid stale state
+    const currentMessages = messagesRef.current;
     const newMessages: Message[] = [
-      ...messages,
-      { role: "user", content: userAnswer },
+      ...currentMessages,
+      makeMsg("user", userAnswer),
     ];
     setMessages(newMessages);
+    lastCallMsgsRef.current = newMessages;
 
     const response = await askAI(newMessages);
-    if (!response) return;
+    if (!response) return; // Error already shown via toast + error state
 
     const updatedMessages: Message[] = [
       ...newMessages,
-      { role: "assistant", content: response.question || response.final_summary || "" },
+      makeMsg("assistant", response.question || response.final_summary || ""),
     ];
     setMessages(updatedMessages);
     setCompletionPct(response.completion_percentage || completionPct);
 
-    // Save session
-    await supabase.from("branding_coaching_sessions").upsert({
+    // Save session (fire and forget — don't let this block or crash the UI)
+    supabase.from("branding_coaching_sessions").upsert({
       user_id: user!.id,
       section,
       messages: updatedMessages as any,
@@ -269,11 +363,13 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
       is_complete: response.is_complete,
       completed_at: response.is_complete ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
-    } as any, { onConflict: "user_id,section" });
+    } as any, { onConflict: "user_id,section" }).then(({ error: saveErr }) => {
+      if (saveErr) console.error("[BrandingCoaching] Save session error:", saveErr);
+    });
 
-    // Save extracted insights to the right table
+    // Save extracted insights (fire and forget)
     if (response.extracted_insights && Object.keys(response.extracted_insights).length > 0) {
-      await saveInsights(section, response.extracted_insights);
+      saveInsights(section, response.extracted_insights);
     }
 
     if (response.is_complete) {
@@ -285,7 +381,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
     }
 
     setCurrentQuestion(response);
-  }, [answer, selectedOptions, questionIndex, currentQuestion, isDemoMode, demoQuestions, messages, askAI, section, user?.id, completionPct]);
+  }, [answer, selectedOptions, currentQuestion, isDemoMode, demoQuestions, askAI, section, user?.id, completionPct, saveDemoAnswer]);
 
   const saveInsights = async (sec: string, insights: Record<string, any>) => {
     if (!user) return;
@@ -297,7 +393,6 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
           updated_at: new Date().toISOString(),
         } as any, { onConflict: "user_id" });
       } else {
-        // Everything else goes to brand_profile
         await supabase.from("brand_profile").upsert({
           user_id: user.id,
           ...insights,
@@ -305,7 +400,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
         } as any, { onConflict: "user_id" });
       }
     } catch (e) {
-      console.error("Error saving insights:", e);
+      console.error("[BrandingCoaching] Error saving insights:", e);
     }
   };
 
@@ -422,6 +517,20 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
             >
               <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mb-3" />
               <p className="text-sm text-muted-foreground italic">{loadingPhrase}</p>
+            </motion.div>
+          ) : error ? (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-center space-y-4"
+            >
+              <p className="text-lg">😅</p>
+              <p className="text-sm text-muted-foreground">{error}</p>
+              <Button onClick={handleRetry} variant="outline" className="rounded-pill gap-2">
+                <RefreshCw className="h-4 w-4" /> Réessayer
+              </Button>
             </motion.div>
           ) : currentQuestion ? (
             <motion.div
