@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake } from "lucide-react";
+import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake } from "lucide-react";
 import DemoFormDialog from "@/components/demo/DemoFormDialog";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { Progress } from "@/components/ui/progress";
@@ -14,13 +14,40 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { to: "/dashboard", label: "Accueil", icon: Home, matchExact: true },
   { to: "/instagram/creer", label: "Créer", icon: Sparkles, matchExact: false },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
   { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
-  { to: "/contacts", label: "Contacts", icon: Users, matchExact: false },
 ];
+
+const ACCOMPAGNEMENT_ITEM = { to: "/accompagnement", label: "Accompagnement", icon: HeartHandshake, matchExact: false };
+const CONTACTS_ITEM = { to: "/contacts", label: "Contacts", icon: Users, matchExact: false };
+
+function getDesktopNav(isPilot: boolean) {
+  return isPilot
+    ? [...BASE_NAV_ITEMS, ACCOMPAGNEMENT_ITEM, CONTACTS_ITEM]
+    : [...BASE_NAV_ITEMS, CONTACTS_ITEM];
+}
+
+function getMobileNav(isPilot: boolean) {
+  if (isPilot) {
+    return [
+      { to: "/dashboard", label: "Accueil", icon: Home, matchExact: true },
+      { to: "/instagram/creer", label: "Créer", icon: Sparkles, matchExact: false },
+      { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
+      { to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false },
+      { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
+    ];
+  }
+  return [
+    { to: "/dashboard", label: "Accueil", icon: Home, matchExact: true },
+    { to: "/instagram/creer", label: "Créer", icon: Sparkles, matchExact: false },
+    { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
+    { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
+    { to: "/contacts", label: "Contacts", icon: Users, matchExact: false },
+  ];
+}
 
 export default function AppHeader() {
   const { user, signOut } = useAuth();
@@ -52,7 +79,10 @@ export default function AppHeader() {
     });
   }, [user?.id]);
 
-  const isActive = (item: typeof NAV_ITEMS[0]) =>
+  const desktopNav = getDesktopNav(isPilot);
+  const mobileNav = getMobileNav(isPilot);
+
+  const isActive = (item: typeof CONTACTS_ITEM) =>
     item.matchExact ? location.pathname === item.to : location.pathname.startsWith(item.to);
 
   const planLabel = plan === "now_pilot" ? "🤝 Now Pilot" : plan === "studio" ? "Now Studio" : plan === "outil" ? "Outil (39€)" : "Gratuit";
@@ -74,7 +104,7 @@ export default function AppHeader() {
           </Link>
 
           <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1 flex-nowrap overflow-hidden">
-            {NAV_ITEMS.map((item) => (
+            {desktopNav.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
@@ -122,7 +152,7 @@ export default function AppHeader() {
           </Link>
 
           <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1 flex-nowrap overflow-hidden">
-            {NAV_ITEMS.map((item) => (
+            {desktopNav.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
@@ -194,7 +224,7 @@ export default function AppHeader() {
       {/* ─── Mobile bottom tab bar (<md only) ─── */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.05)] md:hidden">
         <div className="flex items-center justify-around h-14">
-          {NAV_ITEMS.map((item) => {
+          {mobileNav.map((item) => {
             const active = isActive(item);
             return (
               <Link
