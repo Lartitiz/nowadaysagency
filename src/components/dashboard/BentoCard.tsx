@@ -44,6 +44,7 @@ export default function BentoCard({
 
   return (
     <div
+      data-clickable={onClick ? "true" : undefined}
       onClick={onClick}
       className={`
         rounded-[20px] p-5 sm:p-6

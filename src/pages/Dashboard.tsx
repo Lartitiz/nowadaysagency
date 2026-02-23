@@ -237,6 +237,7 @@ export default function Dashboard() {
   // Determine which spaces to show
   const activeSpaces = spaceModules.filter(s => {
     if (channelsLoading) return false;
+    if (s.id === "branding") return true; // Always show branding
     if (s.id === "instagram") return hasInstagram;
     if (s.id === "website") return hasWebsite;
     if (s.id === "linkedin") return hasLinkedin;
@@ -317,7 +318,9 @@ export default function Dashboard() {
               <SpaceBentoCard
                 key={space.id}
                 title={space.title}
-                subtitle={space.subtitle}
+                subtitle={space.id === "branding" && dashData.brandingCompletion.total > 0
+                  ? `Complété à ${dashData.brandingCompletion.total}%`
+                  : space.subtitle}
                 icon={space.icon}
                 gradient={space.gradient}
                 badge={space.badge}
@@ -391,25 +394,7 @@ export default function Dashboard() {
             </BentoCard>
           )}
 
-          {/* Branding fallback if no SEO/website */}
-          {!hasSeo && !hasWebsite && (
-            <BentoCard
-              title=""
-              colSpan={8}
-              rowSpan={2}
-              variant="default"
-              onClick={() => navigate("/branding")}
-              animationDelay={nextDelay()}
-            >
-              <span className="text-2xl mb-2 block">🎨</span>
-              <h3 className="font-heading text-base font-bold text-foreground mb-1">Mon Branding</h3>
-              <p className="text-sm text-muted-foreground mb-3">La base de tout le reste.</p>
-              <div className="flex items-center gap-3">
-                <Progress value={dashData.brandingCompletion.total} className="h-1.5 flex-1" />
-                <span className="text-xs font-mono-ui text-muted-foreground">{dashData.brandingCompletion.total}%</span>
-              </div>
-            </BentoCard>
-          )}
+          {/* Branding is now in Mes Espaces */}
         </BentoGrid>
 
         {/* ═══════════════════════════════════════
@@ -458,52 +443,7 @@ export default function Dashboard() {
            ═══════════════════════════════════════ */}
         <BadgesWidget animationDelay={nextDelay()} />
 
-        {/* ═══════════════════════════════════════
-           BRANDING BANNER
-           ═══════════════════════════════════════ */}
-        <div
-          className="rounded-[20px] shadow-[var(--shadow-bento)] opacity-0 animate-reveal-up mb-4"
-          style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
-        >
-          {dashData.brandingCompletion.total >= 100 ? (
-            <div
-              onClick={() => navigate("/branding")}
-              className="flex items-center justify-between rounded-[20px] border border-border bg-card px-5 py-3.5 cursor-pointer
-                hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px] transition-all duration-[250ms]"
-            >
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <span className="text-lg shrink-0">🎨</span>
-                <span className="text-sm font-bold text-foreground shrink-0">Mon Branding</span>
-                <span className="text-xs font-mono-ui text-muted-foreground shrink-0">
-                  Score : {dashData.brandingCompletion.total}/100
-                </span>
-                <Progress value={dashData.brandingCompletion.total} className="h-1.5 flex-1 max-w-[120px] ml-2" />
-              </div>
-              <span className="text-xs text-primary font-medium flex items-center gap-1 shrink-0 ml-3">
-                Voir ma synthèse <ArrowRight className="h-3 w-3" />
-              </span>
-            </div>
-          ) : (
-            <div
-              onClick={() => navigate("/branding")}
-              className="flex items-center justify-between rounded-[20px] border border-accent/40 bg-accent/10 px-5 py-3.5 cursor-pointer
-                hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px] transition-all duration-[250ms]"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-lg">🎨</span>
-                <div>
-                  <span className="text-sm font-bold text-foreground">Pose ton branding, c'est la base de tout le reste</span>
-                  {dashData.brandingCompletion.total > 0 && (
-                    <p className="text-xs text-muted-foreground font-mono-ui mt-0.5">{dashData.brandingCompletion.total}% complété</p>
-                  )}
-                </div>
-              </div>
-              <span className="text-xs font-semibold text-accent-foreground bg-accent px-3 py-1.5 rounded-xl shrink-0 ml-3">
-                {dashData.brandingCompletion.total > 0 ? "Continuer →" : "Commencer →"}
-              </span>
-            </div>
-          )}
-        </div>
+        {/* Branding is now in Mes Espaces — no standalone banner */}
 
         {/* ═══════════════════════════════════════
            ACCOMPAGNEMENT (Now Pilot)
@@ -514,6 +454,7 @@ export default function Dashboard() {
             style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
           >
             <div
+              data-clickable="true"
               onClick={() => navigate("/accompagnement")}
               className="flex items-center justify-between rounded-[20px] border border-border bg-card px-5 py-3 cursor-pointer
                 hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px] transition-all duration-[250ms]"

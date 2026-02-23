@@ -21,6 +21,7 @@ export default function SpaceBentoCard({
 }: SpaceBentoCardProps) {
   return (
     <div
+      data-clickable="true"
       onClick={onClick}
       className={`
         group relative col-span-2 sm:col-span-3 lg:col-span-3
