@@ -62,7 +62,7 @@ export default function PromoCodeInput() {
       </p>
       <div className="flex gap-2">
         <Input
-          placeholder="BETA2026"
+          placeholder="MONCODE"
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           className="rounded-[10px] h-10 uppercase tracking-wider font-mono"
