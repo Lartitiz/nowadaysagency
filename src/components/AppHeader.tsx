@@ -56,17 +56,15 @@ export default function AppHeader() {
 
   return (
     <>
-      {/* ─── Desktop header ─── */}
+      {/* ─── Desktop header (lg+) : logo + icons+text nav + bell+avatar ─── */}
       <header className="sticky top-0 z-40 border-b border-border bg-card hidden lg:block">
         <div className="mx-auto flex h-14 max-w-[1100px] items-center justify-between px-6">
-          {/* Logo / app name */}
           <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
             <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
             <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-md">beta</span>
           </Link>
 
-          {/* Desktop nav — 5 items */}
-          <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1">
+          <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1 flex-nowrap overflow-hidden">
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.to}
@@ -83,7 +81,6 @@ export default function AppHeader() {
             ))}
           </nav>
 
-          {/* Right side: bell + avatar dropdown */}
           <div className="flex items-center gap-2 shrink-0">
             <NotificationBell />
             <AvatarMenu
@@ -103,8 +100,52 @@ export default function AppHeader() {
         </div>
       </header>
 
-      {/* ─── Mobile top bar ─── */}
-      <header className="sticky top-0 z-40 border-b border-border bg-card lg:hidden">
+      {/* ─── Tablet header (md–lg) : logo + icon-only nav + bell+avatar ─── */}
+      <header className="sticky top-0 z-40 border-b border-border bg-card hidden md:block lg:hidden">
+        <div className="flex h-14 items-center justify-between px-4">
+          <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
+            <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
+            <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
+          </Link>
+
+          <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1 flex-nowrap overflow-hidden">
+            {NAV_ITEMS.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`flex items-center justify-center rounded-pill w-9 h-9 transition-all duration-200 ${
+                  isActive(item)
+                    ? "bg-card text-primary shadow-[0_2px_8px_hsl(338_96%_61%/0.1)]"
+                    : "text-muted-foreground hover:bg-secondary"
+                }`}
+                title={item.label}
+              >
+                <item.icon className="h-4 w-4" />
+              </Link>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <NotificationBell />
+            <AvatarMenu
+              initial={initial}
+              firstName={firstName}
+              planLabel={planLabel}
+              totalUsed={totalUsed}
+              totalLimit={totalLimit}
+              totalPercent={totalPercent}
+              signOut={signOut}
+              navigate={navigate}
+              isAdmin={isAdmin}
+              hasCoaching={hasCoaching}
+              onDemoClick={() => setDemoOpen(true)}
+            />
+          </div>
+        </div>
+      </header>
+
+      {/* ─── Mobile top bar (<md) : logo + bell+avatar only ─── */}
+      <header className="sticky top-0 z-40 border-b border-border bg-card md:hidden">
         <div className="flex h-12 items-center justify-between px-4">
           <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
             <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
@@ -129,34 +170,8 @@ export default function AppHeader() {
         </div>
       </header>
 
-      {/* ─── Mobile top bar ─── */}
-      <header className="sticky top-0 z-40 border-b border-border bg-card lg:hidden">
-        <div className="flex h-12 items-center justify-between px-4">
-          <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
-            <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
-            <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <NotificationBell />
-            <AvatarMenu
-              initial={initial}
-              firstName={firstName}
-              planLabel={planLabel}
-              totalUsed={totalUsed}
-              totalLimit={totalLimit}
-              totalPercent={totalPercent}
-              signOut={signOut}
-              navigate={navigate}
-              isAdmin={isAdmin}
-              hasCoaching={hasCoaching}
-              onDemoClick={() => setDemoOpen(true)}
-            />
-          </div>
-        </div>
-      </header>
-
-      {/* ─── Mobile bottom tab bar ─── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.05)] lg:hidden">
+      {/* ─── Mobile bottom tab bar (<md only) ─── */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.05)] md:hidden">
         <div className="flex items-center justify-around h-14">
           {NAV_ITEMS.map((item) => {
             const active = isActive(item);
