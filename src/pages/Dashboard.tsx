@@ -179,10 +179,11 @@ export default function Dashboard() {
 
       // Coaching info for Now Pilot
       if (isPilot) {
+        // RLS controls access — query any active program visible to this user
         const { data: prog } = await (supabase.from("coaching_programs" as any) as any)
           .select("current_phase, current_month, id")
-          .eq("client_user_id", user.id)
           .eq("status", "active")
+          .limit(1)
           .maybeSingle();
         if (prog) {
           const { data: nextSess } = await (supabase.from("coaching_sessions" as any) as any)
@@ -204,7 +205,7 @@ export default function Dashboard() {
       checkBadges(user.id, bc.total);
     };
     fetchAll();
-  }, [user?.id, isDemoMode]);
+  }, [user?.id, isDemoMode, isPilot]);
 
   if (!profile) {
     return (
