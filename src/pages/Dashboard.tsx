@@ -232,6 +232,9 @@ export default function Dashboard() {
                   route="/linkedin" />
           )}
 
+          {/* SEO card (external tool) */}
+          {!channelsLoading && hasSeo && <SeoExternalCard />}
+
           {/* Créer un contenu */}
           <CreateContentCard hasInstagram={hasInstagram} hasLinkedin={hasLinkedin} />
 
@@ -336,12 +339,11 @@ function ChannelDailyCard({ channel, data }: { channel: "instagram" | "linkedin"
           <p>📅 Cette semaine : <span className="font-medium text-foreground">{data.weekPostsPublished}/{data.weekPostsTotal} posts publiés</span></p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <MiniBtn label="✨ Créer un post" onClick={() => navigate("/instagram/creer")} />
-          <MiniBtn label="🎠 Carrousel" onClick={() => navigate("/instagram/carousel")} />
-          <MiniBtn label="🎬 Reel" onClick={() => navigate("/instagram/reels")} />
-          <MiniBtn label="📊 Stats" onClick={() => navigate("/instagram/stats")} />
-          <MiniBtn label="📅 Calendrier" onClick={() => navigate("/calendrier")} />
-          <MiniBtn label="🔍 Refaire l'audit" onClick={() => navigate("/instagram/audit")} />
+          <MiniBtn label="✨ Créer un contenu" onClick={() => navigate("/instagram/creer")} />
+          <MiniBtn label="🔍 Analyser mon profil" onClick={() => navigate("/instagram/audit")} />
+          <MiniBtn label="💬 Routine d'engagement" onClick={() => navigate("/contacts")} />
+          <MiniBtn label="📅 Calendrier édito" onClick={() => navigate("/calendrier")} />
+          <MiniBtn label="📊 Mes stats" onClick={() => navigate("/instagram/stats")} />
         </div>
       </div>
     );
@@ -474,6 +476,32 @@ function CalendarCard({ data }: { data: DashboardData }) {
     </div>
   );
 }
+
+/* ── SEO External Card ── */
+function SeoExternalCard() {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xl">🔍</span>
+          <h3 className="font-display text-base font-bold text-foreground">Mon SEO</h3>
+        </div>
+        <span className="text-xs font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">🔗 Externe</span>
+      </div>
+      <p className="text-[13px] text-muted-foreground mb-3">Ton SEO Toolkit est disponible en ligne.</p>
+      <a
+        href="https://seo.nowadaysagency.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className="text-xs font-medium px-3 py-1.5 rounded-full border border-primary/20 text-primary hover:bg-primary/5 transition-colors inline-flex items-center gap-1"
+      >
+        🔗 Ouvrir le SEO Toolkit →
+      </a>
+    </div>
+  );
+}
+
 
 /* ── Foundation Row (mini) ── */
 function FoundationRow({ emoji, label, detail, route, linkLabel }: {
