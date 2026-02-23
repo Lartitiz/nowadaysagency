@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film } from "lucide-react";
+import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake } from "lucide-react";
 import DemoFormDialog from "@/components/demo/DemoFormDialog";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { Progress } from "@/components/ui/progress";
@@ -28,7 +28,21 @@ export default function AppHeader() {
   const navigate = useNavigate();
   const { plan, usage } = useUserPlan();
   const [demoOpen, setDemoOpen] = useState(false);
+  const [hasCoaching, setHasCoaching] = useState(false);
   const isAdmin = user?.email === "laetitia@nowadaysagency.com";
+
+  // Check if user has an active coaching program
+  useEffect(() => {
+    if (!user) return;
+    import("@/integrations/supabase/client").then(({ supabase }) => {
+      (supabase.from("coaching_programs" as any) as any)
+        .select("id")
+        .eq("client_user_id", user.id)
+        .eq("status", "active")
+        .maybeSingle()
+        .then(({ data }: any) => { if (data) setHasCoaching(true); });
+    });
+  }, [user?.id]);
 
   const isActive = (item: typeof NAV_ITEMS[0]) =>
     item.matchExact ? location.pathname === item.to : location.pathname.startsWith(item.to);
@@ -82,6 +96,7 @@ export default function AppHeader() {
               signOut={signOut}
               navigate={navigate}
               isAdmin={isAdmin}
+              hasCoaching={hasCoaching}
               onDemoClick={() => setDemoOpen(true)}
             />
           </div>
@@ -107,6 +122,7 @@ export default function AppHeader() {
               signOut={signOut}
               navigate={navigate}
               isAdmin={isAdmin}
+              hasCoaching={hasCoaching}
               onDemoClick={() => setDemoOpen(true)}
             />
           </div>
@@ -132,6 +148,7 @@ export default function AppHeader() {
               signOut={signOut}
               navigate={navigate}
               isAdmin={isAdmin}
+              hasCoaching={hasCoaching}
               onDemoClick={() => setDemoOpen(true)}
             />
           </div>
@@ -176,10 +193,11 @@ interface AvatarMenuProps {
   signOut: () => void;
   navigate: (path: string) => void;
   isAdmin: boolean;
+  hasCoaching?: boolean;
   onDemoClick: () => void;
 }
 
-function AvatarMenu({ initial, firstName, planLabel, totalUsed, totalLimit, totalPercent, signOut, navigate, isAdmin, onDemoClick }: AvatarMenuProps) {
+function AvatarMenu({ initial, firstName, planLabel, totalUsed, totalLimit, totalPercent, signOut, navigate, isAdmin, hasCoaching, onDemoClick }: AvatarMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -213,6 +231,14 @@ function AvatarMenu({ initial, firstName, planLabel, totalUsed, totalLimit, tota
         <DropdownMenuItem onClick={() => navigate("/branding")} className="gap-2 cursor-pointer">
           <Palette className="h-4 w-4" /> Mon branding
         </DropdownMenuItem>
+        {hasCoaching && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate("/accompagnement")} className="gap-2 cursor-pointer">
+              <Handshake className="h-4 w-4" /> 🤝 Mon accompagnement
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate("/abonnement")} className="gap-2 cursor-pointer">
           <CreditCard className="h-4 w-4" /> Mon abonnement
@@ -225,6 +251,9 @@ function AvatarMenu({ initial, firstName, planLabel, totalUsed, totalLimit, tota
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onDemoClick} className="gap-2 cursor-pointer">
               <Film className="h-4 w-4" /> 🎬 Mode démo
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/admin/coaching")} className="gap-2 cursor-pointer">
+              <GraduationCap className="h-4 w-4" /> 🎓 Mes clientes
             </DropdownMenuItem>
           </>
         )}
