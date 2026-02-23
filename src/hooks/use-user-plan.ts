@@ -60,41 +60,26 @@ interface UserPlanState {
 export function useUserPlan(): UserPlanState {
   const { user } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
-  const [plan, setPlan] = useState<Plan>("free");
-  const [usage, setUsage] = useState<Record<string, CategoryUsage>>({});
-  const [loading, setLoading] = useState(true);
-
-  // In demo mode, return now_pilot with fake usage
-  if (isDemoMode) {
-    const demoUsage: Record<string, CategoryUsage> = {
-      content: { used: 8, limit: 150 },
-      audit: { used: 1, limit: 15 },
-      dm_comment: { used: 4, limit: 50 },
-      bio_profile: { used: 1, limit: 15 },
-      suggestion: { used: 2, limit: 30 },
-      import: { used: 0, limit: 10 },
-      adaptation: { used: 0, limit: 30 },
-      total: { used: demoData?.profile?.credits_used ?? 16, limit: demoData?.profile?.credits_monthly ?? 300 },
-    };
-    return {
-      plan: "now_pilot",
-      loading: false,
-      usage: demoUsage,
-      canUseFeature: (f: Feature) => NOW_PILOT_FEATURES.includes(f),
-      canGenerate: () => true,
-      canAudit: () => true,
-      remainingGenerations: () => 100,
-      remainingAudits: () => 14,
-      remainingTotal: () => 284,
-      isPaid: true,
-      isStudio: false,
-      isPilot: true,
-      refresh: async () => {},
-    };
-  }
+  const [plan, setPlan] = useState<Plan>(isDemoMode ? "now_pilot" : "free");
+  const [usage, setUsage] = useState<Record<string, CategoryUsage>>(() => {
+    if (isDemoMode) {
+      return {
+        content: { used: 8, limit: 150 },
+        audit: { used: 1, limit: 15 },
+        dm_comment: { used: 4, limit: 50 },
+        bio_profile: { used: 1, limit: 15 },
+        suggestion: { used: 2, limit: 30 },
+        import: { used: 0, limit: 10 },
+        adaptation: { used: 0, limit: 30 },
+        total: { used: demoData?.profile?.credits_used ?? 16, limit: demoData?.profile?.credits_monthly ?? 300 },
+      };
+    }
+    return {};
+  });
+  const [loading, setLoading] = useState(!isDemoMode);
 
   const load = useCallback(async () => {
-    if (!user) {
+    if (isDemoMode || !user) {
       setLoading(false);
       return;
     }
@@ -111,7 +96,7 @@ export function useUserPlan(): UserPlanState {
       // fallback to free
     }
     setLoading(false);
-  }, [user]);
+  }, [user, isDemoMode]);
 
   useEffect(() => {
     load();
@@ -119,46 +104,50 @@ export function useUserPlan(): UserPlanState {
 
   const canUseFeature = useCallback(
     (feature: Feature) => {
-      switch (plan) {
+      const p = isDemoMode ? "now_pilot" : plan;
+      switch (p) {
         case "now_pilot": return NOW_PILOT_FEATURES.includes(feature);
         case "studio": return STUDIO_FEATURES.includes(feature);
         case "outil": return OUTIL_FEATURES.includes(feature);
         default: return FREE_FEATURES.includes(feature);
       }
     },
-    [plan]
+    [plan, isDemoMode]
   );
 
   const canGenerate = useCallback((category: AiCategory = "content") => {
+    if (isDemoMode) return true;
     const cat = usage[category];
     const total = usage.total;
-    if (!cat || !total) return true; // No data yet, allow
-    if (cat.limit === 0) return false; // Not available on this plan
+    if (!cat || !total) return true;
+    if (cat.limit === 0) return false;
     return cat.used < cat.limit && total.used < total.limit;
-  }, [usage]);
+  }, [usage, isDemoMode]);
 
   const canAudit = useCallback(() => {
     return canGenerate("audit");
   }, [canGenerate]);
 
   const remainingGenerations = useCallback((category: AiCategory = "content") => {
+    if (isDemoMode) return 100;
     const cat = usage[category];
     if (!cat) return Infinity;
     return Math.max(0, cat.limit - cat.used);
-  }, [usage]);
+  }, [usage, isDemoMode]);
 
   const remainingAudits = useCallback(() => {
     return remainingGenerations("audit");
   }, [remainingGenerations]);
 
   const remainingTotal = useCallback(() => {
+    if (isDemoMode) return 284;
     const total = usage.total;
     if (!total) return Infinity;
     return Math.max(0, total.limit - total.used);
-  }, [usage]);
+  }, [usage, isDemoMode]);
 
   return {
-    plan,
+    plan: isDemoMode ? "now_pilot" : plan,
     loading,
     usage,
     canUseFeature,
@@ -167,9 +156,9 @@ export function useUserPlan(): UserPlanState {
     remainingGenerations,
     remainingAudits,
     remainingTotal,
-    isPaid: plan !== "free",
-    isStudio: plan === "studio",
-    isPilot: plan === "now_pilot",
+    isPaid: isDemoMode || plan !== "free",
+    isStudio: !isDemoMode && plan === "studio",
+    isPilot: isDemoMode || plan === "now_pilot",
     refresh: load,
   };
 }
