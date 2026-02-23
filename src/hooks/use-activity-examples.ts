@@ -18,11 +18,12 @@ export function useActivityExamples(): ActivityProfile & { activityText: string 
     if (!user) return;
     supabase
       .from("profiles")
-      .select("activite")
+      .select("activite, type_activite")
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
-        if (data?.activite) setActivity(data.activite);
+        // Prefer the structured type_activite key, fall back to free-text activite
+        setActivity(data?.type_activite || data?.activite || null);
       });
   }, [user?.id, isDemoMode]);
 

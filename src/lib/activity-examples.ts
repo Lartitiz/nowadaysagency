@@ -4,13 +4,17 @@
  */
 
 export type ActivityType =
-  | "photographe"
-  | "graphiste"
+  | "artisane"
+  | "mode_textile"
+  | "art_design"
+  | "deco_interieur"
+  | "beaute_cosmetiques"
+  | "bien_etre"
   | "coach"
   | "coach_sportive"
-  | "artisane"
-  | "therapeute"
+  | "consultante"
   | "formatrice"
+  | "autre"
   | "default";
 
 export interface PersonaExample {
@@ -37,38 +41,60 @@ export interface ActivityProfile {
   accroche_example: string;
   story_ideas: string[];
   dashboard_tip: string;
-  coaching_client_word: string; // "clientes photo", "coachées", etc.
+  coaching_client_word: string;
 }
 
 export const ACTIVITY_EXAMPLES: Record<ActivityType, ActivityProfile> = {
-  photographe: {
-    label: "Photographe",
+  artisane: {
+    label: "Artisane / Créatrice",
     persona_example: {
-      prenom: "Léa",
-      age: "30-40 ans",
-      metier: "Photographe portrait pour entrepreneures",
-      frustration: "Elle a un book magnifique mais personne ne le voit. Elle dépend du bouche-à-oreille et ça ne suffit plus.",
-      desire: "Remplir son agenda de séances sans devoir relancer ses contacts",
-      phrase: "Je fais des photos qui changent le regard que les femmes portent sur elles.",
+      prenom: "Marine",
+      age: "30-42 ans",
+      metier: "Créatrice artisanale",
+      frustration: "Elle met tout son cœur dans ses créations mais son e-shop tourne au ralenti. Elle a l'impression de parler dans le vide sur Instagram.",
+      desire: "Vivre de ses créations sans dépendre des marchés de Noël",
+      phrase: "Chaque pièce a une histoire. Le problème c'est que personne ne la connaît.",
     },
-    offre_example: { name: "Séance portrait Confiance", price: "350€", description: "Séance de 2h + 15 photos retouchées" },
-    bio_example: "Le portrait comme acte de confiance.\nPhotographe pour entrepreneures qui veulent se montrer.\n📍 Lyon · Dispo dans toute la France\n↓ Réserve ta séance",
+    offre_example: { name: "Collection capsule sur mesure", price: "80-250€ / pièce", description: "Pièces artisanales faites main" },
+    bio_example: "Des créations qui racontent des histoires.\nArtisane · Fait main · Éthique\n📍 Atelier à Marseille\n↓ Nouvelle collection",
     post_examples: [
-      "Pourquoi 80% des entrepreneures n'ont pas de photo pro",
-      "Le jour où une cliente a pleuré en voyant ses photos",
-      "3 erreurs qui rendent tes photos de profil invisibles",
+      "Le jour où j'ai failli tout arrêter (et ce qui m'a retenue)",
+      "Ce que tu ne vois pas derrière une pièce artisanale",
+      "Pourquoi je refuse de vendre sur Amazon",
     ],
-    accroche_example: "J'ai photographié 200 femmes. Aucune ne se trouvait belle au départ.",
-    story_ideas: ["Montre les coulisses d'une séance", "Avant/après retouche", "Le matériel que tu utilises"],
-    dashboard_tip: "Partage une photo avant/après retouche en story, ça fascine toujours.",
-    coaching_client_word: "clientes photo",
+    accroche_example: "J'ai vendu ma première création à ma mère. Aujourd'hui je vis de mes mains.",
+    story_ideas: ["Montre ton processus de création", "Prépare une commande en direct", "Les matières premières que tu utilises"],
+    dashboard_tip: "Montre ton processus de création en story, les gens adorent voir les mains au travail.",
+    coaching_client_word: "clientes",
   },
-  graphiste: {
-    label: "Graphiste / Designer",
+  mode_textile: {
+    label: "Mode & textile éthique",
+    persona_example: {
+      prenom: "Anaïs",
+      age: "28-40 ans",
+      metier: "Styliste mode éthique",
+      frustration: "Elle crée des pièces magnifiques mais n'arrive pas à se démarquer de la fast fashion en ligne.",
+      desire: "Construire une communauté fidèle qui achète pour les valeurs autant que pour le style",
+      phrase: "La mode peut être belle et responsable. Il faut juste le faire savoir.",
+    },
+    offre_example: { name: "Collection éthique", price: "90-300€ / pièce", description: "Vêtements éco-responsables faits en France" },
+    bio_example: "Mode éthique · Fabriqué en France\nDes vêtements qui ont du sens.\n📍 Atelier Lyon\n↓ Nouvelle collection",
+    post_examples: [
+      "Le vrai coût d'un t-shirt à 5€",
+      "Pourquoi je couds chaque pièce moi-même",
+      "3 questions à se poser avant d'acheter un vêtement",
+    ],
+    accroche_example: "J'ai quitté la fast fashion pour créer des vêtements qui durent. Et qui ont une histoire.",
+    story_ideas: ["Montre le choix des tissus", "Essayage d'un prototype", "Les coulisses de l'atelier"],
+    dashboard_tip: "Montre le choix de tes tissus et matières en story, ça passionne ton audience.",
+    coaching_client_word: "clientes mode",
+  },
+  art_design: {
+    label: "Art & design",
     persona_example: {
       prenom: "Clara",
       age: "28-38 ans",
-      metier: "Graphiste freelance pour marques éthiques",
+      metier: "Graphiste freelance / Illustratrice",
       frustration: "Elle passe plus de temps à chercher des clients qu'à créer. Son propre branding est le cordonnier mal chaussé.",
       desire: "Attirer des clients alignés avec ses valeurs sans brader ses tarifs",
       phrase: "Je veux bosser avec des marques qui ont du sens, pas juste du budget.",
@@ -85,8 +111,74 @@ export const ACTIVITY_EXAMPLES: Record<ActivityType, ActivityProfile> = {
     dashboard_tip: "Montre un WIP (work in progress), les gens adorent voir le processus.",
     coaching_client_word: "clientes design",
   },
+  deco_interieur: {
+    label: "Déco & design d'intérieur",
+    persona_example: {
+      prenom: "Émilie",
+      age: "30-45 ans",
+      metier: "Décoratrice d'intérieur",
+      frustration: "Les gens adorent ses réalisations mais ne pensent pas à elle quand ils ont un projet. Elle manque de visibilité en ligne.",
+      desire: "Être la référence locale en déco éthique et être sollicitée sans démarcher",
+      phrase: "Un intérieur bien pensé change la vie. Il suffit que les gens le sachent.",
+    },
+    offre_example: { name: "Coaching déco 2h", price: "250€", description: "Audit + plan d'aménagement personnalisé" },
+    bio_example: "Décoratrice d'intérieur · Éco-responsable\nDes espaces qui racontent qui tu es.\n📍 Paris\n↓ Prends rdv",
+    post_examples: [
+      "Le meuble IKEA que je recommande vraiment (et celui que j'évite)",
+      "Avant/après : un salon en 3 changements",
+      "Pourquoi ton intérieur te fatigue (et comment y remédier)",
+    ],
+    accroche_example: "J'ai transformé 150 intérieurs. Le secret n'est jamais le budget.",
+    story_ideas: ["Visite d'un chantier en cours", "Mes trouvailles du moment", "Un conseil déco rapide"],
+    dashboard_tip: "Partage un avant/après en story, c'est ton meilleur argument commercial.",
+    coaching_client_word: "clientes déco",
+  },
+  beaute_cosmetiques: {
+    label: "Beauté & cosmétiques naturels",
+    persona_example: {
+      prenom: "Jade",
+      age: "25-40 ans",
+      metier: "Créatrice de cosmétiques naturels",
+      frustration: "Elle fabrique des produits incroyables mais n'arrive pas à convaincre en ligne face aux grandes marques.",
+      desire: "Construire une marque reconnue et fidéliser sa communauté sans budget pub",
+      phrase: "Mes produits sont meilleurs que 90% de ce qu'on trouve en pharmacie. Mais personne ne le sait.",
+    },
+    offre_example: { name: "Routine visage complète", price: "65€", description: "Nettoyant + sérum + crème · Bio & local" },
+    bio_example: "Cosmétiques naturels · Fabriqués à la main\nTa peau mérite mieux que du greenwashing.\n📍 Provence\n↓ Découvre ta routine",
+    post_examples: [
+      "Ce que contient vraiment ton gel douche (spoiler : c'est pas joli)",
+      "Pourquoi je ne fais pas de promos",
+      "Les 3 ingrédients que j'utilise dans tout",
+    ],
+    accroche_example: "J'ai remplacé toute ma salle de bain par 4 produits faits maison. Voilà le résultat.",
+    story_ideas: ["Fabrication en direct", "Test d'un nouvel ingrédient", "Routine du matin"],
+    dashboard_tip: "Filme ta fabrication en story, c'est hypnotique et ça crée de la confiance.",
+    coaching_client_word: "clientes beauté",
+  },
+  bien_etre: {
+    label: "Bien-être & corps",
+    persona_example: {
+      prenom: "Camille",
+      age: "35-50 ans",
+      metier: "Praticienne bien-être",
+      frustration: "Elle a une vraie expertise mais la communication lui semble 'commerciale' et pas alignée avec son éthique de soin.",
+      desire: "Remplir son cabinet sans avoir l'impression de se vendre",
+      phrase: "Mon métier c'est d'accompagner, pas de convaincre. Mais si personne ne me trouve...",
+    },
+    offre_example: { name: "Séance individuelle", price: "70€", description: "Naturopathie / sophrologie / yoga thérapeutique" },
+    bio_example: "Accompagnement holistique pour femmes en transition.\nPraticienne bien-être\nCommuniquer sur son métier de soin, c'est pas 'se vendre'.\n↓ Prends rdv",
+    post_examples: [
+      "Non, communiquer sur ton cabinet c'est pas du marketing",
+      "Ce qu'on ne dit jamais sur le métier de thérapeute",
+      "Pourquoi je ne fais plus de 'premières séances gratuites'",
+    ],
+    accroche_example: "J'ai mis 2 ans à oser parler de mon cabinet en ligne. Voilà ce que j'aurais aimé savoir.",
+    story_ideas: ["Un conseil bien-être du jour", "Les coulisses de ton cabinet", "Un livre qui t'a marquée"],
+    dashboard_tip: "Partage un conseil bien-être court en story, ça installe ta crédibilité naturellement.",
+    coaching_client_word: "clientes",
+  },
   coach: {
-    label: "Coach",
+    label: "Coach / Thérapeute",
     persona_example: {
       prenom: "Nadia",
       age: "32-45 ans",
@@ -129,48 +221,26 @@ export const ACTIVITY_EXAMPLES: Record<ActivityType, ActivityProfile> = {
     dashboard_tip: "Filme un exercice rapide en story, ça donne envie de bouger.",
     coaching_client_word: "clientes sportives",
   },
-  artisane: {
-    label: "Artisane / Créatrice",
+  consultante: {
+    label: "Consultante / Freelance",
     persona_example: {
-      prenom: "Marine",
-      age: "30-42 ans",
-      metier: "Créatrice artisanale",
-      frustration: "Elle met tout son cœur dans ses créations mais son e-shop tourne au ralenti. Elle a l'impression de parler dans le vide sur Instagram.",
-      desire: "Vivre de ses créations sans dépendre des marchés de Noël",
-      phrase: "Chaque pièce a une histoire. Le problème c'est que personne ne la connaît.",
+      prenom: "Sophie",
+      age: "28-42 ans",
+      metier: "Consultante en communication",
+      frustration: "Elle conseille ses clients sur leur com' mais la sienne est en jachère. Le cordonnier mal chaussé, version freelance.",
+      desire: "Attirer des missions alignées avec ses valeurs sans passer par des plateformes",
+      phrase: "Je sais faire de la bonne com'. J'ai juste pas le temps de faire la mienne.",
     },
-    offre_example: { name: "Collection capsule sur mesure", price: "80-250€ / pièce", description: "Pièces artisanales faites main" },
-    bio_example: "Des créations qui racontent des histoires.\nArtisane · Fait main · Éthique\n📍 Atelier à Marseille\n↓ Nouvelle collection",
+    offre_example: { name: "Stratégie com' 360°", price: "1 200€", description: "Audit + stratégie + plan d'action 3 mois" },
+    bio_example: "Consultante com' pour marques engagées.\nStratégie · Contenus · Social media\n📍 Remote\n↓ Réserve ton appel stratégique",
     post_examples: [
-      "Le jour où j'ai failli tout arrêter (et ce qui m'a retenue)",
-      "Ce que tu ne vois pas derrière une pièce artisanale",
-      "Pourquoi je refuse de vendre sur Amazon",
+      "Les 3 erreurs que je vois chez 90% de mes clients",
+      "Pourquoi je ne fais plus de community management",
+      "Freelance : comment j'ai doublé mes tarifs en 6 mois",
     ],
-    accroche_example: "J'ai vendu ma première création à ma mère. Aujourd'hui je vis de mes mains.",
-    story_ideas: ["Montre ton processus de création", "Prépare une commande en direct", "Les matières premières que tu utilises"],
-    dashboard_tip: "Montre ton processus de création en story, les gens adorent voir les mains au travail.",
-    coaching_client_word: "clientes",
-  },
-  therapeute: {
-    label: "Thérapeute / Praticienne",
-    persona_example: {
-      prenom: "Camille",
-      age: "35-50 ans",
-      metier: "Thérapeute / praticienne bien-être",
-      frustration: "Elle a une vraie expertise mais la communication lui semble 'commerciale' et pas alignée avec son éthique de soin.",
-      desire: "Remplir son cabinet sans avoir l'impression de se vendre",
-      phrase: "Mon métier c'est d'accompagner, pas de convaincre. Mais si personne ne me trouve...",
-    },
-    offre_example: { name: "Séance individuelle", price: "70€", description: "Naturopathie / sophrologie / hypnose" },
-    bio_example: "Accompagnement holistique pour femmes en transition.\nPraticienne bien-être\nCommuniquer sur son métier de soin, c'est pas 'se vendre'.\n↓ Prends rdv",
-    post_examples: [
-      "Non, communiquer sur ton cabinet c'est pas du marketing",
-      "Ce qu'on ne dit jamais sur le métier de thérapeute",
-      "Pourquoi je ne fais plus de 'premières séances gratuites'",
-    ],
-    accroche_example: "J'ai mis 2 ans à oser parler de mon cabinet en ligne. Voilà ce que j'aurais aimé savoir.",
-    story_ideas: ["Un conseil bien-être du jour", "Les coulisses de ton cabinet", "Un livre qui t'a marquée"],
-    dashboard_tip: "Partage un conseil bien-être court en story, ça installe ta crédibilité naturellement.",
+    accroche_example: "J'ai géré la com' de 50 marques. La mienne était la pire. Voilà ce que j'ai changé.",
+    story_ideas: ["Un outil que tu recommandes", "Les coulisses d'un brief client", "Un conseil com' rapide"],
+    dashboard_tip: "Partage un conseil com' rapide en story, ça montre ton expertise sans effort.",
     coaching_client_word: "clientes",
   },
   formatrice: {
@@ -194,6 +264,28 @@ export const ACTIVITY_EXAMPLES: Record<ActivityType, ActivityProfile> = {
     story_ideas: ["Un extrait de ta formation", "Un retour d'apprenant·e", "Un outil que tu recommandes"],
     dashboard_tip: "Partage un extrait de ta formation en story pour donner un avant-goût.",
     coaching_client_word: "apprenant·es",
+  },
+  autre: {
+    label: "Solopreneuse",
+    persona_example: {
+      prenom: "Léa",
+      age: "28-45 ans",
+      metier: "Solopreneuse créative et engagée",
+      frustration: "Elle est douée dans son métier mais personne ne le sait. Sa com' passe toujours après.",
+      desire: "Être visible sans se trahir et remplir son agenda",
+      phrase: "Je sais que ma com' est importante. Je sais juste pas par où commencer.",
+    },
+    offre_example: { name: "Mon offre signature", price: "À définir", description: "Ton service ou produit phare" },
+    bio_example: "[Ta punchline ici]\n[Ce que tu fais + pour qui]\n[Ta preuve ou ton twist]\n↓ [Ton CTA]",
+    post_examples: [
+      "Ce qui m'a poussée à me lancer (et ce que j'aurais aimé savoir)",
+      "La question que mes client·es me posent le plus souvent",
+      "3 choses que j'ai arrêté de faire dans ma com'",
+    ],
+    accroche_example: "J'ai mis longtemps à oser communiquer sur mon projet. Voilà ce qui a changé.",
+    story_ideas: ["Montre les coulisses de ta journée", "Partage un témoignage client", "Un outil que tu adores"],
+    dashboard_tip: "Commence par poser ton branding, c'est la base de tout le reste.",
+    coaching_client_word: "client·es",
   },
   default: {
     label: "Solopreneuse",
@@ -220,18 +312,36 @@ export const ACTIVITY_EXAMPLES: Record<ActivityType, ActivityProfile> = {
 };
 
 /**
- * Detect activity type from a free-text activity description.
+ * Detect activity type from a free-text activity description or stored type key.
  */
 export function detectActivityType(activity: string | null | undefined): ActivityType {
   if (!activity) return "default";
   const lower = activity.toLowerCase();
-  if (lower.includes("photo")) return "photographe";
-  if (lower.includes("graph") || lower.includes("design") || lower.includes("illustr")) return "graphiste";
-  if ((lower.includes("coach") || lower.includes("prépar")) && (lower.includes("sport") || lower.includes("fitness") || lower.includes("yoga") || lower.includes("pilates"))) return "coach_sportive";
-  if (lower.includes("coach")) return "coach";
-  if (lower.includes("thérap") || lower.includes("naturo") || lower.includes("sophro") || lower.includes("bien-être") || lower.includes("hypno") || lower.includes("ostéo") || lower.includes("kiné")) return "therapeute";
+
+  // Direct key match first
+  if (lower in ACTIVITY_EXAMPLES) return lower as ActivityType;
+
+  // Legacy key mapping
+  if (lower === "photo_video" || lower === "photographe") return "art_design";
+  if (lower === "graphiste" || lower === "design") return "art_design";
+  if (lower === "coach_therapist" || lower === "therapeute") return "coach";
+  if (lower === "artisan") return "artisane";
+  if (lower === "trainer") return "formatrice";
+  if (lower === "sport_coach") return "coach_sportive";
+  if (lower === "other") return "autre";
+
+  // Free text detection
+  if (lower.includes("photo")) return "art_design";
+  if (lower.includes("graph") || lower.includes("design") || lower.includes("illustr")) return "art_design";
+  if (lower.includes("mode") || lower.includes("stylis") || lower.includes("vêtement") || lower.includes("textile")) return "mode_textile";
+  if (lower.includes("déco") || lower.includes("intérieur") || lower.includes("meuble") || lower.includes("scéno")) return "deco_interieur";
+  if (lower.includes("cosm") || lower.includes("beauté") || lower.includes("soins") || lower.includes("coiff") || lower.includes("esthéti")) return "beaute_cosmetiques";
+  if (lower.includes("yoga") || lower.includes("naturo") || lower.includes("sophro") || lower.includes("bien-être") || lower.includes("hypno") || lower.includes("ostéo") || lower.includes("kiné")) return "bien_etre";
+  if ((lower.includes("coach") || lower.includes("prépar")) && (lower.includes("sport") || lower.includes("fitness") || lower.includes("pilates"))) return "coach_sportive";
+  if (lower.includes("coach") || lower.includes("thérap")) return "coach";
+  if (lower.includes("consult") || lower.includes("freelance") || lower.includes("social media") || lower.includes("rédact")) return "consultante";
   if (lower.includes("form") || lower.includes("enseign")) return "formatrice";
-  if (lower.includes("bijou") || lower.includes("céram") || lower.includes("artisan") || lower.includes("créat") || lower.includes("coutur") || lower.includes("textile") || lower.includes("poterie") || lower.includes("bougie")) return "artisane";
+  if (lower.includes("bijou") || lower.includes("céram") || lower.includes("artisan") || lower.includes("créat") || lower.includes("coutur") || lower.includes("poterie") || lower.includes("bougie") || lower.includes("maroquin")) return "artisane";
   return "default";
 }
 

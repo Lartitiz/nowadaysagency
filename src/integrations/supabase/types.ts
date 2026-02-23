@@ -3619,6 +3619,7 @@ export type Database = {
       profiles: {
         Row: {
           activite: string
+          activity_detail: string | null
           bio_cta_text: string | null
           bio_cta_type: string | null
           bio_generator_answers: Json | null
@@ -3678,6 +3679,7 @@ export type Database = {
         }
         Insert: {
           activite?: string
+          activity_detail?: string | null
           bio_cta_text?: string | null
           bio_cta_type?: string | null
           bio_generator_answers?: Json | null
@@ -3737,6 +3739,7 @@ export type Database = {
         }
         Update: {
           activite?: string
+          activity_detail?: string | null
           bio_cta_text?: string | null
           bio_cta_type?: string | null
           bio_generator_answers?: Json | null
