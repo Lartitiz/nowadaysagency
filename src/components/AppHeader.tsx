@@ -24,7 +24,7 @@ export default function AppHeader() {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { plan, usage, remainingTotal } = useUserPlan();
+  const { plan, usage } = useUserPlan();
 
   const isActive = (item: typeof NAV_ITEMS[0]) =>
     item.matchExact ? location.pathname === item.to : location.pathname.startsWith(item.to);
@@ -34,24 +34,18 @@ export default function AppHeader() {
   const totalLimit = usage.total?.limit ?? 100;
   const totalPercent = totalLimit > 0 ? Math.round((totalUsed / totalLimit) * 100) : 0;
   const firstName = user?.user_metadata?.first_name || user?.email?.split("@")[0] || "Toi";
+  const initial = firstName.charAt(0).toUpperCase();
 
   return (
     <>
       {/* ─── Desktop header ─── */}
       <header className="sticky top-0 z-40 border-b border-border bg-card hidden lg:block">
         <div className="mx-auto flex h-14 max-w-[1100px] items-center justify-between px-6">
-          {/* Logo L + dropdown */}
-          <div className="flex items-center gap-4 shrink-0">
-            <LogoMenu
-              firstName={firstName}
-              planLabel={planLabel}
-              totalUsed={totalUsed}
-              totalLimit={totalLimit}
-              totalPercent={totalPercent}
-              signOut={signOut}
-              navigate={navigate}
-            />
-          </div>
+          {/* Logo / app name */}
+          <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
+            <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
+            <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-md">beta</span>
+          </Link>
 
           {/* Desktop nav — 5 items */}
           <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1">
@@ -71,26 +65,43 @@ export default function AppHeader() {
             ))}
           </nav>
 
-          {/* Right side */}
+          {/* Right side: bell + avatar dropdown */}
           <div className="flex items-center gap-2 shrink-0">
             <NotificationBell />
+            <AvatarMenu
+              initial={initial}
+              firstName={firstName}
+              planLabel={planLabel}
+              totalUsed={totalUsed}
+              totalLimit={totalLimit}
+              totalPercent={totalPercent}
+              signOut={signOut}
+              navigate={navigate}
+            />
           </div>
         </div>
       </header>
 
-      {/* ─── Mobile top bar (logo + bell) ─── */}
+      {/* ─── Mobile top bar ─── */}
       <header className="sticky top-0 z-40 border-b border-border bg-card lg:hidden">
         <div className="flex h-12 items-center justify-between px-4">
-          <LogoMenu
-            firstName={firstName}
-            planLabel={planLabel}
-            totalUsed={totalUsed}
-            totalLimit={totalLimit}
-            totalPercent={totalPercent}
-            signOut={signOut}
-            navigate={navigate}
-          />
-          <NotificationBell />
+          <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
+            <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
+            <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <AvatarMenu
+              initial={initial}
+              firstName={firstName}
+              planLabel={planLabel}
+              totalUsed={totalUsed}
+              totalLimit={totalLimit}
+              totalPercent={totalPercent}
+              signOut={signOut}
+              navigate={navigate}
+            />
+          </div>
         </div>
       </header>
 
@@ -118,8 +129,9 @@ export default function AppHeader() {
   );
 }
 
-/* ─── Logo "L" dropdown menu ─── */
-interface LogoMenuProps {
+/* ─── Avatar dropdown menu (right side) ─── */
+interface AvatarMenuProps {
+  initial: string;
   firstName: string;
   planLabel: string;
   totalUsed: number;
@@ -129,22 +141,22 @@ interface LogoMenuProps {
   navigate: (path: string) => void;
 }
 
-function LogoMenu({ firstName, planLabel, totalUsed, totalLimit, totalPercent, signOut, navigate }: LogoMenuProps) {
+function AvatarMenu({ initial, firstName, planLabel, totalUsed, totalLimit, totalPercent, signOut, navigate }: AvatarMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 shrink-0 focus:outline-none group">
-          <span className="font-display text-xl font-bold text-primary group-hover:opacity-80 transition-opacity">L</span>
-          <span className="font-display text-sm font-bold text-foreground hidden sm:inline">L'Assistant Com'</span>
-          <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-md hidden sm:inline">beta</span>
+        <button
+          className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-primary-foreground text-sm font-bold focus:outline-none hover:opacity-90 transition-opacity shrink-0"
+          aria-label="Menu utilisateur"
+        >
+          {initial}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-72 bg-card border border-border shadow-lg z-50">
+      <DropdownMenuContent align="end" className="w-72 bg-card border border-border shadow-lg z-50">
         {/* User info */}
         <div className="px-3 py-3">
           <p className="text-sm font-semibold text-foreground">Salut {firstName} 👋</p>
           <p className="text-xs text-muted-foreground mt-0.5">Plan : {planLabel}</p>
-          {/* Credits mini bar */}
           <button
             onClick={() => navigate("/abonnement")}
             className="w-full mt-2 group/credits"
