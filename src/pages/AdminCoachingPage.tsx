@@ -49,6 +49,7 @@ interface ProgramWithProfile {
   client_name?: string;
   client_email?: string;
   client_activity?: string;
+  dashboard_message?: string;
 }
 
 interface SessionData {
@@ -438,6 +439,17 @@ function ProgramDetailView({
             </div>
             <InlineField label="WhatsApp" value={program.whatsapp_link || ""} onSave={v => updateProgram("whatsapp_link", v)} saved={savedField === "whatsapp_link"} />
             <InlineField label="Calendly" value={program.calendly_link || ""} onSave={v => updateProgram("calendly_link", v)} saved={savedField === "calendly_link"} />
+            
+            {/* Dashboard message for client */}
+            <div className="mt-3 pt-3 border-t border-border">
+              <Label className="text-xs text-muted-foreground mb-1 block">📝 Message dashboard (visible par la cliente)</Label>
+              <DashboardMessageEditor
+                value={(program as any).dashboard_message || ""}
+                onSave={async (msg: string) => {
+                  await updateProgram("dashboard_message", msg);
+                }}
+              />
+            </div>
           </div>
         </section>
 
@@ -1101,6 +1113,43 @@ function VoiceTextarea({ value, onChange, placeholder }: { value: string; onChan
     <div className="relative">
       <Textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="min-h-[80px] text-sm pr-10" />
       <button type="button" onClick={toggle} className={`absolute right-2 bottom-2 p-1.5 rounded-full transition-all ${isListening ? "bg-destructive text-destructive-foreground animate-pulse" : "bg-muted text-muted-foreground hover:bg-secondary"}`}>🎤</button>
+    </div>
+  );
+}
+
+/* ── Dashboard Message Editor ── */
+function DashboardMessageEditor({ value, onSave }: { value: string; onSave: (msg: string) => Promise<void> }) {
+  const [msg, setMsg] = useState(value);
+  const [saving, setSaving] = useState(false);
+  const { isListening, toggle } = useSpeechRecognition(
+    (transcript) => setMsg(prev => prev ? prev + " " + transcript : transcript),
+  );
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave(msg);
+    setSaving(false);
+    toast.success("Message dashboard mis à jour ✨");
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <Textarea
+          value={msg}
+          onChange={e => setMsg(e.target.value)}
+          placeholder="Bienvenue dans Now Pilot ! J'ai hâte de bosser ensemble 🌸"
+          className="min-h-[60px] text-sm pr-10"
+        />
+        <button type="button" onClick={toggle} className={`absolute right-2 bottom-2 p-1.5 rounded-full transition-all ${isListening ? "bg-destructive text-destructive-foreground animate-pulse" : "bg-muted text-muted-foreground hover:bg-secondary"}`}>🎤</button>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="outline" className="rounded-full text-xs gap-1" onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+          💾 Sauvegarder
+        </Button>
+        <span className="text-[10px] text-muted-foreground">Ce message s'affiche sur le dashboard de ta cliente.</span>
+      </div>
     </div>
   );
 }

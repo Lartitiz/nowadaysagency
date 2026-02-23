@@ -738,6 +738,7 @@ export type Database = {
           created_at: string
           current_month: number
           current_phase: string
+          dashboard_message: string | null
           duration_months: number | null
           end_date: string | null
           formula: string | null
@@ -755,6 +756,7 @@ export type Database = {
           created_at?: string
           current_month?: number
           current_phase?: string
+          dashboard_message?: string | null
           duration_months?: number | null
           end_date?: string | null
           formula?: string | null
@@ -772,6 +774,7 @@ export type Database = {
           created_at?: string
           current_month?: number
           current_phase?: string
+          dashboard_message?: string | null
           duration_months?: number | null
           end_date?: string | null
           formula?: string | null
