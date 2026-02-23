@@ -972,6 +972,42 @@ export type Database = {
         }
         Relationships: []
       }
+      demo_profiles: {
+        Row: {
+          admin_user_id: string
+          created_at: string
+          demo_activity: string
+          demo_instagram: string | null
+          demo_name: string
+          demo_problem: string | null
+          demo_website: string | null
+          generated_data: Json | null
+          id: string
+        }
+        Insert: {
+          admin_user_id: string
+          created_at?: string
+          demo_activity: string
+          demo_instagram?: string | null
+          demo_name: string
+          demo_problem?: string | null
+          demo_website?: string | null
+          generated_data?: Json | null
+          id?: string
+        }
+        Update: {
+          admin_user_id?: string
+          created_at?: string
+          demo_activity?: string
+          demo_instagram?: string | null
+          demo_name?: string
+          demo_problem?: string | null
+          demo_website?: string | null
+          generated_data?: Json | null
+          id?: string
+        }
+        Relationships: []
+      }
       engagement_checklist_logs: {
         Row: {
           created_at: string | null

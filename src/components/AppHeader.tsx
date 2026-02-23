@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut } from "lucide-react";
+import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film } from "lucide-react";
+import DemoFormDialog from "@/components/demo/DemoFormDialog";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { Progress } from "@/components/ui/progress";
 import NotificationBell from "@/components/NotificationBell";
@@ -25,6 +27,8 @@ export default function AppHeader() {
   const location = useLocation();
   const navigate = useNavigate();
   const { plan, usage } = useUserPlan();
+  const [demoOpen, setDemoOpen] = useState(false);
+  const isAdmin = user?.email === "laetitia@nowadaysagency.com";
 
   const isActive = (item: typeof NAV_ITEMS[0]) =>
     item.matchExact ? location.pathname === item.to : location.pathname.startsWith(item.to);
@@ -77,6 +81,8 @@ export default function AppHeader() {
               totalPercent={totalPercent}
               signOut={signOut}
               navigate={navigate}
+              isAdmin={isAdmin}
+              onDemoClick={() => setDemoOpen(true)}
             />
           </div>
         </div>
@@ -100,6 +106,33 @@ export default function AppHeader() {
               totalPercent={totalPercent}
               signOut={signOut}
               navigate={navigate}
+              isAdmin={isAdmin}
+              onDemoClick={() => setDemoOpen(true)}
+            />
+          </div>
+        </div>
+      </header>
+
+      {/* ─── Mobile top bar ─── */}
+      <header className="sticky top-0 z-40 border-b border-border bg-card lg:hidden">
+        <div className="flex h-12 items-center justify-between px-4">
+          <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
+            <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
+            <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <AvatarMenu
+              initial={initial}
+              firstName={firstName}
+              planLabel={planLabel}
+              totalUsed={totalUsed}
+              totalLimit={totalLimit}
+              totalPercent={totalPercent}
+              signOut={signOut}
+              navigate={navigate}
+              isAdmin={isAdmin}
+              onDemoClick={() => setDemoOpen(true)}
             />
           </div>
         </div>
@@ -125,6 +158,9 @@ export default function AppHeader() {
           })}
         </div>
       </nav>
+
+      {/* Demo dialog (admin only) */}
+      {isAdmin && <DemoFormDialog open={demoOpen} onOpenChange={setDemoOpen} />}
     </>
   );
 }
@@ -139,9 +175,11 @@ interface AvatarMenuProps {
   totalPercent: number;
   signOut: () => void;
   navigate: (path: string) => void;
+  isAdmin: boolean;
+  onDemoClick: () => void;
 }
 
-function AvatarMenu({ initial, firstName, planLabel, totalUsed, totalLimit, totalPercent, signOut, navigate }: AvatarMenuProps) {
+function AvatarMenu({ initial, firstName, planLabel, totalUsed, totalLimit, totalPercent, signOut, navigate, isAdmin, onDemoClick }: AvatarMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -182,6 +220,14 @@ function AvatarMenu({ initial, firstName, planLabel, totalUsed, totalLimit, tota
         <DropdownMenuItem onClick={() => navigate("/parametres")} className="gap-2 cursor-pointer">
           <Settings className="h-4 w-4" /> Paramètres
         </DropdownMenuItem>
+        {isAdmin && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onDemoClick} className="gap-2 cursor-pointer">
+              <Film className="h-4 w-4" /> 🎬 Mode démo
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => window.open("mailto:hello@nowadays.com", "_blank")} className="gap-2 cursor-pointer">
           <HelpCircle className="h-4 w-4" /> Aide & support

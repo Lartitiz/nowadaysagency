@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { DemoProvider } from "@/contexts/DemoContext";
+import DemoBanner from "@/components/demo/DemoBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -99,6 +101,8 @@ const App = () => (
       <BrowserRouter>
         <ErrorBoundary>
         <AuthProvider>
+          <DemoProvider>
+          <DemoBanner />
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
@@ -204,6 +208,7 @@ const App = () => (
             <Route path="/instagram/atelier" element={<Navigate to="/atelier?canal=instagram" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+        </DemoProvider>
         </AuthProvider>
         </ErrorBoundary>
       </BrowserRouter>
