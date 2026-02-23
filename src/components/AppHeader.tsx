@@ -22,12 +22,11 @@ const BASE_NAV_ITEMS = [
 ];
 
 const ACCOMPAGNEMENT_ITEM = { to: "/accompagnement", label: "Accompagnement", icon: HeartHandshake, matchExact: false };
-const CONTACTS_ITEM = { to: "/contacts", label: "Contacts", icon: Users, matchExact: false };
 
 function getDesktopNav(isPilot: boolean) {
   return isPilot
-    ? [...BASE_NAV_ITEMS, ACCOMPAGNEMENT_ITEM, CONTACTS_ITEM]
-    : [...BASE_NAV_ITEMS, CONTACTS_ITEM];
+    ? [...BASE_NAV_ITEMS, ACCOMPAGNEMENT_ITEM]
+    : [...BASE_NAV_ITEMS];
 }
 
 function getMobileNav(isPilot: boolean) {
@@ -45,7 +44,6 @@ function getMobileNav(isPilot: boolean) {
     { to: "/instagram/creer", label: "Créer", icon: Sparkles, matchExact: false },
     { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
     { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
-    { to: "/contacts", label: "Contacts", icon: Users, matchExact: false },
   ];
 }
 
@@ -83,7 +81,7 @@ export default function AppHeader() {
   const desktopNav = getDesktopNav(isPilot);
   const mobileNav = getMobileNav(isPilot);
 
-  const isActive = (item: typeof CONTACTS_ITEM) =>
+  const isActive = (item: { to: string; matchExact: boolean }) =>
     item.matchExact ? location.pathname === item.to : location.pathname.startsWith(item.to);
 
   const planLabel = plan === "now_pilot" ? "🤝 Now Pilot" : plan === "studio" ? "Now Studio" : plan === "outil" ? "Outil (39€)" : "Gratuit";

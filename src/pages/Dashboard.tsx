@@ -57,7 +57,7 @@ function getQuickActions(data: DashboardData): QuickAction[] {
   actions.push({ label: "Créer un post", emoji: "✨", route: "/instagram/creer", priority: 1 });
   actions.push({ label: "Routine engagement", emoji: "💬", route: "/instagram/routine", priority: 2 });
   actions.push({ label: "Voir mon calendrier", emoji: "📅", route: "/calendrier", priority: 3 });
-  if (data.prospectCount > 0) actions.push({ label: "Relancer un prospect", emoji: "📩", route: "/contacts", priority: 4 });
+  // "Relancer un prospect" removed
   return actions.sort((a, b) => a.priority - b.priority).slice(0, 4);
 }
 
