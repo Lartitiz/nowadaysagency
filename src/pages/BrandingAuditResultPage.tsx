@@ -5,8 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Loader2, ChevronDown, ChevronUp, ArrowRight, RefreshCw } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, ArrowRight, RefreshCw, ExternalLink } from "lucide-react";
 
 /* ─── Types ─── */
 interface PillarDetail {
@@ -27,16 +26,68 @@ interface AuditResult {
   extraction_branding?: Record<string, any>;
 }
 
-const PILLAR_META: Record<string, { emoji: string; label: string }> = {
-  positionnement: { emoji: "🎯", label: "Positionnement" },
-  cible: { emoji: "👤", label: "Cible" },
-  ton_voix: { emoji: "🗣️", label: "Ton / Voix" },
-  offres: { emoji: "🎁", label: "Offres" },
-  storytelling: { emoji: "📖", label: "Storytelling" },
-  identite_visuelle: { emoji: "🎨", label: "Identité visuelle" },
-  coherence_cross_canal: { emoji: "🔗", label: "Cohérence canaux" },
-  contenu: { emoji: "📝", label: "Contenu" },
+/* ─── Pillar metadata + action mapping ─── */
+const PILLAR_META: Record<string, { emoji: string; label: string; route: string; actionLabel: string }> = {
+  positionnement: { emoji: "🎯", label: "Positionnement", route: "/branding", actionLabel: "Clarifier mon positionnement" },
+  cible: { emoji: "👤", label: "Cible", route: "/branding", actionLabel: "Retravailler ma cible" },
+  ton_voix: { emoji: "🗣️", label: "Ton / Voix", route: "/branding", actionLabel: "Définir mon ton" },
+  offres: { emoji: "🎁", label: "Offres", route: "/branding", actionLabel: "Reformuler mes offres" },
+  storytelling: { emoji: "📖", label: "Storytelling", route: "/branding", actionLabel: "Écrire mon histoire" },
+  identite_visuelle: { emoji: "🎨", label: "Identité visuelle", route: "/branding", actionLabel: "Travailler mon identité" },
+  coherence_cross_canal: { emoji: "🔗", label: "Cohérence canaux", route: "/branding", actionLabel: "Unifier ma communication" },
+  contenu: { emoji: "📝", label: "Contenu", route: "/instagram/creer", actionLabel: "Créer du contenu" },
 };
+
+/* ─── Fixed route mapping for plan d'action ─── */
+const MODULE_ROUTES: Record<string, string> = {
+  persona: "/branding",
+  cible: "/branding",
+  branding: "/branding",
+  positionnement: "/branding",
+  offers: "/branding",
+  offres: "/branding",
+  bio: "/instagram",
+  bio_instagram: "/instagram",
+  story: "/branding",
+  storytelling: "/branding",
+  histoire: "/branding",
+  tone: "/branding",
+  ton: "/branding",
+  voix: "/branding",
+  editorial: "/branding",
+  ligne_editoriale: "/branding",
+  content: "/instagram/creer",
+  contenu: "/instagram/creer",
+  instagram: "/instagram",
+  highlights: "/instagram",
+  linkedin: "/linkedin",
+  calendar: "/calendrier",
+  calendrier: "/calendrier",
+  contacts: "/contacts",
+  engagement: "/contacts",
+  seo: "https://referencement-seo.lovable.app/",
+};
+
+function getRouteForAction(action: { module?: string; action?: string }): string {
+  const mod = action.module?.toLowerCase()?.trim();
+  if (mod && MODULE_ROUTES[mod]) return MODULE_ROUTES[mod];
+
+  // Fallback: keyword search in action title
+  const title = (action.action || "").toLowerCase();
+  if (title.includes("cible") || title.includes("persona")) return "/branding";
+  if (title.includes("bio")) return "/instagram";
+  if (title.includes("offre")) return "/branding";
+  if (title.includes("story") || title.includes("histoire")) return "/branding";
+  if (title.includes("ton") || title.includes("voix")) return "/branding";
+  if (title.includes("highlight")) return "/instagram";
+  if (title.includes("ligne") || title.includes("éditorial") || title.includes("editorial")) return "/branding";
+  if (title.includes("contenu") || title.includes("content")) return "/instagram/creer";
+  if (title.includes("calendrier") || title.includes("calendar")) return "/calendrier";
+  if (title.includes("seo")) return "https://referencement-seo.lovable.app/";
+  if (title.includes("engagement")) return "/contacts";
+
+  return "/branding"; // Fallback ultime
+}
 
 const STATUT_COLORS: Record<string, string> = {
   absent: "text-red-500",
@@ -86,6 +137,14 @@ export default function BrandingAuditResultPage() {
       setLoading(false);
     })();
   }, [user, id]);
+
+  const handleNavigate = (route: string) => {
+    if (route.startsWith("http")) {
+      window.open(route, "_blank", "noopener,noreferrer");
+    } else {
+      navigate(route);
+    }
+  };
 
   if (loading) {
     return (
@@ -164,7 +223,7 @@ export default function BrandingAuditResultPage() {
               <h3 className="font-display font-bold text-sm mb-3">Détail par pilier</h3>
               <div className="space-y-2">
                 {Object.entries(result.audit_detail).map(([key, pillar]) => {
-                  const meta = PILLAR_META[key] || { emoji: "📋", label: key };
+                  const meta = PILLAR_META[key] || { emoji: "📋", label: key, route: "/branding", actionLabel: "Travailler ce pilier" };
                   const isExpanded = expandedPillar === key;
                   return (
                     <div key={key} className="rounded-xl border border-border bg-card overflow-hidden">
@@ -180,7 +239,7 @@ export default function BrandingAuditResultPage() {
                         {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                       </button>
                       {isExpanded && (
-                        <div className="px-4 pb-4 space-y-2 border-t border-border pt-3">
+                        <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
                           {pillar.ce_qui_existe && (
                             <div><p className="text-[10px] font-semibold text-emerald-600 uppercase">Ce qui existe</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_existe}</p></div>
                           )}
@@ -190,6 +249,15 @@ export default function BrandingAuditResultPage() {
                           {pillar.recommandation && (
                             <div><p className="text-[10px] font-semibold text-primary uppercase">Recommandation</p><p className="text-xs text-muted-foreground">{pillar.recommandation}</p></div>
                           )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="w-full mt-2 gap-2 justify-center"
+                            onClick={() => handleNavigate(meta.route)}
+                          >
+                            {meta.emoji} {meta.actionLabel}
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -204,16 +272,28 @@ export default function BrandingAuditResultPage() {
             <div>
               <h3 className="font-display font-bold text-sm mb-3">Plan d'action recommandé</h3>
               <div className="space-y-2">
-                {result.plan_action_recommande.map((a, i) => (
-                  <button key={i} onClick={() => navigate(a.lien)} className="w-full rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors p-4 text-left flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">{a.priorite}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{a.action}</p>
-                      <p className="text-[10px] text-muted-foreground">{a.temps_estime}</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                  </button>
-                ))}
+                {result.plan_action_recommande.map((a, i) => {
+                  const route = getRouteForAction(a);
+                  const isExternal = route.startsWith("http");
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => handleNavigate(route)}
+                      className="w-full rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors p-4 text-left flex items-center gap-3"
+                    >
+                      <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">{a.priorite}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{a.action}</p>
+                        <p className="text-[10px] text-muted-foreground">{a.temps_estime}</p>
+                      </div>
+                      {isExternal ? (
+                        <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
+                      ) : (
+                        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
