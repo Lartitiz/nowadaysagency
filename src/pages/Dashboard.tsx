@@ -61,19 +61,6 @@ function getWelcomeMessage(): string {
   const idx = new Date().getDate() % WELCOME_MESSAGES.length;
   return WELCOME_MESSAGES[idx];
 }
-
-/* ── Channel completion helpers ── */
-function getIgCompletion(d: DashboardData): number {
-  let score = 0, total = 0;
-  total += 1; if (d.igAuditScore != null) score += 1;
-  total += 1; if (d.calendarPostCount > 0) score += 1;
-  return total > 0 ? Math.round((score / total) * 100) : 0;
-}
-
-function getLiCompletion(d: DashboardData): number {
-  return d.liAuditScore != null ? 50 : 0;
-}
-
 /* ── Main component ── */
 export default function Dashboard() {
   const { user } = useAuth();
@@ -177,8 +164,6 @@ export default function Dashboard() {
     );
   }
 
-  const igCompletion = getIgCompletion(dashData);
-  const liCompletion = getLiCompletion(dashData);
   const brandingDone = dashData.brandingCompletion.total >= 100;
   const comingSoonChannels = ALL_CHANNELS.filter(c => c.comingSoon && channels.includes(c.id));
 
@@ -191,7 +176,7 @@ export default function Dashboard() {
   if (dashData.weekPostsPublished === 0 && dashData.weekPostsTotal > 0) {
     dynamicTasks.push({ emoji: "✏️", label: "Publier mon contenu de la semaine", sub: `${dashData.weekPostsPublished}/${dashData.weekPostsTotal} publiés`, route: "/calendrier", priority: true });
   }
-  if (hasLinkedin && liCompletion < 50) {
+  if (hasLinkedin && dashData.liAuditScore == null) {
     dynamicTasks.push({ emoji: "💼", label: "Optimiser mon profil LinkedIn", route: "/linkedin/profil" });
   }
   if (hasSeo) {
@@ -306,38 +291,31 @@ export default function Dashboard() {
             {!channelsLoading && hasInstagram && (
               <SpaceCard
                 emoji="📱" title="Instagram"
-                completion={igCompletion}
-                score={dashData.igAuditScore}
-                weekLabel={`${dashData.weekPostsPublished}/${dashData.weekPostsTotal} publiés`}
+                desc="Audite ton profil, génère des contenus, optimise ta bio : tout pour qu'Instagram bosse pour toi."
                 onClick={() => navigate("/instagram")}
               />
             )}
             {!channelsLoading && hasWebsite && (
-              <SpaceCard emoji="🌐" title="Site Web" completion={0} onClick={() => navigate("/site")} />
+              <SpaceCard
+                emoji="🌐" title="Site Web"
+                desc="Analyse ton site, améliore ton SEO, retravaille tes pages pour que Google te trouve."
+                onClick={() => navigate("/site")}
+              />
             )}
             {!channelsLoading && hasLinkedin && (
               <SpaceCard
                 emoji="💼" title="LinkedIn"
-                completion={liCompletion}
-                score={dashData.liAuditScore}
+                desc="Optimise ton profil, crée des posts pro, développe ton réseau : LinkedIn c'est pas ennuyeux, promis."
                 onClick={() => navigate("/linkedin")}
               />
             )}
             {!channelsLoading && hasSeo && (
-              <div
+              <SpaceCard
+                emoji="🔍" title="SEO"
+                desc="Trouve tes mots-clés, optimise tes pages, améliore ta visibilité sans pub."
                 onClick={() => window.open("https://referencement-seo.lovable.app/", "_blank")}
-                className="rounded-2xl border border-border bg-card p-4 cursor-pointer
-                  hover:shadow-card hover:-translate-y-px transition-all duration-200 opacity-[0.88]"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🔍</span>
-                    <h3 className="font-display text-sm font-bold text-foreground">SEO</h3>
-                    <span className="text-[10px] font-mono-ui text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">Externe</span>
-                  </div>
-                  <ArrowRight className="h-3.5 w-3.5 text-primary" />
-                </div>
-              </div>
+                external
+              />
             )}
           </div>
         </div>
@@ -466,43 +444,25 @@ function TaskChip({ emoji, label, sub, priority, onClick }: {
   );
 }
 
-/* ── Space Card (compact tracking) ── */
-function SpaceCard({ emoji, title, completion, score, weekLabel, onClick }: {
-  emoji: string; title: string; completion: number; score?: number | null; weekLabel?: string; onClick: () => void;
+/* ── Space Card (with description, no progress bar) ── */
+function SpaceCard({ emoji, title, desc, onClick, external }: {
+  emoji: string; title: string; desc: string; onClick: () => void; external?: boolean;
 }) {
-  const notStarted = completion === 0 && score == null;
   return (
     <div
       onClick={onClick}
-      className={`rounded-2xl border border-border bg-card p-4 cursor-pointer
-        hover:shadow-card hover:-translate-y-px transition-all duration-200
-        ${notStarted ? "opacity-80" : ""}`}
+      className="rounded-2xl border border-border bg-card p-4 cursor-pointer
+        hover:shadow-card hover:-translate-y-px transition-all duration-200"
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
           <span className="text-lg">{emoji}</span>
           <h3 className="font-display text-sm font-bold text-foreground">{title}</h3>
+          {external && <span className="text-[10px] font-mono-ui text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">Externe</span>}
         </div>
-        <div className="flex items-center gap-2">
-          {notStarted ? (
-            <span className="text-[10px] font-mono-ui text-muted-foreground">⏳ Pas commencé</span>
-          ) : completion >= 100 ? (
-            <span className="text-[10px] font-mono-ui text-foreground bg-secondary px-1.5 py-0.5 rounded-md">✅ Configuré</span>
-          ) : (
-            <span className="text-[10px] font-mono-ui text-muted-foreground">{completion}%</span>
-          )}
-          <ArrowRight className="h-3.5 w-3.5 text-primary" />
-        </div>
+        <ArrowRight className="h-3.5 w-3.5 text-primary" />
       </div>
-      {!notStarted && (
-        <>
-          <Progress value={completion} className="h-1.5 mb-2" />
-          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground font-mono-ui">
-            {score != null && <span>Audit : {score}/100</span>}
-            {weekLabel && <span>Cette semaine : {weekLabel}</span>}
-          </div>
-        </>
-      )}
+      <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
     </div>
   );
 }
