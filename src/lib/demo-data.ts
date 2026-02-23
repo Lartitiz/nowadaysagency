@@ -60,6 +60,48 @@ export const DEMO_DATA = {
       "J'aimerais bien avoir de belles photos mais je suis tellement pas à l'aise devant un objectif...",
   },
 
+  // ── PERSONA PORTRAIT (fiche récap complète) ──
+  persona_portrait: {
+    prenom: "Marion",
+    phrase_signature: "J'aimerais bien avoir de belles photos mais je suis tellement pas à l'aise devant un objectif...",
+    qui_elle_est: {
+      age: "30-45 ans",
+      metier: "Entrepreneure (coaching / services / artisanat)",
+      situation: "Activité lancée depuis 1-3 ans, en croissance",
+      ca: "35-80k€",
+      temps_com: "30 min/jour max",
+    },
+    frustrations: [
+      "Ne se trouve pas photogénique",
+      "Photos corporate sans âme",
+      "Repousse sa séance depuis des mois",
+      "Se sent illégitime à se montrer",
+    ],
+    objectifs: [
+      "Des images qui lui ressemblent vraiment",
+      "Se sentir confiante et visible",
+      "Du contenu pro pour ses réseaux",
+      "Oser se montrer sur Instagram",
+    ],
+    blocages: [
+      "Peur du regard des autres",
+      "Ne sait pas poser",
+      "Budget limité pour la com'",
+    ],
+    ses_mots: [
+      "Je suis pas photogénique",
+      "Je repousse toujours...",
+      "J'ai besoin d'un coup de pouce",
+      "Je veux des photos qui me ressemblent",
+    ],
+    comment_parler: {
+      ton: "Chaleureux, direct, rassurant. Comme une amie qui te comprend.",
+      canal: "Instagram (stories + carrousels) et newsletter",
+      convainc: "Les avant/après, les témoignages, les coulisses humaines",
+      fuir: ["Jargon technique photo", "Ton corporate froid", "Promesses irréalistes"],
+    },
+  },
+
   // ── OFFRES ──
   offers: [
     {

@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Pencil, RefreshCw, Sparkles } from "lucide-react";
 import EditableText from "@/components/EditableText";
 import CoachingFlow from "@/components/CoachingFlow";
+import { useDemoContext } from "@/contexts/DemoContext";
+import { DEMO_DATA } from "@/lib/demo-data";
 
 interface QuiElleEst {
   age: string;
@@ -49,6 +51,7 @@ export default function PersonaRecapPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const { isDemoMode } = useDemoContext();
   const [data, setData] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [portrait, setPortrait] = useState<Portrait | null>(null);
@@ -64,6 +67,19 @@ export default function PersonaRecapPage() {
   const [coachingOpen, setCoachingOpen] = useState(false);
 
   useEffect(() => {
+    if (isDemoMode) {
+      const dp = DEMO_DATA.persona_portrait;
+      setPortrait(dp as unknown as Portrait);
+      setCustomName(dp.prenom);
+      setData({ id: "demo", portrait: dp, portrait_prenom: dp.prenom });
+      setProfile({
+        activite: DEMO_DATA.profile.activity,
+        prenom: DEMO_DATA.profile.first_name,
+        mission: DEMO_DATA.branding.mission,
+      });
+      setLoading(false);
+      return;
+    }
     if (!user) return;
     Promise.all([
       supabase.from("persona").select("*").eq("user_id", user.id).maybeSingle(),
@@ -79,12 +95,12 @@ export default function PersonaRecapPage() {
       }
       setLoading(false);
     });
-  }, [user?.id]);
+  }, [user?.id, isDemoMode]);
 
   const canGenerate = data?.step_1_frustrations && data?.step_2_transformation;
 
   const savePortraitField = async (path: string[], value: string) => {
-    if (!data || !portrait) return;
+    if (isDemoMode || !data || !portrait) return;
     const updated = JSON.parse(JSON.stringify(portrait));
     let obj = updated;
     for (let i = 0; i < path.length - 1; i++) obj = obj[path[i]];
@@ -94,7 +110,7 @@ export default function PersonaRecapPage() {
   };
 
   const savePortraitArrayItem = async (arrayKey: string, index: number, value: string) => {
-    if (!data || !portrait) return;
+    if (isDemoMode || !data || !portrait) return;
     const updated = JSON.parse(JSON.stringify(portrait));
     updated[arrayKey][index] = value;
     await supabase.from("persona").update({ portrait: updated as any }).eq("id", data.id);
@@ -102,7 +118,7 @@ export default function PersonaRecapPage() {
   };
 
   const saveFuirItem = async (index: number, value: string) => {
-    if (!data || !portrait) return;
+    if (isDemoMode || !data || !portrait) return;
     const updated = JSON.parse(JSON.stringify(portrait));
     updated.comment_parler.fuir[index] = value;
     await supabase.from("persona").update({ portrait: updated as any }).eq("id", data.id);

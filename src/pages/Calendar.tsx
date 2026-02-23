@@ -4,6 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import BrandingPrompt from "@/components/BrandingPrompt";
+import { useDemoContext } from "@/contexts/DemoContext";
+import { DEMO_DATA } from "@/lib/demo-data";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -47,6 +49,7 @@ function getGeneratorRoute(post: CalendarPost): string | null {
 export default function CalendarPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isDemoMode } = useDemoContext();
   const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
@@ -109,6 +112,27 @@ export default function CalendarPage() {
   }), [weekStart]);
 
   const fetchPosts = useCallback(async () => {
+    if (isDemoMode) {
+      // Build demo posts from DEMO_DATA.calendar_posts
+      const demoPosts: CalendarPost[] = DEMO_DATA.calendar_posts
+        .filter(p => p.planned_day)
+        .map((p, i) => ({
+          id: `demo-post-${i}`,
+          user_id: "demo",
+          date: p.planned_day,
+          theme: p.title,
+          format: p.format,
+          objectif: p.objective,
+          canal: "instagram",
+          status: i === 0 ? "published" : "idea",
+          angle: null,
+          notes: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as unknown as CalendarPost));
+      setPosts(demoPosts);
+      return;
+    }
     if (!user) return;
     let startDate: string, endDate: string;
     if (viewMode === "week") {
@@ -126,7 +150,7 @@ export default function CalendarPage() {
       .lte("date", endDate)
       .order("date");
     if (data) setPosts(data as CalendarPost[]);
-  }, [user, year, month, viewMode, weekStart]);
+  }, [user, year, month, viewMode, weekStart, isDemoMode]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
