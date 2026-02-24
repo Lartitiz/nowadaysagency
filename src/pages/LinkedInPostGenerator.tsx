@@ -12,16 +12,7 @@ import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Copy, Check, RefreshCw, CalendarDays, Loader2 } from "lucide-react";
 import BaseReminder from "@/components/BaseReminder";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
-import { LINKEDIN_TIPS } from "@/lib/linkedin-data";
-
-const TEMPLATES = [
-  { id: "storytelling", emoji: "📖", label: "Storytelling pro", desc: "Parcours, échec, leçon" },
-  { id: "etude_de_cas", emoji: "📊", label: "Étude de cas", desc: "Résultat client, avant/après" },
-  { id: "prise_de_position", emoji: "😤", label: "Prise de position", desc: "Opinion tranchée" },
-  { id: "educatif", emoji: "📚", label: "Éducatif", desc: "Framework, méthode, tuto" },
-  { id: "decryptage", emoji: "📰", label: "Décryptage actu", desc: "Tendance + angle expert" },
-  { id: "permission", emoji: "🤝", label: "Permission", desc: "Donner le droit de..." },
-];
+import { LINKEDIN_TIPS, LINKEDIN_TEMPLATES_UI, LINKEDIN_HOOK_TYPES, OBJECTIF_COLORS } from "@/lib/linkedin-data";
 
 const AUDIENCES = [
   { id: "tu", emoji: "🙋", label: 'Tutoiement ("tu")', desc: "Direct, intime, chaleureux" },
@@ -37,6 +28,7 @@ interface PostResult {
   character_count: number;
   hashtags: string[];
   template_used: string;
+  hook_type_used?: string;
   checklist: { item: string; ok: boolean }[];
 }
 
@@ -50,6 +42,7 @@ export default function LinkedInPostGenerator() {
   const [anecdote, setAnecdote] = useState("");
   const [emotion, setEmotion] = useState("");
   const [conviction, setConviction] = useState("");
+  const [hookType, setHookType] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<PostResult | null>(null);
   const [copied, setCopied] = useState(false);
@@ -67,7 +60,7 @@ export default function LinkedInPostGenerator() {
     setResult(null);
     try {
       const res = await supabase.functions.invoke("linkedin-ai", {
-        body: { action: "generate-post", template, audience, sujet, anecdote, emotion, conviction },
+        body: { action: "generate-post", template, audience, sujet, anecdote, emotion, conviction, hook_type: hookType },
       });
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
@@ -148,7 +141,7 @@ export default function LinkedInPostGenerator() {
         <div className="mb-5">
           <p className="text-sm font-medium text-foreground mb-2">Quel type de post ?</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {TEMPLATES.map((t) => (
+            {LINKEDIN_TEMPLATES_UI.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setTemplate(template === t.id ? null : t.id)}
@@ -156,11 +149,41 @@ export default function LinkedInPostGenerator() {
                   template === t.id ? "border-primary bg-secondary" : "border-border hover:border-primary/40"
                 }`}
               >
-                <span className="text-sm font-semibold block">{t.emoji} {t.label}</span>
+                <div className="flex items-start justify-between gap-1">
+                  <span className="text-sm font-semibold block">{t.emoji} {t.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full border whitespace-nowrap ${OBJECTIF_COLORS[t.objectif] || "bg-muted"}`}>
+                    {t.objectif}
+                  </span>
+                </div>
                 <span className="text-xs text-muted-foreground">{t.desc}</span>
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Hook type (optional) */}
+        <div className="mb-5">
+          <p className="text-sm font-medium text-foreground mb-1">Type d'accroche (optionnel)</p>
+          <p className="text-xs text-muted-foreground mb-2">L'accroche = les 210 premiers caractères. C'est ce qui décide si ton post sera lu ou non.</p>
+          <div className="flex flex-wrap gap-1.5">
+            {LINKEDIN_HOOK_TYPES.map((h) => (
+              <button
+                key={h.id}
+                onClick={() => setHookType(hookType === h.id ? null : h.id)}
+                className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                  hookType === h.id ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"
+                }`}
+                title={h.example}
+              >
+                {h.emoji} {h.label}
+              </button>
+            ))}
+          </div>
+          {hookType && (
+            <p className="text-xs text-muted-foreground mt-1.5 italic">
+              Ex : "{LINKEDIN_HOOK_TYPES.find(h => h.id === hookType)?.example}"
+            </p>
+          )}
         </div>
 
         {/* Subject */}
@@ -216,10 +239,21 @@ export default function LinkedInPostGenerator() {
           <div className="space-y-4 animate-fade-in">
             <div className="rounded-2xl border border-border bg-card p-6">
               <p className="whitespace-pre-line text-sm text-foreground leading-relaxed">{result.full_text}</p>
-              <div className="flex items-center gap-3 mt-4 text-xs text-muted-foreground">
-                <span>📊 {result.character_count} / 2 000 caractères</span>
-                {result.character_count <= 210 && <span>✅ Accroche dans les 210 car.</span>}
+              <div className="flex flex-wrap items-center gap-3 mt-4 text-xs text-muted-foreground">
+                <span>
+                  📊 {result.character_count} car.{" "}
+                  {result.character_count >= 1300 && result.character_count <= 1900
+                    ? "✅"
+                    : result.character_count < 800
+                    ? "⚠️ court"
+                    : "📏"}
+                </span>
                 <span>🏷️ {result.hashtags?.length || 0} hashtag{(result.hashtags?.length || 0) > 1 ? "s" : ""}</span>
+                {result.template_used && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${OBJECTIF_COLORS[LINKEDIN_TEMPLATES_UI.find(t => t.id === result.template_used)?.objectif || ""] || "bg-muted"}`}>
+                    {LINKEDIN_TEMPLATES_UI.find(t => t.id === result.template_used)?.label || result.template_used}
+                  </span>
+                )}
               </div>
             </div>
 
