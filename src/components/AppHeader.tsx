@@ -426,7 +426,12 @@ function WorkspaceSwitcher({
         {workspaces.map((ws) => (
           <DropdownMenuItem
             key={ws.id}
-            onClick={() => switchWorkspace(ws.id)}
+            onClick={() => {
+              if (ws.id !== activeWorkspace?.id) {
+                switchWorkspace(ws.id);
+                navigate("/dashboard");
+              }
+            }}
             className="gap-2 cursor-pointer"
           >
             {ws.id === activeWorkspace?.id && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}

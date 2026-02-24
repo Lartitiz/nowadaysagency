@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 
 export interface Workspace {
   id: string;
@@ -29,6 +30,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [activeRole, setActiveRole] = useState<"owner" | "manager" | "editor" | "viewer">("owner");
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Fetch workspaces
   useEffect(() => {
@@ -113,6 +115,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       if (!found) return;
       setActiveWorkspace(found);
       localStorage.setItem(LS_KEY, workspaceId);
+      // Invalider tout le cache React Query pour forcer le rechargement
+      queryClient.invalidateQueries();
 
       // Re-fetch role
       if (!user?.id) return;
@@ -125,7 +129,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
       if (roleData?.role) setActiveRole(roleData.role as any);
     },
-    [workspaces, user?.id],
+    [workspaces, user?.id, queryClient],
   );
 
   return (
