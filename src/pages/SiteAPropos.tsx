@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,8 @@ const ANGLES = [
 export default function SiteAPropos() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [data, setData] = useState<AboutData | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -44,8 +47,8 @@ export default function SiteAPropos() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("website_about").select("*").eq("user_id", user.id).maybeSingle()
-      .then(({ data: d }) => {
+    (supabase.from("website_about") as any).select("*").eq(column, value).maybeSingle()
+      .then(({ data: d }: any) => {
         if (d) {
           setData({
             ...d,
@@ -80,12 +83,12 @@ export default function SiteAPropos() {
         cta: parsed.cta,
       };
 
-      const { data: existing } = await supabase.from("website_about").select("id").eq("user_id", user.id).maybeSingle();
+      const { data: existing } = await (supabase.from("website_about") as any).select("id").eq(column, value).maybeSingle();
       if (existing) {
-        await supabase.from("website_about").update({ ...aboutData, updated_at: new Date().toISOString() } as any).eq("user_id", user.id);
+        await (supabase.from("website_about") as any).update({ ...aboutData, updated_at: new Date().toISOString() }).eq(column, value);
         setData({ ...aboutData, id: existing.id, custom_facts: data?.custom_facts || [] });
       } else {
-        const { data: inserted } = await supabase.from("website_about").insert({ user_id: user.id, ...aboutData } as any).select("id").single();
+        const { data: inserted } = await supabase.from("website_about").insert({ user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, ...aboutData } as any).select("id").single();
         setData({ ...aboutData, id: inserted?.id, custom_facts: [] });
       }
       toast({ title: "Page à propos générée !" });
@@ -123,7 +126,7 @@ export default function SiteAPropos() {
   const saveEdit = async (field: string) => {
     if (!user || !data) return;
     const update: any = { [field]: editValue, updated_at: new Date().toISOString() };
-    await supabase.from("website_about").update(update).eq("user_id", user.id);
+    await (supabase.from("website_about") as any).update(update).eq(column, value);
     setData({ ...data, [field]: editValue });
     setEditingField(null);
     toast({ title: "Sauvegardé !" });

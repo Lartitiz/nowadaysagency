@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -24,13 +25,15 @@ interface Board { id?: string; name: string; description: string; board_type: st
 export default function PinterestTableaux() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [boards, setBoards] = useState<Board[]>([]);
   const [generatingIdx, setGeneratingIdx] = useState<number | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("pinterest_boards").select("*").eq("user_id", user.id).order("sort_order").then(({ data }) => {
+    (supabase.from("pinterest_boards") as any).select("*").eq(column, value).order("sort_order").then(({ data }: any) => {
       if (data && data.length > 0) setBoards(data.map(d => ({ id: d.id, name: d.name || "", description: d.description || "", board_type: d.board_type || "autre" })));
     });
   }, [user?.id]);
@@ -62,9 +65,9 @@ export default function PinterestTableaux() {
 
   const saveAll = async () => {
     if (!user) return;
-    await supabase.from("pinterest_boards").delete().eq("user_id", user.id);
+    await (supabase.from("pinterest_boards") as any).delete().eq(column, value);
     if (boards.length > 0) {
-      await supabase.from("pinterest_boards").insert(boards.filter(b => b.name.trim()).map((b, i) => ({ user_id: user.id, name: b.name, description: b.description, board_type: b.board_type, sort_order: i })));
+      await supabase.from("pinterest_boards").insert(boards.filter(b => b.name.trim()).map((b, i) => ({ user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, name: b.name, description: b.description, board_type: b.board_type, sort_order: i })));
     }
     toast({ title: "✅ Tableaux sauvegardés !" });
   };

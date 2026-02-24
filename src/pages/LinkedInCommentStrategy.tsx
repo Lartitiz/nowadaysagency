@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,8 @@ interface CommentAccount {
 export default function LinkedInCommentStrategy() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [strategyId, setStrategyId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<CommentAccount[]>([]);
   const [newName, setNewName] = useState("");
@@ -24,9 +27,9 @@ export default function LinkedInCommentStrategy() {
   useEffect(() => {
     if (!user) return;
     supabase
-      .from("linkedin_comment_strategy")
+      .from("linkedin_comment_strategy" as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
@@ -38,7 +41,7 @@ export default function LinkedInCommentStrategy() {
 
   const save = async (newAccounts: CommentAccount[]) => {
     if (!user) return;
-    const payload = { user_id: user.id, accounts: newAccounts as any, updated_at: new Date().toISOString() };
+    const payload = { user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, accounts: newAccounts as any, updated_at: new Date().toISOString() };
     if (strategyId) {
       await supabase.from("linkedin_comment_strategy").update(payload).eq("id", strategyId);
     } else {

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,8 @@ function getEmoji(done: number, target: number) {
 export default function LinkedInEngagement() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
 
   const [weeklyId, setWeeklyId] = useState<string | null>(null);
   const [objective, setObjective] = useState(5);
@@ -58,8 +61,8 @@ export default function LinkedInEngagement() {
     if (!user) return;
     const load = async () => {
       const [weekRes, histRes] = await Promise.all([
-        supabase.from("engagement_weekly_linkedin").select("*").eq("user_id", user.id).eq("week_start", monday).maybeSingle(),
-        supabase.from("engagement_weekly_linkedin").select("*").eq("user_id", user.id).neq("week_start", monday).order("week_start", { ascending: false }).limit(10),
+        (supabase.from("engagement_weekly_linkedin") as any).select("*").eq(column, value).eq("week_start", monday).maybeSingle(),
+        (supabase.from("engagement_weekly_linkedin") as any).select("*").eq(column, value).neq("week_start", monday).order("week_start", { ascending: false }).limit(10),
       ]);
       if (weekRes.data) {
         setWeeklyId(weekRes.data.id);
@@ -78,7 +81,7 @@ export default function LinkedInEngagement() {
     const m = newMessages ?? messagesDone;
     const t = TARGETS[objective] || TARGETS[5];
     const payload: any = {
-      user_id: user.id, week_start: monday, objective,
+      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, week_start: monday, objective,
       comments_target: t.comments, comments_done: c,
       messages_target: t.messages, messages_done: m,
       total_done: c + m, updated_at: new Date().toISOString(),
@@ -100,7 +103,7 @@ export default function LinkedInEngagement() {
     if (!user) return;
     const t = TARGETS[obj] || TARGETS[5];
     const payload: any = {
-      user_id: user.id, week_start: monday, objective: obj,
+      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, week_start: monday, objective: obj,
       comments_target: t.comments, comments_done: 0,
       messages_target: t.messages, messages_done: 0,
       total_done: 0, updated_at: new Date().toISOString(),

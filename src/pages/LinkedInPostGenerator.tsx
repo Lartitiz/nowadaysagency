@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ interface PostResult {
 export default function LinkedInPostGenerator() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const workspaceId = useWorkspaceId();
   const [template, setTemplate] = useState<string | null>(null);
   const [audience, setAudience] = useState("solopreneuses");
   const [sujet, setSujet] = useState("");
@@ -96,6 +98,7 @@ export default function LinkedInPostGenerator() {
     const dateStr = new Date().toISOString().split("T")[0];
     await supabase.from("calendar_posts").insert({
       user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       date: dateStr,
       theme: sujet,
       angle: template,

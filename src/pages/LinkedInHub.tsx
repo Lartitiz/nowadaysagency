@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
 import { ArrowLeft, User, PenLine, Briefcase, Star, MessageCircle, Lightbulb, CalendarDays, Search } from "lucide-react";
@@ -38,6 +39,7 @@ interface ProgressData {
 
 export default function LinkedInHub() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const [progress, setProgress] = useState<ProgressData>({
     profileSteps: 0, summaryDone: false, experienceCount: 0,
     recoCount: 0, engagementWeekly: "À faire", ideasCount: 0, calendarCount: 0,
@@ -55,12 +57,12 @@ export default function LinkedInHub() {
       const monday = toLocalDateStr(mondayDate);
 
       const [profileRes, expRes, recoRes, weeklyRes, ideasRes, calRes] = await Promise.all([
-        supabase.from("linkedin_profile").select("title_done, url_done, photo_done, banner_done").eq("user_id", user.id).maybeSingle(),
-        supabase.from("linkedin_experiences").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("linkedin_recommendations").select("id, reco_received").eq("user_id", user.id),
-        supabase.from("engagement_weekly_linkedin").select("total_done, objective, comments_target, messages_target").eq("user_id", user.id).eq("week_start", monday).maybeSingle(),
-        supabase.from("saved_ideas").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("canal", "linkedin"),
-        supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("canal", "linkedin").gte("date", monthStart).lte("date", monthEnd),
+        (supabase.from("linkedin_profile") as any).select("title_done, url_done, photo_done, banner_done").eq(column, value).maybeSingle(),
+        (supabase.from("linkedin_experiences") as any).select("id", { count: "exact", head: true }).eq(column, value),
+        (supabase.from("linkedin_recommendations") as any).select("id, reco_received").eq(column, value),
+        (supabase.from("engagement_weekly_linkedin") as any).select("total_done, objective, comments_target, messages_target").eq(column, value).eq("week_start", monday).maybeSingle(),
+        (supabase.from("saved_ideas") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("canal", "linkedin"),
+        (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("canal", "linkedin").gte("date", monthStart).lte("date", monthEnd),
       ]);
 
       const lp = profileRes.data;

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -35,6 +36,8 @@ interface IdeaResult {
 export default function AtelierPage() {
   const [accrocheMode, setAccrocheMode] = useState<Record<string, "short" | "long">>({});
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -78,7 +81,7 @@ export default function AtelierPage() {
     if (!user) return;
     Promise.all([
       supabase.from("profiles").select("*").eq("user_id", user.id).single(),
-      supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle(),
+      (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle(),
     ]).then(([profRes, bpRes]) => {
       if (profRes.data) setProfile(profRes.data);
       if (bpRes.data) setBrandProfile(bpRes.data);
@@ -191,6 +194,7 @@ export default function AtelierPage() {
     try {
       await supabase.from("saved_ideas").insert({
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         titre: idea.titre,
         format: idea.format,
         angle: idea.angle,
@@ -471,6 +475,7 @@ export default function AtelierPage() {
             if (!user) return;
             supabase.from("saved_ideas").insert({
               user_id: user.id,
+              workspace_id: workspaceId !== user.id ? workspaceId : undefined,
               titre: meta.accroche || content.slice(0, 60),
               format: meta.format || selectedFormatLabel || "post",
               angle: content.slice(0, 120),

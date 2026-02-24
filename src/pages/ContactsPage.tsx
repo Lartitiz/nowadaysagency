@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { useToast } from "@/hooks/use-toast";
@@ -98,6 +99,8 @@ function interactionDot(days: number) {
 /* ─── Main Page ─── */
 export default function ContactsPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { toast } = useToast();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [tab, setTab] = useState("network");
@@ -109,9 +112,9 @@ export default function ContactsPage() {
   const loadContacts = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
-      .from("contacts")
+      .from("contacts" as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("created_at", { ascending: false });
     if (data) setContacts(data as unknown as Contact[]);
   }, [user?.id]);
@@ -186,6 +189,7 @@ export default function ContactsPage() {
                 if (!user) return;
                 const { data } = await supabase.from("contacts").insert({
                   user_id: user.id,
+                  workspace_id: workspaceId !== user.id ? workspaceId : undefined,
                   username: cleanPseudo(c.username),
                   display_name: c.display_name || null,
                   contact_type: "network",
@@ -217,6 +221,7 @@ export default function ContactsPage() {
                   if (!user) return;
                   const { data } = await supabase.from("contacts").insert({
                     user_id: user.id,
+                    workspace_id: workspaceId !== user.id ? workspaceId : undefined,
                     username: cleanPseudo(c.username),
                     display_name: c.display_name || null,
                     activity: c.activity || null,
@@ -265,6 +270,7 @@ export default function ContactsPage() {
                 supabase.from("contact_interactions").insert({
                   contact_id: dmContact.id,
                   user_id: user.id,
+                  workspace_id: workspaceId !== user.id ? workspaceId : undefined,
                   interaction_type: "dm_sent",
                   content,
                   ai_generated: true,

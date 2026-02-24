@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,8 @@ export default function LinkedInResume() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
 
   type FlowMode = null | "existing" | "scratch" | "saved";
   const [mode, setMode] = useState<FlowMode>(null);
@@ -94,8 +97,8 @@ export default function LinkedInResume() {
     if (!user) return;
     const load = async () => {
       const [lpRes, propRes] = await Promise.all([
-        supabase.from("linkedin_profile").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("brand_proposition").select("version_final").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("linkedin_profile") as any).select("*").eq(column, value).maybeSingle(),
+        (supabase.from("brand_proposition") as any).select("version_final").eq(column, value).maybeSingle(),
       ]);
       if (lpRes.data) {
         setProfileId(lpRes.data.id);
@@ -139,6 +142,7 @@ export default function LinkedInResume() {
       // Save to DB
       const dbPayload = {
         user_id: user!.id,
+        workspace_id: workspaceId !== user!.id ? workspaceId : undefined,
         summary_final: textToAnalyze,
         updated_at: new Date().toISOString(),
       };
@@ -181,6 +185,7 @@ export default function LinkedInResume() {
     if (!user) return;
     const payload = {
       user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       summary_storytelling: summaryStory,
       summary_pro: summaryPro,
       summary_final: text,
