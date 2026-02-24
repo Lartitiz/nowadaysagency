@@ -121,33 +121,41 @@ export default function AdminUsersTab() {
     if (!user?.id) return;
     setSwitching(true);
     try {
-      const { data: members } = await supabase
-        .from("workspace_members")
-        .select("workspace_id")
-        .eq("user_id", u.user_id)
-        .eq("role", "owner")
-        .limit(1);
+      // Use SECURITY DEFINER function to find workspace (bypasses RLS)
+      const { data: wsId, error } = await supabase.rpc("get_user_owner_workspace", { target_user_id: u.user_id });
 
-      if (members && members.length > 0) {
-        switchWorkspace(members[0].workspace_id);
+      if (wsId && !error) {
+        // Ensure admin is a member before switching
+        const { data: existingMember } = await supabase
+          .from("workspace_members")
+          .select("id")
+          .eq("workspace_id", wsId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (!existingMember) {
+          await supabase.from("workspace_members").insert({ workspace_id: wsId, user_id: user.id, role: "manager" } as any);
+        }
+
+        await switchWorkspace(wsId);
         navigate("/dashboard");
         return;
       }
 
-      // Create workspace
+      // No workspace found → create one with admin as creator
       const { data: ws, error: wsErr } = await supabase
         .from("workspaces")
-        .insert({ name: u.prenom || u.email, created_by: u.user_id })
+        .insert({ name: u.prenom || u.email, created_by: user.id } as any)
         .select("id")
         .single();
       if (wsErr || !ws) throw wsErr;
 
-      await supabase.from("workspace_members").insert([
-        { workspace_id: ws.id, user_id: u.user_id, role: "owner" },
-        { workspace_id: ws.id, user_id: user.id, role: "manager" },
-      ]);
+      // Add admin as manager FIRST (creator can bootstrap)
+      await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: user.id, role: "manager" } as any);
+      // Then add client as owner
+      await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: u.user_id, role: "owner" } as any);
 
-      switchWorkspace(ws.id);
+      await switchWorkspace(ws.id);
       navigate("/dashboard");
       toast.success("Espace créé et ouvert");
     } catch (e: any) {
