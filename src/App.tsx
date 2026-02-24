@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { DemoProvider } from "@/contexts/DemoContext";
 import DemoBanner from "@/components/demo/DemoBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import SelectionMenuProvider from "@/components/SelectionMenuProvider";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPassword from "./pages/ResetPassword";
@@ -240,9 +241,11 @@ const App = () => (
         <ErrorBoundary>
         <DemoProvider>
           <AuthProvider>
+            <SelectionMenuProvider>
             <DemoBanner />
             <AssistantButton />
             <AnimatedRoutes />
+            </SelectionMenuProvider>
           </AuthProvider>
         </DemoProvider>
         </ErrorBoundary>
