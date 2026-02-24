@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Download, Copy, RefreshCw, ExternalLink, Loader2, Pencil } from "lucide-react";
+import { ArrowLeft, Download, Copy, RefreshCw, ExternalLink, Loader2, Pencil, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import html2canvas from "html2canvas";
@@ -145,6 +145,8 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
   const [data, setData] = useState<SynthesisData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [summaries, setSummaries] = useState<any>(null);
+  const [summariesLoading, setSummariesLoading] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
 
   const loadData = async () => {
@@ -185,7 +187,40 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
     setLoading(false);
   };
 
-  useEffect(() => { loadData(); }, [user?.id]);
+  const loadSummaries = async () => {
+    if (!user) return;
+    setSummariesLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-branding-summary`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ force: false }),
+        }
+      );
+      
+      if (res.ok) {
+        const json = await res.json();
+        setSummaries(json.summaries);
+      }
+    } catch (e) {
+      console.error("Failed to load branding summaries:", e);
+    } finally {
+      setSummariesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    loadSummaries();
+  }, [user?.id]);
 
   const handleCopy = () => {
     if (!sheetRef.current) return;
@@ -271,6 +306,42 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
           <ArrowLeft className="h-4 w-4" /> Retour
         </Button>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              setSummariesLoading(true);
+              try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) return;
+                const res = await fetch(
+                  `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-branding-summary`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({ force: true }),
+                  }
+                );
+                if (res.ok) {
+                  const json = await res.json();
+                  setSummaries(json.summaries);
+                  toast.success("Résumés régénérés !");
+                }
+              } catch {
+                toast.error("Erreur lors de la régénération");
+              } finally {
+                setSummariesLoading(false);
+              }
+            }}
+            disabled={summariesLoading}
+            className="gap-1.5 text-xs"
+          >
+            {summariesLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            {summariesLoading ? "Synthèse..." : "Synthétiser IA"}
+          </Button>
           <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1.5 text-xs">
             <Copy className="h-3.5 w-3.5" /> Copier
           </Button>
