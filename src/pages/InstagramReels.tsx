@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import BaseReminder from "@/components/BaseReminder";
 import ContentScoring from "@/components/ContentScoring";
 import FeedbackLoop from "@/components/FeedbackLoop";
@@ -121,6 +122,8 @@ const HOOK_TYPE_EMOJIS: Record<string, string> = {
 export default function InstagramReels() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const calendarId = searchParams.get("calendar_id");
@@ -176,10 +179,10 @@ export default function InstagramReels() {
     if (!user) return "";
     const lines: string[] = [];
     const [profRes, propRes, stratRes, editoRes] = await Promise.all([
-      supabase.from("brand_profile").select("mission, offer, target_description, tone_register, key_expressions, things_to_avoid, voice_description, combat_cause").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_proposition").select("version_final").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq("user_id", user.id).maybeSingle(),
-      supabase.from("instagram_editorial_line").select("main_objective, pillars, preferred_formats, content_insights").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register, key_expressions, things_to_avoid, voice_description, combat_cause").eq(column, value).maybeSingle(),
+      (supabase.from("brand_proposition") as any).select("version_final").eq(column, value).maybeSingle(),
+      (supabase.from("brand_strategy") as any).select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq(column, value).maybeSingle(),
+      (supabase.from("instagram_editorial_line") as any).select("main_objective, pillars, preferred_formats, content_insights").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
     const p = profRes.data;
     if (p) {
@@ -275,7 +278,7 @@ export default function InstagramReels() {
 
       // Save to DB
       await supabase.from("reels_scripts" as any).insert({
-        user_id: user.id,
+        user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         objective,
         face_cam: faceCam,
         subject: subject || null,
@@ -363,7 +366,7 @@ export default function InstagramReels() {
 
     // Create new post
     const { error } = await supabase.from("calendar_posts").insert({
-      user_id: user.id,
+      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       date: dateStr,
       theme: subject || `Reel : ${scriptResult.format_label}`,
       canal: "instagram",

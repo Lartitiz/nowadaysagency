@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
@@ -75,6 +76,7 @@ export default function InstagramBio() {
   useAuditInsight("bio");
   const activityExamples = useActivityExamples();
   const { isDemoMode, demoData } = useDemoContext();
+  const { column, value } = useWorkspaceFilter();
 
   // Profile data
   const [profile, setProfile] = useState<any>(null);
@@ -134,12 +136,12 @@ export default function InstagramBio() {
     const load = async () => {
       const [{ data: prof }, { data: val }, { data: bp }, { data: persona }, { data: prop }, { data: strat }, { data: story }] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).single(),
-        supabase.from("audit_validations").select("*").eq("user_id", user.id).eq("section", "bio").maybeSingle(),
-        supabase.from("brand_profile").select("voice_description, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, combat_cause, combat_fights, combat_alternative, combat_refusals, mission, offer").eq("user_id", user.id).maybeSingle(),
-        supabase.from("persona").select("step_1_frustrations, step_2_transformation").eq("user_id", user.id).maybeSingle(),
-        supabase.from("brand_proposition").select("version_final, version_bio, version_pitch_naturel").eq("user_id", user.id).maybeSingle(),
-        supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq("user_id", user.id).maybeSingle(),
-        supabase.from("storytelling").select("step_7_polished").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("audit_validations") as any).select("*").eq(column, value).eq("section", "bio").maybeSingle(),
+        (supabase.from("brand_profile") as any).select("voice_description, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, combat_cause, combat_fights, combat_alternative, combat_refusals, mission, offer").eq(column, value).maybeSingle(),
+        (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle(),
+        (supabase.from("brand_proposition") as any).select("version_final, version_bio, version_pitch_naturel").eq(column, value).maybeSingle(),
+        (supabase.from("brand_strategy") as any).select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq(column, value).maybeSingle(),
+        (supabase.from("storytelling") as any).select("step_7_polished").eq(column, value).maybeSingle(),
       ]);
 
       if (prof) {

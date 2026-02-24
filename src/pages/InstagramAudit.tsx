@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,8 @@ export default function InstagramAudit() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
 
   const [analyzing, setAnalyzing] = useState(false);
   const [auditResult, setAuditResult] = useState<any>(null);
@@ -38,7 +41,7 @@ export default function InstagramAudit() {
   useEffect(() => {
     if (!user) return;
     Promise.all([
-      supabase.from("instagram_audit").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(2),
+      (supabase.from("instagram_audit") as any).select("*").eq(column, value).order("created_at", { ascending: false }).limit(2),
       supabase.from("profiles").select("instagram_display_name, instagram_username, instagram_bio, instagram_bio_link, instagram_photo_description, instagram_photo_url, instagram_highlights, instagram_highlights_count, instagram_pinned_posts, instagram_feed_description, instagram_followers, instagram_posts_per_month, instagram_frequency, instagram_pillars").eq("user_id", user.id).maybeSingle(),
     ]).then(([{ data: rows }, { data: profile }]) => {
       if (rows && rows.length > 0) {
@@ -189,7 +192,7 @@ export default function InstagramAudit() {
       const worstPostsJson = worstPostUrls.map((url, i) => ({ image_url: url, comment: i === 0 ? form.worstPostsComment : null }));
 
       const { data: insertData } = await supabase.from("instagram_audit").insert({
-        user_id: user.id,
+        user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         score_global: parsed.score_global,
         score_nom: parsed.sections?.nom?.score ?? parsed.visual_audit?.elements?.find((e: any) => e.element === "nom")?.score ?? 0,
         score_bio: parsed.sections?.bio?.score ?? parsed.visual_audit?.elements?.find((e: any) => e.element === "bio")?.score ?? 0,
@@ -255,11 +258,11 @@ export default function InstagramAudit() {
         combo_gagnant: auditResult.combo_gagnant,
         analyzed_at: new Date().toISOString(),
       };
-      const { data: existing } = await supabase.from("instagram_editorial_line").select("id").eq("user_id", user.id).maybeSingle();
+      const { data: existing } = await (supabase.from("instagram_editorial_line") as any).select("id").eq(column, value).maybeSingle();
       if (existing) {
-        await supabase.from("instagram_editorial_line").update({ content_insights: insights }).eq("user_id", user.id);
+        await (supabase.from("instagram_editorial_line") as any).update({ content_insights: insights }).eq(column, value);
       } else {
-        await supabase.from("instagram_editorial_line").insert({ user_id: user.id, content_insights: insights });
+        await supabase.from("instagram_editorial_line").insert({ user_id: user.id, content_insights: insights, workspace_id: workspaceId !== user.id ? workspaceId : undefined } as any);
       }
       toast({ title: "Insights sauvegardés dans ta ligne éditoriale !" });
     } catch (e: any) {

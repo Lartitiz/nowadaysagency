@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -115,6 +116,8 @@ const DEFAULT_QUESTIONS = [
 export default function InstagramCarousel() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const activityExamples = useActivityExamples();
 
   // Flow: 1=type, 2=context, 3=deepening questions, 4=angles, 5=hooks+structure, 6=slides+caption
@@ -187,7 +190,7 @@ export default function InstagramCarousel() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("offers").select("id, name, price_text").eq("user_id", user.id).order("created_at").then(({ data }) => {
+    (supabase.from("offers") as any).select("id, name, price_text").eq(column, value).order("created_at").then(({ data }: any) => {
       if (data) setOffers(data);
     });
   }, [user?.id]);
@@ -196,7 +199,7 @@ export default function InstagramCarousel() {
     const calId = searchParams.get("calendar_id");
     if (!calId || !user) return;
     const loadCalendarPost = async () => {
-      const { data: post } = await supabase.from("calendar_posts").select("*").eq("id", calId).eq("user_id", user.id).maybeSingle();
+      const { data: post } = await (supabase.from("calendar_posts") as any).select("*").eq("id", calId).eq(column, value).maybeSingle();
       if (!post) return;
       setCalendarPostId(post.id);
       if (post.theme) setSubject(post.theme);
@@ -290,7 +293,7 @@ export default function InstagramCarousel() {
       setPublishingTip(parsed.publishing_tip || "");
 
       const insertRes = await supabase.from("generated_carousels" as any).insert({
-        user_id: user.id, carousel_type: carouselType, subject, objective,
+        user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, carousel_type: carouselType, subject, objective,
         hook_text: hookText, slide_count: slideCount,
         slides: parsed.slides, caption: `${parsed.caption?.hook}\n\n${parsed.caption?.body}\n\n${parsed.caption?.cta}`,
         hashtags: parsed.caption?.hashtags, quality_score: parsed.quality_check?.score,
@@ -321,8 +324,8 @@ export default function InstagramCarousel() {
     if (!user) return;
     setLoadingTopics(true);
     try {
-      const { data: recentPosts } = await supabase.from("calendar_posts")
-        .select("theme").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10);
+      const { data: recentPosts } = await (supabase.from("calendar_posts") as any)
+        .select("theme").eq(column, value).order("created_at", { ascending: false }).limit(10);
       const recentStr = recentPosts?.map(p => p.theme).join(", ") || "";
       const { data, error } = await supabase.functions.invoke("carousel-ai", {
         body: { type: "suggest_topics", carousel_type: carouselType, objective, recent_posts: recentStr },
@@ -357,7 +360,7 @@ export default function InstagramCarousel() {
     if (!user || slides.length === 0) return;
     const hookText = customHook.trim() || selectedHook;
     await supabase.from("calendar_posts").insert({
-      user_id: user.id, date: dateStr, theme: subject || `Carrousel : ${typeObj?.label}`,
+      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: dateStr, theme: subject || `Carrousel : ${typeObj?.label}`,
       canal: "instagram", format: "carousel", objectif: objective,
       content_draft: slides.map(s => `Slide ${s.slide_number}: ${s.title}\n${s.body || ""}`).join("\n\n"),
       accroche: hookText, status: "ready",

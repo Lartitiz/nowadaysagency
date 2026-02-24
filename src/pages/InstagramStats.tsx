@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -180,6 +181,8 @@ const WEBSITE_PLATFORMS = [
 export default function InstagramStats() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
 
   const now = useMemo(() => new Date(), []);
   const currentMonthDate = useMemo(() => monthKey(now), [now]);
@@ -221,10 +224,10 @@ export default function InstagramStats() {
   // Load config
   const loadConfig = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("stats_config" as any)
+    const { data } = await (supabase
+      .from("stats_config" as any) as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .maybeSingle();
     if (data) {
       const cfg = data as any as StatsConfig;
@@ -239,10 +242,10 @@ export default function InstagramStats() {
   // Load all stats
   const loadStats = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("monthly_stats" as any)
+    const { data } = await (supabase
+      .from("monthly_stats" as any) as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("month_date", { ascending: false });
     const rows = (data || []) as StatsRow[];
     setAllStats(rows);
@@ -351,6 +354,7 @@ export default function InstagramStats() {
     const payload: any = {
       ...formData,
       user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       month_date: selectedMonth,
       updated_at: new Date().toISOString(),
     };
