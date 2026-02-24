@@ -137,6 +137,41 @@ function Tags({ items }: { items: string[] }) {
   );
 }
 
+/* ── Summary helpers ── */
+
+function SummaryHookAndPoints({ hook, points }: { hook?: string | null; points?: string[] | null }) {
+  if (!hook && (!points || points.length === 0)) return null;
+  return (
+    <div className="space-y-3">
+      {hook && <p className="text-[15px] text-foreground font-medium leading-relaxed">{hook}</p>}
+      {points && points.length > 0 && (
+        <ul className="space-y-2">
+          {points.map((p, i) => (
+            <li key={i} className="text-sm text-foreground/80 flex items-start gap-2.5">
+              <span className="shrink-0 mt-0.5 w-1.5 h-1.5 rounded-full bg-primary/40" />
+              <span>{p}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function VoiceLayersSummary({ layers }: { layers?: Array<{name: string; summary: string}> | null }) {
+  if (!layers || layers.length === 0) return null;
+  return (
+    <div className="space-y-2.5">
+      {layers.map((l, i) => (
+        <div key={i} className="flex items-start gap-3">
+          <span className="shrink-0 text-sm font-semibold text-primary/70 min-w-[140px]">{l.name}</span>
+          <span className="text-sm text-foreground/70">{l.summary}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── Main component ── */
 
 export default function BrandingSynthesisSheet({ onClose }: { onClose: () => void }) {
@@ -417,7 +452,17 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
               {proposition?.step_2b_values && (
                 <div className="space-y-2">
                   <p className="text-xs font-semibold uppercase tracking-wider text-primary/70">Ce qui me rend unique</p>
-                  <CollapsibleText text={proposition.step_2b_values} maxChars={300} />
+                  {summaries?.unique_hook ? (
+                    <>
+                      <SummaryHookAndPoints hook={summaries.unique_hook} points={summaries.unique_points} />
+                      <details className="mt-1">
+                        <summary className="text-xs text-primary/50 hover:text-primary cursor-pointer">Texte complet</summary>
+                        <p className="text-sm text-muted-foreground leading-relaxed mt-2 break-words">{proposition.step_2b_values}</p>
+                      </details>
+                    </>
+                  ) : (
+                    <CollapsibleText text={proposition.step_2b_values} maxChars={300} />
+                  )}
                 </div>
               )}
             </div>
@@ -547,7 +592,17 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
               {brand.voice_description && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-primary/70 mb-3">Comment je parle</p>
-                  <CollapsibleText text={brand.voice_description} isQuote />
+                  {summaries?.voice_layers && summaries.voice_layers.length > 0 ? (
+                    <>
+                      <VoiceLayersSummary layers={summaries.voice_layers} />
+                      <details className="mt-2">
+                        <summary className="text-xs text-primary/50 hover:text-primary cursor-pointer">Texte complet</summary>
+                        <p className="text-sm text-muted-foreground leading-relaxed mt-2 break-words">{brand.voice_description}</p>
+                      </details>
+                    </>
+                  ) : (
+                    <CollapsibleText text={brand.voice_description} isQuote />
+                  )}
                 </div>
               )}
               {brand.things_to_avoid && (
@@ -568,34 +623,54 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             {(brand.combat_cause || brand.combat_fights) && (
               <div className="rounded-2xl bg-gradient-to-br from-rose-pale to-card border border-primary/10 p-6 sm:p-8">
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary/70 mb-4">Mes combats</p>
-                <div className="space-y-4">
-                  {brand.combat_cause && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">La cause</p>
-                      <p className="text-[15px] text-foreground font-medium leading-relaxed break-words">{brand.combat_cause}</p>
-                    </div>
-                  )}
-                  {brand.combat_fights && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Ce contre quoi je me bats</p>
-                      <CollapsibleText text={brand.combat_fights} maxChars={300} />
-                    </div>
-                  )}
-                  {brand.combat_alternative && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Mon alternative</p>
-                      <CollapsibleText text={brand.combat_alternative} maxChars={300} />
-                    </div>
-                  )}
-                </div>
+                {summaries?.combats_hook ? (
+                  <>
+                    <SummaryHookAndPoints hook={summaries.combats_hook} points={summaries.combats_points} />
+                    {summaries.combats_alternative && (
+                      <div className="mt-4 pt-4 border-t border-primary/10">
+                        <p className="text-xs text-muted-foreground mb-1">Ce que je propose à la place</p>
+                        <p className="text-[15px] text-foreground/80 leading-relaxed">{summaries.combats_alternative}</p>
+                      </div>
+                    )}
+                    <details className="mt-3">
+                      <summary className="text-xs text-primary/50 hover:text-primary cursor-pointer">Texte complet</summary>
+                      <div className="space-y-3 mt-2 text-sm text-muted-foreground">
+                        {brand.combat_cause && <p className="break-words">{brand.combat_cause}</p>}
+                        {brand.combat_fights && <p className="break-words">{brand.combat_fights}</p>}
+                        {brand.combat_alternative && <p className="break-words">{brand.combat_alternative}</p>}
+                      </div>
+                    </details>
+                  </>
+                ) : (
+                  <div className="space-y-4">
+                    {brand.combat_cause && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">La cause</p>
+                        <p className="text-[15px] text-foreground font-medium leading-relaxed break-words">{brand.combat_cause}</p>
+                      </div>
+                    )}
+                    {brand.combat_fights && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Ce contre quoi je me bats</p>
+                        <CollapsibleText text={brand.combat_fights} maxChars={300} />
+                      </div>
+                    )}
+                    {brand.combat_alternative && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Mon alternative</p>
+                        <CollapsibleText text={brand.combat_alternative} maxChars={300} />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
             {/* Key expressions */}
-            {brand.key_expressions && (
+            {(summaries?.expressions_key?.length > 0 || brand.key_expressions) && (
               <div className="text-center">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Mes expressions clés</p>
-                <Tags items={parseStringList(brand.key_expressions)} />
+                <Tags items={summaries?.expressions_key || parseStringList(brand.key_expressions)} />
               </div>
             )}
           </div>
@@ -668,7 +743,16 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
                   <h4 className="font-display text-base font-bold text-foreground">{o.name || "Sans nom"}</h4>
                   {o.price_text && <p className="text-sm text-primary font-medium mt-0.5">{o.price_text}</p>}
                 </div>
-                {o.description_short && <p className="text-sm text-foreground/70 leading-relaxed break-words">{o.description_short}</p>}
+                {(() => {
+                  const offerSummary = summaries?.offers_summaries?.find((s: any) => s.name === o.name);
+                  if (offerSummary?.one_liner) {
+                    return <p className="text-sm text-foreground/80 font-medium leading-relaxed">{offerSummary.one_liner}</p>;
+                  }
+                  if (o.description_short) {
+                    return <p className="text-sm text-foreground/70 leading-relaxed break-words">{o.description_short}</p>;
+                  }
+                  return null;
+                })()}
                 {o.promise && (
                   <blockquote className="border-l-[3px] border-primary/30 pl-4 py-1">
                     <p className="text-sm text-foreground/70 italic break-words">"{o.promise}"</p>
