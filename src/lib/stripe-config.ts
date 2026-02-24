@@ -51,6 +51,19 @@ export const STRIPE_PLANS = {
       "Stratégie personnalisée",
     ],
   },
+  pro: {
+    name: "Pro",
+    price: 79,
+    priceId: null,
+    mode: "subscription" as const,
+    features: [
+      "Tout le plan Outil",
+      "Workspaces client·es illimités",
+      "Dashboard coach multi-clients",
+      "Invitations client·es",
+      "Quotas IA par workspace",
+    ],
+  },
 } as const;
 
 export const STRIPE_PRODUCTS = {
@@ -81,6 +94,7 @@ export const STRIPE_PRODUCTS = {
 export const AI_LIMITS = {
   free: { generations: 3, audits: 1 },
   outil: { generations: Infinity, audits: Infinity },
+  pro: { generations: Infinity, audits: Infinity },
   studio: { generations: Infinity, audits: Infinity },
   now_pilot: { generations: Infinity, audits: Infinity },
 } as const;
