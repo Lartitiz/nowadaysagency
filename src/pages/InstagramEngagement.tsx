@@ -226,10 +226,11 @@ export default function InstagramEngagement() {
         setShowConfetti(true);
         toast({ title: "🔥 Streak maintenu !" });
       }
-    } catch (e) {
-      console.error("Engagement save error:", e);
+    } catch (e: any) {
       setChecked(prev); // rollback
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      const msg = e?.message || e?.details || JSON.stringify(e) || "Erreur inconnue";
+      console.error("ENGAGEMENT DEBUG:", msg, e);
+      toast({ title: "Debug erreur", description: msg, variant: "destructive" });
     }
   }, [user, checked, threshold, items.length, today, todayIndex, toast, column, value, workspaceId]);
 
