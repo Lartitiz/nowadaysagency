@@ -313,7 +313,7 @@ export default function BrandingSectionPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel={config.title} />
+        <SubPageHeader breadcrumbs={[{ label: "Branding", to: "/branding" }]} currentLabel={config.title} />
 
         <button
           onClick={() => navigate(-1)}

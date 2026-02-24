@@ -143,7 +143,7 @@ export default function StrategieRecapPage() {
   if (!summary) return (
     <div className="min-h-screen bg-background"><AppHeader />
       <main className="mx-auto max-w-[640px] px-6 py-8">
-        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Récap stratégie" />
+        <SubPageHeader breadcrumbs={[{ label: "Branding", to: "/branding" }, { label: "Ma stratégie", to: "/branding/section?section=content_strategy" }]} currentLabel="Récap" />
         <h1 className="font-display text-[26px] font-bold text-foreground mb-4">🚀 Ma stratégie de contenu</h1>
         <p className="text-muted-foreground mb-6">La synthèse de ta stratégie n'a pas encore été générée.</p>
         <Button onClick={generateSummary} disabled={generating}>
@@ -157,7 +157,7 @@ export default function StrategieRecapPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Récap stratégie" />
+        <SubPageHeader breadcrumbs={[{ label: "Branding", to: "/branding" }, { label: "Ma stratégie", to: "/branding/section?section=content_strategy" }]} currentLabel="Récap" />
 
         <div className="flex items-center gap-2 mb-4">
           <Button variant="outline" size="sm" onClick={generateSummary} disabled={generating}>

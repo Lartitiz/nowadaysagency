@@ -135,7 +135,7 @@ export default function StorytellingRecapPage() {
   if (!data) return (
     <div className="min-h-screen bg-background"><AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Mes storytellings" parentTo="/branding/storytelling" currentLabel="Fiche récap" />
+        <SubPageHeader breadcrumbs={[{ label: "Branding", to: "/branding" }, { label: "Mon histoire", to: "/branding/section?section=story" }]} currentLabel="Fiche récap" />
         <p className="text-muted-foreground">Aucun storytelling trouvé.</p>
       </main>
     </div>
@@ -147,7 +147,7 @@ export default function StorytellingRecapPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[780px] px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Mes storytellings" parentTo="/branding/storytelling" currentLabel={data?.title || "Fiche récap"} />
+        <SubPageHeader breadcrumbs={[{ label: "Branding", to: "/branding" }, { label: "Mon histoire", to: "/branding/section?section=story" }]} currentLabel={data?.title || "Fiche récap"} />
 
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div className="flex items-center gap-3">
