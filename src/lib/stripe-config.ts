@@ -82,4 +82,5 @@ export const AI_LIMITS = {
   free: { generations: 3, audits: 1 },
   outil: { generations: Infinity, audits: Infinity },
   studio: { generations: Infinity, audits: Infinity },
+  now_pilot: { generations: Infinity, audits: Infinity },
 } as const;
