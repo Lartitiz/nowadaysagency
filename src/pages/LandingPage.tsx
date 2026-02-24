@@ -286,6 +286,7 @@ export default function LandingPage() {
       </header>
 
       {/* ═══ HERO ═══ */}
+      <main id="main-content">
       <section className="relative py-16 sm:py-24 lg:py-32 px-4 overflow-hidden">
         {/* Background shapes — NO circles */}
         <div className="absolute -top-20 -right-32 w-[500px] h-[320px] bg-rose-soft/40 blur-[80px] pointer-events-none animate-float" style={{ clipPath: "polygon(20% 0%, 80% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%)" }} />
@@ -703,6 +704,7 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+      </main>
     </div>
   );
 }

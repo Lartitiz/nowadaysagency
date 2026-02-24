@@ -97,6 +97,12 @@ export default function AppHeader() {
 
   return (
     <>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-primary focus:text-white focus:rounded-lg focus:text-sm focus:font-semibold focus:shadow-lg"
+      >
+        Aller au contenu principal
+      </a>
       {/* ─── Desktop header (lg+) : logo + icons+text nav + bell+avatar ─── */}
       <header className="sticky top-0 z-40 border-b border-border bg-card hidden lg:block">
         <div className="mx-auto flex h-14 max-w-[1100px] items-center justify-between px-6">
