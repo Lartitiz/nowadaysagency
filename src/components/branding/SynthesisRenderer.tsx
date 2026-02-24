@@ -704,6 +704,22 @@ function StrategySynthesis({ data, onSaveRecap }: {
           </AccordionItem>
         </Accordion>
       )}
+
+      {/* Recap summary raw text — accordion fallback when no structured gestures */}
+      {!summary?.creative_gestures?.length && typeof data.recap_summary === "string" && data.recap_summary.length > 200 && (
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="recap-raw" className="border rounded-xl overflow-hidden">
+            <AccordionTrigger className="px-5 py-3 hover:no-underline">
+              <span className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" /> 📖 Voir le texte complet
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="px-5 pb-5">
+              <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">{data.recap_summary}</p>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
     </div>
   );
 }
