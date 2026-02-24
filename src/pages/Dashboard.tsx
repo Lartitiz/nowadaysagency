@@ -31,6 +31,7 @@ import DiscoveryCoachingCard from "@/components/dashboard/DiscoveryCoachingCard"
 import { checkBadges } from "@/lib/badges";
 import { trackError } from "@/lib/error-tracker";
 import OnboardingMissions from "@/components/dashboard/OnboardingMissions";
+import ComScoreWidget from "@/components/dashboard/ComScoreWidget";
 
 /* ── Types ── */
 export interface UserProfile {
@@ -335,6 +336,13 @@ export default function Dashboard() {
               </div>
             </BentoCard>
           </FirstTimeTooltip>
+        </BentoGrid>
+
+        {/* ═══════════════════════════════════════
+           MON SCORE
+           ═══════════════════════════════════════ */}
+        <BentoGrid sectionLabel="MON SCORE">
+          <ComScoreWidget animationDelay={nextDelay()} />
         </BentoGrid>
 
         {/* ═══════════════════════════════════════
