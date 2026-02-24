@@ -1,4 +1,6 @@
 import { useMemo, useCallback } from "react";
+import { useSession } from "@/contexts/SessionContext";
+import { toast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -91,6 +93,8 @@ export default function Dashboard() {
   const { isPilot } = useUserPlan();
   const { column, value } = useWorkspaceFilter();
   const { hasInstagram, hasLinkedin, hasWebsite, hasSeo, loading: channelsLoading, channels } = useActiveChannels();
+
+  const { startSession, isActive: sessionActive } = useSession();
 
   const welcomeMessage = useMemo(() => getWelcomeMessage(), []);
   // ── Profile query ──
@@ -374,6 +378,33 @@ export default function Dashboard() {
           <FirstTimeTooltip id="dashboard-routine" text="15 min/jour pour interagir avec ta communauté. L'habitude qui change tout." className="col-span-4 sm:col-span-6 lg:col-span-6 row-span-1">
             <EngagementRoutineWidget animationDelay={nextDelay()} />
           </FirstTimeTooltip>
+          {!sessionActive && (
+            <BentoCard
+              title=""
+              colSpan={6}
+              rowSpan={1}
+              animationDelay={nextDelay()}
+              onClick={() => {
+                if (isDemoMode) {
+                  toast({ title: "Les sessions sont disponibles avec ton compte 😉" });
+                } else {
+                  startSession();
+                }
+              }}>
+
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">⏱️</span>
+                <div className="min-w-0">
+                  <p className="font-heading text-sm font-bold text-foreground truncate">
+                    Session focus : 30 min
+                  </p>
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    L'outil t'enchaîne les micro-tâches. Tu fais, tu avances, c'est fini.
+                  </p>
+                </div>
+              </div>
+            </BentoCard>
+          )}
           <FirstTimeTooltip id="dashboard-stats" text="Tes chiffres du mois. Publications, engagement, objectifs." className="col-span-4 sm:col-span-6 lg:col-span-6 row-span-2">
             <MonthlyStatsWidget animationDelay={nextDelay()} />
           </FirstTimeTooltip>
