@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { format, parseISO } from "date-fns";
+import { fr } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -190,7 +192,111 @@ export default function AdminStatsTab() {
 /* ── Section placeholders ── */
 
 function OverviewSection({ stats }: { stats: StatsData }) {
-  return <p className="text-sm text-muted-foreground">Section overview</p>;
+  const activeRate = stats.total_users > 0 ? Math.round((stats.active_this_month / stats.total_users) * 100) : 0;
+
+  const signupsData = stats.signups_by_week.map(s => ({
+    ...s,
+    label: format(parseISO(s.week), "d MMM", { locale: fr }),
+  }));
+
+  const plansData = Object.entries(stats.plans)
+    .filter(([, v]) => v > 0)
+    .map(([plan, count]) => ({ plan, count, label: PLAN_LABELS[plan] || plan }));
+
+  const PLAN_COLORS: Record<string, string> = {
+    free: "#9CA3AF", outil: "#8B5CF6", studio: "#F59E0B", now_pilot: "#fb3d80", pro: "#3B82F6",
+  };
+
+  const maxFeature = Math.max(...stats.top_features.map(f => f.count), 1);
+
+  return (
+    <div className="space-y-6">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <KpiCard
+          title="Inscrites"
+          value={stats.total_users}
+          sub={stats.new_this_month > 0 ? `+${stats.new_this_month} ce mois` : undefined}
+          subColor="text-emerald-600"
+        />
+        <KpiCard
+          title="Actives (IA)"
+          value={stats.active_this_month}
+          sub={`${activeRate}% du total`}
+          trend={stats.active_this_month - (stats.active_prev_month || 0)}
+        />
+        <KpiCard
+          title="MRR"
+          value={stats.mrr}
+          suffix="€"
+          sub={`${stats.paid_users} abonnées`}
+          subColor="text-emerald-600"
+        />
+        <KpiCard title="Score branding" value={stats.avg_branding_score} suffix="/100" />
+      </div>
+
+      {/* Charts row 1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ChartCard title="Inscriptions par semaine">
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={signupsData}>
+              <defs>
+                <linearGradient id="signupFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#fb3d80" stopOpacity={0.15} />
+                  <stop offset="100%" stopColor="#fb3d80" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={24} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Area type="monotone" dataKey="count" stroke="#fb3d80" strokeWidth={2} fill="url(#signupFill)" name="Inscriptions" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Répartition par plan">
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={plansData} layout="vertical" barCategoryGap={8}>
+              <XAxis type="number" hide />
+              <YAxis dataKey="label" type="category" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} width={80} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="count" radius={[0, 6, 6, 0]} name="Utilisatrices" label={{ position: "right", fontSize: 12, fill: "hsl(var(--foreground))" }}>
+                {plansData.map((entry) => (
+                  <Cell key={entry.plan} fill={PLAN_COLORS[entry.plan] || "#9CA3AF"} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+
+      {/* Charts row 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ChartCard title="Top fonctionnalités IA">
+          <div className="space-y-3">
+            {stats.top_features.slice(0, 7).map(f => (
+              <div key={f.category} className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span>{CATEGORY_LABELS[f.category] || f.category}</span>
+                  <span className="text-muted-foreground font-medium">{f.count}</span>
+                </div>
+                <Progress value={(f.count / maxFeature) * 100} className="h-1.5" />
+              </div>
+            ))}
+          </div>
+        </ChartCard>
+
+        <ChartCard title="Onboarding">
+          <div className="flex flex-col items-center justify-center py-2">
+            <ProgressRing value={stats.onboarding_rate} />
+            <p className="text-sm text-muted-foreground text-center mt-3">
+              {stats.onboarding_completed} sur {stats.total_users} ont terminé l'onboarding
+            </p>
+          </div>
+        </ChartCard>
+      </div>
+    </div>
+  );
 }
 
 function BusinessSection({ stats }: { stats: StatsData }) {
