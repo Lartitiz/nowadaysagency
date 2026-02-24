@@ -121,39 +121,65 @@ export default function AdminUsersTab() {
     if (!user?.id) return;
     setSwitching(true);
     try {
-      // Use SECURITY DEFINER function to find workspace (bypasses RLS)
-      const { data: wsId, error } = await supabase.rpc("get_user_owner_workspace", { target_user_id: u.user_id });
+      // 1. Chercher si l'admin est déjà manager d'un workspace de cette utilisatrice
+      const { data: myMemberships } = await supabase
+        .from("workspace_members")
+        .select("workspace_id")
+        .eq("user_id", user.id)
+        .eq("role", "manager");
 
-      if (wsId && !error) {
-        // Ensure admin is a member before switching
-        const { data: existingMember } = await supabase
-          .from("workspace_members")
-          .select("id")
-          .eq("workspace_id", wsId)
-          .eq("user_id", user.id)
-          .maybeSingle();
+      if (myMemberships && myMemberships.length > 0) {
+        for (const m of myMemberships) {
+          const { data: clientMember } = await supabase
+            .from("workspace_members")
+            .select("user_id")
+            .eq("workspace_id", m.workspace_id)
+            .eq("user_id", u.user_id)
+            .eq("role", "owner")
+            .maybeSingle();
 
-        if (!existingMember) {
-          await supabase.from("workspace_members").insert({ workspace_id: wsId, user_id: user.id, role: "manager" } as any);
+          if (clientMember) {
+            await switchWorkspace(m.workspace_id);
+            navigate("/dashboard");
+            return;
+          }
         }
-
-        await switchWorkspace(wsId);
-        navigate("/dashboard");
-        return;
       }
 
-      // No workspace found → create one with admin as creator
+      // 2. Pas de workspace existant → en créer un
       const { data: ws, error: wsErr } = await supabase
         .from("workspaces")
         .insert({ name: u.prenom || u.email, created_by: user.id } as any)
         .select("id")
         .single();
-      if (wsErr || !ws) throw wsErr;
 
-      // Add admin as manager FIRST (creator can bootstrap)
-      await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: user.id, role: "manager" } as any);
-      // Then add client as owner
-      await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: u.user_id, role: "owner" } as any);
+      if (wsErr || !ws) {
+        console.error("Erreur création workspace:", wsErr);
+        toast.error("Erreur lors de la création de l'espace");
+        return;
+      }
+
+      // 3. Ajouter l'admin EN PREMIER (creator can bootstrap)
+      const { error: adminErr } = await supabase
+        .from("workspace_members")
+        .insert({ workspace_id: ws.id, user_id: user.id, role: "manager" } as any);
+
+      if (adminErr) {
+        console.error("Erreur ajout admin:", adminErr);
+        toast.error("Erreur lors de la configuration de l'espace");
+        return;
+      }
+
+      // 4. Puis ajouter la cliente comme owner
+      const { error: clientErr } = await supabase
+        .from("workspace_members")
+        .insert({ workspace_id: ws.id, user_id: u.user_id, role: "owner" } as any);
+
+      if (clientErr) {
+        console.error("Erreur ajout cliente:", clientErr);
+        toast.error("Espace créé mais impossible d'ajouter la cliente");
+        return;
+      }
 
       await switchWorkspace(ws.id);
       navigate("/dashboard");
