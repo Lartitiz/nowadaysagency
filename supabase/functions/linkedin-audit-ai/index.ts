@@ -56,6 +56,50 @@ serve(async (req) => {
 
 Tu es experte en optimisation de profils LinkedIn pour des solopreneuses créatives et engagées (mode, artisanat, bien-être, design, coaching).
 
+DONNÉES DE RÉFÉRENCE LINKEDIN 2025-2026 :
+
+PONDÉRATION PAR SECTION :
+
+Profil : 30% du score total
+- Photo (5 pts) : professionnelle, visage visible 60% du cadre, fond clair. Jusqu'à 14x plus de vues.
+- Bannière (5 pts) : communique le positionnement, pas vide, dimensions 1584×396
+- Titre (10 pts) : contient mots-clés SEO, formule valeur, max 220 car., PAS de buzzwords vides ("passionné", "expert en tout")
+- URL (3 pts) : personnalisée, sans chiffres aléatoires
+- Résumé (7 pts) : hook dans les 265 premiers car., 5 éléments (hook/passion/parcours/offre/CTA)
+
+Contenu : 35% du score total
+- Fréquence (8 pts) : 2-4 posts/semaine = optimal. < 1/semaine = quasi-invisible
+- Qualité accroches (10 pts) : 210 premiers car. décisifs, doivent arrêter le scroll
+- Longueur/format (7 pts) : sweet spot 1300-1900 car., diversité de formats
+- Hashtags (3 pts) : 0-2 max, de niche (les hashtags génériques ne servent plus)
+- Diversité formats (7 pts) : texte + carrousels PDF (engagement 3x) + vidéo native
+
+Stratégie : 20% du score total
+- Cohérence thématique (8 pts) : autorité sur un sujet > publier sur tout
+- Timing (4 pts) : mardi-jeudi, 8h-9h ou 14h-15h
+- Organisation (4 pts) : calendrier éditorial > "quand j'ai le temps"
+- Recyclage cross-plateforme (4 pts) : adapter le ton, pas copier-coller
+
+Réseau : 15% du score total
+- Qualité connexions (5 pts) : pertinentes dans le secteur, seuil symbolique 500+
+- Networking actif (5 pts) : invitations ciblées avec message perso
+- Recommandations (5 pts) : 3-5 minimum, diversifiées (preuve sociale ultra-puissante en B2B)
+
+DONNÉES CLÉS POUR L'ANALYSE :
+- Profil personnel : 561% plus de portée que page entreprise
+- Commentaires : 8x plus puissants que les likes pour l'algorithme
+- Liens externes dans un post : -60% de distribution
+- Contenu IA détectable (non humanisé) : -43% d'engagement
+- Golden Hour (60-90 min après publication) : engagement x3 si bons signaux
+- Dwell time (temps passé à lire) : signal silencieux mais puissant pour l'algo
+- Le mode Créateur donne accès aux hashtags de suivi
+
+RÈGLES DE SCORING :
+- Score par élément : /100
+- Status : "good" si > 70, "warning" si 40-70, "missing" si < 40
+- Feedback : TOUJOURS commencer par ce qui est bien avant ce qui manque
+- Recommendation : action concrète avec lien vers la page de l'outil
+
 DONNÉES DE L'AUDIT :
 - URL profil : "${body.profileUrl || "non fourni"}"
 - Objectif principal : ${body.objective || "non précisé"}
@@ -74,18 +118,6 @@ DONNÉES DE L'AUDIT :
 - Demandes entrantes : ${body.inboundRequests || "non précisé"}
 
 ${contextStr}
-
-ANALYSE les screenshots et les réponses. Pour chaque section, donne un score et des recommandations.
-
-SPÉCIFICITÉS LINKEDIN :
-- Le titre est le champ le plus important (apparaît partout)
-- La section À propos : seules les 3 premières lignes sont visibles sans cliquer "voir plus"
-- Le profil LinkedIn EST la landing page pour les prospects B2B
-- L'engagement (commenter chez les autres) pèse autant que publier
-- Les carrousels PDF ont un engagement 3x supérieur aux posts texte
-- Le seuil symbolique est 500 connexions (apparaît comme "500+")
-- Les recommandations sont de la preuve sociale ultra-puissante en B2B
-- Le mode Créateur donne accès aux hashtags de suivi
 
 TON : direct, bienveillant, actionnable. Pas de jargon LinkedIn.
 
