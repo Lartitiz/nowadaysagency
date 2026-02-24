@@ -137,7 +137,7 @@ Quand is_complete = true, ajoute :
   "completion_percentage": 100,
   "covered_topic": "dernier champ couvert",
   "extracted_insights": { ... },
-  "final_summary": "Résumé complet de la section en 3-5 phrases"
+  "final_summary": "Un résumé structuré en 3 parties :\n\n✅ Ce qu'on a construit ensemble : [résumé des éléments clés extraits]\n\n💡 Pour aller plus loin : [2-3 suggestions concrètes d'amélioration]\n\n🎯 Prochaine étape : [une action concrète à faire maintenant]"
 }`;
 }
 
@@ -150,6 +150,50 @@ serve(async (req) => {
     if (!user_id || !section) {
       return new Response(JSON.stringify({ error: "user_id et section requis" }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Special section: generate full story text (no JSON, just prose)
+    if (section === "story_generate") {
+      const prenom = context?.profile?.prenom || context?.profile?.first_name || "toi";
+      const storySystemPrompt = `Tu es une rédactrice de storytelling. Écris l'histoire fondatrice de ${prenom} en un texte fluide, engageant, à la première personne. Utilise un ton oral, chaleureux, authentique. Pas de jargon, pas de phrases corporate. Le texte doit faire entre 300 et 500 mots. Retourne UNIQUEMENT le texte de l'histoire, sans JSON, sans balises.`;
+
+      let storyMessages = (messages || []).map((m: any) => ({
+        role: m.role === "user" ? "user" as const : "assistant" as const,
+        content: m.content,
+      }));
+
+      // Ensure last message is user
+      while (storyMessages.length > 0 && storyMessages[storyMessages.length - 1].role === "assistant") {
+        storyMessages.pop();
+      }
+      if (storyMessages.length === 0) {
+        storyMessages.push({ role: "user" as const, content: "Écris mon histoire fondatrice." });
+      }
+
+      // Merge consecutive same-role messages
+      const merged: typeof storyMessages = [];
+      for (const msg of storyMessages) {
+        if (merged.length > 0 && merged[merged.length - 1].role === msg.role) {
+          merged[merged.length - 1].content += "\n\n" + msg.content;
+        } else {
+          merged.push({ ...msg });
+        }
+      }
+      if (merged.length > 0 && merged[0].role === "assistant") {
+        merged.unshift({ role: "user" as const, content: "Commence." });
+      }
+
+      const rawStory = await callAnthropic({
+        model: getDefaultModel(),
+        system: storySystemPrompt,
+        messages: merged,
+        temperature: 0.8,
+        max_tokens: 2000,
+      });
+
+      return new Response(JSON.stringify({ response: rawStory }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
