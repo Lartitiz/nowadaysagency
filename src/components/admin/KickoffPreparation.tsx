@@ -61,14 +61,26 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
   const handleCreate = async () => {
     if (!email.trim()) return toast.error("Email requis");
     setCreating(true);
-    const { data: profile } = await (supabase.from("profiles" as any) as any).select("user_id, prenom").ilike("email", email.trim()).maybeSingle();
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("user_id, prenom")
+      .ilike("email", email.trim())
+      .maybeSingle();
+
     if (!profile) { toast.error("Aucun compte trouvé avec « " + email.trim() + " »."); setCreating(false); return; }
-    const clientUserId = (profile as any).user_id;
-    const clientName = (profile as any).prenom || email.trim();
-    const { data: existingProg } = await (supabase.from("coaching_programs" as any) as any).select("id, status").eq("client_user_id", clientUserId).maybeSingle();
+    const clientUserId = profile.user_id;
+    const clientName = profile.prenom || email.trim();
+
+    const { data: existingProg } = await supabase
+      .from("coaching_programs")
+      .select("id, status")
+      .eq("client_user_id", clientUserId)
+      .maybeSingle();
     if (existingProg) { toast.info("Un programme existe déjà pour " + clientName + "."); setCreating(false); return; }
+
     const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : null;
-    const { data: prog, error } = await (supabase.from("coaching_programs" as any).insert({
+    const { data: prog, error } = await (supabase.from("coaching_programs").insert({
       client_user_id: clientUserId, coach_user_id: coachUserId, start_date: startDate, end_date: endDateStr,
       whatsapp_link: whatsapp || "https://wa.me/33614133921", formula: "now_pilot", duration_months: 6, price_monthly: 250, total_focus_sessions: focusSessions.length,
     } as any).select().single() as any);
@@ -78,20 +90,37 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
       program_id: prog.id, session_number: s.n, phase: s.phase, title: s.title, session_type: s.type,
       duration_minutes: s.duration, status: "scheduled", scheduled_date: [session1Date, session2Date, session3Date][i] || null,
     }));
-    const focusSessionsToInsert = focusSessions.map((f, i) => ({
-      program_id: prog.id, session_number: 4 + i, phase: "focus",
-      title: f.focus_topic ? getFocusLabel(f.focus_topic) : "À définir ensemble",
-      session_type: "focus", focus_topic: f.focus_topic || null,
-      focus_label: f.focus_topic === "custom" ? f.focus_label : null,
-      duration_minutes: f.duration, status: "scheduled", scheduled_date: f.date || null,
-    }));
-    await (supabase.from("coaching_sessions" as any).insert([...fixedSessionsToInsert, ...focusSessionsToInsert] as any) as any);
+    const focusSessionsToInsert = focusSessions
+      .filter(f => f.focus_topic || f.date)
+      .map((f, i) => ({
+        program_id: prog.id, session_number: 4 + i, phase: "focus",
+        title: f.focus_topic ? getFocusLabel(f.focus_topic) : "À définir ensemble",
+        session_type: "focus",
+        ...(f.focus_topic ? { focus_topic: f.focus_topic } : {}),
+        ...(f.focus_topic === "custom" && f.focus_label ? { focus_label: f.focus_label } : {}),
+        duration_minutes: f.duration, status: "scheduled", scheduled_date: f.date || null,
+      }));
+
+    const { error: sessErr } = await (supabase.from("coaching_sessions").insert([...fixedSessionsToInsert, ...focusSessionsToInsert] as any) as any);
+    if (sessErr) {
+      console.error("Erreur création sessions:", sessErr);
+      toast.error("Erreur lors de la création des sessions : " + sessErr.message);
+      setCreating(false);
+      return;
+    }
 
     const delivsToInsert = DEFAULT_DELIVERABLES.map(d => ({ program_id: prog.id, title: d.title, type: d.type, route: d.route, status: "pending" }));
-    await (supabase.from("coaching_deliverables" as any).insert(delivsToInsert as any) as any);
-    await (supabase.from("profiles" as any).update({ current_plan: "now_pilot" } as any).eq("user_id", clientUserId) as any);
+    const { error: delivErr } = await (supabase.from("coaching_deliverables").insert(delivsToInsert as any) as any);
+    if (delivErr) {
+      console.error("Erreur création livrables:", delivErr);
+      toast.error("Erreur lors de la création des livrables : " + delivErr.message);
+      setCreating(false);
+      return;
+    }
 
-    // Create workspace for client if checkbox is checked
+    const { error: profErr } = await (supabase.from("profiles").update({ current_plan: "now_pilot" } as any).eq("user_id", clientUserId) as any);
+    if (profErr) console.error("Erreur mise à jour profil:", profErr);
+
     if (createWorkspace) {
       const { data: existingWs } = await supabase
         .from("workspace_members")
@@ -100,13 +129,16 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
         .eq("role", "owner");
 
       if (!existingWs || existingWs.length === 0) {
-        const { data: ws } = await supabase
+        const { data: ws, error: wsErr } = await supabase
           .from("workspaces")
           .insert({ name: clientName, created_by: clientUserId } as any)
           .select("id")
           .single();
 
-        if (ws) {
+        if (wsErr) {
+          console.error("Erreur création workspace:", wsErr);
+          toast.warning("Programme créé, mais l'espace n'a pas pu être créé");
+        } else if (ws) {
           await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: clientUserId, role: "owner" } as any);
           await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: coachUserId, role: "manager" } as any);
         }
