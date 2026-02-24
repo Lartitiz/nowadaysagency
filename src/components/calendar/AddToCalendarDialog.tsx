@@ -2,7 +2,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -43,6 +43,7 @@ export function AddToCalendarDialog({
           <DialogTitle className="font-display text-lg">
             {contentEmoji} Ajouter au calendrier
           </DialogTitle>
+          <DialogDescription className="sr-only">Choisir une date pour ajouter ce contenu au calendrier</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 mt-2">

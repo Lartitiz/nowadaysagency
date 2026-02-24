@@ -13,7 +13,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format as fnsFormat } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 
 /* ─── Types ─── */
@@ -360,6 +360,7 @@ export default function IdeasPage() {
               <div className="py-4">
                 <SheetHeader>
                   <SheetTitle className="font-display text-xl text-left">{selectedIdea.titre}</SheetTitle>
+                  <SheetDescription className="sr-only">Détails de l'idée sauvegardée</SheetDescription>
                 </SheetHeader>
 
                 <div className="flex gap-1.5 flex-wrap mt-3 mb-4">

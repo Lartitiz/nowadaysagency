@@ -6,7 +6,7 @@ import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -186,6 +186,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: P
             <DialogTitle className="font-display flex items-center gap-2">
               <CalendarIcon className="h-4 w-4" /> Planifier l'idée
             </DialogTitle>
+            <DialogDescription className="sr-only">Choisir une date pour planifier cette idée</DialogDescription>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">« {planDialogIdea?.titre} »</p>
           <Calendar mode="single" selected={planDate} onSelect={setPlanDate}
@@ -307,6 +308,7 @@ function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenC
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="font-display">💡 Nouvelle idée</DialogTitle>
+          <DialogDescription className="sr-only">Formulaire pour ajouter une nouvelle idée de contenu</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 mt-2">
           <div>

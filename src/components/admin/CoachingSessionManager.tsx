@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Loader2, ArrowLeft, GripVertical, Trash2, Pause, Play, Upload, Unlock } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -364,6 +364,7 @@ function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate,
       <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Session {session.session_number} · {session.title || "À définir"}</DialogTitle>
+          <DialogDescription className="sr-only">Détails et gestion de la session de coaching</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-2">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Infos</p>

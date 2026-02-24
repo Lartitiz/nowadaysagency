@@ -8,6 +8,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -348,6 +349,7 @@ function AddRoutineDialog({
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="font-display">Nouvelle routine</DialogTitle>
+          <DialogDescription className="sr-only">Créer une nouvelle routine personnalisée</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-2">
           <div>

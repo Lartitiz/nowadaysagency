@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { X, Loader2, ChevronRight, Sparkles, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -143,6 +143,7 @@ export default function BrandingSuggestionsCard({
             <DialogTitle className="font-display text-lg">
               Voilà ce que je vais modifier
             </DialogTitle>
+            <DialogDescription className="sr-only">Aperçu des modifications de branding suggérées</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-5 py-2">
