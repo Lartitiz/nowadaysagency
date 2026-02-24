@@ -22,6 +22,9 @@ import {
 } from "recharts";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import ExcelImportDialog from "@/components/stats/ExcelImportDialog";
+import FollowersChart from "@/components/stats/FollowersChart";
+import EngagementChart from "@/components/stats/EngagementChart";
+import RevenueChart from "@/components/stats/RevenueChart";
 import * as XLSX from "xlsx";
 
 import {
@@ -884,29 +887,11 @@ export default function InstagramStats() {
                 {chartData.length >= 2 && (
                   <>
                     <ChartCard title="Évolution des abonné·es">
-                      <ResponsiveContainer width="100%" height={260}>
-                        <LineChart data={chartData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                          <XAxis dataKey="month" fontSize={11} stroke="hsl(var(--muted-foreground))" />
-                          <YAxis fontSize={11} stroke="hsl(var(--muted-foreground))" />
-                          <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
-                          <Line type="monotone" dataKey="followers" stroke="#fb3d80" name="Abonné·es" strokeWidth={2.5} dot={{ r: 4 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      <FollowersChart data={chartData} />
                     </ChartCard>
 
                     <ChartCard title="Portée et engagement">
-                      <ResponsiveContainer width="100%" height={260}>
-                        <ComposedChart data={chartData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                          <XAxis dataKey="month" fontSize={11} stroke="hsl(var(--muted-foreground))" />
-                          <YAxis yAxisId="left" fontSize={11} stroke="hsl(var(--muted-foreground))" />
-                          <YAxis yAxisId="right" orientation="right" fontSize={11} stroke="hsl(var(--muted-foreground))" unit="%" />
-                          <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
-                          <Bar yAxisId="left" dataKey="reach" fill="#ffa7c6" name="Portée" radius={[4, 4, 0, 0]} />
-                          <Line yAxisId="right" type="monotone" dataKey="engagement" stroke="#8B5CF6" name="Engagement %" strokeWidth={2} dot={{ r: 3 }} />
-                        </ComposedChart>
-                      </ResponsiveContainer>
+                      <EngagementChart data={chartData} />
                     </ChartCard>
 
                     {/* Traffic sources — dynamic based on config */}
@@ -932,17 +917,7 @@ export default function InstagramStats() {
 
                     {/* CA + Clients */}
                     <ChartCard title="CA et clients">
-                      <ResponsiveContainer width="100%" height={260}>
-                        <ComposedChart data={chartData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                          <XAxis dataKey="month" fontSize={11} stroke="hsl(var(--muted-foreground))" />
-                          <YAxis yAxisId="left" fontSize={11} stroke="hsl(var(--muted-foreground))" unit="€" />
-                          <YAxis yAxisId="right" orientation="right" fontSize={11} stroke="hsl(var(--muted-foreground))" />
-                          <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
-                          <Bar yAxisId="left" dataKey="revenue" fill="#fb3d80" name="CA (€)" radius={[4, 4, 0, 0]} />
-                          <Line yAxisId="right" type="monotone" dataKey="clients" stroke="#8B5CF6" name="Clients" strokeWidth={2} dot={{ r: 3 }} />
-                        </ComposedChart>
-                      </ResponsiveContainer>
+                      <RevenueChart data={chartData} />
                     </ChartCard>
                   </>
                 )}
