@@ -529,47 +529,84 @@ function ToneStyleSynthesis({ data, onSaveDirect }: {
 }
 
 /* ── STRATEGY SYNTHESIS ── */
+function ExpandableText({ text, lines = 3 }: { text: string; lines?: number }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div>
+      <p className={`text-sm text-muted-foreground leading-relaxed whitespace-pre-line ${expanded ? "" : `line-clamp-${lines}`}`}>
+        {text}
+      </p>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="text-xs font-semibold text-primary mt-1.5 hover:opacity-70 transition-opacity"
+      >
+        {expanded ? "Réduire" : "Lire la suite →"}
+      </button>
+    </div>
+  );
+}
+
 function StrategySynthesis({ data, onSaveRecap }: {
   data: any; onSaveRecap: (path: string[], value: string) => Promise<void>;
 }) {
   const summary = safeJson(data.recap_summary);
+  const facets = [data.facet_1, data.facet_2, data.facet_3].filter(Boolean);
+  const directPillars = [
+    { name: data.pillar_major, type: "major" },
+    { name: data.pillar_minor_1, type: "minor" },
+    { name: data.pillar_minor_2, type: "minor" },
+    { name: data.pillar_minor_3, type: "minor" },
+  ].filter(p => p.name);
 
   return (
     <div className="space-y-6">
-      {/* Creative concept */}
+      {/* Creative concept — hero card */}
       {(summary?.concept_short || data.creative_concept) && (
-        <div className="rounded-xl border-l-4 border-primary bg-[#FFF4F8] p-5 sm:p-6">
+        <div
+          className="rounded-xl border-l-4 p-6 sm:p-8"
+          style={{
+            borderLeftColor: "#fb3d80",
+            background: "linear-gradient(135deg, #FFF4F8 0%, #ffffff 100%)",
+          }}
+        >
           <SectionLabel emoji="💡" title="Mon concept créatif" />
-          <p className="font-display text-base font-bold text-foreground leading-relaxed">
+          <p className="font-display text-xl font-bold text-foreground leading-snug">
             {summary?.concept_short || data.creative_concept}
           </p>
           {summary?.concept_full && (
-            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{summary.concept_full}</p>
+            <div className="mt-3">
+              <ExpandableText text={summary.concept_full} lines={3} />
+            </div>
           )}
         </div>
       )}
 
       {/* Pillars */}
-      {(summary?.pillars?.length > 0 || data.pillar_major) && (
-        <SynthCard>
+      {(summary?.pillars?.length > 0 || directPillars.length > 0) && (
+        <div>
           <SectionLabel emoji="🏛️" title="Mes piliers de contenu" />
           {summary?.pillars ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {summary.pillars.map((p: any, i: number) => (
                 <div key={i} className="rounded-xl border border-border p-4 bg-card">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant={p.type === "major" ? "default" : "secondary"} className="text-[10px]">
-                      {p.type === "major" ? "🔥 Majeur" : "🌱 Mineur"}
-                    </Badge>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-display text-sm font-bold text-foreground">{p.name}</p>
+                    {p.percentage != null && (
+                      <Badge variant={p.type === "major" ? "default" : "secondary"} className="text-[10px]">
+                        {p.percentage}%
+                      </Badge>
+                    )}
                   </div>
-                  <p className="font-display text-sm font-bold text-foreground mb-2">{p.name}</p>
                   {p.percentage != null && (
                     <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2">
                       <div className="h-full bg-primary rounded-full" style={{ width: `${p.percentage}%` }} />
                     </div>
                   )}
+                  {p.description && (
+                    <p className="text-xs text-muted-foreground leading-relaxed">{p.description}</p>
+                  )}
                   {p.content_ideas?.length > 0 && (
-                    <ul className="space-y-1">
+                    <ul className="space-y-1 mt-2">
                       {p.content_ideas.map((idea: string, j: number) => (
                         <li key={j} className="text-xs text-muted-foreground flex items-start gap-1.5">
                           <span className="text-[8px] text-primary mt-1">●</span> {idea}
@@ -581,17 +618,40 @@ function StrategySynthesis({ data, onSaveRecap }: {
               ))}
             </div>
           ) : (
-            <TagsList items={[data.pillar_major, data.pillar_minor_1, data.pillar_minor_2, data.pillar_minor_3].filter(Boolean)} variant="rose" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {directPillars.map((p, i) => (
+                <div
+                  key={i}
+                  className="rounded-xl p-4 border border-border"
+                  style={{
+                    backgroundColor: p.type === "major" ? "#FFF4F8" : "#FAFAFA",
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant={p.type === "major" ? "default" : "secondary"} className="text-[10px]">
+                      {p.type === "major" ? "🔥 Majeur" : "🌱 Mineur"}
+                    </Badge>
+                  </div>
+                  <p className="font-display text-sm font-bold text-foreground">{p.name}</p>
+                </div>
+              ))}
+            </div>
           )}
-        </SynthCard>
+        </div>
       )}
 
-      {/* Facets */}
-      {(summary?.facets?.length > 0 || data.facet_1) && (
-        <SynthCard>
+      {/* Facets as horizontal tags */}
+      {(summary?.facets?.length > 0 || facets.length > 0) && (
+        <div>
           <SectionLabel emoji="🎭" title="Mes facettes" />
-          <TagsList items={summary?.facets || [data.facet_1, data.facet_2, data.facet_3].filter(Boolean)} variant="violet" />
-        </SynthCard>
+          <div className="flex flex-wrap gap-2">
+            {(summary?.facets || facets).map((f: string, i: number) => (
+              <Badge key={i} variant="secondary" className="bg-violet-50 text-violet-700 border-0 text-xs font-medium px-4 py-1.5 rounded-full">
+                {f}
+              </Badge>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Content mix */}
@@ -622,19 +682,27 @@ function StrategySynthesis({ data, onSaveRecap }: {
         </SynthCard>
       )}
 
-      {/* Creative gestures */}
+      {/* Creative gestures — accordion */}
       {summary?.creative_gestures?.length > 0 && (
-        <SynthCard>
-          <SectionLabel emoji="✍️" title="Les gestes créatifs de ma signature" />
-          <div className="space-y-2">
-            {summary.creative_gestures.map((g: string, i: number) => (
-              <div key={i} className="flex items-start gap-2.5">
-                <span className="font-display text-sm font-bold text-primary shrink-0">{i + 1}.</span>
-                <p className="text-sm text-foreground">{g}</p>
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="gestures" className="border rounded-xl overflow-hidden">
+            <AccordionTrigger className="px-5 py-3 hover:no-underline">
+              <span className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+                📖 Voir l'analyse complète
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="px-5 pb-5">
+              <div className="space-y-2">
+                {summary.creative_gestures.map((g: string, i: number) => (
+                  <div key={i} className="flex items-start gap-2.5">
+                    <span className="font-display text-sm font-bold text-primary shrink-0">{i + 1}.</span>
+                    <p className="text-sm text-foreground">{g}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </SynthCard>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       )}
     </div>
   );
