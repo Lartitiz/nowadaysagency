@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
@@ -56,6 +57,8 @@ export default function PersonaPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [data, setData] = useState<PersonaData>(EMPTY);
   const [existingId, setExistingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,9 +83,9 @@ export default function PersonaPage() {
     if (!user || !loading) return;
     const load = async () => {
       const [pRes, profRes, bpRes] = await Promise.all([
-        supabase.from("persona").select("*").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle(),
         supabase.from("profiles").select("activite, prenom, tons").eq("user_id", user.id).single(),
-        supabase.from("brand_profile").select("mission, offer, target_description, tone_register").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register").eq(column, value).maybeSingle(),
       ]);
       if (pRes.data) {
         const { id, user_id, created_at, updated_at, ...rest } = pRes.data;
@@ -105,7 +108,7 @@ export default function PersonaPage() {
     if (existingId) {
       await supabase.from("persona").update(payload as any).eq("id", existingId);
     } else {
-      const { data: inserted } = await supabase.from("persona").insert({ ...payload, user_id: user.id } as any).select("id").single();
+      const { data: inserted } = await supabase.from("persona").insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined } as any).select("id").single();
       if (inserted) setExistingId(inserted.id);
     }
   }, [user, existingId]);

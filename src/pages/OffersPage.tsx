@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,8 @@ export default function OffersPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { isDemoMode } = useDemoContext();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [offers, setOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [coachingOpen, setCoachingOpen] = useState(false);
@@ -44,10 +47,10 @@ export default function OffersPage() {
       return;
     }
     if (!user) return;
-    supabase
-      .from("offers")
+    (supabase
+      .from("offers") as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("created_at", { ascending: true })
       .then(({ data }) => {
         setOffers(data || []);
@@ -59,7 +62,7 @@ export default function OffersPage() {
     if (!user) return;
     const { data, error } = await supabase
       .from("offers")
-      .insert({ user_id: user.id, offer_type: type, name: "" })
+      .insert({ user_id: user.id, offer_type: type, name: "", workspace_id: workspaceId !== user.id ? workspaceId : undefined } as any)
       .select()
       .single();
     if (error) { toast.error("Erreur lors de la création"); return; }
@@ -74,7 +77,7 @@ export default function OffersPage() {
 
   const reloadOffers = async () => {
     if (!user) return;
-    const { data } = await supabase.from("offers").select("*").eq("user_id", user.id).order("created_at", { ascending: true });
+    const { data } = await (supabase.from("offers") as any).select("*").eq(column, value).order("created_at", { ascending: true });
     setOffers(data || []);
   };
 

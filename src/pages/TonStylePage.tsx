@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import VoiceOnboarding from "@/components/VoiceOnboarding";
 import { Progress } from "@/components/ui/progress";
@@ -90,6 +91,8 @@ function computeScore(p: Omit<ToneProfile, "user_id">): number {
 export default function TonStylePage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [profile, setProfile] = useState<Omit<ToneProfile, "user_id">>(EMPTY);
   const [savedProfile, setSavedProfile] = useState<Omit<ToneProfile, "user_id">>(EMPTY);
   const [existingId, setExistingId] = useState<string | null>(null);
@@ -111,7 +114,7 @@ export default function TonStylePage() {
 
   useEffect(() => {
     if (!user || !loading) return;
-    supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+    (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle().then(({ data }: any) => {
       if (data) {
         setExistingId(data.id);
         const { id, user_id, created_at, updated_at, mission, offer, target_description, target_problem, target_beliefs, recap_summary, ...rest } = data as any;
@@ -135,7 +138,7 @@ export default function TonStylePage() {
         const { error } = await supabase.from("brand_profile").update(profile as any).eq("id", existingId);
         if (error) throw error;
       } else {
-        const { data: inserted, error } = await supabase.from("brand_profile").insert({ ...profile, user_id: user.id } as any).select("id").single();
+        const { data: inserted, error } = await supabase.from("brand_profile").insert({ ...profile, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined } as any).select("id").single();
         if (error) throw error;
         if (inserted) setExistingId(inserted.id);
       }
@@ -152,7 +155,7 @@ export default function TonStylePage() {
     setAiLoading("voice");
     try {
       const [stRes, profRes] = await Promise.all([
-        supabase.from("storytelling").select("step_7_polished, imported_text").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("storytelling") as any).select("step_7_polished, imported_text").eq(column, value).maybeSingle(),
         supabase.from("profiles").select("activite").eq("user_id", user.id).single(),
       ]);
       const storyText = stRes.data?.step_7_polished || stRes.data?.imported_text || "";
@@ -207,7 +210,7 @@ Réponds avec le texte seul, 3-4 phrases.`);
     try {
       const [profRes, propRes] = await Promise.all([
         supabase.from("profiles").select("activite, mission").eq("user_id", user.id).single(),
-        supabase.from("brand_proposition").select("version_final").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("brand_proposition") as any).select("version_final").eq(column, value).maybeSingle(),
       ]);
       const res = await supabase.functions.invoke("niche-ai", {
         body: {
@@ -259,7 +262,7 @@ Réponds avec le texte seul, 3-4 phrases.`);
     if (!user) return;
     setAiLoading("expressions");
     try {
-      const stRes = await supabase.from("storytelling").select("step_7_polished, step_1_raw").eq("user_id", user.id).maybeSingle();
+      const stRes = await (supabase.from("storytelling") as any).select("step_7_polished, step_1_raw").eq(column, value).maybeSingle();
       const text = stRes.data?.step_7_polished || stRes.data?.step_1_raw || "";
       if (!text) {
         toast({ title: "Remplis d'abord ton storytelling", description: "L'IA a besoin de ton histoire pour identifier tes expressions.", variant: "destructive" });
@@ -282,7 +285,7 @@ Réponds avec le texte seul, 3-4 phrases.`);
     if (!user) return;
     setAiLoading("verbatims");
     try {
-      const perRes = await supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections").eq("user_id", user.id).maybeSingle();
+      const perRes = await (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation, step_3a_objections").eq(column, value).maybeSingle();
       const data = perRes.data;
       if (!data || (!data.step_1_frustrations && !data.step_3a_objections)) {
         toast({ title: "Remplis d'abord ton persona", variant: "destructive" });
@@ -311,6 +314,7 @@ Réponds avec le texte seul, 3-4 phrases.`);
     await supabase.from("saved_ideas").insert({
       user_id: user.id, titre, angle, format, canal: "instagram",
       objectif: "visibilite", status: "to_explore",
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
     } as any);
     toast({ title: "💾 Idée sauvegardée !" });
   };
