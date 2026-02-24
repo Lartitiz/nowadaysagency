@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const lastHiddenAt = useRef<number>(0);
 
   // In demo mode, skip all Supabase auth and provide a fake user
   useEffect(() => {
@@ -42,6 +43,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         if (!mounted) return;
+
+        // Silent token refresh: update session only, no navigation
+        if (event === 'TOKEN_REFRESHED') {
+          if (currentSession) {
+            setSession(currentSession);
+          }
+          return;
+        }
 
         // Only update session ref if token actually changed to avoid re-renders
         setSession(prev => {
@@ -155,17 +164,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       initialSessionHandled = true;
     });
 
-    // 3. Silently refresh session when tab becomes visible again
+    // 3. Silently refresh session when tab becomes visible again (only after 5 min away)
     const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        lastHiddenAt.current = Date.now();
+        return;
+      }
       if (document.visibilityState === 'visible') {
+        const elapsed = Date.now() - lastHiddenAt.current;
+        if (elapsed < 5 * 60 * 1000) return;
+
         supabase.auth.getSession().then(({ data: { session: refreshedSession } }) => {
           if (!mounted) return;
           if (refreshedSession) {
-            // Only update if token actually changed
-            setSession(prev => {
-              if (prev?.access_token === refreshedSession.access_token) return prev;
-              return refreshedSession;
-            });
+            setSession(refreshedSession);
             setUser(prev => {
               if (prev?.id === refreshedSession.user?.id) return prev;
               return refreshedSession.user;
