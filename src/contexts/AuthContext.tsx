@@ -4,10 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useDemoContext } from "@/contexts/DemoContext";
 
+const ADMIN_EMAILS = ["laetitia@nowadaysagency.com"];
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isAdmin: boolean;
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -200,10 +203,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, []);
 
+  const isAdmin = ADMIN_EMAILS.includes(user?.email || "");
+
   // Memoize the context value to prevent unnecessary re-renders of all consumers
   const value = useMemo<AuthContextType>(
-    () => ({ user, session, loading, signUp, signIn, signOut }),
-    [user, session, loading, signUp, signIn, signOut]
+    () => ({ user, session, loading, isAdmin, signUp, signIn, signOut }),
+    [user, session, loading, isAdmin, signUp, signIn, signOut]
   );
 
   return (

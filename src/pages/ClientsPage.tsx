@@ -29,7 +29,7 @@ import {
 import { toast } from "sonner";
 
 export default function ClientsPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { workspaces, switchWorkspace, loading, activeRole } = useWorkspace();
   const { plan, loading: planLoading, isPilot } = useUserPlan();
   const navigate = useNavigate();
@@ -144,7 +144,7 @@ export default function ClientsPage() {
 
   // Gatekeeping: only studio, now_pilot, or users who manage a workspace
   const hasManagerRole = workspaces.length > 0 && activeRole === "manager";
-  const canAccess = plan === "studio" || plan === "now_pilot" || isPilot || hasManagerRole;
+  const canAccess = isAdmin || plan === "studio" || plan === "now_pilot" || isPilot || hasManagerRole;
 
   if (!planLoading && !canAccess) {
     return (

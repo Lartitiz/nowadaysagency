@@ -4,6 +4,8 @@ import { trackError } from "@/lib/error-tracker";
 import { supabase } from "@/integrations/supabase/client";
 import { useDemoContext } from "@/contexts/DemoContext";
 
+const ADMIN_EMAILS = ["laetitia@nowadaysagency.com"];
+
 type Plan = "free" | "outil" | "pro" | "studio" | "now_pilot";
 
 type Feature =
@@ -106,11 +108,12 @@ export function useUserPlan(): UserPlanState {
     load();
   }, [load]);
 
-  const effectivePlan: Plan = isDemoMode ? demoPlanResolved : plan;
+  const isAdminUser = ADMIN_EMAILS.includes(user?.email || "");
+  const effectivePlan: Plan = isAdminUser ? "now_pilot" : (isDemoMode ? demoPlanResolved : plan);
 
   const canUseFeature = useCallback(
     (feature: Feature) => {
-      const p = isDemoMode ? demoPlanResolved : plan;
+      const p = isAdminUser ? "now_pilot" : (isDemoMode ? demoPlanResolved : plan);
       switch (p) {
         case "now_pilot": return NOW_PILOT_FEATURES.includes(feature);
         case "studio": return STUDIO_FEATURES.includes(feature);
@@ -119,40 +122,43 @@ export function useUserPlan(): UserPlanState {
         default: return FREE_FEATURES.includes(feature);
       }
     },
-    [plan, isDemoMode, demoPlanResolved]
+    [plan, isDemoMode, demoPlanResolved, isAdminUser]
   );
 
   const canGenerate = useCallback((category: AiCategory = "content") => {
+    if (isAdminUser) return true;
     if (isDemoMode && demoPlan === "now_pilot") return true;
     const cat = usage[category];
     const total = usage.total;
     if (!cat || !total) return true;
     if (cat.limit === 0) return false;
     return cat.used < cat.limit && total.used < total.limit;
-  }, [usage, isDemoMode, demoPlan]);
+  }, [usage, isDemoMode, demoPlan, isAdminUser]);
 
   const canAudit = useCallback(() => {
     return canGenerate("audit");
   }, [canGenerate]);
 
   const remainingGenerations = useCallback((category: AiCategory = "content") => {
+    if (isAdminUser) return 100;
     if (isDemoMode && demoPlan === "now_pilot") return 100;
     const cat = usage[category];
     if (!cat) return Infinity;
     return Math.max(0, cat.limit - cat.used);
-  }, [usage, isDemoMode, demoPlan]);
+  }, [usage, isDemoMode, demoPlan, isAdminUser]);
 
   const remainingAudits = useCallback(() => {
     return remainingGenerations("audit");
   }, [remainingGenerations]);
 
   const remainingTotal = useCallback(() => {
+    if (isAdminUser) return 284;
     if (isDemoMode && demoPlan === "now_pilot") return 284;
     if (isDemoMode && demoPlan === "free") return 2;
     const total = usage.total;
     if (!total) return Infinity;
     return Math.max(0, total.limit - total.used);
-  }, [usage, isDemoMode, demoPlan]);
+  }, [usage, isDemoMode, demoPlan, isAdminUser]);
 
   return {
     plan: effectivePlan,
@@ -164,9 +170,9 @@ export function useUserPlan(): UserPlanState {
     remainingGenerations,
     remainingAudits,
     remainingTotal,
-    isPaid: (isDemoMode && demoPlan === "now_pilot") || (!isDemoMode && plan !== "free"),
-    isStudio: !isDemoMode && plan === "studio",
-    isPilot: (isDemoMode && demoPlan === "now_pilot") || (!isDemoMode && plan === "now_pilot"),
+    isPaid: isAdminUser || (isDemoMode && demoPlan === "now_pilot") || (!isDemoMode && plan !== "free"),
+    isStudio: !isDemoMode && (isAdminUser || plan === "studio"),
+    isPilot: isAdminUser || (isDemoMode && demoPlan === "now_pilot") || (!isDemoMode && plan === "now_pilot"),
     refresh: load,
   };
 }
