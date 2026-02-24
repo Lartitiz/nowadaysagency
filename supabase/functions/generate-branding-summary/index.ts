@@ -81,31 +81,93 @@ serve(async (req) => {
     }
 
     // Generate with AI
-    const systemPrompt = `Tu es une experte en communication et branding pour solopreneuses.
-L'utilisatrice a rempli son branding complet. Génère un résumé COURT et PERCUTANT de chaque section.
-Chaque résumé fait 2-3 phrases maximum. C'est une carte de visite stratégique, pas un dossier.
+    const systemPrompt = `Tu es une experte en communication et branding pour solopreneuses créatives.
 
-Les résumés doivent être :
-- Courts (2-3 phrases, jamais plus)
-- Percutants (chaque mot compte)
-- Concrets (pas de généralités)
-- Dans le ton de l'utilisatrice
+L'utilisatrice a rempli son branding complet. Génère des résumés COURTS et PERCUTANTS pour sa fiche synthèse.
+
+RÈGLES ABSOLUES :
+
+- Chaque résumé fait 2-3 phrases MAXIMUM. C'est une carte de visite stratégique, pas un dossier.
+
+- Pas de tirets longs. Utilise : ou ; à la place.
+
+- Écriture inclusive avec point médian (créatrice·s, engagé·e).
+
+- Ton direct, chaleureux, pro. Comme une conversation entre ami·es.
+
+- Chaque mot compte. Zéro remplissage.
+
+- Pour les "key_points" : des phrases courtes et percutantes, pas des paragraphes.
+
+STRUCTURE DES RÉSUMÉS :
+
+Pour "combats" : une phrase d'accroche forte qui résume LA cause + 3-4 points clés courts (1 phrase chacun) qui résument les combats concrets.
+
+Pour "unique" : une phrase d'accroche forte + 3-4 points clés courts.
+
+Pour "voice_layers" : chaque couche = son nom + 1 phrase max qui capture l'essentiel.
+
+Pour les expressions clés : garde-les telles quelles mais limite à 8-10 max.
 
 Retourne UNIQUEMENT un JSON valide, sans markdown, sans backticks :
+
 {
+
   "positioning_summary": "2-3 phrases max sur son positionnement",
-  "unique_summary": "2-3 phrases max sur ce qui la rend unique",
+
+  "unique_hook": "1 phrase d'accroche forte sur ce qui la rend unique",
+
+  "unique_points": ["point clé 1 (1 phrase)", "point clé 2", "point clé 3"],
+
   "target_summary": "2-3 phrases max sur sa cible",
+
   "target_quote": "LA phrase signature de la cible (1 seule, entre guillemets)",
+
   "tone_summary": "2-3 phrases max sur son ton",
+
   "tone_keywords": ["mot1", "mot2", "mot3", "mot4", "mot5"],
+
   "tone_avoid": ["mot1", "mot2", "mot3"],
+
+  "voice_layers": [
+
+    {"name": "Directe et chaleureuse", "summary": "1 phrase max"},
+
+    {"name": "Orale et incarnée", "summary": "1 phrase max"},
+
+    {"name": "Rythmée par contrastes", "summary": "1 phrase max"}
+
+  ],
+
+  "expressions_key": ["expression1", "expression2", "expression3"],
+
+  "combats_hook": "1 phrase d'accroche forte sur LA cause",
+
+  "combats_points": ["combat concret 1 (1 phrase)", "combat 2", "combat 3"],
+
+  "combats_alternative": "1-2 phrases sur ce qu'elle propose à la place",
+
   "story_summary": "2-3 phrases max sur son histoire",
+
+  "story_before": "1 phrase : le avant",
+
+  "story_trigger": "1 phrase : le déclic",
+
+  "story_after": "1 phrase : le après",
+
   "twist_summary": "2-3 phrases max sur son twist créatif",
-  "twist_formula": "1 phrase signature créative"
+
+  "twist_formula": "1 phrase signature créative",
+
+  "offers_summaries": [
+
+    {"name": "Nom offre", "one_liner": "1 phrase percutante qui résume l'offre"}
+
+  ]
+
 }
 
-Si une section n'a pas de données, mets null pour cette clé.`;
+Si une section n'a pas de données, mets null pour cette clé. Pour les arrays vides, mets [].`;
 
     const raw = await callAnthropicSimple(
       getDefaultModel(),
