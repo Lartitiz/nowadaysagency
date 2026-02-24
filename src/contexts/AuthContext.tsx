@@ -3,6 +3,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useDemoContext } from "@/contexts/DemoContext";
+import { posthog } from "@/lib/posthog";
 
 const ADMIN_EMAILS = ["laetitia@nowadaysagency.com"];
 
@@ -71,6 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!initialSessionHandled) return;
 
         if (event === "SIGNED_IN" && currentSession?.user) {
+          posthog.identify(currentSession.user.id, {
+            email: currentSession.user.email,
+          });
           const path = window.location.pathname;
           const searchParams = new URLSearchParams(window.location.search);
           const redirectTo = searchParams.get("redirect");
@@ -112,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Only redirect on explicit sign out, NOT on token refresh failures
         if (event === "SIGNED_OUT") {
+          posthog.reset();
           navigate("/login");
         }
       }
