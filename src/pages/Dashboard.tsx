@@ -1,3 +1,4 @@
+import { useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -87,6 +88,8 @@ export default function Dashboard() {
   const { isPilot } = useUserPlan();
   const { column, value } = useWorkspaceFilter();
   const { hasInstagram, hasLinkedin, hasWebsite, hasSeo, loading: channelsLoading, channels } = useActiveChannels();
+
+  const welcomeMessage = useMemo(() => getWelcomeMessage(), []);
   // ── Profile query ──
   const { data: profile } = useQuery<UserProfile | null>({
     queryKey: ["profile", user?.id, column, value, isDemoMode],
@@ -210,6 +213,32 @@ export default function Dashboard() {
     enabled: (!!user && isPilot) || (isDemoMode && !!demoData?.coaching),
   });
 
+  const comingSoonChannels = useMemo(() => ALL_CHANNELS.filter(c => c.comingSoon && channels.includes(c.id)), [channels]);
+
+  const queryClient = useQueryClient();
+  const toggleRecommendation = useCallback(async (id: string, currentCompleted: boolean | null) => {
+    if (isDemoMode) return;
+    const newCompleted = !currentCompleted;
+    await supabase.from("audit_recommendations").update({
+      completed: newCompleted,
+      completed_at: newCompleted ? new Date().toISOString() : null,
+    }).eq("id", id);
+    queryClient.setQueryData<DashboardData>(["dashboard-data", user?.id, isDemoMode], (prev) => {
+      if (!prev) return prev;
+      return { ...prev, recommendations: prev.recommendations.map(r => r.id === id ? { ...r, completed: newCompleted } : r) };
+    });
+  }, [isDemoMode, user?.id, queryClient]);
+
+  const activeSpaces = useMemo(() => spaceModules.filter(s => {
+    if (channelsLoading) return false;
+    if (s.id === "branding") return true;
+    if (s.id === "instagram") return hasInstagram;
+    if (s.id === "website") return hasWebsite;
+    if (s.id === "linkedin") return hasLinkedin;
+    if (s.id === "seo") return hasSeo;
+    return s.enabled;
+  }), [channelsLoading, hasInstagram, hasLinkedin, hasWebsite, hasSeo]);
+
   if (!profile) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -222,35 +251,8 @@ export default function Dashboard() {
     );
   }
 
-  const comingSoonChannels = ALL_CHANNELS.filter(c => c.comingSoon && channels.includes(c.id));
-
-  const queryClient = useQueryClient();
-  const toggleRecommendation = async (id: string, currentCompleted: boolean | null) => {
-    if (isDemoMode) return;
-    const newCompleted = !currentCompleted;
-    await supabase.from("audit_recommendations").update({
-      completed: newCompleted,
-      completed_at: newCompleted ? new Date().toISOString() : null,
-    }).eq("id", id);
-    queryClient.setQueryData<DashboardData>(["dashboard-data", user?.id, isDemoMode], (prev) => {
-      if (!prev) return prev;
-      return { ...prev, recommendations: prev.recommendations.map(r => r.id === id ? { ...r, completed: newCompleted } : r) };
-    });
-  };
-
   let delayIdx = 0;
   const nextDelay = () => { delayIdx++; return delayIdx * 0.05; };
-
-  // Determine which spaces to show
-  const activeSpaces = spaceModules.filter(s => {
-    if (channelsLoading) return false;
-    if (s.id === "branding") return true; // Always show branding
-    if (s.id === "instagram") return hasInstagram;
-    if (s.id === "website") return hasWebsite;
-    if (s.id === "linkedin") return hasLinkedin;
-    if (s.id === "seo") return hasSeo;
-    return s.enabled;
-  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -264,7 +266,7 @@ export default function Dashboard() {
             Hey <span className="text-primary">{profile.prenom}</span>,{" "}
             {isPilot && coachingMonth
               ? <>programme Now Pilot · Mois {coachingMonth}/6 🤝</>
-              : <>{getWelcomeMessage()}</>
+              : <>{welcomeMessage}</>
             }
           </h1>
           <p className="mt-1 text-[14px] text-muted-foreground font-body">
