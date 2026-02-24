@@ -65,7 +65,14 @@ export async function callAnthropic(options: AnthropicOptions): Promise<string> 
     }
 
     const errorText = await response.text();
-    console.error(`Anthropic API error (attempt ${attempt + 1}):`, response.status, errorText);
+    console.error(JSON.stringify({
+      type: "ai_error",
+      model: options.model,
+      error: `Anthropic API error: ${response.status}`,
+      status: response.status,
+      attempt: attempt + 1,
+      timestamp: new Date().toISOString(),
+    }));
 
     // Retryable: 429 (rate limit) and 529 (overloaded)
     if ((response.status === 429 || response.status === 529) && attempt < MAX_RETRIES) {

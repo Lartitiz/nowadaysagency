@@ -628,7 +628,13 @@ Reponds en JSON :
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e: any) {
-    console.error("generate-content error:", e);
+    console.error(JSON.stringify({
+      type: "edge_function_error",
+      function_name: "generate-content",
+      error: e.message || "Erreur inconnue",
+      user_id: null,
+      timestamp: new Date().toISOString(),
+    }));
     return new Response(
       JSON.stringify({ error: e.message || "Erreur inconnue" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
