@@ -586,6 +586,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                   onChange={(e) => setContentDraft(e.target.value)}
                   className="rounded-[10px] min-h-[120px] text-sm"
                   placeholder="Écris ou colle ton contenu ici..."
+                  aria-label="Contenu du post"
                 />
                 <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} className="rounded-pill text-xs">
                   ✅ Terminer l'édition

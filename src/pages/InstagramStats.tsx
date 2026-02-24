@@ -688,7 +688,7 @@ export default function InstagramStats() {
                     ))}
                   </div>
                   {draftConfig.website_platform === "other" && (
-                    <Input className="mt-2 max-w-xs" placeholder="Précise la plateforme..." value={draftConfig.website_platform_other || ""}
+                    <Input className="mt-2 max-w-xs" placeholder="Précise la plateforme..." aria-label="Précise la plateforme" value={draftConfig.website_platform_other || ""}
                       onChange={e => setDraftConfig(c => ({ ...c, website_platform_other: e.target.value }))} />
                   )}
                 </div>
@@ -730,13 +730,13 @@ export default function InstagramStats() {
                 <p className="text-sm text-muted-foreground">Ajoute les pages que tu veux suivre (optionnel).</p>
                 {(draftConfig.sales_pages || []).map((page, i) => (
                   <div key={i} className="flex gap-2 items-center">
-                    <Input placeholder="Nom de la page/offre" value={page.name}
+                    <Input placeholder="Nom de la page/offre" aria-label={`Nom de la page de vente ${i + 1}`} value={page.name}
                       onChange={e => {
                         const pages = [...(draftConfig.sales_pages || [])];
                         pages[i] = { ...pages[i], name: e.target.value };
                         setDraftConfig(c => ({ ...c, sales_pages: pages }));
                       }} className="flex-1" />
-                    <Input placeholder="URL" value={page.url}
+                    <Input placeholder="URL" aria-label={`URL de la page de vente ${i + 1}`} value={page.url}
                       onChange={e => {
                         const pages = [...(draftConfig.sales_pages || [])];
                         pages[i] = { ...pages[i], url: e.target.value };

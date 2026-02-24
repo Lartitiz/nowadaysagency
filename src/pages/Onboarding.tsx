@@ -225,6 +225,7 @@ function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = true, m
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
+          aria-label={placeholder}
           autoFocus={autoFocus}
           rows={4}
           className="w-full text-base p-4 pr-12 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50 resize-none"
@@ -252,6 +253,7 @@ function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = true, m
         onChange={e => onChange(e.target.value)}
         onKeyDown={e => { if (e.key === "Enter" && onEnter) onEnter(); }}
         placeholder={placeholder}
+        aria-label={placeholder}
         autoFocus={autoFocus}
         className="w-full text-xl p-4 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50"
       />
@@ -368,12 +370,12 @@ function InstagramScreen({ answers, set, onNext, onSkip }: {
       </div>
       <div className="space-y-6">
         <input type="text" value={answers.instagram} onChange={e => set("instagram", e.target.value)}
-          placeholder="@" autoFocus
+          placeholder="@" autoFocus aria-label="Ton @ Instagram"
           className="w-full text-xl p-4 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50" />
         <div>
           <p className="text-sm text-muted-foreground mb-2">Et ton site web ? <span className="italic">(optionnel)</span></p>
           <input type="text" value={answers.website} onChange={e => set("website", e.target.value)}
-            placeholder="https://"
+            placeholder="https://" aria-label="URL de ton site web"
             className="w-full text-xl p-4 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50" />
         </div>
       </div>
@@ -705,6 +707,7 @@ function ValuesScreen({ value, onChange, onNext }: {
             value={val}
             onChange={e => updateValue(idx, e.target.value)}
             placeholder={`${idx + 1}.`}
+            aria-label={`Valeur ${idx + 1}`}
           />
         ))}
       </div>

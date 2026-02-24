@@ -623,6 +623,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
                   onValueChange={setAnswer}
                   onChange={(e) => setAnswer(e.target.value)}
                   placeholder={currentQuestion.placeholder}
+                  aria-label="Ta réponse au coaching"
                   className="min-h-[120px]"
                 />
               )}
@@ -633,6 +634,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
                   onValueChange={setAnswer}
                   onChange={(e) => setAnswer(e.target.value)}
                   placeholder={currentQuestion.placeholder}
+                  aria-label="Ta réponse au coaching"
                 />
               )}
 
