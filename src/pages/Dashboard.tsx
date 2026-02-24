@@ -7,9 +7,11 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
+import ClientOnboarding from "@/components/client/ClientOnboarding";
 
 import { Progress } from "@/components/ui/progress";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -92,7 +94,11 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { isPilot } = useUserPlan();
   const { column, value } = useWorkspaceFilter();
+  const { activeWorkspace, activeRole } = useWorkspace();
   const { hasInstagram, hasLinkedin, hasWebsite, hasSeo, loading: channelsLoading, channels } = useActiveChannels();
+  const queryClient = useQueryClient();
+
+  const isClientWorkspace = !!activeWorkspace && activeRole === "manager";
 
   const { startSession, isActive: sessionActive } = useSession();
 
@@ -222,7 +228,22 @@ export default function Dashboard() {
 
   const comingSoonChannels = useMemo(() => ALL_CHANNELS.filter(c => c.comingSoon && channels.includes(c.id)), [channels]);
 
-  const queryClient = useQueryClient();
+  // ── Client workspace empty detection ──
+  const skippedOnboarding = isClientWorkspace && typeof window !== "undefined" && localStorage.getItem(`onboarding_skipped_${activeWorkspace?.id}`) === "true";
+  const { data: clientHasData } = useQuery({
+    queryKey: ["client-has-data", activeWorkspace?.id],
+    queryFn: async () => {
+      if (!activeWorkspace?.id) return true;
+      const [story, persona, profile] = await Promise.all([
+        (supabase.from("storytelling") as any).select("id", { count: "exact", head: true }).eq("workspace_id", activeWorkspace.id),
+        (supabase.from("persona") as any).select("id", { count: "exact", head: true }).eq("workspace_id", activeWorkspace.id),
+        (supabase.from("brand_profile") as any).select("id", { count: "exact", head: true }).eq("workspace_id", activeWorkspace.id),
+      ]);
+      return (story.count || 0) + (persona.count || 0) + (profile.count || 0) > 0;
+    },
+    enabled: !!activeWorkspace?.id && isClientWorkspace && !skippedOnboarding,
+  });
+
   const toggleRecommendation = useCallback(async (id: string, currentCompleted: boolean | null) => {
     if (isDemoMode) return;
     const newCompleted = !currentCompleted;
@@ -245,6 +266,26 @@ export default function Dashboard() {
     if (s.id === "seo") return hasSeo;
     return s.enabled;
   }), [channelsLoading, hasInstagram, hasLinkedin, hasWebsite, hasSeo]);
+
+  // ── Client onboarding for empty workspace ──
+  if (isClientWorkspace && clientHasData === false && !skippedOnboarding) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <ClientOnboarding
+          workspaceName={activeWorkspace?.name || "Client"}
+          workspaceId={activeWorkspace!.id}
+          onComplete={() => {
+            queryClient.invalidateQueries();
+          }}
+          onSkip={() => {
+            localStorage.setItem(`onboarding_skipped_${activeWorkspace!.id}`, "true");
+            queryClient.invalidateQueries({ queryKey: ["client-has-data"] });
+          }}
+        />
+      </div>
+    );
+  }
 
   if (!profile) {
     return (

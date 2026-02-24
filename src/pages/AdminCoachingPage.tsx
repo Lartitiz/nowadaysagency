@@ -57,6 +57,11 @@ export default function AdminCoachingPage() {
     const coachingClientUserIds = new Set(programList.map(p => p.client_user_id));
 
     const managerWsList = (managerWs || []).map((r: any) => r.workspaces).filter(Boolean) as Workspace[];
+    // Build a role map so we know the admin's role in each workspace
+    const adminRoleMap = new Map<string, string>();
+    (managerWs || []).forEach((r: any) => {
+      if (r.workspaces) adminRoleMap.set(r.workspaces.id, r.role);
+    });
     
     if (managerWsList.length > 0) {
       const wsIds = managerWsList.map(w => w.id);
@@ -73,8 +78,8 @@ export default function AdminCoachingPage() {
         const ownerId = ownerMap.get(ws.id);
         // Exclure les workspaces de clientes coaching
         if (ownerId && coachingClientUserIds.has(ownerId)) return false;
-        // Exclure le workspace personnel de l'admin
-        if (ownerId === user.id && ws.name === "Nowadays Agency") return false;
+        // Exclure le workspace personnel de l'admin (where admin is owner, not manager)
+        if (ownerId === user.id && adminRoleMap.get(ws.id) === "owner") return false;
         return true;
       });
       setStandaloneWorkspaces(standalone);
