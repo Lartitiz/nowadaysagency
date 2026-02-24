@@ -157,22 +157,52 @@ serve(async (req) => {
     const systemPrompt = buildSystemPrompt(section, context || {}, covered_topics || []);
 
     // Build anthropic messages — send ALL messages, no pruning
-    const anthropicMessages = (messages || []).map((m: any) => ({
-      role: m.role === "user" ? "user" : "assistant",
+    let anthropicMessages = (messages || []).map((m: any) => ({
+      role: m.role === "user" ? "user" as const : "assistant" as const,
       content: m.content,
     }));
 
     if (anthropicMessages.length === 0) {
       anthropicMessages.push({
-        role: "user",
+        role: "user" as const,
         content: "Commence la session. Pose-moi ta première question.",
+      });
+    }
+
+    // L'API exige que le dernier message soit "user"
+    while (anthropicMessages.length > 0 && anthropicMessages[anthropicMessages.length - 1].role === "assistant") {
+      anthropicMessages.pop();
+    }
+
+    if (anthropicMessages.length === 0) {
+      anthropicMessages.push({
+        role: "user" as const,
+        content: "Continue la session. Pose-moi la prochaine question.",
+      });
+    }
+
+    // Fusionner les messages consécutifs du même rôle
+    const mergedMessages: typeof anthropicMessages = [];
+    for (const msg of anthropicMessages) {
+      if (mergedMessages.length > 0 && mergedMessages[mergedMessages.length - 1].role === msg.role) {
+        mergedMessages[mergedMessages.length - 1].content += "\n\n" + msg.content;
+      } else {
+        mergedMessages.push({ ...msg });
+      }
+    }
+
+    // S'assurer que le premier message est "user"
+    if (mergedMessages.length > 0 && mergedMessages[0].role === "assistant") {
+      mergedMessages.unshift({
+        role: "user" as const,
+        content: "Commence la session.",
       });
     }
 
     const rawResponse = await callAnthropic({
       model: getDefaultModel(),
       system: systemPrompt,
-      messages: anthropicMessages,
+      messages: mergedMessages,
       temperature: 0.7,
       max_tokens: 1500,
     });
