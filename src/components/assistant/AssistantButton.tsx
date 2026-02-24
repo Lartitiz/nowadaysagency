@@ -3,11 +3,14 @@ import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import AssistantPanel from "./AssistantPanel";
+import { useSession } from "@/contexts/SessionContext";
 
 export default function AssistantButton() {
+  const { isActive: sessionActive } = useSession();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
 
+  if (sessionActive) return null;
   if (!user) return null;
 
   return (
