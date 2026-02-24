@@ -60,6 +60,8 @@ interface StatsData {
   churned_this_month: number;
   conversion_rate: number;
   paid_users: number;
+  promo_users: number;
+  active_paid_subs: number;
   revenue_by_plan: Record<string, number>;
   // Engagement
   active_week: number;
@@ -312,7 +314,7 @@ function BusinessSection({ stats }: { stats: StatsData }) {
     <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <KpiCard title="MRR" value={stats.mrr} suffix="€" sub={`ARR : ${(stats.mrr * 12).toLocaleString("fr")}€`} subColor="text-emerald-600" />
-        <KpiCard title="Abonnées payantes" value={stats.paid_users} sub={`${stats.conversion_rate}% de conversion`} />
+        <KpiCard title="Abonnées payantes" value={stats.paid_users} sub={`${stats.conversion_rate}% de conversion${stats.promo_users > 0 ? ` · ${stats.promo_users} promo` : ""}`} />
         <KpiCard title="Taux de churn" value={stats.churn_rate} suffix="%" sub={`${stats.churned_this_month} départ·s ce mois`} subColor={stats.churn_rate > 10 ? "text-red-500" : undefined} />
         <KpiCard title="Conversion free→payant" value={stats.conversion_rate} suffix="%" />
       </div>
@@ -342,6 +344,7 @@ function BusinessSection({ stats }: { stats: StatsData }) {
             <FunnelStep label="Inscrites totales" value={stats.total_users} max={stats.total_users} color="#9CA3AF" />
             <FunnelStep label="Onboarding terminé" value={stats.onboarding_completed} max={stats.total_users} color="#8B5CF6" />
             <FunnelStep label="Actives ce mois (IA)" value={stats.active_this_month} max={stats.total_users} color="#F59E0B" />
+            <FunnelStep label="Accès promo (non payant)" value={stats.promo_users || 0} max={stats.total_users} color="#F59E0B" />
             <FunnelStep label="Abonnées payantes" value={stats.paid_users} max={stats.total_users} color="#fb3d80" />
           </div>
         </ChartCard>

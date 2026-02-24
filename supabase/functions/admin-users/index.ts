@@ -233,20 +233,24 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     plans[plan] = (plans[plan] || 0) + 1;
   }
 
-  // Business metrics
-  const activeSubs = subs.filter((s: any) => s.status === "active" || s.status === "trialing");
-  const paidSubs = activeSubs.filter((s: any) => s.plan !== "free");
+  // Séparer les vraies abonnées payantes des accès promo
+  const paidSubs = subs.filter((s: any) => s.source !== "promo");
+  const promoSubs = subs.filter((s: any) => s.source === "promo");
+
+  // Business metrics : seulement les abonnements payants (pas les promos)
+  const activePaidSubs = paidSubs.filter((s: any) => (s.status === "active" || s.status === "trialing") && s.plan !== "free");
   let mrr = 0;
   const revenueByPlan: Record<string, number> = {};
-  for (const s of paidSubs) {
+  for (const s of activePaidSubs) {
     const price = PLAN_PRICES[s.plan] || 0;
     mrr += price;
     revenueByPlan[s.plan] = (revenueByPlan[s.plan] || 0) + price;
   }
-  const churnedThisMonth = subs.filter((s: any) => s.canceled_at && s.canceled_at >= monthStart).length;
-  const churnBase = activeSubs.length + churnedThisMonth;
-  const churnRate = churnBase > 0 ? Math.round((churnedThisMonth / churnBase) * 100) : 0;
-  const conversionRate = totalUsers > 0 ? Math.round((paidSubs.length / totalUsers) * 100) : 0;
+  const churnedThisMonth = paidSubs.filter((s: any) => s.canceled_at && s.canceled_at >= monthStart).length;
+  const totalPaidStart = activePaidSubs.length + churnedThisMonth;
+  const churnRate = totalPaidStart > 0 ? Math.round((churnedThisMonth / totalPaidStart) * 100) : 0;
+  const paidUsers = activePaidSubs.length;
+  const conversionRate = totalUsers > 0 ? Math.round((paidUsers / totalUsers) * 100) : 0;
 
   // AI usage current month
   const aiData = aiRes.data || [];
@@ -400,8 +404,10 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     churn_rate: churnRate,
     churned_this_month: churnedThisMonth,
     conversion_rate: conversionRate,
-    paid_users: paidSubs.length,
+    paid_users: paidUsers,
     revenue_by_plan: revenueByPlan,
+    promo_users: promoSubs.filter((s: any) => s.status === "active").length,
+    active_paid_subs: activePaidSubs.length,
     // Engagement
     active_week: activeWeek,
     active_month: activeMonth,
