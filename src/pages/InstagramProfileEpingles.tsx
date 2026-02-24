@@ -8,6 +8,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Check, Save } from "lucide-react";
 import AuditInsight from "@/components/AuditInsight";
 
@@ -136,7 +137,8 @@ export default function InstagramProfileEpingles() {
       }
       toast({ title: "Sauvegardé !" });
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setSaving(false);
     }

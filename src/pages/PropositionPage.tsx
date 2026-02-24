@@ -8,6 +8,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Mic, Loader2, Check, Copy, Star, RefreshCw } from "lucide-react";
 
@@ -177,7 +178,8 @@ export default function PropositionPage() {
       const raw = fn.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       setAiDiffPoints(JSON.parse(raw));
     } catch (e: any) {
-      toast({ title: "Erreur IA", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
     }
     setAiLoading(false);
   };
@@ -196,7 +198,8 @@ export default function PropositionPage() {
       if (error) throw error;
       setAiBenefit(fn.content);
     } catch (e: any) {
-      toast({ title: "Erreur IA", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
     }
     setAiLoading(false);
   };
@@ -222,7 +225,8 @@ export default function PropositionPage() {
       setData(updated);
       debouncedSave(updated);
     } catch (e: any) {
-      toast({ title: "Erreur IA", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
     }
     setAiLoading(false);
   };

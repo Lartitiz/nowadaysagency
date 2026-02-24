@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import {
   HomepageData, EMPTY, STEPS, FRAMEWORKS, PAGE_TYPES,
 } from "@/components/site/SiteShared";
@@ -83,7 +84,8 @@ export default function SiteAccueil() {
       setAiResults((prev) => ({ ...prev, [action]: parsed }));
       return parsed;
     } catch (e: any) {
-      toast.error(e.message || "Erreur IA");
+      console.error("Erreur technique:", e);
+      toast.error(friendlyError(e));
     } finally {
       setAiLoading(null);
     }

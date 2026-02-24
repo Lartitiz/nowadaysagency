@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { friendlyError } from "@/lib/error-messages";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -150,7 +151,8 @@ export default function AdminUsersTab() {
       navigate("/dashboard");
       toast.success("Espace créé et ouvert");
     } catch (e: any) {
-      toast.error("Erreur : " + (e?.message || "impossible d'ouvrir l'espace"));
+      console.error("Erreur technique:", e);
+      toast.error(friendlyError(e));
     } finally {
       setSwitching(false);
     }

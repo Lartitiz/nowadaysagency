@@ -8,6 +8,7 @@ import VoiceOnboarding from "@/components/VoiceOnboarding";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Check, Sparkles, ChevronDown, ChevronUp, Mic, Loader2, Copy, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
@@ -145,7 +146,8 @@ export default function TonStylePage() {
       setSavedProfile({ ...profile });
       toast({ title: "✅ Modifications enregistrées" });
     } catch (e: any) {
-      toast({ title: "Erreur de sauvegarde", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur de sauvegarde", description: friendlyError(e), variant: "destructive" });
     }
     setSaving(false);
   };

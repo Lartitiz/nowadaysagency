@@ -10,6 +10,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Copy, Trash2 } from "lucide-react";
 
 interface BoardOption { id: string; name: string; }
@@ -54,7 +55,7 @@ export default function PinterestEpingles() {
       let parsed: PinVariant[];
       try { parsed = JSON.parse(c); } catch { const m = c.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
       setVariants(parsed);
-    } catch (e: any) { toast({ title: "Erreur", description: e.message, variant: "destructive" }); }
+    } catch (e: any) { console.error("Erreur technique:", e); toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" }); }
     finally { setGenerating(false); }
   };
 

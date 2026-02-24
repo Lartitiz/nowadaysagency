@@ -9,6 +9,7 @@ import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Mic, Loader2, Check, Copy, Save, ArrowRight } from "lucide-react";
 
@@ -166,7 +167,8 @@ export default function StrategiePage() {
       setData(updated);
       debouncedSave(updated);
     } catch (e: any) {
-      toast({ title: "Erreur IA", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
     }
     setAiLoading(false);
   };
@@ -187,7 +189,8 @@ export default function StrategiePage() {
       setData(updated);
       debouncedSave(updated);
     } catch (e: any) {
-      toast({ title: "Erreur IA", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
     }
     setAiLoading(false);
   };
@@ -223,7 +226,8 @@ export default function StrategiePage() {
       setData(updated);
       debouncedSave(updated);
     } catch (e: any) {
-      toast({ title: "Erreur IA", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
     }
     setAiLoading(false);
   };

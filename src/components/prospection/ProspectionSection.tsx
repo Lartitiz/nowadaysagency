@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { Plus, MessageCircle, SkipForward } from "lucide-react";
 import Confetti from "@/components/Confetti";
@@ -93,7 +94,8 @@ export default function ProspectionSection() {
       .select("*")
       .single();
     if (error) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      console.error("Erreur technique:", error);
+      toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
       return;
     }
     if (data) {

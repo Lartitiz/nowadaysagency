@@ -7,6 +7,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Mic, Loader2 } from "lucide-react";
 
@@ -58,7 +59,8 @@ export default function StorytellingImportPage() {
       setImprovedText(fnData.content);
       setStep("improve");
     } catch (e: any) {
-      toast({ title: "Erreur IA", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
     }
     setAiLoading(false);
   };
@@ -113,7 +115,8 @@ export default function StorytellingImportPage() {
       toast({ title: "Storytelling importé avec succès !" });
       navigate(`/branding/storytelling/${inserted.id}/recap`);
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
       setStep("form");
     }
     setAiLoading(false);

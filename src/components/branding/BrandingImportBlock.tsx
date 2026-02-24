@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Upload, FileText, Globe, Sparkles, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import { supabase } from "@/integrations/supabase/client";
 import { extractTextFromFile, isAcceptedFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
 import type { BrandingExtraction } from "@/lib/branding-import-types";
@@ -92,7 +93,8 @@ export default function BrandingImportBlock({ onResult }: Props) {
 
       onResult(data.extraction as BrandingExtraction);
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de l'analyse. Réessaie.");
+      console.error("Erreur technique:", e);
+      toast.error(friendlyError(e));
     } finally {
       setAnalyzing(false);
     }

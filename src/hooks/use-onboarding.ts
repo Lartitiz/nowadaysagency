@@ -4,6 +4,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { getActivityExamples } from "@/lib/activity-examples";
 import { TOTAL_STEPS } from "@/lib/onboarding-constants";
 import { type DiagnosticData } from "@/lib/diagnostic-data";
@@ -276,7 +277,8 @@ export function useOnboarding() {
         }
       }
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -382,7 +384,8 @@ export function useOnboarding() {
       localStorage.removeItem("lac_prenom");
       localStorage.removeItem("lac_activite");
     } catch (error: any) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      console.error("Erreur technique:", error);
+      toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
     } finally {
       setSaving(false);
     }

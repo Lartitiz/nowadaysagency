@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { Sparkles } from "lucide-react";
 
 export default function PinterestMotsCles() {
@@ -44,7 +45,7 @@ export default function PinterestMotsCles() {
       let parsed: any;
       try { parsed = JSON.parse(c); } catch { const m = c.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : null; }
       if (parsed) setGenerated(parsed);
-    } catch (e: any) { toast({ title: "Erreur", description: e.message, variant: "destructive" }); }
+    } catch (e: any) { console.error("Erreur technique:", e); toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" }); }
     finally { setGenerating(false); }
   };
 

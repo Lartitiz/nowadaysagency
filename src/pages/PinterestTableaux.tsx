@@ -9,6 +9,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Plus, Trash2, Copy, Check } from "lucide-react";
 
 const BOARD_TYPES = [
@@ -59,7 +60,7 @@ export default function PinterestTableaux() {
       const res = await supabase.functions.invoke("pinterest-ai", { body: { action: "board-description", board_name: b.name, board_type: b.board_type } });
       if (res.error) throw new Error(res.error.message);
       updateBoard(idx, "description", res.data?.content || "");
-    } catch (e: any) { toast({ title: "Erreur", description: e.message, variant: "destructive" }); }
+    } catch (e: any) { console.error("Erreur technique:", e); toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" }); }
     finally { setGeneratingIdx(null); }
   };
 

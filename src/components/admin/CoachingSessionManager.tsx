@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { friendlyError } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -146,7 +147,7 @@ export default function CoachingSessionManager({ program, sessions: initialSessi
   const uploadFile = async (deliverableId: string, file: File) => {
     const path = `${program.id}/${deliverableId}/${file.name}`;
     const { error } = await supabase.storage.from("deliverables").upload(path, file, { upsert: true });
-    if (error) { toast.error("Erreur upload : " + error.message); return; }
+    if (error) { console.error("Erreur technique:", error); toast.error(friendlyError(error)); return; }
     const { data: urlData } = supabase.storage.from("deliverables").getPublicUrl(path);
     await updateDeliverable(deliverableId, { file_url: urlData.publicUrl, file_name: file.name });
     toast.success("📎 Fichier uploadé !");

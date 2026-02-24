@@ -9,6 +9,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Copy, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import { friendlyError } from "@/lib/error-messages";
 
 export default function SiteCapturePage() {
   const { user } = useAuth();
@@ -34,7 +35,8 @@ export default function SiteCapturePage() {
       const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       setResult(JSON.parse(cleaned));
     } catch (e: any) {
-      toast.error(e.message || "Erreur IA");
+      console.error("Erreur technique:", e);
+      toast.error(friendlyError(e));
     } finally {
       setLoading(false);
     }

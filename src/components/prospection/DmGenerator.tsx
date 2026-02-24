@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -189,7 +190,8 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
       if (error) throw error;
       setVariants(data);
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message || "Impossible de générer le message", variant: "destructive" });
+      console.error("Erreur technique:", err);
+      toast({ title: "Erreur", description: friendlyError(err), variant: "destructive" });
       setStep(3);
     } finally {
       setLoading(false);

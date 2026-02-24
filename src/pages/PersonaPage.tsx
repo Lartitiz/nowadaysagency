@@ -10,6 +10,7 @@ import CoachingFlow from "@/components/CoachingFlow";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, Mic, Loader2, Check, ExternalLink } from "lucide-react";
@@ -172,7 +173,8 @@ export default function PersonaPage() {
       if (error) throw error;
       setAiResult(fnData.content);
     } catch (e: any) {
-      toast({ title: "Erreur IA", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
     }
     setAiLoading(false);
   };

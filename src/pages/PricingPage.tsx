@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Link, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { STRIPE_PLANS } from "@/lib/stripe-config";
 import AppHeader from "@/components/AppHeader";
@@ -137,7 +138,8 @@ export default function PricingPage() {
       if (error) throw error;
       if (data?.url) window.location.href = data.url;
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setCheckoutLoading(false);
     }

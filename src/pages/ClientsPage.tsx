@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace, Workspace } from "@/contexts/WorkspaceContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { supabase } from "@/integrations/supabase/client";
+import { friendlyError } from "@/lib/error-messages";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -72,7 +73,7 @@ export default function ClientsPage() {
       window.location.reload();
     } catch (e: any) {
       console.error(e);
-      toast.error(e.message || "Erreur lors de la création");
+      toast.error(friendlyError(e));
     } finally {
       setCreating(false);
     }
