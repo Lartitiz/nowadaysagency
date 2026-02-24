@@ -153,7 +153,13 @@ Réponds UNIQUEMENT avec le JSON.`;
     });
 
   } catch (e: any) {
-    console.error("stories-ai error:", e);
+    console.error(JSON.stringify({
+      type: "edge_function_error",
+      function_name: "stories-ai",
+      error: e instanceof Error ? e.message : "Erreur inconnue",
+      user_id: null,
+      timestamp: new Date().toISOString(),
+    }));
     const status = e?.status || 500;
     let message = e instanceof Error ? e.message : "Erreur inconnue";
     if (status === 529 || message.includes("529") || message.includes("Overloaded")) {

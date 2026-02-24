@@ -95,7 +95,13 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("reels-ai error:", e);
+    console.error(JSON.stringify({
+      type: "edge_function_error",
+      function_name: "reels-ai",
+      error: e instanceof Error ? e.message : "Unknown error",
+      user_id: null,
+      timestamp: new Date().toISOString(),
+    }));
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

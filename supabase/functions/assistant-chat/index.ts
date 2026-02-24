@@ -427,7 +427,13 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
-    console.error("assistant-chat error:", err);
+    console.error(JSON.stringify({
+      type: "edge_function_error",
+      function_name: "assistant-chat",
+      error: err.message || "Erreur interne",
+      user_id: null,
+      timestamp: new Date().toISOString(),
+    }));
     return new Response(
       JSON.stringify({ error: err.message || "Erreur interne" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
