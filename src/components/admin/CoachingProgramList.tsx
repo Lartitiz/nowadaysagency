@@ -158,6 +158,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
       await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: user.id, role: "manager" } as any);
 
       toast.success(`Espace « ${newWsName.trim()} » créé`);
+
       setNewWsName("");
       setShowNewWsInput(false);
       onReload();

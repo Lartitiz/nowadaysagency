@@ -14,6 +14,7 @@ interface Props {
   extraction: BrandingExtraction;
   onDone: () => void;
   onCancel: () => void;
+  workspaceId?: string;
 }
 
 type FieldChoice = "keep" | "replace" | "merge";
@@ -49,7 +50,7 @@ const FIELD_DB_MAP: Record<string, { table: string; column: string }> = {
   offers: { table: "brand_profile", column: "offer" },
 };
 
-export default function BrandingImportReview({ extraction, onDone, onCancel }: Props) {
+export default function BrandingImportReview({ extraction, onDone, onCancel, workspaceId }: Props) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -61,13 +62,15 @@ export default function BrandingImportReview({ extraction, onDone, onCancel }: P
 
   const loadExistingData = async () => {
     if (!user) return;
+    const filterCol = workspaceId ? "workspace_id" : "user_id";
+    const filterVal = workspaceId || user.id;
     try {
       const [brandRes, personaRes, propRes, stratRes, storyRes] = await Promise.all([
-        supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("persona").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("brand_proposition").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("brand_strategy").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("storytelling").select("*").eq("user_id", user.id).limit(1).maybeSingle(),
+        (supabase.from("brand_profile") as any).select("*").eq(filterCol, filterVal).maybeSingle(),
+        (supabase.from("persona") as any).select("*").eq(filterCol, filterVal).maybeSingle(),
+        (supabase.from("brand_proposition") as any).select("*").eq(filterCol, filterVal).maybeSingle(),
+        (supabase.from("brand_strategy") as any).select("*").eq(filterCol, filterVal).maybeSingle(),
+        (supabase.from("storytelling") as any).select("*").eq(filterCol, filterVal).limit(1).maybeSingle(),
       ]);
 
       const existing: Record<string, string | null> = {
@@ -132,8 +135,11 @@ export default function BrandingImportReview({ extraction, onDone, onCancel }: P
 
     try {
       const uid = user.id;
-
-      // Collect final values per DB table
+      const filterCol = workspaceId ? "workspace_id" : "user_id";
+      const filterVal = workspaceId || uid;
+      const insertBase: Record<string, string> = workspaceId
+        ? { user_id: uid, workspace_id: workspaceId }
+        : { user_id: uid };
       const updates: Record<string, Record<string, string>> = {};
 
       for (const comp of comparisons) {
@@ -166,11 +172,11 @@ export default function BrandingImportReview({ extraction, onDone, onCancel }: P
 
         // Special handling for story
         if (comp.key === "story") {
-          const { data: existingStory } = await supabase.from("storytelling").select("id").eq("user_id", uid).limit(1).maybeSingle();
+          const { data: existingStory } = await (supabase.from("storytelling") as any).select("id").eq(filterCol, filterVal).limit(1).maybeSingle();
           if (existingStory) {
-            await supabase.from("storytelling").update({ imported_text: finalValue } as any).eq("user_id", uid);
+            await (supabase.from("storytelling") as any).update({ imported_text: finalValue }).eq("id", existingStory.id);
           } else {
-            await supabase.from("storytelling").insert({ user_id: uid, imported_text: finalValue, is_primary: true, completed: false } as any);
+            await (supabase.from("storytelling") as any).insert({ ...insertBase, imported_text: finalValue, is_primary: true, completed: false });
           }
           continue;
         }
@@ -193,11 +199,11 @@ export default function BrandingImportReview({ extraction, onDone, onCancel }: P
           }
         }
 
-        const { data: existing } = await supabase.from(table as any).select("id").eq("user_id", uid).maybeSingle();
+        const { data: existing } = await (supabase.from(table as any) as any).select("id").eq(filterCol, filterVal).maybeSingle();
         if (existing) {
-          await supabase.from(table as any).update(cleanFields).eq("user_id", uid);
+          await (supabase.from(table as any) as any).update(cleanFields).eq("id", existing.id);
         } else {
-          await supabase.from(table as any).insert({ user_id: uid, ...cleanFields });
+          await (supabase.from(table as any) as any).insert({ ...insertBase, ...cleanFields });
         }
       }
 
