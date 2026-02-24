@@ -20,6 +20,9 @@ export interface AuditFormData {
   pinnedPost1: string;
   pinnedPost2: string;
   pinnedPost3: string;
+  pinnedFile1: File | null;
+  pinnedFile2: File | null;
+  pinnedFile3: File | null;
   feedDescription: string;
   followers: string;
   postsPerMonth: string;
@@ -103,6 +106,9 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
     pinnedPost1: initial?.pinnedPost1 || "",
     pinnedPost2: initial?.pinnedPost2 || "",
     pinnedPost3: initial?.pinnedPost3 || "",
+    pinnedFile1: null,
+    pinnedFile2: null,
+    pinnedFile3: null,
     feedDescription: initial?.feedDescription || "",
     followers: initial?.followers || "",
     postsPerMonth: initial?.postsPerMonth || "",
@@ -122,7 +128,7 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
   const feedRef = useRef<HTMLInputElement>(null);
   const hlRef = useRef<HTMLInputElement>(null);
 
-  const set = (field: keyof AuditFormData, value: any) => setForm((p) => ({ ...p, [field]: value }));
+  const set = (field: keyof AuditFormData | string, value: any) => setForm((p) => ({ ...p, [field]: value }));
 
   const handleProfileFiles = (fl: FileList | null) => {
     if (!fl) return;
@@ -247,11 +253,49 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           <Button variant={form.hasPinned === true ? "default" : "outline"} size="sm" onClick={() => set("hasPinned", true)} className="rounded-pill">Oui</Button>
           <Button variant={form.hasPinned === false ? "default" : "outline"} size="sm" onClick={() => set("hasPinned", false)} className="rounded-pill">Non</Button>
         </div>
-        {form.hasPinned === true && (
-          <div className="space-y-2">
-            <Input value={form.pinnedPost1} onChange={(e) => set("pinnedPost1", e.target.value)} placeholder='Post épinglé 1 : ex. Carrousel "5 erreurs en com"' />
-            <Input value={form.pinnedPost2} onChange={(e) => set("pinnedPost2", e.target.value)} placeholder="Post épinglé 2 : ex. Témoignage cliente" />
-            <Input value={form.pinnedPost3} onChange={(e) => set("pinnedPost3", e.target.value)} placeholder="Post épinglé 3 : ex. Reel storytelling" />
+        {form.hasPinned && (
+          <div className="space-y-4 mt-3">
+            {[
+              { key: "pinnedPost1", fileKey: "pinnedFile1", label: "Post épinglé 1 : Qui tu es", emoji: "📖" },
+              { key: "pinnedPost2", fileKey: "pinnedFile2", label: "Post épinglé 2 : Ton expertise", emoji: "🎁" },
+              { key: "pinnedPost3", fileKey: "pinnedFile3", label: "Post épinglé 3 : Tes résultats", emoji: "⭐" },
+            ].map(({ key, fileKey, label, emoji }) => (
+              <div key={key} className="rounded-xl border border-border bg-card p-4 space-y-2">
+                <p className="text-xs font-semibold text-foreground">{emoji} {label}</p>
+                <div className="flex items-start gap-3">
+                  <div 
+                    className="relative w-16 h-16 rounded-lg border border-dashed border-border bg-muted/20 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden shrink-0"
+                    onClick={() => {
+                      const input = document.getElementById(`pinned-upload-${key}`) as HTMLInputElement;
+                      input?.click();
+                    }}
+                  >
+                    {(form as any)[fileKey] ? (
+                      <img src={URL.createObjectURL((form as any)[fileKey])} alt={label} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-lg">📷</span>
+                    )}
+                  </div>
+                  <input 
+                    id={`pinned-upload-${key}`}
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) set(fileKey, e.target.files[0]);
+                    }} 
+                  />
+                  <div className="flex-1">
+                    <label className="text-xs text-muted-foreground mb-1 block">OU décris le contenu :</label>
+                    <Input 
+                      value={(form as any)[key]} 
+                      onChange={(e) => set(key, e.target.value)} 
+                      placeholder="Carrousel storytelling sur mon parcours" 
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </section>
