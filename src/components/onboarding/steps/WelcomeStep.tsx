@@ -1,0 +1,29 @@
+import { Button } from "@/components/ui/button";
+
+interface WelcomeStepProps {
+  onNext: () => void;
+}
+
+export default function WelcomeStep({ onNext }: WelcomeStepProps) {
+  return (
+    <div className="text-center space-y-8">
+      <div className="space-y-5">
+        <p className="text-3xl md:text-4xl font-display font-bold text-foreground leading-tight">
+          Hey 👋<br />Je suis ton assistante com'.
+        </p>
+        <p className="text-base text-muted-foreground leading-relaxed max-w-sm mx-auto">
+          Avant de commencer, j'ai besoin de te poser quelques questions pour personnaliser ton espace.
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Ça prend 5 minutes. Promis.
+        </p>
+        <p className="text-xs text-muted-foreground/70 italic">
+          Tu peux répondre en tapant ou en vocal 🎤
+        </p>
+      </div>
+      <Button onClick={onNext} size="lg" className="rounded-full px-8 gap-2">
+        C'est parti →
+      </Button>
+    </div>
+  );
+}

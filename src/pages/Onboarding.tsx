@@ -13,6 +13,9 @@ import {
 } from "@/lib/onboarding-constants";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import type { Answers, BrandingAnswers, UploadedFile } from "@/hooks/use-onboarding";
+import WelcomeStep from "@/components/onboarding/steps/WelcomeStep";
+import ActivityStep from "@/components/onboarding/steps/ActivityStep";
+import ChannelsStep from "@/components/onboarding/steps/ChannelsStep";
 
 /* ────────────────────────────────────────────── animation */
 
@@ -87,11 +90,11 @@ export default function Onboarding() {
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
                 {/* PHASE 1: QUI ES-TU */}
-                {step === 0 && <WelcomeScreen onNext={next} />}
+                {step === 0 && <WelcomeStep onNext={next} />}
                 {step === 1 && <PrenomScreen value={answers.prenom} onChange={v => set("prenom", v)} onNext={next} />}
                 {step === 2 && <ActiviteScreen prenom={answers.prenom} value={answers.activite} onChange={v => set("activite", v)} onNext={next} />}
-                {step === 3 && <TypeScreen value={answers.activity_type} detailValue={answers.activity_detail} onChange={v => { set("activity_type", v); if (v !== "autre") { set("activity_detail", ""); setTimeout(next, 600); } }} onDetailChange={v => set("activity_detail", v)} onNext={next} />}
-                {step === 4 && <CanauxScreen value={answers.canaux} onChange={v => set("canaux", v)} onNext={next} />}
+                {step === 3 && <ActivityStep value={answers.activity_type} detailValue={answers.activity_detail} onChange={v => { set("activity_type", v); if (v !== "autre") { set("activity_detail", ""); setTimeout(next, 600); } }} onDetailChange={v => set("activity_detail", v)} onNext={next} />}
+                {step === 4 && <ChannelsStep value={answers.canaux} onChange={v => set("canaux", v)} onNext={next} />}
                 {step === 5 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setTimeout(next, 500); }} />}
                 {step === 6 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setTimeout(next, 500); }} />}
                 {step === 7 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setTimeout(next, 500); }} />}
@@ -202,31 +205,7 @@ export default function Onboarding() {
    SCREEN COMPONENTS - PHASE 1
    ════════════════════════════════════════════════════════ */
 
-function WelcomeScreen({ onNext }: { onNext: () => void }) {
-  return (
-    <div className="text-center space-y-8">
-      <div className="space-y-5">
-        <p className="text-3xl md:text-4xl font-display font-bold text-foreground leading-tight">
-          Hey 👋<br />Je suis ton assistante com'.
-        </p>
-        <p className="text-base text-muted-foreground leading-relaxed max-w-sm mx-auto">
-          Avant de commencer, j'ai besoin de te poser quelques questions pour personnaliser ton espace.
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Ça prend 5 minutes. Promis.
-        </p>
-        <p className="text-xs text-muted-foreground/70 italic">
-          Tu peux répondre en tapant ou en vocal 🎤
-        </p>
-      </div>
-      <Button onClick={onNext} size="lg" className="rounded-full px-8 gap-2">
-        C'est parti →
-      </Button>
-    </div>
-  );
-}
-
-/* ── Text input with voice ── */
+/* WelcomeScreen extracted to steps/WelcomeStep.tsx */
 function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = true, multiline = false }: {
   value: string;
   onChange: (v: string) => void;
@@ -325,100 +304,8 @@ function ActiviteScreen({ prenom, value, onChange, onNext }: { prenom: string; v
   );
 }
 
-function TypeScreen({ value, detailValue, onChange, onDetailChange, onNext }: {
-  value: string;
-  detailValue: string;
-  onChange: (v: string) => void;
-  onDetailChange: (v: string) => void;
-  onNext: () => void;
-}) {
-  const showDetail = value === "autre";
-  return (
-    <div className="space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Tu te reconnais dans quoi ?</h1>
-        <p className="text-sm text-muted-foreground italic">choisis ce qui te correspond le mieux</p>
-      </div>
-      <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1">
-        {ACTIVITY_SECTIONS.map(section => (
-          <div key={section.label}>
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">{section.label}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {section.items.map(t => (
-                <button key={t.key} type="button" onClick={() => onChange(t.key)}
-                  className={`relative text-left rounded-xl border-2 px-4 py-3.5 transition-all duration-200 ${
-                    value === t.key ? "border-primary bg-secondary shadow-sm" : "border-border bg-card hover:border-primary/40 hover:bg-secondary/30"
-                  }`}>
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl leading-none mt-0.5">{t.emoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-semibold text-foreground">{t.label}</span>
-                      <p className="text-xs text-muted-foreground mt-0.5">{t.desc}</p>
-                    </div>
-                  </div>
-                  {value === t.key && <span className="absolute top-2.5 right-3 text-primary font-bold text-sm">✓</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-        <div>
-          <button type="button" onClick={() => onChange("autre")}
-            className={`w-full text-left rounded-xl border-2 px-4 py-3.5 transition-all duration-200 ${
-              showDetail ? "border-primary bg-secondary shadow-sm" : "border-border bg-card hover:border-primary/40 hover:bg-secondary/30"
-            }`}>
-            <span className="flex items-center gap-3">
-              <span className="text-2xl">✏️</span>
-              <span className="text-sm font-semibold text-foreground">Autre</span>
-              {showDetail && <span className="ml-auto text-primary font-bold text-sm">✓</span>}
-            </span>
-          </button>
-          {showDetail && (
-            <div className="mt-3 space-y-3">
-              <input type="text" value={detailValue} onChange={e => onDetailChange(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && detailValue.trim()) onNext(); }}
-                placeholder="Décris ton activité en quelques mots" autoFocus
-                className="w-full text-base p-3 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50" />
-              <div className="text-center">
-                <Button onClick={onNext} disabled={!detailValue.trim()} className="rounded-full px-8">Suivant →</Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CanauxScreen({ value, onChange, onNext }: { value: string[]; onChange: (v: string[]) => void; onNext: () => void }) {
-  const toggle = (key: string) => {
-    if (key === "none") { onChange(["none"]); return; }
-    const without = value.filter(v => v !== "none");
-    if (without.includes(key)) onChange(without.filter(v => v !== key));
-    else onChange([...without, key]);
-  };
-  return (
-    <div className="space-y-8">
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Tu communiques où aujourd'hui ?</h1>
-        <p className="text-sm text-muted-foreground italic">sélectionne tout ce que tu utilises, même un petit peu</p>
-      </div>
-      <div className="flex flex-wrap justify-center gap-3">
-        {CHANNELS.map(c => (
-          <button key={c.key} onClick={() => toggle(c.key)}
-            className={`px-5 py-3 rounded-full border-2 text-sm font-medium transition-all ${
-              value.includes(c.key) ? "border-primary bg-secondary text-primary" : "border-border bg-card text-foreground hover:border-primary/40"
-            }`}>
-            {c.emoji} {c.label}
-          </button>
-        ))}
-      </div>
-      <div className="text-center">
-        <Button onClick={onNext} disabled={value.length === 0} className="rounded-full px-8">Suivant →</Button>
-      </div>
-    </div>
-  );
-}
+/* TypeScreen extracted to steps/ActivityStep.tsx */
+/* CanauxScreen extracted to steps/ChannelsStep.tsx */
 
 function BlocageScreen({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
