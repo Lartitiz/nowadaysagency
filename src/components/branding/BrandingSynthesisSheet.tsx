@@ -48,16 +48,16 @@ function safeParseJson(val: any): any {
 
 
 
-function CollapsibleText({ text, label, maxChars = 250, isQuote }: { text: string; label?: string; maxChars?: number; isQuote?: boolean }) {
+function CollapsibleText({ text, label, maxChars = 150, isQuote }: { text: string; label?: string; maxChars?: number; isQuote?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   if (!text) return null;
   const isLong = text.length > maxChars;
-  const display = isLong && !expanded ? text.slice(0, maxChars) + "…" : text;
+  const display = isLong && !expanded ? text.slice(0, maxChars).replace(/\s+\S*$/, "") + "…" : text;
 
   if (isQuote) {
     return (
       <blockquote className="border-l-[3px] border-primary/30 pl-5 py-1">
-        <p className="text-base text-foreground/80 leading-relaxed italic break-words">{display}</p>
+        <p className="text-[15px] text-foreground/80 leading-relaxed italic break-words whitespace-pre-line">{display}</p>
         {isLong && (
           <button onClick={() => setExpanded(!expanded)} className="text-xs text-primary font-medium mt-2 hover:underline">
             {expanded ? "Réduire" : "Lire la suite"}
@@ -70,7 +70,7 @@ function CollapsibleText({ text, label, maxChars = 250, isQuote }: { text: strin
   return (
     <div>
       {label && <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{label}</p>}
-      <p className="text-[15px] text-foreground/80 leading-relaxed break-words">{display}</p>
+      <p className="text-[15px] text-foreground/80 leading-relaxed break-words whitespace-pre-line">{display}</p>
       {isLong && (
         <button onClick={() => setExpanded(!expanded)} className="text-xs text-primary font-medium mt-1.5 hover:underline">
           {expanded ? "Réduire" : "Lire la suite"}
@@ -432,42 +432,36 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
 
         {proposition?.version_final || proposition?.version_one_liner || brand?.mission ? (
           <div className="space-y-8">
-            {/* Hero quote */}
+            {/* Hero quote : big and centered */}
             {(proposition?.version_final || proposition?.version_one_liner) && (
-              <div className="text-center py-6">
-                <p className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-foreground leading-relaxed max-w-2xl mx-auto">
+              <div className="text-center py-4 sm:py-6 px-4">
+                <p className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-foreground leading-snug max-w-2xl mx-auto">
                   "{proposition.version_final || proposition.version_one_liner}"
                 </p>
               </div>
             )}
 
-            {/* Mission + unique — 2 columns */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {/* Mission + What makes unique : 2 columns */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               {brand?.mission && (
                 <div className="space-y-2">
                   <p className="text-xs font-semibold uppercase tracking-wider text-primary/70">Ma mission</p>
-                  <p className="text-[15px] text-foreground/80 leading-relaxed break-words">{brand.mission}</p>
+                  <CollapsibleText text={brand.mission} maxChars={200} />
                 </div>
               )}
               {proposition?.step_2b_values && (
                 <div className="space-y-2">
                   <p className="text-xs font-semibold uppercase tracking-wider text-primary/70">Ce qui me rend unique</p>
                   {summaries?.unique_hook ? (
-                    <>
-                      <SummaryHookAndPoints hook={summaries.unique_hook} points={summaries.unique_points} />
-                      <details className="mt-1">
-                        <summary className="text-xs text-primary/50 hover:text-primary cursor-pointer">Texte complet</summary>
-                        <p className="text-sm text-muted-foreground leading-relaxed mt-2 break-words">{proposition.step_2b_values}</p>
-                      </details>
-                    </>
+                    <SummaryHookAndPoints hook={summaries.unique_hook} points={summaries.unique_points} />
                   ) : (
-                    <CollapsibleText text={proposition.step_2b_values} maxChars={300} />
+                    <CollapsibleText text={proposition.step_2b_values} maxChars={180} />
                   )}
                 </div>
               )}
             </div>
 
-            {/* Values as tags */}
+            {/* Values as tags : centered */}
             {brand?.voice_description && (
               <div className="text-center">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Mes valeurs</p>
@@ -482,11 +476,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             )}
           </div>
         ) : (
-          <EmptySection
-            message="Tu n'as pas encore défini ton positionnement."
-            linkLabel="Définir mon positionnement →"
-            link="/branding/proposition"
-          />
+          <EmptySection message="Tu n'as pas encore défini ton positionnement." linkLabel="Définir mon positionnement →" link="/branding/proposition" />
         )}
 
         {/* ═══ LEVEL 2 — MA CIBLE (card) ═══ */}
@@ -581,84 +571,78 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
         <SectionSep emoji="🗣️" title="Mon ton & mes combats" />
 
         {brand && (brand.tone_register || brand.tone_style || brand.combat_cause) ? (
-          <div className="space-y-8">
-            {/* Tone tags — centered */}
+          <div className="space-y-10">
+
+            {/* Tone tags : centered, big */}
             <div className="text-center">
               <Tags items={[brand.tone_register, brand.tone_style, brand.tone_level, brand.tone_humor, brand.tone_engagement].filter(Boolean)} />
             </div>
 
-            {/* Two columns: voice + avoid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {brand.voice_description && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-primary/70 mb-3">Comment je parle</p>
-                  {summaries?.voice_layers && summaries.voice_layers.length > 0 ? (
-                    <>
-                      <VoiceLayersSummary layers={summaries.voice_layers} />
-                      <details className="mt-2">
-                        <summary className="text-xs text-primary/50 hover:text-primary cursor-pointer">Texte complet</summary>
-                        <p className="text-sm text-muted-foreground leading-relaxed mt-2 break-words">{brand.voice_description}</p>
-                      </details>
-                    </>
-                  ) : (
-                    <CollapsibleText text={brand.voice_description} isQuote />
-                  )}
-                </div>
-              )}
-              {brand.things_to_avoid && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-primary/70 mb-3">Ce que je fuis</p>
-                  <div className="flex flex-wrap gap-2">
-                    {parseStringList(brand.things_to_avoid).map((item, i) => (
-                      <span key={i} className="text-xs bg-muted/50 text-muted-foreground rounded-full px-3 py-1.5 border border-border/50">
-                        ✕ {item}
-                      </span>
+            {/* Voice: IA layers OR short fallback */}
+            {brand.voice_description && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-primary/70 mb-4">Les couches de ma voix</p>
+                {summaries?.voice_layers && summaries.voice_layers.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+                    {summaries.voice_layers.map((l: any, i: number) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <span className="shrink-0 mt-0.5 w-1.5 h-1.5 rounded-full bg-primary/40" />
+                        <p className="text-sm text-foreground/80"><span className="font-semibold text-foreground">{l.name}</span> : {l.summary}</p>
+                      </div>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
+                ) : (
+                  <CollapsibleText text={brand.voice_description} maxChars={200} isQuote />
+                )}
+              </div>
+            )}
 
-            {/* Combats */}
+            {/* Things to avoid */}
+            {brand.things_to_avoid && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-primary/70 mb-3">Ce que je fuis</p>
+                <div className="flex flex-wrap gap-2">
+                  {parseStringList(brand.things_to_avoid).map((item, i) => (
+                    <span key={i} className="text-xs bg-muted/50 text-muted-foreground rounded-full px-3 py-1.5 border border-border/50">
+                      ✕ {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Combats : dedicated card */}
             {(brand.combat_cause || brand.combat_fights) && (
-              <div className="rounded-2xl bg-gradient-to-br from-rose-pale to-card border border-primary/10 p-6 sm:p-8">
-                <p className="text-xs font-semibold uppercase tracking-wider text-primary/70 mb-4">Mes combats</p>
+              <div className="rounded-2xl bg-gradient-to-br from-rose-pale/60 to-card border border-primary/10 p-6 sm:p-8 space-y-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-primary/70">Mes combats</p>
                 {summaries?.combats_hook ? (
                   <>
                     <SummaryHookAndPoints hook={summaries.combats_hook} points={summaries.combats_points} />
                     {summaries.combats_alternative && (
-                      <div className="mt-4 pt-4 border-t border-primary/10">
-                        <p className="text-xs text-muted-foreground mb-1">Ce que je propose à la place</p>
+                      <div className="pt-4 border-t border-primary/10">
+                        <p className="text-xs text-muted-foreground mb-1">Mon alternative</p>
                         <p className="text-[15px] text-foreground/80 leading-relaxed">{summaries.combats_alternative}</p>
                       </div>
                     )}
-                    <details className="mt-3">
-                      <summary className="text-xs text-primary/50 hover:text-primary cursor-pointer">Texte complet</summary>
-                      <div className="space-y-3 mt-2 text-sm text-muted-foreground">
-                        {brand.combat_cause && <p className="break-words">{brand.combat_cause}</p>}
-                        {brand.combat_fights && <p className="break-words">{brand.combat_fights}</p>}
-                        {brand.combat_alternative && <p className="break-words">{brand.combat_alternative}</p>}
-                      </div>
-                    </details>
                   </>
                 ) : (
                   <div className="space-y-4">
                     {brand.combat_cause && (
                       <div>
                         <p className="text-xs text-muted-foreground mb-1">La cause</p>
-                        <p className="text-[15px] text-foreground font-medium leading-relaxed break-words">{brand.combat_cause}</p>
+                        <CollapsibleText text={brand.combat_cause} maxChars={200} />
                       </div>
                     )}
                     {brand.combat_fights && (
                       <div>
                         <p className="text-xs text-muted-foreground mb-1">Ce contre quoi je me bats</p>
-                        <CollapsibleText text={brand.combat_fights} maxChars={300} />
+                        <CollapsibleText text={brand.combat_fights} maxChars={150} />
                       </div>
                     )}
                     {brand.combat_alternative && (
                       <div>
                         <p className="text-xs text-muted-foreground mb-1">Mon alternative</p>
-                        <CollapsibleText text={brand.combat_alternative} maxChars={300} />
+                        <CollapsibleText text={brand.combat_alternative} maxChars={150} />
                       </div>
                     )}
                   </div>
@@ -670,7 +654,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             {(summaries?.expressions_key?.length > 0 || brand.key_expressions) && (
               <div className="text-center">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Mes expressions clés</p>
-                <Tags items={summaries?.expressions_key || parseStringList(brand.key_expressions)} />
+                <Tags items={(summaries?.expressions_key || parseStringList(brand.key_expressions)).slice(0, 10)} />
               </div>
             )}
           </div>
@@ -682,10 +666,10 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
         <SectionSep emoji="📖" title="Mon histoire" />
 
         {storytelling ? (
-          <div className="space-y-4">
-            {/* Short pitch as hero quote */}
+          <div className="space-y-6">
+            {/* Short pitch */}
             {storytelling.pitch_short && (
-              <blockquote className="text-center py-4">
+              <blockquote className="text-center py-2">
                 <p className="text-lg sm:text-xl font-display italic text-foreground/80 leading-relaxed max-w-2xl mx-auto">
                   "{storytelling.pitch_short}"
                 </p>
@@ -699,23 +683,23 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
               return (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {sr.before && (
-                    <div className="rounded-xl bg-muted/20 p-5 border border-border/40 text-center">
-                      <span className="text-2xl mb-2 block">🔵</span>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Avant</p>
+                    <div className="rounded-xl bg-muted/20 p-5 border border-border/40 text-center space-y-2">
+                      <span className="text-2xl block">🔵</span>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Avant</p>
                       <p className="text-sm text-foreground/80 leading-relaxed">{sr.before}</p>
                     </div>
                   )}
                   {sr.trigger && (
-                    <div className="rounded-xl bg-rose-pale p-5 border border-primary/10 text-center">
-                      <span className="text-2xl mb-2 block">💥</span>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-primary/70 mb-2">Le déclic</p>
+                    <div className="rounded-xl bg-rose-pale/60 p-5 border border-primary/10 text-center space-y-2">
+                      <span className="text-2xl block">💥</span>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-primary/70">Le déclic</p>
                       <p className="text-sm text-foreground/80 leading-relaxed">{sr.trigger}</p>
                     </div>
                   )}
                   {sr.after && (
-                    <div className="rounded-xl bg-muted/20 p-5 border border-border/40 text-center">
-                      <span className="text-2xl mb-2 block">🌱</span>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Après</p>
+                    <div className="rounded-xl bg-muted/20 p-5 border border-border/40 text-center space-y-2">
+                      <span className="text-2xl block">🌱</span>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Après</p>
                       <p className="text-sm text-foreground/80 leading-relaxed">{sr.after}</p>
                     </div>
                   )}
@@ -725,7 +709,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
 
             {/* Full story collapsed */}
             {!storytelling.pitch_short && (storytelling.step_7_polished || storytelling.step_6_full_story) && (
-              <CollapsibleText text={storytelling.step_7_polished || storytelling.step_6_full_story} maxChars={300} />
+              <CollapsibleText text={storytelling.step_7_polished || storytelling.step_6_full_story} maxChars={200} />
             )}
           </div>
         ) : (
@@ -736,37 +720,31 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
         <SectionSep emoji="🎁" title="Mes offres" />
 
         {offers.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {offers.map((o) => (
-              <div key={o.id} className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6 space-y-3 hover:shadow-md transition-shadow" style={{ pageBreakInside: "avoid" }}>
-                <div>
-                  <h4 className="font-display text-base font-bold text-foreground">{o.name || "Sans nom"}</h4>
-                  {o.price_text && <p className="text-sm text-primary font-medium mt-0.5">{o.price_text}</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {offers.map((o) => {
+              const offerSummary = summaries?.offers_summaries?.find((s: any) => s.name === o.name);
+              return (
+                <div key={o.id} className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6 space-y-3" style={{ pageBreakInside: "avoid" }}>
+                  <div>
+                    <h4 className="font-display text-base font-bold text-foreground">{o.name || "Sans nom"}</h4>
+                    {o.price_text && <p className="text-sm text-primary font-medium mt-0.5">{o.price_text}</p>}
+                  </div>
+                  {offerSummary?.one_liner ? (
+                    <p className="text-sm text-foreground/80 font-medium leading-relaxed">{offerSummary.one_liner}</p>
+                  ) : o.description_short ? (
+                    <p className="text-sm text-foreground/70 leading-relaxed break-words">{o.description_short.length > 120 ? o.description_short.slice(0, 120).replace(/\s+\S*$/, "") + "…" : o.description_short}</p>
+                  ) : null}
+                  {o.promise && (
+                    <blockquote className="border-l-[3px] border-primary/30 pl-4 py-1">
+                      <p className="text-sm text-foreground/70 italic break-words">"{o.promise}"</p>
+                    </blockquote>
+                  )}
                 </div>
-                {(() => {
-                  const offerSummary = summaries?.offers_summaries?.find((s: any) => s.name === o.name);
-                  if (offerSummary?.one_liner) {
-                    return <p className="text-sm text-foreground/80 font-medium leading-relaxed">{offerSummary.one_liner}</p>;
-                  }
-                  if (o.description_short) {
-                    return <p className="text-sm text-foreground/70 leading-relaxed break-words">{o.description_short}</p>;
-                  }
-                  return null;
-                })()}
-                {o.promise && (
-                  <blockquote className="border-l-[3px] border-primary/30 pl-4 py-1">
-                    <p className="text-sm text-foreground/70 italic break-words">"{o.promise}"</p>
-                  </blockquote>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
-          <EmptySection
-            message="Tu n'as pas encore défini tes offres."
-            linkLabel="Créer mes offres →"
-            link="/branding/offres"
-          />
+          <EmptySection message="Tu n'as pas encore défini tes offres." linkLabel="Créer mes offres →" link="/branding/offres" />
         )}
 
         {/* ═══ MA LIGNE ÉDITORIALE ═══ */}
