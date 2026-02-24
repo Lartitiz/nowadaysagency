@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { getActivityExamples, type ActivityProfile } from "@/lib/activity-examples";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 
 /**
  * Returns dynamic examples adapted to the user's activity.
@@ -11,21 +12,21 @@ import { getActivityExamples, type ActivityProfile } from "@/lib/activity-exampl
 export function useActivityExamples(): ActivityProfile & { activityText: string } {
   const { user } = useAuth();
   const { isDemoMode, demoActivity } = useDemoContext();
+  const { column, value } = useWorkspaceFilter();
   const [activity, setActivity] = useState<string | null>(null);
 
   useEffect(() => {
     if (isDemoMode) return;
     if (!user) return;
-    supabase
-      .from("profiles")
+    (supabase
+      .from("profiles") as any)
       .select("activite, type_activite")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .maybeSingle()
-      .then(({ data }) => {
-        // Prefer the structured type_activite key, fall back to free-text activite
+      .then(({ data }: any) => {
         setActivity(data?.type_activite || data?.activite || null);
       });
-  }, [user?.id, isDemoMode]);
+  }, [user?.id, isDemoMode, column, value]);
 
   const activityText = isDemoMode ? (demoActivity || "") : (activity || "");
   const examples = getActivityExamples(activityText);

@@ -104,6 +104,7 @@ export type Database = {
           temps_estime: string | null
           titre: string | null
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
           audit_id?: string | null
@@ -123,6 +124,7 @@ export type Database = {
           temps_estime?: string | null
           titre?: string | null
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
           audit_id?: string | null
@@ -142,6 +144,7 @@ export type Database = {
           temps_estime?: string | null
           titre?: string | null
           user_id?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -149,6 +152,13 @@ export type Database = {
             columns: ["audit_id"]
             isOneToOne: false
             referencedRelation: "branding_audits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_recommendations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 
 export type ChannelId = "instagram" | "linkedin" | "newsletter" | "pinterest" | "site" | "seo";
 
@@ -29,12 +30,12 @@ export interface ActiveChannels {
 export function useActiveChannels(): ActiveChannels {
   const { user } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
+  const { column, value } = useWorkspaceFilter();
   const [channels, setChannelsState] = useState<ChannelId[]>(["instagram"]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (isDemoMode) {
-      // Map demo channel names to our ChannelId format
       const channelMap: Record<string, ChannelId> = { instagram: "instagram", website: "site", newsletter: "newsletter", linkedin: "linkedin", pinterest: "pinterest", seo: "seo", site: "site" };
       const demoChannels = (demoData?.onboarding?.canaux || ["instagram", "site"]).map(c => channelMap[c] || c) as ChannelId[];
       setChannelsState(demoChannels);
@@ -44,19 +45,19 @@ export function useActiveChannels(): ActiveChannels {
 
     if (!user?.id) return;
     (async () => {
-      const { data: profile } = await supabase
-        .from("profiles")
+      const { data: profile } = await (supabase
+        .from("profiles") as any)
         .select("canaux")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle();
 
       if (profile?.canaux && Array.isArray(profile.canaux) && profile.canaux.length > 0) {
         setChannelsState(profile.canaux as ChannelId[]);
       } else {
-        const { data: planConfig } = await supabase
-          .from("user_plan_config")
+        const { data: planConfig } = await (supabase
+          .from("user_plan_config") as any)
           .select("channels")
-          .eq("user_id", user.id)
+          .eq(column, value)
           .maybeSingle();
         if (planConfig?.channels && Array.isArray(planConfig.channels) && (planConfig.channels as string[]).length > 0) {
           setChannelsState(planConfig.channels as ChannelId[]);
@@ -64,7 +65,7 @@ export function useActiveChannels(): ActiveChannels {
       }
       setLoading(false);
     })();
-  }, [user?.id, isDemoMode]);
+  }, [user?.id, isDemoMode, column, value]);
 
   const setChannels = useCallback(async (newChannels: ChannelId[]) => {
     if (!user?.id) return;

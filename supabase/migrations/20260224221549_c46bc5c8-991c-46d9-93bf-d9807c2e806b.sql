@@ -1,0 +1,2 @@
+ALTER TABLE public.audit_recommendations ADD COLUMN IF NOT EXISTS workspace_id UUID REFERENCES public.workspaces(id);
+CREATE INDEX IF NOT EXISTS idx_audit_recommendations_workspace_id ON public.audit_recommendations(workspace_id);

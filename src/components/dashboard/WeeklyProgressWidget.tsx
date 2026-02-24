@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useNavigate } from "react-router-dom";
 import { startOfWeek, endOfWeek, format, addDays, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -24,6 +25,7 @@ interface Props {
 
 export default function WeeklyProgressWidget({ animationDelay = 0, brandingCompletion = 0 }: Props) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const [weekPosts, setWeekPosts] = useState<WeekPost[]>([]);
   const [consecutiveStreaks, setConsecutiveStreaks] = useState(0);
@@ -39,10 +41,10 @@ export default function WeeklyProgressWidget({ animationDelay = 0, brandingCompl
     if (!user) return;
 
     // Fetch current week posts
-    const { data: posts } = await supabase
-      .from("calendar_posts")
+    const { data: posts } = await (supabase
+      .from("calendar_posts") as any)
       .select("id, theme, date, status, format")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .gte("date", weekStartStr)
       .lte("date", weekEndStr)
       .order("date");
@@ -51,10 +53,10 @@ export default function WeeklyProgressWidget({ animationDelay = 0, brandingCompl
 
     // Fetch last 8 weeks for streak calculation
     const eightWeeksAgo = format(subWeeks(monday, 8), "yyyy-MM-dd");
-    const { data: recentPosts } = await supabase
-      .from("calendar_posts")
+    const { data: recentPosts } = await (supabase
+      .from("calendar_posts") as any)
       .select("date, status")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .gte("date", eightWeeksAgo)
       .lte("date", weekEndStr);
 
@@ -77,7 +79,7 @@ export default function WeeklyProgressWidget({ animationDelay = 0, brandingCompl
       format(lastSunday, "yyyy-MM-dd")
     );
     setLastWeekEmpty(lastWeekStatus.status === "empty" || lastWeekStatus.status === "missed");
-  }, [user?.id, weekStartStr, weekEndStr]);
+  }, [user?.id, weekStartStr, weekEndStr, column, value]);
 
   useEffect(() => {
     fetchWeekData();

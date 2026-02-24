@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { BADGES } from "@/lib/badges";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -17,6 +18,7 @@ interface UnlockedBadge {
 export default function BadgesWidget({ animationDelay = 0 }: { animationDelay?: number }) {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
+  const { column, value } = useWorkspaceFilter();
   const [unlocked, setUnlocked] = useState<UnlockedBadge[]>([]);
 
   useEffect(() => {
@@ -28,25 +30,25 @@ export default function BadgesWidget({ animationDelay = 0 }: { animationDelay?: 
       return;
     }
     if (!user) return;
-    supabase
-      .from("user_badges")
+    (supabase
+      .from("user_badges") as any)
       .select("badge_id, unlocked_at, seen")
-      .eq("user_id", user.id)
-      .then(({ data }) => {
+      .eq(column, value)
+      .then(({ data }: any) => {
         if (data) {
           setUnlocked(data as UnlockedBadge[]);
           const unseenIds = data.filter((b: any) => !b.seen).map((b: any) => b.badge_id);
           if (unseenIds.length > 0) {
-            supabase
-              .from("user_badges")
+            (supabase
+              .from("user_badges") as any)
               .update({ seen: true })
-              .eq("user_id", user.id)
+              .eq(column, value)
               .in("badge_id", unseenIds)
               .then(() => {});
           }
         }
       });
-  }, [user?.id, isDemoMode]);
+  }, [user?.id, isDemoMode, column, value]);
 
   const unlockedIds = unlocked.map((b) => b.badge_id);
 
