@@ -16,7 +16,7 @@ import Confetti from "@/components/Confetti";
 import { toast } from "sonner";
 import { MarkdownText } from "@/components/ui/markdown-text";
 
-type Section = "story" | "persona" | "value_proposition" | "tone_style" | "content_strategy" | "offers";
+type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers";
 
 interface Message {
   id: string;
@@ -40,7 +40,6 @@ interface AIResponse {
 const SECTION_META: Record<Section, { emoji: string; title: string; description: string; duration: string }> = {
   story: { emoji: "📖", title: "Mon histoire", description: "On va écrire ton histoire ensemble. Je te pose des questions, tu me racontes.", duration: "~5 min" },
   persona: { emoji: "👩‍💻", title: "Mon client·e idéal·e", description: "On va dresser le portrait de ta cliente idéale ensemble.", duration: "~5 min" },
-  value_proposition: { emoji: "❤️", title: "Ma proposition de valeur", description: "On va formuler ce qui te rend unique. Des phrases claires, réutilisables partout.", duration: "~4 min" },
   tone_style: { emoji: "🎨", title: "Mon ton, mon style & mes combats", description: "On va définir ta voix. Comment tu parles, ce que tu défends, tes limites.", duration: "~5 min" },
   content_strategy: { emoji: "🍒", title: "Ma stratégie de contenu", description: "On va poser tes piliers de contenu et ta ligne éditoriale.", duration: "~4 min" },
   offers: { emoji: "🎁", title: "Mes offres", description: "On va formuler tes offres de manière désirable.", duration: "~5 min" },
