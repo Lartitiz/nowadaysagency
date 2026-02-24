@@ -8,6 +8,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { Progress } from "@/components/ui/progress";
 import NotificationBell from "@/components/NotificationBell";
+import AiCreditsCounter from "@/components/AiCreditsCounter";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -132,6 +133,7 @@ export default function AppHeader() {
           </nav>
 
           <div className="flex items-center gap-2 shrink-0">
+            <AiCreditsCounter plan={plan} usage={usage} />
             <NotificationBell />
             <AvatarMenu
               initial={initial}
@@ -183,6 +185,7 @@ export default function AppHeader() {
           </nav>
 
           <div className="flex items-center gap-2 shrink-0">
+            <AiCreditsCounter plan={plan} usage={usage} />
             <NotificationBell />
             <AvatarMenu
               initial={initial}
@@ -216,6 +219,7 @@ export default function AppHeader() {
             {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
           </div>
           <div className="flex items-center gap-2">
+            <AiCreditsCounter plan={plan} usage={usage} />
             <NotificationBell />
             <AvatarMenu
               initial={initial}
