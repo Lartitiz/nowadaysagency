@@ -63,11 +63,12 @@ function ScoreCircle({ score, trend }: { score: number; trend: number }) {
           cy={50}
           r={radius}
           fill="none"
-          className={`${arcColor(score)} stroke-current transition-all duration-700`}
+          className={`${arcColor(score)} stroke-current`}
           strokeWidth={8}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
+          style={{ transition: "stroke-dashoffset 1s ease-out" }}
         />
       </svg>
       <span
