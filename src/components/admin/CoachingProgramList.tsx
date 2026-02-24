@@ -71,19 +71,20 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
     if (!user?.id) return;
     const { data: ws, error: wsErr } = await supabase
       .from("workspaces")
-      .insert({ name: clientName, created_by: clientUserId } as any)
+      .insert({ name: clientName, created_by: user.id } as any)
       .select("id")
       .single();
 
     if (wsErr || !ws) {
-      toast.error("Erreur création workspace");
+      console.error("Erreur création workspace:", wsErr);
+      toast.error("Impossible de créer l'espace");
       return;
     }
 
-    // Add client as owner
-    await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: clientUserId, role: "owner" } as any);
-    // Add admin as manager
+    // Add admin as manager FIRST (creator can bootstrap)
     await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: user.id, role: "manager" } as any);
+    // Then add client as owner
+    await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: clientUserId, role: "owner" } as any);
 
     toast.success(`Espace créé pour ${clientName}`);
     switchWorkspace(ws.id);
