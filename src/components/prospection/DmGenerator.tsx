@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
@@ -86,6 +87,7 @@ function getUsername(p: Prospect) {
 
 export default function DmGenerator({ prospect, interactions, onBack, onMessageSent }: Props) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
 
   // Step state
@@ -117,10 +119,9 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
   // Load offers on mount
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("offers")
+    (supabase.from("offers") as any)
       .select("id, name, offer_type, promise, price_text, sales_line, url_sales_page, url_booking, problem_deep, description_short")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .then(({ data }) => {
         if (data) setOffers(data as Offer[]);
       });

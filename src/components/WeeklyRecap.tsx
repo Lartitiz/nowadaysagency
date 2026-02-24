@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Lightbulb, CalendarDays, CheckSquare, Flame } from "lucide-react";
 
@@ -35,6 +36,7 @@ function getLastWeekRange() {
 
 export default function WeeklyRecap({ currentWeek, planTasks }: WeeklyRecapProps) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const [ideas, setIdeas] = useState(0);
   const [planned, setPlanned] = useState(0);
   const [published, setPublished] = useState(0);
@@ -53,22 +55,19 @@ export default function WeeklyRecap({ currentWeek, planTasks }: WeeklyRecapProps
       const endISO = end.toISOString();
 
       const [ideasRes, plannedRes, publishedRes] = await Promise.all([
-        supabase
-          .from("saved_ideas")
+        (supabase.from("saved_ideas") as any)
           .select("id", { count: "exact", head: true })
-          .eq("user_id", user.id)
+          .eq(column, value)
           .gte("created_at", startISO)
           .lte("created_at", endISO),
-        supabase
-          .from("calendar_posts")
+        (supabase.from("calendar_posts") as any)
           .select("id", { count: "exact", head: true })
-          .eq("user_id", user.id)
+          .eq(column, value)
           .gte("created_at", startISO)
           .lte("created_at", endISO),
-        supabase
-          .from("calendar_posts")
+        (supabase.from("calendar_posts") as any)
           .select("id", { count: "exact", head: true })
-          .eq("user_id", user.id)
+          .eq(column, value)
           .eq("status", "published")
           .gte("updated_at", startISO)
           .lte("updated_at", endISO),
@@ -86,10 +85,9 @@ export default function WeeklyRecap({ currentWeek, planTasks }: WeeklyRecapProps
 
   const calculateStreak = async () => {
     if (!user) return;
-    const { data: posts } = await supabase
-      .from("calendar_posts")
+    const { data: posts } = await (supabase.from("calendar_posts") as any)
       .select("created_at")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("created_at", { ascending: false });
 
     const completedTasks = planTasks.filter((t) => t.is_completed && t.completed_at);

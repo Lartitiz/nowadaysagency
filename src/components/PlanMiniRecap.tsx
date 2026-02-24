@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { ClipboardList, ArrowRight } from "lucide-react";
@@ -8,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 
 export default function PlanMiniRecap() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const [planStartDate, setPlanStartDate] = useState<string | null>(null);
   const [completedThisWeek, setCompletedThisWeek] = useState(0);
   const [totalThisWeek, setTotalThisWeek] = useState(0);
@@ -24,19 +26,17 @@ export default function PlanMiniRecap() {
   useEffect(() => {
     if (!user) return;
     const fetch = async () => {
-      const { data: profile } = await supabase
-        .from("profiles")
+      const { data: profile } = await (supabase.from("profiles") as any)
         .select("plan_start_date")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .single();
       if (profile?.plan_start_date) {
         setPlanStartDate(profile.plan_start_date);
       }
 
-      const { data: tasks } = await supabase
-        .from("plan_tasks")
+      const { data: tasks } = await (supabase.from("plan_tasks") as any)
         .select("week_number, task_index, is_completed")
-        .eq("user_id", user.id);
+        .eq(column, value);
 
       if (tasks && profile?.plan_start_date) {
         const start = new Date(profile.plan_start_date);

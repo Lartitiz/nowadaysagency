@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -173,6 +174,7 @@ function txt(val: any) {
 export default function ExcelImportDialog({ open, onOpenChange, userId, onImportComplete }: Props) {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+  const { column, value } = useWorkspaceFilter();
 
   const [step, setStep] = useState<ImportStep>("upload");
   const [fileName, setFileName] = useState("");
@@ -227,10 +229,9 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
       setSheetsInfo(infos);
 
       // Check for saved mapping with same headers
-      const { data: savedMappings } = await supabase
-        .from("import_mappings" as any)
+      const { data: savedMappings } = await (supabase.from("import_mappings" as any) as any)
         .select("*")
-        .eq("user_id", userId)
+        .eq(column, value)
         .order("created_at", { ascending: false })
         .limit(5);
 

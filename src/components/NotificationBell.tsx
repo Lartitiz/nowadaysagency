@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Bell, Check, Trash2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ interface Notification {
 
 export default function NotificationBell() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
@@ -31,10 +33,9 @@ export default function NotificationBell() {
 
   const fetchNotifications = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("notifications")
+    const { data } = await (supabase.from("notifications") as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("created_at", { ascending: false })
       .limit(20);
     if (data) setNotifications(data);
@@ -48,7 +49,7 @@ export default function NotificationBell() {
       .channel("user-notifications")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        { event: "INSERT", schema: "public", table: "notifications", filter: `${column}=eq.${value}` },
         () => fetchNotifications()
       )
       .subscribe();
@@ -63,7 +64,7 @@ export default function NotificationBell() {
 
   const markAllRead = async () => {
     if (!user) return;
-    await supabase.from("notifications").update({ read: true }).eq("user_id", user.id).eq("read", false);
+    await (supabase.from("notifications") as any).update({ read: true }).eq(column, value).eq("read", false);
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 

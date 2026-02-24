@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -77,6 +78,7 @@ function getTodayKey(): string {
 
 export default function SmartRoutinesPanel() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<RoutineTask[]>([]);
   const [completions, setCompletions] = useState<Completion[]>([]);
@@ -97,9 +99,9 @@ export default function SmartRoutinesPanel() {
   const fetchAll = useCallback(async () => {
     if (!user) return;
     const [tasksRes, compRes, planRes] = await Promise.all([
-      supabase.from("routine_tasks").select("*").eq("user_id", user.id).eq("is_active", true).order("sort_order"),
-      supabase.from("routine_completions").select("id, routine_task_id, week, month, completed_at").eq("user_id", user.id),
-      supabase.from("communication_plans").select("daily_time, active_days, monthly_goal").eq("user_id", user.id).maybeSingle(),
+      (supabase.from("routine_tasks") as any).select("*").eq(column, value).eq("is_active", true).order("sort_order"),
+      (supabase.from("routine_completions") as any).select("id, routine_task_id, week, month, completed_at").eq(column, value),
+      (supabase.from("communication_plans") as any).select("daily_time, active_days, monthly_goal").eq(column, value).maybeSingle(),
     ]);
     if (tasksRes.data) setTasks(tasksRes.data as RoutineTask[]);
     if (compRes.data) setCompletions(compRes.data as Completion[]);

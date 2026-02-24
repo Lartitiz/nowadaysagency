@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ interface AuditInfo {
 
 export default function AuditRecommendationsSection() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [audit, setAudit] = useState<AuditInfo | null>(null);
@@ -43,15 +45,15 @@ export default function AuditRecommendationsSection() {
   const loadData = async () => {
     if (!user) return;
     const [auditRes, recsRes] = await Promise.all([
-      supabase.from("branding_audits")
+      (supabase.from("branding_audits") as any)
         .select("id, created_at, score_global")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
-      supabase.from("audit_recommendations")
+      (supabase.from("audit_recommendations") as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .order("position", { ascending: true }),
     ]);
 

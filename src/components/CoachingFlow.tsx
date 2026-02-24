@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -40,6 +41,7 @@ type Phase = "intro" | "questions" | "diagnostic" | "adjust" | "done";
 
 export default function CoachingFlow({ module, recId, conseil, onComplete, onSkip }: CoachingFlowProps) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const [phase, setPhase] = useState<Phase>("intro");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [intro, setIntro] = useState("");
@@ -195,10 +197,9 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
       });
 
       if (module === "persona") {
-        const { data: personaRow } = await supabase
-          .from("persona")
+        const { data: personaRow } = await (supabase.from("persona") as any)
           .select("id, portrait, portrait_prenom")
-          .eq("user_id", user.id)
+          .eq(column, value)
           .maybeSingle();
 
         const existingPortrait = (personaRow?.portrait as Record<string, any>) || {};
@@ -267,11 +268,11 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
           const { data: existing } = await supabase
             .from(table as any)
             .select("id")
-            .eq("user_id", user.id)
+            .eq(column, value)
             .maybeSingle();
 
           if (existing) {
-            const { error } = await supabase.from(table as any).update(updates).eq("user_id", user.id);
+            const { error } = await supabase.from(table as any).update(updates).eq(column, value);
             if (error) throw error;
           } else {
             const { error } = await supabase.from(table as any).insert({ ...updates, user_id: user.id });

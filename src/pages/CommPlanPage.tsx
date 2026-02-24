@@ -104,7 +104,7 @@ export default function CommPlanPage() {
       };
 
       if (config) {
-        await supabase.from("user_plan_config").update(payload).eq("user_id", user.id);
+        await (supabase.from("user_plan_config") as any).update(payload).eq(column, value);
       } else {
         await supabase.from("user_plan_config").insert(payload);
       }

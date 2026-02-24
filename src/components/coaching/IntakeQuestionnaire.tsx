@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
@@ -49,6 +50,7 @@ interface IntakeQuestionnaireProps {
 
 export default function IntakeQuestionnaire({ programId, onComplete, onBack }: IntakeQuestionnaireProps) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { isDemoMode } = useDemoContext();
   const navigate = useNavigate();
 
@@ -72,11 +74,10 @@ export default function IntakeQuestionnaire({ programId, onComplete, onBack }: I
   useEffect(() => {
     if (isDemoMode || !user) return;
     (async () => {
-      const { data } = await supabase
-        .from("intake_questionnaires")
+      const { data } = await (supabase.from("intake_questionnaires") as any)
         .select("*")
         .eq("program_id", programId)
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle();
 
       if (data) {

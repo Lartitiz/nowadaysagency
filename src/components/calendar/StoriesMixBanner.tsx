@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { toLocalDateStr } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Pencil, X } from "lucide-react";
@@ -47,16 +48,16 @@ interface Props {
 export function StoriesMixBanner({ weekDays, isLaunchWeek = false }: Props) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const [hidden, setHidden] = useState(true); // hidden by default until we check
   const mix = isLaunchWeek ? LAUNCH_MIX : CRUISE_MIX;
   const weekKey = weekDays.length > 0 ? getWeekKey(weekDays[0]) : "";
 
   useEffect(() => {
     if (!user || !weekKey) return;
-    supabase
-      .from("dismissed_suggestions" as any)
-      .select("id")
-      .eq("user_id", user.id)
+      (supabase.from("dismissed_suggestions" as any) as any)
+        .select("id")
+        .eq(column, value)
       .eq("suggestion_type", "stories_week")
       .eq("context_key", weekKey)
       .maybeSingle()

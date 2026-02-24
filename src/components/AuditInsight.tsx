@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { RotateCcw } from "lucide-react";
@@ -82,14 +83,14 @@ function parseLegacyRecommendations(recs: string[]): StructuredRec[] {
 
 export function useAuditInsight(section: AuditSection) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const [data, setData] = useState<SectionData | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("instagram_audit")
+    (supabase.from("instagram_audit") as any)
       .select("details, score_nom, score_bio, score_stories, score_epingles, score_feed, score_edito")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()

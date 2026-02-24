@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -23,6 +24,7 @@ interface VoiceOnboardingProps {
 
 export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOnboardingProps) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
   const [step, setStep] = useState<"input" | "review" | "done">(existingProfile ? "done" : "input");
   const [texts, setTexts] = useState<string[]>([""]);
@@ -81,10 +83,9 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
         sample_texts: texts.filter(t => t.trim().length > 0),
       };
 
-      const { data: existing } = await supabase
-        .from("voice_profile" as any)
+      const { data: existing } = await (supabase.from("voice_profile" as any) as any)
         .select("id")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle();
 
       if (existing) {

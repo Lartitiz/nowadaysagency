@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ShoppingBag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -23,15 +24,15 @@ const PRODUCT_LABELS: Record<string, string> = {
 
 export default function PurchaseHistory() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("purchases")
+    (supabase.from("purchases") as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         if (data) setPurchases(data as Purchase[]);

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ const statusLabel = (status: string) => {
 
 export default function StudioDashboard() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { isStudio, loading: planLoading } = useUserPlan();
   const navigate = useNavigate();
   const [coachings, setCoachings] = useState<Coaching[]>([]);
@@ -82,8 +84,8 @@ export default function StudioDashboard() {
   const loadData = async () => {
     setLoading(true);
     const [coachRes, delivRes, subRes] = await Promise.all([
-      supabase.from("studio_coachings").select("*").eq("user_id", user!.id).order("scheduled_at", { ascending: false }),
-      supabase.from("studio_deliverables").select("*").eq("user_id", user!.id).order("created_at"),
+      (supabase.from("studio_coachings") as any).select("*").eq(column, value).order("scheduled_at", { ascending: false }),
+      (supabase.from("studio_deliverables") as any).select("*").eq(column, value).order("created_at"),
       supabase.from("subscriptions").select("studio_start_date, studio_end_date, studio_months_paid").eq("user_id", user!.id).single(),
     ]);
     if (coachRes.data) setCoachings(coachRes.data as Coaching[]);

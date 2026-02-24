@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
@@ -153,6 +154,7 @@ function FrequencySelector({ label, value, options, onChange }: {
 
 export default function Profile() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -175,8 +177,8 @@ export default function Profile() {
     if (!user) return;
     const load = async () => {
       const [{ data }, { data: config }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("user_id", user.id).single(),
-        supabase.from("user_plan_config").select("main_goal, level, weekly_time").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("profiles") as any).select("*").eq(column, value).single(),
+        (supabase.from("user_plan_config") as any).select("main_goal, level, weekly_time").eq(column, value).maybeSingle(),
       ]);
       if (data) {
         const loaded: ProfileData = {
@@ -218,8 +220,8 @@ export default function Profile() {
     if (!user) return;
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
+      const { error } = await (supabase
+        .from("profiles") as any)
         .update({
           prenom: current.prenom,
           activite: current.activite,
@@ -238,7 +240,7 @@ export default function Profile() {
           instagram_url: current.instagramUrl,
           linkedin_url: current.linkedinUrl,
         })
-        .eq("user_id", user.id);
+        .eq(column, value);
       if (error) throw error;
 
       // Sync to user_plan_config
@@ -247,7 +249,7 @@ export default function Profile() {
         if (current.mainGoal) configUpdate.main_goal = current.mainGoal;
         if (current.level) configUpdate.level = current.level;
         if (current.weeklyTime) configUpdate.weekly_time = current.weeklyTime;
-        await supabase.from("user_plan_config").update(configUpdate).eq("user_id", user.id);
+        await (supabase.from("user_plan_config") as any).update(configUpdate).eq(column, value);
       }
 
       setSaved({ ...current });
