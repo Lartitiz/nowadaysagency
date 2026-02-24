@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { useActiveChannels } from "@/hooks/use-active-channels";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 
 interface FormatOption {
   id: string;
@@ -47,6 +48,7 @@ export default function InstagramCreer() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { channels: activeChannels } = useActiveChannels();
+  const { column, value } = useWorkspaceFilter();
   const FORMAT_OPTIONS = ALL_FORMAT_OPTIONS.filter(f => activeChannels.includes(f.channel as any));
   const [ideaText, setIdeaText] = useState("");
   const [suggesting, setSuggesting] = useState(false);
@@ -57,7 +59,7 @@ export default function InstagramCreer() {
   // Load profile for dictate mode
   const loadProfile = async () => {
     if (!user || profile) return;
-    const { data } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
+    const { data } = await (supabase.from("profiles") as any).select("*").eq(column, value).single();
     if (data) setProfile(data);
   };
 

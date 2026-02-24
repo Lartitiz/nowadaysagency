@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { toast } from "sonner";
 import { Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ export default function EditableField({
   label, value, field, table, idField, recordId, onUpdated, onStartCoaching, multiline = true, className = "",
 }: EditableFieldProps) {
   const { user } = useAuth();
+  const { column, value: workspaceValue } = useWorkspaceFilter();
   const { isDemoMode } = useDemoContext();
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value || "");
@@ -45,7 +47,7 @@ export default function EditableField({
         // These tables use id, not user_id upsert
         const filterQuery = (supabase.from(table as any) as any)
           .select("id")
-          .eq("user_id", user.id);
+          .eq(column, workspaceValue);
         const filteredQuery = table === "storytelling" ? filterQuery.eq("is_primary", true) : filterQuery;
         const { data: existing } = await filteredQuery.maybeSingle();
         if (existing) {

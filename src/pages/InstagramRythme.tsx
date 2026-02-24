@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,8 @@ const SLOT_OPTIONS = [
 
 export default function InstagramRythme() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [existingId, setExistingId] = useState<string | null>(null);
@@ -37,7 +40,7 @@ export default function InstagramRythme() {
   // Load existing data
   useEffect(() => {
     if (!user) return;
-    supabase.from("user_rhythm").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+    (supabase.from("user_rhythm") as any).select("*").eq(column, value).maybeSingle().then(({ data }) => {
       if (data) {
         setExistingId(data.id);
         setTimeIdeas(data.time_ideas_monthly ?? 60);
@@ -82,6 +85,7 @@ export default function InstagramRythme() {
     setSaving(true);
     const payload = {
       user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       time_ideas_monthly: timeIdeas,
       time_visuals_per_content: timeVisuals,
       time_texts_per_content: timeTexts,

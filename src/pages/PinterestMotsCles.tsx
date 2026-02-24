@@ -24,7 +24,7 @@ export default function PinterestMotsCles() {
 
   useEffect(() => {
     if (!user) return;
-    (supabase.from("pinterest_keywords") as any).select("*").eq("user_id", user.id).maybeSingle().then(({ data }: any) => {
+    (supabase.from("pinterest_keywords") as any).select("*").eq(column, value).maybeSingle().then(({ data }: any) => {
       if (data) {
         setKwId(data.id);
         setRaw(data.keywords_raw || "");
@@ -52,7 +52,7 @@ export default function PinterestMotsCles() {
   const save = async () => {
     if (!user) return;
     const payload: any = {
-      user_id: user.id, keywords_raw: raw,
+      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, keywords_raw: raw,
       keywords_product: generated?.produit || [], keywords_need: generated?.besoin || [],
       keywords_inspiration: generated?.inspiration || [], keywords_english: generated?.anglais || [],
       checklist_titles: checklist.titles, checklist_board_desc: checklist.boardDesc,

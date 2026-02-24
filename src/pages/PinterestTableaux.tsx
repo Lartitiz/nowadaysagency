@@ -34,7 +34,7 @@ export default function PinterestTableaux() {
 
   useEffect(() => {
     if (!user) return;
-    (supabase.from("pinterest_boards") as any).select("*").eq("user_id", user.id).order("sort_order").then(({ data }: any) => {
+    (supabase.from("pinterest_boards") as any).select("*").eq(column, value).order("sort_order").then(({ data }: any) => {
       if (data && data.length > 0) setBoards(data.map(d => ({ id: d.id, name: d.name || "", description: d.description || "", board_type: d.board_type || "autre" })));
     });
   }, [user?.id]);
@@ -66,9 +66,16 @@ export default function PinterestTableaux() {
 
   const saveAll = async () => {
     if (!user) return;
-    await (supabase.from("pinterest_boards") as any).delete().eq("user_id", user.id);
+    await (supabase.from("pinterest_boards") as any).delete().eq(column, value);
     if (boards.length > 0) {
-      await supabase.from("pinterest_boards").insert(boards.filter(b => b.name.trim()).map((b, i) => ({ user_id: user.id, name: b.name, description: b.description, board_type: b.board_type, sort_order: i })));
+      await supabase.from("pinterest_boards").insert(boards.filter(b => b.name.trim()).map((b, i) => ({ 
+        user_id: user.id, 
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+        name: b.name, 
+        description: b.description, 
+        board_type: b.board_type, 
+        sort_order: i 
+      })));
     }
     toast({ title: "✅ Tableaux sauvegardés !" });
   };

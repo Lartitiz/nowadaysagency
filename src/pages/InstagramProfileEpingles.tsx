@@ -83,7 +83,7 @@ export default function InstagramProfileEpingles() {
       const { data } = await (supabase
         .from("instagram_pinned_posts") as any)
         .select("*")
-        .eq("user_id", user.id);
+        .eq(column, value);
       if (data && data.length > 0) {
         setSlots(
           SLOTS.map((s) => {
@@ -114,6 +114,7 @@ export default function InstagramProfileEpingles() {
       for (const slot of slots) {
         const row = {
           user_id: user.id,
+          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
           post_type: slot.type,
           has_existing: slot.status === "done",
           existing_description: slot.description,
@@ -122,7 +123,7 @@ export default function InstagramProfileEpingles() {
         const { data: existing } = await (supabase
           .from("instagram_pinned_posts") as any)
           .select("id")
-          .eq("user_id", user.id)
+          .eq(column, value)
           .eq("post_type", slot.type)
           .maybeSingle();
         if (existing) {

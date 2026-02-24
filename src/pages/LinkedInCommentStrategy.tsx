@@ -29,7 +29,7 @@ export default function LinkedInCommentStrategy() {
     (supabase
       .from("linkedin_comment_strategy" as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .maybeSingle() as any)
       .then(({ data }: any) => {
         if (data) {
@@ -41,7 +41,12 @@ export default function LinkedInCommentStrategy() {
 
   const save = async (newAccounts: CommentAccount[]) => {
     if (!user) return;
-    const payload = { user_id: user.id, accounts: newAccounts as any, updated_at: new Date().toISOString() };
+    const payload = { 
+      user_id: user.id, 
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+      accounts: newAccounts as any, 
+      updated_at: new Date().toISOString() 
+    };
     if (strategyId) {
       await supabase.from("linkedin_comment_strategy").update(payload).eq("id", strategyId);
     } else {
