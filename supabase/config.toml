@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.invite-to-workspace]
 verify_jwt = false
+
+[functions.admin-users]
+verify_jwt = false
