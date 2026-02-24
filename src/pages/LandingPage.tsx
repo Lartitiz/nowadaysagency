@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,33 +52,40 @@ function Reveal({ children, className = "", delay = 0 }: { children: React.React
 }
 
 /* ─── SignupForm ─── */
+const signupSchema = z.object({
+  prenom: z.string().trim().min(2, "Ton prénom doit faire au moins 2 caractères").max(50),
+  email: z.string().trim().email("Entre une adresse email valide"),
+  password: z.string().min(8, "Ton mot de passe doit faire au moins 8 caractères"),
+  activite: z.string().optional(),
+});
+type SignupValues = z.infer<typeof signupSchema>;
+
 function SignupForm({ compact = false }: { compact?: boolean }) {
   const { toast } = useToast();
-  const [prenom, setPrenom] = useState("");
-  const [email, setEmail] = useState("");
-  const [activite, setActivite] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!prenom.trim() || !email.trim() || !password.trim()) return;
+  const { register, handleSubmit, formState: { errors } } = useForm<SignupValues>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: { prenom: "", email: "", password: "", activite: "" },
+  });
+
+  const onSubmit = async (values: SignupValues) => {
     setLoading(true);
     try {
-      localStorage.setItem("lac_prenom", prenom.trim());
-      localStorage.setItem("lac_activite", activite.trim());
+      localStorage.setItem("lac_prenom", values.prenom);
+      localStorage.setItem("lac_activite", values.activite?.trim() || "");
       const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: values.email,
+        password: values.password,
         options: { emailRedirectTo: window.location.origin },
       });
       if (error) throw error;
       if (data.user) {
         await supabase.from("profiles").insert({
           user_id: data.user.id,
-          prenom: prenom.trim(),
-          activite: activite.trim(),
+          prenom: values.prenom,
+          activite: values.activite?.trim() || "",
         });
       }
       setSuccess(true);
@@ -107,14 +117,25 @@ function SignupForm({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <form onSubmit={handleSignup} className="space-y-3">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Ton prénom" required className="rounded-xl h-12 bg-card border-border" />
-        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Ton email" required className="rounded-xl h-12 bg-card border-border" />
+        <div>
+          <Input {...register("prenom")} placeholder="Ton prénom" className="rounded-xl h-12 bg-card border-border" />
+          {errors.prenom && <p className="text-destructive text-xs mt-1">{errors.prenom.message}</p>}
+        </div>
+        <div>
+          <Input type="email" {...register("email")} placeholder="Ton email" className="rounded-xl h-12 bg-card border-border" />
+          {errors.email && <p className="text-destructive text-xs mt-1">{errors.email.message}</p>}
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input value={activite} onChange={(e) => setActivite(e.target.value)} placeholder="Ex : photographe, coach, artisane..." className="rounded-xl h-12 bg-card border-border" />
-        <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe (6 car. min.)" required minLength={6} className="rounded-xl h-12 bg-card border-border" />
+        <div>
+          <Input {...register("activite")} placeholder="Ex : photographe, coach, artisane..." className="rounded-xl h-12 bg-card border-border" />
+        </div>
+        <div>
+          <Input type="password" {...register("password")} placeholder="Mot de passe (8 car. min.)" className="rounded-xl h-12 bg-card border-border" />
+          {errors.password && <p className="text-destructive text-xs mt-1">{errors.password.message}</p>}
+        </div>
       </div>
       <Button type="submit" disabled={loading} className="w-full sm:w-auto h-12 rounded-pill px-10 text-base font-medium">
         {loading ? "Un instant..." : "🚀 Commencer gratuitement"}
