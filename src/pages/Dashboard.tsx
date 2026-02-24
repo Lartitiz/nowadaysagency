@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Link, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 
@@ -83,10 +84,11 @@ export default function Dashboard() {
   const { isDemoMode, demoData } = useDemoContext();
   const navigate = useNavigate();
   const { isPilot } = useUserPlan();
+  const { column, value } = useWorkspaceFilter();
   const { hasInstagram, hasLinkedin, hasWebsite, hasSeo, loading: channelsLoading, channels } = useActiveChannels();
   // ── Profile query ──
   const { data: profile } = useQuery<UserProfile | null>({
-    queryKey: ["profile", user?.id, isDemoMode],
+    queryKey: ["profile", user?.id, column, value, isDemoMode],
     queryFn: async () => {
       if (isDemoMode && demoData) {
         return {
@@ -117,7 +119,7 @@ export default function Dashboard() {
 
   // ── Dashboard data query ──
   const { data: dashData = defaultDashData } = useQuery<DashboardData>({
-    queryKey: ["dashboard-data", user?.id, isDemoMode],
+    queryKey: ["dashboard-data", user?.id, column, value, isDemoMode],
     queryFn: async () => {
       if (isDemoMode && demoData) {
         return {
@@ -151,10 +153,10 @@ export default function Dashboard() {
         supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "prospect"),
         supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "prospect").eq("prospect_stage", "in_conversation"),
         supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "prospect").eq("prospect_stage", "offer_sent"),
-        supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("date", weekStart).lte("date", weekEnd),
-        supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("date", weekStart).lte("date", weekEnd).eq("status", "published"),
-        supabase.from("calendar_posts").select("date, theme").eq("user_id", user.id).gte("date", format(now, "yyyy-MM-dd")).order("date", { ascending: true }).limit(1).maybeSingle(),
+        (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(column, value),
+        (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(column, value).gte("date", weekStart).lte("date", weekEnd),
+        (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(column, value).gte("date", weekStart).lte("date", weekEnd).eq("status", "published"),
+        (supabase.from("calendar_posts") as any).select("date, theme").eq(column, value).gte("date", format(now, "yyyy-MM-dd")).order("date", { ascending: true }).limit(1).maybeSingle(),
         supabase.from("user_plan_config").select("*").eq("user_id", user.id).maybeSingle(),
         supabase.from("audit_recommendations").select("id, titre, route, completed").eq("user_id", user.id).order("position", { ascending: true }).limit(5),
       ]);
