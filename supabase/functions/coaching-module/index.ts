@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { phase, module, answers, rec_id, previous_diagnostic, adjustment_feedback, iteration_history, iteration } = body;
+    const { phase, module, answers, rec_id, previous_diagnostic, adjustment_feedback, iteration_history, iteration, workspace_id } = body;
 
     if (!module || !phase) {
       return new Response(JSON.stringify({ error: "module et phase requis" }), {
@@ -100,9 +100,12 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    const filterCol = workspace_id ? "workspace_id" : "user_id";
+    const filterVal = workspace_id || user.id;
+
     const [brandRes, auditRes, recRes] = await Promise.all([
-      sbService.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle(),
-      sbService.from("branding_audits").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      sbService.from("brand_profile").select("*").eq(filterCol, filterVal).maybeSingle(),
+      sbService.from("branding_audits").select("*").eq(filterCol, filterVal).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       rec_id ? sbService.from("audit_recommendations").select("*").eq("id", rec_id).maybeSingle() : Promise.resolve({ data: null }),
     ]);
 

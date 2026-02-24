@@ -42,11 +42,12 @@ serve(async (req) => {
 
     // Fetch full context server-side
     const { getUserContext, formatContextForAI, CONTEXT_PRESETS } = await import("../_shared/user-context.ts");
-    const ctx = await getUserContext(supabase, user.id);
-    const branding_context = formatContextForAI(ctx, CONTEXT_PRESETS.stories);
 
     const body = await req.json();
-    const { objective, price_range, time_available, face_cam, subject, subject_details, raw_idea, clarify_context, direction, is_launch, type, pre_gen_answers } = body;
+    const { objective, price_range, time_available, face_cam, subject, subject_details, raw_idea, clarify_context, direction, is_launch, type, pre_gen_answers, workspace_id } = body;
+
+    const ctx = await getUserContext(supabase, user.id, workspace_id);
+    const branding_context = formatContextForAI(ctx, CONTEXT_PRESETS.stories);
 
     // Clarify subject (fuzzy path)
     if (type === "clarify_subject") {

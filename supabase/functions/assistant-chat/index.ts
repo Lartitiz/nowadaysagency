@@ -53,17 +53,19 @@ async function saveUndoLog(
 }
 
 // Execute actions returned by AI
-async function executeActions(sb: any, userId: string, actions: any[]): Promise<any[]> {
+async function executeActions(sb: any, userId: string, actions: any[], workspaceId?: string): Promise<any[]> {
+  const filterCol = workspaceId ? "workspace_id" : "user_id";
+  const filterVal = workspaceId || userId;
   const results: any[] = [];
 
   for (const action of actions) {
     try {
       switch (action.type) {
         case "update_branding": {
-          const { data: before } = await sb.from("brand_profile").select("*").eq("user_id", userId).maybeSingle();
+          const { data: before } = await sb.from("brand_profile").select("*").eq(filterCol, filterVal).maybeSingle();
           if (before) {
             await saveUndoLog(sb, userId, "update_branding", "brand_profile", before.id, before);
-            const { error } = await sb.from("brand_profile").update({ [action.field]: action.value }).eq("user_id", userId);
+            const { error } = await sb.from("brand_profile").update({ [action.field]: action.value }).eq(filterCol, filterVal);
             results.push({ action: action.type, field: action.field, success: !error, error: error?.message });
           } else {
             results.push({ action: action.type, success: false, error: "Aucun profil de marque trouvé" });
@@ -71,16 +73,15 @@ async function executeActions(sb: any, userId: string, actions: any[]): Promise<
           break;
         }
         case "update_persona": {
-          const { data: before } = await sb.from("persona").select("*").eq("user_id", userId).maybeSingle();
+          const { data: before } = await sb.from("persona").select("*").eq(filterCol, filterVal).maybeSingle();
           if (before) {
             await saveUndoLog(sb, userId, "update_persona", "persona", before.id, before);
-            // Handle portrait JSONB fields
             if (action.field === "portrait" && typeof action.value === "object") {
               const updated = { ...(before.portrait || {}), ...action.value };
-              const { error } = await sb.from("persona").update({ portrait: updated }).eq("user_id", userId);
+              const { error } = await sb.from("persona").update({ portrait: updated }).eq(filterCol, filterVal);
               results.push({ action: action.type, field: action.field, success: !error, error: error?.message });
             } else {
-              const { error } = await sb.from("persona").update({ [action.field]: action.value }).eq("user_id", userId);
+              const { error } = await sb.from("persona").update({ [action.field]: action.value }).eq(filterCol, filterVal);
               results.push({ action: action.type, field: action.field, success: !error, error: error?.message });
             }
           } else {
@@ -89,6 +90,7 @@ async function executeActions(sb: any, userId: string, actions: any[]): Promise<
           break;
         }
         case "update_profile": {
+          // profiles always uses user_id (no workspace_id)
           const { data: before } = await sb.from("profiles").select("*").eq("user_id", userId).maybeSingle();
           if (before) {
             await saveUndoLog(sb, userId, "update_profile", "profiles", before.id, before);
@@ -100,7 +102,7 @@ async function executeActions(sb: any, userId: string, actions: any[]): Promise<
         case "insert_offer": {
           const { data: inserted, error } = await sb
             .from("offers")
-            .insert({ user_id: userId, ...action.data })
+            .insert({ user_id: userId, workspace_id: workspaceId || null, ...action.data })
             .select()
             .single();
           if (inserted) {
@@ -110,10 +112,10 @@ async function executeActions(sb: any, userId: string, actions: any[]): Promise<
           break;
         }
         case "delete_offer": {
-          const { data: before } = await sb.from("offers").select("*").eq("id", action.offer_id).eq("user_id", userId).maybeSingle();
+          const { data: before } = await sb.from("offers").select("*").eq("id", action.offer_id).eq(filterCol, filterVal).maybeSingle();
           if (before) {
             await saveUndoLog(sb, userId, "delete_offer", "offers", before.id, before);
-            const { error } = await sb.from("offers").delete().eq("id", action.offer_id).eq("user_id", userId);
+            const { error } = await sb.from("offers").delete().eq("id", action.offer_id).eq(filterCol, filterVal);
             results.push({ action: action.type, success: !error, error: error?.message });
           } else {
             results.push({ action: action.type, success: false, error: "Offre non trouvée" });
@@ -123,6 +125,7 @@ async function executeActions(sb: any, userId: string, actions: any[]): Promise<
         case "insert_calendar_post": {
           const postData = {
             user_id: userId,
+            workspace_id: workspaceId || null,
             status: "idea",
             canal: action.data.canal || "instagram",
             theme: action.data.theme || action.data.title || "Post",
@@ -140,37 +143,38 @@ async function executeActions(sb: any, userId: string, actions: any[]): Promise<
           break;
         }
         case "update_calendar_post": {
-          const { data: before } = await sb.from("calendar_posts").select("*").eq("id", action.post_id).eq("user_id", userId).maybeSingle();
+          const { data: before } = await sb.from("calendar_posts").select("*").eq("id", action.post_id).eq(filterCol, filterVal).maybeSingle();
           if (before) {
             await saveUndoLog(sb, userId, "update_calendar_post", "calendar_posts", before.id, before);
-            const { error } = await sb.from("calendar_posts").update({ [action.field]: action.value }).eq("id", action.post_id).eq("user_id", userId);
+            const { error } = await sb.from("calendar_posts").update({ [action.field]: action.value }).eq("id", action.post_id).eq(filterCol, filterVal);
             results.push({ action: action.type, success: !error, error: error?.message });
           }
           break;
         }
         case "delete_calendar_post": {
-          const { data: before } = await sb.from("calendar_posts").select("*").eq("id", action.post_id).eq("user_id", userId).maybeSingle();
+          const { data: before } = await sb.from("calendar_posts").select("*").eq("id", action.post_id).eq(filterCol, filterVal).maybeSingle();
           if (before) {
             await saveUndoLog(sb, userId, "delete_calendar_post", "calendar_posts", before.id, before);
-            const { error } = await sb.from("calendar_posts").delete().eq("id", action.post_id).eq("user_id", userId);
+            const { error } = await sb.from("calendar_posts").delete().eq("id", action.post_id).eq(filterCol, filterVal);
             results.push({ action: action.type, success: !error, error: error?.message });
           }
           break;
         }
         case "update_proposition": {
-          const { data: before } = await sb.from("brand_proposition").select("*").eq("user_id", userId).maybeSingle();
+          const { data: before } = await sb.from("brand_proposition").select("*").eq(filterCol, filterVal).maybeSingle();
           if (before) {
             await saveUndoLog(sb, userId, "update_proposition", "brand_proposition", before.id, before);
-            const { error } = await sb.from("brand_proposition").update({ [action.field]: action.value }).eq("user_id", userId);
+            const { error } = await sb.from("brand_proposition").update({ [action.field]: action.value }).eq(filterCol, filterVal);
             results.push({ action: action.type, field: action.field, success: !error, error: error?.message });
           }
           break;
         }
         case "update_strategy": {
-          const { data: before } = await sb.from("brand_strategy").select("*").eq("user_id", userId).maybeSingle();
+          const { data: before } = await sb.from("brand_strategy").select("*").eq(filterCol, filterVal).maybeSingle();
           if (before) {
             await saveUndoLog(sb, userId, "update_strategy", "brand_strategy", before.id, before);
-            const { error } = await sb.from("brand_strategy").update({ [action.field]: action.value }).eq("user_id", userId);
+            const { error } = await sb.from("brand_strategy").update({ [action.field]: action.value }).eq(filterCol, filterVal);
+            results.push({ action: action.type, field: action.field, success: !error, error: error?.message });
             results.push({ action: action.type, field: action.field, success: !error, error: error?.message });
           }
           break;
@@ -286,7 +290,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { message, conversation_history, confirmed_actions, undo } = await req.json();
+    const { message, conversation_history, confirmed_actions, undo, workspace_id } = await req.json();
     const sb = getServiceClient();
 
     // Handle undo
@@ -299,7 +303,7 @@ Deno.serve(async (req) => {
 
     // Handle confirmed actions
     if (confirmed_actions?.length) {
-      const results = await executeActions(sb, userId, confirmed_actions);
+      const results = await executeActions(sb, userId, confirmed_actions, workspace_id);
       const allSuccess = results.every((r) => r.success);
       return new Response(
         JSON.stringify({
@@ -320,7 +324,7 @@ Deno.serve(async (req) => {
     }
 
     // Load full user context
-    const userContext = await getUserContext(sb, userId);
+    const userContext = await getUserContext(sb, userId, workspace_id);
     const contextText = formatContextForAI(userContext, {
       includeStory: true,
       includePersona: true,
@@ -331,11 +335,14 @@ Deno.serve(async (req) => {
       includeAudit: true,
     });
 
+    const filterCol = workspace_id ? "workspace_id" : "user_id";
+    const filterVal = workspace_id || userId;
+
     // Load recent calendar posts for context
     const { data: recentPosts } = await sb
       .from("calendar_posts")
       .select("id, theme, date, canal, format, objectif, status")
-      .eq("user_id", userId)
+      .eq(filterCol, filterVal)
       .order("date", { ascending: false })
       .limit(20);
 
@@ -394,7 +401,7 @@ Deno.serve(async (req) => {
 
     // If actions and no confirmation needed, execute them
     if (parsed.actions?.length && !parsed.needs_confirmation) {
-      const results = await executeActions(sb, userId, parsed.actions);
+      const results = await executeActions(sb, userId, parsed.actions, workspace_id);
       return new Response(
         JSON.stringify({
           message: parsed.message,

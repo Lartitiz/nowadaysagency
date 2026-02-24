@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { user_id, document_ids } = await req.json();
+    const { user_id, workspace_id, document_ids } = await req.json();
     if (!user_id || !document_ids?.length) {
       return new Response(JSON.stringify({ error: "Missing user_id or document_ids" }), {
         status: 400,

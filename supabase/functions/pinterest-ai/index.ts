@@ -52,10 +52,10 @@ serve(async (req) => {
       );
     }
 
-    const { action, ...params } = await req.json();
+    const { action, workspace_id, ...params } = await req.json();
 
     // Fetch full user context server-side
-    const ctx = await getUserContext(supabase, user.id);
+    const ctx = await getUserContext(supabase, user.id, workspace_id);
     const context = formatContextForAI(ctx, CONTEXT_PRESETS.pinterest);
 
     let systemPrompt = "";
