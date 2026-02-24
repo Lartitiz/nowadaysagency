@@ -83,7 +83,30 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="app-loading" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:system-ui,sans-serif;">
+        <p style="color:#999;font-size:14px;">Chargement...</p>
+        <p id="loading-help" style="color:#999;font-size:12px;margin-top:20px;display:none;">
+          Le chargement prend plus de temps que prévu.<br>
+          <a href="javascript:void(0)" onclick="clearCacheAndReload()" style="color:#fb3d80;text-decoration:underline;">Cliquer ici pour réinitialiser</a>
+        </p>
+      </div>
+    </div>
+    <script>
+      // Show help after 10s
+      setTimeout(function(){var el=document.getElementById('loading-help');if(el)el.style.display='block';},10000);
+      // Hide loading when React mounts
+      window.addEventListener('app-ready',function(){var el=document.getElementById('app-loading');if(el)el.remove();});
+      // Unregister any stale service workers
+      if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(reg){reg.unregister();});});}
+      // Reset function
+      function clearCacheAndReload(){
+        if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(reg){reg.unregister();});});}
+        if(window.caches){caches.keys().then(function(n){n.forEach(function(name){caches.delete(name);});});}
+        try{localStorage.clear();}catch(e){}
+        window.location.reload(true);
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
