@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, ChevronRight, AlertTriangle, Eye, FolderOpen, ExternalLink } from "lucide-react";
+import { Loader2, Plus, ChevronRight, AlertTriangle, Eye, FolderOpen, ExternalLink, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +35,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
   const [creatingStandalone, setCreatingStandalone] = useState(false);
   const [newWsName, setNewWsName] = useState("");
   const [showNewWsInput, setShowNewWsInput] = useState(false);
+  const [deletingWs, setDeletingWs] = useState<string | null>(null);
 
   const getNextSession = (programId: string) => sessions.find(s => s.program_id === programId && s.status === "scheduled" && s.scheduled_date);
   const getSessionStats = (programId: string) => {
@@ -106,6 +107,42 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
     navigate("/dashboard");
   };
 
+  const handleDeleteStandaloneWs = async (wsId: string, wsName: string) => {
+    const { data: members } = await supabase
+      .from("workspace_members")
+      .select("user_id, role")
+      .eq("workspace_id", wsId);
+
+    const otherMembers = (members || []).filter(m => m.user_id !== user?.id);
+
+    if (otherMembers.length > 0) {
+      const confirmed = window.confirm(
+        `L'espace « ${wsName} » a ${otherMembers.length} autre·s membre·s. Tu seras retiré·e de cet espace mais il ne sera pas supprimé. Continuer ?`
+      );
+      if (!confirmed) return;
+      setDeletingWs(wsId);
+      await supabase
+        .from("workspace_members")
+        .delete()
+        .eq("workspace_id", wsId)
+        .eq("user_id", user!.id);
+      toast.success(`Tu as quitté l'espace « ${wsName} »`);
+    } else {
+      const confirmed = window.confirm(
+        `Supprimer l'espace « ${wsName} » ? Cette action est irréversible.`
+      );
+      if (!confirmed) return;
+      setDeletingWs(wsId);
+      await supabase
+        .from("workspaces")
+        .delete()
+        .eq("id", wsId);
+      toast.success(`Espace « ${wsName} » supprimé`);
+    }
+    setDeletingWs(null);
+    onReload();
+  };
+
   const handleCreateStandaloneWs = async () => {
     if (!newWsName.trim() || !user?.id) return;
     setCreatingStandalone(true);
@@ -118,7 +155,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
 
       if (error || !ws) { console.error("Erreur création workspace:", error); toast.error("Erreur création: " + (error?.message || "inconnu")); return; }
 
-      await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: user.id, role: "owner" } as any);
+      await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: user.id, role: "manager" } as any);
 
       toast.success(`Espace « ${newWsName.trim()} » créé`);
       setNewWsName("");
@@ -240,9 +277,21 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
                   <p className="text-sm font-semibold text-foreground">{ws.name}</p>
                   <p className="text-xs text-muted-foreground">Plan : {ws.plan || "free"}</p>
                 </div>
-                <Button size="sm" variant="ghost" className="gap-1 text-xs" onClick={(e) => handleOpenStandaloneWs(ws.id, e)}>
-                  <ExternalLink className="h-3 w-3" /> Ouvrir
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="ghost" className="gap-1 text-xs" onClick={(e) => handleOpenStandaloneWs(ws.id, e)}>
+                    <ExternalLink className="h-3 w-3" /> Ouvrir
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gap-1 text-xs text-destructive hover:text-destructive"
+                    onClick={(e) => { e.stopPropagation(); handleDeleteStandaloneWs(ws.id, ws.name); }}
+                    disabled={deletingWs === ws.id}
+                  >
+                    {deletingWs === ws.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                    Supprimer
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
