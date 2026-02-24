@@ -16,6 +16,7 @@ import ProspectionSection from "@/components/prospection/ProspectionSection";
 import Confetti from "@/components/Confetti";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
+import { friendlyError } from "@/lib/error-messages";
 
 function getMonday(d: Date) {
   const day = d.getDay();
@@ -134,84 +135,103 @@ export default function InstagramEngagement() {
       })));
     };
     load();
-  }, [user, today, monday]);
+  }, [user?.id, today, monday, isDemoMode]);
 
   const toggleItem = useCallback(async (id: string) => {
     if (!user) return;
+    const prev = [...checked];
     const next = checked.includes(id) ? checked.filter(c => c !== id) : [...checked, id];
-    setChecked(next);
+    setChecked(next); // optimistic update
 
     const streakMaintained = next.length >= threshold;
 
-    const { data: existing } = await (supabase
-      .from("engagement_checklist_logs") as any)
-      .select("id")
-      .eq(column, value)
-      .eq("log_date", today)
-      .maybeSingle();
+    try {
+      const { data: existing, error: fetchErr } = await (supabase
+        .from("engagement_checklist_logs") as any)
+        .select("id")
+        .eq(column, value)
+        .eq("log_date", today)
+        .maybeSingle();
+      if (fetchErr) throw fetchErr;
 
-    if (existing) {
-      await supabase.from("engagement_checklist_logs").update({
-        items_checked: next,
-        items_total: items.length,
-        streak_maintained: streakMaintained,
-      }).eq("id", existing.id);
-    } else {
-      await supabase.from("engagement_checklist_logs").insert({
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        log_date: today,
-        items_checked: next,
-        items_total: items.length,
-        streak_maintained: streakMaintained,
+      if (existing) {
+        const { error } = await supabase.from("engagement_checklist_logs").update({
+          items_checked: next,
+          items_total: items.length,
+          streak_maintained: streakMaintained,
+        }).eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("engagement_checklist_logs").insert({
+          user_id: user.id,
+          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+          log_date: today,
+          items_checked: next,
+          items_total: items.length,
+          streak_maintained: streakMaintained,
+        });
+        if (error) throw error;
+      }
+
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+      const { data: streak, error: streakFetchErr } = await (supabase
+        .from("engagement_streaks") as any)
+        .select("*")
+        .eq(column, value)
+        .maybeSingle();
+      if (streakFetchErr) throw streakFetchErr;
+
+      if (!streak) {
+        const ns = streakMaintained ? 1 : 0;
+        const { error } = await supabase.from("engagement_streaks").insert({
+          user_id: user.id,
+          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+          current_streak: ns,
+          best_streak: ns,
+          last_check_date: today,
+        });
+        if (error) throw error;
+        setCurrentStreak(ns);
+        setBestStreak(ns);
+      } else {
+        let newStreak: number;
+        if (!streakMaintained) {
+          newStreak = 0;
+        } else if (streak.last_check_date === today) {
+          newStreak = streak.current_streak ?? 1;
+        } else if (streak.last_check_date === yesterday) {
+          newStreak = (streak.current_streak ?? 0) + 1;
+        } else {
+          newStreak = 1;
+        }
+        const newBest = Math.max(streak.best_streak ?? 0, newStreak);
+
+        const { error } = await supabase.from("engagement_streaks").update({
+          current_streak: newStreak,
+          best_streak: newBest,
+          last_check_date: today,
+        }).eq("id", streak.id);
+        if (error) throw error;
+        setCurrentStreak(newStreak);
+        setBestStreak(newBest);
+      }
+
+      setWeekChecks(p => {
+        const n = [...p];
+        n[todayIndex] = streakMaintained;
+        return n;
       });
+
+      if (streakMaintained && !checked.includes(id) && next.length === threshold) {
+        setShowConfetti(true);
+        toast({ title: "🔥 Streak maintenu !" });
+      }
+    } catch (e) {
+      console.error("Engagement save error:", e);
+      setChecked(prev); // rollback
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     }
-
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-    const { data: streak } = await (supabase
-      .from("engagement_streaks") as any)
-      .select("*")
-      .eq(column, value)
-      .maybeSingle();
-
-    if (!streak) {
-      const ns = streakMaintained ? 1 : 0;
-      await supabase.from("engagement_streaks").insert({
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        current_streak: ns,
-        best_streak: ns,
-        last_check_date: today,
-      });
-      setCurrentStreak(ns);
-      setBestStreak(ns);
-    } else {
-      const isConsecutive = streak.last_check_date === yesterday || streak.last_check_date === today;
-      const newStreak = streakMaintained
-        ? (streak.last_check_date === today ? Math.max(streak.current_streak, 1) : (isConsecutive ? (streak.current_streak ?? 0) + 1 : 1))
-        : 0;
-      const newBest = Math.max(streak.best_streak ?? 0, newStreak);
-
-      await supabase.from("engagement_streaks").update({
-        current_streak: newStreak,
-        best_streak: newBest,
-        last_check_date: today,
-      }).eq("id", streak.id);
-      setCurrentStreak(newStreak);
-      setBestStreak(newBest);
-    }
-
-    setWeekChecks(prev => {
-      const n = [...prev];
-      n[todayIndex] = streakMaintained;
-      return n;
-    });
-
-    if (streakMaintained && !checked.includes(id) && next.length === threshold) {
-      setShowConfetti(true);
-      toast({ title: "🔥 Streak maintenu !" });
-    }
-  }, [user, checked, threshold, items.length, today, todayIndex, toast]);
+  }, [user, checked, threshold, items.length, today, todayIndex, toast, column, value, workspaceId]);
 
   const addContact = async (pseudo: string, tag: string) => {
     if (!user) return;
