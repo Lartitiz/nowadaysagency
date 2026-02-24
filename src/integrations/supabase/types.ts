@@ -23,6 +23,7 @@ export type Database = {
           model_used: string | null
           tokens_used: number | null
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
           action_type: string
@@ -32,6 +33,7 @@ export type Database = {
           model_used?: string | null
           tokens_used?: number | null
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
           action_type?: string
@@ -41,8 +43,17 @@ export type Database = {
           model_used?: string | null
           tokens_used?: number | null
           user_id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       assistant_undo_log: {
         Row: {

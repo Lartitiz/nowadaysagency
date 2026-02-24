@@ -85,6 +85,16 @@ async function getUserPlan(userId: string): Promise<string> {
   return data?.plan || "free";
 }
 
+async function getWorkspacePlan(workspaceId: string): Promise<string> {
+  const sb = getServiceClient();
+  const { data } = await sb
+    .from("workspaces")
+    .select("plan")
+    .eq("id", workspaceId)
+    .single();
+  return data?.plan || "free";
+}
+
 function getMonthStart(): string {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -92,9 +102,12 @@ function getMonthStart(): string {
 
 export async function checkQuota(
   userId: string,
-  category: string
+  category: string,
+  workspaceId?: string
 ): Promise<QuotaResult> {
-  const plan = await getUserPlan(userId);
+  const plan = workspaceId
+    ? await getWorkspacePlan(workspaceId)
+    : await getUserPlan(userId);
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
   // Check if category is available for this plan
@@ -111,12 +124,19 @@ export async function checkQuota(
   const sb = getServiceClient();
   const monthStart = getMonthStart();
 
-  // Get all usage this month in one query
-  const { data: usageRows } = await sb
+  // Get all usage this month — filter by workspace or user
+  const query = sb
     .from("ai_usage")
     .select("category")
-    .eq("user_id", userId)
     .gte("created_at", monthStart);
+
+  if (workspaceId) {
+    query.eq("workspace_id", workspaceId);
+  } else {
+    query.eq("user_id", userId);
+  }
+
+  const { data: usageRows } = await query;
 
   const rows = usageRows || [];
   const totalUsed = rows.length;
@@ -178,7 +198,8 @@ export async function logUsage(
   category: string,
   actionType: string,
   tokensUsed?: number,
-  modelUsed?: string
+  modelUsed?: string,
+  workspaceId?: string
 ): Promise<void> {
   const sb = getServiceClient();
   await sb.from("ai_usage").insert({
@@ -187,6 +208,7 @@ export async function logUsage(
     action_type: actionType,
     tokens_used: tokensUsed || null,
     model_used: modelUsed || null,
+    workspace_id: workspaceId || null,
   });
 }
 
