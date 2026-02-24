@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Link, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
+import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 import { Progress } from "@/components/ui/progress";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -241,12 +242,27 @@ export default function Dashboard() {
 
   if (!profile) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex gap-1">
-          <div className="h-3 w-3 rounded-sm bg-primary animate-bounce-dot" />
-          <div className="h-3 w-3 rounded-sm bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} />
-          <div className="h-3 w-3 rounded-sm bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
-        </div>
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4">
+          <div className="mb-8">
+            <div className="h-7 w-64 rounded-md bg-muted animate-pulse mb-2" />
+            <div className="h-4 w-48 rounded-md bg-muted animate-pulse" />
+          </div>
+          <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-4 mb-6">
+            <SkeletonCard variant="large" />
+          </div>
+          <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-4 mb-6">
+            <SkeletonCard variant="small" />
+            <SkeletonCard variant="small" />
+            <SkeletonCard variant="small" />
+            <SkeletonCard variant="small" />
+          </div>
+          <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-4 mb-6">
+            <SkeletonCard variant="medium" />
+            <SkeletonCard variant="medium" />
+          </div>
+        </main>
       </div>
     );
   }
