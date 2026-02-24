@@ -60,6 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (event === "SIGNED_IN" && currentSession?.user) {
           const path = window.location.pathname;
+          const searchParams = new URLSearchParams(window.location.search);
+          const redirectTo = searchParams.get("redirect");
+
+          // If there's a redirect param, go there directly
+          if (redirectTo && (path === "/login" || path === "/connexion")) {
+            navigate(redirectTo);
+            return;
+          }
+
           if (path === "/" || path === "/login" || path === "/connexion") {
             setTimeout(async () => {
               if (!mounted) return;
