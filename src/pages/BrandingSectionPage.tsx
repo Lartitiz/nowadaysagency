@@ -13,6 +13,7 @@ import SynthesisRenderer from "@/components/branding/SynthesisRenderer";
 import EditableField from "@/components/branding/EditableField";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import BrandingRecapRenderer from "@/components/branding/BrandingRecapRenderer";
+import BrandingFicheCards from "@/components/branding/BrandingFicheCards";
 import BrandingCoachingHistory from "@/components/branding/BrandingCoachingHistory";
 import BrandingSuggestionsCard from "@/components/branding/BrandingSuggestionsCard";
 import { useBrandingSuggestions } from "@/hooks/use-branding-suggestions";
@@ -367,12 +368,10 @@ export default function BrandingSectionPage() {
                 />
               </div>
             )}
-            <BrandingRecapRenderer
+            <BrandingFicheCards
               section={section}
+              fields={config.fields}
               data={data}
-              table={config.table}
-              onUpdated={handleFieldUpdate}
-              onStartCoaching={switchToCoaching}
             />
 
             {lastUpdated && (
