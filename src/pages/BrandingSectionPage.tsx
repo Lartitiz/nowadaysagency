@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import BrandingImportDialog from "@/components/branding/BrandingImportDialog";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -9,7 +10,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ClipboardList, MessageSquare, Sparkles, History, FileText, ArrowLeft } from "lucide-react";
+import { ClipboardList, MessageSquare, Sparkles, History, FileText, ArrowLeft, FileDown } from "lucide-react";
 import SynthesisRenderer from "@/components/branding/SynthesisRenderer";
 import EditableField from "@/components/branding/EditableField";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
@@ -230,6 +231,7 @@ export default function BrandingSectionPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [lastCoachingUpdate, setLastCoachingUpdate] = useState<string | null>(null);
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   useEffect(() => {
     if (!config) {
@@ -369,6 +371,20 @@ export default function BrandingSectionPage() {
 
           {/* FICHE TAB */}
           <TabsContent value="fiche">
+            {section !== "story" && (
+              <div className="flex justify-end mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 text-xs"
+                  onClick={() => setShowImportDialog(true)}
+                >
+                  <FileDown className="h-3.5 w-3.5" />
+                  📄 Importer mes données
+                </Button>
+              </div>
+            )}
+
             {showSuggestions && suggestions.length > 0 && (
               <div className="mb-6">
                 <BrandingSuggestionsCard
@@ -386,6 +402,23 @@ export default function BrandingSectionPage() {
                 section={section}
                 fields={config.fields}
                 data={data}
+              />
+            )}
+
+            {section !== "story" && (
+              <BrandingImportDialog
+                open={showImportDialog}
+                onOpenChange={setShowImportDialog}
+                sectionTitle={config.title}
+                sectionTable={config.table}
+                fields={config.fields}
+                existingData={data}
+                filterColumn={column}
+                filterValue={value}
+                onImportDone={(updated) => {
+                  setData(updated);
+                  setLastUpdated(new Date().toISOString());
+                }}
               />
             )}
 
