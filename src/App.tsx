@@ -88,6 +88,7 @@ const SiteTestimonials = lazy(() => import("./pages/SiteTestimonials"));
 const SiteCapturePage = lazy(() => import("./pages/SiteCapturePage"));
 const LegalAiPage = lazy(() => import("./pages/LegalAiPage"));
 const PaymentSuccessPage = lazy(() => import("./pages/PaymentSuccessPage"));
+const ClientsPage = lazy(() => import("./pages/ClientsPage"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
 const NowStudioSalesPage = lazy(() => import("./pages/NowStudioSalesPage"));
 const ServicesPage = lazy(() => import("./pages/ServicesPage"));
@@ -191,6 +192,7 @@ function AnimatedRoutes() {
               <Route path="/abonnement" element={<ProtectedRoute><AbonnementPage /></ProtectedRoute>} />
               <Route path="/accompagnement" element={<ProtectedRoute><AccompagnementPage /></ProtectedRoute>} />
               <Route path="/admin/coaching" element={<ProtectedRoute><AdminCoachingPage /></ProtectedRoute>} />
+              <Route path="/clients" element={<ProtectedRoute><ClientsPage /></ProtectedRoute>} />
               <Route path="/admin/audit" element={<ProtectedRoute><AdminAuditPage /></ProtectedRoute>} />
               <Route path="/now-pilot" element={<NowPilotPage />} />
               <Route path="/legal-ia" element={<ProtectedRoute><LegalAiPage /></ProtectedRoute>} />
