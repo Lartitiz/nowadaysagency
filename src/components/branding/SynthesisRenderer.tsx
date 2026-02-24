@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, Download, Copy, Sparkles, AlertTriangle } from "lucide-react";
+import { Loader2, RefreshCw, Download, Copy, Sparkles, AlertTriangle, FileText } from "lucide-react";
 import { toast } from "sonner";
 import EditableText from "@/components/EditableText";
 import html2canvas from "html2canvas";
@@ -414,22 +415,58 @@ function ToneStyleSynthesis({ data, onSaveDirect }: {
   const doList = parseToArray(data.key_expressions);
   const dontList = parseToArray(data.things_to_avoid);
   const recap = safeJson(data.recap_summary);
+  const fightsList = parseToArray(data.combat_fights);
+  const refusalsList = parseToArray(data.combat_refusals);
 
   return (
     <div className="space-y-6">
-      {/* Tone tags */}
-      {toneTags.length > 0 && (
-        <SynthCard>
-          <SectionLabel emoji="🎨" title="Mon ton" />
-          <TagsList items={toneTags} variant="rose" />
-        </SynthCard>
+      {/* Hero — Voice description */}
+      {data.voice_description && (
+        <div className="rounded-xl p-6 sm:p-8 bg-[#FFF4F8] border border-[#ffa7c6]/30">
+          <p className="font-display text-lg sm:text-xl italic text-foreground leading-relaxed text-center">
+            "{data.voice_description}"
+          </p>
+          <p className="font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground text-center mt-3">
+            🗣️ Comment je parle
+          </p>
+        </div>
       )}
 
-      {/* Voice description */}
-      {data.voice_description && (
-        <div className="rounded-xl p-5 bg-[#FFF4F8] border border-[#ffa7c6]/30">
-          <SectionLabel emoji="🗣️" title="Comment je parle à ma cible" />
-          <EditableText value={data.voice_description} onSave={(v) => onSaveDirect("voice_description", v)} className="text-sm italic text-foreground leading-relaxed" />
+      {/* Tone tags */}
+      {toneTags.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {toneTags.map((tag, i) => (
+            <Badge key={i} variant="secondary" className="bg-[#FFF4F8] text-primary border-0 text-xs font-medium px-4 py-1.5 rounded-full">
+              {tag}
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {/* Combats — 3 cards grid */}
+      {(data.combat_cause || fightsList.length > 0 || refusalsList.length > 0) && (
+        <div>
+          <SectionLabel emoji="⚔️" title="Mes combats" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {data.combat_cause && (
+              <div className="rounded-xl p-4 bg-[#FFF4F8] border-l-4 border-l-primary">
+                <p className="font-display text-sm font-bold text-foreground mb-2">✊ Ma cause</p>
+                <EditableText value={data.combat_cause} onSave={(v) => onSaveDirect("combat_cause", v)} className="text-[13px] text-foreground/80 leading-relaxed" />
+              </div>
+            )}
+            {fightsList.length > 0 && (
+              <div className="rounded-xl p-4 bg-[#E8F5E9] border-l-4 border-l-emerald-500">
+                <p className="font-display text-sm font-bold text-foreground mb-2">🛡️ Ce que je défends</p>
+                <EditableList items={fightsList} onSave={async () => {}} bulletColor="#2E7D32" />
+              </div>
+            )}
+            {refusalsList.length > 0 && (
+              <div className="rounded-xl p-4 bg-[#FFF3E0] border-l-4 border-l-orange-400">
+                <p className="font-display text-sm font-bold text-foreground mb-2">🚫 Ce que je refuse</p>
+                <EditableList items={refusalsList} onSave={async () => {}} bulletColor="#e65100" />
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -438,33 +475,54 @@ function ToneStyleSynthesis({ data, onSaveDirect }: {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {doList.length > 0 && (
             <SynthCard>
-              <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3 text-emerald-600">✅ Ce que je fais</p>
+              <p className="font-display text-base font-bold text-emerald-700 mb-4 flex items-center gap-2">
+                <span className="text-lg">✅</span> Mes expressions clés
+              </p>
               <EditableList items={doList} onSave={async () => {}} bulletColor="#2E7D32" />
             </SynthCard>
           )}
           {dontList.length > 0 && (
             <SynthCard>
-              <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3 text-red-500">❌ Ce que je ne fais jamais</p>
+              <p className="font-display text-base font-bold text-red-600 mb-4 flex items-center gap-2">
+                <span className="text-lg">❌</span> Ce que j'évite toujours
+              </p>
               <EditableList items={dontList} onSave={async () => {}} bulletColor="#e53935" />
             </SynthCard>
           )}
         </div>
       )}
 
-      {/* Combat */}
-      {data.combat_cause && (
-        <div className="rounded-xl p-5 bg-[#FFF4F8] border border-[#ffa7c6]/30">
-          <SectionLabel emoji="⚔️" title="Mon combat" />
-          <EditableText value={data.combat_cause} onSave={(v) => onSaveDirect("combat_cause", v)} className="text-sm text-foreground leading-relaxed" />
-        </div>
-      )}
-
-      {/* Ce que je refuse */}
-      {data.combat_refusals && (
-        <SynthCard>
-          <SectionLabel emoji="🚫" title="Ce que je fuis" />
-          <TagsList items={parseToArray(data.combat_refusals)} variant="gray" />
-        </SynthCard>
+      {/* Recap summary — accordion instead of raw block */}
+      {recap && typeof recap === "object" && (
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="recap" className="border rounded-xl overflow-hidden">
+            <AccordionTrigger className="px-5 py-3 hover:no-underline">
+              <span className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" /> Voir la synthèse complète
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="px-5 pb-5">
+              {typeof recap === "string" ? (
+                <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">{recap}</p>
+              ) : (
+                <div className="space-y-4">
+                  {Object.entries(recap).map(([key, val]) => {
+                    if (!val) return null;
+                    const label = key.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase());
+                    return (
+                      <div key={key}>
+                        <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{label}</p>
+                        <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">
+                          {typeof val === "string" ? val : JSON.stringify(val, null, 2)}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       )}
     </div>
   );
