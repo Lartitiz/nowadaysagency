@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
@@ -45,6 +46,8 @@ export default function StrategiePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [data, setData] = useState<StrategyData>(EMPTY);
   const [existingId, setExistingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,11 +63,11 @@ export default function StrategiePage() {
   useEffect(() => {
     if (!user || !loading) return;
     Promise.all([
-      supabase.from("brand_strategy").select("*").eq("user_id", user.id).maybeSingle(),
+      (supabase.from("brand_strategy") as any).select("*").eq(column, value).maybeSingle(),
       supabase.from("profiles").select("activite, prenom, mission").eq("user_id", user.id).single(),
-      supabase.from("persona").select("step_1_frustrations, step_2_transformation").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_proposition").select("step_1_what, version_final").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, tone_register, tone_humor, key_expressions, things_to_avoid, target_verbatims").eq("user_id", user.id).maybeSingle(),
+      (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle(),
+      (supabase.from("brand_proposition") as any).select("step_1_what, version_final").eq(column, value).maybeSingle(),
+      (supabase.from("brand_profile") as any).select("voice_description, combat_cause, combat_fights, tone_register, tone_humor, key_expressions, things_to_avoid, target_verbatims").eq(column, value).maybeSingle(),
     ]).then(([stratRes, profRes, perRes, propRes, toneRes]) => {
       if (stratRes.data) {
         const { id, user_id, created_at, updated_at, ...rest } = stratRes.data as any;
@@ -91,7 +94,7 @@ export default function StrategiePage() {
     if (existingId) {
       await supabase.from("brand_strategy").update(payload as any).eq("id", existingId);
     } else {
-      const { data: inserted } = await supabase.from("brand_strategy").insert({ ...payload, user_id: user.id } as any).select("id").single();
+      const { data: inserted } = await supabase.from("brand_strategy").insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined } as any).select("id").single();
       if (inserted) setExistingId(inserted.id);
     }
   }, [user, existingId]);
@@ -145,6 +148,7 @@ export default function StrategiePage() {
     await supabase.from("saved_ideas").insert({
       user_id: user.id, titre, angle, format, canal: "instagram",
       objectif: "visibilite", status: "to_explore",
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
     } as any);
     toast({ title: "💾 Idée sauvegardée dans ta boîte à idées !" });
   };

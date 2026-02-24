@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,8 @@ export default function PropositionPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [data, setData] = useState<PropositionData>(EMPTY);
   const [existingId, setExistingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,11 +80,11 @@ export default function PropositionPage() {
   useEffect(() => {
     if (!user || !loading) return;
     Promise.all([
-      supabase.from("brand_proposition").select("*").eq("user_id", user.id).maybeSingle(),
+      (supabase.from("brand_proposition") as any).select("*").eq(column, value).maybeSingle(),
       supabase.from("profiles").select("activite, prenom, mission").eq("user_id", user.id).single(),
-      supabase.from("persona").select("step_1_frustrations, step_2_transformation").eq("user_id", user.id).maybeSingle(),
-      supabase.from("storytelling").select("pitch_short").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_profile").select("tone_register, key_expressions, things_to_avoid, mission").eq("user_id", user.id).maybeSingle(),
+      (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle(),
+      (supabase.from("storytelling") as any).select("pitch_short").eq(column, value).maybeSingle(),
+      (supabase.from("brand_profile") as any).select("tone_register, key_expressions, things_to_avoid, mission").eq(column, value).maybeSingle(),
     ]).then(([propRes, profRes, perRes, stRes, toneRes]) => {
       if (propRes.data) {
         const { id, user_id, created_at, updated_at, ...rest } = propRes.data as any;
@@ -108,7 +111,7 @@ export default function PropositionPage() {
     if (existingId) {
       await supabase.from("brand_proposition").update(payload as any).eq("id", existingId);
     } else {
-      const { data: inserted } = await supabase.from("brand_proposition").insert({ ...payload, user_id: user.id } as any).select("id").single();
+      const { data: inserted } = await supabase.from("brand_proposition").insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined } as any).select("id").single();
       if (inserted) setExistingId(inserted.id);
     }
   }, [user, existingId]);

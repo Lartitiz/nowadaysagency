@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
@@ -38,6 +39,7 @@ export default function OfferWorkshopPage() {
   const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
+  const { column, value } = useWorkspaceFilter();
   const [offer, setOffer] = useState<any>(null);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -95,7 +97,7 @@ export default function OfferWorkshopPage() {
 
   useEffect(() => {
     if (!user || !id || !loading) return;
-    supabase.from("offers").select("*").eq("id", id).eq("user_id", user.id).single().then(({ data, error }) => {
+    (supabase.from("offers") as any).select("*").eq("id", id).eq(column, value).single().then(({ data, error }: any) => {
       if (error || !data) { navigate("/branding/offres"); return; }
       setOffer(data);
       setStep(data.current_step || 1);

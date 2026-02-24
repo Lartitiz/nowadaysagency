@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
@@ -49,6 +50,8 @@ export default function StorytellingPage() {
   const navTo = useNavigate();
   const isNew = !paramId || paramId === "new";
   const { toast } = useToast();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [data, setData] = useState<StorytellingData>(EMPTY_DATA);
   const [existingId, setExistingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,14 +70,14 @@ export default function StorytellingPage() {
       // Load profile data
       const [profRes, bpRes] = await Promise.all([
         supabase.from("profiles").select("activite, prenom, tons").eq("user_id", user.id).single(),
-        supabase.from("brand_profile").select("mission, offer, target_description, tone_register, key_expressions, things_to_avoid").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register, key_expressions, things_to_avoid").eq(column, value).maybeSingle(),
       ]);
       const merged = { ...(profRes.data || {}), ...(bpRes.data || {}) };
       setProfile(merged);
 
       if (!isNew && paramId) {
         // Load existing storytelling by ID
-        const { data: stData } = await supabase.from("storytelling").select("*").eq("id", paramId).eq("user_id", user.id).single();
+        const { data: stData } = await (supabase.from("storytelling") as any).select("*").eq("id", paramId).eq(column, value).single();
         if (stData) {
           const { id, user_id, created_at, updated_at, title, story_type, source, is_primary, imported_text, ...rest } = stData as any;
           setData(rest as StorytellingData);
@@ -97,16 +100,17 @@ export default function StorytellingPage() {
     if (existingId) {
       await supabase.from("storytelling").update(payload as any).eq("id", existingId);
     } else {
-      const { data: existingPrimary } = await supabase
-        .from("storytelling")
+      const { data: existingPrimary } = await (supabase
+        .from("storytelling") as any)
         .select("id")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .eq("is_primary", true);
       const isPrimary = !existingPrimary || existingPrimary.length === 0;
 
       const { data: inserted } = await supabase.from("storytelling").insert({
         ...payload,
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         source: "stepper",
         story_type: "fondatrice",
         is_primary: isPrimary,

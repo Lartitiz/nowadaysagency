@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Progress } from "@/components/ui/progress";
@@ -220,6 +221,7 @@ export default function BrandingSectionPage() {
   const section = (searchParams.get("section") || "story") as Section;
   const defaultTab = searchParams.get("tab") || "fiche";
   const config = SECTION_CONFIGS[section];
+  const { column, value } = useWorkspaceFilter();
 
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [data, setData] = useState<Record<string, any>>({});
@@ -249,7 +251,7 @@ export default function BrandingSectionPage() {
       // Fetch all columns for synthesis support
       let query = (supabase.from(table as any) as any)
         .select("*")
-        .eq("user_id", user.id);
+        .eq(column, value);
       
       // storytelling table uses is_primary flag
       if (table === "storytelling") {
@@ -334,7 +336,7 @@ export default function BrandingSectionPage() {
           if (v === "synthese" && !isDemoMode && user) {
             const table = config.table;
             const cols = "*";
-            let q = (supabase.from(table as any) as any).select(cols).eq("user_id", user.id);
+            let q = (supabase.from(table as any) as any).select(cols).eq(column, value);
             if (table === "storytelling") q = q.eq("is_primary", true);
             q.maybeSingle().then(({ data: row }: any) => {
               if (row) { setData(row); setLastUpdated(row.updated_at || null); }
@@ -423,7 +425,7 @@ export default function BrandingSectionPage() {
                       const cols = "*";
                       let query = (supabase.from(config.table as any) as any)
                         .select(cols)
-                        .eq("user_id", user.id);
+                        .eq(column, value);
                       if (config.table === "storytelling") {
                         query = query.eq("is_primary", true);
                       }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
@@ -75,6 +76,7 @@ export default function BrandingPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isDemoMode } = useDemoContext();
+  const { column, value } = useWorkspaceFilter();
   const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [primaryStoryId, setPrimaryStoryId] = useState<string | null>(null);
@@ -122,10 +124,10 @@ export default function BrandingPage() {
       }
 
       // Fetch last branding audit
-      const { data: auditData } = await supabase
-        .from("branding_audits")
+      const { data: auditData } = await (supabase.from("branding_audits") as any)
         .select("id, created_at, score_global, points_forts, points_faibles")
-        .eq("user_id", user.id)
+        .eq(column, value)
+        .order("created_at", { ascending: false })
         .order("created_at", { ascending: false })
         .limit(1);
       if (auditData && auditData.length > 0) {
