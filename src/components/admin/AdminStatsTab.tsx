@@ -300,7 +300,54 @@ function OverviewSection({ stats }: { stats: StatsData }) {
 }
 
 function BusinessSection({ stats }: { stats: StatsData }) {
-  return <p className="text-sm text-muted-foreground">Section business</p>;
+  const PLAN_COLORS: Record<string, string> = {
+    free: "#9CA3AF", outil: "#8B5CF6", studio: "#F59E0B", now_pilot: "#fb3d80", pro: "#3B82F6",
+  };
+
+  const revenueData = Object.entries(stats.revenue_by_plan || {})
+    .filter(([, v]) => v > 0)
+    .map(([plan, amount]) => ({ plan, amount, label: PLAN_LABELS[plan] || plan }));
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <KpiCard title="MRR" value={stats.mrr} suffix="€" sub={`ARR : ${(stats.mrr * 12).toLocaleString("fr")}€`} subColor="text-emerald-600" />
+        <KpiCard title="Abonnées payantes" value={stats.paid_users} sub={`${stats.conversion_rate}% de conversion`} />
+        <KpiCard title="Taux de churn" value={stats.churn_rate} suffix="%" sub={`${stats.churned_this_month} départ·s ce mois`} subColor={stats.churn_rate > 10 ? "text-red-500" : undefined} />
+        <KpiCard title="Conversion free→payant" value={stats.conversion_rate} suffix="%" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ChartCard title="Revenus par plan (MRR)">
+          {revenueData.length === 0 ? (
+            <EmptyChart message="Pas encore de revenus" />
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={revenueData} barCategoryGap={12}>
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={40} tickFormatter={(v: number) => `${v}€`} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}€`, "MRR"]} />
+                <Bar dataKey="amount" radius={[6, 6, 0, 0]} name="MRR">
+                  {revenueData.map((entry) => (
+                    <Cell key={entry.plan} fill={PLAN_COLORS[entry.plan] || "#9CA3AF"} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </ChartCard>
+
+        <ChartCard title="Funnel de conversion">
+          <div className="space-y-4 py-4">
+            <FunnelStep label="Inscrites totales" value={stats.total_users} max={stats.total_users} color="#9CA3AF" />
+            <FunnelStep label="Onboarding terminé" value={stats.onboarding_completed} max={stats.total_users} color="#8B5CF6" />
+            <FunnelStep label="Actives ce mois (IA)" value={stats.active_this_month} max={stats.total_users} color="#F59E0B" />
+            <FunnelStep label="Abonnées payantes" value={stats.paid_users} max={stats.total_users} color="#fb3d80" />
+          </div>
+        </ChartCard>
+      </div>
+    </div>
+  );
 }
 
 function EngagementSection({ stats }: { stats: StatsData }) {
