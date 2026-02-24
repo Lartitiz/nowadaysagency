@@ -179,7 +179,7 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
         <h3 className="text-sm font-bold text-foreground">📝 TA BIO</h3>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Copie-colle ta bio Instagram ici :</label>
-          <Textarea value={form.bio} onChange={(e) => set("bio", e.target.value)} placeholder={"Communication éthique pour créatrices engagées ✨\nFondatrice @nowadaysagency\nProf de com' ENSAD + Sup de Pub\n↓ Mini-formation gratuite"} className="min-h-[100px]" />
+          <Textarea value={form.bio} onChange={(e) => set("bio", e.target.value)} placeholder={"Ta spécialité en 1 ligne ✨\nTon titre ou rôle\nCe que tu apportes à ta cible\n↓ Lien ou CTA"} className="min-h-[100px]" />
           <p className="text-xs text-muted-foreground mt-1 italic">💡 Tu la trouves dans Instagram › Modifier le profil</p>
         </div>
       </section>
