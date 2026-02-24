@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search } from "lucide-react";
+import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus } from "lucide-react";
 import AutoBreadcrumb from "@/components/AutoBreadcrumb";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -49,6 +50,7 @@ function getMobileNav(isPilot: boolean) {
 }
 
 export default function AppHeader() {
+  const { activeWorkspace, workspaces, isMultiWorkspace, switchWorkspace } = useWorkspace();
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -98,10 +100,13 @@ export default function AppHeader() {
       {/* ─── Desktop header (lg+) : logo + icons+text nav + bell+avatar ─── */}
       <header className="sticky top-0 z-40 border-b border-border bg-card hidden lg:block">
         <div className="mx-auto flex h-14 max-w-[1100px] items-center justify-between px-6">
-          <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
-            <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
-            <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-md">beta</span>
-          </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
+              <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
+              <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-md">beta</span>
+            </Link>
+            {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
+          </div>
 
           <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1 flex-nowrap overflow-hidden">
             {desktopNav.map((item) => (
@@ -146,10 +151,13 @@ export default function AppHeader() {
       {/* ─── Tablet header (md–lg) : logo + icon-only nav + bell+avatar ─── */}
       <header className="sticky top-0 z-40 border-b border-border bg-card hidden md:block lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
-          <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
-            <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
-            <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
-          </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
+              <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
+              <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
+            </Link>
+            {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
+          </div>
 
           <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1 flex-nowrap overflow-hidden">
             {desktopNav.map((item) => (
@@ -194,10 +202,13 @@ export default function AppHeader() {
       {/* ─── Mobile top bar (<md) : logo + bell+avatar only ─── */}
       <header className="sticky top-0 z-40 border-b border-border bg-card md:hidden">
         <div className="flex h-12 items-center justify-between px-4">
-          <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
-            <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
-            <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
-          </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
+              <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
+              <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
+            </Link>
+            {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
+          </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
             <AvatarMenu
@@ -362,6 +373,54 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={signOut} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
           <LogOut className="h-4 w-4" /> Déconnexion
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/* ─── Workspace switcher (only shown when multi-workspace) ─── */
+function WorkspaceSwitcher({
+  activeWorkspace,
+  workspaces,
+  switchWorkspace,
+  navigate,
+}: {
+  activeWorkspace: { id: string; name: string } | null;
+  workspaces: { id: string; name: string }[];
+  switchWorkspace: (id: string) => void;
+  navigate: (path: string) => void;
+}) {
+  const displayName = activeWorkspace?.name
+    ? activeWorkspace.name.length > 20
+      ? activeWorkspace.name.slice(0, 20) + "…"
+      : activeWorkspace.name
+    : "Workspace";
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-secondary focus:outline-none">
+          <span className="font-medium truncate max-w-[120px]">{displayName}</span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56 bg-card border border-border shadow-lg z-50">
+        {workspaces.map((ws) => (
+          <DropdownMenuItem
+            key={ws.id}
+            onClick={() => switchWorkspace(ws.id)}
+            className="gap-2 cursor-pointer"
+          >
+            {ws.id === activeWorkspace?.id && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+            {ws.id !== activeWorkspace?.id && <span className="w-3.5 shrink-0" />}
+            <span className="truncate">{ws.name}</span>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate("/clients")} className="gap-2 cursor-pointer">
+          <Plus className="h-3.5 w-3.5 shrink-0" />
+          Nouveau client
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
