@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate, Link } from "react-router-dom";
+import { Navigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 export default function LoginPage() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get("redirect");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,6 +28,11 @@ export default function LoginPage() {
         </div>
       </div>
     );
+  }
+
+  // If logged in and there's a redirect param, go there
+  if (user && redirectTo) {
+    return <Navigate to={redirectTo} replace />;
   }
 
   // Don't hard-redirect to /dashboard — let AuthContext handle onboarding check

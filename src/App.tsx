@@ -110,6 +110,7 @@ const LinkedInPostGenerator = lazy(() => import("./pages/LinkedInPostGenerator")
 const LinkedInCommentStrategy = lazy(() => import("./pages/LinkedInCommentStrategy"));
 const LinkedInCrosspost = lazy(() => import("./pages/LinkedInCrosspost"));
 const InstagramInspiration = lazy(() => import("./pages/InstagramInspiration"));
+const InvitePage = lazy(() => import("./pages/InvitePage"));
 
 const queryClient = new QueryClient();
 
@@ -127,7 +128,7 @@ const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilo
 
 function AnimatedRoutes() {
   const location = useLocation();
-  const showAppWidgets = !PUBLIC_PATHS.includes(location.pathname);
+  const showAppWidgets = !PUBLIC_PATHS.includes(location.pathname) && !location.pathname.startsWith("/invite/");
 
   return (
     <>
@@ -197,6 +198,7 @@ function AnimatedRoutes() {
               <Route path="/now-pilot" element={<NowPilotPage />} />
               <Route path="/legal-ia" element={<ProtectedRoute><LegalAiPage /></ProtectedRoute>} />
               <Route path="/payment/success" element={<PaymentSuccessPage />} />
+              <Route path="/invite/:token" element={<InvitePage />} />
               {/* Instagram module */}
               <Route path="/instagram" element={<ProtectedRoute><InstagramHub /></ProtectedRoute>} />
               <Route path="/instagram/profil" element={<ProtectedRoute><InstagramProfile /></ProtectedRoute>} />
