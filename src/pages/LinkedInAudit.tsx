@@ -141,12 +141,12 @@ export default function LinkedInAudit() {
   useEffect(() => {
     if (!user) return;
     const loadExisting = async () => {
-      const { data: audits } = await supabase
+      const { data: audits } = await (supabase
         .from("linkedin_audit" as any)
         .select("*")
         .eq(column, value)
         .order("created_at", { ascending: false })
-        .limit(2);
+        .limit(2) as any);
 
       if (audits && audits.length > 0) {
         const latest = audits[0];

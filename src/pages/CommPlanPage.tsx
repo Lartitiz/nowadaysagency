@@ -69,11 +69,11 @@ export default function CommPlanPage() {
     }
     if (!user?.id) return;
     (async () => {
-      const { data } = await supabase
+      const { data } = await (supabase
         .from("user_plan_config" as any)
         .select("*")
         .eq(column, value)
-        .maybeSingle();
+        .maybeSingle() as any);
 
       if (data) {
         const cfg: PlanConfig = {
