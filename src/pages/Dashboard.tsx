@@ -27,6 +27,7 @@ import MonthlyStatsWidget from "@/components/dashboard/MonthlyStatsWidget";
 import LaetitiaCoachingCard from "@/components/dashboard/LaetitiaCoachingCard";
 import DiscoveryCoachingCard from "@/components/dashboard/DiscoveryCoachingCard";
 import { checkBadges } from "@/lib/badges";
+import { trackError } from "@/lib/error-tracker";
 
 /* ── Types ── */
 export interface UserProfile {
@@ -168,7 +169,7 @@ export default function Dashboard() {
         main_goal: (planConfigRes.data as any)?.main_goal || "visibility",
       };
       let planData: PlanData | null = null;
-      try { planData = await computePlan(user.id, config); } catch {}
+      try { planData = await computePlan(user.id, config); } catch (e) { trackError(e, { page: "Dashboard", action: "computePlan" }); }
 
       // Check badges on load
       checkBadges(user.id, bc.total);

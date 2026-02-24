@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
+import { trackError } from "@/lib/error-tracker";
 
 const UNSAVED_PREFIX = "unsaved_";
 
@@ -52,8 +53,8 @@ export function useAutoSave(
       if (lsKey) localStorage.removeItem(lsKey);
       if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
       savedTimeoutRef.current = setTimeout(() => setSaved(false), 2000);
-    } catch {
-      // silent fail — toast handled by caller if needed
+    } catch (e) {
+      trackError(e, { hook: "useAutoSave", action: "doSave" });
     } finally {
       setSaving(false);
     }
@@ -79,8 +80,8 @@ export function useAutoSave(
         toast.success("Tout est sauvegardé ✓", { duration: 2500 });
         if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
         savedTimeoutRef.current = setTimeout(() => setSaved(false), 2000);
-      } catch {
-        // will retry next time online fires
+      } catch (e) {
+        trackError(e, { hook: "useAutoSave", action: "replayOnline" });
       } finally {
         setSaving(false);
       }

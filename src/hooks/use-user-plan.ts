@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { trackError } from "@/lib/error-tracker";
 import { supabase } from "@/integrations/supabase/client";
 import { useDemoContext } from "@/contexts/DemoContext";
 
@@ -95,8 +96,8 @@ export function useUserPlan(): UserPlanState {
           setUsage(data.ai_usage);
         }
       }
-    } catch {
-      // fallback to free
+    } catch (e) {
+      trackError(e, { page: "useUserPlan", action: "checkSubscription" });
     }
     setLoading(false);
   }, [user, isDemoMode]);
