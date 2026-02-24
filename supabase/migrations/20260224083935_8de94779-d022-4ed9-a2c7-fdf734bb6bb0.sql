@@ -1,0 +1,4 @@
+
+ALTER TABLE public.persona ADD COLUMN IF NOT EXISTS quote TEXT;
+ALTER TABLE public.persona ADD COLUMN IF NOT EXISTS motivations JSONB DEFAULT '[]';
+ALTER TABLE public.persona ADD COLUMN IF NOT EXISTS brands JSONB DEFAULT '[]';
