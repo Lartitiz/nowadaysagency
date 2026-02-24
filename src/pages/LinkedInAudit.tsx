@@ -325,7 +325,7 @@ export default function LinkedInAudit() {
                       const idx = screenshots.indexOf(s);
                       return (
                         <div key={idx} className="relative w-14 h-14 rounded-lg overflow-hidden border border-border">
-                          <img src={s.preview} alt="" className="w-full h-full object-cover" />
+                          <img src={s.preview} alt="Aperçu du post LinkedIn" className="w-full h-full object-cover" />
                           <button onClick={() => removeScreenshot(idx)} className="absolute top-0 right-0 bg-background/80 rounded-full p-0.5"><X className="h-3 w-3" /></button>
                         </div>
                       );

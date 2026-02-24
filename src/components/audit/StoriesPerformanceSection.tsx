@@ -62,7 +62,7 @@ export default function StoriesPerformanceSection({ entries, onChange, files, pr
         <div className="flex flex-wrap gap-2">
           {previews.map((p, i) => (
             <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border">
-              <img src={p} alt="" className="w-full h-full object-cover" />
+              <img src={p} alt="Capture d'écran de la story" className="w-full h-full object-cover" />
               <button onClick={() => onRemoveFile(i)} className="absolute top-0.5 right-0.5 bg-background/80 rounded-full p-0.5">
                 <X className="h-3 w-3" />
               </button>

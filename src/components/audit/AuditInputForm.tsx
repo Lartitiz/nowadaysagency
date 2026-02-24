@@ -54,7 +54,7 @@ function FileUploadGrid({ files, onAdd, onRemove, maxFiles = 5, label }: {
       <div className="flex flex-wrap gap-3">
         {files.map((f, i) => (
           <div key={i} className="relative w-24 h-24 rounded-xl border border-border bg-muted/30 overflow-hidden group">
-            <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+            <img src={URL.createObjectURL(f)} alt="Aperçu de la capture d'écran importée" className="w-full h-full object-cover" />
             <button
               onClick={() => onRemove(i)}
               className="absolute top-1 right-1 bg-background/80 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"

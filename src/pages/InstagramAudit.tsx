@@ -429,7 +429,7 @@ export default function InstagramAudit() {
                   <h3 className="text-sm font-bold text-foreground">🟢 Ce qui marche</h3>
                   {(auditResult.posts_analysis.best_posts_analysis as any[]).map((p: any, i: number) => (
                     <div key={i} className="flex gap-3 items-start">
-                      {p.image_url && <img src={p.image_url} alt="" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />}
+                      {p.image_url && <img src={p.image_url} alt="Aperçu du post Instagram" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />}
                       <div>
                         <p className="text-sm font-medium text-foreground">{p.title || `Post ${i + 1}`}</p>
                         {p.metrics && <p className="text-xs text-muted-foreground">{p.metrics}</p>}
@@ -445,7 +445,7 @@ export default function InstagramAudit() {
                   <h3 className="text-sm font-bold text-foreground">🔴 Ce qui marche moins</h3>
                   {(auditResult.posts_analysis.worst_posts_analysis as any[]).map((p: any, i: number) => (
                     <div key={i} className="flex gap-3 items-start">
-                      {p.image_url && <img src={p.image_url} alt="" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />}
+                      {p.image_url && <img src={p.image_url} alt="Aperçu du post Instagram" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />}
                       <div>
                         <p className="text-sm font-medium text-foreground">{p.title || `Post ${i + 1}`}</p>
                         {p.metrics && <p className="text-xs text-muted-foreground">{p.metrics}</p>}
