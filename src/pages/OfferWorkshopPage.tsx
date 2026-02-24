@@ -136,14 +136,14 @@ export default function OfferWorkshopPage() {
   }, [id, user, offer]);
 
   const askAI = async (stepNum: number, answer: string) => {
-    console.log("Bouton synthèse offres cliqué — step", stepNum);
+    
     setAiLoading(true);
     setAiResponse(null);
     try {
       const res = await supabase.functions.invoke("offer-coaching", {
         body: { step: stepNum, answer, offerData: { ...offer, ...formData }, brandContext: {} },
       });
-      console.log("offer-coaching response:", res);
+      
       if (res.error) {
         const msg = typeof res.error === "string" ? res.error : (res.error as any)?.message || "Erreur inconnue";
         throw new Error(msg);

@@ -551,9 +551,6 @@ export default function InstagramStats() {
         dateNF: "yyyy-mm-dd",
       });
 
-      console.log(`[Excel Import] Sheet: "${sheetName}", ${rows.length} rows (incl. header)`);
-      if (rows.length > 0) console.log("[Excel Import] Header:", rows[0]);
-      if (rows.length > 1) console.log("[Excel Import] Row 2 sample:", rows[1]);
 
       const importedRows: { monthDate: string; payload: any }[] = [];
       const skippedRows: { row: number; value: any; reason: string }[] = [];
@@ -632,7 +629,7 @@ export default function InstagramStats() {
         }
       }
       if (corrections.length > 0) {
-        console.log("[Excel Import] Year corrections:", corrections);
+        
         // Re-sort after all corrections
         importedRows.sort((a, b) => a.monthDate.localeCompare(b.monthDate));
       }
