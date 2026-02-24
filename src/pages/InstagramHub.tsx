@@ -87,7 +87,7 @@ export default function InstagramHub() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="mx-auto max-w-5xl px-6 py-8 max-md:px-4">
+      <main id="main-content" className="mx-auto max-w-5xl px-6 py-8 max-md:px-4">
         <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
           <ArrowLeft className="h-4 w-4" />
           Retour au hub
