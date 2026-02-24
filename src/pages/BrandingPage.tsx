@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw } from "lucide-react";
+import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw, Loader2 } from "lucide-react";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { supabase } from "@/integrations/supabase/client";
 import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
@@ -18,6 +18,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
+import { toast } from "sonner";
 
 interface BrandingCard {
   emoji: string;
@@ -77,6 +78,7 @@ export default function BrandingPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isDemoMode } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [primaryStoryId, setPrimaryStoryId] = useState<string | null>(null);
@@ -85,6 +87,9 @@ export default function BrandingPage() {
   const [importExtraction, setImportExtraction] = useState<BrandingExtraction | null>(null);
   const [showImportBlock, setShowImportBlock] = useState(false);
   const [lastAudit, setLastAudit] = useState<any>(null);
+  const [hasEnoughData, setHasEnoughData] = useState(false);
+  const [hasProposition, setHasProposition] = useState(false);
+  const [generatingProp, setGeneratingProp] = useState(false);
 
   // Coaching mode from audit
   const fromAudit = searchParams.get("from") === "audit";
@@ -103,6 +108,8 @@ export default function BrandingPage() {
         total: DEMO_DATA.branding.completion,
       });
       setPrimaryStoryId("demo-story");
+      setHasEnoughData(true);
+      setHasProposition(true);
       setLastAudit({
         id: "demo-audit",
         created_at: new Date().toISOString(),
@@ -117,6 +124,11 @@ export default function BrandingPage() {
     const load = async () => {
       const data = await fetchBrandingData(user.id);
       setCompletion(calculateBrandingCompletion(data));
+
+      // Determine proposition card state
+      const enough = !!(data.persona?.step_1_frustrations && data.storytellingList && data.storytellingList.length > 0);
+      setHasEnoughData(enough);
+      setHasProposition(!!(data.proposition?.version_pitch_naturel));
 
       if (data.storytellingList && data.storytellingList.length > 0) {
         const primary = data.storytellingList.find((s: any) => s.is_primary);
@@ -138,6 +150,76 @@ export default function BrandingPage() {
     };
     load();
   }, [user?.id, isDemoMode]);
+
+  const generateProposition = async () => {
+    if (!user) return;
+    setGeneratingProp(true);
+    try {
+      const [storyRes, personaRes, profileRes] = await Promise.all([
+        (supabase.from("storytelling") as any).select("*").eq(column, value).eq("is_primary", true).maybeSingle(),
+        (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle(),
+        (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle(),
+      ]);
+      const profiles = await supabase.from("profiles").select("activite, prenom, mission").eq("user_id", user.id).single();
+
+      const syntheticData = {
+        step_1_what: profiles.data?.activite || "",
+        step_2a_process: storyRes.data?.step_3_action || "",
+        step_2b_values: profileRes.data?.combat_cause || "",
+        step_2c_feedback: personaRes.data?.step_2_transformation || "",
+        step_2d_refuse: profileRes.data?.combat_refusals || "",
+        step_3_for_whom: personaRes.data?.step_1_frustrations || "",
+      };
+
+      const { data: fn, error } = await supabase.functions.invoke("proposition-ai", {
+        body: {
+          type: "generate-versions",
+          proposition_data: syntheticData,
+          persona: personaRes.data,
+          storytelling: storyRes.data,
+          tone: profileRes.data,
+          profile: profiles.data,
+        },
+      });
+
+      if (error) throw error;
+
+      const raw = fn?.content || fn?.response || (typeof fn === "string" ? fn : JSON.stringify(fn));
+      const cleaned = typeof raw === "string" ? raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim() : raw;
+      const parsed = typeof cleaned === "string" ? JSON.parse(cleaned) : cleaned;
+
+      const payload = {
+        ...syntheticData,
+        version_pitch_naturel: parsed.pitch_naturel || "",
+        version_bio: parsed.bio || "",
+        version_networking: parsed.networking || "",
+        version_site_web: parsed.site_web || "",
+        version_engagee: parsed.engagee || "",
+        version_one_liner: parsed.one_liner || "",
+        completed: true,
+        current_step: 4,
+        user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+      };
+
+      const { data: existing } = await (supabase.from("brand_proposition") as any)
+        .select("id").eq(column, value).maybeSingle();
+      if (existing) {
+        await supabase.from("brand_proposition").update(payload as any).eq("id", existing.id);
+      } else {
+        await supabase.from("brand_proposition").insert(payload as any);
+      }
+
+      toast.success("✨ Tes 6 propositions de valeur sont prêtes !");
+      navigate("/branding/proposition/recap");
+    } catch (e: any) {
+      console.error("[BrandingPage] Proposition generation error:", e);
+      const { friendlyError } = await import("@/lib/error-messages");
+      toast.error(friendlyError(e));
+    } finally {
+      setGeneratingProp(false);
+    }
+  };
 
   const reloadCompletion = async () => {
     if (!user) return;
@@ -285,6 +367,86 @@ export default function BrandingPage() {
                 const pValue = completion[card.scoreKey];
                 const isCompleted = pValue === 100;
                 const pLabel = isCompleted ? "✅ Complet" : `${pValue}%`;
+
+                // Special 3-state rendering for proposition card
+                if (card.scoreKey === "proposition") {
+                  return (
+                    <div
+                      key={card.stepperRoute}
+                      className="rounded-2xl border-2 bg-card p-5 transition-all border-border hover:border-primary/30 hover:shadow-md"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <span className="text-2xl">{card.emoji}</span>
+                      </div>
+                      <h3 className="font-display text-base font-bold text-foreground mb-1">{card.title}</h3>
+
+                      {hasProposition ? (
+                        /* État C : déjà généré */
+                        <>
+                          <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">{card.description}</p>
+                          <div className="flex items-center gap-2 mb-4">
+                            <Progress value={100} className="h-1.5 flex-1" />
+                            <span className="font-mono-ui text-[10px] font-semibold shrink-0 text-[#2E7D32]">✅ Complet</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button size="sm" className="rounded-pill text-xs flex-1" onClick={() => navigate("/branding/proposition/recap")}>
+                              <Eye className="h-3.5 w-3.5 mr-1" /> Voir ma fiche
+                            </Button>
+                            <Button variant="outline" size="sm" className="rounded-pill text-xs" onClick={() => navigate("/branding/section?section=value_proposition")}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </>
+                      ) : hasEnoughData ? (
+                        /* État B : données suffisantes, pas encore généré */
+                        <>
+                          <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">
+                            L'IA peut maintenant synthétiser tes autres sections pour créer tes 6 versions.
+                          </p>
+                          <div className="flex items-center gap-2 mb-4">
+                            <Progress value={pValue} className="h-1.5 flex-1" />
+                            <span className="font-mono-ui text-[10px] font-semibold shrink-0 text-muted-foreground">{pLabel}</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            className="rounded-pill text-xs w-full mb-2"
+                            onClick={generateProposition}
+                            disabled={generatingProp}
+                          >
+                            {generatingProp ? (
+                              <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Génération en cours...</>
+                            ) : (
+                              <><Sparkles className="h-3.5 w-3.5 mr-1" /> Générer ma proposition de valeur</>
+                            )}
+                          </Button>
+                          {generatingProp && (
+                            <p className="text-[11px] text-muted-foreground text-center">L'IA synthétise ton histoire, ton persona et ton ton pour créer 6 versions...</p>
+                          )}
+                          <Link to="/branding/proposition" className="block text-[11px] text-muted-foreground hover:text-primary text-center mt-1">
+                            Ou remplir manuellement →
+                          </Link>
+                        </>
+                      ) : (
+                        /* État A : pas assez de données */
+                        <>
+                          <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">
+                            Complète d'abord ton histoire et ton persona pour générer automatiquement.
+                          </p>
+                          <div className="flex items-center gap-2 mb-4">
+                            <Progress value={pValue} className="h-1.5 flex-1" />
+                            <span className="font-mono-ui text-[10px] font-semibold shrink-0 text-muted-foreground">{pLabel}</span>
+                          </div>
+                          <Button size="sm" className="rounded-pill text-xs w-full mb-2" disabled>
+                            <Sparkles className="h-3.5 w-3.5 mr-1" /> Générer ma proposition de valeur
+                          </Button>
+                          <Link to="/branding/proposition" className="block text-[11px] text-muted-foreground hover:text-primary text-center mt-1">
+                            Ou remplir manuellement →
+                          </Link>
+                        </>
+                      )}
+                    </div>
+                  );
+                }
 
                 return (
                   <div

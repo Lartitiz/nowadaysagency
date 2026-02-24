@@ -24,7 +24,7 @@ import { DEMO_DATA } from "@/lib/demo-data";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-type Section = "story" | "persona" | "value_proposition" | "tone_style" | "content_strategy";
+type Section = "story" | "persona" | "tone_style" | "content_strategy";
 
 interface SectionConfig {
   emoji: string;
@@ -81,27 +81,6 @@ const SECTION_CONFIGS: Record<Section, SectionConfig> = {
       { key: "pitch_short", label: "Pitch court" },
       { key: "pitch_medium", label: "Pitch moyen" },
       { key: "pitch_long", label: "Pitch long" },
-    ],
-  },
-  value_proposition: {
-    emoji: "❤️",
-    title: "Ma proposition de valeur",
-    parentLabel: "Branding",
-    table: "brand_proposition",
-    fields: [
-      { key: "step_1_what", label: "Mon métier, en simple", multiline: false },
-      { key: "step_2a_process", label: "Mon process unique" },
-      { key: "step_2b_values", label: "Ce qui est important pour moi" },
-      { key: "step_2c_feedback", label: "Ce que mes client·es me disent" },
-      { key: "step_2d_refuse", label: "Ce que je refuse de faire" },
-      { key: "step_3_for_whom", label: "Pour qui je suis la bonne personne" },
-      { key: "version_pitch_naturel", label: "Pitch naturel" },
-      { key: "version_bio", label: "Version bio" },
-      { key: "version_networking", label: "Pitch networking" },
-      { key: "version_site_web", label: "Version site web" },
-      { key: "version_engagee", label: "Version engagée" },
-      { key: "version_one_liner", label: "One-liner" },
-      { key: "version_final", label: "Version favorite" },
     ],
   },
   tone_style: {
@@ -171,21 +150,6 @@ const DEMO_FICHE_DATA: Record<Section, Record<string, string>> = {
     pitch_medium: "",
     pitch_long: "",
   },
-  value_proposition: {
-    step_1_what: "Je suis photographe de marque personnelle",
-    step_2a_process: "Je coache mes clientes sur leur posture et leur confiance avant chaque séance photo.",
-    step_2b_values: "L'authenticité, la bienveillance et le sur-mesure.",
-    step_2c_feedback: "\"C'est la première fois que je me trouve belle en photo.\"",
-    step_2d_refuse: "Les shootings de masse, les retouches excessives.",
-    step_3_for_whom: "Les entrepreneures qui veulent une image pro et authentique.",
-    version_pitch_naturel: "J'aide les entrepreneures à se sentir bien dans leur image de marque grâce à des séances photo coachées.",
-    version_bio: "Photographe de marque personnelle 📸 J'aide les entrepreneures à oser se montrer ✨",
-    version_networking: "",
-    version_site_web: "",
-    version_engagee: "",
-    version_one_liner: "Des photos qui te ressemblent, enfin.",
-    version_final: "J'aide les entrepreneures à se sentir bien dans leur image de marque.",
-  },
   tone_style: {
     voice_description: "Je parle comme à une copine, direct, un peu cash mais toujours avec le cœur. J'utilise l'humour et l'auto-dérision.",
     combat_cause: "Que chaque femme puisse se sentir légitime à se montrer.",
@@ -232,6 +196,13 @@ export default function BrandingSectionPage() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [lastCoachingUpdate, setLastCoachingUpdate] = useState<string | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
+
+  // Redirect value_proposition to recap page
+  useEffect(() => {
+    if (searchParams.get("section") === "value_proposition") {
+      navigate("/branding/proposition/recap", { replace: true });
+    }
+  }, [searchParams, navigate]);
 
   useEffect(() => {
     if (!config) {
