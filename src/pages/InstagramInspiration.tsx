@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -33,6 +34,8 @@ const EMPTY_ACCOUNT: AccountData = {
 
 export default function InstagramInspiration() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [accounts, setAccounts] = useState<AccountData[]>([
     { ...EMPTY_ACCOUNT },
     { ...EMPTY_ACCOUNT },
@@ -48,8 +51,8 @@ export default function InstagramInspiration() {
     if (!user) return;
     const load = async () => {
       const [accRes, notesRes] = await Promise.all([
-        supabase.from("inspiration_accounts").select("*").eq("user_id", user.id).order("slot_index"),
-        supabase.from("inspiration_notes").select("*").eq("user_id", user.id).limit(1),
+        (supabase.from("inspiration_accounts") as any).select("*").eq(column, value).order("slot_index"),
+        (supabase.from("inspiration_notes") as any).select("*").eq(column, value).limit(1),
       ]);
 
       if (accRes.data) {
@@ -101,6 +104,7 @@ export default function InstagramInspiration() {
         const acc = accounts[i];
         const payload = {
           user_id: user.id,
+          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
           slot_index: i + 1,
           account_handle: acc.account_handle,
           appeal: acc.appeal,
@@ -120,7 +124,11 @@ export default function InstagramInspiration() {
       if (notesId) {
         await supabase.from("inspiration_notes").update({ content: notes }).eq("id", notesId);
       } else if (notes.trim()) {
-        const { data } = await supabase.from("inspiration_notes").insert({ user_id: user.id, content: notes }).select().single();
+        const { data } = await supabase.from("inspiration_notes").insert({
+          user_id: user.id,
+          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+          content: notes
+        }).select().single();
         if (data) setNotesId(data.id);
       }
 

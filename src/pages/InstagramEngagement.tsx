@@ -88,7 +88,7 @@ export default function InstagramEngagement() {
       const { data: streak } = await (supabase
         .from("engagement_streaks") as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle();
       if (streak) {
         setCurrentStreak(streak.current_streak ?? 0);
@@ -98,7 +98,7 @@ export default function InstagramEngagement() {
       const { data: todayLog } = await (supabase
         .from("engagement_checklist_logs") as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .eq("log_date", today)
         .maybeSingle();
       if (todayLog?.items_checked) {
@@ -115,7 +115,7 @@ export default function InstagramEngagement() {
       const { data: weekLogs } = await (supabase
         .from("engagement_checklist_logs") as any)
         .select("log_date, streak_maintained")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .in("log_date", dates);
       const logMap = new Map((weekLogs || []).map(l => [l.log_date, l.streak_maintained]));
       setWeekChecks(dates.map(d => logMap.get(d) === true));
@@ -149,7 +149,7 @@ export default function InstagramEngagement() {
       const { data: existing, error: fetchErr } = await (supabase
         .from("engagement_checklist_logs") as any)
         .select("id")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .eq("log_date", today)
         .maybeSingle();
       if (fetchErr) throw fetchErr;
@@ -177,7 +177,7 @@ export default function InstagramEngagement() {
       const { data: streak, error: streakFetchErr } = await (supabase
         .from("engagement_streaks") as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle();
       if (streakFetchErr) throw streakFetchErr;
 

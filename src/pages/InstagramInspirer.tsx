@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +56,8 @@ function sanitizeFileName(fileName: string): string {
 
 export default function InstagramInspirer() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [tab, setTab] = useState("text");
   const [sourceText, setSourceText] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
@@ -80,10 +83,9 @@ export default function InstagramInspirer() {
   // Load history
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("instagram_inspirations")
+    (supabase.from("instagram_inspirations") as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("created_at", { ascending: false })
       .limit(20)
       .then(({ data }) => {
@@ -223,6 +225,7 @@ export default function InstagramInspirer() {
         .from("instagram_inspirations")
         .insert({
           user_id: user!.id,
+          workspace_id: workspaceId !== user!.id ? workspaceId : undefined,
           source_text: isScreenshot
             ? `[Screenshots: ${files.map((f) => f.name).join(", ")}]${screenshotContext ? ` — ${screenshotContext}` : ""}`
             : sourceText.trim(),
@@ -256,6 +259,7 @@ export default function InstagramInspirer() {
     try {
       await supabase.from("saved_ideas").insert({
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         type: "draft",
         status: "ready",
         canal: "instagram",

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
@@ -77,6 +77,7 @@ export default function InstagramBio() {
   const activityExamples = useActivityExamples();
   const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
 
   // Profile data
   const [profile, setProfile] = useState<any>(null);
@@ -136,7 +137,7 @@ export default function InstagramBio() {
     const load = async () => {
       const [{ data: prof }, { data: val }, { data: bp }, { data: persona }, { data: prop }, { data: strat }, { data: story }] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).single(),
-        (supabase.from("audit_validations") as any).select("*").eq("user_id", user.id).eq("section", "bio").maybeSingle(),
+        (supabase.from("audit_validations") as any).select("*").eq(column, value).eq("section", "bio").maybeSingle(),
         (supabase.from("brand_profile") as any).select("voice_description, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, combat_cause, combat_fights, combat_alternative, combat_refusals, mission, offer").eq(column, value).maybeSingle(),
         (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle(),
         (supabase.from("brand_proposition") as any).select("version_final, version_bio, version_pitch_naturel").eq(column, value).maybeSingle(),
@@ -255,6 +256,7 @@ export default function InstagramBio() {
     try {
       await supabase.from("audit_validations").upsert({
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         section: "bio",
         status: "validated",
         validated_at: new Date().toISOString(),

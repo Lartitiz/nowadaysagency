@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Copy, Sparkles } from "lucide-react";
 import { friendlyError } from "@/lib/error-messages";
@@ -114,6 +115,8 @@ function DateField({ label, value, onChange }: { label: string; value: string | 
 
 export default function InstagramLaunch() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [launch, setLaunch] = useState<LaunchData>({ ...EMPTY_LAUNCH });
@@ -126,10 +129,9 @@ export default function InstagramLaunch() {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("launches")
+    (supabase.from("launches") as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("created_at", { ascending: false })
       .limit(1)
       .then(({ data }) => {
@@ -224,6 +226,7 @@ export default function InstagramLaunch() {
     try {
       const payload = {
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         name: launch.name,
         promise: launch.promise,
         objections: launch.objections,

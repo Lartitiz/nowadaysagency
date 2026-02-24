@@ -173,7 +173,7 @@ export default function InstagramHighlights() {
       const { data } = await (supabase
         .from("instagram_highlights") as any)
         .select("title, is_selected")
-        .eq("user_id", user.id);
+        .eq(column, value);
       if (data && data.length > 0) {
         const map: Record<string, "done" | "todo" | "skip"> = {};
         // Map saved highlights to our recommended types
@@ -214,10 +214,11 @@ export default function InstagramHighlights() {
     setSaving(true);
     try {
       // Delete existing
-      await (supabase.from("instagram_highlights") as any).delete().eq("user_id", user.id);
+      await (supabase.from("instagram_highlights") as any).delete().eq(column, value);
       // Insert statuses as highlights
       const toInsert = RECOMMENDED_HIGHLIGHTS.map((h, i) => ({
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         title: h.label,
         emoji: h.emoji,
         role: h.description,

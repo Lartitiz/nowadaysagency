@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Sparkles } from "lucide-react";
@@ -23,6 +24,8 @@ import Step10SeoLayout from "@/components/site/Step10SeoLayout";
 
 export default function SiteAccueil() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
   const [data, setData] = useState<HomepageData>(EMPTY);
   const [step, setStep] = useState(1);
@@ -34,7 +37,7 @@ export default function SiteAccueil() {
   useEffect(() => {
     if (!user || !loading) return;
     const load = async () => {
-      const { data: hp } = await supabase.from("website_homepage").select("*").eq("user_id", user.id).maybeSingle();
+      const { data: hp } = await (supabase.from("website_homepage") as any).select("*").eq(column, value).maybeSingle();
       if (hp) {
         const faq = Array.isArray(hp.faq) ? hp.faq as any[] : [];
         const plan_steps = Array.isArray((hp as any).plan_steps) ? (hp as any).plan_steps : [];
@@ -60,7 +63,12 @@ export default function SiteAccueil() {
     if (updates.storybrand_data) dbPayload.storybrand_data = JSON.stringify(updates.storybrand_data);
     if (updates.checklist_data) dbPayload.checklist_data = JSON.stringify(updates.checklist_data);
     await supabase.from("website_homepage").upsert(
-      { user_id: user.id, ...dbPayload, current_step: step },
+      { 
+        user_id: user.id, 
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+        ...dbPayload, 
+        current_step: step 
+      },
       { onConflict: "user_id" }
     );
   }, [user, data, step]);

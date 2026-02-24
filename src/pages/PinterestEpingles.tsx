@@ -35,8 +35,8 @@ export default function PinterestEpingles() {
     if (!user) return;
     const load = async () => {
       const [bRes, pRes] = await Promise.all([
-        (supabase.from("pinterest_boards") as any).select("id, name").eq("user_id", user.id).order("sort_order"),
-        (supabase.from("pinterest_pins") as any).select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+        (supabase.from("pinterest_boards") as any).select("id, name").eq(column, value).order("sort_order"),
+        (supabase.from("pinterest_pins") as any).select("*").eq(column, value).order("created_at", { ascending: false }),
       ]);
       if (bRes.data) setBoards(bRes.data);
       if (pRes.data) setPins(pRes.data.map((d: any) => ({ id: d.id, subject: d.subject || "", board_id: d.board_id || "", link_url: d.link_url || "", title: d.title || "", description: d.description || "", variant_type: d.variant_type || "seo" })));
@@ -62,7 +62,7 @@ export default function PinterestEpingles() {
   const savePin = async (variant: PinVariant, variantType: string) => {
     if (!user) return;
     const { data } = await supabase.from("pinterest_pins").insert({
-      user_id: user.id, subject, board_id: boardId || null, link_url: linkUrl,
+      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, subject, board_id: boardId || null, link_url: linkUrl,
       title: variant.title, description: variant.description, variant_type: variantType,
     }).select("*").single();
     if (data) setPins(prev => [{ id: data.id, subject: data.subject || "", board_id: data.board_id || "", link_url: data.link_url || "", title: data.title || "", description: data.description || "", variant_type: data.variant_type || "seo" }, ...prev]);

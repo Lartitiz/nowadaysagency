@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +24,7 @@ import {
 
 export default function InstagramLaunchRecommendation() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
 
   const [launch, setLaunch] = useState<any>(null);
@@ -43,8 +45,9 @@ export default function InstagramLaunchRecommendation() {
     (async () => {
       const { data: launchesData } = await supabase
         .from("launches")
+        (supabase.from("launches") as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .order("created_at", { ascending: false })
         .limit(1);
       if (!launchesData?.length) { navigate("/instagram/lancement"); return; }
@@ -52,8 +55,9 @@ export default function InstagramLaunchRecommendation() {
 
       const { data: edito } = await supabase
         .from("instagram_editorial_line")
+        (supabase.from("instagram_editorial_line") as any)
         .select("estimated_weekly_minutes")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle();
       if (edito?.estimated_weekly_minutes) {
         setEditorialTime(Math.round(edito.estimated_weekly_minutes / 60));

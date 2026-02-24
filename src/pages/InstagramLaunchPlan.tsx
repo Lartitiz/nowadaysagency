@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +37,8 @@ interface PhaseConfig {
 
 export default function InstagramLaunchPlan() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
 
   // Step management
@@ -67,8 +70,9 @@ export default function InstagramLaunchPlan() {
     (async () => {
       const { data: launches } = await supabase
         .from("launches")
+        (supabase.from("launches") as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .order("created_at", { ascending: false })
         .limit(1);
 
@@ -79,8 +83,9 @@ export default function InstagramLaunchPlan() {
       // Check editorial line
       const { data: edito } = await supabase
         .from("instagram_editorial_line")
+        (supabase.from("instagram_editorial_line") as any)
         .select("estimated_weekly_minutes")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle();
       if (edito?.estimated_weekly_minutes) {
         setEditorialTime(Math.round(edito.estimated_weekly_minutes / 60));
@@ -169,8 +174,9 @@ export default function InstagramLaunchPlan() {
     try {
       const { data: editoData } = await supabase
         .from("instagram_editorial_line")
+        (supabase.from("instagram_editorial_line") as any)
         .select("preferred_formats, posts_frequency")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle();
 
       const extraHours = extraTime ? (TIME_OPTIONS.find((t) => t.id === extraTime)?.hours ?? FALLBACK_TIME_OPTIONS.find((t) => t.id === extraTime)?.hours ?? 0) : 0;
@@ -216,6 +222,7 @@ export default function InstagramLaunchPlan() {
       await supabase.from("launch_plan_contents").delete().eq("launch_id", launch.id);
       const rows = allSlots.map((s, i) => ({
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         launch_id: launch.id,
         phase: s.phase,
         content_date: s.date,
@@ -282,6 +289,7 @@ export default function InstagramLaunchPlan() {
     try {
       const calendarRows = slots.map((s) => ({
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         date: s.date,
         canal: "instagram",
         theme: `🚀 ${launch.name}`,
