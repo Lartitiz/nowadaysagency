@@ -3,8 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Download, Copy, RefreshCw, ExternalLink, Loader2, Pencil, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Download, Copy, RefreshCw, ExternalLink, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import html2canvas from "html2canvas";
@@ -47,167 +46,34 @@ function safeParseJson(val: any): any {
   try { return JSON.parse(val); } catch { return null; }
 }
 
-/* ── Smart text formatting ── */
 
-interface FormattedBlock {
-  type: "paragraph" | "heading" | "numbered-item" | "quote";
-  title?: string;
-  body?: string;
-  number?: number;
-  text: string;
-}
 
-function formatSmartText(raw: string): FormattedBlock[] {
-  if (!raw) return [];
-  const blocks: FormattedBlock[] = [];
-  // Split by numbered items like "1." "2." etc.
-  const numberedPattern = /(?:^|\n)\s*(\d+)\.\s*/;
-  const hasNumbered = numberedPattern.test(raw);
-
-  if (hasNumbered) {
-    // Split on numbered items
-    const parts = raw.split(/(?:^|\n)\s*\d+\.\s*/);
-    const numbers = raw.match(/(?:^|\n)\s*(\d+)\.\s*/g);
-    // Text before first number
-    const preamble = parts[0]?.trim();
-    if (preamble) {
-      blocks.push({ type: "paragraph", text: preamble });
-    }
-    for (let i = 1; i < parts.length; i++) {
-      const content = parts[i]?.trim();
-      if (!content) continue;
-      const num = numbers?.[i - 1]?.trim().replace(".", "") || String(i);
-      // First sentence = title, rest = body
-      const firstLine = content.split(/\n/)[0];
-      const rest = content.substring(firstLine.length).trim();
-      blocks.push({
-        type: "numbered-item",
-        number: parseInt(num),
-        title: firstLine,
-        body: rest || undefined,
-        text: content,
-      });
-    }
-    return blocks;
-  }
-
-  // Detect uppercase headings (lines that are ALL CAPS, min 4 chars)
-  const lines = raw.split("\n");
-  let currentParagraph: string[] = [];
-
-  const flushParagraph = () => {
-    const text = currentParagraph.join("\n").trim();
-    if (text) {
-      blocks.push({ type: "paragraph", text });
-    }
-    currentParagraph = [];
-  };
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      flushParagraph();
-      continue;
-    }
-    // Detect uppercase headings
-    if (trimmed.length >= 4 && trimmed === trimmed.toUpperCase() && /[A-ZÀ-Ÿ]/.test(trimmed)) {
-      flushParagraph();
-      // Convert to title case
-      const titleCase = trimmed.charAt(0) + trimmed.slice(1).toLowerCase();
-      blocks.push({ type: "heading", text: titleCase });
-    } else {
-      currentParagraph.push(trimmed);
-    }
-  }
-  flushParagraph();
-
-  return blocks;
-}
-
-const numberEmojis = ["0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"];
-
-function SmartFormattedText({ blocks }: { blocks: FormattedBlock[] }) {
-  return (
-    <div className="space-y-3">
-      {blocks.map((block, i) => {
-        if (block.type === "heading") {
-          return (
-            <p key={i} className="text-sm font-bold text-foreground mt-4 mb-1">
-              {block.text}
-            </p>
-          );
-        }
-        if (block.type === "numbered-item") {
-          const emoji = block.number != null && block.number >= 0 && block.number <= 9 ? numberEmojis[block.number] : `${block.number}.`;
-          return (
-            <div key={i} className="flex items-start gap-2.5">
-              <span className="shrink-0 text-sm">{emoji}</span>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground">{block.title}</p>
-                {block.body && (
-                  <p className="text-sm text-muted-foreground mt-0.5 break-words overflow-wrap-anywhere">{block.body}</p>
-                )}
-              </div>
-            </div>
-          );
-        }
-        // paragraph
-        return (
-          <p key={i} className="text-sm text-muted-foreground leading-relaxed break-words overflow-wrap-anywhere">
-            {block.text}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ── Collapsible long text ── */
-function CollapsibleText({ text, label, maxChars = 200, isQuote }: { text: string; label?: string; maxChars?: number; isQuote?: boolean }) {
+function CollapsibleText({ text, label, maxChars = 250, isQuote }: { text: string; label?: string; maxChars?: number; isQuote?: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  if (!text) return null;
   const isLong = text.length > maxChars;
-  const blocks = formatSmartText(text);
-  const hasStructure = blocks.some(b => b.type === "numbered-item" || b.type === "heading");
+  const display = isLong && !expanded ? text.slice(0, maxChars) + "…" : text;
 
-  // For short text or structured text that fits, show directly
-  if (!isLong && !hasStructure) {
+  if (isQuote) {
     return (
-      <div className="break-words overflow-wrap-anywhere">
-        {isQuote ? (
-          <div className="rounded-lg bg-muted/30 border-l-2 border-primary/30 px-4 py-3">
-            <p className="text-sm text-foreground italic leading-relaxed">"{text}"</p>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground leading-relaxed">{text}</p>
+      <blockquote className="border-l-[3px] border-primary/30 pl-5 py-1">
+        <p className="text-base text-foreground/80 leading-relaxed italic break-words">{display}</p>
+        {isLong && (
+          <button onClick={() => setExpanded(!expanded)} className="text-xs text-primary font-medium mt-2 hover:underline">
+            {expanded ? "Réduire" : "Lire la suite"}
+          </button>
         )}
-      </div>
+      </blockquote>
     );
   }
 
-  // Structured or long: show with collapsible
-  const previewBlocks = expanded ? blocks : blocks.slice(0, hasStructure ? 3 : 1);
-
   return (
-    <div className="break-words overflow-wrap-anywhere">
-      {isQuote && !hasStructure ? (
-        <div className="rounded-lg bg-muted/30 border-l-2 border-primary/30 px-4 py-3">
-          <p className="text-sm text-foreground italic leading-relaxed">
-            {expanded ? `"${text}"` : `"${text.substring(0, maxChars)}…"`}
-          </p>
-        </div>
-      ) : (
-        <SmartFormattedText blocks={previewBlocks} />
-      )}
-      {(isLong || (hasStructure && blocks.length > 3)) && (
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="mt-2 text-xs text-primary font-medium hover:underline inline-flex items-center gap-1"
-        >
-          {expanded ? (
-            <>Réduire <ChevronUp className="h-3 w-3" /></>
-          ) : (
-            <>Lire la suite <ChevronDown className="h-3 w-3" /></>
-          )}
+    <div>
+      {label && <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{label}</p>}
+      <p className="text-[15px] text-foreground/80 leading-relaxed break-words">{display}</p>
+      {isLong && (
+        <button onClick={() => setExpanded(!expanded)} className="text-xs text-primary font-medium mt-1.5 hover:underline">
+          {expanded ? "Réduire" : "Lire la suite"}
         </button>
       )}
     </div>
@@ -218,67 +84,54 @@ function CollapsibleText({ text, label, maxChars = 200, isQuote }: { text: strin
 function EmptySection({ message, linkLabel, link }: { message: string; linkLabel: string; link: string }) {
   const navigate = useNavigate();
   return (
-    <div
-      className="rounded-xl border-2 border-dashed border-border bg-muted/20 p-6 text-center cursor-pointer hover:border-primary/30 hover:bg-muted/40 transition-colors"
-      onClick={() => navigate(link)}
-    >
-      <p className="text-sm text-muted-foreground mb-2">{message}</p>
-      <span className="text-sm font-medium text-primary inline-flex items-center gap-1">
-        {linkLabel} <ExternalLink className="h-3.5 w-3.5" />
-      </span>
+    <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10 p-8 text-center">
+      <p className="text-sm text-muted-foreground mb-3">{message}</p>
+      <button onClick={() => navigate(link)} className="text-sm font-semibold text-primary hover:underline">
+        {linkLabel}
+      </button>
     </div>
   );
 }
 
-/* ── Section separator with label ── */
+/* ── Section separator — magazine editorial ── */
 function SectionSep({ emoji, title }: { emoji?: string; title?: string }) {
-  if (emoji && title) {
-    return (
-      <div className="flex items-center gap-3 my-8">
-        <div className="flex-1 border-t border-[#ffa7c6]/30" />
-        <span className="font-mono-ui text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 shrink-0">
-          {emoji} {title}
-        </span>
-        <div className="flex-1 border-t border-[#ffa7c6]/30" />
-      </div>
-    );
-  }
-  return <div className="border-t border-[#ffa7c6]/30 my-8" />;
+  if (!title) return <div className="my-12" />;
+  return (
+    <div className="mt-16 mb-8 flex flex-col items-center text-center">
+      {emoji && <span className="text-3xl mb-3">{emoji}</span>}
+      <h2 className="font-display text-xs font-bold uppercase tracking-[0.25em] text-primary/70">{title}</h2>
+      <div className="w-12 h-0.5 bg-primary/20 mt-3 rounded-full" />
+    </div>
+  );
 }
 
-/* ── Level 2 section card with PDF break avoidance ── */
+/* ── Section card — clean container ── */
 function SectionCard({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm p-5 sm:p-6 space-y-6" style={{ pageBreakInside: "avoid" }}>
-      <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2">
-        <span>{emoji}</span> {title}
-      </h3>
+    <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-6 sm:p-8 space-y-6" style={{ pageBreakInside: "avoid" }}>
       {children}
     </div>
   );
 }
 
-/* ── Level 3 section ── */
+/* ── Light section ── */
 function SectionLight({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-3" style={{ pageBreakInside: "avoid" }}>
-      <h3 className="font-display text-sm font-bold text-muted-foreground flex items-center gap-2">
-        <span>{emoji}</span> {title}
-      </h3>
+    <div className="space-y-5 py-2" style={{ pageBreakInside: "avoid" }}>
       {children}
     </div>
   );
 }
 
-/* ── Tag list ── */
+/* ── Tag list — bigger, rose pale ── */
 function Tags({ items }: { items: string[] }) {
   if (!items || items.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-2">
-      {items.map((t, i) => (
-        <Badge key={i} variant="secondary" className="bg-rose-pale text-primary border-0 text-xs font-medium px-3 py-1">
-          {t}
-        </Badge>
+    <div className="flex flex-wrap gap-2.5">
+      {items.map((item, i) => (
+        <span key={i} className="text-sm font-medium px-4 py-2 rounded-full bg-rose-pale text-foreground border border-primary/10">
+          {item}
+        </span>
       ))}
     </div>
   );
@@ -434,64 +287,81 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
       {/* Sheet content */}
       <div ref={sheetRef} className="bg-card border border-border rounded-2xl space-y-0 max-w-full overflow-hidden" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>
 
-        {/* ═══ HEADER — Brand book style ═══ */}
-        <div className="p-6 sm:p-8 md:p-10 rounded-t-2xl" style={{ background: "linear-gradient(180deg, #FFF4F8 0%, #ffffff 100%)" }}>
-          {userName && (
-            <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground">{userName}</h2>
-          )}
-          {userActivity && (
-            <p className="font-body text-sm text-muted-foreground mt-1">{userActivity}</p>
-          )}
-          <p className="font-display text-base sm:text-lg font-bold text-foreground mt-3">✨ Ma stratégie de communication</p>
-          <p className="font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Généré le {today}</p>
-
-          <div className="mt-5 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-body text-sm font-medium text-foreground">Complétude : {completion}%</span>
-            </div>
-            <Progress value={completion} className="h-3" />
-            {missingParts.length > 0 && (
-              <p className="font-body text-xs text-muted-foreground">
-                Il te manque : {missingParts.join(", ")}.
-              </p>
+        {/* ═══ HEADER — Magazine cover ═══ */}
+        <div className="relative p-8 sm:p-12 md:p-16 rounded-t-2xl overflow-hidden" style={{ background: "linear-gradient(160deg, #FFF4F8 0%, #FFE561 30%, #ffa7c6 60%, #FFF4F8 100%)", opacity: 0.97 }}>
+          <div className="absolute inset-0 bg-white/60" />
+          <div className="relative z-10 text-center max-w-lg mx-auto">
+            {userName && (
+              <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-foreground leading-tight tracking-tight">
+                {userName}
+              </h1>
             )}
+            {userActivity && (
+              <p className="text-base sm:text-lg text-foreground/60 mt-2 font-body">{userActivity}</p>
+            )}
+            <div className="w-10 h-0.5 bg-primary mx-auto mt-6 mb-6 rounded-full" />
+            <p className="font-display text-sm uppercase tracking-[0.2em] text-primary/80 font-semibold">Ma stratégie de communication</p>
+            <p className="text-xs text-muted-foreground mt-2">Généré le {today}</p>
+
+            {/* Score bar */}
+            <div className="mt-8 bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-white/50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-foreground">Complétion branding</span>
+                <span className="text-sm font-bold text-primary">{completion}%</span>
+              </div>
+              <Progress value={completion} className="h-2" />
+              {missingParts.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Manque : {missingParts.join(", ")}.
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
         <div className="p-4 sm:p-8 md:p-10 pt-0 sm:pt-0 md:pt-0 space-y-0">
 
-        {/* ═══ LEVEL 1 — POSITIONNEMENT (hero card) ═══ */}
+        {/* ═══ POSITIONNEMENT ═══ */}
         <SectionSep emoji="🎯" title="Mon positionnement" />
 
         {proposition?.version_final || proposition?.version_one_liner || brand?.mission ? (
-          <div className="space-y-4">
-            {/* Hero positioning card — Level 1 emphasis */}
+          <div className="space-y-8">
+            {/* Hero quote */}
             {(proposition?.version_final || proposition?.version_one_liner) && (
-              <div className="rounded-xl bg-rose-pale border border-rose-soft p-5 sm:p-6">
-                <p className="text-lg sm:text-xl font-display font-bold text-foreground leading-relaxed italic text-center">
+              <div className="text-center py-6">
+                <p className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-foreground leading-relaxed max-w-2xl mx-auto">
                   "{proposition.version_final || proposition.version_one_liner}"
                 </p>
               </div>
             )}
 
-            {brand?.mission && (
-              <div>
-                <p className="text-sm font-semibold text-foreground mb-1">Ma mission</p>
-                <CollapsibleText text={brand.mission} />
-              </div>
-            )}
+            {/* Mission + unique — 2 columns */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {brand?.mission && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-primary/70">Ma mission</p>
+                  <p className="text-[15px] text-foreground/80 leading-relaxed break-words">{brand.mission}</p>
+                </div>
+              )}
+              {proposition?.step_2b_values && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-primary/70">Ce qui me rend unique</p>
+                  <CollapsibleText text={proposition.step_2b_values} maxChars={300} />
+                </div>
+              )}
+            </div>
 
-            {proposition?.step_2b_values && (
-              <div>
-                <p className="text-sm font-semibold text-foreground mb-1">Ce qui me rend unique</p>
-                <CollapsibleText text={proposition.step_2b_values} />
-              </div>
-            )}
-
+            {/* Values as tags */}
             {brand?.voice_description && (
-              <div>
-                <p className="text-sm font-semibold text-foreground mb-1">Mes valeurs</p>
-                <Tags items={parseStringList(brand.voice_description)} />
+              <div className="text-center">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Mes valeurs</p>
+                <div className="flex flex-wrap justify-center gap-2.5">
+                  {parseStringList(brand.voice_description).map((v, i) => (
+                    <span key={i} className="text-sm font-medium px-4 py-2 rounded-full bg-rose-pale text-foreground border border-primary/10">
+                      {v}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -591,98 +461,147 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
           </>
         )}
 
-        {/* ═══ LEVEL 2 — MON TON (card) ═══ */}
+        {/* ═══ MON TON & MES COMBATS ═══ */}
         <SectionSep emoji="🗣️" title="Mon ton & mes combats" />
 
         {brand && (brand.tone_register || brand.tone_style || brand.combat_cause) ? (
-          <SectionCard emoji="🗣️" title="Mon ton">
-            {/* Tone tags */}
-            <Tags items={[brand.tone_register, brand.tone_style, brand.tone_level, brand.tone_humor, brand.tone_engagement].filter(Boolean)} />
+          <div className="space-y-8">
+            {/* Tone tags — centered */}
+            <div className="text-center">
+              <Tags items={[brand.tone_register, brand.tone_style, brand.tone_level, brand.tone_humor, brand.tone_engagement].filter(Boolean)} />
+            </div>
 
-            {/* Voice description */}
-            {brand.voice_description && (
-              <div>
-                <p className="text-sm font-semibold text-foreground mb-1">Comment je parle à ma cible</p>
-                <CollapsibleText text={brand.voice_description} isQuote />
-              </div>
-            )}
+            {/* Two columns: voice + avoid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {brand.voice_description && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-primary/70 mb-3">Comment je parle</p>
+                  <CollapsibleText text={brand.voice_description} isQuote />
+                </div>
+              )}
+              {brand.things_to_avoid && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-primary/70 mb-3">Ce que je fuis</p>
+                  <div className="flex flex-wrap gap-2">
+                    {parseStringList(brand.things_to_avoid).map((item, i) => (
+                      <span key={i} className="text-xs bg-muted/50 text-muted-foreground rounded-full px-3 py-1.5 border border-border/50">
+                        ✕ {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
-            {/* Things to avoid */}
-            {brand.things_to_avoid && (
-              <div>
-                <p className="text-sm font-semibold text-foreground mb-1">Ce que je fuis</p>
-                <div className="flex flex-wrap gap-2">
-                  {parseStringList(brand.things_to_avoid).map((item, i) => (
-                    <span key={i} className="text-xs bg-muted text-muted-foreground rounded-full px-3 py-1 flex items-center gap-1">
-                      ❌ {item}
-                    </span>
-                  ))}
+            {/* Combats */}
+            {(brand.combat_cause || brand.combat_fights) && (
+              <div className="rounded-2xl bg-gradient-to-br from-rose-pale to-card border border-primary/10 p-6 sm:p-8">
+                <p className="text-xs font-semibold uppercase tracking-wider text-primary/70 mb-4">Mes combats</p>
+                <div className="space-y-4">
+                  {brand.combat_cause && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">La cause</p>
+                      <p className="text-[15px] text-foreground font-medium leading-relaxed break-words">{brand.combat_cause}</p>
+                    </div>
+                  )}
+                  {brand.combat_fights && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Ce contre quoi je me bats</p>
+                      <CollapsibleText text={brand.combat_fights} maxChars={300} />
+                    </div>
+                  )}
+                  {brand.combat_alternative && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Mon alternative</p>
+                      <CollapsibleText text={brand.combat_alternative} maxChars={300} />
+                    </div>
+                  )}
                 </div>
               </div>
             )}
-          </SectionCard>
+
+            {/* Key expressions */}
+            {brand.key_expressions && (
+              <div className="text-center">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Mes expressions clés</p>
+                <Tags items={parseStringList(brand.key_expressions)} />
+              </div>
+            )}
+          </div>
         ) : (
-          <>
-            <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2 uppercase tracking-wide mb-4">
-              <span>🗣️</span> Mon ton
-            </h3>
-            <EmptySection
-              message="Tu n'as pas encore défini ton ton et tes combats."
-              linkLabel="Définir mon ton →"
-              link="/branding/ton"
-            />
-          </>
+          <EmptySection message="Tu n'as pas encore défini ton ton et tes combats." linkLabel="Définir mon ton →" link="/branding/ton" />
         )}
 
-        {/* ═══ LEVEL 3 — MON HISTOIRE (light) ═══ */}
+        {/* ═══ MON HISTOIRE ═══ */}
         <SectionSep emoji="📖" title="Mon histoire" />
 
         {storytelling ? (
-          <SectionLight emoji="📖" title="Mon histoire">
+          <div className="space-y-4">
+            {/* Short pitch as hero quote */}
             {storytelling.pitch_short && (
-              <CollapsibleText text={storytelling.pitch_short} />
+              <blockquote className="text-center py-4">
+                <p className="text-lg sm:text-xl font-display italic text-foreground/80 leading-relaxed max-w-2xl mx-auto">
+                  "{storytelling.pitch_short}"
+                </p>
+              </blockquote>
             )}
-            {!storytelling.pitch_short && (storytelling.step_7_polished || storytelling.step_6_full_story) && (
-              <CollapsibleText text={storytelling.step_7_polished || storytelling.step_6_full_story} maxChars={250} />
-            )}
+
+            {/* Timeline: before → trigger → after */}
             {storytelling.recap_summary && (() => {
               const sr = storytelling.recap_summary as any;
+              if (!sr.before && !sr.trigger && !sr.after) return null;
               return (
-                <div className="space-y-1.5">
-                  {sr.before && <p className="text-sm text-foreground break-words">🔵 <span className="font-medium">Avant :</span> {sr.before}</p>}
-                  {sr.trigger && <p className="text-sm text-foreground break-words">💥 <span className="font-medium">Déclic :</span> {sr.trigger}</p>}
-                  {sr.after && <p className="text-sm text-foreground break-words">🌱 <span className="font-medium">Après :</span> {sr.after}</p>}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {sr.before && (
+                    <div className="rounded-xl bg-muted/20 p-5 border border-border/40 text-center">
+                      <span className="text-2xl mb-2 block">🔵</span>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Avant</p>
+                      <p className="text-sm text-foreground/80 leading-relaxed">{sr.before}</p>
+                    </div>
+                  )}
+                  {sr.trigger && (
+                    <div className="rounded-xl bg-rose-pale p-5 border border-primary/10 text-center">
+                      <span className="text-2xl mb-2 block">💥</span>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-primary/70 mb-2">Le déclic</p>
+                      <p className="text-sm text-foreground/80 leading-relaxed">{sr.trigger}</p>
+                    </div>
+                  )}
+                  {sr.after && (
+                    <div className="rounded-xl bg-muted/20 p-5 border border-border/40 text-center">
+                      <span className="text-2xl mb-2 block">🌱</span>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Après</p>
+                      <p className="text-sm text-foreground/80 leading-relaxed">{sr.after}</p>
+                    </div>
+                  )}
                 </div>
               );
             })()}
-          </SectionLight>
+
+            {/* Full story collapsed */}
+            {!storytelling.pitch_short && (storytelling.step_7_polished || storytelling.step_6_full_story) && (
+              <CollapsibleText text={storytelling.step_7_polished || storytelling.step_6_full_story} maxChars={300} />
+            )}
+          </div>
         ) : (
-          <SectionLight emoji="📖" title="Mon histoire">
-            <EmptySection
-              message="Tu n'as pas encore écrit ton histoire."
-              linkLabel="Écrire mon histoire →"
-              link="/branding/storytelling"
-            />
-          </SectionLight>
+          <EmptySection message="Tu n'as pas encore écrit ton histoire." linkLabel="Écrire mon histoire →" link="/branding/storytelling" />
         )}
 
-        {/* ═══ LEVEL 2 — MES OFFRES (card) ═══ */}
+        {/* ═══ MES OFFRES ═══ */}
         <SectionSep emoji="🎁" title="Mes offres" />
 
         {offers.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {offers.map((o) => (
-              <div key={o.id} className="rounded-xl border border-border bg-card shadow-sm p-4 space-y-1.5" style={{ pageBreakInside: "avoid" }}>
-                <div className="flex items-center gap-2">
-                  <span>🎁</span>
-                  <span className="font-semibold text-sm text-foreground break-words">{o.name || "Sans nom"}</span>
+              <div key={o.id} className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6 space-y-3 hover:shadow-md transition-shadow" style={{ pageBreakInside: "avoid" }}>
+                <div>
+                  <h4 className="font-display text-base font-bold text-foreground">{o.name || "Sans nom"}</h4>
+                  {o.price_text && <p className="text-sm text-primary font-medium mt-0.5">{o.price_text}</p>}
                 </div>
-                {o.price_text && <p className="text-xs text-muted-foreground">{o.price_text}</p>}
-                {o.description_short && <p className="text-sm text-muted-foreground break-words">{o.description_short}</p>}
+                {o.description_short && <p className="text-sm text-foreground/70 leading-relaxed break-words">{o.description_short}</p>}
                 {o.promise && (
-                  <div className="rounded-lg bg-muted/30 border-l-2 border-primary/30 px-3 py-2">
-                    <p className="text-sm text-muted-foreground italic break-words">"{o.promise}"</p>
-                  </div>
+                  <blockquote className="border-l-[3px] border-primary/30 pl-4 py-1">
+                    <p className="text-sm text-foreground/70 italic break-words">"{o.promise}"</p>
+                  </blockquote>
                 )}
               </div>
             ))}
@@ -695,67 +614,85 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
           />
         )}
 
-        {/* ═══ LEVEL 3 — MA LIGNE ÉDITORIALE (light) ═══ */}
+        {/* ═══ MA LIGNE ÉDITORIALE ═══ */}
         <SectionSep emoji="📝" title="Ma ligne éditoriale" />
 
         {strategy ? (
-          <SectionLight emoji="📝" title="Ma ligne éditoriale">
-            {/* Pillars */}
+          <div className="space-y-8">
+            {/* Pillars as big tags */}
             {(strategy.pillar_major || strategy.pillar_minor_1) && (
-              <div>
-                <p className="text-sm font-semibold text-foreground mb-1.5">Mes piliers de contenu</p>
-                <Tags items={[strategy.pillar_major, strategy.pillar_minor_1, strategy.pillar_minor_2, strategy.pillar_minor_3].filter(Boolean)} />
-              </div>
-            )}
-
-            {/* Content mix from recap */}
-            {strategy.recap_summary && (() => {
-              const recap = strategy.recap_summary as any;
-              if (!recap?.content_mix) return null;
-              const mix = recap.content_mix;
-              return (
-                <div>
-                  <p className="text-sm font-semibold text-foreground mb-2">Mon mix contenu</p>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {mix.visibility != null && (
-                      <span className="text-xs flex items-center gap-1.5">
-                        <span className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--obj-visibilite))]" />
-                        Visibilité {Math.round((mix.visibility / 10) * 100)}%
-                      </span>
-                    )}
-                    {mix.trust != null && (
-                      <span className="text-xs flex items-center gap-1.5">
-                        <span className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--obj-confiance))]" />
-                        Confiance {Math.round((mix.trust / 10) * 100)}%
-                      </span>
-                    )}
-                    {mix.sales != null && (
-                      <span className="text-xs flex items-center gap-1.5">
-                        <span className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--obj-vente))]" />
-                        Vente {Math.round((mix.sales / 10) * 100)}%
-                      </span>
-                    )}
-                  </div>
+              <div className="text-center">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Mes piliers de contenu</p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  {[strategy.pillar_major, strategy.pillar_minor_1, strategy.pillar_minor_2, strategy.pillar_minor_3].filter(Boolean).map((pillar, i) => (
+                    <span key={i} className="text-sm font-semibold px-5 py-2.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                      {pillar}
+                    </span>
+                  ))}
                 </div>
-              );
-            })()}
-
-            {/* Creative concept */}
-            {strategy.creative_concept && (
-              <div>
-                <p className="text-sm font-semibold text-foreground mb-1">Mon twist créatif</p>
-                <CollapsibleText text={strategy.creative_concept} maxChars={200} />
               </div>
             )}
-          </SectionLight>
+
+            {/* Content mix + Creative concept — 2 columns */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* Content mix */}
+              {strategy.recap_summary && (() => {
+                const recap = strategy.recap_summary as any;
+                if (!recap?.content_mix) return null;
+                const mix = recap.content_mix;
+                return (
+                  <div className="rounded-xl bg-muted/10 border border-border/40 p-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Mon mix contenu</p>
+                    <div className="space-y-3">
+                      {mix.visibility != null && (
+                        <div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-foreground/70">Visibilité</span>
+                            <span className="font-medium">{Math.round((mix.visibility / 10) * 100)}%</span>
+                          </div>
+                          <div className="h-2 bg-border/30 rounded-full overflow-hidden">
+                            <div className="h-full bg-[hsl(var(--obj-visibilite))] rounded-full" style={{ width: `${(mix.visibility / 10) * 100}%` }} />
+                          </div>
+                        </div>
+                      )}
+                      {mix.trust != null && (
+                        <div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-foreground/70">Confiance</span>
+                            <span className="font-medium">{Math.round((mix.trust / 10) * 100)}%</span>
+                          </div>
+                          <div className="h-2 bg-border/30 rounded-full overflow-hidden">
+                            <div className="h-full bg-[hsl(var(--obj-confiance))] rounded-full" style={{ width: `${(mix.trust / 10) * 100}%` }} />
+                          </div>
+                        </div>
+                      )}
+                      {mix.sales != null && (
+                        <div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-foreground/70">Vente</span>
+                            <span className="font-medium">{Math.round((mix.sales / 10) * 100)}%</span>
+                          </div>
+                          <div className="h-2 bg-border/30 rounded-full overflow-hidden">
+                            <div className="h-full bg-[hsl(var(--obj-vente))] rounded-full" style={{ width: `${(mix.sales / 10) * 100}%` }} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Creative concept */}
+              {strategy.creative_concept && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-primary/70 mb-3">Mon twist créatif</p>
+                  <CollapsibleText text={strategy.creative_concept} maxChars={250} isQuote />
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
-          <SectionLight emoji="📝" title="Ma ligne éditoriale">
-            <EmptySection
-              message="Tu n'as pas encore défini ta ligne éditoriale."
-              linkLabel="Créer ma ligne →"
-              link="/branding/strategie"
-            />
-          </SectionLight>
+          <EmptySection message="Tu n'as pas encore défini ta ligne éditoriale." linkLabel="Créer ma ligne →" link="/branding/strategie" />
         )}
 
         {/* ═══ LEVEL 3 — MES CANAUX (light) ═══ */}
