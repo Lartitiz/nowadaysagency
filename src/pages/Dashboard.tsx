@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 
@@ -82,57 +83,65 @@ export default function Dashboard() {
   const { isDemoMode, demoData } = useDemoContext();
   const navigate = useNavigate();
   const { isPilot } = useUserPlan();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [coachingMonth, setCoachingMonth] = useState<number | null>(null);
-  const [dashData, setDashData] = useState<DashboardData>({
+  const { hasInstagram, hasLinkedin, hasWebsite, hasSeo, loading: channelsLoading, channels } = useActiveChannels();
+  // ── Profile query ──
+  const { data: profile } = useQuery<UserProfile | null>({
+    queryKey: ["profile", user?.id, isDemoMode],
+    queryFn: async () => {
+      if (isDemoMode && demoData) {
+        return {
+          prenom: demoData.profile.first_name,
+          activite: demoData.profile.activity,
+          type_activite: demoData.profile.activity_type,
+          cible: demoData.persona.metier,
+          probleme_principal: demoData.persona.frustrations,
+          piliers: demoData.branding.editorial.pillars.map(p => p.name),
+          tons: demoData.branding.tone.keywords as unknown as string[],
+          plan_start_date: null,
+        };
+      }
+      if (!user) return null;
+      const { data } = await supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq("user_id", user.id).single();
+      return data as UserProfile | null;
+    },
+    enabled: !!user || isDemoMode,
+  });
+
+  const defaultDashData: DashboardData = {
     brandingCompletion: { storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 },
     igAuditScore: null, liAuditScore: null,
     contactCount: 0, prospectCount: 0, prospectConversation: 0, prospectOffered: 0,
     calendarPostCount: 0, weekPostsPublished: 0, weekPostsTotal: 0, nextPost: null,
     planData: null, recommendations: [],
-  });
-  const { hasInstagram, hasLinkedin, hasWebsite, hasSeo, loading: channelsLoading, channels } = useActiveChannels();
+  };
 
-  // ── Demo mode: set static data immediately ──
-  useEffect(() => {
-    if (!isDemoMode || !demoData) return;
-    setProfile({
-      prenom: demoData.profile.first_name,
-      activite: demoData.profile.activity,
-      type_activite: demoData.profile.activity_type,
-      cible: demoData.persona.metier,
-      probleme_principal: demoData.persona.frustrations,
-      piliers: demoData.branding.editorial.pillars.map(p => p.name),
-      tons: demoData.branding.tone.keywords as unknown as string[],
-      plan_start_date: null,
-    });
-    setDashData(prev => ({
-      ...prev,
-      brandingCompletion: { storytelling: 20, persona: 20, proposition: 20, tone: 15, strategy: 10, total: demoData.branding.completion },
-      igAuditScore: demoData.audit.score,
-      calendarPostCount: demoData.calendar_posts.length,
-      weekPostsTotal: 3,
-      weekPostsPublished: 1,
-      contactCount: demoData.contacts.length,
-      prospectCount: demoData.contacts.filter(c => c.type === "prospect").length,
-      recommendations: [
-        { id: "demo-rec-1", titre: "Optimise ta bio Instagram", route: "/instagram/bio", completed: false },
-        { id: "demo-rec-2", titre: "Crée un calendrier de publication régulier", route: "/calendrier", completed: false },
-        { id: "demo-rec-3", titre: "Ajoute des CTA dans tes légendes", route: "/instagram/creer", completed: false },
-      ],
-    }));
-    if (demoData.coaching) {
-      setCoachingMonth(demoData.coaching.current_month);
-    }
-  }, [isDemoMode, demoData]);
+  // ── Dashboard data query ──
+  const { data: dashData = defaultDashData } = useQuery<DashboardData>({
+    queryKey: ["dashboard-data", user?.id, isDemoMode],
+    queryFn: async () => {
+      if (isDemoMode && demoData) {
+        return {
+          ...defaultDashData,
+          brandingCompletion: { storytelling: 20, persona: 20, proposition: 20, tone: 15, strategy: 10, total: demoData.branding.completion },
+          igAuditScore: demoData.audit.score,
+          calendarPostCount: demoData.calendar_posts.length,
+          weekPostsTotal: 3,
+          weekPostsPublished: 1,
+          contactCount: demoData.contacts.length,
+          prospectCount: demoData.contacts.filter(c => c.type === "prospect").length,
+          recommendations: [
+            { id: "demo-rec-1", titre: "Optimise ta bio Instagram", route: "/instagram/bio", completed: false },
+            { id: "demo-rec-2", titre: "Crée un calendrier de publication régulier", route: "/calendrier", completed: false },
+            { id: "demo-rec-3", titre: "Ajoute des CTA dans tes légendes", route: "/instagram/creer", completed: false },
+          ],
+        };
+      }
+      if (!user) return defaultDashData;
 
-  useEffect(() => {
-    if (!user || isDemoMode) return;
-    const now = new Date();
-    const weekStart = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
-    const weekEnd = format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      const now = new Date();
+      const weekStart = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      const weekEnd = format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
 
-    const fetchAll = async () => {
       const [profRes, brandingData, igAuditRes, liAuditRes, contactRes, prospectRes, prospectConvRes, prospectOffRes, calendarRes, weekPostsRes, weekPublishedRes, nextPostRes, planConfigRes, recsRes] = await Promise.all([
         supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq("user_id", user.id).single(),
         fetchBrandingData(user.id),
@@ -150,8 +159,6 @@ export default function Dashboard() {
         supabase.from("audit_recommendations").select("id, titre, route, completed").eq("user_id", user.id).order("position", { ascending: true }).limit(5),
       ]);
 
-      if (profRes.data) setProfile(profRes.data as UserProfile);
-
       const bc = calculateBrandingCompletion(brandingData);
       const config = {
         weekly_time: (planConfigRes.data as any)?.weekly_time?.toString() || "2_5h",
@@ -161,7 +168,10 @@ export default function Dashboard() {
       let planData: PlanData | null = null;
       try { planData = await computePlan(user.id, config); } catch {}
 
-      setDashData({
+      // Check badges on load
+      checkBadges(user.id, bc.total);
+
+      return {
         brandingCompletion: bc,
         igAuditScore: igAuditRes.data?.score_global ?? null,
         liAuditScore: liAuditRes.data?.score_global ?? null,
@@ -175,26 +185,27 @@ export default function Dashboard() {
         nextPost: nextPostRes.data ? { date: nextPostRes.data.date, theme: nextPostRes.data.theme } : null,
         planData,
         recommendations: recsRes.data || [],
-      });
+      };
+    },
+    enabled: !!user || isDemoMode,
+    staleTime: 2 * 60 * 1000, // 2 min cache
+  });
 
-      // Coaching info for Now Pilot
-      if (isPilot) {
-        // RLS controls access — query any active program visible to this user
-        const { data: prog } = await (supabase.from("coaching_programs" as any) as any)
-          .select("current_phase, current_month, id")
-          .eq("status", "active")
-          .limit(1)
-          .maybeSingle();
-        if (prog) {
-          setCoachingMonth(prog.current_month);
-        }
-      }
-
-      // Check badges on load
-      checkBadges(user.id, bc.total);
-    };
-    fetchAll();
-  }, [user?.id, isDemoMode, isPilot]);
+  // ── Coaching month query ──
+  const { data: coachingMonth = null } = useQuery<number | null>({
+    queryKey: ["coaching-month", user?.id],
+    queryFn: async () => {
+      if (isDemoMode && demoData?.coaching) return demoData.coaching.current_month;
+      if (!user) return null;
+      const { data: prog } = await (supabase.from("coaching_programs" as any) as any)
+        .select("current_month")
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+      return prog?.current_month ?? null;
+    },
+    enabled: (!!user && isPilot) || (isDemoMode && !!demoData?.coaching),
+  });
 
   if (!profile) {
     return (
@@ -210,6 +221,7 @@ export default function Dashboard() {
 
   const comingSoonChannels = ALL_CHANNELS.filter(c => c.comingSoon && channels.includes(c.id));
 
+  const queryClient = useQueryClient();
   const toggleRecommendation = async (id: string, currentCompleted: boolean | null) => {
     if (isDemoMode) return;
     const newCompleted = !currentCompleted;
@@ -217,10 +229,10 @@ export default function Dashboard() {
       completed: newCompleted,
       completed_at: newCompleted ? new Date().toISOString() : null,
     }).eq("id", id);
-    setDashData(prev => ({
-      ...prev,
-      recommendations: prev.recommendations.map(r => r.id === id ? { ...r, completed: newCompleted } : r),
-    }));
+    queryClient.setQueryData<DashboardData>(["dashboard-data", user?.id, isDemoMode], (prev) => {
+      if (!prev) return prev;
+      return { ...prev, recommendations: prev.recommendations.map(r => r.id === id ? { ...r, completed: newCompleted } : r) };
+    });
   };
 
   let delayIdx = 0;
