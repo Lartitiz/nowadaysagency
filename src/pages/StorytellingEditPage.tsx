@@ -50,7 +50,7 @@ export default function StorytellingEditPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Mes storytellings" parentTo="/branding/storytelling" currentLabel="Modifier" />
+        <SubPageHeader breadcrumbs={[{ label: "Branding", to: "/branding" }, { label: "Mon histoire", to: "/branding/section?section=story" }]} currentLabel="Modifier" />
 
         <h1 className="font-display text-[26px] font-bold text-foreground mb-6">Modifier le storytelling</h1>
 

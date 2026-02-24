@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
+import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -247,10 +248,7 @@ export default function OfferWorkshopPage() {
       <AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
         <div className="flex items-center justify-between mb-6">
-          <Link to="/branding/offres" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-4 w-4" />
-            Mes offres
-          </Link>
+          <SubPageHeader breadcrumbs={[{ label: "Branding", to: "/branding" }, { label: "Mes offres", to: "/branding/offres" }]} currentLabel={offer?.name || "Offre"} />
           <Button variant="ghost" size="sm" onClick={deleteOffer} className="text-destructive hover:text-destructive">
             <Trash2 className="h-4 w-4" />
           </Button>
