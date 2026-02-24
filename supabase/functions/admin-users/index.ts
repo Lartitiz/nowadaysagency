@@ -237,8 +237,8 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   }
 
   // Séparer les vraies abonnées payantes des accès promo
-  const paidSubs = subs.filter((s: any) => s.source !== "promo" && s.user_id !== adminUserId);
-  const promoSubs = subs.filter((s: any) => s.source === "promo" && s.user_id !== adminUserId);
+  const paidSubs = subs.filter((s: any) => s.source !== "promo" && s.plan !== "now_pilot" && s.user_id !== adminUserId);
+  const promoSubs = subs.filter((s: any) => (s.source === "promo" || s.plan === "now_pilot") && s.user_id !== adminUserId);
 
   // Business metrics : seulement les abonnements payants (pas les promos)
   const activePaidSubs = paidSubs.filter((s: any) => (s.status === "active" || s.status === "trialing") && s.plan !== "free");
