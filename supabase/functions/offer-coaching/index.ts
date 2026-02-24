@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
@@ -172,7 +172,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
 
     const userPrompt = stepPrompts[step] || `L'utilisatrice a répondu "${answer}" à l'étape ${step}. Analyse sa réponse et donne un feedback personnalisé. Retourne un JSON avec "reaction" (string).`;
 
-    const content = await callAnthropicSimple(getDefaultModel(), systemPrompt, userPrompt, 0.7, 2000) || "{}";
+    const content = await callAnthropicSimple(getModelForAction("offer"), systemPrompt, userPrompt, 0.7, 2000) || "{}";
     
     let parsed;
     try {

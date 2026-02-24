@@ -3,7 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, ANTI_SLOP, ETHICAL_GUARDRAILS } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic, AnthropicError, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropic, AnthropicError, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
@@ -109,7 +109,7 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
     }
 
     const content = await callAnthropic({
-      model: getDefaultModel(),
+      model: getModelForAction("dm_comment"),
       messages: [{ role: "user", content: messageContent }],
       temperature: 0.8,
     });

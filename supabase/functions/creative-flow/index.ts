@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
@@ -385,7 +385,7 @@ Réponds UNIQUEMENT en JSON :
       return new Response(JSON.stringify({ error: "Step non reconnu" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const rawContent = await callAnthropicSimple(getDefaultModel(), systemPrompt, userPrompt, 0.85);
+    const rawContent = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt, 0.85);
 
     let parsed;
     try {

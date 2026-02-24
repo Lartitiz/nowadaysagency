@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple, AnthropicError, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, AnthropicError, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 function buildProfileBlock(profile: any): string {
@@ -621,7 +621,7 @@ Reponds en JSON :
     }
 
     // Use getDefaultModel() for all content generation
-    const content = await callAnthropicSimple(getDefaultModel(), systemPrompt, userPrompt, 0.8, 4096);
+    const content = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt, 0.8, 4096);
 
     return new Response(
       JSON.stringify({ content }),

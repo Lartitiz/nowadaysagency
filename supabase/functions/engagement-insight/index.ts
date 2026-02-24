@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
@@ -42,7 +42,7 @@ Génère 1-2 phrases d'insight :
 - Ne commence PAS par "Tes" systématiquement, varie les tournures`;
 
     const insight = (await callAnthropicSimple(
-      getDefaultModel(),
+      getModelForAction("content"),
       "Tu réponds en français. Tu es directe et concrète. Max 2 phrases.",
       prompt
     )).trim();

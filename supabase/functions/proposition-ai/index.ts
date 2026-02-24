@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -266,7 +266,7 @@ RÈGLES :
       });
     }
 
-    const content = await callAnthropicSimple(getDefaultModel(), systemPrompt, userPrompt);
+    const content = await callAnthropicSimple(getModelForAction("proposition"), systemPrompt, userPrompt);
 
     await logUsage(user.id, "content", "proposition");
 
