@@ -367,6 +367,9 @@ GARDE-FOUS OBLIGATOIRES :
 11. Apartés entre parenthèses : "(oui, même toi)", "(pas besoin de se ruiner)"
 12. JAMAIS de jargon marketing
 13. JAMAIS de tiret cadratin (—)
+14. PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature, imite les patterns de structure et de ton.
+15. Ne JAMAIS utiliser les expressions interdites du profil de voix.
+16. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.
 
 Réponds en JSON strict :
 {
