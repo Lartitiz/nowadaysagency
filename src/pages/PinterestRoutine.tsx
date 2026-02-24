@@ -34,7 +34,7 @@ export default function PinterestRoutine() {
 
   useEffect(() => {
     if (!user) return;
-    (supabase.from("pinterest_routine") as any).select("*").eq(column, value).eq("current_month", currentMonth).maybeSingle().then(({ data }: any) => {
+    (supabase.from("pinterest_routine") as any).select("*").eq("user_id", user.id).eq("current_month", currentMonth).maybeSingle().then(({ data }: any) => {
       if (data) {
         setRoutineId(data.id);
         setRhythm(data.rhythm || "2h_monthly");
@@ -53,7 +53,7 @@ export default function PinterestRoutine() {
     const r = overrides?.rhythm ?? rhythm;
     const target = r === "2h_biweekly" ? 10 : 5;
     const payload: any = {
-      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, rhythm: r, current_month: currentMonth, pins_target: target,
+      user_id: user.id, rhythm: r, current_month: currentMonth, pins_target: target,
       pins_done: overrides?.pins_done ?? pinsDone,
       recycled_done: overrides?.recycled_done ?? recycledDone,
       links_checked: overrides?.links_checked ?? linksChecked,

@@ -53,7 +53,7 @@ export default function LinkedInRecommandations() {
     const load = async () => {
       const [profRes, recoRes] = await Promise.all([
         supabase.from("profiles").select("prenom").eq("user_id", user.id).maybeSingle(),
-        (supabase.from("linkedin_recommendations") as any).select("*").eq(column, value).order("created_at"),
+        (supabase.from("linkedin_recommendations") as any).select("*").eq("user_id", user.id).order("created_at"),
       ]);
       if (profRes.data?.prenom) setPrenom(profRes.data.prenom);
       if (recoRes.data && recoRes.data.length > 0) {
@@ -75,9 +75,9 @@ export default function LinkedInRecommandations() {
 
   const saveRecos = async () => {
     if (!user) return;
-    await (supabase.from("linkedin_recommendations") as any).delete().eq(column, value);
+    await (supabase.from("linkedin_recommendations") as any).delete().eq("user_id", user.id);
     const toInsert = recos.filter(r => r.person_name.trim()).map(r => ({
-      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, person_name: r.person_name, person_type: r.person_type, request_sent: r.request_sent, reco_received: r.reco_received,
+      user_id: user.id, person_name: r.person_name, person_type: r.person_type, request_sent: r.request_sent, reco_received: r.reco_received,
     }));
     if (toInsert.length > 0) await supabase.from("linkedin_recommendations").insert(toInsert);
     toast({ title: "✅ Recommandations sauvegardées !" });

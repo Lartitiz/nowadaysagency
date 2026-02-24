@@ -41,7 +41,7 @@ export default function PinterestCompte() {
     if (!user) return;
     const load = async () => {
       const [ppRes, propRes] = await Promise.all([
-        (supabase.from("pinterest_profile") as any).select("*").eq(column, value).maybeSingle(),
+        (supabase.from("pinterest_profile") as any).select("*").eq("user_id", user.id).maybeSingle(),
         (supabase.from("brand_proposition") as any).select("version_final, version_short").eq(column, value).maybeSingle(),
       ]);
       if (ppRes.data) {
@@ -63,7 +63,7 @@ export default function PinterestCompte() {
 
   const save = async () => {
     if (!user) return;
-    const payload = { user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, pro_account_done: proAccountDone, photo_done: photoDone, display_name: displayName, name_done: nameDone, bio, bio_done: bioDone, website_url: websiteUrl, url_done: urlDone, updated_at: new Date().toISOString() };
+    const payload = { user_id: user.id, pro_account_done: proAccountDone, photo_done: photoDone, display_name: displayName, name_done: nameDone, bio, bio_done: bioDone, website_url: websiteUrl, url_done: urlDone, updated_at: new Date().toISOString() };
     if (profileId) {
       await supabase.from("pinterest_profile").update(payload).eq("id", profileId);
     } else {

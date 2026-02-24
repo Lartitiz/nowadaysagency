@@ -45,7 +45,7 @@ export default function LinkedInParcours() {
 
   useEffect(() => {
     if (!user) return;
-    (supabase.from("linkedin_experiences") as any).select("*").eq(column, value).order("sort_order").then(({ data }: any) => {
+    (supabase.from("linkedin_experiences") as any).select("*").eq("user_id", user.id).order("sort_order").then(({ data }: any) => {
       if (data && data.length > 0) setExperiences(data.map(d => ({ id: d.id, job_title: d.job_title || "", company: d.company || "", description_raw: d.description_raw || "", description_optimized: d.description_optimized || "" })));
     });
   }, [user?.id]);
@@ -91,10 +91,10 @@ export default function LinkedInParcours() {
   const saveExperiences = async () => {
     if (!user) return;
     // Delete all then re-insert
-    await (supabase.from("linkedin_experiences") as any).delete().eq(column, value);
+    await (supabase.from("linkedin_experiences") as any).delete().eq("user_id", user.id);
     if (experiences.length > 0) {
       await supabase.from("linkedin_experiences").insert(
-        experiences.map((e, i) => ({ user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, job_title: e.job_title, company: e.company, description_raw: e.description_raw, description_optimized: e.description_optimized, sort_order: i }))
+        experiences.map((e, i) => ({ user_id: user.id, job_title: e.job_title, company: e.company, description_raw: e.description_raw, description_optimized: e.description_optimized, sort_order: i }))
       );
     }
     toast({ title: "✅ Parcours sauvegardé !" });

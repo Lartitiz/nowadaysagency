@@ -37,7 +37,7 @@ export default function LinkedInProfil() {
     if (!user) return;
     const load = async () => {
       const [lpRes, propRes] = await Promise.all([
-        (supabase.from("linkedin_profile") as any).select("*").eq(column, value).maybeSingle(),
+        (supabase.from("linkedin_profile") as any).select("*").eq("user_id", user.id).maybeSingle(),
         (supabase.from("brand_proposition") as any).select("version_final, version_short").eq(column, value).maybeSingle(),
       ]);
       if (lpRes.data) {
@@ -58,7 +58,7 @@ export default function LinkedInProfil() {
 
   const save = async () => {
     if (!user) return;
-    const payload = { user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, title, title_done: titleDone, custom_url: customUrl, url_done: urlDone, photo_done: photoDone, banner_done: bannerDone, updated_at: new Date().toISOString() };
+    const payload = { user_id: user.id, title, title_done: titleDone, custom_url: customUrl, url_done: urlDone, photo_done: photoDone, banner_done: bannerDone, updated_at: new Date().toISOString() };
     if (profileId) {
       await supabase.from("linkedin_profile").update(payload).eq("id", profileId);
     } else {
