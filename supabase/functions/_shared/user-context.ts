@@ -29,21 +29,26 @@ const DEFAULT_OPTIONS: ContextOptions = {
 
 /**
  * Fetches all user context data from database in parallel.
+ * If workspaceId is provided, queries filter by workspace_id instead of user_id.
  */
-export async function getUserContext(supabase: any, userId: string) {
+export async function getUserContext(supabase: any, userId: string, workspaceId?: string) {
+  const col = workspaceId ? "workspace_id" : "user_id";
+  const val = workspaceId || userId;
+
   const [
     stRes, perRes, toneRes, propRes, stratRes, editoRes,
     profileRes, offersRes, auditRes,
   ] = await Promise.all([
-    supabase.from("storytelling").select("step_7_polished").eq("user_id", userId).eq("is_primary", true).maybeSingle(),
-    supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches, portrait_prenom, portrait").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_proposition").select("version_final, version_complete, version_bio, version_one_liner").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept, facet_1, facet_2, facet_3").eq("user_id", userId).maybeSingle(),
-    supabase.from("instagram_editorial_line").select("main_objective, objective_details, posts_frequency, stories_frequency, time_available, pillars, preferred_formats, do_more, stop_doing, free_notes").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("storytelling").select("step_7_polished").eq(col, val).eq("is_primary", true).maybeSingle(),
+    supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches, portrait_prenom, portrait").eq(col, val).maybeSingle(),
+    supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq(col, val).maybeSingle(),
+    supabase.from("brand_proposition").select("version_final, version_complete, version_bio, version_one_liner").eq(col, val).maybeSingle(),
+    supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept, facet_1, facet_2, facet_3").eq(col, val).maybeSingle(),
+    supabase.from("instagram_editorial_line").select("main_objective, objective_details, posts_frequency, stories_frequency, time_available, pillars, preferred_formats, do_more, stop_doing, free_notes").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    // profiles table always uses user_id (no workspace_id column)
     supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, mission, offre, croyances_limitantes, verbatims, expressions_cles, ce_quon_evite, style_communication, validated_bio, instagram_display_name, instagram_username, instagram_bio, instagram_followers, instagram_frequency, differentiation_text, bio_cta_type, bio_cta_text").eq("user_id", userId).maybeSingle(),
-    supabase.from("offers").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
-    supabase.from("instagram_audit").select("score_global, score_bio, score_feed, score_edito, score_stories, score_epingles, resume, combo_gagnant").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("offers").select("*").eq(col, val).order("created_at", { ascending: true }),
+    supabase.from("instagram_audit").select("score_global, score_bio, score_feed, score_edito, score_stories, score_epingles, resume, combo_gagnant").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   return {

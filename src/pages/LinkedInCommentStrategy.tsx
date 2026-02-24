@@ -26,12 +26,12 @@ export default function LinkedInCommentStrategy() {
 
   useEffect(() => {
     if (!user) return;
-    supabase
+    (supabase
       .from("linkedin_comment_strategy" as any)
       .select("*")
       .eq(column, value)
-      .maybeSingle()
-      .then(({ data }) => {
+      .maybeSingle() as any)
+      .then(({ data }: any) => {
         if (data) {
           setStrategyId(data.id);
           setAccounts((data.accounts as unknown as CommentAccount[]) || []);
