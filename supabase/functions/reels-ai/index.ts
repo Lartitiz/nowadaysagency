@@ -58,8 +58,8 @@ serve(async (req) => {
     if (type === "analyze_inspiration") {
       // Multimodal: analyze inspiration screenshots
       const imageContent = (image_urls || []).map((url: string, i: number) => ({
-        type: "image_url",
-        image_url: { url },
+        type: "image",
+        source: { type: "url", url },
       }));
       messages = [
         { role: "system", content: "Tu es experte en analyse de Reels Instagram. Analyse les screenshots fournis et identifie les patterns de succès." },
