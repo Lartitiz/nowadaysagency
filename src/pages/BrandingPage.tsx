@@ -229,16 +229,6 @@ export default function BrandingPage() {
           />
         ) : (
           <>
-            <div className="rounded-2xl border border-border bg-card p-5 mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono-ui text-[12px] font-semibold text-foreground">
-                  Mon branding est complet à {completion.total}%
-                </span>
-              </div>
-              <Progress value={completion.total} className="h-2.5 mb-2" />
-              <p className="text-[12px] text-muted-foreground">{globalMessage}</p>
-            </div>
-
             {/* Last audit summary */}
             {lastAudit && (() => {
               const forts = Array.isArray(lastAudit.points_forts) ? lastAudit.points_forts.slice(0, 2) : [];
@@ -433,6 +423,16 @@ export default function BrandingPage() {
                   Coaching offres
                 </Button>
               </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-5 mt-8">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-mono-ui text-[12px] font-semibold text-foreground">
+                  Mon branding est complet à {completion.total}%
+                </span>
+              </div>
+              <Progress value={completion.total} className="h-2.5 mb-2" />
+              <p className="text-[12px] text-muted-foreground">{globalMessage}</p>
             </div>
           </>
         )}
