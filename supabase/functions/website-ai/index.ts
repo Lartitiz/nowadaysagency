@@ -32,7 +32,7 @@ serve(async (req) => {
 
     const { action, ...params } = await req.json();
     const ctx = await getUserContext(supabase, user.id);
-    const context = formatContextForAI(ctx, CONTEXT_PRESETS.website);
+    const context = formatContextForAI(ctx, CONTEXT_PRESETS.website) + "\nPRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.\n";
 
     let systemPrompt = "";
     let userPrompt = "";

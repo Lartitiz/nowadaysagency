@@ -126,6 +126,7 @@ RÈGLES :
 - Le contenu adapté doit faire la même longueur que l'original
 - L'inspiration doit être évidente mais le contenu ne doit PAS être un copié-collé reformulé
 - Si le contenu source est en anglais, la version adaptée est en français
+- PRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.
 
 Réponds UNIQUEMENT en JSON valide :
 {

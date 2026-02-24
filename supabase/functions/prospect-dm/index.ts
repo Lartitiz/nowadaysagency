@@ -106,6 +106,8 @@ ${interactions_summary || "Aucune interaction précédente."}
 TYPE DE MESSAGE : ${approach_type}
 ${approachDescriptions[approach_type] || ""}
 
+PRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.
+
 RÈGLES SPÉCIFIQUES DM INSTAGRAM :
 - Maximum 4-5 phrases (un DM Instagram, pas un email)
 - Le message doit FAIRE SUITE NATURELLEMENT à la conversation si fournie

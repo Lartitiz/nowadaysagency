@@ -74,6 +74,7 @@ serve(async (req) => {
       if (voiceData.banned_expressions?.length) vl.push(`- Expressions interdites (NE JAMAIS UTILISER) : ${(voiceData.banned_expressions as string[]).join(", ")}`);
       if (voiceData.voice_summary) vl.push(`- Style résumé : ${voiceData.voice_summary}`);
       vl.push("UTILISE ce profil de voix pour TOUT le contenu généré.");
+      vl.push("PRIORITÉ VOIX : reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.");
       voiceBlock = "\n" + vl.join("\n") + "\n";
     }
 
