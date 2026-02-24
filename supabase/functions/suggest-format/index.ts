@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -59,7 +59,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
   "reason": "Une phrase expliquant pourquoi ce format est adapté."
 }`;
 
-    const text = await callAnthropicSimple(getDefaultModel(), "", prompt, 0.7, 400);
+    const text = await callAnthropicSimple(getModelForAction("suggestion"), "", prompt, 0.7, 400);
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("Invalid AI response");
