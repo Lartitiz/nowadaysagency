@@ -461,19 +461,28 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
               )}
             </div>
 
-            {/* Values as tags : centered */}
-            {brand?.voice_description && (
-              <div className="text-center">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Mes valeurs</p>
-                <div className="flex flex-wrap justify-center gap-2.5">
-                  {parseStringList(brand.voice_description).map((v, i) => (
-                    <span key={i} className="text-sm font-medium px-4 py-2 rounded-full bg-rose-pale text-foreground border border-primary/10">
-                      {v}
-                    </span>
-                  ))}
+            {/* Values as tags : use tone_keywords (short tags) instead of voice_description (long paragraphs) */}
+            {(brand?.tone_keywords || brand?.values) && (() => {
+              const rawValues = brand.tone_keywords || brand.values;
+              const valuesList = Array.isArray(rawValues)
+                ? rawValues.filter(Boolean).map(String)
+                : typeof rawValues === "string"
+                  ? rawValues.split(/[,;\n]/).map((s: string) => s.trim()).filter(Boolean)
+                  : [];
+              if (valuesList.length === 0) return null;
+              return (
+                <div className="text-center">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Mes valeurs</p>
+                  <div className="flex flex-wrap justify-center gap-2.5">
+                    {valuesList.slice(0, 8).map((v: string, i: number) => (
+                      <span key={i} className="text-sm font-medium px-4 py-2 rounded-full bg-rose-pale text-foreground border border-primary/10">
+                        {v}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         ) : (
           <EmptySection message="Tu n'as pas encore défini ton positionnement." linkLabel="Définir mon positionnement →" link="/branding/proposition" />
