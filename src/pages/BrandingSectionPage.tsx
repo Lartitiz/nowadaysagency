@@ -9,7 +9,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ClipboardList, MessageSquare, Sparkles, History, FileText } from "lucide-react";
+import { ClipboardList, MessageSquare, Sparkles, History, FileText, ArrowLeft } from "lucide-react";
 import SynthesisRenderer from "@/components/branding/SynthesisRenderer";
 import EditableField from "@/components/branding/EditableField";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
@@ -311,6 +311,14 @@ export default function BrandingSectionPage() {
       <AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel={config.title} />
+
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Retour
+        </button>
 
         <div className="flex items-center gap-3 mb-2">
           <span className="text-2xl">{config.emoji}</span>
