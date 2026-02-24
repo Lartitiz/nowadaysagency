@@ -23,6 +23,8 @@ interface SynthesisData {
   brandingAudit: any;
   completion: number;
   completionDetail: any;
+  userName: string | null;
+  userActivity: string | null;
 }
 
 /* ── Helpers ── */
@@ -228,16 +230,27 @@ function EmptySection({ message, linkLabel, link }: { message: string; linkLabel
   );
 }
 
-/* ── Section separator ── */
-function SectionSep() {
-  return <div className="border-t border-border my-8" />;
+/* ── Section separator with label ── */
+function SectionSep({ emoji, title }: { emoji?: string; title?: string }) {
+  if (emoji && title) {
+    return (
+      <div className="flex items-center gap-3 my-8">
+        <div className="flex-1 border-t border-[#ffa7c6]/30" />
+        <span className="font-mono-ui text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 shrink-0">
+          {emoji} {title}
+        </span>
+        <div className="flex-1 border-t border-[#ffa7c6]/30" />
+      </div>
+    );
+  }
+  return <div className="border-t border-[#ffa7c6]/30 my-8" />;
 }
 
-/* ── Level 2 section card (Cible, Ton, Offres) ── */
+/* ── Level 2 section card with PDF break avoidance ── */
 function SectionCard({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm p-5 sm:p-6 space-y-6">
-      <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2 uppercase tracking-wide">
+    <div className="rounded-xl border border-border bg-card shadow-sm p-5 sm:p-6 space-y-6" style={{ pageBreakInside: "avoid" }}>
+      <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2">
         <span>{emoji}</span> {title}
       </h3>
       {children}
@@ -245,11 +258,11 @@ function SectionCard({ emoji, title, children }: { emoji: string; title: string;
   );
 }
 
-/* ── Level 3 section (no card, just separator) ── */
+/* ── Level 3 section ── */
 function SectionLight({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-3">
-      <h3 className="font-display text-sm font-bold text-muted-foreground flex items-center gap-2 uppercase tracking-wide">
+    <div className="space-y-3" style={{ pageBreakInside: "avoid" }}>
+      <h3 className="font-display text-sm font-bold text-muted-foreground flex items-center gap-2">
         <span>{emoji}</span> {title}
       </h3>
       {children}
@@ -286,7 +299,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
     setLoading(true);
     const uid = user.id;
 
-    const [brandRes, personaRes, storyRes, propRes, stratRes, offersRes, configRes, auditRes, brandingRaw] = await Promise.all([
+    const [brandRes, personaRes, storyRes, propRes, stratRes, offersRes, configRes, auditRes, brandingRaw, profileRes] = await Promise.all([
       supabase.from("brand_profile").select("*").eq("user_id", uid).maybeSingle(),
       supabase.from("persona").select("*").eq("user_id", uid).maybeSingle(),
       supabase.from("storytelling").select("*").eq("user_id", uid).eq("is_primary", true).maybeSingle(),
@@ -296,6 +309,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
       supabase.from("user_plan_config").select("*").eq("user_id", uid).maybeSingle(),
       supabase.from("branding_audits").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       fetchBrandingData(uid),
+      supabase.from("profiles").select("first_name, activity").eq("id", uid).maybeSingle(),
     ]);
 
     const completion = calculateBrandingCompletion(brandingRaw);
@@ -312,6 +326,8 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
       brandingAudit: auditRes.data,
       completion: completion.total,
       completionDetail: completion,
+      userName: (profileRes.data as any)?.first_name || null,
+      userActivity: (profileRes.data as any)?.activity || null,
     });
     setLoading(false);
   };
@@ -373,7 +389,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
   }
 
   if (!data) return null;
-  const { brand, persona, storytelling, proposition, strategy, offers, channels, planConfig, brandingAudit, completion, completionDetail } = data;
+  const { brand, persona, storytelling, proposition, strategy, offers, channels, planConfig, brandingAudit, completion, completionDetail, userName, userActivity } = data;
   const today = new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 
   const portrait = safeParseJson(persona?.portrait);
@@ -416,31 +432,36 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
       </div>
 
       {/* Sheet content */}
-      <div ref={sheetRef} className="bg-card border border-border rounded-2xl p-4 sm:p-8 md:p-10 space-y-0 max-w-full overflow-hidden" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>
+      <div ref={sheetRef} className="bg-card border border-border rounded-2xl space-y-0 max-w-full overflow-hidden" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>
 
-        {/* ═══ HEADER ═══ */}
-        <div className="mb-8">
-          <h2 className="font-display text-xl sm:text-2xl font-bold text-foreground">✨ Ma stratégie de communication</h2>
-          <p className="text-xs text-muted-foreground mt-1">Dernière mise à jour : {today}</p>
+        {/* ═══ HEADER — Brand book style ═══ */}
+        <div className="p-6 sm:p-8 md:p-10 rounded-t-2xl" style={{ background: "linear-gradient(180deg, #FFF4F8 0%, #ffffff 100%)" }}>
+          {userName && (
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground">{userName}</h2>
+          )}
+          {userActivity && (
+            <p className="font-body text-sm text-muted-foreground mt-1">{userActivity}</p>
+          )}
+          <p className="font-display text-base sm:text-lg font-bold text-foreground mt-3">✨ Ma stratégie de communication</p>
+          <p className="font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Généré le {today}</p>
 
-          <div className="mt-4 space-y-2">
+          <div className="mt-5 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-foreground">Ta stratégie est complète à {completion}%</span>
+              <span className="font-body text-sm font-medium text-foreground">Complétude : {completion}%</span>
             </div>
             <Progress value={completion} className="h-3" />
             {missingParts.length > 0 && (
-              <p className="text-xs text-muted-foreground">
+              <p className="font-body text-xs text-muted-foreground">
                 Il te manque : {missingParts.join(", ")}.
               </p>
             )}
           </div>
         </div>
 
+        <div className="p-4 sm:p-8 md:p-10 pt-0 sm:pt-0 md:pt-0 space-y-0">
+
         {/* ═══ LEVEL 1 — POSITIONNEMENT (hero card) ═══ */}
-        <SectionSep />
-        <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2 uppercase tracking-wide mb-4">
-          <span>🎯</span> Mon positionnement
-        </h3>
+        <SectionSep emoji="🎯" title="Mon positionnement" />
 
         {proposition?.version_final || proposition?.version_one_liner || brand?.mission ? (
           <div className="space-y-4">
@@ -483,7 +504,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
         )}
 
         {/* ═══ LEVEL 2 — MA CIBLE (card) ═══ */}
-        <SectionSep />
+        <SectionSep emoji="👤" title="Ma cible" />
 
         {portrait ? (
           <SectionCard emoji="👤" title="Ma cible">
@@ -571,7 +592,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
         )}
 
         {/* ═══ LEVEL 2 — MON TON (card) ═══ */}
-        <SectionSep />
+        <SectionSep emoji="🗣️" title="Mon ton & mes combats" />
 
         {brand && (brand.tone_register || brand.tone_style || brand.combat_cause) ? (
           <SectionCard emoji="🗣️" title="Mon ton">
@@ -614,7 +635,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
         )}
 
         {/* ═══ LEVEL 3 — MON HISTOIRE (light) ═══ */}
-        <SectionSep />
+        <SectionSep emoji="📖" title="Mon histoire" />
 
         {storytelling ? (
           <SectionLight emoji="📖" title="Mon histoire">
@@ -646,15 +667,12 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
         )}
 
         {/* ═══ LEVEL 2 — MES OFFRES (card) ═══ */}
-        <SectionSep />
-        <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2 uppercase tracking-wide mb-4">
-          <span>🎁</span> Mes offres
-        </h3>
+        <SectionSep emoji="🎁" title="Mes offres" />
 
         {offers.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {offers.map((o) => (
-              <div key={o.id} className="rounded-xl border border-border bg-card shadow-sm p-4 space-y-1.5">
+              <div key={o.id} className="rounded-xl border border-border bg-card shadow-sm p-4 space-y-1.5" style={{ pageBreakInside: "avoid" }}>
                 <div className="flex items-center gap-2">
                   <span>🎁</span>
                   <span className="font-semibold text-sm text-foreground break-words">{o.name || "Sans nom"}</span>
@@ -678,7 +696,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
         )}
 
         {/* ═══ LEVEL 3 — MA LIGNE ÉDITORIALE (light) ═══ */}
-        <SectionSep />
+        <SectionSep emoji="📝" title="Ma ligne éditoriale" />
 
         {strategy ? (
           <SectionLight emoji="📝" title="Ma ligne éditoriale">
@@ -741,7 +759,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
         )}
 
         {/* ═══ LEVEL 3 — MES CANAUX (light) ═══ */}
-        <SectionSep />
+        <SectionSep emoji="📱" title="Mes canaux" />
         <SectionLight emoji="📱" title="Mes canaux">
           <div className="flex flex-wrap gap-2">
             {allChannels.map((ch) => {
@@ -774,7 +792,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
         </SectionLight>
 
         {/* ═══ LEVEL 3 — MON DERNIER AUDIT (light) ═══ */}
-        <SectionSep />
+        <SectionSep emoji="🔍" title="Mon dernier audit" />
 
         {brandingAudit ? (
           <SectionLight emoji="🔍" title="Mon dernier audit">
@@ -840,7 +858,8 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             <Pencil className="h-3.5 w-3.5" /> Modifier le branding
           </Button>
         </div>
-      </div>
+        </div>{/* end inner padding wrapper */}
+      </div>{/* end sheetRef */}
     </div>
   );
 }
