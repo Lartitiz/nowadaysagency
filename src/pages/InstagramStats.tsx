@@ -24,59 +24,10 @@ import AiGeneratedMention from "@/components/AiGeneratedMention";
 import ExcelImportDialog from "@/components/stats/ExcelImportDialog";
 import * as XLSX from "xlsx";
 
-/* ═══════════════════════════════════════════════
-   HELPERS
-   ═══════════════════════════════════════════════ */
-
-const MONTHS_FR = [
-  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
-];
-
-function monthKey(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-}
-
-function monthLabel(dateStr: string) {
-  const d = new Date(dateStr);
-  return `${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`;
-}
-
-function monthLabelShort(dateStr: string) {
-  const d = new Date(dateStr);
-  return `${MONTHS_FR[d.getMonth()].slice(0, 3)}. ${d.getFullYear()}`;
-}
-
-function pctChange(cur: number | null, prev: number | null): { val: number; dir: "up" | "down" | "flat" } | null {
-  if (cur == null || prev == null || prev === 0) return null;
-  const val = ((cur - prev) / prev) * 100;
-  return { val, dir: val > 5 ? "up" : val < -5 ? "down" : "flat" };
-}
-
-function fmt(n: number | null | undefined): string {
-  if (n == null) return "–";
-  return n.toLocaleString("fr-FR");
-}
-
-function fmtPct(n: number | null | undefined): string {
-  if (n == null) return "–";
-  return `${n.toFixed(1)}%`;
-}
-
-function fmtEur(n: number | null | undefined): string {
-  if (n == null) return "–";
-  return `${Math.round(n).toLocaleString("fr-FR")}€`;
-}
-
-function safeDivPct(num: number | null, den: number | null): number | null {
-  if (num == null || den == null || den === 0) return null;
-  return (num / den) * 100;
-}
-
-function safeDiv(num: number | null, den: number | null): number | null {
-  if (num == null || den == null || den === 0) return null;
-  return num / den;
-}
+import {
+  MONTHS_FR, monthKey, monthLabel, monthLabelShort,
+  pctChange, fmt, fmtPct, fmtEur, safeDivPct, safeDiv,
+} from "@/lib/stats-helpers";
 
 type StatsRow = Record<string, any>;
 
