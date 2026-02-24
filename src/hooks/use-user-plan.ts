@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useDemoContext } from "@/contexts/DemoContext";
 
-type Plan = "free" | "outil" | "studio" | "now_pilot";
+type Plan = "free" | "outil" | "pro" | "studio" | "now_pilot";
 
 type Feature =
   | "branding" | "persona" | "audit_basic" | "generation_limited" | "community_read"
@@ -32,6 +32,11 @@ const STUDIO_FEATURES: Feature[] = [
 const NOW_PILOT_FEATURES: Feature[] = [
   ...OUTIL_FEATURES,
   "coaching", "whatsapp", "assistant_chat", "direct_channel", "binome",
+];
+
+const PRO_FEATURES: Feature[] = [
+  ...OUTIL_FEATURES,
+  "coaching", "studio_space", "direct_channel", "binome",
 ];
 
 export type AiCategory = "content" | "audit" | "dm_comment" | "bio_profile" | "suggestion" | "import" | "adaptation";
@@ -108,6 +113,7 @@ export function useUserPlan(): UserPlanState {
       switch (p) {
         case "now_pilot": return NOW_PILOT_FEATURES.includes(feature);
         case "studio": return STUDIO_FEATURES.includes(feature);
+        case "pro": return PRO_FEATURES.includes(feature);
         case "outil": return OUTIL_FEATURES.includes(feature);
         default: return FREE_FEATURES.includes(feature);
       }
