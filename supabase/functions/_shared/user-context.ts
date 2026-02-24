@@ -14,6 +14,7 @@ export interface ContextOptions {
   includeProfile?: boolean;
   includeEditorial?: boolean;
   includeAudit?: boolean;
+  includeVoice?: boolean;
 }
 
 // Default: include everything except detailed offer data and audit
@@ -25,6 +26,7 @@ const DEFAULT_OPTIONS: ContextOptions = {
   includeProfile: true,
   includeEditorial: true,
   includeAudit: false,
+  includeVoice: true,
 };
 
 /**
@@ -37,7 +39,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
 
   const [
     stRes, perRes, toneRes, propRes, stratRes, editoRes,
-    profileRes, offersRes, auditRes,
+    profileRes, offersRes, auditRes, voiceRes,
   ] = await Promise.all([
     supabase.from("storytelling").select("step_7_polished").eq(col, val).eq("is_primary", true).maybeSingle(),
     supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches, portrait_prenom, portrait").eq(col, val).maybeSingle(),
@@ -49,6 +51,8 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
     supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, mission, offre, croyances_limitantes, verbatims, expressions_cles, ce_quon_evite, style_communication, validated_bio, instagram_display_name, instagram_username, instagram_bio, instagram_followers, instagram_frequency, differentiation_text, bio_cta_type, bio_cta_text").eq("user_id", userId).maybeSingle(),
     supabase.from("offers").select("*").eq(col, val).order("created_at", { ascending: true }),
     supabase.from("instagram_audit").select("score_global, score_bio, score_feed, score_edito, score_stories, score_epingles, resume, combo_gagnant").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    // voice_profile always uses user_id (personal voice, not workspace-scoped)
+    supabase.from("voice_profile").select("voice_summary, signature_expressions, banned_expressions, tone_patterns, structure_patterns, formatting_habits, sample_texts").eq("user_id", userId).maybeSingle(),
   ]);
 
   return {
@@ -61,6 +65,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
     profile: profileRes.data,
     offers: offersRes.data || [],
     audit: auditRes.data,
+    voice: voiceRes.data,
   };
 }
 
