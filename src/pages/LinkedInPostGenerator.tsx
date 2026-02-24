@@ -24,9 +24,9 @@ const TEMPLATES = [
 ];
 
 const AUDIENCES = [
-  { id: "solopreneuses", emoji: "🎨", label: "Solopreneuses / Créatrices", desc: 'Ton "tu", intime-expert' },
-  { id: "structures", emoji: "🏛️", label: "Structures (coops, assos)", desc: 'Ton "vous", expert-crédible' },
-  { id: "mixte", emoji: "🌐", label: "Les deux", desc: "Ton mixte" },
+  { id: "tu", emoji: "🙋", label: 'Tutoiement ("tu")', desc: "Direct, intime, chaleureux" },
+  { id: "vous", emoji: "🤝", label: 'Vouvoiement ("vous")', desc: "Pro, crédible, respectueux" },
+  { id: "mixte", emoji: "🌐", label: "Ton mixte", desc: "Adapté selon le contexte" },
 ];
 
 interface PostResult {
@@ -45,7 +45,7 @@ export default function LinkedInPostGenerator() {
   const { toast } = useToast();
   const workspaceId = useWorkspaceId();
   const [template, setTemplate] = useState<string | null>(null);
-  const [audience, setAudience] = useState("solopreneuses");
+  const [audience, setAudience] = useState("tu");
   const [sujet, setSujet] = useState("");
   const [anecdote, setAnecdote] = useState("");
   const [emotion, setEmotion] = useState("");

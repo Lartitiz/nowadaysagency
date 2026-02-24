@@ -506,7 +506,7 @@ function Step5({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
       </div>
       <div>
         <label className="text-sm font-semibold text-foreground mb-1 block">Ta cliente idéale pour cette offre :</label>
-        <Textarea value={formData.target_ideal} onChange={(e) => update("target_ideal", e.target.value)} placeholder="Solopreneuse créative dans la mode éthique, artisanat, bien-être..." rows={3} />
+        <Textarea value={formData.target_ideal} onChange={(e) => update("target_ideal", e.target.value)} placeholder="Décris ta cliente idéale : son activité, son univers, ce qu'elle recherche..." rows={3} />
       </div>
       <div>
         <label className="text-sm font-semibold text-foreground mb-1 block">Pour qui c'est PAS fait :</label>
