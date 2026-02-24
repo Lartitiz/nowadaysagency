@@ -100,3 +100,13 @@ export function calculateBrandingCompletion(data: BrandingRawData): BrandingComp
 
   return { storytelling, persona, proposition, tone, strategy, total };
 }
+
+/**
+ * Legacy helper used by BrandingPrompt and SiteAccueil.
+ * Returns a simple percent + toneComplete flag.
+ */
+export async function getBrandingCompletion(userId: string): Promise<{ percent: number; toneComplete: boolean }> {
+  const data = await fetchBrandingData(userId);
+  const completion = calculateBrandingCompletion(data);
+  return { percent: completion.total, toneComplete: completion.tone > 50 };
+}
