@@ -9,6 +9,7 @@ import { useUserPlan } from "@/hooks/use-user-plan";
 import { Progress } from "@/components/ui/progress";
 import NotificationBell from "@/components/NotificationBell";
 import AiCreditsCounter from "@/components/AiCreditsCounter";
+import { useSession } from "@/contexts/SessionContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,6 +52,12 @@ function getMobileNav(isPilot: boolean) {
 }
 
 export default function AppHeader() {
+  const { isActive: sessionActive } = useSession();
+  if (sessionActive) return null;
+  return <AppHeaderInner />;
+}
+
+function AppHeaderInner() {
   const { activeWorkspace, workspaces, isMultiWorkspace, switchWorkspace } = useWorkspace();
   const { user, signOut } = useAuth();
   const location = useLocation();

@@ -11,6 +11,8 @@ import { DemoProvider } from "@/contexts/DemoContext";
 import DemoBanner from "@/components/demo/DemoBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import SelectionMenuProvider from "@/components/SelectionMenuProvider";
+import { SessionProvider } from "@/contexts/SessionContext";
+import SessionOverlay from "@/components/session/SessionOverlay";
 import AssistantButton from "./components/assistant/AssistantButton";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -142,6 +144,7 @@ function AnimatedRoutes() {
   return (
     <>
       {showAppWidgets && <DemoBanner />}
+      <SessionOverlay />
       {showAppWidgets && <AssistantButton />}
       <AnimatePresence mode="popLayout">
         <motion.div
@@ -288,9 +291,11 @@ const App = () => {
         <DemoProvider>
           <AuthProvider>
             <WorkspaceProvider>
+            <SessionProvider>
             <SelectionMenuProvider>
             <AnimatedRoutes />
             </SelectionMenuProvider>
+            </SessionProvider>
             </WorkspaceProvider>
           </AuthProvider>
         </DemoProvider>
