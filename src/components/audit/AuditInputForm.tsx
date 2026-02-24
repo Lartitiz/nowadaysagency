@@ -12,6 +12,8 @@ export interface AuditFormData {
   bio: string;
   bioLink: string;
   photoDescription: string;
+  profilePhotoFile: File | null;
+  profilePhotoUrl: string | null;
   highlights: string;
   highlightsCount: string;
   hasPinned: boolean | null;
@@ -35,7 +37,7 @@ export interface AuditFormData {
 }
 
 interface AuditInputFormProps {
-  initial?: Partial<AuditFormData>;
+  initial?: Partial<AuditFormData> & { profilePhotoUrl?: string | null };
   onSubmit: (data: AuditFormData) => void;
   loading: boolean;
   isRedo?: boolean;
@@ -93,6 +95,8 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
     bio: initial?.bio || "",
     bioLink: initial?.bioLink || "",
     photoDescription: initial?.photoDescription || "",
+    profilePhotoFile: null,
+    profilePhotoUrl: initial?.profilePhotoUrl || null,
     highlights: initial?.highlights || "",
     highlightsCount: initial?.highlightsCount || "",
     hasPinned: initial?.hasPinned ?? null,
@@ -114,6 +118,7 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
   });
 
   const profileRef = useRef<HTMLInputElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
   const feedRef = useRef<HTMLInputElement>(null);
   const hlRef = useRef<HTMLInputElement>(null);
 
@@ -182,11 +187,34 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
       {/* ── Photo de profil ── */}
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">📸 TA PHOTO DE PROFIL</h3>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Décris-la en 1 phrase :</label>
-          <Input value={form.photoDescription} onChange={(e) => set("photoDescription", e.target.value)} placeholder="Photo souriante, fond rose, cheveux détachés" />
+        <div className="flex items-start gap-4">
+          <div 
+            className="relative w-20 h-20 rounded-full border-2 border-dashed border-border bg-muted/20 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden shrink-0"
+            onClick={() => photoRef.current?.click()}
+          >
+            {form.profilePhotoFile ? (
+              <img src={URL.createObjectURL(form.profilePhotoFile)} alt="Photo de profil" className="w-full h-full object-cover" />
+            ) : form.profilePhotoUrl ? (
+              <img src={form.profilePhotoUrl} alt="Photo de profil" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-2xl">📷</span>
+            )}
+          </div>
+          <input 
+            ref={photoRef} 
+            type="file" 
+            accept="image/*" 
+            className="hidden" 
+            onChange={(e) => {
+              if (e.target.files?.[0]) set("profilePhotoFile", e.target.files[0]);
+            }} 
+          />
+          <div className="flex-1 space-y-2">
+            <p className="text-xs text-muted-foreground">Clique sur le cercle pour uploader ta photo de profil Instagram.</p>
+            <label className="text-xs text-muted-foreground mb-1 block">OU décris-la en 1 phrase :</label>
+            <Input value={form.photoDescription} onChange={(e) => set("photoDescription", e.target.value)} placeholder="Photo souriante, fond rose, cheveux détachés" />
+          </div>
         </div>
-        <p className="text-xs text-muted-foreground italic">OU uploade un screenshot ci-dessous avec les autres.</p>
       </section>
 
       {/* ── Stories à la une ── */}
