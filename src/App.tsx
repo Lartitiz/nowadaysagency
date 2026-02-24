@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,100 +10,116 @@ import { DemoProvider } from "@/contexts/DemoContext";
 import DemoBanner from "@/components/demo/DemoBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import SelectionMenuProvider from "@/components/SelectionMenuProvider";
+import AssistantButton from "./components/assistant/AssistantButton";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
-import ResetPassword from "./pages/ResetPassword";
-import Onboarding from "./pages/Onboarding";
-import WelcomePage from "./pages/WelcomePage";
-import Dashboard from "./pages/Dashboard";
-import IdeasPage from "./pages/IdeasPage";
-import Profile from "./pages/Profile";
-import SettingsPage from "./pages/SettingsPage";
-import Calendar from "./pages/Calendar";
-import CommPlanPage from "./pages/CommPlanPage";
-import PlanPage from "./pages/PlanPage";
-import BrandingPage from "./pages/BrandingPage";
-import TonStylePage from "./pages/TonStylePage";
-import TonStyleRecapPage from "./pages/TonStyleRecapPage";
-import StorytellingPage from "./pages/StorytellingPage";
-import StorytellingRecapPage from "./pages/StorytellingRecapPage";
-import StorytellingListPage from "./pages/StorytellingListPage";
-import StorytellingImportPage from "./pages/StorytellingImportPage";
-import StorytellingEditPage from "./pages/StorytellingEditPage";
-import InstagramHub from "./pages/InstagramHub";
-import InstagramProfile from "./pages/InstagramProfile";
-import InstagramAudit from "./pages/InstagramAudit";
-import InstagramBio from "./pages/InstagramBio";
-import InstagramHighlights from "./pages/InstagramHighlights";
-import InstagramProfileNom from "./pages/InstagramProfileNom";
-import InstagramProfileEpingles from "./pages/InstagramProfileEpingles";
-import InstagramProfileFeed from "./pages/InstagramProfileFeed";
-import InstagramProfileEdito from "./pages/InstagramProfileEdito";
-import InstagramInspirer from "./pages/InstagramInspirer";
-import InstagramLaunch from "./pages/InstagramLaunch";
-import InstagramLaunchPlan from "./pages/InstagramLaunchPlan";
-import InstagramLaunchRecommendation from "./pages/InstagramLaunchRecommendation";
-import InstagramRythme from "./pages/InstagramRythme";
-import InstagramEngagement from "./pages/InstagramEngagement";
-import InstagramStats from "./pages/InstagramStats";
-import InstagramStories from "./pages/InstagramStories";
-import InstagramReels from "./pages/InstagramReels";
-import InstagramCreer from "./pages/InstagramCreer";
-import InstagramCarousel from "./pages/InstagramCarousel";
-import AtelierPage from "./pages/AtelierPage";
-import RedactionPage from "./pages/RedactionPage";
-import PersonaPage from "./pages/PersonaPage";
-import PersonaRecapPage from "./pages/PersonaRecapPage";
-import PropositionPage from "./pages/PropositionPage";
-import PropositionRecapPage from "./pages/PropositionRecapPage";
-import StrategiePage from "./pages/StrategiePage";
-import StrategieRecapPage from "./pages/StrategieRecapPage";
-import OffersPage from "./pages/OffersPage";
-import ConnectionCheckPage from "./pages/ConnectionCheckPage";
-import OfferWorkshopPage from "./pages/OfferWorkshopPage";
-import LinkedInHub from "./pages/LinkedInHub";
-import LinkedInAudit from "./pages/LinkedInAudit";
-import LinkedInProfil from "./pages/LinkedInProfil";
-import LinkedInResume from "./pages/LinkedInResume";
-import LinkedInParcours from "./pages/LinkedInParcours";
-import LinkedInRecommandations from "./pages/LinkedInRecommandations";
-import LinkedInEngagement from "./pages/LinkedInEngagement";
-import PinterestHub from "./pages/PinterestHub";
-import PinterestCompte from "./pages/PinterestCompte";
-import PinterestTableaux from "./pages/PinterestTableaux";
-import PinterestMotsCles from "./pages/PinterestMotsCles";
-import PinterestEpingles from "./pages/PinterestEpingles";
-import PinterestRoutine from "./pages/PinterestRoutine";
-import SiteHub from "./pages/SiteHub";
-import SiteAccueil from "./pages/SiteAccueil";
-import SiteAccueilRecap from "./pages/SiteAccueilRecap";
-import SiteAPropos from "./pages/SiteAPropos";
-import SiteTestimonials from "./pages/SiteTestimonials";
-import SiteCapturePage from "./pages/SiteCapturePage";
-import LegalAiPage from "./pages/LegalAiPage";
-import PaymentSuccessPage from "./pages/PaymentSuccessPage";
-import PricingPage from "./pages/PricingPage";
-import NowStudioSalesPage from "./pages/NowStudioSalesPage";
-import ServicesPage from "./pages/ServicesPage";
-import StudioDashboard from "./pages/StudioDashboard";
-import LivesPage from "./pages/LivesPage";
-import CommunautePage from "./pages/CommunautePage";
-import ContactsPage from "./pages/ContactsPage";
-import ProtectedRoute from "./components/ProtectedRoute";
-import BrandingAuditPage from "./pages/BrandingAuditPage";
-import BrandingAuditResultPage from "./pages/BrandingAuditResultPage";
-import AbonnementPage from "./pages/AbonnementPage";
-import AccompagnementPage from "./pages/AccompagnementPage";
-import AdminCoachingPage from "./pages/AdminCoachingPage";
-import AdminAuditPage from "./pages/AdminAuditPage";
-import NowPilotPage from "./pages/NowPilotPage";
 import NotFound from "./pages/NotFound";
-import AssistantButton from "./components/assistant/AssistantButton";
-import BrandingCoachingPage from "./pages/BrandingCoachingPage";
-import BrandingSectionPage from "./pages/BrandingSectionPage";
-import IntakePage from "./pages/IntakePage";
+import ProtectedRoute from "./components/ProtectedRoute";
+
+// Lazy-loaded pages
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const WelcomePage = lazy(() => import("./pages/WelcomePage"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const IdeasPage = lazy(() => import("./pages/IdeasPage"));
+const Profile = lazy(() => import("./pages/Profile"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const Calendar = lazy(() => import("./pages/Calendar"));
+const CommPlanPage = lazy(() => import("./pages/CommPlanPage"));
+const PlanPage = lazy(() => import("./pages/PlanPage"));
+const BrandingPage = lazy(() => import("./pages/BrandingPage"));
+const TonStylePage = lazy(() => import("./pages/TonStylePage"));
+const TonStyleRecapPage = lazy(() => import("./pages/TonStyleRecapPage"));
+const StorytellingPage = lazy(() => import("./pages/StorytellingPage"));
+const StorytellingRecapPage = lazy(() => import("./pages/StorytellingRecapPage"));
+const StorytellingListPage = lazy(() => import("./pages/StorytellingListPage"));
+const StorytellingImportPage = lazy(() => import("./pages/StorytellingImportPage"));
+const StorytellingEditPage = lazy(() => import("./pages/StorytellingEditPage"));
+const InstagramHub = lazy(() => import("./pages/InstagramHub"));
+const InstagramProfile = lazy(() => import("./pages/InstagramProfile"));
+const InstagramAudit = lazy(() => import("./pages/InstagramAudit"));
+const InstagramBio = lazy(() => import("./pages/InstagramBio"));
+const InstagramHighlights = lazy(() => import("./pages/InstagramHighlights"));
+const InstagramProfileNom = lazy(() => import("./pages/InstagramProfileNom"));
+const InstagramProfileEpingles = lazy(() => import("./pages/InstagramProfileEpingles"));
+const InstagramProfileFeed = lazy(() => import("./pages/InstagramProfileFeed"));
+const InstagramProfileEdito = lazy(() => import("./pages/InstagramProfileEdito"));
+const InstagramInspirer = lazy(() => import("./pages/InstagramInspirer"));
+const InstagramLaunch = lazy(() => import("./pages/InstagramLaunch"));
+const InstagramLaunchPlan = lazy(() => import("./pages/InstagramLaunchPlan"));
+const InstagramLaunchRecommendation = lazy(() => import("./pages/InstagramLaunchRecommendation"));
+const InstagramRythme = lazy(() => import("./pages/InstagramRythme"));
+const InstagramEngagement = lazy(() => import("./pages/InstagramEngagement"));
+const InstagramStats = lazy(() => import("./pages/InstagramStats"));
+const InstagramStories = lazy(() => import("./pages/InstagramStories"));
+const InstagramReels = lazy(() => import("./pages/InstagramReels"));
+const InstagramCreer = lazy(() => import("./pages/InstagramCreer"));
+const InstagramCarousel = lazy(() => import("./pages/InstagramCarousel"));
+const AtelierPage = lazy(() => import("./pages/AtelierPage"));
+const RedactionPage = lazy(() => import("./pages/RedactionPage"));
+const PersonaPage = lazy(() => import("./pages/PersonaPage"));
+const PersonaRecapPage = lazy(() => import("./pages/PersonaRecapPage"));
+const PropositionPage = lazy(() => import("./pages/PropositionPage"));
+const PropositionRecapPage = lazy(() => import("./pages/PropositionRecapPage"));
+const StrategiePage = lazy(() => import("./pages/StrategiePage"));
+const StrategieRecapPage = lazy(() => import("./pages/StrategieRecapPage"));
+const OffersPage = lazy(() => import("./pages/OffersPage"));
+const ConnectionCheckPage = lazy(() => import("./pages/ConnectionCheckPage"));
+const OfferWorkshopPage = lazy(() => import("./pages/OfferWorkshopPage"));
+const LinkedInHub = lazy(() => import("./pages/LinkedInHub"));
+const LinkedInAudit = lazy(() => import("./pages/LinkedInAudit"));
+const LinkedInProfil = lazy(() => import("./pages/LinkedInProfil"));
+const LinkedInResume = lazy(() => import("./pages/LinkedInResume"));
+const LinkedInParcours = lazy(() => import("./pages/LinkedInParcours"));
+const LinkedInRecommandations = lazy(() => import("./pages/LinkedInRecommandations"));
+const LinkedInEngagement = lazy(() => import("./pages/LinkedInEngagement"));
+const PinterestHub = lazy(() => import("./pages/PinterestHub"));
+const PinterestCompte = lazy(() => import("./pages/PinterestCompte"));
+const PinterestTableaux = lazy(() => import("./pages/PinterestTableaux"));
+const PinterestMotsCles = lazy(() => import("./pages/PinterestMotsCles"));
+const PinterestEpingles = lazy(() => import("./pages/PinterestEpingles"));
+const PinterestRoutine = lazy(() => import("./pages/PinterestRoutine"));
+const SiteHub = lazy(() => import("./pages/SiteHub"));
+const SiteAccueil = lazy(() => import("./pages/SiteAccueil"));
+const SiteAccueilRecap = lazy(() => import("./pages/SiteAccueilRecap"));
+const SiteAPropos = lazy(() => import("./pages/SiteAPropos"));
+const SiteTestimonials = lazy(() => import("./pages/SiteTestimonials"));
+const SiteCapturePage = lazy(() => import("./pages/SiteCapturePage"));
+const LegalAiPage = lazy(() => import("./pages/LegalAiPage"));
+const PaymentSuccessPage = lazy(() => import("./pages/PaymentSuccessPage"));
+const PricingPage = lazy(() => import("./pages/PricingPage"));
+const NowStudioSalesPage = lazy(() => import("./pages/NowStudioSalesPage"));
+const ServicesPage = lazy(() => import("./pages/ServicesPage"));
+const StudioDashboard = lazy(() => import("./pages/StudioDashboard"));
+const LivesPage = lazy(() => import("./pages/LivesPage"));
+const CommunautePage = lazy(() => import("./pages/CommunautePage"));
+const ContactsPage = lazy(() => import("./pages/ContactsPage"));
+const BrandingAuditPage = lazy(() => import("./pages/BrandingAuditPage"));
+const BrandingAuditResultPage = lazy(() => import("./pages/BrandingAuditResultPage"));
+const AbonnementPage = lazy(() => import("./pages/AbonnementPage"));
+const AccompagnementPage = lazy(() => import("./pages/AccompagnementPage"));
+const AdminCoachingPage = lazy(() => import("./pages/AdminCoachingPage"));
+const AdminAuditPage = lazy(() => import("./pages/AdminAuditPage"));
+const NowPilotPage = lazy(() => import("./pages/NowPilotPage"));
+const BrandingCoachingPage = lazy(() => import("./pages/BrandingCoachingPage"));
+const BrandingSectionPage = lazy(() => import("./pages/BrandingSectionPage"));
+const IntakePage = lazy(() => import("./pages/IntakePage"));
+const LinkedInPostGenerator = lazy(() => import("./pages/LinkedInPostGenerator"));
+const LinkedInCommentStrategy = lazy(() => import("./pages/LinkedInCommentStrategy"));
+const LinkedInCrosspost = lazy(() => import("./pages/LinkedInCrosspost"));
+const InstagramInspiration = lazy(() => import("./pages/InstagramInspiration"));
 
 const queryClient = new QueryClient();
+
+const SuspenseFallback = () => (
+  <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="flex gap-1">
+      <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" />
+      <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} />
+      <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
+    </div>
+  </div>
+);
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -116,7 +132,8 @@ function AnimatedRoutes() {
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2, ease: "easeInOut" }}
       >
-        <Routes location={location}>
+        <Suspense fallback={<SuspenseFallback />}>
+          <Routes location={location}>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/connexion" element={<LoginPage />} />
@@ -227,7 +244,8 @@ function AnimatedRoutes() {
             <Route path="/instagram/calendrier" element={<Navigate to="/calendrier?canal=instagram" replace />} />
             <Route path="/instagram/atelier" element={<Navigate to="/atelier?canal=instagram" replace />} />
             <Route path="*" element={<NotFound />} />
-        </Routes>
+          </Routes>
+        </Suspense>
       </motion.div>
     </AnimatePresence>
   );
