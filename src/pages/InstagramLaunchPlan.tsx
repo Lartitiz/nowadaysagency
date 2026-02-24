@@ -11,6 +11,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -254,7 +255,8 @@ export default function InstagramLaunchPlan() {
       setCurrentStep(3);
       toast.success("Plan de lancement généré ! 🚀");
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de la génération");
+      console.error("Erreur technique:", e);
+      toast.error(friendlyError(e));
     } finally {
       setGenerating(false);
     }

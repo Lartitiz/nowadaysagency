@@ -6,6 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { Copy, FileText, Loader2, RefreshCw, Pencil } from "lucide-react";
 import EditableText from "@/components/EditableText";
 
@@ -122,7 +123,8 @@ export default function TonStyleRecapPage() {
       setData({ ...data, recap_summary: parsed });
       toast({ title: "Synthèse générée !" });
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     }
     setGenerating(false);
   };
@@ -142,7 +144,8 @@ export default function TonStyleRecapPage() {
       pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
       pdf.save("mon-ton-et-combats.pdf");
     } catch (e: any) {
-      toast({ title: "Erreur export", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur export", description: friendlyError(e), variant: "destructive" });
     }
     setExporting(false);
   };

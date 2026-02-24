@@ -9,6 +9,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Copy, Check, Loader2, RotateCcw, Search } from "lucide-react";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useNavigate } from "react-router-dom";
@@ -154,7 +155,8 @@ export default function LinkedInResume() {
         if (data) setProfileId(data.id);
       }
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setAnalyzing(false);
     }
@@ -174,7 +176,8 @@ export default function LinkedInResume() {
       if (parsed.storytelling) setSummaryStory(parsed.storytelling);
       if (parsed.pro) setSummaryPro(parsed.pro);
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setGenerating(false);
     }

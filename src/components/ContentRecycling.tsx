@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { friendlyError } from "@/lib/error-messages";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -65,7 +66,8 @@ export default function ContentRecycling() {
         });
       }
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     }
     setLoading(false);
   };

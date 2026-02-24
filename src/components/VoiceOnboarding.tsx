@@ -6,6 +6,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sparkles, Loader2, Check, Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 
 interface VoiceAnalysis {
   structure_patterns: string[];
@@ -60,7 +61,8 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
       setEditedSummary(data.voice_summary || "");
       setStep("review");
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     }
     setLoading(false);
   };
@@ -101,7 +103,8 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
       setStep("done");
       onComplete?.();
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     }
     setLoading(false);
   };

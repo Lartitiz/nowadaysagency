@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 
 interface InvitationData {
@@ -92,7 +93,7 @@ export default function InvitePage() {
       setTimeout(() => navigate("/dashboard"), 1500);
     } catch (e: any) {
       console.error("Accept invitation error:", e);
-      toast.error(e.message || "Erreur lors de l'acceptation");
+      toast.error(friendlyError(e));
       setStatus("valid");
     }
   };

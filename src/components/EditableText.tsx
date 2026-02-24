@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 
 interface EditableTextProps {
   value: string;
@@ -54,7 +55,8 @@ export default function EditableText({
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e: any) {
-      toast({ title: "Erreur de sauvegarde", description: e?.message || "Réessaie.", variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur de sauvegarde", description: friendlyError(e), variant: "destructive" });
       setDraft(value);
     }
     setSaving(false);

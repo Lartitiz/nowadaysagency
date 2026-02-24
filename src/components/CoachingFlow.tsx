@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Loader2, ArrowRight, ArrowLeft, Check, Lightbulb, X, Sparkles, RotateCcw, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 
 interface CoachingFlowProps {
   module: string;
@@ -70,7 +71,8 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
       setIntro(data.intro || conseil || "");
       setAnswers(new Array(data.questions?.length || 4).fill(""));
     } catch (e: any) {
-      toast.error(e.message || "Erreur de chargement");
+      console.error("Erreur technique:", e);
+      toast.error(friendlyError(e));
     } finally {
       setLoading(false);
     }
@@ -104,7 +106,8 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
       (data.proposals || []).forEach((p: Proposal) => { edited[p.field] = p.value; });
       setEditedProposals(edited);
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de l'analyse");
+      console.error("Erreur technique:", e);
+      toast.error(friendlyError(e));
       setPhase("questions");
     } finally {
       setLoading(false);
@@ -157,7 +160,8 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
       (data.proposals || []).forEach((p: Proposal) => { edited[p.field] = p.value; });
       setEditedProposals(edited);
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de l'ajustement");
+      console.error("Erreur technique:", e);
+      toast.error(friendlyError(e));
     } finally {
       setLoading(false);
     }
@@ -288,7 +292,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
       onComplete();
     } catch (e: any) {
       console.error("COACHING SAVE ERROR:", e);
-      toast.error(e.message || "Erreur de sauvegarde");
+      toast.error(friendlyError(e));
     } finally {
       setSaving(false);
     }

@@ -6,6 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { Loader2, Pencil, RefreshCw, Sparkles } from "lucide-react";
 import EditableText from "@/components/EditableText";
 import CoachingFlow from "@/components/CoachingFlow";
@@ -140,7 +141,8 @@ export default function PersonaRecapPage() {
       setCustomName(parsed.prenom);
       setData({ ...data, portrait: parsed, portrait_prenom: parsed.prenom });
     } catch (e: any) {
-      toast({ title: "Erreur IA", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
     }
     setGenerating(false);
   };

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, CheckCircle2, AlertTriangle, XCircle, Info, ChevronDown, ChevronUp, ArrowLeft } from "lucide-react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -407,7 +408,8 @@ export default function AdminAuditPage() {
       setFixedItems(prev => new Set(prev).add(`${result.category}-${idx}`));
       toast.success(`Corrigé : ${result.title}`);
     } catch (e: any) {
-      toast.error(`Erreur : ${e.message}`);
+      console.error("Erreur technique:", e);
+      toast.error(friendlyError(e));
     }
   };
 

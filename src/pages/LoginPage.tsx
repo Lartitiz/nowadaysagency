@@ -6,6 +6,7 @@ import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 
 export default function LoginPage() {
   const { user, loading: authLoading } = useAuth();
@@ -86,7 +87,8 @@ export default function LoginPage() {
       setForgotSent(true);
       toast({ title: "C'est envoyé !", description: "Vérifie ta boîte mail pour réinitialiser ton mot de passe." });
     } catch (error: any) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      console.error("Erreur technique:", error);
+      toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
     } finally {
       setLoading(false);
     }

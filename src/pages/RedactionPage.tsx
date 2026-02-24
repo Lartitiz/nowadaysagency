@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { ArrowLeft, Sparkles, Copy, Check, CalendarDays, Save } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getGuide, getInstagramFormatReco } from "@/lib/production-guides";
@@ -109,7 +110,8 @@ export default function RedactionPage() {
       if (res.error) throw new Error(res.error.message);
       setStructure(res.data?.content || "");
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setLoadingStructure(false);
     }
@@ -139,7 +141,8 @@ export default function RedactionPage() {
       }
       setAccroches(parsed);
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setLoadingAccroches(false);
     }
@@ -168,7 +171,8 @@ export default function RedactionPage() {
       setDraft(content);
       setEditedContent(content);
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setLoadingDraft(false);
     }

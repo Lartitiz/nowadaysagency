@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { RefreshCw, Copy, Check, CalendarDays, Sparkles, Loader2 } from "lucide-react";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import BaseReminder from "@/components/BaseReminder";
@@ -69,7 +70,8 @@ export default function LinkedInCrosspost() {
       }
       setResult(parsed);
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setGenerating(false);
     }

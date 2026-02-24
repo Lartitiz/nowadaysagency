@@ -6,6 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { HelpCircle, ArrowRight, Info } from "lucide-react";
 import SaveButton from "@/components/SaveButton";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
@@ -252,7 +253,8 @@ export default function Profile() {
       setSaved({ ...current });
       toast({ title: "✅ Modifications enregistrées" });
     } catch (error: any) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      console.error("Erreur technique:", error);
+      toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
     } finally {
       setSaving(false);
     }

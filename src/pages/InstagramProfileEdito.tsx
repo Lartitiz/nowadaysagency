@@ -9,6 +9,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Save, Loader2, Sparkles, Mic, MicOff, Plus, X } from "lucide-react";
 import AuditInsight from "@/components/AuditInsight";
@@ -353,7 +354,8 @@ export default function InstagramProfileEdito() {
       }
       toast({ title: "Ligne éditoriale sauvegardée !" });
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -384,7 +386,8 @@ export default function InstagramProfileEdito() {
         setEditorial((prev) => ({ ...prev, pillars: parsed.pillars }));
       }
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setSuggestingPillars(false);
     }
@@ -415,7 +418,8 @@ export default function InstagramProfileEdito() {
         setEditorial((prev) => ({ ...prev, preferred_formats: parsed.formats }));
       }
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setSuggestingFormats(false);
     }
@@ -451,7 +455,8 @@ export default function InstagramProfileEdito() {
       // Store parsed recommendations for "Apply" button
       if (parsed.posts_frequency) (window as any).__rhythmSuggestion = parsed;
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setSuggestingRhythm(false);
     }

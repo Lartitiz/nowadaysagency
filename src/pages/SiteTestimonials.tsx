@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Copy, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 
 const TESTIMONIAL_MESSAGE = `Hello [prénom] ! J'aimerais beaucoup avoir ton retour sur notre collaboration. Ça m'aiderait énormément.
 Si tu as 5 minutes, voici 4 questions :
@@ -49,7 +50,8 @@ export default function SiteTestimonials() {
       const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       setResult(JSON.parse(cleaned));
     } catch (e: any) {
-      toast.error(e.message || "Erreur IA");
+      console.error("Erreur technique:", e);
+      toast.error(friendlyError(e));
     } finally {
       setLoading(false);
     }

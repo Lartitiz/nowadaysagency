@@ -10,6 +10,7 @@ import ContentRecycling from "@/components/ContentRecycling";
 import ContentWorkshop from "@/components/ContentWorkshop";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { useActiveChannels } from "@/hooks/use-active-channels";
 
 interface FormatOption {
@@ -79,7 +80,8 @@ export default function InstagramCreer() {
       if (res.error) throw new Error(res.error.message);
       setSuggestion(res.data);
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setSuggesting(false);
     }

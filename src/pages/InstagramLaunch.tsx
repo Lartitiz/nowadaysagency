@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Copy, Sparkles } from "lucide-react";
+import { friendlyError } from "@/lib/error-messages";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -204,7 +205,8 @@ export default function InstagramLaunch() {
       }
       setLaunchIdeas(parsed);
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de la génération");
+      console.error("Erreur technique:", e);
+      toast.error(friendlyError(e));
     } finally {
       setGeneratingIdeas(false);
     }

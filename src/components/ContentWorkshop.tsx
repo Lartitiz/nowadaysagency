@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 import { Copy, RefreshCw, Bookmark, PenLine, Lightbulb, CalendarDays, Instagram, Target, Sparkles } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -139,7 +140,8 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
         .insert({ user_id: user.id, format: "ideas", sujet: sujet || "(idées variées)", contenu: content });
       onIdeaGenerated();
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setGenerating(false);
     }
@@ -165,7 +167,8 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
       const lines = (res.data?.content || "").split("\n").filter((l: string) => l.trim());
       setSuggestions(lines.slice(0, 5));
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setLoadingSuggestions(false);
     }

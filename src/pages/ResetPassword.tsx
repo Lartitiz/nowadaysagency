@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { friendlyError } from "@/lib/error-messages";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -31,7 +32,8 @@ export default function ResetPassword() {
       toast({ title: "Mot de passe mis à jour !", description: "Tu peux maintenant te connecter." });
       navigate("/dashboard");
     } catch (error: any) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      console.error("Erreur technique:", error);
+      toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
     } finally {
       setLoading(false);
     }

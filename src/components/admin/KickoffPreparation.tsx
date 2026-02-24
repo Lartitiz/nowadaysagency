@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { friendlyError } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,7 +72,7 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
       client_user_id: clientUserId, coach_user_id: coachUserId, start_date: startDate, end_date: endDateStr,
       whatsapp_link: whatsapp || "https://wa.me/33614133921", formula: "now_pilot", duration_months: 6, price_monthly: 250, total_focus_sessions: focusSessions.length,
     } as any).select().single() as any);
-    if (error) { toast.error("Erreur : " + error.message); setCreating(false); return; }
+    if (error) { console.error("Erreur technique:", error); toast.error(friendlyError(error)); setCreating(false); return; }
 
     const fixedSessionsToInsert = FIXED_SESSIONS.map((s, i) => ({
       program_id: prog.id, session_number: s.n, phase: s.phase, title: s.title, session_type: s.type,

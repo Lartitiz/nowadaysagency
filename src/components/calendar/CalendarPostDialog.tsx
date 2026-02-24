@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { friendlyError } from "@/lib/error-messages";
 import { format as formatDate } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -134,7 +135,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       }
       toast({ title: "Contenu généré !" });
     } catch (e: any) {
-      toast({ title: "Erreur de génération", description: e.message, variant: "destructive" });
+      console.error("Erreur technique:", e);
+      toast({ title: "Erreur de génération", description: friendlyError(e), variant: "destructive" });
     } finally {
       setIsGenerating(false);
     }
