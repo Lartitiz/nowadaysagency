@@ -14,6 +14,7 @@ import { DEMO_COACHING_DATA, type DemoCoachingQuestion } from "@/lib/demo-coachi
 import { COACHING_CHECKLISTS, COACHING_LABELS } from "@/lib/coaching-checklists";
 import Confetti from "@/components/Confetti";
 import { toast } from "sonner";
+import { MarkdownText } from "@/components/ui/markdown-text";
 
 type Section = "story" | "persona" | "value_proposition" | "tone_style" | "content_strategy" | "offers";
 
@@ -595,7 +596,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
 
           {finalSummary && (
             <div className="rounded-xl bg-muted/50 border border-border p-5 mb-6 text-left">
-              <p className="text-sm text-foreground leading-relaxed">{finalSummary}</p>
+              <MarkdownText content={finalSummary} className="text-sm text-foreground leading-relaxed" />
             </div>
           )}
 
@@ -706,9 +707,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
               transition={{ duration: 0.3 }}
               className="w-full"
             >
-              <p className="font-display text-lg md:text-xl font-bold text-foreground mb-6 leading-relaxed text-center">
-                {currentQuestion.question}
-              </p>
+              <MarkdownText content={currentQuestion.question} className="font-display text-lg md:text-xl font-bold text-foreground mb-6 leading-relaxed text-center" />
 
               {currentQuestion.question_type === "textarea" && (
                 <TextareaWithVoice
