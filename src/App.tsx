@@ -93,6 +93,7 @@ import BrandingAuditResultPage from "./pages/BrandingAuditResultPage";
 import AbonnementPage from "./pages/AbonnementPage";
 import AccompagnementPage from "./pages/AccompagnementPage";
 import AdminCoachingPage from "./pages/AdminCoachingPage";
+import AdminAuditPage from "./pages/AdminAuditPage";
 import NowPilotPage from "./pages/NowPilotPage";
 import NotFound from "./pages/NotFound";
 import AssistantButton from "./components/assistant/AssistantButton";
@@ -163,6 +164,7 @@ function AnimatedRoutes() {
             <Route path="/abonnement" element={<ProtectedRoute><AbonnementPage /></ProtectedRoute>} />
             <Route path="/accompagnement" element={<ProtectedRoute><AccompagnementPage /></ProtectedRoute>} />
             <Route path="/admin/coaching" element={<ProtectedRoute><AdminCoachingPage /></ProtectedRoute>} />
+            <Route path="/admin/audit" element={<ProtectedRoute><AdminAuditPage /></ProtectedRoute>} />
             <Route path="/now-pilot" element={<NowPilotPage />} />
             <Route path="/legal-ia" element={<ProtectedRoute><LegalAiPage /></ProtectedRoute>} />
             <Route path="/payment/success" element={<PaymentSuccessPage />} />
