@@ -4,29 +4,37 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw } from "lucide-react";
-import { format, parseISO } from "date-fns";
-import { fr } from "date-fns/locale";
+import { Badge } from "@/components/ui/badge";
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  RefreshCw, TrendingUp, TrendingDown, Users, Euro,
+  Activity, BarChart3, Sparkles, Target, Crown,
+} from "lucide-react";
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, Cell, PieChart, Pie,
 } from "recharts";
 
-const CATEGORY_LABELS: Record<string, string> = {
-  content: "Contenus",
-  audit: "Audits",
-  dm_comment: "DM & Commentaires",
-  bio_profile: "Bio & Profil",
-  suggestion: "Suggestions",
-  import: "Import",
-  adaptation: "Adaptations",
+/* ── Constants ── */
+
+const PLAN_LABELS: Record<string, string> = {
+  free: "Gratuit", outil: "Outil", studio: "Studio", now_pilot: "Now Pilot", pro: "Pro",
 };
 
-const PLAN_COLORS: Record<string, string> = {
-  free: "#9CA3AF",
-  outil: "#8B5CF6",
-  studio: "#F59E0B",
-  now_pilot: "#fb3d80",
+const PIE_COLORS = ["#fb3d80", "#8B5CF6", "#F59E0B", "#3B82F6", "#10B981", "#6366F1", "#EC4899"];
+
+const CANAL_LABELS: Record<string, string> = {
+  instagram: "Instagram", linkedin: "LinkedIn", pinterest: "Pinterest",
+  newsletter: "Newsletter", blog: "Blog", autre: "Autre",
 };
+
+const CATEGORY_LABELS: Record<string, string> = {
+  content: "Contenus", audit: "Audits", dm_comment: "DM & Commentaires",
+  bio_profile: "Bio & Profil", suggestion: "Suggestions", import: "Import", adaptation: "Adaptations",
+};
+
+const tooltipStyle = { borderRadius: 8, fontSize: 13, border: "1px solid hsl(var(--border))" };
+
+/* ── Types ── */
 
 interface StatsData {
   total_users: number;
@@ -40,13 +48,58 @@ interface StatsData {
   onboarding_rate: number;
   top_features: { category: string; count: number }[];
   signups_by_week: { week: string; count: number }[];
+  // Comparisons
+  new_prev_month: number;
+  active_prev_month: number;
+  ai_total_prev_month: number;
+  // Business
+  mrr: number;
+  churn_rate: number;
+  churned_this_month: number;
+  conversion_rate: number;
+  paid_users: number;
+  revenue_by_plan: Record<string, number>;
+  // Engagement
+  active_week: number;
+  active_month: number;
+  retention_rate: number;
+  retained_users: number;
+  ai_by_day: { date: string; count: number }[];
+  total_tokens: number;
+  power_users: { user_id: string; prenom: string; plan: string; count: number }[];
+  // Content
+  drafts_this_month: number;
+  calendar_posts_this_month: number;
+  avg_content_score: number;
+  drafts_by_canal: Record<string, number>;
+  calendar_by_canal: Record<string, number>;
+  // Branding
+  score_distribution: Record<string, number>;
+  // Demographics
+  activity_types: Record<string, number>;
+  levels: Record<string, number>;
+  channel_popularity: Record<string, number>;
+  ai_by_action_type: Record<string, number>;
 }
+
+type Section = "overview" | "business" | "engagement" | "product" | "demographics";
+
+const sections: { key: Section; label: string; icon: React.ComponentType<any> }[] = [
+  { key: "overview", label: "Vue globale", icon: BarChart3 },
+  { key: "business", label: "Business", icon: Euro },
+  { key: "engagement", label: "Engagement", icon: Activity },
+  { key: "product", label: "Produit", icon: Sparkles },
+  { key: "demographics", label: "Profil utilisatrices", icon: Target },
+];
+
+/* ── Main component ── */
 
 export default function AdminStatsTab() {
   const { session } = useAuth();
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [section, setSection] = useState<Section>("overview");
 
   const fetchStats = useCallback(async () => {
     if (!session?.access_token) return;
@@ -57,19 +110,13 @@ export default function AdminStatsTab() {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: null,
       });
-      console.log("Stats response:", res);
       if (res.error) {
-        const msg = res.error?.message || JSON.stringify(res.error);
-        console.error("Stats error:", msg);
-        setError(msg);
+        setError(res.error?.message || JSON.stringify(res.error));
       } else if (res.data) {
-        console.log("Stats data:", res.data);
         setStats(res.data);
       }
     } catch (e: any) {
-      const msg = e?.message || JSON.stringify(e) || "Erreur inconnue";
-      console.error("Failed to load stats", msg, e);
-      setError(msg);
+      setError(e?.message || "Erreur inconnue");
     } finally {
       setLoading(false);
     }
@@ -99,145 +146,141 @@ export default function AdminStatsTab() {
           <Skeleton className="h-56 rounded-xl" />
           <Skeleton className="h-56 rounded-xl" />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Skeleton className="h-56 rounded-xl" />
-          <Skeleton className="h-56 rounded-xl" />
-        </div>
       </div>
     );
   }
 
-  const activeRate = stats.total_users > 0 ? Math.round((stats.active_this_month / stats.total_users) * 100) : 0;
-
-  const signupsData = stats.signups_by_week.map(s => ({
-    ...s,
-    label: format(parseISO(s.week), "d MMM", { locale: fr }),
-  }));
-
-  const plansData = Object.entries(stats.plans)
-    .filter(([, v]) => v > 0)
-    .map(([plan, count]) => ({ plan, count, label: plan === "now_pilot" ? "Now Pilot" : plan.charAt(0).toUpperCase() + plan.slice(1) }));
-
-  const maxFeature = Math.max(...stats.top_features.map(f => f.count), 1);
-
-  // SVG progress circle
-  const circleR = 52;
-  const circleC = 2 * Math.PI * circleR;
-  const circleDash = (stats.onboarding_rate / 100) * circleC;
-
   return (
     <div className="space-y-6">
-      {/* Refresh */}
-      <div className="flex justify-end">
-        <Button variant="ghost" size="sm" onClick={fetchStats} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-          Rafraîchir
-        </Button>
-      </div>
-
-      {/* Section 1 : KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard title="Inscrites" value={stats.total_users} sub={stats.new_this_month > 0 ? `+${stats.new_this_month} ce mois` : undefined} subColor="text-emerald-600" />
-        <KpiCard title="Actives ce mois" value={stats.active_this_month} sub={`${activeRate}% du total`} />
-        <KpiCard title="Générations IA" value={stats.ai_total_this_month} sub="ce mois" />
-        <div className="rounded-xl border bg-card p-5 flex flex-col gap-1.5">
-          <p className="text-xs text-muted-foreground">Score branding moyen</p>
-          <p className="text-2xl font-bold font-display">{stats.avg_branding_score}<span className="text-sm font-normal text-muted-foreground">/100</span></p>
-          <Progress value={stats.avg_branding_score} className="h-2 mt-1" />
+      {/* Navigation */}
+      <div className="flex flex-wrap items-center gap-2">
+        {sections.map(s => {
+          const Icon = s.icon;
+          return (
+            <Button
+              key={s.key}
+              variant={section === s.key ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setSection(s.key)}
+              className="gap-1.5"
+            >
+              <Icon className="w-4 h-4" />
+              {s.label}
+            </Button>
+          );
+        })}
+        <div className="ml-auto">
+          <Button variant="ghost" size="sm" onClick={fetchStats} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
+            Rafraîchir
+          </Button>
         </div>
       </div>
 
-      {/* Section 2 : Graphiques */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Signups chart */}
-        <div className="rounded-xl border bg-card p-5">
-          <h3 className="text-sm font-semibold mb-4">Inscriptions par semaine</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={signupsData}>
-              <defs>
-                <linearGradient id="signupFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#fb3d80" stopOpacity={0.15} />
-                  <stop offset="100%" stopColor="#fb3d80" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={24} />
-              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 13, border: "1px solid hsl(var(--border))" }} />
-              <Area type="monotone" dataKey="count" stroke="#fb3d80" strokeWidth={2} fill="url(#signupFill)" name="Inscriptions" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+      {/* Sections */}
+      {section === "overview" && <OverviewSection stats={stats} />}
+      {section === "business" && <BusinessSection stats={stats} />}
+      {section === "engagement" && <EngagementSection stats={stats} />}
+      {section === "product" && <ProductSection stats={stats} />}
+      {section === "demographics" && <DemographicsSection stats={stats} />}
+    </div>
+  );
+}
 
-        {/* Plans chart */}
-        <div className="rounded-xl border bg-card p-5">
-          <h3 className="text-sm font-semibold mb-4">Répartition par plan</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={plansData} layout="vertical" barCategoryGap={8}>
-              <XAxis type="number" hide />
-              <YAxis dataKey="label" type="category" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} width={80} />
-              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 13, border: "1px solid hsl(var(--border))" }} />
-              <Bar dataKey="count" radius={[0, 6, 6, 0]} name="Utilisatrices" label={{ position: "right", fontSize: 12, fill: "hsl(var(--foreground))" }}>
-                {plansData.map((entry) => (
-                  <Cell key={entry.plan} fill={PLAN_COLORS[entry.plan] || "#9CA3AF"} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+/* ── Section placeholders ── */
+
+function OverviewSection({ stats }: { stats: StatsData }) {
+  return <p className="text-sm text-muted-foreground">Section overview</p>;
+}
+
+function BusinessSection({ stats }: { stats: StatsData }) {
+  return <p className="text-sm text-muted-foreground">Section business</p>;
+}
+
+function EngagementSection({ stats }: { stats: StatsData }) {
+  return <p className="text-sm text-muted-foreground">Section engagement</p>;
+}
+
+function ProductSection({ stats }: { stats: StatsData }) {
+  return <p className="text-sm text-muted-foreground">Section product</p>;
+}
+
+function DemographicsSection({ stats }: { stats: StatsData }) {
+  return <p className="text-sm text-muted-foreground">Section demographics</p>;
+}
+
+/* ── Shared utility components ── */
+
+function KpiCard({ title, value, suffix, sub, subColor, trend }: {
+  title: string;
+  value: number;
+  suffix?: string;
+  sub?: string;
+  subColor?: string;
+  trend?: number;
+}) {
+  return (
+    <div className="rounded-xl border bg-card p-5 flex flex-col gap-1">
+      <p className="text-xs text-muted-foreground">{title}</p>
+      <div className="flex items-baseline gap-1.5">
+        <p className="text-2xl font-bold font-display">{value.toLocaleString("fr")}{suffix && <span className="text-sm font-normal text-muted-foreground">{suffix}</span>}</p>
+        {trend !== undefined && trend !== 0 && (
+          <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${trend > 0 ? "text-emerald-600" : "text-red-500"}`}>
+            {trend > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+            {trend > 0 ? "+" : ""}{trend}
+          </span>
+        )}
       </div>
+      {sub && <p className={`text-xs ${subColor || "text-muted-foreground"}`}>{sub}</p>}
+    </div>
+  );
+}
 
-      {/* Section 3 : Détails */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top features */}
-        <div className="rounded-xl border bg-card p-5">
-          <h3 className="text-sm font-semibold mb-4">Top fonctionnalités</h3>
-          <div className="space-y-3">
-            {stats.top_features.slice(0, 7).map(f => (
-              <div key={f.category} className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span>{CATEGORY_LABELS[f.category] || f.category}</span>
-                  <span className="text-muted-foreground font-medium">{f.count}</span>
-                </div>
-                <Progress value={(f.count / maxFeature) * 100} className="h-1.5" />
-              </div>
-            ))}
-          </div>
-        </div>
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border bg-card p-5">
+      <h3 className="text-sm font-semibold mb-4">{title}</h3>
+      {children}
+    </div>
+  );
+}
 
-        {/* Onboarding */}
-        <div className="rounded-xl border bg-card p-5 flex flex-col items-center justify-center">
-          <h3 className="text-sm font-semibold mb-4 self-start">Onboarding</h3>
-          <div className="relative w-32 h-32 mb-3">
-            <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-              <circle cx="60" cy="60" r={circleR} fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
-              <circle
-                cx="60" cy="60" r={circleR}
-                fill="none"
-                stroke="#fb3d80"
-                strokeWidth="8"
-                strokeLinecap="round"
-                strokeDasharray={`${circleDash} ${circleC}`}
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-2xl font-bold">{stats.onboarding_rate}%</span>
-            </div>
-          </div>
-          <p className="text-sm text-muted-foreground text-center">
-            {stats.onboarding_completed} sur {stats.total_users} ont terminé l'onboarding
-          </p>
-        </div>
+function EmptyChart({ message }: { message: string }) {
+  return (
+    <div className="h-[200px] flex items-center justify-center">
+      <p className="text-sm text-muted-foreground">{message}</p>
+    </div>
+  );
+}
+
+function FunnelStep({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-sm">
+        <span>{label}</span>
+        <span className="text-muted-foreground font-medium">{value} <span className="text-xs">({pct}%)</span></span>
+      </div>
+      <div className="h-2 rounded-full bg-muted overflow-hidden">
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
     </div>
   );
 }
 
-function KpiCard({ title, value, sub, subColor }: { title: string; value: number; sub?: string; subColor?: string }) {
+function ProgressRing({ value }: { value: number }) {
+  const r = 52;
+  const c = 2 * Math.PI * r;
+  const dash = (Math.min(value, 100) / 100) * c;
   return (
-    <div className="rounded-xl border bg-card p-5 flex flex-col gap-1">
-      <p className="text-xs text-muted-foreground">{title}</p>
-      <p className="text-2xl font-bold font-display">{value}</p>
-      {sub && <p className={`text-xs ${subColor || "text-muted-foreground"}`}>{sub}</p>}
+    <div className="relative w-32 h-32">
+      <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+        <circle cx="60" cy="60" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
+        <circle cx="60" cy="60" r={r} fill="none" stroke="#fb3d80" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${dash} ${c}`} />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-2xl font-bold">{value}%</span>
+      </div>
     </div>
   );
 }
