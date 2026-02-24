@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,8 @@ const SORT_OPTIONS = [
 
 export default function IdeasPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -101,9 +104,9 @@ export default function IdeasPage() {
   const fetchIdeas = async () => {
     if (!user) return;
     const { data, error } = await supabase
-      .from("saved_ideas")
+      .from("saved_ideas" as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("created_at", { ascending: false });
     if (!error && data) setIdeas(data as unknown as SavedIdea[]);
     setLoading(false);
@@ -145,6 +148,7 @@ export default function IdeasPage() {
       .from("calendar_posts")
       .insert({
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         theme: idea.titre,
         angle: idea.angle,
         canal: idea.canal || "instagram",

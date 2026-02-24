@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,8 @@ import { Sparkles } from "lucide-react";
 export default function PinterestMotsCles() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [kwId, setKwId] = useState<string | null>(null);
   const [raw, setRaw] = useState("");
   const [generated, setGenerated] = useState<{ produit: string[]; besoin: string[]; inspiration: string[]; anglais: string[] } | null>(null);
@@ -20,7 +23,7 @@ export default function PinterestMotsCles() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("pinterest_keywords").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+    (supabase.from("pinterest_keywords") as any).select("*").eq(column, value).maybeSingle().then(({ data }: any) => {
       if (data) {
         setKwId(data.id);
         setRaw(data.keywords_raw || "");
@@ -48,7 +51,7 @@ export default function PinterestMotsCles() {
   const save = async () => {
     if (!user) return;
     const payload: any = {
-      user_id: user.id, keywords_raw: raw,
+      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, keywords_raw: raw,
       keywords_product: generated?.produit || [], keywords_need: generated?.besoin || [],
       keywords_inspiration: generated?.inspiration || [], keywords_english: generated?.anglais || [],
       checklist_titles: checklist.titles, checklist_board_desc: checklist.boardDesc,

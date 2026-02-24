@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import BrandingPrompt from "@/components/BrandingPrompt";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -48,6 +49,8 @@ function getGeneratorRoute(post: CalendarPost): string | null {
 
 export default function CalendarPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { toast } = useToast();
   const { isDemoMode } = useDemoContext();
   const isMobile = useIsMobile();
@@ -92,7 +95,7 @@ export default function CalendarPage() {
   // Fetch posts target from communication_plans
   useEffect(() => {
     if (!user) return;
-    supabase.from("communication_plans").select("instagram_posts_week").eq("user_id", user.id).maybeSingle()
+    (supabase.from("communication_plans") as any).select("instagram_posts_week").eq(column, value).maybeSingle()
       .then(({ data }) => { if ((data as any)?.instagram_posts_week) setPostsPerWeek((data as any).instagram_posts_week as number); });
   }, [user?.id]);
 
@@ -142,10 +145,10 @@ export default function CalendarPage() {
       startDate = toLocalDateStr(new Date(year, month, 1));
       endDate = toLocalDateStr(new Date(year, month + 1, 0));
     }
-    const { data } = await supabase
-      .from("calendar_posts")
+    const { data } = await (supabase
+      .from("calendar_posts") as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .gte("date", startDate)
       .lte("date", endDate)
       .order("date");
@@ -214,7 +217,7 @@ export default function CalendarPage() {
     if (editingPost) {
       await supabase.from("calendar_posts").update(payload).eq("id", editingPost.id);
     } else {
-      await supabase.from("calendar_posts").insert({ ...payload, user_id: user.id, date: selectedDate });
+      await supabase.from("calendar_posts").insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: selectedDate });
     }
     setDialogOpen(false);
     fetchPosts();
@@ -247,6 +250,7 @@ export default function CalendarPage() {
     // Create or restore idea in saved_ideas
     await supabase.from("saved_ideas").insert({
       user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       titre: editingPost.theme,
       format: editingPost.format || null,
       objectif: editingPost.objectif || null,
@@ -305,6 +309,7 @@ export default function CalendarPage() {
       if (!post) return;
       await supabase.from("saved_ideas").insert({
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         titre: post.theme,
         format: post.format || null,
         objectif: post.objectif || null,
@@ -327,6 +332,7 @@ export default function CalendarPage() {
       const idea = data.idea;
       const { data: newPost } = await supabase.from("calendar_posts").insert({
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         date: newDate,
         theme: idea.titre,
         status: "idea",

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -26,6 +27,8 @@ const CARDS = [
 
 export default function SiteHub() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [cms, setCms] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [homepageStep, setHomepageStep] = useState(0);
@@ -34,8 +37,8 @@ export default function SiteHub() {
     if (!user) return;
     const load = async () => {
       const [wpRes, hpRes] = await Promise.all([
-        supabase.from("website_profile").select("cms").eq("user_id", user.id).maybeSingle(),
-        supabase.from("website_homepage").select("current_step, completed").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("website_profile") as any).select("cms").eq(column, value).maybeSingle(),
+        (supabase.from("website_homepage") as any).select("current_step, completed").eq(column, value).maybeSingle(),
       ]);
       if (wpRes.data) setCms(wpRes.data.cms);
       if (hpRes.data) setHomepageStep(hpRes.data.completed ? 10 : (hpRes.data.current_step || 1));
@@ -47,7 +50,7 @@ export default function SiteHub() {
   const saveCms = async (value: string) => {
     if (!user) return;
     setCms(value);
-    const { error } = await supabase.from("website_profile").upsert({ user_id: user.id, cms: value }, { onConflict: "user_id" });
+    const { error } = await supabase.from("website_profile").upsert({ user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, cms: value } as any, { onConflict: "user_id" });
     if (error) toast.error("Erreur de sauvegarde");
   };
 

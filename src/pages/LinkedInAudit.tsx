@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -100,6 +101,8 @@ export default function LinkedInAudit() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
 
   const [step, setStep] = useState(0);
   const [analyzing, setAnalyzing] = useState(false);
@@ -139,9 +142,9 @@ export default function LinkedInAudit() {
     if (!user) return;
     const loadExisting = async () => {
       const { data: audits } = await supabase
-        .from("linkedin_audit")
+        .from("linkedin_audit" as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .order("created_at", { ascending: false })
         .limit(2);
 
@@ -239,6 +242,7 @@ export default function LinkedInAudit() {
       // Save to DB
       await supabase.from("linkedin_audit").insert({
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         profile_url: profileUrl || null,
         objective,
         current_rhythm: rhythm,

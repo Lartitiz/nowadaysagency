@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Copy, Pencil } from "lucide-react";
@@ -11,6 +12,7 @@ interface FaqItem { question: string; reponse: string }
 
 export default function SiteAccueilRecap() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const [data, setData] = useState<any>(null);
   const [cms, setCms] = useState("");
 
@@ -18,8 +20,8 @@ export default function SiteAccueilRecap() {
     if (!user) return;
     const load = async () => {
       const [hpRes, wpRes] = await Promise.all([
-        supabase.from("website_homepage").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("website_profile").select("cms").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("website_homepage") as any).select("*").eq(column, value).maybeSingle(),
+        (supabase.from("website_profile") as any).select("cms").eq(column, value).maybeSingle(),
       ]);
       if (hpRes.data) {
         const faq = Array.isArray(hpRes.data.faq) ? hpRes.data.faq : [];

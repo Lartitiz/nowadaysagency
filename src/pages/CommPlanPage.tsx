@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import PlanSetup from "@/components/plan/PlanSetup";
@@ -12,6 +13,8 @@ import { useDemoContext } from "@/contexts/DemoContext";
 
 export default function CommPlanPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { isDemoMode } = useDemoContext();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -67,9 +70,9 @@ export default function CommPlanPage() {
     if (!user?.id) return;
     (async () => {
       const { data } = await supabase
-        .from("user_plan_config")
+        .from("user_plan_config" as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle();
 
       if (data) {
@@ -94,6 +97,7 @@ export default function CommPlanPage() {
     try {
       const payload = {
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         weekly_time: cfg.weekly_time,
         channels: cfg.channels,
         main_goal: cfg.main_goal,
