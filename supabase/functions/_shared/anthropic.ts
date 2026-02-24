@@ -19,6 +19,45 @@ export interface AnthropicOptions {
   max_tokens?: number;
 }
 
+// Modèle par type d'action — Sonnet pour le contenu courant, Opus pour les tâches complexes
+const MODEL_MAP: Record<string, AnthropicModel> = {
+  // Opus : tâches complexes qui nécessitent un raisonnement profond
+  "audit": "claude-opus-4-6",
+  "coaching": "claude-opus-4-6",
+  "strategy": "claude-opus-4-6",
+  "branding_audit": "claude-opus-4-6",
+  "assistant_chat": "claude-opus-4-6",
+
+  // Sonnet : contenu courant, génération rapide
+  "content": "claude-sonnet-4-5-20250929",
+  "bio": "claude-sonnet-4-5-20250929",
+  "caption": "claude-sonnet-4-5-20250929",
+  "carousel": "claude-sonnet-4-5-20250929",
+  "reels": "claude-sonnet-4-5-20250929",
+  "stories": "claude-sonnet-4-5-20250929",
+  "dm_comment": "claude-sonnet-4-5-20250929",
+  "highlights": "claude-sonnet-4-5-20250929",
+  "linkedin_post": "claude-sonnet-4-5-20250929",
+  "pinterest": "claude-sonnet-4-5-20250929",
+  "website": "claude-sonnet-4-5-20250929",
+  "suggestion": "claude-sonnet-4-5-20250929",
+  "adaptation": "claude-sonnet-4-5-20250929",
+  "text_action": "claude-sonnet-4-5-20250929",
+  "niche": "claude-sonnet-4-5-20250929",
+  "persona": "claude-sonnet-4-5-20250929",
+  "proposition": "claude-sonnet-4-5-20250929",
+  "import": "claude-sonnet-4-5-20250929",
+  "storytelling": "claude-sonnet-4-5-20250929",
+  "launch": "claude-sonnet-4-5-20250929",
+  "offer": "claude-sonnet-4-5-20250929",
+  "scoring": "claude-sonnet-4-5-20250929",
+  "voice": "claude-sonnet-4-5-20250929",
+};
+
+export function getModelForAction(action: string): AnthropicModel {
+  return MODEL_MAP[action] || getDefaultModel();
+}
+
 const MAX_RETRIES = 2;
 const RETRY_DELAYS = [3000, 6000]; // ms
 
