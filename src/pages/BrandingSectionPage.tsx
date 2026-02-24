@@ -15,6 +15,7 @@ import EditableField from "@/components/branding/EditableField";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import BrandingRecapRenderer from "@/components/branding/BrandingRecapRenderer";
 import BrandingFicheCards from "@/components/branding/BrandingFicheCards";
+import StoryFicheCards from "@/components/branding/StoryFicheCards";
 import BrandingCoachingHistory from "@/components/branding/BrandingCoachingHistory";
 import BrandingSuggestionsCard from "@/components/branding/BrandingSuggestionsCard";
 import { useBrandingSuggestions } from "@/hooks/use-branding-suggestions";
@@ -378,11 +379,15 @@ export default function BrandingSectionPage() {
                 />
               </div>
             )}
-            <BrandingFicheCards
-              section={section}
-              fields={config.fields}
-              data={data}
-            />
+            {section === "story" ? (
+              <StoryFicheCards />
+            ) : (
+              <BrandingFicheCards
+                section={section}
+                fields={config.fields}
+                data={data}
+              />
+            )}
 
             {lastUpdated && (
               <p className="text-xs text-muted-foreground mt-4">
