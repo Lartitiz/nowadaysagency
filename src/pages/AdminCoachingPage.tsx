@@ -47,12 +47,12 @@ export default function AdminCoachingPage() {
     setSessions((allSessions || []) as SessionData[]);
     setPrograms(programList);
 
-    // Load workspaces where admin is manager but NOT linked to a coaching program
+    // Load workspaces where admin is manager OR owner (standalone spaces created as owner)
     const { data: managerWs } = await supabase
       .from("workspace_members")
-      .select("workspace_id, workspaces:workspace_id(id, name, slug, avatar_url, plan)")
+      .select("workspace_id, role, workspaces:workspace_id(id, name, slug, avatar_url, plan)")
       .eq("user_id", user.id)
-      .eq("role", "manager");
+      .in("role", ["manager", "owner"]);
 
     const coachingClientUserIds = new Set(programList.map(p => p.client_user_id));
 
@@ -71,7 +71,11 @@ export default function AdminCoachingPage() {
 
       const standalone = managerWsList.filter(ws => {
         const ownerId = ownerMap.get(ws.id);
-        return !ownerId || !coachingClientUserIds.has(ownerId);
+        // Exclure les workspaces de clientes coaching
+        if (ownerId && coachingClientUserIds.has(ownerId)) return false;
+        // Exclure le workspace personnel de l'admin
+        if (ownerId === user.id && ws.name === "Nowadays Agency") return false;
+        return true;
       });
       setStandaloneWorkspaces(standalone);
     } else {
