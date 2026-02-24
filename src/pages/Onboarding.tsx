@@ -478,12 +478,10 @@ export default function Onboarding() {
         );
       }
 
+      // Keep localStorage until diagnostic is complete (step 17+)
+      // so refresh during step 16 doesn't skip diagnostic
       localStorage.removeItem("lac_prenom");
       localStorage.removeItem("lac_activite");
-      localStorage.removeItem("lac_onboarding_step");
-      localStorage.removeItem("lac_onboarding_answers");
-      localStorage.removeItem("lac_onboarding_branding");
-      localStorage.removeItem("lac_onboarding_ts");
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     } finally {
@@ -523,6 +521,11 @@ export default function Onboarding() {
     } catch (e) {
       console.error("Failed to save diagnostic:", e);
     }
+    // Clean up onboarding localStorage now that diagnostic is done
+    localStorage.removeItem("lac_onboarding_step");
+    localStorage.removeItem("lac_onboarding_answers");
+    localStorage.removeItem("lac_onboarding_branding");
+    localStorage.removeItem("lac_onboarding_ts");
     navigate("/dashboard", { replace: true });
   };
 
