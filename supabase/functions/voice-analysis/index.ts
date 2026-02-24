@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAnthropicSimple } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -76,7 +76,7 @@ RÈGLES :
     }
 
     const rawContent = await callAnthropicSimple(
-      "claude-sonnet-4-5-20250929",
+      getDefaultModel(),
       systemPrompt,
       "Analyse ces textes et retourne le profil de voix."
     );

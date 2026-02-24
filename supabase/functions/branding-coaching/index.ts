@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { callAnthropic } from "../_shared/anthropic.ts";
+import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const SECTION_CHECKLISTS: Record<string, string[]> = {
@@ -170,7 +170,7 @@ serve(async (req) => {
     }
 
     const rawResponse = await callAnthropic({
-      model: "claude-sonnet-4-5-20250929",
+      model: getDefaultModel(),
       system: systemPrompt,
       messages: anthropicMessages,
       temperature: 0.7,

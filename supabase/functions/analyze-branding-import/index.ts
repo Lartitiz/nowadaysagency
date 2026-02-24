@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAnthropicSimple } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -154,7 +154,7 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après. Pas de mark
     const userPrompt = `Voici le document à analyser :\n\n${documentText}`;
 
     const raw = await callAnthropicSimple(
-      "claude-sonnet-4-5-20250929",
+      getDefaultModel(),
       systemPrompt,
       userPrompt,
       0.3,

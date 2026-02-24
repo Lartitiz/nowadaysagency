@@ -1,4 +1,4 @@
-import { callAnthropicSimple } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -138,7 +138,7 @@ RÈGLES :
 - JSON VALIDE uniquement, pas de commentaires`;
 
     const raw = await callAnthropicSimple(
-      "claude-sonnet-4-5-20250929",
+      getDefaultModel(),
       systemPrompt,
       userPrompt,
       0.8,
@@ -158,7 +158,7 @@ RÈGLES :
     }
 
     // Log usage
-    await logUsage(user.id, "content", "demo_generation", null, "claude-sonnet-4-5-20250929");
+    await logUsage(user.id, "content", "demo_generation", null, getDefaultModel());
 
     return new Response(
       JSON.stringify({ generated_data }),

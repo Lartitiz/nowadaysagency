@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic, AnthropicError } from "../_shared/anthropic.ts";
+import { callAnthropic, AnthropicError, getDefaultModel } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
@@ -86,7 +86,7 @@ serve(async (req) => {
     const sysMsg = messages.find((m: any) => m.role === "system");
     const userMsgs = messages.filter((m: any) => m.role !== "system");
     const content = await callAnthropic({
-      model: "claude-opus-4-6",
+      model: getDefaultModel(),
       system: sysMsg?.content,
       messages: userMsgs,
     });

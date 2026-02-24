@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAnthropicSimple } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -139,7 +139,7 @@ Retourne UNIQUEMENT un JSON :
   "intro": "Message d'intro court et personnalisé (2 phrases max)"
 }`;
 
-      const raw = await callAnthropicSimple("claude-sonnet-4-5-20250929", systemPrompt, "Génère les questions personnalisées.", 0.4, 2000);
+      const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Génère les questions personnalisées.", 0.4, 2000);
       
       let result;
       try {
@@ -221,7 +221,7 @@ Pour le module story, propose des éléments narratifs clés.
 Pour le module offers, propose nom, description, bénéfices pour chaque offre.
 Pour le module editorial, propose piliers de contenu.`;
 
-      const raw = await callAnthropicSimple("claude-sonnet-4-5-20250929", systemPrompt, "Génère ton diagnostic et tes propositions.", 0.5, 4000);
+      const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Génère ton diagnostic et tes propositions.", 0.5, 4000);
 
       let result;
       try {
@@ -311,7 +311,7 @@ Pour le module story, propose des éléments narratifs clés.
 Pour le module offers, propose nom, description, bénéfices.
 Pour le module editorial, propose piliers de contenu.`;
 
-      const raw = await callAnthropicSimple("claude-sonnet-4-5-20250929", systemPrompt, "Ajuste ta proposition en tenant compte du feedback.", 0.5, 4000);
+      const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Ajuste ta proposition en tenant compte du feedback.", 0.5, 4000);
 
       let result;
       try {

@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAnthropic } from "../_shared/anthropic.ts";
+import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -368,7 +368,7 @@ Deno.serve(async (req) => {
     messages.push({ role: "user", content: fullUserPrompt });
 
     const aiResponse = await callAnthropic({
-      model: "claude-sonnet-4-5-20250929",
+      model: getDefaultModel(),
       system: SYSTEM_PROMPT,
       messages,
       temperature: 0.7,

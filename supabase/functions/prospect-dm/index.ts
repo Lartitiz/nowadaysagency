@@ -3,7 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, ANTI_SLOP, ETHICAL_GUARDRAILS } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
@@ -127,7 +127,7 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
   "variant_b": "le second message, ton légèrement différent"
 }`;
 
-    const content = await callAnthropicSimple("claude-opus-4-6", "", prompt, 0.8);
+    const content = await callAnthropicSimple(getDefaultModel(), "", prompt, 0.8);
 
     // Clean AI response
     let cleaned = content.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
