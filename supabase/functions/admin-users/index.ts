@@ -188,7 +188,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     profilesRes, subsRes, aiRes, brandRes, personaRes, storyRes, propRes, stratRes,
     aiPrevRes, draftsRes, calendarRes, scoresRes, authUsersRes,
   ] = await Promise.all([
-    supabase.from("profiles").select("user_id, created_at, onboarding_completed, type_activite, canaux, level"),
+    supabase.from("profiles").select("user_id, email, created_at, onboarding_completed, type_activite, canaux, level"),
     supabase.from("subscriptions").select("user_id, plan, status, created_at, canceled_at, current_period_start, current_period_end, source"),
     supabase.from("ai_usage").select("user_id, category, created_at, action_type, tokens_used").gte("created_at", monthStart),
     supabase.from("brand_profile").select("user_id, " + BRAND_PROFILE_FIELDS.join(", ")),
@@ -212,14 +212,17 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   }
 
   const profiles = profilesRes.data || [];
-  const totalUsers = profiles.length;
-  const newThisMonth = profiles.filter((p: any) => p.created_at >= monthStart).length;
-  const onboardingCompleted = profiles.filter((p: any) => p.onboarding_completed).length;
+  const adminUserId = profiles.find((p: any) => p.email === ADMIN_EMAIL)?.user_id;
+  const clientProfiles = profiles.filter((p: any) => p.user_id !== adminUserId);
+
+  const totalUsers = clientProfiles.length;
+  const newThisMonth = clientProfiles.filter((p: any) => p.created_at >= monthStart).length;
+  const onboardingCompleted = clientProfiles.filter((p: any) => p.onboarding_completed).length;
 
   // Previous month comparisons
   const aiPrevData = aiPrevRes.data || [];
   const prevActiveUserIds = new Set(aiPrevData.map((a: any) => a.user_id));
-  const newPrevMonth = profiles.filter((p: any) => p.created_at >= prevMonthStart && p.created_at < prevMonthEnd).length;
+  const newPrevMonth = clientProfiles.filter((p: any) => p.created_at >= prevMonthStart && p.created_at < prevMonthEnd).length;
 
   // Plans & subscriptions
   const subs = subsRes.data || [];
@@ -234,8 +237,8 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   }
 
   // Séparer les vraies abonnées payantes des accès promo
-  const paidSubs = subs.filter((s: any) => s.source !== "promo");
-  const promoSubs = subs.filter((s: any) => s.source === "promo");
+  const paidSubs = subs.filter((s: any) => s.source !== "promo" && s.user_id !== adminUserId);
+  const promoSubs = subs.filter((s: any) => s.source === "promo" && s.user_id !== adminUserId);
 
   // Business metrics : seulement les abonnements payants (pas les promos)
   const activePaidSubs = paidSubs.filter((s: any) => (s.status === "active" || s.status === "trialing") && s.plan !== "free");
@@ -351,11 +354,11 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     }
   }
 
-  // Demographics
+  // Demographics (clients only)
   const activityTypes: Record<string, number> = {};
   const levels: Record<string, number> = {};
   const channelPopularity: Record<string, number> = {};
-  for (const p of profiles) {
+  for (const p of clientProfiles) {
     const at = p.type_activite || "non renseigné";
     activityTypes[at] = (activityTypes[at] || 0) + 1;
     const lv = p.level || "non renseigné";
@@ -375,7 +378,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
     const wStr = weekStart.toISOString().slice(0, 10);
-    const count = profiles.filter((p: any) => {
+    const count = clientProfiles.filter((p: any) => {
       const d = new Date(p.created_at);
       return d >= weekStart && d < weekEnd;
     }).length;
