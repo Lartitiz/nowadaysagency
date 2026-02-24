@@ -1636,6 +1636,7 @@ export type Database = {
           log_date: string
           streak_maintained: boolean | null
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -1645,6 +1646,7 @@ export type Database = {
           log_date: string
           streak_maintained?: boolean | null
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -1654,8 +1656,17 @@ export type Database = {
           log_date?: string
           streak_maintained?: boolean | null
           user_id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "engagement_checklist_logs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       engagement_comments: {
         Row: {
