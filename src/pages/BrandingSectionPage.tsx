@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -8,7 +8,8 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ClipboardList, MessageSquare, Sparkles, History } from "lucide-react";
+import { ClipboardList, MessageSquare, Sparkles, History, FileText } from "lucide-react";
+import SynthesisRenderer from "@/components/branding/SynthesisRenderer";
 import EditableField from "@/components/branding/EditableField";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import BrandingRecapRenderer from "@/components/branding/BrandingRecapRenderer";
@@ -224,6 +225,7 @@ export default function BrandingSectionPage() {
   const [loading, setLoading] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [lastCoachingUpdate, setLastCoachingUpdate] = useState<string | null>(null);
 
   useEffect(() => {
     if (!config) {
@@ -243,9 +245,9 @@ export default function BrandingSectionPage() {
 
     const load = async () => {
       const table = config.table;
-      const columns = config.fields.map(f => f.key).join(", ") + ", updated_at, id" + (table === "persona" ? ", portrait_prenom, quote, demographics, frustrations_detail, desires, objections, buying_triggers, persona_channels, brands, daily_life, motivations" : "");
+      // Fetch all columns for synthesis support
       let query = (supabase.from(table as any) as any)
-        .select(columns)
+        .select("*")
         .eq("user_id", user.id);
       
       // storytelling table uses is_primary flag
@@ -325,7 +327,19 @@ export default function BrandingSectionPage() {
           </span>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={(v) => {
+          setActiveTab(v);
+          // When switching to synthese tab, reload data from DB
+          if (v === "synthese" && !isDemoMode && user) {
+            const table = config.table;
+            const cols = "*";
+            let q = (supabase.from(table as any) as any).select(cols).eq("user_id", user.id);
+            if (table === "storytelling") q = q.eq("is_primary", true);
+            q.maybeSingle().then(({ data: row }: any) => {
+              if (row) { setData(row); setLastUpdated(row.updated_at || null); }
+            });
+          }
+        }} className="w-full">
           <TabsList className="w-full mb-6">
             <TabsTrigger value="fiche" className="flex-1 gap-2">
               <ClipboardList className="h-4 w-4" />
@@ -334,6 +348,10 @@ export default function BrandingSectionPage() {
             <TabsTrigger value="coaching" className="flex-1 gap-2">
               <MessageSquare className="h-4 w-4" />
               Coaching IA
+            </TabsTrigger>
+            <TabsTrigger value="synthese" className="flex-1 gap-2">
+              <FileText className="h-4 w-4" />
+              ✨ Synthèse
             </TabsTrigger>
           </TabsList>
 
@@ -400,11 +418,12 @@ export default function BrandingSectionPage() {
                 <BrandingCoachingFlow
                   section={section}
                   onComplete={() => {
+                    setLastCoachingUpdate(new Date().toISOString());
                     setActiveTab("fiche");
                     if (!isDemoMode && user) {
-                      const columns = config.fields.map(f => f.key).join(", ") + ", updated_at, id" + (config.table === "persona" ? ", portrait_prenom, quote, demographics, frustrations_detail, desires, objections, buying_triggers, persona_channels, brands, daily_life, motivations" : "");
+                      const cols = "*";
                       let query = (supabase.from(config.table as any) as any)
-                        .select(columns)
+                        .select(cols)
                         .eq("user_id", user.id);
                       if (config.table === "storytelling") {
                         query = query.eq("is_primary", true);
@@ -421,6 +440,17 @@ export default function BrandingSectionPage() {
                 />
               </div>
             )}
+          </TabsContent>
+
+          {/* SYNTHESE TAB */}
+          <TabsContent value="synthese">
+            <SynthesisRenderer
+              section={section}
+              data={data}
+              table={config.table}
+              lastCoachingUpdate={lastCoachingUpdate}
+              onSynthesisGenerated={() => setLastCoachingUpdate(null)}
+            />
           </TabsContent>
         </Tabs>
       </main>
