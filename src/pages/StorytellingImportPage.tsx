@@ -238,7 +238,7 @@ export default function StorytellingImportPage() {
                 </div>
               </div>
               <div>
-                <p className="font-mono-ui text-[12px] font-semibold text-primary mb-2">✨ Version améliorée</p>
+                <p className="font-mono-ui text-[12px] font-semibold text-primary-text mb-2">✨ Version améliorée</p>
                 <div className="rounded-xl border-2 border-primary bg-card p-4 text-[14px] leading-relaxed max-h-[400px] overflow-y-auto whitespace-pre-line">
                   {improvedText}
                 </div>

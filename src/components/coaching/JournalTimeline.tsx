@@ -202,7 +202,7 @@ function TimelineEntry({ entry, deliverables, status }: {
         {/* Laetitia note */}
         {!isUpcoming && entry.laetitia_note && (
           <div className="mt-3 rounded-xl bg-secondary/50 p-3">
-            <p className="text-xs font-semibold text-primary mb-1">💌 Mot de Laetitia :</p>
+            <p className="text-xs font-semibold text-primary-text mb-1">💌 Mot de Laetitia :</p>
             <p className="text-sm text-foreground italic whitespace-pre-line">{entry.laetitia_note}</p>
           </div>
         )}

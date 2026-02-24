@@ -80,7 +80,7 @@ export default function EditableText({
           {value || <span className="italic text-muted-foreground">{placeholder || "Cliquer pour modifier"}</span>}
         </span>
         {saved && (
-          <span className="ml-2 text-xs text-primary animate-fade-in">✓ Modifié</span>
+          <span className="ml-2 text-xs text-primary-text animate-fade-in">✓ Modifié</span>
         )}
       </span>
     );

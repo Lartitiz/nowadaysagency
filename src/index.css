@@ -22,7 +22,7 @@
     --secondary-foreground: 338 96% 61%;
 
     --muted: 330 40% 96%;
-    --muted-foreground: 268 14% 42%;
+    --muted-foreground: 266 15% 36%;
 
     --accent: 50 100% 69%;
     --accent-foreground: 270 25% 17%;
@@ -42,7 +42,7 @@
     --rose-soft: 330 100% 91%;
     --rose-medium: 338 100% 71%;
     --rose-pale: 340 100% 97%;
-    --placeholder: 275 30% 80%;
+    --placeholder: 270 10% 56%;
 
     /* ── Status colors ─────────────────────── */
     --success: 160 84% 39%;
@@ -56,6 +56,7 @@
     --primary-hover: 338 78% 53%;
     --primary-light: 338 100% 71%;
     --primary-soft: 338 100% 90%;
+    --primary-text: 338 55% 40%;
 
     /* ── Bento ─────────────────────────────── */
     --bento-dark: 330 100% 15%;
