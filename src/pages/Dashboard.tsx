@@ -30,6 +30,7 @@ import LaetitiaCoachingCard from "@/components/dashboard/LaetitiaCoachingCard";
 import DiscoveryCoachingCard from "@/components/dashboard/DiscoveryCoachingCard";
 import { checkBadges } from "@/lib/badges";
 import { trackError } from "@/lib/error-tracker";
+import OnboardingMissions from "@/components/dashboard/OnboardingMissions";
 
 /* ── Types ── */
 export interface UserProfile {
@@ -289,6 +290,8 @@ export default function Dashboard() {
             Ton espace coaching + outils de com'.
           </p>
         </div>
+
+        <OnboardingMissions prenom={profile.prenom} />
 
         {/* ═══════════════════════════════════════
            ROW 1 — Hero "Créer un contenu"
