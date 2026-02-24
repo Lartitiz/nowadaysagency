@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { getBrandingCompletion } from "@/lib/branding-context";
+import { getBrandingCompletion } from "@/lib/branding-completion";
 import { ArrowRight } from "lucide-react";
 
 interface Props {

@@ -134,7 +134,7 @@ export default function SiteAccueil() {
         setData({ ...EMPTY, ...hp, faq, plan_steps, storybrand_data } as any);
         setStep(hp.current_step || 1);
       }
-      const { getBrandingCompletion } = await import("@/lib/branding-context");
+      const { getBrandingCompletion } = await import("@/lib/branding-completion");
       const { percent } = await getBrandingCompletion(user.id);
       setBrandingPercent(percent);
       setLoading(false);
