@@ -13,6 +13,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import SelectionMenuProvider from "@/components/SelectionMenuProvider";
 import { SessionProvider } from "@/contexts/SessionContext";
 import SessionOverlay from "@/components/session/SessionOverlay";
+import AiDebugShortcut from "@/components/admin/AiDebugShortcut";
 import AssistantButton from "./components/assistant/AssistantButton";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -145,6 +146,7 @@ function AnimatedRoutes() {
     <>
       {showAppWidgets && <DemoBanner />}
       <SessionOverlay />
+      <AiDebugShortcut />
       {showAppWidgets && <AssistantButton />}
       <AnimatePresence mode="popLayout">
         <motion.div
