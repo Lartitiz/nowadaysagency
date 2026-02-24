@@ -71,7 +71,7 @@ serve(async (req) => {
       userPrompt = "Génère 2 versions de résumé LinkedIn.";
 
     } else if (action === "generate-post") {
-      const { template, audience, sujet, anecdote, emotion, conviction } = params;
+      const { template, audience, sujet, anecdote, emotion, conviction, hook_type } = params;
       const templateContent = (LINKEDIN_TEMPLATES as any)[template] || "";
       
       let personalBlock = "";
@@ -79,8 +79,26 @@ serve(async (req) => {
         personalBlock = `\nÉLÉMENTS PERSONNELS :\n${anecdote ? `- Anecdote : "${anecdote}"` : ""}\n${emotion ? `- Émotion visée : ${emotion}` : ""}\n${conviction ? `- Conviction : "${conviction}"` : ""}`;
       }
 
-      systemPrompt = `${LINKEDIN_PRINCIPLES}\n\n${context}\n\n${qualityBlocks}\n\nAUDIENCE : ${audience || "tu"}\n${audience === "vous" ? "Utilise le vouvoiement chaleureux et professionnel." : audience === "mixte" ? "Utilise un ton mixte, principalement tutoiement avec vouvoiement quand c'est plus pro." : "Utilise le tutoiement."}\n\n${templateContent}\n${personalBlock}\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks :\n{\n  "hook": "Les 210 premiers caractères",\n  "body": "Le corps complet avec sauts de ligne",\n  "cta": "La question ou invitation finale",\n  "full_text": "Le post complet prêt à copier",\n  "character_count": 1247,\n  "hashtags": [],\n  "template_used": "${template}",\n  "checklist": [\n    { "item": "Accroche dans les 210 car.", "ok": true },\n    { "item": "Paragraphes courts", "ok": true },\n    { "item": "Opinion visible", "ok": true },\n    { "item": "Exemple concret", "ok": true },\n    { "item": "0-2 emojis", "ok": true },\n    { "item": "0-2 hashtags", "ok": true },\n    { "item": "Pas de lien dans le corps", "ok": true },\n    { "item": "CTA question ouverte", "ok": true },\n    { "item": "Écriture inclusive", "ok": true },\n    { "item": "Pas de tiret cadratin", "ok": true }\n  ]\n}`;
+      let hookInstruction = "";
+      if (hook_type) {
+        const hookTypes: Record<string, string> = {
+          statistique: "Accroche avec un chiffre ou une statistique choc qui crée de la crédibilité instantanée et de la curiosité.",
+          contrariante: "Accroche qui challenge une croyance populaire et crée un besoin de résolution cognitive.",
+          story: "Accroche in medias res qui plonge directement dans une scène. Le cerveau veut connaître la suite.",
+          confession: "Accroche vulnérable qui crée la connexion et l'identification.",
+          frustration: "Accroche coup de gueule qui active l'identification ('moi aussi !') et la polarisation.",
+          question: "Accroche avec une question provocante qui enclenche le dialogue intérieur du·de la lecteur·ice.",
+          liste: "Accroche avec promesse de valeur concrète et scannable.",
+          avant_apres: "Accroche avec contraste frappant avant/après. La transformation est le récit le plus puissant.",
+          ennemi_commun: "Accroche qui crée une alliance avec le·la lecteur·ice contre un adversaire partagé.",
+          confirmation: "Accroche qui valide une intuition du·de la lecteur·ice et crée un sentiment de complicité.",
+        };
+        hookInstruction = `\nTYPE D'ACCROCHE DEMANDÉ : ${hookTypes[hook_type] || hook_type}\nUtilise CE type d'accroche pour les 210 premiers caractères.`;
+      }
+
+      systemPrompt = `${LINKEDIN_PRINCIPLES}\n\n${context}\n\n${qualityBlocks}\n\nAUDIENCE : ${audience || "tu"}\n${audience === "vous" ? "Utilise le vouvoiement chaleureux et professionnel." : audience === "mixte" ? "Utilise un ton mixte, principalement tutoiement avec vouvoiement quand c'est plus pro." : "Utilise le tutoiement."}\n\n${templateContent}\n${personalBlock}\n${hookInstruction}\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks :\n{\n  "hook": "Les 210 premiers caractères",\n  "body": "Le corps complet avec sauts de ligne",\n  "cta": "La question ou invitation finale",\n  "full_text": "Le post complet prêt à copier",\n  "character_count": 1247,\n  "hashtags": [],\n  "template_used": "${template}",\n  "hook_type_used": "${hook_type || "auto"}",\n  "checklist": [\n    { "item": "Accroche < 210 car.", "ok": true },\n    { "item": "Paragraphes courts (1-3 lignes)", "ok": true },\n    { "item": "Opinion/expertise visible", "ok": true },\n    { "item": "Exemple concret ou storytelling", "ok": true },\n    { "item": "0-2 emojis", "ok": true },\n    { "item": "3-5 hashtags de niche", "ok": true },\n    { "item": "Pas de lien dans le corps", "ok": true },\n    { "item": "CTA question ouverte", "ok": true },\n    { "item": "Écriture inclusive", "ok": true },\n    { "item": "Pas de tiret cadratin", "ok": true },\n    { "item": "1300-1900 caractères", "ok": true },\n    { "item": "Bucket brigades / rythme", "ok": true }\n  ]\n}`;
       userPrompt = `Rédige un post LinkedIn sur ce sujet : "${sujet || "sujet libre"}"`;
+
 
     } else if (action === "adapt-instagram") {
       const { postContent, audience } = params;
