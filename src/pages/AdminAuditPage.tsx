@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, CheckCircle2, AlertTriangle, XCircle, Info, ChevronDown, ChevronUp, ArrowLeft } from "lucide-react";
+import AiDebugPanel from "@/components/admin/AiDebugPanel";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Navigate, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
@@ -433,6 +435,18 @@ export default function AdminAuditPage() {
         >
           <ArrowLeft className="h-4 w-4" /> Retour
         </button>
+
+        {/* AI Diagnostic accordion */}
+        <Accordion type="single" collapsible className="mb-6">
+          <AccordionItem value="ai-debug" className="bg-card rounded-2xl border border-border px-6">
+            <AccordionTrigger className="font-heading text-sm font-bold">
+              🧪 Diagnostic IA
+            </AccordionTrigger>
+            <AccordionContent>
+              <AiDebugPanel />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
 
         {/* Header */}
         <div className="bg-card rounded-2xl border border-border p-6 mb-6">
