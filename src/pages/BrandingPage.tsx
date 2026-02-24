@@ -229,67 +229,7 @@ export default function BrandingPage() {
           />
         ) : (
           <>
-            {/* Last audit summary */}
-            {lastAudit && (() => {
-              const forts = Array.isArray(lastAudit.points_forts) ? lastAudit.points_forts.slice(0, 2) : [];
-              const faibles = Array.isArray(lastAudit.points_faibles)
-                ? [...lastAudit.points_faibles].sort((a: any, b: any) => {
-                    const pri: Record<string, number> = { haute: 0, moyenne: 1, basse: 2 };
-                    return (pri[a?.priorite] ?? 2) - (pri[b?.priorite] ?? 2);
-                  }).slice(0, 3)
-                : [];
-              const score = lastAudit.score_global ?? 0;
-              const color = score >= 75 ? "bg-green-500" : score >= 50 ? "bg-yellow-500" : "bg-red-500";
-              const dateStr = lastAudit.created_at
-                ? format(new Date(lastAudit.created_at), "d MMMM yyyy", { locale: fr })
-                : "";
-
-              return (
-                <div className="rounded-2xl border border-border bg-card p-5 mb-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-foreground">🔍 Mon dernier audit · {dateStr}</h3>
-                  </div>
-
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-muted-foreground">Score global</span>
-                      <span className="font-mono-ui text-xs font-semibold text-foreground">{score}/100</span>
-                    </div>
-                    <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
-                      <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${score}%` }} />
-                    </div>
-                  </div>
-
-                  {forts.length > 0 && (
-                    <div className="mb-2">
-                      <p className="text-xs font-semibold text-foreground mb-1">✅ Points forts</p>
-                      {forts.map((p: any, i: number) => (
-                        <p key={i} className="text-xs text-muted-foreground leading-relaxed">· {typeof p === "string" ? p : p?.titre || ""}</p>
-                      ))}
-                    </div>
-                  )}
-
-                  {faibles.length > 0 && (
-                    <div className="mb-3">
-                      <p className="text-xs font-semibold text-foreground mb-1">⚠️ À améliorer</p>
-                      {faibles.map((p: any, i: number) => (
-                        <p key={i} className="text-xs text-muted-foreground leading-relaxed">· {typeof p === "string" ? p : p?.titre || ""}</p>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="text-xs flex-1" onClick={() => navigate(`/branding/audit/${lastAudit.id}`)}>
-                      Voir l'audit complet →
-                    </Button>
-                    <Button size="sm" variant="ghost" className="text-xs gap-1" onClick={() => navigate("/branding/audit")}>
-                      <RefreshCw className="h-3 w-3" /> Refaire
-                    </Button>
-                  </div>
-                </div>
-              );
-            })()}
-
+            {/* Audit & Import links moved here, audit summary moved to bottom */}
             {/* Audit & Import links */}
             <div className="space-y-2 mb-4">
               {!lastAudit && (
@@ -434,6 +374,66 @@ export default function BrandingPage() {
               <Progress value={completion.total} className="h-2.5 mb-2" />
               <p className="text-[12px] text-muted-foreground">{globalMessage}</p>
             </div>
+
+            {lastAudit && (() => {
+              const forts = Array.isArray(lastAudit.points_forts) ? lastAudit.points_forts.slice(0, 2) : [];
+              const faibles = Array.isArray(lastAudit.points_faibles)
+                ? [...lastAudit.points_faibles].sort((a: any, b: any) => {
+                    const pri: Record<string, number> = { haute: 0, moyenne: 1, basse: 2 };
+                    return (pri[a?.priorite] ?? 2) - (pri[b?.priorite] ?? 2);
+                  }).slice(0, 3)
+                : [];
+              const score = lastAudit.score_global ?? 0;
+              const color = score >= 75 ? "bg-green-500" : score >= 50 ? "bg-yellow-500" : "bg-red-500";
+              const dateStr = lastAudit.created_at
+                ? format(new Date(lastAudit.created_at), "d MMMM yyyy", { locale: fr })
+                : "";
+
+              return (
+                <div className="rounded-2xl border border-border bg-card p-5 mt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-foreground">🔍 Mon dernier audit · {dateStr}</h3>
+                  </div>
+
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-muted-foreground">Score global</span>
+                      <span className="font-mono-ui text-xs font-semibold text-foreground">{score}/100</span>
+                    </div>
+                    <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${score}%` }} />
+                    </div>
+                  </div>
+
+                  {forts.length > 0 && (
+                    <div className="mb-2">
+                      <p className="text-xs font-semibold text-foreground mb-1">✅ Points forts</p>
+                      {forts.map((p: any, i: number) => (
+                        <p key={i} className="text-xs text-muted-foreground leading-relaxed">· {typeof p === "string" ? p : p?.titre || ""}</p>
+                      ))}
+                    </div>
+                  )}
+
+                  {faibles.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs font-semibold text-foreground mb-1">⚠️ À améliorer</p>
+                      {faibles.map((p: any, i: number) => (
+                        <p key={i} className="text-xs text-muted-foreground leading-relaxed">· {typeof p === "string" ? p : p?.titre || ""}</p>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="text-xs flex-1" onClick={() => navigate(`/branding/audit/${lastAudit.id}`)}>
+                      Voir l'audit complet →
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-xs gap-1" onClick={() => navigate("/branding/audit")}>
+                      <RefreshCw className="h-3 w-3" /> Refaire
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
           </>
         )}
       </main>
