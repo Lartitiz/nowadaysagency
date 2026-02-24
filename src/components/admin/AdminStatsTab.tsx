@@ -479,7 +479,85 @@ function ProductSection({ stats }: { stats: StatsData }) {
 }
 
 function DemographicsSection({ stats }: { stats: StatsData }) {
-  return <p className="text-sm text-muted-foreground">Section demographics</p>;
+  const activityData = Object.entries(stats.activity_types || {})
+    .filter(([k]) => k !== "non renseigné")
+    .map(([type, count]) => ({ type, count }))
+    .sort((a, b) => b.count - a.count);
+  const activityTotal = activityData.reduce((s, d) => s + d.count, 0);
+
+  const levelsData = Object.entries(stats.levels || {})
+    .filter(([k]) => k !== "non renseigné")
+    .map(([level, count]) => ({ level, count }))
+    .sort((a, b) => b.count - a.count);
+
+  const channelData = Object.entries(stats.channel_popularity || {})
+    .map(([canal, count]) => ({ canal, count, label: CANAL_LABELS[canal] || canal }))
+    .sort((a, b) => b.count - a.count);
+  const maxChannel = Math.max(...channelData.map(c => c.count), 1);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ChartCard title="Type d'activité">
+          {activityData.length === 0 ? (
+            <EmptyChart message="Aucune donnée" />
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <PieChart>
+                <Pie
+                  data={activityData}
+                  dataKey="count"
+                  nameKey="type"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={3}
+                  label={({ type, count }: any) => `${type} (${activityTotal > 0 ? Math.round((count / activityTotal) * 100) : 0}%)`}
+                >
+                  {activityData.map((_, i) => (
+                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={tooltipStyle} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </ChartCard>
+
+        <ChartCard title="Niveau déclaré">
+          {levelsData.length === 0 ? (
+            <EmptyChart message="Aucune donnée" />
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={levelsData} layout="vertical" barCategoryGap={8}>
+                <XAxis type="number" hide />
+                <YAxis dataKey="level" type="category" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} width={100} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Bar dataKey="count" radius={[0, 6, 6, 0]} fill="#8B5CF6" name="Utilisatrices" label={{ position: "right", fontSize: 12, fill: "hsl(var(--foreground))" }} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </ChartCard>
+      </div>
+
+      <ChartCard title="Canaux utilisés par les utilisatrices">
+        {channelData.length === 0 ? (
+          <EmptyChart message="Aucune donnée" />
+        ) : (
+          <div className="space-y-3">
+            {channelData.map(c => (
+              <div key={c.canal} className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span>{c.label}</span>
+                  <span className="text-muted-foreground font-medium">{c.count} utilisatrices</span>
+                </div>
+                <Progress value={(c.count / maxChannel) * 100} className="h-1.5" />
+              </div>
+            ))}
+          </div>
+        )}
+      </ChartCard>
+    </div>
+  );
 }
 
 /* ── Shared utility components ── */
