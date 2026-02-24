@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -156,6 +157,8 @@ interface HighlightStatus {
 export default function InstagramHighlights() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -166,10 +169,10 @@ export default function InstagramHighlights() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const { data } = await supabase
-        .from("instagram_highlights")
+      const { data } = await (supabase
+        .from("instagram_highlights") as any)
         .select("title, is_selected")
-        .eq("user_id", user.id);
+        .eq(column, value);
       if (data && data.length > 0) {
         const map: Record<string, "done" | "todo" | "skip"> = {};
         // Map saved highlights to our recommended types
@@ -210,10 +213,11 @@ export default function InstagramHighlights() {
     setSaving(true);
     try {
       // Delete existing
-      await supabase.from("instagram_highlights").delete().eq("user_id", user.id);
+      await (supabase.from("instagram_highlights") as any).delete().eq(column, value);
       // Insert statuses as highlights
       const toInsert = RECOMMENDED_HIGHLIGHTS.map((h, i) => ({
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         title: h.label,
         emoji: h.emoji,
         role: h.description,

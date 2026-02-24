@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -55,6 +56,7 @@ function scoreBadge(score: number | null) {
 export default function InstagramProfile() {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
+  const { column, value } = useWorkspaceFilter();
   const [audit, setAudit] = useState<AuditData | null>(null);
   const [loading, setLoading] = useState(true);
   const [validations, setValidations] = useState<ValidationStatus[]>([]);
@@ -85,17 +87,17 @@ export default function InstagramProfile() {
     if (!user) return;
     const fetchData = async () => {
       const [{ data: auditData }, { data: valData }, { data: profileData }] = await Promise.all([
-        supabase
-          .from("instagram_audit")
+        (supabase
+          .from("instagram_audit") as any)
           .select("score_global, score_nom, score_bio, score_stories, score_epingles, score_feed, score_edito, resume")
-          .eq("user_id", user.id)
+          .eq(column, value)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
-        supabase
-          .from("audit_validations" as any)
+        (supabase
+          .from("audit_validations" as any) as any)
           .select("section, status")
-          .eq("user_id", user.id),
+          .eq(column, value),
         supabase
           .from("profiles")
           .select("instagram_display_name, instagram_bio, instagram_highlights, instagram_highlights_count, instagram_pinned_posts, instagram_feed_description, instagram_pillars")

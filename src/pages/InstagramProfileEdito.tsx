@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -208,6 +209,8 @@ function Chip({ label, selected, onClick }: { label: string; selected: boolean; 
 export default function InstagramProfileEdito() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [editorial, setEditorial] = useState<EditorialLine>({ ...EMPTY_LINE });
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -221,9 +224,9 @@ export default function InstagramProfileEdito() {
     if (!user) return;
     const load = async () => {
       const [editoRes, stratRes, auditRes] = await Promise.all([
-        supabase.from("instagram_editorial_line").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq("user_id", user.id).maybeSingle(),
-        supabase.from("instagram_audit").select("details, successful_content_notes, unsuccessful_content_notes").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        (supabase.from("instagram_editorial_line") as any).select("*").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        (supabase.from("brand_strategy") as any).select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq(column, value).maybeSingle(),
+        (supabase.from("instagram_audit") as any).select("details, successful_content_notes, unsuccessful_content_notes").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
 
       if (editoRes.data) {
@@ -320,7 +323,7 @@ export default function InstagramProfileEdito() {
     setSaving(true);
     try {
       const payload = {
-        user_id: user.id,
+        user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         main_objective: editorial.main_objective,
         objective_details: editorial.objective_details,
         posts_frequency: editorial.posts_frequency,

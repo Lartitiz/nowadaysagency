@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
@@ -95,6 +96,8 @@ const ENERGY_OPTIONS = [
 export default function InstagramStories() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const location = useLocation();
   const highlightState = location.state as any;
   const [searchParams] = useSearchParams();
@@ -173,7 +176,7 @@ export default function InstagramStories() {
   useEffect(() => {
     const fetchBranding = async () => {
       if (!user) return;
-      const { data } = await supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle();
+      const { data } = await (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle();
       if (data) {
         setBrandingCtx(`Ton: ${data.tone_register || "Authentique"}\nCible: ${data.target_description || "Entrepreneures"}\nMission: ${data.mission || ""}`);
       }
@@ -260,7 +263,7 @@ export default function InstagramStories() {
     }
 
     const { error } = await supabase.from("calendar_posts").insert({
-      user_id: user.id,
+      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       date: dateStr,
       theme: subject || sequenceResult.structure_label,
       canal: "instagram",

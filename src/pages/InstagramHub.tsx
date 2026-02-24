@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import FirstTimeTooltip from "@/components/FirstTimeTooltip";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 
 interface ProgressData {
   auditScore: number | null;
@@ -22,6 +23,7 @@ interface ProgressData {
 export default function InstagramHub() {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
+  const { column, value } = useWorkspaceFilter();
   const [progress, setProgress] = useState<ProgressData>({
     auditScore: null, ideasCount: 0, calendarCount: 0, launchCount: 0, engagementWeekly: "À faire", statsFollowers: null, statsFollowersDiff: null, statsUpToDate: false,
   });
@@ -54,13 +56,13 @@ export default function InstagramHub() {
       const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0];
 
       const [auditRes, ideasRes, calRes, launchRes, weeklyRes, statsRes, prevStatsRes] = await Promise.all([
-        supabase.from("instagram_audit").select("score_global").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("saved_ideas").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("canal", "instagram"),
-        supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("canal", "instagram").gte("date", monthStart).lte("date", monthEnd),
-        supabase.from("launches").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("engagement_weekly").select("total_done, dm_target, comments_target, replies_target").eq("user_id", user.id).eq("week_start", monday).maybeSingle(),
-        supabase.from("monthly_stats" as any).select("followers, followers_gained").eq("user_id", user.id).eq("month_date", currentMonthDate).maybeSingle(),
-        supabase.from("monthly_stats" as any).select("followers").eq("user_id", user.id).eq("month_date", prevMonthDate).maybeSingle(),
+        (supabase.from("instagram_audit") as any).select("score_global").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        (supabase.from("saved_ideas") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("canal", "instagram"),
+        (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("canal", "instagram").gte("date", monthStart).lte("date", monthEnd),
+        (supabase.from("launches") as any).select("id", { count: "exact", head: true }).eq(column, value),
+        (supabase.from("engagement_weekly") as any).select("total_done, dm_target, comments_target, replies_target").eq(column, value).eq("week_start", monday).maybeSingle(),
+        (supabase.from("monthly_stats") as any).select("followers, followers_gained").eq(column, value).eq("month_date", currentMonthDate).maybeSingle(),
+        (supabase.from("monthly_stats") as any).select("followers").eq(column, value).eq("month_date", prevMonthDate).maybeSingle(),
       ]);
 
       const w = weeklyRes.data;

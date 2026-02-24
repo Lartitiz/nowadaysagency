@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,8 @@ const SLOTS = [
 export default function InstagramProfileEpingles() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
   const [slots, setSlots] = useState<PinnedSlot[]>(
     SLOTS.map((s) => ({ type: s.type, status: "todo", description: "" }))
@@ -76,10 +79,10 @@ export default function InstagramProfileEpingles() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const { data } = await supabase
-        .from("instagram_pinned_posts")
+      const { data } = await (supabase
+        .from("instagram_pinned_posts") as any)
         .select("*")
-        .eq("user_id", user.id);
+        .eq(column, value);
       if (data && data.length > 0) {
         setSlots(
           SLOTS.map((s) => {
@@ -110,15 +113,16 @@ export default function InstagramProfileEpingles() {
       for (const slot of slots) {
         const row = {
           user_id: user.id,
+          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
           post_type: slot.type,
           has_existing: slot.status === "done",
           existing_description: slot.description,
           is_pinned: slot.status === "done",
         };
-        const { data: existing } = await supabase
-          .from("instagram_pinned_posts")
+        const { data: existing } = await (supabase
+          .from("instagram_pinned_posts") as any)
           .select("id")
-          .eq("user_id", user.id)
+          .eq(column, value)
           .eq("post_type", slot.type)
           .maybeSingle();
         if (existing) {

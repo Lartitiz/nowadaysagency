@@ -3,6 +3,7 @@ import { toLocalDateStr } from "@/lib/utils";
 import UpgradeGate from "@/components/UpgradeGate";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +36,8 @@ export default function InstagramEngagement() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { isDemoMode } = useDemoContext();
+  const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [showConfetti, setShowConfetti] = useState(false);
   const [activeTab, setActiveTab] = useState("engagement");
 
@@ -73,28 +76,28 @@ export default function InstagramEngagement() {
     }
     if (!user) return;
     const load = async () => {
-      const { data: launches } = await supabase
-        .from("launches")
+      const { data: launches } = await (supabase
+        .from("launches") as any)
         .select("id, status")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .in("status", ["active", "teasing", "selling"])
         .limit(1);
       setIsLaunching((launches?.length ?? 0) > 0);
 
-      const { data: streak } = await supabase
-        .from("engagement_streaks")
+      const { data: streak } = await (supabase
+        .from("engagement_streaks") as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle();
       if (streak) {
         setCurrentStreak(streak.current_streak ?? 0);
         setBestStreak(streak.best_streak ?? 0);
       }
 
-      const { data: todayLog } = await supabase
-        .from("engagement_checklist_logs")
+      const { data: todayLog } = await (supabase
+        .from("engagement_checklist_logs") as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .eq("log_date", today)
         .maybeSingle();
       if (todayLog?.items_checked) {
@@ -108,18 +111,18 @@ export default function InstagramEngagement() {
         d.setDate(d.getDate() + i);
         dates.push(d.toISOString().split("T")[0]);
       }
-      const { data: weekLogs } = await supabase
-        .from("engagement_checklist_logs")
+      const { data: weekLogs } = await (supabase
+        .from("engagement_checklist_logs") as any)
         .select("log_date, streak_maintained")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .in("log_date", dates);
       const logMap = new Map((weekLogs || []).map(l => [l.log_date, l.streak_maintained]));
       setWeekChecks(dates.map(d => logMap.get(d) === true));
 
-      const { data: cont } = await supabase
-        .from("engagement_contacts")
+      const { data: cont } = await (supabase
+        .from("engagement_contacts") as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .order("sort_order", { ascending: true });
       setContacts((cont || []).map((c: any) => ({
         id: c.id,
@@ -140,10 +143,10 @@ export default function InstagramEngagement() {
 
     const streakMaintained = next.length >= threshold;
 
-    const { data: existing } = await supabase
-      .from("engagement_checklist_logs")
+    const { data: existing } = await (supabase
+      .from("engagement_checklist_logs") as any)
       .select("id")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .eq("log_date", today)
       .maybeSingle();
 
@@ -156,6 +159,7 @@ export default function InstagramEngagement() {
     } else {
       await supabase.from("engagement_checklist_logs").insert({
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         log_date: today,
         items_checked: next,
         items_total: items.length,
@@ -164,16 +168,17 @@ export default function InstagramEngagement() {
     }
 
     const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-    const { data: streak } = await supabase
-      .from("engagement_streaks")
+    const { data: streak } = await (supabase
+      .from("engagement_streaks") as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .maybeSingle();
 
     if (!streak) {
       const ns = streakMaintained ? 1 : 0;
       await supabase.from("engagement_streaks").insert({
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         current_streak: ns,
         best_streak: ns,
         last_check_date: today,
@@ -211,7 +216,7 @@ export default function InstagramEngagement() {
   const addContact = async (pseudo: string, tag: string) => {
     if (!user) return;
     const { data } = await supabase.from("engagement_contacts").insert({
-      user_id: user.id, pseudo, tag, sort_order: contacts.length,
+      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, pseudo, tag, sort_order: contacts.length,
     }).select("*").single();
     if (data) setContacts(prev => [...prev, { id: data.id, pseudo: data.pseudo, tag: data.tag || "paire", description: data.description, notes: data.notes, last_interaction: data.last_interaction }]);
   };
