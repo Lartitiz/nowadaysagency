@@ -1,8 +1,9 @@
 import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { Plus, Mail, ExternalLink } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { Plus, Mail, ExternalLink, Lock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useUserPlan } from "@/hooks/use-user-plan";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -26,16 +27,13 @@ import { toast } from "sonner";
 
 export default function ClientsPage() {
   const { user } = useAuth();
-  const { workspaces, switchWorkspace, loading } = useWorkspace();
+  const { workspaces, switchWorkspace, loading, activeRole } = useWorkspace();
+  const { plan, loading: planLoading, isPilot } = useUserPlan();
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [creating, setCreating] = useState(false);
-
-  // Filter out the user's own workspace (where name matches their first name or is "Mon espace")
-  // Actually, show all workspaces — the coach manages them all
-  const clientWorkspaces = workspaces;
 
   const handleCreate = useCallback(async () => {
     if (!name.trim() || !user?.id) return;
@@ -76,6 +74,32 @@ export default function ClientsPage() {
     navigate("/dashboard");
   };
 
+  // Gatekeeping: only studio, now_pilot, or users who manage a workspace
+  const hasManagerRole = workspaces.length > 0 && activeRole === "manager";
+  const canAccess = plan === "studio" || plan === "now_pilot" || isPilot || hasManagerRole;
+
+  if (!planLoading && !canAccess) {
+    return (
+      <div className="min-h-screen bg-background pb-24 md:pb-8">
+        <AppHeader />
+        <main className="mx-auto max-w-[1100px] px-4 sm:px-6 py-12">
+          <div className="rounded-2xl border border-border bg-card p-8 text-center">
+            <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <Lock className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <h3 className="font-display text-lg font-bold text-foreground mb-2">Fonctionnalité Now Studio</h3>
+            <p className="text-sm text-muted-foreground mb-5 max-w-sm mx-auto">
+              Le mode multi-clients est disponible à partir du plan Now Studio. Gère plusieurs client·es depuis un seul compte.
+            </p>
+            <Button asChild className="rounded-full">
+              <Link to="/parametres">Découvrir le Now Studio →</Link>
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-8">
       <AppHeader />
@@ -97,7 +121,7 @@ export default function ClientsPage() {
               <div className="h-3 w-3 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0.3s" }} />
             </div>
           </div>
-        ) : clientWorkspaces.length === 0 ? (
+        ) : workspaces.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
             <p className="text-4xl">👥</p>
             <p className="text-muted-foreground text-sm max-w-sm">
@@ -109,7 +133,7 @@ export default function ClientsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {clientWorkspaces.map((ws) => (
+            {workspaces.map((ws) => (
               <Card key={ws.id} className="p-5 space-y-3 rounded-[20px] border border-border hover:border-primary/30 transition-colors">
                 <div className="flex items-start justify-between">
                   <h3 className="font-display text-base font-bold text-foreground">{ws.name}</h3>
