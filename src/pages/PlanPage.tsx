@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -271,6 +272,7 @@ function PhaseSection({ phase }: { phase: PlanPhase }) {
 
 export default function PlanPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const [planData, setPlanData] = useState<PlanData | null>(null);
   const [config, setConfig] = useState<PlanConfig | null>(null);
   const [hasConfig, setHasConfig] = useState<boolean | null>(null); // null = loading
@@ -281,7 +283,7 @@ export default function PlanPage() {
     const { data } = await supabase
       .from("user_plan_config")
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .maybeSingle();
 
     if (data) {
@@ -314,7 +316,7 @@ export default function PlanPage() {
     };
 
     if (hasConfig) {
-      await supabase.from("user_plan_config").update(payload).eq("user_id", user.id);
+      await (supabase.from("user_plan_config") as any).update(payload).eq(column, value);
     } else {
       await supabase.from("user_plan_config").insert(payload);
     }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -59,6 +60,7 @@ export default function AuditCoachingPanel({
   recId, conseil, onComplete, onSkipToModule,
 }: AuditCoachingPanelProps) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const isMobile = useIsMobile();
   const [phase, setPhase] = useState<Phase>("loading");
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -148,14 +150,13 @@ export default function AuditCoachingPanel({
       };
       const table = tableMap[module];
       if (table) {
-        const { data: existing } = await supabase
-          .from(table as any)
+        const { data: existing } = await (supabase.from(table as any) as any)
           .select("id")
-          .eq("user_id", user.id)
+          .eq(column, value)
           .maybeSingle();
 
         if (existing) {
-          await supabase.from(table as any).update(updates).eq("user_id", user.id);
+          await (supabase.from(table as any) as any).update(updates).eq(column, value);
         } else {
           await supabase.from(table as any).insert({ ...updates, user_id: user.id });
         }

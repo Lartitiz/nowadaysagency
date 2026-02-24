@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -29,6 +30,7 @@ type Filter = "all" | "monthly" | "studio";
 
 export default function LivesPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { isPaid, isStudio, loading: planLoading } = useUserPlan();
   const { toast } = useToast();
 
@@ -49,7 +51,7 @@ export default function LivesPage() {
     const [livesRes, remindersRes] = await Promise.all([
       supabase.from("lives").select("*").order("scheduled_at", { ascending: false }),
       user
-        ? supabase.from("live_reminders").select("live_id").eq("user_id", user.id)
+        ? (supabase.from("live_reminders") as any).select("live_id").eq(column, value)
         : Promise.resolve({ data: [] }),
     ]);
     if (livesRes.data) setLives(livesRes.data as Live[]);
@@ -60,7 +62,7 @@ export default function LivesPage() {
   const toggleReminder = async (liveId: string) => {
     if (!user) return;
     if (reminders.has(liveId)) {
-      await supabase.from("live_reminders").delete().eq("live_id", liveId).eq("user_id", user.id);
+      await (supabase.from("live_reminders") as any).delete().eq("live_id", liveId).eq(column, value);
       setReminders((prev) => { const n = new Set(prev); n.delete(liveId); return n; });
       toast({ title: "Rappel retiré" });
     } else {

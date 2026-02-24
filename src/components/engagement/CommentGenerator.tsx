@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -37,6 +38,7 @@ interface Props {
 
 export default function CommentGenerator({ contact, open, onOpenChange, onCommentPosted, prospectId }: Props) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
   const [caption, setCaption] = useState("");
   const [intent, setIntent] = useState("");
@@ -94,10 +96,9 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
     setComments([]);
 
     try {
-      const { data: brand } = await supabase
-        .from("brand_profile")
+      const { data: brand } = await (supabase.from("brand_profile") as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle();
 
       const brandingContext = brand

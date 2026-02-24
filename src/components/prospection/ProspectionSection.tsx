@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
@@ -59,6 +60,7 @@ export { STAGES };
 
 export default function ProspectionSection() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [adding, setAdding] = useState(false);
@@ -69,10 +71,9 @@ export default function ProspectionSection() {
 
   const loadProspects = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("prospects")
+    const { data } = await (supabase.from("prospects") as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("created_at", { ascending: false });
     if (data) setProspects(data as Prospect[]);
   }, [user?.id]);

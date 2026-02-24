@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ const STEPS = [
 
 export default function RedactionPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -64,8 +66,8 @@ export default function RedactionPage() {
   useEffect(() => {
     if (!user) return;
     Promise.all([
-      supabase.from("profiles").select("*").eq("user_id", user.id).single(),
-      supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle(),
+      (supabase.from("profiles") as any).select("*").eq(column, value).single(),
+      (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle(),
     ]).then(([profRes, bpRes]) => {
       if (profRes.data) setProfile(profRes.data);
       if (bpRes.data) setBrandProfile(bpRes.data);

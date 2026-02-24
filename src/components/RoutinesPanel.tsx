@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CheckCircle2, Circle, Plus, Trash2, Flame, RotateCcw } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -48,6 +49,7 @@ function getMonthStart(d: Date): string {
 
 export default function RoutinesPanel() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [completions, setCompletions] = useState<Completion[]>([]);
   const [streak, setStreak] = useState(0);
@@ -63,15 +65,13 @@ export default function RoutinesPanel() {
   const fetchAll = useCallback(async () => {
     if (!user) return;
     const [tasksRes, compRes] = await Promise.all([
-      supabase
-        .from("tasks")
+      (supabase.from("tasks") as any)
         .select("id, label, duration_minutes, period, order_index")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .order("order_index"),
-      supabase
-        .from("routine_completions")
+      (supabase.from("routine_completions") as any)
         .select("id, task_id, period_start")
-        .eq("user_id", user.id),
+        .eq(column, value),
     ]);
     if (tasksRes.data) setTasks(tasksRes.data);
     if (compRes.data) setCompletions(compRes.data);

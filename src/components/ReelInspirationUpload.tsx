@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { Loader2, X, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -35,6 +36,7 @@ interface Props {
 
 export default function ReelInspirationUpload({ onAnalysisComplete }: Props) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedImages, setUploadedImages] = useState<{ url: string; file?: File }[]>([]);
   const [savedInspirations, setSavedInspirations] = useState<SavedInspiration[]>([]);
@@ -49,10 +51,9 @@ export default function ReelInspirationUpload({ onAnalysisComplete }: Props) {
 
   const fetchSavedInspirations = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("reel_inspirations")
+    const { data } = await (supabase.from("reel_inspirations") as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("created_at", { ascending: false });
     if (data) setSavedInspirations(data as SavedInspiration[]);
   };

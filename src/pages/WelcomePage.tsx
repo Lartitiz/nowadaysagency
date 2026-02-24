@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -57,6 +58,7 @@ const STEPS = [
 
 export default function WelcomePage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const [prenom, setPrenom] = useState("");
   const [goal, setGoal] = useState("");
@@ -67,8 +69,8 @@ export default function WelcomePage() {
     if (!user) return;
     const load = async () => {
       const [{ data: profile }, { data: config }] = await Promise.all([
-        supabase.from("profiles").select("prenom, canaux").eq("user_id", user.id).maybeSingle(),
-        supabase.from("user_plan_config").select("main_goal, weekly_time, welcome_seen, onboarding_completed").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("profiles") as any).select("prenom, canaux").eq(column, value).maybeSingle(),
+        (supabase.from("user_plan_config") as any).select("main_goal, weekly_time, welcome_seen, onboarding_completed").eq(column, value).maybeSingle(),
       ]);
       // Don't redirect if user explicitly navigated here (e.g., "Revoir la page de bienvenue")
       // Only redirect if they land here accidentally without completing onboarding
@@ -90,7 +92,7 @@ export default function WelcomePage() {
 
   const markSeen = async (destination: string) => {
     if (!user) return;
-    await supabase.from("user_plan_config").update({ welcome_seen: true }).eq("user_id", user.id);
+    await (supabase.from("user_plan_config") as any).update({ welcome_seen: true }).eq(column, value);
     navigate(destination);
   };
 
@@ -174,7 +176,7 @@ export default function WelcomePage() {
           <Link
             to="/branding"
             onClick={() => {
-              if (user) supabase.from("user_plan_config").update({ welcome_seen: true }).eq("user_id", user.id);
+              if (user) (supabase.from("user_plan_config") as any).update({ welcome_seen: true }).eq(column, value);
             }}
             className="inline-flex items-center gap-1 text-sm font-semibold text-primary mt-2 hover:underline"
           >

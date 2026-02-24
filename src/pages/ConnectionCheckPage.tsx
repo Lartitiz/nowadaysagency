@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -70,6 +71,7 @@ const DEMO_SUGGESTIONS: Suggestion[] = [
 
 export default function ConnectionCheckPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { isDemoMode } = useDemoContext();
   const navigate = useNavigate();
   const [checks, setChecks] = useState<Check[]>([]);
@@ -90,7 +92,7 @@ export default function ConnectionCheckPage() {
     const sugs: Suggestion[] = [];
 
     // Profile
-    const { data: profile, error: profErr } = await supabase.from("profiles").select("prenom, activite, onboarding_completed, onboarding_completed_at, current_plan, instagram_username, website_url").eq("user_id", user.id).maybeSingle();
+    const { data: profile, error: profErr } = await (supabase.from("profiles") as any).select("prenom, activite, onboarding_completed, onboarding_completed_at, current_plan, instagram_username, website_url").eq(column, value).maybeSingle();
     results.push({ category: "Profil", name: "Profil chargé", status: profErr || !profile ? "error" : "ok", detail: profErr?.message || "OK" });
     if (profile) {
       results.push({ category: "Profil", name: "Prénom renseigné", status: profile.prenom ? "ok" : "warning", detail: profile.prenom || "Manquant" });
@@ -99,7 +101,7 @@ export default function ConnectionCheckPage() {
     }
 
     // Branding
-    const { data: brand } = await supabase.from("brand_profile").select("positioning, mission, values, tone_keywords").eq("user_id", user.id).maybeSingle();
+    const { data: brand } = await (supabase.from("brand_profile") as any).select("positioning, mission, values, tone_keywords").eq(column, value).maybeSingle();
     results.push({ category: "Branding", name: "Branding existe", status: brand ? "ok" : "warning", detail: brand ? "OK" : "Pas de branding en base" });
     if (brand) {
       for (const field of ["positioning", "mission", "values", "tone_keywords"] as const) {
@@ -110,11 +112,11 @@ export default function ConnectionCheckPage() {
     }
 
     // Persona
-    const { data: persona } = await supabase.from("brand_proposition").select("id").eq("user_id", user.id);
+    const { data: persona } = await (supabase.from("brand_proposition") as any).select("id").eq(column, value);
     results.push({ category: "Cible", name: "Proposition définie", status: (persona?.length ?? 0) > 0 ? "ok" : "warning", detail: (persona?.length ?? 0) > 0 ? `${persona!.length} proposition(s)` : "Aucune proposition" });
 
     // Calendar
-    const { data: posts, error: postErr } = await supabase.from("calendar_posts").select("id, status, date, format").eq("user_id", user.id);
+    const { data: posts, error: postErr } = await (supabase.from("calendar_posts") as any).select("id, status, date, format").eq(column, value);
     results.push({ category: "Calendrier", name: "Table posts accessible", status: postErr ? "error" : "ok", detail: postErr?.message || `${posts?.length || 0} posts` });
     if (posts) {
       const published = posts.filter(p => p.status === "published").length;
@@ -127,11 +129,11 @@ export default function ConnectionCheckPage() {
     }
 
     // Audit
-    const { data: audit } = await supabase.from("branding_audits").select("score_global, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: audit } = await (supabase.from("branding_audits") as any).select("score_global, created_at").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle();
     results.push({ category: "Audit", name: "Audit réalisé", status: audit ? "ok" : "info", detail: audit ? `Score : ${audit.score_global}/100` : "Pas encore d'audit" });
 
     // Engagement
-    const { data: engLogs, error: engErr } = await supabase.from("engagement_checklist_logs").select("id").eq("user_id", user.id).order("log_date", { ascending: false }).limit(7);
+    const { data: engLogs, error: engErr } = await (supabase.from("engagement_checklist_logs") as any).select("id").eq(column, value).order("log_date", { ascending: false }).limit(7);
     results.push({ category: "Routine", name: "Logs routine accessibles", status: engErr ? "error" : "ok", detail: engErr?.message || `${engLogs?.length || 0} entrées récentes` });
 
     // Coaching

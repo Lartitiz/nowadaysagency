@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, GripVertical, MoreVertical, Trash2, CalendarIcon, Undo2 } from "lucide-react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
@@ -54,6 +55,7 @@ interface Props {
 
 export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: Props) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
   const [ideas, setIdeas] = useState<SavedIdea[]>([]);
   const [filter, setFilter] = useState("all");
@@ -63,10 +65,9 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: P
 
   const fetchIdeas = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("saved_ideas")
+    const { data } = await (supabase.from("saved_ideas") as any)
       .select("id, titre, format, objectif, notes, status, canal, content_draft, content_data, source_module, planned_date, calendar_post_id")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .is("calendar_post_id", null)
       .order("created_at", { ascending: false });
     if (data) setIdeas(data as SavedIdea[]);
