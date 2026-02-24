@@ -11,6 +11,7 @@ import { ArrowLeft, Loader2, Check, Sparkles, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { DEMO_COACHING_DATA, type DemoCoachingQuestion } from "@/lib/demo-coaching-data";
+import { COACHING_CHECKLISTS, COACHING_LABELS } from "@/lib/coaching-checklists";
 import Confetti from "@/components/Confetti";
 import { toast } from "sonner";
 
@@ -27,17 +28,17 @@ interface AIResponse {
   question_type: "text" | "textarea" | "select" | "multi_select";
   options?: string[];
   placeholder?: string;
-  field_hint?: string;
+  covered_topic?: string | null;
   extracted_insights?: Record<string, any>;
   is_complete: boolean;
   completion_percentage: number;
-  recap_update?: string;
+  remaining_topics?: string[];
   final_summary?: string;
 }
 
 const SECTION_META: Record<Section, { emoji: string; title: string; description: string; duration: string }> = {
   story: { emoji: "📖", title: "Mon histoire", description: "On va écrire ton histoire ensemble. Je te pose des questions, tu me racontes.", duration: "~5 min" },
-  persona: { emoji: "👩‍💻", title: "Mon client·e idéal·e", description: "On va dresser le portrait de ta cliente idéale ensemble. Je te pose des questions, tu me racontes.", duration: "~5 min" },
+  persona: { emoji: "👩‍💻", title: "Mon client·e idéal·e", description: "On va dresser le portrait de ta cliente idéale ensemble.", duration: "~5 min" },
   value_proposition: { emoji: "❤️", title: "Ma proposition de valeur", description: "On va formuler ce qui te rend unique. Des phrases claires, réutilisables partout.", duration: "~4 min" },
   tone_style: { emoji: "🎨", title: "Mon ton, mon style & mes combats", description: "On va définir ta voix. Comment tu parles, ce que tu défends, tes limites.", duration: "~5 min" },
   content_strategy: { emoji: "🍒", title: "Ma stratégie de contenu", description: "On va poser tes piliers de contenu et ta ligne éditoriale.", duration: "~4 min" },
@@ -54,6 +55,47 @@ const LOADING_PHRASES = [
 
 function makeMsg(role: "user" | "assistant", content: string): Message {
   return { id: crypto.randomUUID(), role, content };
+}
+
+// --- Progress component ---
+function CoachingProgress({ section, coveredTopics }: { section: Section; coveredTopics: string[] }) {
+  const checklist = COACHING_CHECKLISTS[section] || [];
+  const labels = COACHING_LABELS[section] || {};
+  const coveredSet = new Set(coveredTopics);
+  const pct = checklist.length > 0 ? Math.round((coveredTopics.length / checklist.length) * 100) : 0;
+
+  return (
+    <div className="rounded-xl bg-muted/30 border border-border p-4 mb-4">
+      <div className="flex justify-between mb-2">
+        <span className="text-xs text-muted-foreground">
+          {coveredTopics.length}/{checklist.length} sujets couverts
+        </span>
+        <span className="text-xs text-primary font-medium">{pct}%</span>
+      </div>
+      <div className="h-1.5 bg-background rounded-full overflow-hidden mb-3">
+        <div
+          className="h-full bg-primary rounded-full transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="space-y-1.5">
+        {checklist.map((topic, i) => {
+          const isCovered = coveredSet.has(topic);
+          const isCurrent = !isCovered && i === coveredTopics.length;
+          return (
+            <div key={topic} className="flex items-center gap-2 text-xs">
+              <span>{isCovered ? "✅" : isCurrent ? "🔵" : "⬜"}</span>
+              <span className={cn(
+                isCovered ? "text-muted-foreground line-through" : isCurrent ? "text-primary font-medium" : "text-muted-foreground/50"
+              )}>
+                {labels[topic] || topic}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 interface BrandingCoachingFlowProps {
@@ -81,26 +123,22 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
   const [hasExistingSession, setHasExistingSession] = useState(false);
   const [hasPrefilledData, setHasPrefilledData] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [coveredTopics, setCoveredTopics] = useState<string[]>([]);
 
-  // Refs to avoid stale closures
   const messagesRef = useRef(messages);
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   const questionIndexRef = useRef(questionIndex);
   useEffect(() => { questionIndexRef.current = questionIndex; }, [questionIndex]);
-
-  // Mount/unmount debug
-  useEffect(() => {
-    console.log("[BrandingCoaching] MOUNTED section=", section);
-    return () => console.log("[BrandingCoaching] UNMOUNTED section=", section);
-  }, [section]);
+  const coveredTopicsRef = useRef(coveredTopics);
+  useEffect(() => { coveredTopicsRef.current = coveredTopics; }, [coveredTopics]);
 
   const meta = SECTION_META[section];
   const demoQuestions = isDemoMode ? DEMO_COACHING_DATA[section]?.questions : null;
+  const checklist = COACHING_CHECKLISTS[section] || [];
 
   // Load existing session
   useEffect(() => {
-    if (isDemoMode) return;
-    if (!user) return;
+    if (isDemoMode || !user) return;
 
     const loadSession = async () => {
       const { data } = await supabase
@@ -112,12 +150,15 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
 
       if (data && data.messages && (data.messages as any[]).length > 0) {
         setHasExistingSession(true);
+        const restoredTopics = (data as any).covered_topics || (data.extracted_data as any)?.covered_topics || [];
+        setCoveredTopics(restoredTopics);
+
         if (data.is_complete) {
           setFinalSummary((data.extracted_data as any)?.final_summary || "");
           setCompletionPct(100);
+          setCoveredTopics(checklist); // all covered
           setPhase("complete");
         } else {
-          // Ensure messages have IDs for stable keys
           const restored = (data.messages as any[]).map((m: any) => ({
             id: m.id || crypto.randomUUID(),
             role: m.role,
@@ -141,7 +182,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
     loadSession();
   }, [user?.id, section, isDemoMode]);
 
-  // Fetch context once and cache it for the session
+  // Fetch context
   const contextRef = useRef<any>(null);
   const fetchContext = useCallback(async () => {
     if (contextRef.current) return contextRef.current;
@@ -169,14 +210,17 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
     try {
       const context = await fetchContext();
 
-      // Limit message history sent to AI: first 2 + last 4 messages (max 6)
+      // Send ALL messages — no pruning — the prompt's checklist prevents loops
       const simpleMsgs = msgs.map(m => ({ role: m.role, content: m.content }));
-      const limitedMsgs = simpleMsgs.length > 6
-        ? [...simpleMsgs.slice(0, 2), ...simpleMsgs.slice(-4)]
-        : simpleMsgs;
 
       const { data, error: fnError } = await supabase.functions.invoke("branding-coaching", {
-        body: { user_id: user!.id, section, messages: limitedMsgs, context },
+        body: {
+          user_id: user!.id,
+          section,
+          messages: simpleMsgs,
+          context,
+          covered_topics: coveredTopicsRef.current,
+        },
       });
 
       if (fnError) {
@@ -186,7 +230,6 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
         return null;
       }
 
-      // Parse response safely
       let parsed: AIResponse;
       try {
         const raw = data?.response || data;
@@ -221,7 +264,6 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
     }
   }, [user?.id, section, fetchContext]);
 
-  // Retry last failed call
   const lastCallMsgsRef = useRef<Message[]>([]);
   const handleRetry = useCallback(async () => {
     setError(null);
@@ -233,6 +275,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
       makeMsg("assistant", response.question || response.final_summary || ""),
     ];
     setMessages(updatedMessages);
+    updateCoveredTopics(response);
     setCompletionPct(response.completion_percentage || completionPct);
 
     if (response.is_complete) {
@@ -244,6 +287,15 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
     }
     setCurrentQuestion(response);
   }, [askAI, completionPct]);
+
+  const updateCoveredTopics = useCallback((response: AIResponse) => {
+    if (response.covered_topic) {
+      setCoveredTopics(prev => {
+        if (prev.includes(response.covered_topic!)) return prev;
+        return [...prev, response.covered_topic!];
+      });
+    }
+  }, []);
 
   const saveDemoAnswer = useCallback((q: DemoCoachingQuestion) => {
     setCompletionPct(q.completion_percentage);
@@ -272,6 +324,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
       const response = await askAI(messagesRef.current);
       if (response) {
         setCurrentQuestion(response);
+        updateCoveredTopics(response);
         setCompletionPct(response.completion_percentage || 5);
       }
       return;
@@ -285,7 +338,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
       setMessages(initial);
       setCompletionPct(response.completion_percentage || 5);
     }
-  }, [isDemoMode, demoQuestions, hasExistingSession, askAI]);
+  }, [isDemoMode, demoQuestions, hasExistingSession, askAI, updateCoveredTopics]);
 
   const handleNext = useCallback(async () => {
     const userAnswer = currentQuestion?.question_type === "select" || currentQuestion?.question_type === "multi_select"
@@ -330,7 +383,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
       return;
     }
 
-    // Real mode — use ref for latest messages to avoid stale state
+    // Real mode
     const currentMessages = messagesRef.current;
     const newMessages: Message[] = [
       ...currentMessages,
@@ -340,34 +393,47 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
     lastCallMsgsRef.current = newMessages;
 
     const response = await askAI(newMessages);
-    if (!response) return; // Error already shown via toast + error state
+    if (!response) return;
+
+    // Update covered topics from AI response
+    updateCoveredTopics(response);
 
     const updatedMessages: Message[] = [
       ...newMessages,
       makeMsg("assistant", response.question || response.final_summary || ""),
     ];
     setMessages(updatedMessages);
-    setCompletionPct(response.completion_percentage || completionPct);
 
-    // Save session (fire and forget — don't let this block or crash the UI)
+    // Compute real completion from covered topics
+    const newCovered = response.covered_topic && !coveredTopicsRef.current.includes(response.covered_topic)
+      ? [...coveredTopicsRef.current, response.covered_topic]
+      : coveredTopicsRef.current;
+    const realPct = checklist.length > 0
+      ? Math.round((newCovered.length / checklist.length) * 100)
+      : response.completion_percentage || completionPct;
+    setCompletionPct(realPct);
+
+    // Save session
     supabase.from("branding_coaching_sessions").upsert({
       user_id: user!.id,
       section,
       messages: updatedMessages as any,
       extracted_data: {
         ...response.extracted_insights,
-        completion_percentage: response.completion_percentage,
+        completion_percentage: realPct,
         final_summary: response.final_summary,
+        covered_topics: newCovered,
       },
       question_count: nextIndex,
       is_complete: response.is_complete,
       completed_at: response.is_complete ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
+      covered_topics: newCovered as any,
     } as any, { onConflict: "user_id,section" }).then(({ error: saveErr }) => {
       if (saveErr) console.error("[BrandingCoaching] Save session error:", saveErr);
     });
 
-    // Save extracted insights (fire and forget)
+    // Save extracted insights
     if (response.extracted_insights && Object.keys(response.extracted_insights).length > 0) {
       saveInsights(section, response.extracted_insights);
     }
@@ -375,13 +441,14 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
     if (response.is_complete) {
       setFinalSummary(response.final_summary || "");
       setCompletionPct(100);
+      setCoveredTopics(checklist);
       setShowConfetti(true);
       setPhase("complete");
       return;
     }
 
     setCurrentQuestion(response);
-  }, [answer, selectedOptions, currentQuestion, isDemoMode, demoQuestions, askAI, section, user?.id, completionPct, saveDemoAnswer]);
+  }, [answer, selectedOptions, currentQuestion, isDemoMode, demoQuestions, askAI, section, user?.id, completionPct, saveDemoAnswer, updateCoveredTopics, checklist]);
 
   const saveInsights = async (sec: string, insights: Record<string, any>) => {
     if (!user) return;
@@ -404,9 +471,9 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
     }
   };
 
-  const estimatedTotal = Math.max(8, Math.round((questionIndex + 1) / (completionPct / 100 || 0.1)));
-  const estimatedRemaining = Math.max(1, estimatedTotal - questionIndex);
-  const timeRemaining = estimatedRemaining <= 2 ? "Presque fini !" : `Encore ~${Math.ceil(estimatedRemaining * 0.5)} min`;
+  const estimatedTotal = checklist.length || 8;
+  const estimatedRemaining = Math.max(0, estimatedTotal - coveredTopics.length);
+  const timeRemaining = estimatedRemaining <= 1 ? "Presque fini !" : `Encore ~${Math.ceil(estimatedRemaining * 0.5)} min`;
 
   // Intro screen
   if (phase === "intro") {
@@ -493,7 +560,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
             <ArrowLeft className="h-4 w-4" /> Retour
           </button>
           <span className="text-xs text-muted-foreground font-mono-ui">
-            Question {questionIndex + 1}/{estimatedTotal}
+            {coveredTopics.length}/{checklist.length} sujets
           </span>
           {isDemoMode && (
             <button onClick={() => navigate("/dashboard")} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
@@ -501,7 +568,12 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
             </button>
           )}
         </div>
-        <Progress value={completionPct} className="h-1.5" />
+        <Progress value={checklist.length > 0 ? (coveredTopics.length / checklist.length) * 100 : completionPct} className="h-1.5" />
+      </div>
+
+      {/* Topic progress checklist */}
+      <div className="px-4 mt-2">
+        <CoachingProgress section={section} coveredTopics={coveredTopics} />
       </div>
 
       {/* Question */}
@@ -545,7 +617,6 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
                 {currentQuestion.question}
               </p>
 
-              {/* Input based on type */}
               {currentQuestion.question_type === "textarea" && (
                 <TextareaWithVoice
                   value={answer}
