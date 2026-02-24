@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
-import { ArrowLeft, User, PenLine, Briefcase, Star, MessageCircle, Lightbulb, CalendarDays, Search, Sparkles } from "lucide-react";
+import { ArrowLeft, User, PenLine, Briefcase, Star, MessageCircle, Lightbulb, CalendarDays, Search, Sparkles, RefreshCw } from "lucide-react";
 
 interface CardDef {
   icon: React.ElementType;
@@ -20,10 +20,12 @@ const CARDS: CardDef[] = [
   { icon: Search, emoji: "🔍", title: "Auditer mon compte", desc: "Score complet et priorités d'action.", to: "/linkedin/audit", tag: "IA" },
   { icon: User, emoji: "👤", title: "Optimiser mon profil", desc: "Titre, photo, bannière, URL.", to: "/linkedin/profil", tag: "Checklist" },
   { icon: PenLine, emoji: "✍️", title: "Mon résumé (À propos)", desc: "Rédige un résumé qui donne envie.", to: "/linkedin/resume", tag: "Guide + IA" },
-  { icon: Sparkles, emoji: "✨", title: "Créer un post", desc: "Rédige un post LinkedIn avec l'IA.", to: "/linkedin/post", tag: "IA" },
+  { icon: Sparkles, emoji: "✨", title: "Créer un post", desc: "L'IA écrit ton post LinkedIn.", to: "/linkedin/post", tag: "IA" },
   { icon: Briefcase, emoji: "💼", title: "Mon parcours", desc: "Expériences, formations, compétences.", to: "/linkedin/parcours", tag: "Guide + IA" },
   { icon: Star, emoji: "⭐", title: "Mes recommandations", desc: "Demande et gère tes recommandations.", to: "/linkedin/recommandations", tag: "Exercice" },
   { icon: MessageCircle, emoji: "💬", title: "Mon engagement", desc: "Commentaires et messages stratégiques.", to: "/linkedin/engagement", tag: "Suivi hebdo" },
+  { icon: MessageCircle, emoji: "🎯", title: "Stratégie commentaires", desc: "Tes 10-15 comptes à commenter.", to: "/linkedin/comment-strategy", tag: "Exercice" },
+  { icon: RefreshCw, emoji: "♻️", title: "Recycler un contenu", desc: "Adapte un contenu pour LinkedIn.", to: "/linkedin/crosspost", tag: "IA" },
   { icon: Lightbulb, emoji: "💡", title: "Trouver des idées", desc: "Idées de contenu LinkedIn.", to: "/atelier?canal=linkedin", tag: "IA" },
   { icon: CalendarDays, emoji: "📅", title: "Mon calendrier", desc: "Planifie tes posts LinkedIn.", to: "/calendrier?canal=linkedin", tag: "Planning" },
 ];
@@ -36,6 +38,7 @@ interface ProgressData {
   engagementWeekly: string;
   ideasCount: number;
   calendarCount: number;
+  commentAccountsCount: number;
 }
 
 export default function LinkedInHub() {
@@ -43,7 +46,7 @@ export default function LinkedInHub() {
   const { column, value } = useWorkspaceFilter();
   const [progress, setProgress] = useState<ProgressData>({
     profileSteps: 0, summaryDone: false, experienceCount: 0,
-    recoCount: 0, engagementWeekly: "À faire", ideasCount: 0, calendarCount: 0,
+    recoCount: 0, engagementWeekly: "À faire", ideasCount: 0, calendarCount: 0, commentAccountsCount: 0,
   });
 
   useEffect(() => {
@@ -57,13 +60,14 @@ export default function LinkedInHub() {
       mondayDate.setDate(now.getDate() - day + (day === 0 ? -6 : 1));
       const monday = toLocalDateStr(mondayDate);
 
-      const [profileRes, expRes, recoRes, weeklyRes, ideasRes, calRes] = await Promise.all([
+      const [profileRes, expRes, recoRes, weeklyRes, ideasRes, calRes, commentRes] = await Promise.all([
         (supabase.from("linkedin_profile") as any).select("title_done, url_done, photo_done, banner_done").eq(column, value).maybeSingle(),
         (supabase.from("linkedin_experiences") as any).select("id", { count: "exact", head: true }).eq(column, value),
         (supabase.from("linkedin_recommendations") as any).select("id, reco_received").eq(column, value),
         (supabase.from("engagement_weekly_linkedin") as any).select("total_done, objective, comments_target, messages_target").eq(column, value).eq("week_start", monday).maybeSingle(),
         (supabase.from("saved_ideas") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("canal", "linkedin"),
         (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("canal", "linkedin").gte("date", monthStart).lte("date", monthEnd),
+        (supabase.from("linkedin_comment_strategy") as any).select("accounts").eq(column, value).maybeSingle(),
       ]);
 
       const lp = profileRes.data;
@@ -73,6 +77,9 @@ export default function LinkedInHub() {
       const w = weeklyRes.data;
       const wTotal = w ? (w.comments_target ?? 0) + (w.messages_target ?? 0) : 0;
 
+      const commentAccounts = commentRes.data?.accounts;
+      const commentAccountsCount = Array.isArray(commentAccounts) ? commentAccounts.length : 0;
+
       setProgress({
         profileSteps,
         summaryDone: !!lp,
@@ -81,6 +88,7 @@ export default function LinkedInHub() {
         engagementWeekly: w ? `${w.total_done ?? 0}/${wTotal}` : "À faire",
         ideasCount: ideasRes.count || 0,
         calendarCount: calRes.count || 0,
+        commentAccountsCount,
       });
     };
     fetch();
@@ -88,14 +96,17 @@ export default function LinkedInHub() {
 
   const getProgressLabel = (index: number): string | null => {
     switch (index) {
-      case 0: return null; // audit - no progress
+      case 0: return null; // audit
       case 1: return `${progress.profileSteps}/4 éléments`;
       case 2: return progress.summaryDone ? "✓ Rédigé" : "À faire";
-      case 3: return `${progress.experienceCount} expérience${progress.experienceCount !== 1 ? "s" : ""}`;
-      case 4: return `${progress.recoCount}/5 reçues`;
-      case 5: return progress.engagementWeekly;
-      case 6: return `${progress.ideasCount} idée${progress.ideasCount !== 1 ? "s" : ""}`;
-      case 7: return `${progress.calendarCount} post${progress.calendarCount !== 1 ? "s" : ""} ce mois`;
+      case 3: return null; // créer un post
+      case 4: return `${progress.experienceCount} expérience${progress.experienceCount !== 1 ? "s" : ""}`;
+      case 5: return `${progress.recoCount}/5 reçues`;
+      case 6: return progress.engagementWeekly;
+      case 7: return `${progress.commentAccountsCount} compte${progress.commentAccountsCount !== 1 ? "s" : ""}`;
+      case 8: return null; // recycler
+      case 9: return `${progress.ideasCount} idée${progress.ideasCount !== 1 ? "s" : ""}`;
+      case 10: return `${progress.calendarCount} post${progress.calendarCount !== 1 ? "s" : ""} ce mois`;
       default: return null;
     }
   };

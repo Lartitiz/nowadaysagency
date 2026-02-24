@@ -254,6 +254,8 @@ function AnimatedRoutes() {
               <Route path="/linkedin/recommandations" element={<ProtectedRoute><LinkedInRecommandations /></ProtectedRoute>} />
               <Route path="/linkedin/engagement" element={<ProtectedRoute><LinkedInEngagement /></ProtectedRoute>} />
               <Route path="/linkedin/post" element={<ProtectedRoute><LinkedInPostGenerator /></ProtectedRoute>} />
+              <Route path="/linkedin/comment-strategy" element={<ProtectedRoute><LinkedInCommentStrategy /></ProtectedRoute>} />
+              <Route path="/linkedin/crosspost" element={<ProtectedRoute><LinkedInCrosspost /></ProtectedRoute>} />
               {/* Pinterest module */}
               <Route path="/pinterest" element={<ProtectedRoute><PinterestHub /></ProtectedRoute>} />
               <Route path="/pinterest/compte" element={<ProtectedRoute><PinterestCompte /></ProtectedRoute>} />
