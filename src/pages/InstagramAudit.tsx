@@ -87,6 +87,10 @@ export default function InstagramAudit() {
     const path = `${user!.id}/${prefix}-${sanitizeFileName(file.name)}`;
     const { error } = await supabase.storage.from(bucket).upload(path, file, { contentType: file.type, upsert: false });
     if (error) throw error;
+    // For private buckets, create a signed URL (1 hour expiry)
+    const { data: signedData } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
+    if (signedData?.signedUrl) return signedData.signedUrl;
+    // Fallback to public URL for public buckets
     return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
   };
 
