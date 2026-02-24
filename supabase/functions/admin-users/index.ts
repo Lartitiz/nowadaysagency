@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
+const PLAN_PRICES: Record<string, number> = { outil: 39, studio: 250, now_pilot: 250, pro: 79 };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -179,43 +180,138 @@ async function getList(supabase: any, monthStart: string) {
 // ── STATS mode ──
 
 async function getStats(supabase: any, monthStart: string, now: Date) {
-  const [profilesRes, subsRes, aiRes, brandRes, personaRes, storyRes, propRes, stratRes] = await Promise.all([
-    supabase.from("profiles").select("user_id, created_at, onboarding_completed"),
-    supabase.from("subscriptions").select("user_id, plan, status"),
-    supabase.from("ai_usage").select("user_id, category").gte("created_at", monthStart),
+  const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonthStart = prevMonthDate.toISOString();
+  const prevMonthEnd = monthStart;
+
+  const [
+    profilesRes, subsRes, aiRes, brandRes, personaRes, storyRes, propRes, stratRes,
+    aiPrevRes, draftsRes, calendarRes, scoresRes, authUsersRes,
+  ] = await Promise.all([
+    supabase.from("profiles").select("user_id, created_at, onboarding_completed, type_activite, canaux, level"),
+    supabase.from("subscriptions").select("user_id, plan, status, created_at, canceled_at, current_period_start, current_period_end, source"),
+    supabase.from("ai_usage").select("user_id, category, created_at, action_type, tokens_used").gte("created_at", monthStart),
     supabase.from("brand_profile").select("user_id, " + BRAND_PROFILE_FIELDS.join(", ")),
     supabase.from("persona").select("user_id, " + PERSONA_FIELDS.join(", ")),
     supabase.from("storytelling").select("user_id, " + STORYTELLING_FIELDS.join(", ")),
     supabase.from("brand_proposition").select("user_id, " + PROPOSITION_FIELDS.join(", ")),
     supabase.from("brand_strategy").select("user_id, " + STRATEGY_FIELDS.join(", ")),
+    supabase.from("ai_usage").select("user_id, category, created_at").gte("created_at", prevMonthStart).lt("created_at", prevMonthEnd),
+    supabase.from("content_drafts").select("user_id, created_at, canal, status").gte("created_at", monthStart),
+    supabase.from("calendar_posts").select("user_id, created_at, canal, status").gte("created_at", monthStart),
+    supabase.from("content_scores").select("user_id, global_score, created_at").gte("created_at", monthStart),
+    supabase.auth.admin.listUsers({ perPage: 10000 }),
   ]);
+
+  // Auth map
+  const authMap = new Map<string, string>();
+  if (authUsersRes.data?.users) {
+    for (const u of authUsersRes.data.users) {
+      authMap.set(u.id, u.last_sign_in_at || "");
+    }
+  }
 
   const profiles = profilesRes.data || [];
   const totalUsers = profiles.length;
   const newThisMonth = profiles.filter((p: any) => p.created_at >= monthStart).length;
   const onboardingCompleted = profiles.filter((p: any) => p.onboarding_completed).length;
 
-  // Plans
+  // Previous month comparisons
+  const aiPrevData = aiPrevRes.data || [];
+  const prevActiveUserIds = new Set(aiPrevData.map((a: any) => a.user_id));
+  const newPrevMonth = profiles.filter((p: any) => p.created_at >= prevMonthStart && p.created_at < prevMonthEnd).length;
+
+  // Plans & subscriptions
+  const subs = subsRes.data || [];
   const plans: Record<string, number> = { free: 0, outil: 0, studio: 0, now_pilot: 0 };
-  const subsByUser = new Map<string, string>();
-  for (const s of subsRes.data || []) {
-    subsByUser.set(s.user_id, s.plan);
+  const subsByUser = new Map<string, any>();
+  for (const s of subs) {
+    subsByUser.set(s.user_id, s);
   }
   for (const p of profiles) {
-    const plan = subsByUser.get(p.user_id) || "free";
+    const plan = subsByUser.get(p.user_id)?.plan || "free";
     plans[plan] = (plans[plan] || 0) + 1;
   }
 
-  // AI usage
+  // Business metrics
+  const activeSubs = subs.filter((s: any) => s.status === "active" || s.status === "trialing");
+  const paidSubs = activeSubs.filter((s: any) => s.plan !== "free");
+  let mrr = 0;
+  const revenueByPlan: Record<string, number> = {};
+  for (const s of paidSubs) {
+    const price = PLAN_PRICES[s.plan] || 0;
+    mrr += price;
+    revenueByPlan[s.plan] = (revenueByPlan[s.plan] || 0) + price;
+  }
+  const churnedThisMonth = subs.filter((s: any) => s.canceled_at && s.canceled_at >= monthStart).length;
+  const churnBase = activeSubs.length + churnedThisMonth;
+  const churnRate = churnBase > 0 ? Math.round((churnedThisMonth / churnBase) * 100) : 0;
+  const conversionRate = totalUsers > 0 ? Math.round((paidSubs.length / totalUsers) * 100) : 0;
+
+  // AI usage current month
   const aiData = aiRes.data || [];
   const activeUserIds = new Set(aiData.map((a: any) => a.user_id));
   const aiByCategory: Record<string, number> = {};
+  const aiByActionType: Record<string, number> = {};
+  let totalTokens = 0;
+  const aiCountByUser = new Map<string, number>();
   for (const a of aiData) {
     aiByCategory[a.category] = (aiByCategory[a.category] || 0) + 1;
+    const at = a.action_type || "unknown";
+    aiByActionType[at] = (aiByActionType[at] || 0) + 1;
+    totalTokens += (a.tokens_used || 0);
+    aiCountByUser.set(a.user_id, (aiCountByUser.get(a.user_id) || 0) + 1);
   }
   const topFeatures = Object.entries(aiByCategory)
     .map(([category, count]) => ({ category, count }))
     .sort((a, b) => b.count - a.count);
+
+  // Retention
+  const activeThisMonthIds = activeUserIds;
+  const retainedUsers = [...activeThisMonthIds].filter(id => prevActiveUserIds.has(id)).length;
+  const retentionRate = prevActiveUserIds.size > 0 ? Math.round((retainedUsers / prevActiveUserIds.size) * 100) : 0;
+
+  // Active week / month from auth
+  const now7 = new Date(now); now7.setDate(now7.getDate() - 7);
+  const now30 = new Date(now); now30.setDate(now30.getDate() - 30);
+  let activeWeek = 0;
+  let activeMonth = 0;
+  for (const [, lastSign] of authMap) {
+    if (!lastSign) continue;
+    const d = new Date(lastSign);
+    if (d >= now7) activeWeek++;
+    if (d >= now30) activeMonth++;
+  }
+
+  // AI by day (last 30 days)
+  const aiByDay: { date: string; count: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const count = aiData.filter((a: any) => (a.created_at || "").startsWith(dateStr)).length;
+    aiByDay.push({ date: dateStr, count });
+  }
+
+  // Power users
+  const powerUsers = [...aiCountByUser.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([userId, count]) => {
+      const prof = profiles.find((p: any) => p.user_id === userId);
+      const sub = subsByUser.get(userId);
+      return { user_id: userId, prenom: prof?.prenom || "?", plan: sub?.plan || "free", count };
+    });
+
+  // Content metrics
+  const drafts = draftsRes.data || [];
+  const calPosts = calendarRes.data || [];
+  const scores = scoresRes.data || [];
+  const draftsByCanalMap: Record<string, number> = {};
+  for (const d of drafts) { const c = d.canal || "autre"; draftsByCanalMap[c] = (draftsByCanalMap[c] || 0) + 1; }
+  const calendarByCanalMap: Record<string, number> = {};
+  for (const c of calPosts) { const cn = c.canal || "autre"; calendarByCanalMap[cn] = (calendarByCanalMap[cn] || 0) + 1; }
+  const avgContentScore = scores.length > 0 ? Math.round(scores.reduce((s: number, r: any) => s + (r.global_score || 0), 0) / scores.length) : 0;
 
   // Branding scores
   const indexByUser = (arr: any[]) => {
@@ -231,6 +327,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
 
   let totalScore = 0;
   let scoredCount = 0;
+  const scoreDistribution: Record<string, number> = { "0-25": 0, "26-50": 0, "51-75": 0, "76-100": 0 };
   for (const p of profiles) {
     const uid = p.user_id;
     const filled =
@@ -240,8 +337,27 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
       countNonNull(propMap.get(uid), PROPOSITION_FIELDS) +
       countNonNull(stratMap.get(uid), STRATEGY_FIELDS);
     if (filled > 0) {
-      totalScore += Math.round((filled / TOTAL_BRANDING_FIELDS) * 100);
+      const score = Math.round((filled / TOTAL_BRANDING_FIELDS) * 100);
+      totalScore += score;
       scoredCount++;
+      if (score <= 25) scoreDistribution["0-25"]++;
+      else if (score <= 50) scoreDistribution["26-50"]++;
+      else if (score <= 75) scoreDistribution["51-75"]++;
+      else scoreDistribution["76-100"]++;
+    }
+  }
+
+  // Demographics
+  const activityTypes: Record<string, number> = {};
+  const levels: Record<string, number> = {};
+  const channelPopularity: Record<string, number> = {};
+  for (const p of profiles) {
+    const at = p.type_activite || "non renseigné";
+    activityTypes[at] = (activityTypes[at] || 0) + 1;
+    const lv = p.level || "non renseigné";
+    levels[lv] = (levels[lv] || 0) + 1;
+    if (Array.isArray(p.canaux)) {
+      for (const ch of p.canaux) { channelPopularity[ch] = (channelPopularity[ch] || 0) + 1; }
     }
   }
 
@@ -263,6 +379,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   }
 
   return {
+    // Existing
     total_users: totalUsers,
     new_this_month: newThisMonth,
     active_this_month: activeUserIds.size,
@@ -274,5 +391,37 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     onboarding_rate: totalUsers > 0 ? Math.round((onboardingCompleted / totalUsers) * 100) : 0,
     top_features: topFeatures,
     signups_by_week: signupsByWeek,
+    // Comparisons
+    new_prev_month: newPrevMonth,
+    active_prev_month: prevActiveUserIds.size,
+    ai_total_prev_month: aiPrevData.length,
+    // Business
+    mrr,
+    churn_rate: churnRate,
+    churned_this_month: churnedThisMonth,
+    conversion_rate: conversionRate,
+    paid_users: paidSubs.length,
+    revenue_by_plan: revenueByPlan,
+    // Engagement
+    active_week: activeWeek,
+    active_month: activeMonth,
+    retention_rate: retentionRate,
+    retained_users: retainedUsers,
+    ai_by_day: aiByDay,
+    total_tokens: totalTokens,
+    power_users: powerUsers,
+    // Content
+    drafts_this_month: drafts.length,
+    calendar_posts_this_month: calPosts.length,
+    avg_content_score: avgContentScore,
+    drafts_by_canal: draftsByCanalMap,
+    calendar_by_canal: calendarByCanalMap,
+    // Branding
+    score_distribution: scoreDistribution,
+    // Demographics
+    activity_types: activityTypes,
+    levels,
+    channel_popularity: channelPopularity,
+    ai_by_action_type: aiByActionType,
   };
 }
