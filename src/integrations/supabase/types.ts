@@ -538,6 +538,7 @@ export type Database = {
       branding_coaching_sessions: {
         Row: {
           completed_at: string | null
+          covered_topics: Json | null
           created_at: string | null
           extracted_data: Json | null
           id: string
@@ -550,6 +551,7 @@ export type Database = {
         }
         Insert: {
           completed_at?: string | null
+          covered_topics?: Json | null
           created_at?: string | null
           extracted_data?: Json | null
           id?: string
@@ -562,6 +564,7 @@ export type Database = {
         }
         Update: {
           completed_at?: string | null
+          covered_topics?: Json | null
           created_at?: string | null
           extracted_data?: Json | null
           id?: string
