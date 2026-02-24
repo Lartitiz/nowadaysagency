@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { DemoProvider } from "@/contexts/DemoContext";
 import DemoBanner from "@/components/demo/DemoBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -273,9 +274,11 @@ const App = () => {
         <ErrorBoundary>
         <DemoProvider>
           <AuthProvider>
+            <WorkspaceProvider>
             <SelectionMenuProvider>
             <AnimatedRoutes />
             </SelectionMenuProvider>
+            </WorkspaceProvider>
           </AuthProvider>
         </DemoProvider>
         </ErrorBoundary>
