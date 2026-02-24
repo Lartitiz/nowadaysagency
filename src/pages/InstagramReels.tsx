@@ -278,7 +278,7 @@ export default function InstagramReels() {
 
       // Save to DB
       await supabase.from("reels_scripts" as any).insert({
-        user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+        user_id: user.id,
         objective,
         face_cam: faceCam,
         subject: subject || null,

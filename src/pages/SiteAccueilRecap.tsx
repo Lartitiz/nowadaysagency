@@ -20,8 +20,8 @@ export default function SiteAccueilRecap() {
     if (!user) return;
     const load = async () => {
       const [hpRes, wpRes] = await Promise.all([
-        (supabase.from("website_homepage") as any).select("*").eq(column, value).maybeSingle(),
-        (supabase.from("website_profile") as any).select("cms").eq(column, value).maybeSingle(),
+        (supabase.from("website_homepage") as any).select("*").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("website_profile") as any).select("cms").eq("user_id", user.id).maybeSingle(),
       ]);
       if (hpRes.data) {
         const faq = Array.isArray(hpRes.data.faq) ? hpRes.data.faq : [];

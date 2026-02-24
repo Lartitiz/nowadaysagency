@@ -47,7 +47,7 @@ export default function SiteAPropos() {
 
   useEffect(() => {
     if (!user) return;
-    (supabase.from("website_about") as any).select("*").eq(column, value).maybeSingle()
+    (supabase.from("website_about") as any).select("*").eq("user_id", user.id).maybeSingle()
       .then(({ data: d }: any) => {
         if (d) {
           setData({
@@ -83,12 +83,12 @@ export default function SiteAPropos() {
         cta: parsed.cta,
       };
 
-      const { data: existing } = await (supabase.from("website_about") as any).select("id").eq(column, value).maybeSingle();
+      const { data: existing } = await (supabase.from("website_about") as any).select("id").eq("user_id", user.id).maybeSingle();
       if (existing) {
-        await (supabase.from("website_about") as any).update({ ...aboutData, updated_at: new Date().toISOString() }).eq(column, value);
+        await (supabase.from("website_about") as any).update({ ...aboutData, updated_at: new Date().toISOString() }).eq("user_id", user.id);
         setData({ ...aboutData, id: existing.id, custom_facts: data?.custom_facts || [] });
       } else {
-        const { data: inserted } = await supabase.from("website_about").insert({ user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, ...aboutData } as any).select("id").single();
+        const { data: inserted } = await supabase.from("website_about").insert({ user_id: user.id, ...aboutData } as any).select("id").single();
         setData({ ...aboutData, id: inserted?.id, custom_facts: [] });
       }
       toast({ title: "Page à propos générée !" });
@@ -126,7 +126,7 @@ export default function SiteAPropos() {
   const saveEdit = async (field: string) => {
     if (!user || !data) return;
     const update: any = { [field]: editValue, updated_at: new Date().toISOString() };
-    await (supabase.from("website_about") as any).update(update).eq(column, value);
+    await (supabase.from("website_about") as any).update(update).eq("user_id", user.id);
     setData({ ...data, [field]: editValue });
     setEditingField(null);
     toast({ title: "Sauvegardé !" });

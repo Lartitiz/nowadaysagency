@@ -242,7 +242,6 @@ export default function LinkedInAudit() {
       // Save to DB
       await supabase.from("linkedin_audit").insert({
         user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         profile_url: profileUrl || null,
         objective,
         current_rhythm: rhythm,
