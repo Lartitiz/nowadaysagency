@@ -268,7 +268,7 @@ function AnimatedRoutes() {
               <Route path="/site/a-propos" element={<ProtectedRoute><SiteAPropos /></ProtectedRoute>} />
               <Route path="/site/temoignages" element={<ProtectedRoute><SiteTestimonials /></ProtectedRoute>} />
               {/* Redirects from old routes */}
-              <Route path="/instagram/idees" element={<Navigate to="/atelier?canal=instagram" replace />} />
+              <Route path="/instagram/idees" element={<Navigate to="/idees?canal=instagram" replace />} />
               <Route path="/instagram/calendrier" element={<Navigate to="/calendrier?canal=instagram" replace />} />
               <Route path="/instagram/atelier" element={<Navigate to="/atelier?canal=instagram" replace />} />
               <Route path="*" element={<NotFound />} />

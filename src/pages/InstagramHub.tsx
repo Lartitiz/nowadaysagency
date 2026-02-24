@@ -155,7 +155,7 @@ export default function InstagramHub() {
               desc="Planifie tes posts."
             />
             <HubCard
-              to="/atelier?canal=instagram"
+              to="/idees?canal=instagram"
               emoji="💡"
               title="Mes idées"
               desc="Ta banque d'idées sauvegardées."
