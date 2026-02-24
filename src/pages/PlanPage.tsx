@@ -280,8 +280,8 @@ export default function PlanPage() {
 
   const loadConfig = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("user_plan_config")
+    const { data } = await (supabase
+      .from("user_plan_config") as any)
       .select("*")
       .eq(column, value)
       .maybeSingle();
