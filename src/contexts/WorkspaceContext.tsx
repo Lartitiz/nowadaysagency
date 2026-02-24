@@ -89,23 +89,41 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   }, [user?.id]);
 
   const switchWorkspace = useCallback(
-    (workspaceId: string) => {
-      const found = workspaces.find((w) => w.id === workspaceId);
+    async (workspaceId: string) => {
+      // D'abord chercher dans la liste locale
+      let found = workspaces.find((w) => w.id === workspaceId);
+
+      // Si pas trouvé localement, fetch depuis Supabase
+      if (!found) {
+        const { data } = await supabase
+          .from("workspaces")
+          .select("id, name, slug, avatar_url, plan")
+          .eq("id", workspaceId)
+          .single();
+
+        if (data) {
+          found = data as Workspace;
+          setWorkspaces(prev => {
+            if (prev.some(w => w.id === workspaceId)) return prev;
+            return [...prev, found!];
+          });
+        }
+      }
+
       if (!found) return;
       setActiveWorkspace(found);
       localStorage.setItem(LS_KEY, workspaceId);
 
       // Re-fetch role
       if (!user?.id) return;
-      supabase
+      const { data: roleData } = await supabase
         .from("workspace_members")
         .select("role")
         .eq("workspace_id", workspaceId)
         .eq("user_id", user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data?.role) setActiveRole(data.role as any);
-        });
+        .maybeSingle();
+
+      if (roleData?.role) setActiveRole(roleData.role as any);
     },
     [workspaces, user?.id],
   );
