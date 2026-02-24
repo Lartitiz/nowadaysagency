@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -27,6 +28,7 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
   const [email, setEmail] = useState("");
   const [startDate, setStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [whatsapp, setWhatsapp] = useState("");
+  const [createWorkspace, setCreateWorkspace] = useState(true);
   const [creating, setCreating] = useState(false);
   const [session1Date, setSession1Date] = useState("");
   const [session2Date, setSession2Date] = useState("");
@@ -88,8 +90,30 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
     await (supabase.from("coaching_deliverables" as any).insert(delivsToInsert as any) as any);
     await (supabase.from("profiles" as any).update({ current_plan: "now_pilot" } as any).eq("user_id", clientUserId) as any);
 
+    // Create workspace for client if checkbox is checked
+    if (createWorkspace) {
+      const { data: existingWs } = await supabase
+        .from("workspace_members")
+        .select("workspace_id")
+        .eq("user_id", clientUserId)
+        .eq("role", "owner");
+
+      if (!existingWs || existingWs.length === 0) {
+        const { data: ws } = await supabase
+          .from("workspaces")
+          .insert({ name: clientName, created_by: clientUserId } as any)
+          .select("id")
+          .single();
+
+        if (ws) {
+          await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: clientUserId, role: "owner" } as any);
+          await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: coachUserId, role: "manager" } as any);
+        }
+      }
+    }
+
     toast.success("Programme créé pour " + clientName + " ! 🎉");
-    setEmail(""); setWhatsapp(""); setCreating(false); onOpenChange(false); onCreated();
+    setEmail(""); setWhatsapp(""); setCreateWorkspace(true); setCreating(false); onOpenChange(false); onCreated();
   };
 
   return (
@@ -150,6 +174,12 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
           <section>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">WhatsApp</p>
             <Input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="https://wa.me/33612345678" />
+          </section>
+          <section>
+            <div className="flex items-center gap-2">
+              <Checkbox id="create-workspace" checked={createWorkspace} onCheckedChange={(v) => setCreateWorkspace(!!v)} />
+              <label htmlFor="create-workspace" className="text-sm text-foreground cursor-pointer">Créer aussi son espace de travail</label>
+            </div>
           </section>
           <div className="rounded-xl bg-rose-pale/50 border border-primary/20 p-4 text-sm space-y-1">
             <p className="font-semibold text-foreground">🤝 Now Pilot · 6 mois · 250€/mois</p>
