@@ -116,7 +116,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
         .select("id")
         .single();
 
-      if (error || !ws) { toast.error("Erreur création"); return; }
+      if (error || !ws) { console.error("Erreur création workspace:", error); toast.error("Erreur création: " + (error?.message || "inconnu")); return; }
 
       await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: user.id, role: "owner" } as any);
 
