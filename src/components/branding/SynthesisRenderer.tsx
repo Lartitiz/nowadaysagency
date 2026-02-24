@@ -647,8 +647,12 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         const { data: profData } = await supabase.from("profiles").select("activite, prenom").eq("user_id", user.id).single();
         const { data: bpData } = await supabase.from("brand_profile").select("mission, offer, target_description, tone_register").eq("user_id", user.id).maybeSingle();
         const profile = { ...(profData || {}), ...(bpData || {}) };
+        const { data: personaData } = await supabase.from("persona").select("step_1_frustrations, step_2_transformation").eq("user_id", user.id).maybeSingle();
+        const { data: propositionData } = await supabase.from("brand_proposition").select("version_final, version_bio").eq("user_id", user.id).maybeSingle();
+        const { data: toneData } = await supabase.from("brand_profile").select("combat_cause, combat_fights, voice_description, key_expressions, tone_register, tone_humor").eq("user_id", user.id).maybeSingle();
+        const { data: editorialData } = await supabase.from("instagram_editorial_line").select("*").eq("user_id", user.id).maybeSingle();
         const { data: fnData, error } = await supabase.functions.invoke("strategy-ai", {
-          body: { type: "recap", strategy: localData, profile },
+          body: { type: "generate-recap", strategy_data: localData, profile, persona: personaData, proposition: propositionData, tone: toneData, editorial_line: editorialData },
         });
         if (error) throw error;
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
