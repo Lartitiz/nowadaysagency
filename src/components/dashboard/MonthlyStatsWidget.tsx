@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -43,6 +44,7 @@ function getMonthMessage(pubPercent: number, routinePercent: number): string {
 export default function MonthlyStatsWidget({ animationDelay = 0 }: Props) {
   const { user } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
+  const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const [monthPublished, setMonthPublished] = useState(0);
   const [monthRoutineDays, setMonthRoutineDays] = useState(0);
@@ -68,28 +70,28 @@ export default function MonthlyStatsWidget({ animationDelay = 0 }: Props) {
     if (!user) return;
 
     const [pubRes, routineRes, aiRes, configRes] = await Promise.all([
-      supabase
-        .from("calendar_posts")
+      (supabase
+        .from("calendar_posts") as any)
         .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
+        .eq(column, value)
         .eq("status", "published")
         .gte("date", monthStart)
         .lte("date", monthEnd),
-      supabase
-        .from("engagement_checklist_logs")
+      (supabase
+        .from("engagement_checklist_logs") as any)
         .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
+        .eq(column, value)
         .gte("log_date", monthStart)
         .lte("log_date", monthEnd),
-      supabase
-        .from("ai_usage")
+      (supabase
+        .from("ai_usage") as any)
         .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
+        .eq(column, value)
         .gte("created_at", monthStart + "T00:00:00"),
-      supabase
-        .from("user_plan_config")
+      (supabase
+        .from("user_plan_config") as any)
         .select("weekly_time")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle(),
     ]);
 
@@ -100,7 +102,7 @@ export default function MonthlyStatsWidget({ animationDelay = 0 }: Props) {
     const weeklyTime = (configRes.data as any)?.weekly_time?.toString() || "2_5h";
     setObjectives(getMonthlyObjectives(weeklyTime));
     setLoading(false);
-  }, [user?.id, isDemoMode, monthStart, monthEnd]);
+  }, [user?.id, isDemoMode, monthStart, monthEnd, column, value]);
 
   useEffect(() => {
     fetchData();

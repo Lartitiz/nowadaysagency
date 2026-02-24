@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useNavigate } from "react-router-dom";
 import { startOfWeek, endOfWeek, format, addDays, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -70,6 +71,7 @@ interface Props {
 export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
   const { user } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
+  const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const [weekPosts, setWeekPosts] = useState<WeekPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,7 +82,6 @@ export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
 
   const fetchData = useCallback(async () => {
     if (isDemoMode) {
-      // Use demo data with dates in the current week
       if (demoData) {
         const mondayStr = format(monday, "yyyy-MM-dd");
         const wednesdayStr = format(addDays(monday, 2), "yyyy-MM-dd");
@@ -115,17 +116,17 @@ export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
     const weekStart = format(monday, "yyyy-MM-dd");
     const weekEnd = format(sunday, "yyyy-MM-dd");
 
-    const { data } = await supabase
-      .from("calendar_posts")
+    const { data } = await (supabase
+      .from("calendar_posts") as any)
       .select("id, date, theme, format, status, canal, content_type_emoji, stories_count, stories_structure")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .gte("date", weekStart)
       .lte("date", weekEnd)
       .order("date");
 
     setWeekPosts((data as WeekPost[]) || []);
     setLoading(false);
-  }, [user?.id, isDemoMode]);
+  }, [user?.id, isDemoMode, column, value]);
 
   useEffect(() => {
     fetchData();

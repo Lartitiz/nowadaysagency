@@ -114,7 +114,7 @@ export default function Dashboard() {
         };
       }
       if (!user) return null;
-      const { data } = await supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq("user_id", user.id).single();
+      const { data } = await (supabase.from("profiles") as any).select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq(column, value).single();
       return data as UserProfile | null;
     },
     enabled: !!user || isDemoMode,
@@ -156,20 +156,20 @@ export default function Dashboard() {
       const weekEnd = format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
 
       const [profRes, brandingData, igAuditRes, liAuditRes, contactRes, prospectRes, prospectConvRes, prospectOffRes, calendarRes, weekPostsRes, weekPublishedRes, nextPostRes, planConfigRes, recsRes] = await Promise.all([
-        supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq("user_id", user.id).single(),
+        (supabase.from("profiles") as any).select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq(column, value).single(),
         fetchBrandingData(user.id),
-        supabase.from("instagram_audit").select("score_global").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("linkedin_audit").select("score_global").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "network"),
-        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "prospect"),
-        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "prospect").eq("prospect_stage", "in_conversation"),
-        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("contact_type", "prospect").eq("prospect_stage", "offer_sent"),
+        (supabase.from("instagram_audit") as any).select("score_global").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        (supabase.from("linkedin_audit") as any).select("score_global").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        (supabase.from("contacts") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("contact_type", "network"),
+        (supabase.from("contacts") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("contact_type", "prospect"),
+        (supabase.from("contacts") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("contact_type", "prospect").eq("prospect_stage", "in_conversation"),
+        (supabase.from("contacts") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("contact_type", "prospect").eq("prospect_stage", "offer_sent"),
         (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(column, value),
         (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(column, value).gte("date", weekStart).lte("date", weekEnd),
         (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(column, value).gte("date", weekStart).lte("date", weekEnd).eq("status", "published"),
         (supabase.from("calendar_posts") as any).select("date, theme").eq(column, value).gte("date", format(now, "yyyy-MM-dd")).order("date", { ascending: true }).limit(1).maybeSingle(),
-        supabase.from("user_plan_config").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("audit_recommendations").select("id, titre, route, completed").eq("user_id", user.id).order("position", { ascending: true }).limit(5),
+        (supabase.from("user_plan_config") as any).select("*").eq(column, value).maybeSingle(),
+        (supabase.from("audit_recommendations") as any).select("id, titre, route, completed").eq(column, value).order("position", { ascending: true }).limit(5),
       ]);
 
       const bc = calculateBrandingCompletion(brandingData);

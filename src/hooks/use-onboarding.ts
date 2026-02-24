@@ -8,6 +8,7 @@ import { friendlyError } from "@/lib/error-messages";
 import { getActivityExamples } from "@/lib/activity-examples";
 import { TOTAL_STEPS } from "@/lib/onboarding-constants";
 import { type DiagnosticData } from "@/lib/diagnostic-data";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 
 /* ────────────────────────────────────────────── types */
 
@@ -47,6 +48,7 @@ interface AuditResults {
 export function useOnboarding() {
   const { user } = useAuth();
   const { isDemoMode, demoData, skipDemoOnboarding } = useDemoContext();
+  const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -144,10 +146,10 @@ export function useOnboarding() {
   useEffect(() => {
     if (isDemoMode || !user || step >= 16) return;
     const check = async () => {
-      const { data: config } = await supabase
-        .from("user_plan_config")
+      const { data: config } = await (supabase
+        .from("user_plan_config") as any)
         .select("onboarding_completed")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle();
       if (config?.onboarding_completed) {
         navigate("/dashboard", { replace: true });

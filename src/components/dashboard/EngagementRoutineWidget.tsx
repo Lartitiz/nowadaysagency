@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useNavigate } from "react-router-dom";
 import { startOfWeek, format, addDays, subDays } from "date-fns";
 import { ArrowRight } from "lucide-react";
@@ -13,6 +14,7 @@ interface Props {
 export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
+  const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const [weekDots, setWeekDots] = useState<boolean[]>(Array(7).fill(false));
   const [streakCount, setStreakCount] = useState(0);
@@ -20,7 +22,6 @@ export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
 
   const fetchData = useCallback(async () => {
     if (isDemoMode) {
-      // Demo: 2 days done this week (streak of 2)
       setWeekDots([true, true, false, false, false, false, false]);
       setStreakCount(2);
       setTodayDone(false);
@@ -36,16 +37,16 @@ export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
     const todayStr = format(now, "yyyy-MM-dd");
 
     const [logsRes, streakRes] = await Promise.all([
-      supabase
-        .from("engagement_checklist_logs")
+      (supabase
+        .from("engagement_checklist_logs") as any)
         .select("log_date, streak_maintained")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .gte("log_date", weekStart)
         .lte("log_date", weekEnd),
-      supabase
-        .from("engagement_streaks")
+      (supabase
+        .from("engagement_streaks") as any)
         .select("current_streak, last_check_date")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle(),
     ]);
 
@@ -68,7 +69,7 @@ export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
       }
       setStreakCount(streak);
     }
-  }, [user?.id, isDemoMode]);
+  }, [user?.id, isDemoMode, column, value]);
 
   useEffect(() => {
     fetchData();
