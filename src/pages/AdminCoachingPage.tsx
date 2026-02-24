@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace, type Workspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Navigate } from "react-router-dom";
@@ -10,16 +11,18 @@ import type { ProgramWithProfile, SessionData } from "@/components/admin/admin-c
 
 export default function AdminCoachingPage() {
   const { user } = useAuth();
+  const { workspaces } = useWorkspace();
   const [programs, setPrograms] = useState<ProgramWithProfile[]>([]);
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
+  const [standaloneWorkspaces, setStandaloneWorkspaces] = useState<Workspace[]>([]);
 
   const isAdmin = user?.email === "laetitia@nowadaysagency.com";
 
   const loadData = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!isAdmin || !user?.id) return;
     setLoading(true);
     const { data: progs } = await (supabase.from("coaching_programs" as any).select("*").order("created_at", { ascending: false }) as any);
     const programList = (progs || []) as ProgramWithProfile[];
@@ -40,8 +43,41 @@ export default function AdminCoachingPage() {
     const { data: allSessions } = await (supabase.from("coaching_sessions" as any).select("*").order("session_number") as any);
     setSessions((allSessions || []) as SessionData[]);
     setPrograms(programList);
+
+    // Load workspaces where admin is manager but NOT linked to a coaching program
+    const { data: managerWs } = await supabase
+      .from("workspace_members")
+      .select("workspace_id, workspaces:workspace_id(id, name, slug, avatar_url, plan)")
+      .eq("user_id", user.id)
+      .eq("role", "manager");
+
+    const coachingClientUserIds = new Set(programList.map(p => p.client_user_id));
+
+    // Also get owner user_ids for each workspace to filter coaching-linked ones
+    const managerWsList = (managerWs || []).map((r: any) => r.workspaces).filter(Boolean) as Workspace[];
+    
+    if (managerWsList.length > 0) {
+      const wsIds = managerWsList.map(w => w.id);
+      const { data: owners } = await supabase
+        .from("workspace_members")
+        .select("workspace_id, user_id")
+        .in("workspace_id", wsIds)
+        .eq("role", "owner");
+
+      const ownerMap = new Map<string, string>();
+      (owners || []).forEach((o: any) => ownerMap.set(o.workspace_id, o.user_id));
+
+      const standalone = managerWsList.filter(ws => {
+        const ownerId = ownerMap.get(ws.id);
+        return !ownerId || !coachingClientUserIds.has(ownerId);
+      });
+      setStandaloneWorkspaces(standalone);
+    } else {
+      setStandaloneWorkspaces([]);
+    }
+
     setLoading(false);
-  }, [isAdmin]);
+  }, [isAdmin, user?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -70,6 +106,8 @@ export default function AdminCoachingPage() {
           loading={loading}
           onSelectProgram={setSelectedProgramId}
           onAddClient={() => setAddOpen(true)}
+          standaloneWorkspaces={standaloneWorkspaces}
+          onReload={loadData}
         />
         <KickoffPreparation open={addOpen} onOpenChange={setAddOpen} coachUserId={user?.id || ""} onCreated={loadData} />
       </main>
