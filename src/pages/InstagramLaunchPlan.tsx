@@ -68,9 +68,7 @@ export default function InstagramLaunchPlan() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: launches } = await supabase
-        .from("launches")
-        (supabase.from("launches") as any)
+      const { data: launches } = await (supabase.from("launches") as any)
         .select("*")
         .eq(column, value)
         .order("created_at", { ascending: false })
@@ -81,9 +79,7 @@ export default function InstagramLaunchPlan() {
       setLaunch(l);
 
       // Check editorial line
-      const { data: edito } = await supabase
-        .from("instagram_editorial_line")
-        (supabase.from("instagram_editorial_line") as any)
+      const { data: edito } = await (supabase.from("instagram_editorial_line") as any)
         .select("estimated_weekly_minutes")
         .eq(column, value)
         .maybeSingle();
@@ -172,9 +168,7 @@ export default function InstagramLaunchPlan() {
     if (!user || !launch) return;
     setGenerating(true);
     try {
-      const { data: editoData } = await supabase
-        .from("instagram_editorial_line")
-        (supabase.from("instagram_editorial_line") as any)
+      const { data: editoData } = await (supabase.from("instagram_editorial_line") as any)
         .select("preferred_formats, posts_frequency")
         .eq(column, value)
         .maybeSingle();
