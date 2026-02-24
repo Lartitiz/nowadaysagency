@@ -22,3 +22,56 @@ export function friendlyError(error: unknown): string {
 
   return "Quelque chose n'a pas fonctionné. Réessaie, et si le problème persiste, contacte-nous.";
 }
+
+// ─── Messages d'erreur IA contextuels ───
+
+export const AI_ERROR_MESSAGES: Record<string, { title: string; description: string; action?: string }> = {
+  "429": {
+    title: "L'IA fait une pause",
+    description: "Trop de demandes en même temps. C'est comme la queue au marché : ça vaut le coup d'attendre 30 secondes.",
+    action: "Réessaie dans un moment",
+  },
+  "529": {
+    title: "L'IA est débordée",
+    description: "Beaucoup de monde utilise l'IA en ce moment. Rien de grave, ça revient vite.",
+    action: "Réessaie dans 2-3 minutes",
+  },
+  "quota_category": {
+    title: "Tu as utilisé tous tes crédits pour ce type",
+    description: "Tes crédits se renouvellent le 1er du mois. En attendant, tu peux travailler sur d'autres sections.",
+    action: "Voir mes crédits",
+  },
+  "quota_total": {
+    title: "Tu as utilisé tous tes crédits du mois",
+    description: "Bonne nouvelle : ça veut dire que tu bosses ta com' ! Tes crédits reviennent le 1er du mois.",
+    action: "Découvrir le plan Outil",
+  },
+  "parse_error": {
+    title: "L'IA a eu un moment de confusion",
+    description: "La réponse n'était pas dans le bon format. Ça arrive parfois. Un deuxième essai suffit généralement.",
+    action: "Réessayer",
+  },
+  "network": {
+    title: "Problème de connexion",
+    description: "Vérifie ta connexion internet et réessaie.",
+    action: "Réessayer",
+  },
+  "unknown": {
+    title: "Oups, quelque chose a coincé",
+    description: "Une erreur inattendue. Si ça persiste, contacte-nous.",
+    action: "Réessayer",
+  },
+};
+
+export function getAIErrorMessage(error: any): { title: string; description: string; action?: string } {
+  if (error?.status) {
+    return AI_ERROR_MESSAGES[String(error.status)] || AI_ERROR_MESSAGES.unknown;
+  }
+  if (error?.message?.includes("quota") || error?.message?.includes("crédit")) {
+    return AI_ERROR_MESSAGES.quota_total;
+  }
+  if (error?.message?.includes("fetch") || error?.message?.includes("network")) {
+    return AI_ERROR_MESSAGES.network;
+  }
+  return AI_ERROR_MESSAGES.unknown;
+}
