@@ -351,7 +351,62 @@ function BusinessSection({ stats }: { stats: StatsData }) {
 }
 
 function EngagementSection({ stats }: { stats: StatsData }) {
-  return <p className="text-sm text-muted-foreground">Section engagement</p>;
+  const PLAN_COLORS: Record<string, string> = {
+    free: "#9CA3AF", outil: "#8B5CF6", studio: "#F59E0B", now_pilot: "#fb3d80", pro: "#3B82F6",
+  };
+
+  const aiDayData = (stats.ai_by_day || []).map(d => ({
+    ...d,
+    label: format(parseISO(d.date), "d MMM", { locale: fr }),
+  }));
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <KpiCard title="Actives 7j" value={stats.active_week} sub={`sur ${stats.total_users}`} />
+        <KpiCard title="Actives 30j" value={stats.active_month} sub="connexions" />
+        <KpiCard title="Rétention" value={stats.retention_rate} suffix="%" sub={`${stats.retained_users} revenues du mois dernier`} subColor={stats.retention_rate >= 50 ? "text-emerald-600" : "text-amber-500"} />
+        <KpiCard title="Tokens IA" value={Math.round((stats.total_tokens || 0) / 1000)} suffix="k" sub="ce mois" />
+      </div>
+
+      <ChartCard title="Activité IA quotidienne (30 jours)">
+        <ResponsiveContainer width="100%" height={220}>
+          <AreaChart data={aiDayData}>
+            <defs>
+              <linearGradient id="aiDayFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.15} />
+                <stop offset="100%" stopColor="#8B5CF6" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} interval={4} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={24} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Area type="monotone" dataKey="count" stroke="#8B5CF6" strokeWidth={2} fill="url(#aiDayFill)" name="Générations IA" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      <ChartCard title="Power users ce mois">
+        {(!stats.power_users || stats.power_users.length === 0) ? (
+          <EmptyChart message="Pas encore d'activité ce mois" />
+        ) : (
+          <div className="space-y-2.5">
+            {stats.power_users.map((pu, i) => (
+              <div key={pu.user_id} className="flex items-center gap-3 py-1.5">
+                <span className="text-xs font-mono text-muted-foreground w-5 text-right">{i + 1}.</span>
+                {i < 3 ? <Crown className="w-4 h-4 text-amber-400" /> : <span className="w-4" />}
+                <span className="text-sm font-medium flex-1 truncate">{pu.prenom}</span>
+                <Badge variant="outline" className="text-xs" style={{ borderColor: PLAN_COLORS[pu.plan] || "#9CA3AF" }}>
+                  {PLAN_LABELS[pu.plan] || pu.plan}
+                </Badge>
+                <span className="text-sm text-muted-foreground font-medium tabular-nums">{pu.count} <span className="text-xs">générations</span></span>
+              </div>
+            ))}
+          </div>
+        )}
+      </ChartCard>
+    </div>
+  );
 }
 
 function ProductSection({ stats }: { stats: StatsData }) {
