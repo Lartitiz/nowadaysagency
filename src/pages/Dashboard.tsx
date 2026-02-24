@@ -244,7 +244,7 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
-        <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4">
+        <main className="mx-auto max-w-[1100px] px-4 sm:px-6 py-6 sm:py-8">
           <div className="mb-8">
             <div className="h-7 w-64 rounded-md bg-muted animate-pulse mb-2" />
             <div className="h-4 w-48 rounded-md bg-muted animate-pulse" />
@@ -274,18 +274,18 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       
-      <main id="main-content" className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4">
+      <main id="main-content" className="mx-auto max-w-[1100px] px-4 sm:px-6 py-6 sm:py-8">
 
         {/* ─── Greeting ─── */}
-        <div className="mb-8">
-          <h1 className="font-heading text-[22px] sm:text-[28px] font-bold text-foreground leading-tight">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="font-heading text-lg sm:text-[22px] md:text-[28px] font-bold text-foreground leading-tight">
             Hey <span className="text-primary">{profile.prenom}</span>,{" "}
             {isPilot && coachingMonth
               ? <>programme Now Pilot · Mois {coachingMonth}/6 🤝</>
               : <>{welcomeMessage}</>
             }
           </h1>
-          <p className="mt-1 text-[14px] text-muted-foreground font-body">
+          <p className="mt-1 text-[13px] sm:text-[14px] text-muted-foreground font-body">
             Ton espace coaching + outils de com'.
           </p>
         </div>
@@ -434,7 +434,7 @@ export default function Dashboard() {
         {/* ─── Coming Soon ─── */}
         {comingSoonChannels.length > 0 && (
           <div
-            className="rounded-[20px] bg-gradient-to-r from-rose-pale via-card to-accent/10 border border-border p-5 mb-8 shadow-[var(--shadow-bento)] opacity-0 animate-reveal-up"
+            className="rounded-[20px] bg-gradient-to-r from-rose-pale via-card to-accent/10 border border-border p-3 sm:p-5 mb-6 sm:mb-8 shadow-[var(--shadow-bento)] opacity-0 animate-reveal-up"
             style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
           >
             <div className="flex items-center gap-2 mb-1">
