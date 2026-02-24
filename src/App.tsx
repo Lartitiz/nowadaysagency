@@ -112,7 +112,16 @@ const LinkedInCrosspost = lazy(() => import("./pages/LinkedInCrosspost"));
 const InstagramInspiration = lazy(() => import("./pages/InstagramInspiration"));
 const InvitePage = lazy(() => import("./pages/InvitePage"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const SuspenseFallback = () => (
   <div className="flex min-h-screen items-center justify-center bg-background">
