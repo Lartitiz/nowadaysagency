@@ -33,7 +33,10 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Non authentifié");
 
-    const { force } = await req.json().catch(() => ({ force: false }));
+    const { force, workspace_id } = await req.json().catch(() => ({ force: false, workspace_id: undefined }));
+
+    const filterCol = workspace_id ? "workspace_id" : "user_id";
+    const filterVal = workspace_id || user.id;
 
     // Check quota
     const quota = await checkQuota(user.id, "content");
@@ -47,7 +50,8 @@ serve(async (req) => {
     // Get all branding data
     const ctx = await getUserContext(
       createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!),
-      user.id
+      user.id,
+      workspace_id
     );
     const brandingText = formatContextForAI(ctx, {
       includeStory: true,
@@ -66,7 +70,7 @@ serve(async (req) => {
       const { data: cached } = await sb
         .from("branding_summary")
         .select("*")
-        .eq("user_id", user.id)
+        .eq(filterCol, filterVal)
         .maybeSingle();
 
       if (cached && cached.branding_hash === currentHash && cached.summaries) {
@@ -191,6 +195,7 @@ Si une section n'a pas de données, mets null pour cette clé. Pour les arrays v
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     await sb.from("branding_summary").upsert({
       user_id: user.id,
+      workspace_id: workspace_id || null,
       summaries,
       branding_hash: currentHash,
       generated_at: new Date().toISOString(),

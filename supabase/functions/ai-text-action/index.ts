@@ -7,7 +7,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { user_id, selected_text, action_prompt } = await req.json();
+    const { user_id, workspace_id, selected_text, action_prompt } = await req.json();
     if (!selected_text || !action_prompt) {
       return new Response(JSON.stringify({ error: "Missing selected_text or action_prompt" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -21,10 +21,12 @@ serve(async (req) => {
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       );
+      const filterCol = workspace_id ? "workspace_id" : "user_id";
+      const filterVal = workspace_id || user_id;
       const { data: bp } = await supabase
         .from("brand_profile")
         .select("positioning, tone_keywords, tone_description, tone_do, tone_dont")
-        .eq("user_id", user_id)
+        .eq(filterCol, filterVal)
         .maybeSingle();
 
       if (bp) {
