@@ -155,6 +155,20 @@ export default function OfferWorkshopPage() {
         throw new Error(res.data.error === "limit_reached" ? (res.data.message || "Quota IA atteint") : res.data.error);
       }
       setAiResponse(res.data);
+
+      // Auto-save step 7 synthesis immediately
+      if (stepNum === 7 && res.data) {
+        const fields: Record<string, any> = {
+          sales_line: res.data.sales_line || "",
+          emotional_before: res.data.before || "",
+          emotional_after: res.data.after || "",
+          feelings_after: res.data.feelings || [],
+        };
+        if (res.data.promise_summary) fields.promise = res.data.promise_summary;
+        if (res.data.sales_line_long) fields.promise_long = res.data.sales_line_long;
+        await save(fields);
+        toast.success("Synthèse sauvegardée !");
+      }
     } catch (e: any) {
       console.error("offer-coaching error:", e);
       toast.error(e.message || "Une erreur est survenue. Réessaie.");
@@ -602,6 +616,16 @@ function Step6({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
 }
 
 function Step7({ formData, setFormData, aiResponse, aiLoading, offer, onAskAI }: any) {
+  // Use aiResponse if available, otherwise fall back to saved offer data
+  const displayData = aiResponse || (offer?.sales_line ? {
+    problem_summary: offer.problem_deep || null,
+    promise_summary: offer.promise || null,
+    before: offer.emotional_before || null,
+    after: offer.emotional_after || null,
+    feelings: offer.feelings_after || [],
+    sales_line: offer.sales_line || null,
+  } : null);
+
   return (
     <div className="space-y-5">
       <h2 className="font-display text-xl font-bold">⑦ L'angle émotionnel</h2>
@@ -609,46 +633,46 @@ function Step7({ formData, setFormData, aiResponse, aiLoading, offer, onAskAI }:
 
       <Button onClick={onAskAI} disabled={aiLoading} className="gap-2">
         {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-        Générer la synthèse
+        {displayData ? "Regénérer la synthèse" : "Générer la synthèse"}
       </Button>
 
-      {aiResponse && (
+      {displayData && (
         <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-4">
           <p className="text-sm font-semibold text-primary">🤖 Voici ce que j'ai compris de ton offre</p>
 
-          {aiResponse.problem_summary && (
+          {displayData.problem_summary && (
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-1">🎯 LE PROBLÈME PROFOND :</p>
-              <p className="text-sm text-foreground italic">"{aiResponse.problem_summary}"</p>
+              <p className="text-sm text-foreground italic">"{displayData.problem_summary}"</p>
             </div>
           )}
-          {aiResponse.promise_summary && (
+          {displayData.promise_summary && (
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-1">✨ LA PROMESSE :</p>
-              <p className="text-sm text-foreground font-semibold">"{aiResponse.promise_summary}"</p>
+              <p className="text-sm text-foreground font-semibold">"{displayData.promise_summary}"</p>
             </div>
           )}
-          {(aiResponse.before || aiResponse.after) && (
+          {(displayData.before || displayData.after) && (
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-1">💡 LA TRANSFORMATION :</p>
-              {aiResponse.before && <p className="text-sm text-muted-foreground"><span className="font-semibold">AVANT :</span> {aiResponse.before}</p>}
-              {aiResponse.after && <p className="text-sm text-foreground"><span className="font-semibold">APRÈS :</span> {aiResponse.after}</p>}
+              {displayData.before && <p className="text-sm text-muted-foreground"><span className="font-semibold">AVANT :</span> {displayData.before}</p>}
+              {displayData.after && <p className="text-sm text-foreground"><span className="font-semibold">APRÈS :</span> {displayData.after}</p>}
             </div>
           )}
-          {aiResponse.feelings && aiResponse.feelings.length > 0 && (
+          {displayData.feelings && displayData.feelings.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-1">🫀 CE QU'ELLE RESSENT APRÈS :</p>
               <div className="flex flex-wrap gap-2">
-                {aiResponse.feelings.map((f: string, i: number) => (
+                {displayData.feelings.map((f: string, i: number) => (
                   <span key={i} className="text-xs bg-primary/10 text-primary rounded-full px-3 py-1 font-medium">{f}</span>
                 ))}
               </div>
             </div>
           )}
-          {aiResponse.sales_line && (
+          {displayData.sales_line && (
             <div className="rounded-lg bg-card border border-border p-3">
               <p className="text-xs font-semibold text-muted-foreground mb-1">📣 LA PHRASE DE VENTE :</p>
-              <p className="text-sm text-foreground font-semibold">"{aiResponse.sales_line}"</p>
+              <p className="text-sm text-foreground font-semibold">"{displayData.sales_line}"</p>
             </div>
           )}
         </div>
