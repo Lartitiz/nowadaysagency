@@ -117,24 +117,28 @@ function SignupForm({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" aria-label="Formulaire d'inscription">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <Input {...register("prenom")} placeholder="Ton prénom" className="rounded-xl h-12 bg-card border-border" />
-          {errors.prenom && <p className="text-destructive text-xs mt-1">{errors.prenom.message}</p>}
+          <label htmlFor="signup-prenom" className="sr-only">Prénom</label>
+          <Input id="signup-prenom" {...register("prenom")} placeholder="Ton prénom" aria-required="true" className="rounded-xl h-12 bg-card border-border" />
+          {errors.prenom && <p className="text-destructive text-xs mt-1" role="alert">{errors.prenom.message}</p>}
         </div>
         <div>
-          <Input type="email" {...register("email")} placeholder="Ton email" className="rounded-xl h-12 bg-card border-border" />
-          {errors.email && <p className="text-destructive text-xs mt-1">{errors.email.message}</p>}
+          <label htmlFor="signup-email" className="sr-only">Email</label>
+          <Input id="signup-email" type="email" {...register("email")} placeholder="Ton email" aria-required="true" className="rounded-xl h-12 bg-card border-border" />
+          {errors.email && <p className="text-destructive text-xs mt-1" role="alert">{errors.email.message}</p>}
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <Input {...register("activite")} placeholder="Ex : photographe, coach, artisane..." className="rounded-xl h-12 bg-card border-border" />
+          <label htmlFor="signup-activite" className="sr-only">Activité</label>
+          <Input id="signup-activite" {...register("activite")} placeholder="Ex : photographe, coach, artisane..." className="rounded-xl h-12 bg-card border-border" />
         </div>
         <div>
-          <Input type="password" {...register("password")} placeholder="Mot de passe (8 car. min.)" className="rounded-xl h-12 bg-card border-border" />
-          {errors.password && <p className="text-destructive text-xs mt-1">{errors.password.message}</p>}
+          <label htmlFor="signup-password" className="sr-only">Mot de passe</label>
+          <Input id="signup-password" type="password" {...register("password")} placeholder="Mot de passe (8 car. min.)" aria-required="true" className="rounded-xl h-12 bg-card border-border" />
+          {errors.password && <p className="text-destructive text-xs mt-1" role="alert">{errors.password.message}</p>}
         </div>
       </div>
       <Button type="submit" disabled={loading} className="w-full sm:w-auto h-12 rounded-pill px-10 text-base font-medium">
@@ -276,7 +280,7 @@ export default function LandingPage() {
 
       {/* ═══ NAVBAR ═══ */}
       <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
-        <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+        <nav role="navigation" aria-label="Navigation principale" className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
           <span className="font-display text-xl font-bold text-bordeaux tracking-tight">Nowadays</span>
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" onClick={scrollTo("features")} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Fonctionnalités</a>
@@ -289,7 +293,7 @@ export default function LandingPage() {
               Commencer gratuitement
             </a>
           </div>
-          <button className="md:hidden p-2" onClick={() => setMobileNav(!mobileNav)} aria-label="Menu">
+          <button className="md:hidden p-2" onClick={() => setMobileNav(!mobileNav)} aria-label="Ouvrir le menu de navigation" aria-expanded={mobileNav}>
             {mobileNav ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </nav>
@@ -307,7 +311,7 @@ export default function LandingPage() {
       </header>
 
       {/* ═══ HERO ═══ */}
-      <main id="main-content">
+      <main id="main-content" role="main">
       <section className="relative py-16 sm:py-24 lg:py-32 px-4 overflow-hidden">
         {/* Background shapes — NO circles */}
         <div className="absolute -top-20 -right-32 w-[500px] h-[320px] bg-rose-soft/40 blur-[80px] pointer-events-none animate-float" style={{ clipPath: "polygon(20% 0%, 80% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%)" }} />
