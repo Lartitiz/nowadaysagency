@@ -299,48 +299,78 @@ export default function Dashboard() {
         <OnboardingMissions prenom={profile.prenom} />
 
         {/* ═══════════════════════════════════════
-           ROW 1 — Hero "Créer un contenu"
+           ROW 1 — Hero "Créer un contenu" + Session focus
            ═══════════════════════════════════════ */}
-        <BentoGrid>
-          <FirstTimeTooltip id="dashboard-create" text="Crée des posts, carrousels, Reels... L'IA t'aide à rédiger." className="col-span-4 sm:col-span-6 lg:col-span-12 row-span-2">
-            <BentoCard
-              title=""
-              colSpan={12}
-              rowSpan={2}
-              variant="highlight"
-              onClick={() => navigate("/instagram/creer")}
-              animationDelay={nextDelay()}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                <h2 className="font-heading text-lg sm:text-xl font-bold text-foreground">Créer un contenu</h2>
-              </div>
-              <p className="text-sm text-muted-foreground mb-5">
-                Post, carousel, reel, article... c'est parti.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { label: "Post Instagram", route: "/instagram/creer" },
-                  { label: "Carousel", route: "/instagram/carousel" },
-                  { label: "Reel", route: "/instagram/reels" },
-                  { label: "Post LinkedIn", route: "/linkedin/post" },
-                  { label: "Article de blog", route: "/site/accueil" },
-                ].map((item) => (
-                  <button
-                    key={item.route + item.label}
-                    onClick={(e) => { e.stopPropagation(); navigate(item.route); }}
-                    className="text-xs font-medium px-3.5 py-2 rounded-xl
-                      bg-card/80 border border-primary/15 text-foreground
-                      hover:bg-primary hover:text-primary-foreground hover:border-primary
-                      transition-all duration-150"
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </BentoCard>
-          </FirstTimeTooltip>
-        </BentoGrid>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 sm:mb-8">
+          <div className="md:col-span-2">
+            <FirstTimeTooltip id="dashboard-create" text="Crée des posts, carrousels, Reels... L'IA t'aide à rédiger." className="h-full">
+              <BentoCard
+                title=""
+                colSpan={12}
+                rowSpan={2}
+                variant="highlight"
+                onClick={() => navigate("/instagram/creer")}
+                animationDelay={nextDelay()}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <h2 className="font-heading text-lg sm:text-xl font-bold text-foreground">Créer un contenu</h2>
+                </div>
+                <p className="text-sm text-muted-foreground mb-5">
+                  Post, carousel, reel, article... c'est parti.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "Post Instagram", route: "/instagram/creer" },
+                    { label: "Carousel", route: "/instagram/carousel" },
+                    { label: "Reel", route: "/instagram/reels" },
+                    { label: "Post LinkedIn", route: "/linkedin/post" },
+                    { label: "Article de blog", route: "/site/accueil" },
+                  ].map((item) => (
+                    <button
+                      key={item.route + item.label}
+                      onClick={(e) => { e.stopPropagation(); navigate(item.route); }}
+                      className="text-xs font-medium px-3.5 py-2 rounded-xl
+                        bg-card/80 border border-primary/15 text-foreground
+                        hover:bg-primary hover:text-primary-foreground hover:border-primary
+                        transition-all duration-150"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </BentoCard>
+            </FirstTimeTooltip>
+          </div>
+          {!sessionActive && (
+            <div className="md:col-span-1">
+              <BentoCard
+                title=""
+                colSpan={12}
+                rowSpan={2}
+                animationDelay={nextDelay()}
+                onClick={() => {
+                  if (isDemoMode) {
+                    toast({ title: "Les sessions sont disponibles avec ton compte 😉" });
+                  } else {
+                    startSession();
+                  }
+                }}>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">⏱️</span>
+                  <div className="min-w-0">
+                    <p className="font-heading text-sm font-bold text-foreground truncate">
+                      Session focus : 30 min
+                    </p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      L'outil t'enchaîne les micro-tâches. Tu fais, tu avances, c'est fini.
+                    </p>
+                  </div>
+                </div>
+              </BentoCard>
+            </div>
+          )}
+        </div>
 
 
         {/* ═══════════════════════════════════════
@@ -378,33 +408,6 @@ export default function Dashboard() {
           <FirstTimeTooltip id="dashboard-routine" text="15 min/jour pour interagir avec ta communauté. L'habitude qui change tout." className="col-span-4 sm:col-span-6 lg:col-span-6 row-span-1">
             <EngagementRoutineWidget animationDelay={nextDelay()} />
           </FirstTimeTooltip>
-          {!sessionActive && (
-            <BentoCard
-              title=""
-              colSpan={6}
-              rowSpan={1}
-              animationDelay={nextDelay()}
-              onClick={() => {
-                if (isDemoMode) {
-                  toast({ title: "Les sessions sont disponibles avec ton compte 😉" });
-                } else {
-                  startSession();
-                }
-              }}>
-
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">⏱️</span>
-                <div className="min-w-0">
-                  <p className="font-heading text-sm font-bold text-foreground truncate">
-                    Session focus : 30 min
-                  </p>
-                  <p className="text-xs text-muted-foreground line-clamp-2">
-                    L'outil t'enchaîne les micro-tâches. Tu fais, tu avances, c'est fini.
-                  </p>
-                </div>
-              </div>
-            </BentoCard>
-          )}
           <FirstTimeTooltip id="dashboard-stats" text="Tes chiffres du mois. Publications, engagement, objectifs." className="col-span-4 sm:col-span-6 lg:col-span-6 row-span-2">
             <MonthlyStatsWidget animationDelay={nextDelay()} />
           </FirstTimeTooltip>
