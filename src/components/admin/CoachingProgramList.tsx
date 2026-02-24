@@ -46,21 +46,30 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
     e.stopPropagation();
     setLoadingWsFor(clientUserId);
     try {
-      // Find workspace for this client
-      const { data: members } = await supabase
-        .from("workspace_members")
-        .select("workspace_id")
-        .eq("user_id", clientUserId)
-        .eq("role", "owner");
+      // Use SECURITY DEFINER function to find workspace (bypasses RLS)
+      const { data: wsId, error } = await supabase.rpc("get_user_owner_workspace", { target_user_id: clientUserId });
 
-      if (members && members.length > 0) {
-        switchWorkspace(members[0].workspace_id);
+      if (wsId && !error) {
+        // Ensure admin is a member before switching
+        const { data: existingMember } = await supabase
+          .from("workspace_members")
+          .select("id")
+          .eq("workspace_id", wsId)
+          .eq("user_id", user!.id)
+          .maybeSingle();
+
+        if (!existingMember) {
+          await supabase.from("workspace_members").insert({ workspace_id: wsId, user_id: user!.id, role: "manager" } as any);
+        }
+
+        await switchWorkspace(wsId);
         navigate("/dashboard");
       } else {
         // No workspace → create one
         await createWorkspaceForClient(clientUserId, clientName);
       }
     } catch (err) {
+      console.error("Erreur accès espace:", err);
       toast.error("Erreur lors de l'accès à l'espace");
     } finally {
       setLoadingWsFor(null);
