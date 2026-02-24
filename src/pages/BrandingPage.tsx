@@ -345,7 +345,7 @@ export default function BrandingPage() {
               {/* Mes offres card */}
               <div
                 className="rounded-2xl border-2 bg-card p-5 transition-all border-primary/30 hover:border-primary hover:shadow-md cursor-pointer"
-                onClick={() => navigate("/branding/coaching?section=offers")}
+                onClick={() => navigate("/branding/offres")}
               >
                 <div className="flex items-start justify-between mb-3">
                   <span className="text-2xl">🎁</span>
@@ -354,14 +354,25 @@ export default function BrandingPage() {
                 <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">
                   Formule tes offres de manière désirable. L'IA te coache à chaque étape.
                 </p>
-                <Button
-                  size="sm"
-                  className="rounded-pill text-xs w-full"
-                  onClick={(e) => { e.stopPropagation(); navigate("/branding/coaching?section=offers"); }}
-                >
-                  <Sparkles className="h-3.5 w-3.5 mr-1" />
-                  Coaching offres
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="rounded-pill text-xs flex-1"
+                    onClick={(e) => { e.stopPropagation(); navigate("/branding/offres"); }}
+                  >
+                    <Eye className="h-3.5 w-3.5 mr-1" />
+                    Voir mes offres
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-pill text-xs flex-1"
+                    onClick={(e) => { e.stopPropagation(); navigate("/branding/coaching?section=offers"); }}
+                  >
+                    <Sparkles className="h-3.5 w-3.5 mr-1" />
+                    Coaching
+                  </Button>
+                </div>
               </div>
             </div>
 
