@@ -63,8 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const searchParams = new URLSearchParams(window.location.search);
           const redirectTo = searchParams.get("redirect");
 
-          // If there's a redirect param, go there directly
-          if (redirectTo && (path === "/login" || path === "/connexion")) {
+          // Security: only allow redirects to /invite/ paths
+          if (redirectTo && redirectTo.startsWith("/invite/") && (path === "/login" || path === "/connexion")) {
             navigate(redirectTo);
             return;
           }
@@ -115,6 +115,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (initialSession?.user) {
         const path = window.location.pathname;
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectTo = urlParams.get("redirect");
+
+        if (redirectTo && redirectTo.startsWith("/invite/") && (path === "/login" || path === "/connexion")) {
+          navigate(redirectTo);
+          return;
+        }
+
         if (path === "/" || path === "/login" || path === "/connexion") {
           Promise.all([
             supabase
