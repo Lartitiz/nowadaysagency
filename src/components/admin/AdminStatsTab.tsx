@@ -410,7 +410,72 @@ function EngagementSection({ stats }: { stats: StatsData }) {
 }
 
 function ProductSection({ stats }: { stats: StatsData }) {
-  return <p className="text-sm text-muted-foreground">Section product</p>;
+  const draftsData = Object.entries(stats.drafts_by_canal || {})
+    .filter(([, v]) => v > 0)
+    .map(([canal, count]) => ({ canal, count, label: CANAL_LABELS[canal] || canal }))
+    .sort((a, b) => b.count - a.count);
+
+  const scoreDistData = Object.entries(stats.score_distribution || {})
+    .map(([range, count], i) => ({ range, count, fill: PIE_COLORS[i % PIE_COLORS.length] }));
+
+  const maxFeature = Math.max(...stats.top_features.map(f => f.count), 1);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <KpiCard title="Brouillons créés" value={stats.drafts_this_month} sub="ce mois" />
+        <KpiCard title="Posts planifiés" value={stats.calendar_posts_this_month} sub="ce mois" />
+        <KpiCard title="Score contenu moyen" value={stats.avg_content_score} suffix="/100" />
+        <KpiCard title="Générations IA" value={stats.ai_total_this_month} trend={stats.ai_total_this_month - (stats.ai_total_prev_month || 0)} sub="ce mois" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ChartCard title="Brouillons par canal">
+          {draftsData.length === 0 ? (
+            <EmptyChart message="Aucun brouillon ce mois" />
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={draftsData} layout="vertical" barCategoryGap={8}>
+                <XAxis type="number" hide />
+                <YAxis dataKey="label" type="category" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} width={90} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Bar dataKey="count" radius={[0, 6, 6, 0]} fill="#fb3d80" name="Brouillons" label={{ position: "right", fontSize: 12, fill: "hsl(var(--foreground))" }} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </ChartCard>
+
+        <ChartCard title="Distribution scores branding">
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={scoreDistData} barCategoryGap={12}>
+              <XAxis dataKey="range" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={24} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="count" radius={[6, 6, 0, 0]} name="Utilisatrices">
+                {scoreDistData.map((entry, i) => (
+                  <Cell key={entry.range} fill={entry.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+
+      <ChartCard title="Détail fonctionnalités IA (toutes)">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+          {stats.top_features.map(f => (
+            <div key={f.category} className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span>{CATEGORY_LABELS[f.category] || f.category}</span>
+                <span className="text-muted-foreground font-medium">{f.count}</span>
+              </div>
+              <Progress value={(f.count / maxFeature) * 100} className="h-1.5" />
+            </div>
+          ))}
+        </div>
+      </ChartCard>
+    </div>
+  );
 }
 
 function DemographicsSection({ stats }: { stats: StatsData }) {
