@@ -4,7 +4,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
-import AiDisclaimerBanner from "@/components/AiDisclaimerBanner";
+
 import { Progress } from "@/components/ui/progress";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { Sparkles } from "lucide-react";
@@ -240,7 +240,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <AiDisclaimerBanner />
+      
       <main className="mx-auto max-w-[1100px] px-6 py-8 max-md:px-4">
 
         {/* ─── Greeting ─── */}
