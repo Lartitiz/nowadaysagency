@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.ai-text-action]
 verify_jwt = false
+
+[functions.invite-to-workspace]
+verify_jwt = false
