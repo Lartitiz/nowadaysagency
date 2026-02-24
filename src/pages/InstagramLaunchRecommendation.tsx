@@ -43,9 +43,7 @@ export default function InstagramLaunchRecommendation() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: launchesData } = await supabase
-        .from("launches")
-        (supabase.from("launches") as any)
+      const { data: launchesData } = await (supabase.from("launches") as any)
         .select("*")
         .eq(column, value)
         .order("created_at", { ascending: false })
@@ -53,9 +51,7 @@ export default function InstagramLaunchRecommendation() {
       if (!launchesData?.length) { navigate("/instagram/lancement"); return; }
       setLaunch(launchesData[0]);
 
-      const { data: edito } = await supabase
-        .from("instagram_editorial_line")
-        (supabase.from("instagram_editorial_line") as any)
+      const { data: edito } = await (supabase.from("instagram_editorial_line") as any)
         .select("estimated_weekly_minutes")
         .eq(column, value)
         .maybeSingle();
