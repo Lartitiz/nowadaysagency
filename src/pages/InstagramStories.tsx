@@ -370,7 +370,7 @@ export default function InstagramStories() {
 
                   {story.sticker && (
                     <div className="border-l-[3px] border-primary bg-primary/5 rounded-r-lg px-4 py-2 mt-3">
-                      <p className="text-sm font-bold text-primary">
+                      <p className="text-sm font-bold text-primary-text">
                         🎯 Sticker : {story.sticker.label}
                         {story.sticker.options && <span className="font-normal text-foreground"> → {story.sticker.options.join(" / ")}</span>}
                       </p>

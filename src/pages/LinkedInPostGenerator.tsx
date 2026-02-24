@@ -174,7 +174,7 @@ export default function LinkedInPostGenerator() {
 
         {/* Pre-gen questions (collapsed) */}
         <details className="mb-4">
-          <summary className="text-sm text-primary font-medium cursor-pointer">
+          <summary className="text-sm text-primary-text font-medium cursor-pointer">
             💬 Ajouter ta touche perso (optionnel)
           </summary>
           <div className="mt-3 space-y-3 pl-1">

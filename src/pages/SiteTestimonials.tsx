@@ -109,7 +109,7 @@ export default function SiteTestimonials() {
             <div className="mt-6 space-y-4">
               {result.highlight && (
                 <div className="rounded-xl bg-primary/10 p-4">
-                  <p className="font-mono-ui text-[11px] font-semibold text-primary mb-1">💎 Phrase forte</p>
+                  <p className="font-mono-ui text-[11px] font-semibold text-primary-text mb-1">💎 Phrase forte</p>
                   <p className="text-base font-bold text-foreground italic">"{result.highlight}"</p>
                   <Button variant="ghost" size="sm" className="mt-2" onClick={() => copyText(result.highlight)}>
                     <Copy className="h-3 w-3 mr-1" /> Copier
@@ -118,10 +118,10 @@ export default function SiteTestimonials() {
               )}
 
               <div className="rounded-xl bg-rose-pale p-4">
-                <p className="font-mono-ui text-[11px] font-semibold text-primary mb-1">📝 Citation structurée</p>
+                <p className="font-mono-ui text-[11px] font-semibold text-primary-text mb-1">📝 Citation structurée</p>
                 <p className="text-[14px] text-foreground italic leading-relaxed">"{result.quote}"</p>
                 {result.name && <p className="text-sm text-muted-foreground mt-2">— {result.name}{result.context ? `, ${result.context}` : ""}</p>}
-                {result.result && <p className="text-sm text-primary font-semibold mt-1">📊 {result.result}</p>}
+                {result.result && <p className="text-sm text-primary-text font-semibold mt-1">📊 {result.result}</p>}
                 <Button variant="ghost" size="sm" className="mt-2" onClick={() => copyText(`"${result.quote}"\n— ${result.name || ""}${result.context ? `, ${result.context}` : ""}`)}>
                   <Copy className="h-3 w-3 mr-1" /> Copier
                 </Button>
