@@ -80,6 +80,7 @@ export default function AccompagnementPage() {
   const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
   const [loading, setLoading] = useState(true);
   const [noProgram, setNoProgram] = useState(false);
+  const [programCompleted, setProgramCompleted] = useState(false);
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -150,7 +151,7 @@ export default function AccompagnementPage() {
     }
     if (!user) return;
     (async () => {
-      // First check as client
+      // First check as client — active program
       let { data: prog } = await (supabase.from("coaching_programs" as any) as any)
         .select("*").eq("client_user_id", user.id).eq("status", "active").maybeSingle();
 
@@ -159,6 +160,16 @@ export default function AccompagnementPage() {
         const { data: coachProg } = await (supabase.from("coaching_programs" as any) as any)
           .select("*").eq("coach_user_id", user.id).eq("status", "active").maybeSingle();
         prog = coachProg;
+      }
+
+      // If still no active program, check for completed/cancelled
+      if (!prog) {
+        const { data: pastProg } = await (supabase.from("coaching_programs" as any) as any)
+          .select("*").eq("client_user_id", user.id).in("status", ["completed", "cancelled"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (pastProg) {
+          prog = pastProg;
+          setProgramCompleted(true);
+        }
       }
 
       if (!prog) { setNoProgram(true); setLoading(false); return; }
@@ -282,6 +293,58 @@ export default function AccompagnementPage() {
             >
               <CalendarDays className="h-4 w-4" />
               Réserver un appel découverte →
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (programCompleted && program) {
+    const completedSess = sessions.filter(s => s.status === "completed");
+    return (
+      <div className="min-h-screen bg-background pb-20 lg:pb-8">
+        <AppHeader />
+        <main className="mx-auto max-w-2xl px-4 py-8 animate-fade-in space-y-6">
+          <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-4">
+            <span className="text-5xl block">🎓</span>
+            <h1 className="font-display text-2xl font-bold text-foreground">Programme terminé</h1>
+            <p className="text-sm text-muted-foreground">
+              Ton accompagnement Now Pilot est terminé. Bravo pour tout le chemin parcouru ! 🎉
+            </p>
+            <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
+              <span>{completedSess.length} session{completedSess.length > 1 ? "s" : ""} réalisée{completedSess.length > 1 ? "s" : ""}</span>
+              <span>{deliverables.filter(d => d.status === "delivered").length} livrable{deliverables.filter(d => d.status === "delivered").length > 1 ? "s" : ""}</span>
+            </div>
+          </div>
+
+          {/* Sessions recap */}
+          {completedSess.length > 0 && (
+            <div className="rounded-2xl border border-border bg-card p-6">
+              <h2 className="font-display text-lg font-bold text-foreground mb-4">📋 Récap de tes sessions</h2>
+              <div className="space-y-3">
+                {completedSess.map(s => (
+                  <div key={s.id} className="flex items-center gap-3 text-sm">
+                    <span className="text-muted-foreground">✅</span>
+                    <span className="font-medium text-foreground">{s.title || `Session ${s.session_number}`}</span>
+                    {s.scheduled_date && (
+                      <span className="text-muted-foreground text-xs">
+                        {format(new Date(s.scheduled_date), "d MMM yyyy", { locale: fr })}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="text-center">
+            <Button
+              className="rounded-full gap-2"
+              onClick={() => window.open("https://calendly.com/laetitia-mattioli/appel-decouverte", "_blank")}
+            >
+              <CalendarDays className="h-4 w-4" />
+              Envie de continuer ? Réserver un appel →
             </Button>
           </div>
         </main>
