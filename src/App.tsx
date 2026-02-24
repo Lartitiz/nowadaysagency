@@ -124,13 +124,13 @@ const SuspenseFallback = () => (
 function AnimatedRoutes() {
   const location = useLocation();
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode="popLayout">
       <motion.div
         key={location.pathname}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.2, ease: "easeInOut" }}
+        transition={{ duration: 0.1, ease: "easeInOut" }}
       >
         <Suspense fallback={<SuspenseFallback />}>
           <Routes location={location}>
