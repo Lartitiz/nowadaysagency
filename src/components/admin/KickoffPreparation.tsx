@@ -131,7 +131,7 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
       if (!existingWs || existingWs.length === 0) {
         const { data: ws, error: wsErr } = await supabase
           .from("workspaces")
-          .insert({ name: clientName, created_by: clientUserId } as any)
+          .insert({ name: clientName, created_by: coachUserId } as any)
           .select("id")
           .single();
 
@@ -139,8 +139,10 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
           console.error("Erreur création workspace:", wsErr);
           toast.warning("Programme créé, mais l'espace n'a pas pu être créé");
         } else if (ws) {
-          await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: clientUserId, role: "owner" } as any);
+          // Add coach as manager FIRST (creator can bootstrap)
           await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: coachUserId, role: "manager" } as any);
+          // Then add client as owner
+          await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: clientUserId, role: "owner" } as any);
         }
       }
     }
