@@ -302,25 +302,25 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
  */
 export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
   // Bio: branding ✅, story ❌, persona ✅, offers ✅, profile ✅, editorial ❌, audit ❌
-  bio: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false },
+  bio: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // Posts/Carrousels: branding ✅, story ✅, persona ✅, offers ✅, profile ❌, editorial ✅
-  posts: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false },
+  posts: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true },
 
   // Reels: same as posts
-  reels: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false },
+  reels: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true },
 
   // Stories: same as posts
-  stories: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false },
+  stories: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true },
 
   // Commentaires: branding ✅ only
-  comments: { includeStory: false, includePersona: false, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false },
+  comments: { includeStory: false, includePersona: false, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: false },
 
   // DM prospection: branding ✅, persona ✅, offers ✅
-  dm: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false },
+  dm: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // Audit Instagram: branding ✅, persona ✅, offers ✅, profile ✅, audit ✅
-  audit: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: true },
+  audit: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: true, includeVoice: false },
 
   // Pages de vente: everything + details
   salesPage: { includeStory: true, includePersona: true, includeOffers: true, includeOffersDetails: true, includeProfile: true, includeEditorial: false, includeAudit: false },
@@ -329,13 +329,13 @@ export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
   offerCoaching: { includeStory: true, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false },
 
   // Creative flow / content generation: full context
-  content: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false },
+  content: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true },
 
   // Highlights: branding ✅, persona ✅, offers ✅, profile ✅
-  highlights: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false },
+  highlights: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // Inspire: branding ✅, story ✅, persona ✅, profile ✅
-  inspire: { includeStory: true, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false },
+  inspire: { includeStory: true, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // Launch plan: branding ✅, persona ✅, offers ✅, profile ✅
   launch: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false },
@@ -353,5 +353,5 @@ export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
   website: { includeStory: true, includePersona: true, includeOffers: true, includeOffersDetails: true, includeProfile: true, includeEditorial: false, includeAudit: false },
 
   // Score content: branding ✅, profile ✅
-  score: { includeStory: false, includePersona: false, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false },
+  score: { includeStory: false, includePersona: false, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: false },
 };
