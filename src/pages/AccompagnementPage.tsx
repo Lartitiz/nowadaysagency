@@ -150,8 +150,16 @@ export default function AccompagnementPage() {
     }
     if (!user) return;
     (async () => {
-      const { data: prog } = await (supabase.from("coaching_programs" as any) as any)
+      // First check as client
+      let { data: prog } = await (supabase.from("coaching_programs" as any) as any)
         .select("*").eq("client_user_id", user.id).eq("status", "active").maybeSingle();
+
+      // If not found as client, check as coach (admin viewing client program)
+      if (!prog) {
+        const { data: coachProg } = await (supabase.from("coaching_programs" as any) as any)
+          .select("*").eq("coach_user_id", user.id).eq("status", "active").maybeSingle();
+        prog = coachProg;
+      }
 
       if (!prog) { setNoProgram(true); setLoading(false); return; }
       setProgram(prog as Program);
