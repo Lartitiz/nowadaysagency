@@ -88,7 +88,7 @@ export default function InstagramEngagement() {
       const { data: streak } = await (supabase
         .from("engagement_streaks") as any)
         .select("*")
-        .eq(column, value)
+        .eq("user_id", user.id)
         .maybeSingle();
       if (streak) {
         setCurrentStreak(streak.current_streak ?? 0);
@@ -98,7 +98,7 @@ export default function InstagramEngagement() {
       const { data: todayLog } = await (supabase
         .from("engagement_checklist_logs") as any)
         .select("*")
-        .eq(column, value)
+        .eq("user_id", user.id)
         .eq("log_date", today)
         .maybeSingle();
       if (todayLog?.items_checked) {
@@ -115,7 +115,7 @@ export default function InstagramEngagement() {
       const { data: weekLogs } = await (supabase
         .from("engagement_checklist_logs") as any)
         .select("log_date, streak_maintained")
-        .eq(column, value)
+        .eq("user_id", user.id)
         .in("log_date", dates);
       const logMap = new Map((weekLogs || []).map(l => [l.log_date, l.streak_maintained]));
       setWeekChecks(dates.map(d => logMap.get(d) === true));
@@ -149,7 +149,7 @@ export default function InstagramEngagement() {
       const { data: existing, error: fetchErr } = await (supabase
         .from("engagement_checklist_logs") as any)
         .select("id")
-        .eq(column, value)
+        .eq("user_id", user.id)
         .eq("log_date", today)
         .maybeSingle();
       if (fetchErr) throw fetchErr;
@@ -177,7 +177,7 @@ export default function InstagramEngagement() {
       const { data: streak, error: streakFetchErr } = await (supabase
         .from("engagement_streaks") as any)
         .select("*")
-        .eq(column, value)
+        .eq("user_id", user.id)
         .maybeSingle();
       if (streakFetchErr) throw streakFetchErr;
 
@@ -226,11 +226,10 @@ export default function InstagramEngagement() {
         setShowConfetti(true);
         toast({ title: "🔥 Streak maintenu !" });
       }
-    } catch (e: any) {
+    } catch (e) {
+      console.error("Engagement save error:", e);
       setChecked(prev); // rollback
-      const msg = e?.message || e?.details || JSON.stringify(e) || "Erreur inconnue";
-      console.error("ENGAGEMENT DEBUG:", msg, e);
-      toast({ title: "Debug erreur", description: msg, variant: "destructive" });
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     }
   }, [user, checked, threshold, items.length, today, todayIndex, toast, column, value, workspaceId]);
 
