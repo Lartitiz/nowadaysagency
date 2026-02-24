@@ -81,6 +81,7 @@ RÈGLES :
 - Maximum 1 emoji par commentaire
 - Le commentaire doit être SPÉCIFIQUE au post (pas générique)
 - Si l'utilisatrice a indiqué ce qu'elle veut dire, intégrer ça naturellement
+- PRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites.
 
 Retourne EXACTEMENT ce JSON (pas de texte autour) :
 {

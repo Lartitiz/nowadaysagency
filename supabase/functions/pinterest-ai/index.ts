@@ -26,6 +26,8 @@ PRINCIPES DE COPY ÉTHIQUE :
 - PERMISSION plutôt que PRESSION
 - DÉSIR NATUREL plutôt qu'URGENCE ARTIFICIELLE
 - CTA comme invitation, pas comme pression
+
+PRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.
 `;
 
 serve(async (req) => {

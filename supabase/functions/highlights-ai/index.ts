@@ -72,6 +72,7 @@ RÈGLES :
 - Les autres catégories sont personnalisées selon l'activité
 - Les titres doivent être courts et mémorables
 - Le ton des stories doit correspondre au ton & style de l'utilisatrice
+- PRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.
 
 Réponds UNIQUEMENT en JSON valide, sans texte avant ni après :
 [
