@@ -439,6 +439,41 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
     }
 
     if (response.is_complete) {
+      // If storytelling, generate full story
+      if (section === "story") {
+        try {
+          const ctx = await fetchContext();
+          const { data: storyGenData } = await supabase.functions.invoke("branding-coaching", {
+            body: {
+              user_id: user!.id,
+              section: "story_generate",
+              messages: [
+                ...updatedMessages,
+                { role: "user", content: "Maintenant, écris mon histoire complète en un texte fluide et engageant, à la première personne. Utilise tout ce que je t'ai raconté." }
+              ],
+              context: ctx,
+              covered_topics: checklist,
+            },
+          });
+          const generatedStory = storyGenData?.response?.question || (typeof storyGenData?.response === "string" ? storyGenData.response : "");
+          if (typeof generatedStory === "string" && generatedStory.length > 50) {
+            const { data: existing } = await (supabase.from("storytelling") as any)
+              .select("id")
+              .eq("user_id", user!.id)
+              .eq("story_type", "fondatrice")
+              .limit(1)
+              .maybeSingle();
+            if (existing?.id) {
+              await (supabase.from("storytelling") as any)
+                .update({ step_6_full_story: generatedStory, completed: true, updated_at: new Date().toISOString() })
+                .eq("id", existing.id);
+            }
+          }
+        } catch (e) {
+          console.error("[BrandingCoaching] Error generating full story:", e);
+        }
+      }
+
       setFinalSummary(response.final_summary || "");
       setCompletionPct(100);
       setCoveredTopics(checklist);
@@ -459,6 +494,37 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
           ...insights,
           updated_at: new Date().toISOString(),
         } as any, { onConflict: "user_id" });
+      } else if (sec === "story") {
+        // Map coaching insights to storytelling columns
+        const { data: existing } = await (supabase.from("storytelling") as any)
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("story_type", "fondatrice")
+          .limit(1)
+          .maybeSingle();
+
+        const storyData: Record<string, any> = {};
+        if (insights.story_origin) storyData.step_1_raw = insights.story_origin;
+        if (insights.story_turning_point) storyData.step_2_location = insights.story_turning_point;
+        if (insights.story_struggles) storyData.step_3_action = insights.story_struggles;
+        if (insights.story_unique) storyData.step_4_thoughts = insights.story_unique;
+        if (insights.story_vision) storyData.step_5_emotions = insights.story_vision;
+
+        if (existing?.id) {
+          await (supabase.from("storytelling") as any)
+            .update({ ...storyData, updated_at: new Date().toISOString() })
+            .eq("id", existing.id);
+        } else {
+          await (supabase.from("storytelling") as any).insert({
+            user_id: user.id,
+            ...storyData,
+            title: "Mon histoire fondatrice",
+            story_type: "fondatrice",
+            source: "coaching",
+            is_primary: true,
+            updated_at: new Date().toISOString(),
+          });
+        }
       } else {
         await supabase.from("brand_profile").upsert({
           user_id: user.id,
@@ -533,15 +599,42 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
             </div>
           )}
 
-          <div className="flex gap-3">
-            <Button onClick={() => navigate("/branding")} variant="outline" className="rounded-pill">
-              Retour au branding
-            </Button>
-            {onComplete && (
-              <Button onClick={onComplete} className="rounded-pill">
-                Voir ma fiche récap
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex gap-3">
+              <Button onClick={() => navigate("/branding")} variant="outline" className="rounded-pill">
+                Retour au branding
               </Button>
-            )}
+              {onComplete && (
+                <Button onClick={onComplete} className="rounded-pill">
+                  Voir ma fiche récap
+                </Button>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              className="rounded-pill text-muted-foreground mt-2"
+              onClick={async () => {
+                if (user) {
+                  await supabase
+                    .from("branding_coaching_sessions")
+                    .delete()
+                    .eq("user_id", user.id)
+                    .eq("section", section);
+                }
+                setPhase("intro");
+                setMessages([]);
+                setCurrentQuestion(null);
+                setQuestionIndex(0);
+                setCompletionPct(5);
+                setFinalSummary("");
+                setCoveredTopics([]);
+                setHasExistingSession(false);
+                setShowConfetti(false);
+                contextRef.current = null;
+              }}
+            >
+              <RefreshCw className="h-4 w-4 mr-1" /> Recommencer cette section
+            </Button>
           </div>
 
           <p className="text-xs text-muted-foreground mt-6">Tu pourras revenir creuser à tout moment.</p>
