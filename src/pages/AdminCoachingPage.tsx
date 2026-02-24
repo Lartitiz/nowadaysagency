@@ -7,6 +7,8 @@ import { Navigate } from "react-router-dom";
 import CoachingProgramList from "@/components/admin/CoachingProgramList";
 import CoachingSessionManager from "@/components/admin/CoachingSessionManager";
 import KickoffPreparation from "@/components/admin/KickoffPreparation";
+import AdminUsersTab from "@/components/admin/AdminUsersTab";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProgramWithProfile, SessionData } from "@/components/admin/admin-coaching-types";
 
 export default function AdminCoachingPage() {
@@ -53,7 +55,6 @@ export default function AdminCoachingPage() {
 
     const coachingClientUserIds = new Set(programList.map(p => p.client_user_id));
 
-    // Also get owner user_ids for each workspace to filter coaching-linked ones
     const managerWsList = (managerWs || []).map((r: any) => r.workspaces).filter(Boolean) as Workspace[];
     
     if (managerWsList.length > 0) {
@@ -100,15 +101,38 @@ export default function AdminCoachingPage() {
     <div className="min-h-screen bg-background pb-20 lg:pb-8">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-4 py-8 animate-fade-in">
-        <CoachingProgramList
-          programs={programs}
-          sessions={sessions}
-          loading={loading}
-          onSelectProgram={setSelectedProgramId}
-          onAddClient={() => setAddOpen(true)}
-          standaloneWorkspaces={standaloneWorkspaces}
-          onReload={loadData}
-        />
+        {isAdmin ? (
+          <Tabs defaultValue="clientes" className="w-full">
+            <TabsList className="mb-6">
+              <TabsTrigger value="clientes">Mes clientes</TabsTrigger>
+              <TabsTrigger value="users">Utilisatrices</TabsTrigger>
+            </TabsList>
+            <TabsContent value="clientes">
+              <CoachingProgramList
+                programs={programs}
+                sessions={sessions}
+                loading={loading}
+                onSelectProgram={setSelectedProgramId}
+                onAddClient={() => setAddOpen(true)}
+                standaloneWorkspaces={standaloneWorkspaces}
+                onReload={loadData}
+              />
+            </TabsContent>
+            <TabsContent value="users">
+              <AdminUsersTab />
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <CoachingProgramList
+            programs={programs}
+            sessions={sessions}
+            loading={loading}
+            onSelectProgram={setSelectedProgramId}
+            onAddClient={() => setAddOpen(true)}
+            standaloneWorkspaces={standaloneWorkspaces}
+            onReload={loadData}
+          />
+        )}
         <KickoffPreparation open={addOpen} onOpenChange={setAddOpen} coachUserId={user?.id || ""} onCreated={loadData} />
       </main>
     </div>
