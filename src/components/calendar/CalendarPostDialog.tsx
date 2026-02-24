@@ -5,7 +5,7 @@ import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -16,7 +16,7 @@ import { ANGLES, STATUSES, OBJECTIFS, type CalendarPost } from "@/lib/calendar-c
 import { FORMAT_EMOJIS, FORMAT_LABELS } from "@/lib/calendar-helpers";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
 
 const FORMAT_OPTIONS = [
@@ -258,6 +258,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           <DialogTitle className="font-display">
             {isReelPost ? "🎬 Script Reel" : isStoriesPost ? "📱 Séquence Stories" : editingPost ? "Modifier le post" : "Ajouter un post"}
           </DialogTitle>
+          <DialogDescription className="sr-only">Formulaire de création ou modification d'un post du calendrier éditorial</DialogDescription>
         </DialogHeader>
 
         {/* Reel-specific view */}
@@ -431,7 +432,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           {/* Theme */}
           <div>
             <label className="text-sm font-medium mb-1.5 block">Thème / sujet</label>
-            <Input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="De quoi parle ce post ?" className="rounded-[10px] h-11" />
+            <Input autoFocus value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="De quoi parle ce post ?" className="rounded-[10px] h-11" />
           </div>
 
           {/* Objectif */}
@@ -656,6 +657,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           <SheetTitle className="font-display">
             {isReelPost ? "🎬 Script complet" : "📱 Séquence complète"}
           </SheetTitle>
+          <SheetDescription className="sr-only">Visualisation du contenu généré</SheetDescription>
         </SheetHeader>
 
         <div className="mt-4 space-y-4">

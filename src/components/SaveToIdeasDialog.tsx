@@ -1,7 +1,7 @@
 // ============= Full file contents =============
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { toast } from "sonner";
@@ -101,6 +101,7 @@ export function SaveToIdeasDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-display text-lg">💡 Sauvegarder dans mes idées</DialogTitle>
+          <DialogDescription className="sr-only">Enregistrer ce contenu dans ta banque d'idées</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 mt-2">

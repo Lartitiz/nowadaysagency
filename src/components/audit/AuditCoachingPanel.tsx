@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import {
   Loader2, ArrowRight, ArrowLeft, Check, Lightbulb, Sparkles, RotateCcw, ExternalLink,
 } from "lucide-react";
@@ -203,6 +203,7 @@ export default function AuditCoachingPanel({
               <Lightbulb className="h-5 w-5 text-primary" />
               Coaching · {pillarEmoji} {pillarLabel}
             </SheetTitle>
+            <SheetDescription className="sr-only">Session de coaching interactif sur ce pilier</SheetDescription>
             {phase === "questions" && questions.length > 0 && (
               <div className="flex items-center gap-2 mt-2">
                 <div className="flex gap-1 flex-1">

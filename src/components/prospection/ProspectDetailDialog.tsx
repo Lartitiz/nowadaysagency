@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -129,6 +129,10 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Générateur de DM</DialogTitle>
+            <DialogDescription>Générer un message direct pour ce prospect</DialogDescription>
+          </DialogHeader>
           <DmGenerator
             prospect={prospect}
             interactions={interactions}
@@ -185,6 +189,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
               <span className="text-sm font-normal text-muted-foreground">{prospect.display_name}</span>
             )}
           </DialogTitle>
+          <DialogDescription className="sr-only">Détails et interactions du prospect</DialogDescription>
         </DialogHeader>
 
         <div className="flex gap-2 mb-2">

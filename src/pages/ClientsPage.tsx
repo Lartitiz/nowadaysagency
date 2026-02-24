@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -226,6 +227,7 @@ export default function ClientsPage() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="font-display">Nouvel espace client</DialogTitle>
+              <DialogDescription className="sr-only">Créer un nouvel espace de travail pour un·e client·e</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-2">

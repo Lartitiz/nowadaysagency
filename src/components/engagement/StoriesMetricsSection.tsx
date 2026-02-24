@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
 
@@ -124,6 +125,7 @@ export default function StoriesMetricsSection({ data, onChange, onSave }: Storie
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-display">📱 Stats stories de la semaine</DialogTitle>
+            <DialogDescription className="sr-only">Saisir les statistiques de tes stories cette semaine</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>

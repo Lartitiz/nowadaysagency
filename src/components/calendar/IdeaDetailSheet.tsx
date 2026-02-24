@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -287,6 +287,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display">✏️ Modifier l'idée</DialogTitle>
+            <DialogDescription className="sr-only">Formulaire de modification de l'idée</DialogDescription>
           </DialogHeader>
           {content}
         </DialogContent>
@@ -299,6 +300,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="font-display">✏️ Modifier l'idée</SheetTitle>
+          <SheetDescription className="sr-only">Formulaire de modification de l'idée</SheetDescription>
         </SheetHeader>
         {content}
       </SheetContent>

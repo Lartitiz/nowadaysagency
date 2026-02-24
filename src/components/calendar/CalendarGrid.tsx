@@ -5,7 +5,7 @@ import { type CalendarPost } from "@/lib/calendar-constants";
 import { CalendarContentCard, CalendarContentCardMini } from "./CalendarContentCard";
 import { WeekRecapBar } from "./WeekRecapBar";
 import { AddPostMenu } from "./AddPostMenu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { cn, toLocalDateStr } from "@/lib/utils";
 import { format } from "date-fns";
@@ -175,6 +175,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
               <DialogTitle className="font-display flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4" /> Déplacer le contenu
               </DialogTitle>
+              <DialogDescription className="sr-only">Choisir une nouvelle date pour ce contenu</DialogDescription>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
               Choisis la nouvelle date pour « {moveDialogPost?.theme} »

@@ -15,7 +15,7 @@ import Confetti from "@/components/Confetti";
 import UpgradeGate from "@/components/UpgradeGate";
 import ProspectDetailDialog from "@/components/prospection/ProspectDetailDialog";
 import DmGenerator from "@/components/prospection/DmGenerator";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 /* ─── Types ─── */
 export interface Contact {
@@ -261,6 +261,8 @@ export default function ContactsPage() {
       {dmContact && (
         <Dialog open={!!dmContact} onOpenChange={(open) => { if (!open) setDmContact(null); }}>
           <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+            <DialogTitle className="sr-only">Générateur de message</DialogTitle>
+            <DialogDescription className="sr-only">Générer un message direct pour ce contact</DialogDescription>
             <DmGenerator
               prospect={dmContact as any}
               interactions={dmInteractions as any}

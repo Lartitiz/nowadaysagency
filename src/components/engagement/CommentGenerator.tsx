@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Copy, Loader2, ImageIcon, X } from "lucide-react";
@@ -170,6 +170,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>💬 Commenter un post de @{contact.pseudo}</DialogTitle>
+          <DialogDescription className="sr-only">Générer un commentaire pour un post</DialogDescription>
         </DialogHeader>
 
         {comments.length === 0 ? (

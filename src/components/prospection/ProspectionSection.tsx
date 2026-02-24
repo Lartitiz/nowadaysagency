@@ -11,7 +11,7 @@ import AddProspectForm from "./AddProspectForm";
 import ProspectionReminders from "./ProspectionReminders";
 import ProspectionStats from "./ProspectionStats";
 import DmGenerator from "./DmGenerator";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 export interface Prospect {
   id: string;
@@ -271,6 +271,8 @@ export default function ProspectionSection() {
       {dmProspect && (
         <Dialog open={!!dmProspect} onOpenChange={(open) => { if (!open) setDmProspect(null); }}>
           <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+            <DialogTitle className="sr-only">Générateur de DM</DialogTitle>
+            <DialogDescription className="sr-only">Générer un message direct pour ce prospect</DialogDescription>
             <DmGenerator
               prospect={dmProspect}
               interactions={dmInteractions}

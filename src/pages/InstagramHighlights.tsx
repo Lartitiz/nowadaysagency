@@ -13,6 +13,7 @@ import AuditInsight from "@/components/AuditInsight";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -425,6 +426,7 @@ export default function InstagramHighlights() {
                 <DialogTitle className="font-display text-lg">
                   📖 Structure : {structureModal.emoji} {structureModal.label}
                 </DialogTitle>
+                <DialogDescription className="sr-only">Structure détaillée de la story à la une</DialogDescription>
               </DialogHeader>
               <div className="space-y-3 mt-4">
                 {structureModal.structure.map((s) => (
