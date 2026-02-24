@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake } from "lucide-react";
+import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search } from "lucide-react";
 import AutoBreadcrumb from "@/components/AutoBreadcrumb";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -349,6 +349,9 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/admin/coaching")} className="gap-2 cursor-pointer">
               <GraduationCap className="h-4 w-4" /> 🎓 Mes clientes
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/admin/audit")} className="gap-2 cursor-pointer">
+              <Search className="h-4 w-4" /> 🔧 Audit app
             </DropdownMenuItem>
           </>
         )}
