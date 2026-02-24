@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
@@ -44,8 +44,6 @@ serve(async (req) => {
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Authentification invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-
-    // Anthropic API key checked in shared helper
 
     // Check plan limits
     const usageCheck = await checkAndIncrementUsage(supabase, user.id, "generation");
@@ -115,7 +113,16 @@ serve(async (req) => {
     }
 
     let systemPrompt = "";
-    let userPrompt = "";
+    let userPrompt: string | null = "";
+
+    // Format labels (used by recycle, declared here for broader scope)
+    const formatLabels: Record<string, string> = {
+      carrousel: "Carrousel Instagram (8 slides)",
+      reel: "Script Reel (30-60 sec)",
+      stories: "Séquence Stories (5 stories)",
+      linkedin: "Post LinkedIn",
+      newsletter: "Email / Newsletter",
+    };
 
     if (step === "angles") {
       systemPrompt = `${CORE_PRINCIPLES}
@@ -165,7 +172,6 @@ Réponds UNIQUEMENT en JSON :
       userPrompt = `Propose-moi 3 angles éditoriaux pour : ${context}`;
 
     } else if (step === "questions") {
-      // SECTION 1 (principes) seulement
       systemPrompt = `${CORE_PRINCIPLES}
 
 L'utilisatrice a choisi cet angle pour son contenu :
@@ -293,13 +299,6 @@ Réponds UNIQUEMENT en JSON :
       userPrompt = `Ajuste le contenu : ${adjustment}`;
 
     } else if (step === "recycle") {
-      const formatLabels: Record<string, string> = {
-        carrousel: "Carrousel Instagram (8 slides)",
-        reel: "Script Reel (30-60 sec)",
-        stories: "Séquence Stories (5 stories)",
-        linkedin: "Post LinkedIn",
-        newsletter: "Email / Newsletter",
-      };
       const requestedFormats = (formats || []).map((f: string) => formatLabels[f] || f);
 
       systemPrompt = `${CORE_PRINCIPLES}
@@ -320,10 +319,7 @@ PROFIL DE L'UTILISATRICE :
 ${fullContext}
 ${voiceBlock}
 
-Voici un contenu existant de l'utilisatrice :
-"""
-${sourceText}
-"""
+${sourceText ? `Voici un contenu existant de l'utilisatrice :\n"""\n${sourceText}\n"""` : ""}
 
 Transforme ce contenu en ces formats : ${requestedFormats.join(", ")}
 
@@ -386,7 +382,42 @@ Réponds UNIQUEMENT en JSON :
       return new Response(JSON.stringify({ error: "Step non reconnu" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const rawContent = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt, 0.85);
+    // ── Call Anthropic ──
+    let rawContent: string;
+
+    if (step === "recycle" && body.fileBase64) {
+      // Multimodal: text + file
+      const content: any[] = [];
+
+      if (body.fileMimeType === "application/pdf") {
+        content.push({
+          type: "document",
+          source: { type: "base64", media_type: "application/pdf", data: body.fileBase64 },
+        });
+      } else if (body.fileMimeType?.startsWith("image/")) {
+        content.push({
+          type: "image",
+          source: { type: "base64", media_type: body.fileMimeType, data: body.fileBase64 },
+        });
+      }
+
+      const requestedFormats = (formats || []).map((f: string) => formatLabels[f] || f);
+      const textInstruction = sourceText
+        ? `Voici aussi du contexte texte :\n${sourceText}\n\nRecycle le contenu du fichier (et du texte si fourni) en ${requestedFormats.join(", ")}.`
+        : `Analyse ce fichier et recycle son contenu en ${requestedFormats.join(", ")}.`;
+
+      content.push({ type: "text", text: textInstruction });
+
+      rawContent = await callAnthropic({
+        model: getModelForAction("content"),
+        system: systemPrompt,
+        messages: [{ role: "user", content }],
+        temperature: 0.8,
+        max_tokens: 4096,
+      });
+    } else {
+      rawContent = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt!, 0.85);
+    }
 
     let parsed;
     try {
