@@ -138,6 +138,31 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
   ]],
 
   // ── Branding sub-pages ──
+  ["/branding/section?section=story", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "Branding", path: "/branding" },
+    { label: "Mon histoire" },
+  ]],
+  ["/branding/section?section=persona", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "Branding", path: "/branding" },
+    { label: "Mon client·e idéal·e" },
+  ]],
+  ["/branding/section?section=value_proposition", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "Branding", path: "/branding" },
+    { label: "Proposition de valeur" },
+  ]],
+  ["/branding/section?section=tone_style", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "Branding", path: "/branding" },
+    { label: "Ton & style" },
+  ]],
+  ["/branding/section?section=content_strategy", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "Branding", path: "/branding" },
+    { label: "Stratégie de contenu" },
+  ]],
   ["/branding/audit/", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
@@ -151,7 +176,7 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
   ["/branding/ton/recap", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
-    { label: "Ton & style", path: "/branding/ton" },
+    { label: "Ton & style", path: "/branding/section?section=tone_style" },
     { label: "Récap" },
   ]],
   ["/branding/ton", [
@@ -162,19 +187,19 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
   ["/branding/storytelling/import", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
-    { label: "Mon histoire", path: "/branding/storytelling" },
+    { label: "Mon histoire", path: "/branding/section?section=story" },
     { label: "Import" },
   ]],
   ["/branding/storytelling/new", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
-    { label: "Mon histoire", path: "/branding/storytelling" },
+    { label: "Mon histoire", path: "/branding/section?section=story" },
     { label: "Nouvelle histoire" },
   ]],
   ["/branding/storytelling/", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
-    { label: "Mon histoire", path: "/branding/storytelling" },
+    { label: "Mon histoire", path: "/branding/section?section=story" },
     { label: "Détail" },
   ]],
   ["/branding/storytelling", [
@@ -185,7 +210,7 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
   ["/branding/persona/recap", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
-    { label: "Ma cible", path: "/branding/persona" },
+    { label: "Ma cible", path: "/branding/section?section=persona" },
     { label: "Récap" },
   ]],
   ["/branding/persona", [
@@ -196,7 +221,7 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
   ["/branding/proposition/recap", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
-    { label: "Proposition de valeur", path: "/branding/proposition" },
+    { label: "Proposition de valeur", path: "/branding/section?section=value_proposition" },
     { label: "Récap" },
   ]],
   ["/branding/proposition", [
@@ -207,7 +232,7 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
   ["/branding/strategie/recap", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
-    { label: "Stratégie", path: "/branding/strategie" },
+    { label: "Stratégie", path: "/branding/section?section=content_strategy" },
     { label: "Récap" },
   ]],
   ["/branding/strategie", [
@@ -225,6 +250,11 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
     { label: "Mes offres" },
+  ]],
+  ["/branding/section", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "Branding", path: "/branding" },
+    { label: "Section" },
   ]],
   ["/branding", [
     { label: "Accueil", path: "/dashboard" },
@@ -400,25 +430,32 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
  * Get breadcrumb items for the current pathname.
  * Returns null if no breadcrumb should be shown.
  */
-export function getBreadcrumbItems(pathname: string): BreadcrumbItem[] | null {
+export function getBreadcrumbItems(pathname: string, search?: string): BreadcrumbItem[] | null {
   if (isExcludedRoute(pathname)) return null;
 
-  // Try exact match first, then prefix match (for dynamic :id routes)
+  // Build full key with query params for matching
+  const fullPath = search ? pathname + search : pathname;
+
+  // Try exact match with query string first
   for (const [pattern, items] of BREADCRUMB_MAP) {
-    // Exact match
-    if (pathname === pattern) return items;
+    if (fullPath === pattern) return items;
+  }
+
+  // Try exact match on pathname only
+  for (const [pattern, items] of BREADCRUMB_MAP) {
+    if (pathname === pattern && !pattern.includes("?")) return items;
     // Prefix match for routes with trailing dynamic segments
-    // e.g. "/branding/audit/" matches "/branding/audit/some-id"
-    if (pattern.endsWith("/") && pathname.startsWith(pattern)) return items;
+    if (pattern.endsWith("/") && !pattern.includes("?") && pathname.startsWith(pattern)) return items;
   }
 
   // Fallback: try longest prefix match
   let bestMatch: BreadcrumbItem[] | null = null;
   let bestLen = 0;
   for (const [pattern, items] of BREADCRUMB_MAP) {
-    if (!pattern.endsWith("/") && pathname.startsWith(pattern + "/") && pattern.length > bestLen) {
+    const patternPath = pattern.split("?")[0];
+    if (!patternPath.endsWith("/") && pathname.startsWith(patternPath + "/") && patternPath.length > bestLen) {
       bestMatch = items;
-      bestLen = pattern.length;
+      bestLen = patternPath.length;
     }
   }
 

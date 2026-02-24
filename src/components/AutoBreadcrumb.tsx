@@ -9,9 +9,9 @@ import {
 } from "@/components/ui/popover";
 
 export default function AutoBreadcrumb() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const isMobile = useIsMobile();
-  const items = getBreadcrumbItems(pathname);
+  const items = getBreadcrumbItems(pathname, search);
 
   if (!items || items.length === 0) return null;
 
