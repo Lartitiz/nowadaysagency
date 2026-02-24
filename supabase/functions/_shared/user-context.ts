@@ -151,6 +151,47 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
     }
   }
 
+  // === VOIX PERSONNELLE (voice_profile) ===
+  if (options.includeVoice && ctx.voice) {
+    const v = ctx.voice;
+    const voiceLines: string[] = [];
+
+    if (v.voice_summary) voiceLines.push(`- Sa voix en résumé : ${v.voice_summary}`);
+
+    if (v.signature_expressions?.length) {
+      const exprs = Array.isArray(v.signature_expressions) ? v.signature_expressions : [];
+      if (exprs.length) voiceLines.push(`- Ses expressions signature (À RÉUTILISER) : ${exprs.join(", ")}`);
+    }
+
+    if (v.banned_expressions?.length) {
+      const banned = Array.isArray(v.banned_expressions) ? v.banned_expressions : [];
+      if (banned.length) voiceLines.push(`- Expressions INTERDITES (ne JAMAIS utiliser) : ${banned.join(", ")}`);
+    }
+
+    if (v.tone_patterns?.length) {
+      const patterns = Array.isArray(v.tone_patterns) ? v.tone_patterns : [];
+      if (patterns.length) voiceLines.push(`- Patterns de ton : ${patterns.join(" ; ")}`);
+    }
+
+    if (v.structure_patterns?.length) {
+      const structs = Array.isArray(v.structure_patterns) ? v.structure_patterns : [];
+      if (structs.length) voiceLines.push(`- Patterns de structure : ${structs.join(" ; ")}`);
+    }
+
+    if (v.sample_texts?.length) {
+      const samples = Array.isArray(v.sample_texts) ? v.sample_texts : [];
+      const topSamples = samples.slice(0, 2);
+      if (topSamples.length) {
+        voiceLines.push(`- Exemples de textes validés par l'utilisatrice (INSPIRE-TOI de ce style) :`);
+        topSamples.forEach((s: string, i: number) => {
+          voiceLines.push(`  Exemple ${i + 1} : "${s.slice(0, 500)}"`);
+        });
+      }
+    }
+
+    if (voiceLines.length) sections.push(`VOIX PERSONNELLE (PRIORITAIRE — le contenu DOIT sonner comme ça) :\n${voiceLines.join("\n")}`);
+  }
+
   // === PROPOSITION DE VALEUR ===
   if (ctx.proposition) {
     const propValue = ctx.proposition.version_final || ctx.proposition.version_complete || ctx.proposition.version_bio;
