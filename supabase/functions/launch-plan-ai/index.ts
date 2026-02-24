@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
@@ -135,7 +135,7 @@ Réponds UNIQUEMENT en JSON :
   ]
 }`;
 
-    const content = await callAnthropicSimple("claude-sonnet-4-5-20250929", systemPrompt, "Génère mon plan de slots de lancement.", 0.7);
+    const content = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Génère mon plan de slots de lancement.", 0.7);
 
     let parsed: any;
     try {

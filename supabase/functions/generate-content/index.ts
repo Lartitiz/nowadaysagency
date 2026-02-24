@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple, AnthropicError } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, AnthropicError, getDefaultModel } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 function buildProfileBlock(profile: any): string {
@@ -620,10 +620,8 @@ Reponds en JSON :
       }
     }
 
-    // Use claude-opus-4-6 for creative content, claude-sonnet for audit/analysis
-    const isAnalysis = type === "instagram-audit" || type === "bio-audit";
-    const model = isAnalysis ? "claude-sonnet-4-5-20250929" as const : "claude-opus-4-6" as const;
-    const content = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.8, 4096);
+    // Use getDefaultModel() for all content generation
+    const content = await callAnthropicSimple(getDefaultModel(), systemPrompt, userPrompt, 0.8, 4096);
 
     return new Response(
       JSON.stringify({ content }),

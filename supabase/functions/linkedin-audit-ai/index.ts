@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LINKEDIN_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic } from "../_shared/anthropic.ts";
+import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // Branding data now fetched via getUserContext
@@ -139,7 +139,7 @@ Réponds UNIQUEMENT en JSON sans backticks :
     // Note: Anthropic doesn't support image_url in the same way as OpenAI
     // For multimodal with screenshots, we include image data in message content
     const content = await callAnthropic({
-      model: "claude-sonnet-4-5-20250929",
+      model: getDefaultModel(),
       system: systemPrompt,
       messages: [{ role: "user", content: userContent }],
       temperature: 0.7,

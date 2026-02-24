@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAnthropicSimple } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
@@ -101,7 +101,7 @@ Retourne UNIQUEMENT un JSON valide, sans texte avant ni après :
 }`;
 
     const result = await callAnthropicSimple(
-      "claude-sonnet-4-5-20250929",
+      getDefaultModel(),
       systemPrompt,
       `Voici les documents de marque à analyser :\n\n${combinedText}`,
       0.3,

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAnthropicSimple } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -94,7 +94,7 @@ Règles :
 - confidence: "high" si headers clairs, "medium" si ambigus, "low" si très incertain`;
 
     let content = await callAnthropicSimple(
-      "claude-sonnet-4-5-20250929",
+      getDefaultModel(),
       "Tu es un expert en analyse de fichiers Excel. Tu retournes UNIQUEMENT du JSON valide, sans markdown, sans commentaires.",
       prompt,
       0.1

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
-import { callAnthropicSimple } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -272,7 +272,7 @@ RÈGLES :
       });
     }
 
-    const content = await callAnthropicSimple("claude-opus-4-6", systemPrompt, userPrompt);
+    const content = await callAnthropicSimple(getDefaultModel(), systemPrompt, userPrompt);
 
     await logUsage(user.id, "content", "niche");
 
