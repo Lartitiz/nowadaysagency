@@ -33,6 +33,14 @@ serve(async (req) => {
       .eq("user_id", userId)
       .single();
 
+    // Also check coaching_programs for active Now Pilot programs
+    const { data: activeProgram } = await supabaseClient
+      .from("coaching_programs")
+      .select("id, status")
+      .eq("client_user_id", userId)
+      .eq("status", "active")
+      .maybeSingle();
+
     const { data: purchases } = await supabaseClient
       .from("purchases")
       .select("product_type, status, created_at")
@@ -51,7 +59,11 @@ serve(async (req) => {
       .gte("created_at", monthStart.toISOString());
 
     const rows = usageRows || [];
-    const plan = sub?.plan || "free";
+    // If subscription says free but there's an active coaching program, override to now_pilot
+    let plan = sub?.plan || "free";
+    if (plan === "free" && activeProgram) {
+      plan = "now_pilot";
+    }
     const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
     // Build usage map
