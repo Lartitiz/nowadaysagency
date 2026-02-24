@@ -46,24 +46,48 @@ export default function AdminStatsTab() {
   const { session } = useAuth();
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchStats = useCallback(async () => {
     if (!session?.access_token) return;
     setLoading(true);
+    setError(null);
     try {
       const res = await supabase.functions.invoke("admin-users?mode=stats", {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: null,
       });
-      if (res.data) setStats(res.data);
-    } catch (e) {
-      console.error("Failed to load stats", e);
+      console.log("Stats response:", res);
+      if (res.error) {
+        const msg = res.error?.message || JSON.stringify(res.error);
+        console.error("Stats error:", msg);
+        setError(msg);
+      } else if (res.data) {
+        console.log("Stats data:", res.data);
+        setStats(res.data);
+      }
+    } catch (e: any) {
+      const msg = e?.message || JSON.stringify(e) || "Erreur inconnue";
+      console.error("Failed to load stats", msg, e);
+      setError(msg);
     } finally {
       setLoading(false);
     }
   }, [session?.access_token]);
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-destructive/50 bg-destructive/5 p-6 text-center space-y-3">
+        <p className="text-sm font-medium text-destructive">Impossible de charger les stats</p>
+        <p className="text-xs text-muted-foreground break-all">Erreur : {error}</p>
+        <Button variant="outline" size="sm" onClick={fetchStats}>
+          <RefreshCw className="w-4 h-4 mr-1.5" /> Réessayer
+        </Button>
+      </div>
+    );
+  }
 
   if (loading || !stats) {
     return (
