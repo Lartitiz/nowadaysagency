@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
-import { ArrowLeft, User, PenLine, Briefcase, Star, MessageCircle, Lightbulb, CalendarDays, Search } from "lucide-react";
+import { ArrowLeft, User, PenLine, Briefcase, Star, MessageCircle, Lightbulb, CalendarDays, Search, Sparkles } from "lucide-react";
 
 interface CardDef {
   icon: React.ElementType;
@@ -20,6 +20,7 @@ const CARDS: CardDef[] = [
   { icon: Search, emoji: "🔍", title: "Auditer mon compte", desc: "Score complet et priorités d'action.", to: "/linkedin/audit", tag: "IA" },
   { icon: User, emoji: "👤", title: "Optimiser mon profil", desc: "Titre, photo, bannière, URL.", to: "/linkedin/profil", tag: "Checklist" },
   { icon: PenLine, emoji: "✍️", title: "Mon résumé (À propos)", desc: "Rédige un résumé qui donne envie.", to: "/linkedin/resume", tag: "Guide + IA" },
+  { icon: Sparkles, emoji: "✨", title: "Créer un post", desc: "Rédige un post LinkedIn avec l'IA.", to: "/linkedin/post", tag: "IA" },
   { icon: Briefcase, emoji: "💼", title: "Mon parcours", desc: "Expériences, formations, compétences.", to: "/linkedin/parcours", tag: "Guide + IA" },
   { icon: Star, emoji: "⭐", title: "Mes recommandations", desc: "Demande et gère tes recommandations.", to: "/linkedin/recommandations", tag: "Exercice" },
   { icon: MessageCircle, emoji: "💬", title: "Mon engagement", desc: "Commentaires et messages stratégiques.", to: "/linkedin/engagement", tag: "Suivi hebdo" },
