@@ -177,6 +177,9 @@ RÈGLES DE GÉNÉRATION :
 - Phrases courtes qui claquent + phrases longues qui développent
 - JAMAIS de jargon : pas de "ROI", "funnel", "leverage"
 - JAMAIS de promesse exagérée
+- PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature, imite les patterns de structure et de ton.
+- Ne JAMAIS utiliser les expressions interdites du profil de voix.
+- Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.
 - Pas de markdown dans le JSON (pas de ** ni *)
 
 RETOURNE UNIQUEMENT un JSON valide, sans texte avant ou après, sans backticks.`;
