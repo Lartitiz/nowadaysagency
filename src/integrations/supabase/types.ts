@@ -3450,6 +3450,7 @@ export type Database = {
       }
       persona: {
         Row: {
+          brands: Json | null
           buying_triggers: Json | null
           completed: boolean | null
           created_at: string
@@ -3460,6 +3461,7 @@ export type Database = {
           desires: Json | null
           frustrations_detail: Json | null
           id: string
+          motivations: Json | null
           objections: Json | null
           persona_channels: Json | null
           pitch_long: string | null
@@ -3467,6 +3469,7 @@ export type Database = {
           pitch_short: string | null
           portrait: Json | null
           portrait_prenom: string | null
+          quote: string | null
           starting_point: string | null
           step_1_frustrations: string | null
           step_2_transformation: string | null
@@ -3482,6 +3485,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          brands?: Json | null
           buying_triggers?: Json | null
           completed?: boolean | null
           created_at?: string
@@ -3492,6 +3496,7 @@ export type Database = {
           desires?: Json | null
           frustrations_detail?: Json | null
           id?: string
+          motivations?: Json | null
           objections?: Json | null
           persona_channels?: Json | null
           pitch_long?: string | null
@@ -3499,6 +3504,7 @@ export type Database = {
           pitch_short?: string | null
           portrait?: Json | null
           portrait_prenom?: string | null
+          quote?: string | null
           starting_point?: string | null
           step_1_frustrations?: string | null
           step_2_transformation?: string | null
@@ -3514,6 +3520,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          brands?: Json | null
           buying_triggers?: Json | null
           completed?: boolean | null
           created_at?: string
@@ -3524,6 +3531,7 @@ export type Database = {
           desires?: Json | null
           frustrations_detail?: Json | null
           id?: string
+          motivations?: Json | null
           objections?: Json | null
           persona_channels?: Json | null
           pitch_long?: string | null
@@ -3531,6 +3539,7 @@ export type Database = {
           pitch_short?: string | null
           portrait?: Json | null
           portrait_prenom?: string | null
+          quote?: string | null
           starting_point?: string | null
           step_1_frustrations?: string | null
           step_2_transformation?: string | null

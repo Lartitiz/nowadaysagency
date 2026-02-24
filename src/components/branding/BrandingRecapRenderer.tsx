@@ -1,4 +1,5 @@
 import { SectionCard, HighlightCard, parseToArray, parseToTags } from "./BrandingRecapCards";
+import PersonaBoard from "./PersonaBoard";
 
 type UpdateFn = (field: string, value: string, oldValue?: string) => void;
 
@@ -217,7 +218,7 @@ export default function BrandingRecapRenderer({ section, data, table, onUpdated,
 
   switch (section) {
     case "story": return <StoryRecap {...props} />;
-    case "persona": return <PersonaRecap {...props} />;
+    case "persona": return <PersonaBoard data={data} table={table} onUpdated={onUpdated} onStartCoaching={onStartCoaching} />;
     case "value_proposition": return <PropositionRecap {...props} />;
     case "tone_style": return <ToneRecap {...props} />;
     case "content_strategy": return <StrategyRecap {...props} />;

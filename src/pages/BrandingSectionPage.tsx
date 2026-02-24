@@ -243,7 +243,7 @@ export default function BrandingSectionPage() {
 
     const load = async () => {
       const table = config.table;
-      const columns = config.fields.map(f => f.key).join(", ") + ", updated_at, id";
+      const columns = config.fields.map(f => f.key).join(", ") + ", updated_at, id" + (table === "persona" ? ", portrait_prenom, quote, demographics, frustrations_detail, desires, objections, buying_triggers, persona_channels, brands, daily_life, motivations" : "");
       let query = (supabase.from(table as any) as any)
         .select(columns)
         .eq("user_id", user.id);
@@ -402,7 +402,7 @@ export default function BrandingSectionPage() {
                   onComplete={() => {
                     setActiveTab("fiche");
                     if (!isDemoMode && user) {
-                      const columns = config.fields.map(f => f.key).join(", ") + ", updated_at, id";
+                      const columns = config.fields.map(f => f.key).join(", ") + ", updated_at, id" + (config.table === "persona" ? ", portrait_prenom, quote, demographics, frustrations_detail, desires, objections, buying_triggers, persona_channels, brands, daily_life, motivations" : "");
                       let query = (supabase.from(config.table as any) as any)
                         .select(columns)
                         .eq("user_id", user.id);
