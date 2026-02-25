@@ -5,7 +5,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
-import { Loader2, RefreshCw, Copy, CalendarDays, Sparkles } from "lucide-react";
+import { Loader2, RefreshCw, Copy, CalendarDays, Sparkles, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
@@ -558,6 +558,9 @@ export default function InstagramCarousel() {
                   <Button size="sm" variant="outline" onClick={() => setShowCalendarDialog(true)} className="rounded-full gap-1.5 text-xs">
                     <CalendarDays className="h-3.5 w-3.5" /> Planifier
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowIdeasDialog(true)} className="rounded-full gap-1.5 text-xs">
+                    <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
+                  </Button>
                 </div>
               </div>
             </div>
@@ -571,6 +574,7 @@ export default function InstagramCarousel() {
           )}
 
           <AddToCalendarDialog open={showCalendarDialog} onOpenChange={setShowCalendarDialog} onConfirm={handleAddToCalendar} contentLabel={`Carrousel : ${subject || typeObj?.label}`} contentEmoji="🎠" />
+          <SaveToIdeasDialog open={showIdeasDialog} onOpenChange={setShowIdeasDialog} contentType="post_instagram" subject={subject || typeObj?.label || "Carrousel"} contentData={{ slides, caption, qualityCheck }} sourceModule="carousel" format="carousel" objectif={objective} />
         </main>
       </div>
     );
