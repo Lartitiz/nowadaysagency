@@ -82,7 +82,7 @@ export default function PropositionPage() {
     if (!user || !loading) return;
     Promise.all([
       (supabase.from("brand_proposition") as any).select("*").eq(column, value).maybeSingle(),
-      supabase.from("profiles").select("activite, prenom, mission").eq("user_id", user.id).single(),
+      (supabase.from("profiles") as any).select("activite, prenom, mission").eq(column, value).single(),
       (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle(),
       (supabase.from("storytelling") as any).select("pitch_short").eq(column, value).maybeSingle(),
       (supabase.from("brand_profile") as any).select("tone_register, key_expressions, things_to_avoid, mission").eq(column, value).maybeSingle(),

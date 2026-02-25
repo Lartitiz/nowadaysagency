@@ -158,7 +158,7 @@ export default function TonStylePage() {
     try {
       const [stRes, profRes] = await Promise.all([
         (supabase.from("storytelling") as any).select("step_7_polished, imported_text").eq(column, value).maybeSingle(),
-        supabase.from("profiles").select("activite").eq("user_id", user.id).single(),
+        (supabase.from("profiles") as any).select("activite").eq(column, value).single(),
       ]);
       const storyText = stRes.data?.step_7_polished || stRes.data?.imported_text || "";
       const activite = profRes.data?.activite || "";
@@ -211,7 +211,7 @@ Réponds avec le texte seul, 3-4 phrases.`);
     setAiLoading("combats");
     try {
       const [profRes, propRes] = await Promise.all([
-        supabase.from("profiles").select("activite, mission").eq("user_id", user.id).single(),
+        (supabase.from("profiles") as any).select("activite, mission").eq(column, value).single(),
         (supabase.from("brand_proposition") as any).select("version_final").eq(column, value).maybeSingle(),
       ]);
       const res = await supabase.functions.invoke("niche-ai", {
@@ -242,7 +242,7 @@ Réponds avec le texte seul, 3-4 phrases.`);
     }
     setAiLoading("limits");
     try {
-      const profRes = await supabase.from("profiles").select("activite").eq("user_id", user.id).single();
+      const profRes = await (supabase.from("profiles") as any).select("activite").eq(column, value).single();
       const res = await supabase.functions.invoke("niche-ai", {
         body: {
           type: "limits",
