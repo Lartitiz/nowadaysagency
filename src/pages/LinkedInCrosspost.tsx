@@ -54,8 +54,12 @@ export default function LinkedInCrosspost() {
 
   const toggleTarget = (id: string) => {
     const next = new Set(targets);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
+    if (next.has(id)) {
+      if (next.size <= 1) return;
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
     setTargets(next);
   };
 
@@ -245,17 +249,33 @@ export default function LinkedInCrosspost() {
         <div className="mb-5">
           <p className="text-sm font-medium text-foreground mb-2">Transformer en :</p>
           <div className="grid grid-cols-2 gap-2">
-            {TARGET_CHANNELS.map((ch) => (
-              <button
-                key={ch.id}
-                onClick={() => toggleTarget(ch.id)}
-                className={`rounded-xl border-2 p-3 text-left transition-all ${targets.has(ch.id) ? "border-primary bg-secondary" : "border-border hover:border-primary/40"}`}
-              >
-                <span className="text-sm font-semibold block">{ch.label}</span>
-                <span className="text-xs text-muted-foreground">{ch.desc}</span>
-              </button>
-            ))}
+            {TARGET_CHANNELS.map((ch) => {
+              const isActive = targets.has(ch.id);
+              return (
+                <button
+                  key={ch.id}
+                  onClick={() => toggleTarget(ch.id)}
+                  className={cn(
+                    "rounded-xl border-2 p-3 text-left transition-all relative",
+                    isActive
+                      ? "border-primary bg-primary/10 ring-1 ring-primary/20"
+                      : "border-border hover:border-primary/40 opacity-60"
+                  )}
+                >
+                  {isActive && (
+                    <span className="absolute top-2 right-2 text-primary text-xs font-bold">✓</span>
+                  )}
+                  <span className="text-sm font-semibold block">{ch.label}</span>
+                  <span className="text-xs text-muted-foreground">{ch.desc}</span>
+                </button>
+              );
+            })}
           </div>
+          {targets.size > 0 && (
+            <p className="text-xs text-muted-foreground mt-1.5">
+              {targets.size} {targets.size > 1 ? "canaux sélectionnés" : "canal sélectionné"} · clique pour ajouter/retirer
+            </p>
+          )}
         </div>
 
         <Button onClick={generate} disabled={generating || !canGenerate()} className="rounded-full gap-2 mb-6">
