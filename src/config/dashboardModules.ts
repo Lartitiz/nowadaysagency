@@ -146,7 +146,7 @@ export const spaceModules: SpaceModule[] = [
   {
     id: "website",
     title: "Site Web",
-    subtitle: "Pages, SEO, témoignages",
+    subtitle: "Audit, pages, templates, témoignages",
     icon: "🌍",
     gradient: "from-[hsl(var(--bento-mint))] to-[hsl(160_50%_97%)]",
     route: "/site",
