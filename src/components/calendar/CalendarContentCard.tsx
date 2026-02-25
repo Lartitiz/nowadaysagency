@@ -14,6 +14,7 @@ interface Props {
   post: CalendarPost;
   onClick: () => void;
   variant?: "compact" | "detailed";
+  commentCount?: number;
   onQuickStatusChange?: (postId: string, newStatus: string) => void;
   onQuickDuplicate?: (post: CalendarPost) => void;
   onQuickDelete?: (postId: string) => void;
@@ -54,7 +55,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 /** Compact category-colored content card for calendar cells */
-export function CalendarContentCard({ post, onClick, variant = "compact", onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate }: Props) {
+export function CalendarContentCard({ post, onClick, variant = "compact", commentCount, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate }: Props) {
   const isStories = isStoriesPost(post);
   const isReel = isReelPost(post);
 
@@ -188,6 +189,11 @@ export function CalendarContentCard({ post, onClick, variant = "compact", onQuic
         {(post.status === "ready" || post.status === "draft_ready") && (
           <p className="text-[10px] text-primary font-medium mt-1">Voir →</p>
         )}
+        {(commentCount || 0) > 0 && (
+          <span className="absolute bottom-1.5 right-1.5 text-[10px] bg-primary/10 text-primary font-semibold px-1.5 py-0.5 rounded-full">
+            💬 {commentCount}
+          </span>
+        )}
       </button>
     );
   }
@@ -196,7 +202,7 @@ export function CalendarContentCard({ post, onClick, variant = "compact", onQuic
   return (
     <button onClick={onClick}
       className={cn(
-        "w-full text-left rounded-md border px-1.5 py-1 transition-shadow hover:shadow-sm cursor-pointer mb-0.5",
+        "w-full text-left rounded-md border px-1.5 py-1 transition-shadow hover:shadow-sm cursor-pointer mb-0.5 relative",
         post.status === "published" && "opacity-70",
       )}
       style={cardStyle}>
@@ -223,6 +229,11 @@ export function CalendarContentCard({ post, onClick, variant = "compact", onQuic
             </p>
           )}
         </>
+      )}
+      {(commentCount || 0) > 0 && (
+        <span className="absolute bottom-0.5 right-0.5 text-[9px] bg-primary/10 text-primary font-semibold px-1 py-0 rounded-full leading-tight">
+          💬{commentCount}
+        </span>
       )}
     </button>
   );

@@ -13,7 +13,8 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ChevronLeft, ChevronRight, Sparkles, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, Download, Link2 } from "lucide-react";
+import { CalendarShareDialog } from "@/components/calendar/CalendarShareDialog";
 import * as XLSX from "xlsx";
 import CalendarCoachingDialog from "@/components/calendar/CalendarCoachingDialog";
 import { CANAL_FILTERS, type CalendarPost } from "@/lib/calendar-constants";
@@ -69,6 +70,18 @@ function autoWidth(ws: XLSX.WorkSheet, rows: Record<string, any>[]) {
   if (rows.length === 0) return;
   const keys = Object.keys(rows[0]);
   ws["!cols"] = keys.map(k => ({ wch: Math.min(40, Math.max(k.length, ...rows.map(r => String(r[k] || "").length))) }));
+}
+
+function ShareButton() {
+  const [shareOpen, setShareOpen] = useState(false);
+  return (
+    <>
+      <Button variant="outline" size="sm" className="rounded-full gap-1.5" onClick={() => setShareOpen(true)}>
+        <Link2 className="h-3.5 w-3.5" /> Partager
+      </Button>
+      <CalendarShareDialog open={shareOpen} onOpenChange={setShareOpen} />
+    </>
+  );
 }
 
 function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen }: {
@@ -129,6 +142,7 @@ function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen }: {
         <p className="mt-1 text-[15px] text-muted-foreground">Planifie tes contenus, visualise ta semaine, ne te demande plus jamais « je poste quoi aujourd'hui ».</p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
+        <ShareButton />
         <div className="relative" ref={dropdownRef}>
           <Button variant="outline" size="sm" className="rounded-full gap-1.5" onClick={() => setOpen(!open)}>
             <Download className="h-3.5 w-3.5" /> Exporter
