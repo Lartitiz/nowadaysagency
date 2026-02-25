@@ -835,6 +835,11 @@ export default function InstagramReels() {
             <Button className="mt-6 w-full" size="lg" onClick={handleGenerateHooks} disabled={!objective || !faceCam || !timeAvailable}>
               ✨ Générer mes hooks
             </Button>
+            {(!objective || !faceCam || !timeAvailable) && (
+              <p className="text-xs text-muted-foreground mt-2">
+                {!objective ? "☝️ Choisis un objectif (étape 1)" : !faceCam ? "☝️ Choisis un mode face cam (étape 2)" : "☝️ Indique ton temps disponible (étape 4)"}
+              </p>
+            )}
           </div>
         )}
       </main>
