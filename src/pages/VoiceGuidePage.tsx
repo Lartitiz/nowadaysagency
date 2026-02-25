@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
+
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Sparkles, RefreshCw, Copy, Download, Loader2, Check, X } from "lucide-react";
+import SubPageHeader from "@/components/SubPageHeader";
+import { Sparkles, RefreshCw, Copy, Download, Loader2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -157,9 +158,7 @@ export default function VoiceGuidePage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[800px] px-6 py-8 max-md:px-4">
-        <Link to="/branding" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-6 transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Retour au branding
-        </Link>
+        <SubPageHeader parentLabel="Ton style" parentTo="/branding/style" currentLabel="Guide de voix" />
 
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <h1 className="font-display text-[26px] font-bold text-foreground">🎤 Mon guide de voix</h1>

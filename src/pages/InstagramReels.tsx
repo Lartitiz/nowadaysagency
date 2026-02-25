@@ -8,6 +8,7 @@ import PreGenQuestions, { PreGenAnswers } from "@/components/PreGenQuestions";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
+import SubPageHeader from "@/components/SubPageHeader";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Info, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -699,9 +700,7 @@ export default function InstagramReels() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-        <Link to={new URLSearchParams(window.location.search).get("from") || "/instagram/creer"} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
-          <ArrowLeft className="h-4 w-4" /> Retour
-        </Link>
+        <SubPageHeader parentLabel="Créer" parentTo="/instagram/creer" currentLabel="Script Reel" />
 
         <h1 className="font-display text-2xl font-bold text-foreground mb-2">🎬 Générateur de Scripts Reels</h1>
         <p className="text-sm text-muted-foreground mb-6">Flow guidé → 3 hooks au choix → script complet prêt à filmer.</p>

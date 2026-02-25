@@ -9,7 +9,8 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
-import { ArrowLeft, Sparkles, Copy, Check, CalendarDays, Save } from "lucide-react";
+import SubPageHeader from "@/components/SubPageHeader";
+import { Sparkles, Copy, Check, CalendarDays, Save } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getGuide, getInstagramFormatReco } from "@/lib/production-guides";
 import { formatIdToGuideKey, QUALITY_CHECKLIST, OBJECTIFS } from "@/lib/atelier-data";
@@ -217,13 +218,7 @@ export default function RedactionPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
-        <Link
-          to={`/atelier?canal=${canal}`}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Retour à l'atelier
-        </Link>
+        <SubPageHeader parentLabel="Dashboard" parentTo="/dashboard" currentLabel="Rédaction" />
 
         <h1 className="font-display text-[26px] font-bold text-foreground mb-1">✏️ Rédiger un contenu</h1>
         <BrandingPrompt section="tone" />
