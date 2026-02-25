@@ -170,6 +170,7 @@ export default function InstagramReels() {
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
   const [inspirationAnalysis, setInspirationAnalysis] = useState<any>(null);
+  const [cachedBrandingCtx, setCachedBrandingCtx] = useState<string>("");
 
   // Random tip
   const [tipIndex] = useState(() => Math.floor(Math.random() * REELS_TIPS.length));
@@ -213,6 +214,7 @@ export default function InstagramReels() {
     setLoading(true);
     try {
       const brandingContext = await fetchBrandingContext();
+      setCachedBrandingCtx(brandingContext);
       const inspCtx = inspirationAnalysis ? `Patterns : ${inspirationAnalysis.patterns_communs}\nRecommandation : ${inspirationAnalysis.recommandation}` : undefined;
       const { data, error } = await supabase.functions.invoke("reels-ai", {
         body: { type: "hooks", objective, face_cam: faceCam, subject, time_available: timeAvailable, is_launch: isLaunch, branding_context: brandingContext, inspiration_context: inspCtx, workspace_id: workspaceId },
@@ -250,7 +252,7 @@ export default function InstagramReels() {
     if (!user) return;
     setLoading(true);
     try {
-      const brandingContext = await fetchBrandingContext();
+      const brandingContext = cachedBrandingCtx || await fetchBrandingContext();
       const inspCtx = inspirationAnalysis ? `Patterns : ${inspirationAnalysis.patterns_communs}\nRecommandation : ${inspirationAnalysis.recommandation}` : undefined;
       const { data, error } = await supabase.functions.invoke("reels-ai", {
         body: {
