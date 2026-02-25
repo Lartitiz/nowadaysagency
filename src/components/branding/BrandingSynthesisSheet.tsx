@@ -198,7 +198,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
       supabase.from("offers").select("*").eq("user_id", uid).order("created_at"),
       supabase.from("user_plan_config").select("*").eq("user_id", uid).maybeSingle(),
       supabase.from("branding_audits").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      fetchBrandingData(uid),
+      fetchBrandingData({ column: "user_id", value: uid }),
       supabase.from("profiles").select("first_name, activity").eq("id", uid).maybeSingle(),
     ]);
 

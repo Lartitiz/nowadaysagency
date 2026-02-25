@@ -19,14 +19,14 @@ export interface BrandingRawData {
   charter: any | null;
 }
 
-export async function fetchBrandingData(userId: string): Promise<BrandingRawData> {
+export async function fetchBrandingData(filter: { column: string; value: string }): Promise<BrandingRawData> {
   const [stRes, perRes, propRes, toneRes, stratRes, charterRes] = await Promise.all([
-    supabase.from("storytelling").select("id, is_primary, completed, step_7_polished, imported_text").eq("user_id", userId),
-    supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_proposition").select("step_1_what, step_2a_process, step_2b_values, step_3_for_whom, version_final, version_pitch_naturel").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_strategy").select("step_1_hidden_facets, facet_1, pillar_major, creative_concept").eq("user_id", userId).maybeSingle(),
-    (supabase.from("brand_charter") as any).select("logo_url, color_primary, color_secondary, color_accent, font_title, font_body, mood_keywords, photo_style").eq("user_id", userId).maybeSingle(),
+    (supabase.from("storytelling") as any).select("id, is_primary, completed, step_7_polished, imported_text").eq(filter.column, filter.value),
+    (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("brand_proposition") as any).select("step_1_what, step_2a_process, step_2b_values, step_3_for_whom, version_final, version_pitch_naturel").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("brand_profile") as any).select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("brand_strategy") as any).select("step_1_hidden_facets, facet_1, pillar_major, creative_concept").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("brand_charter") as any).select("logo_url, color_primary, color_secondary, color_accent, font_title, font_body, mood_keywords, photo_style").eq(filter.column, filter.value).maybeSingle(),
   ]);
 
   return {
@@ -124,8 +124,8 @@ export function calculateBrandingCompletion(data: BrandingRawData): BrandingComp
  * Legacy helper used by BrandingPrompt and SiteAccueil.
  * Returns a simple percent + toneComplete flag.
  */
-export async function getBrandingCompletion(userId: string): Promise<{ percent: number; toneComplete: boolean }> {
-  const data = await fetchBrandingData(userId);
+export async function getBrandingCompletion(filter: { column: string; value: string }): Promise<{ percent: number; toneComplete: boolean }> {
+  const data = await fetchBrandingData(filter);
   const completion = calculateBrandingCompletion(data);
   return { percent: completion.total, toneComplete: completion.tone > 50 };
 }

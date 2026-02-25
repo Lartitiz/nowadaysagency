@@ -111,7 +111,7 @@ async function buildTasks(
   wf: { column: string; value: string },
 ): Promise<SessionTask[]> {
   const [raw, weekPosts] = await Promise.all([
-    fetchBrandingData(userId),
+    fetchBrandingData(wf),
     countWeekPosts(wf),
   ]);
   const completion = calculateBrandingCompletion(raw);
