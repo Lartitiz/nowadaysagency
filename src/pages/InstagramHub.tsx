@@ -9,6 +9,7 @@ import { ZoneSection, HubCard, FormatPill } from "@/components/hub";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import InstagramProfileCoaching from "@/components/instagram/InstagramProfileCoaching";
 
 interface ProgressData {
   auditScore: number | null;
@@ -28,6 +29,7 @@ export default function InstagramHub() {
   const [progress, setProgress] = useState<ProgressData>({
     auditScore: null, ideasCount: 0, calendarCount: 0, launchCount: 0, engagementWeekly: "À faire", statsFollowers: null, statsFollowersDiff: null, statsUpToDate: false,
   });
+  const [coachingOpen, setCoachingOpen] = useState(false);
 
   useEffect(() => {
     if (isDemoMode) {
@@ -104,6 +106,18 @@ export default function InstagramHub() {
         {/* ─── ZONE 1 : ANALYSER ─── */}
         <ZoneSection emoji="📊" title={<><span className="text-primary font-bold">1.</span> 📊 Analyser</>}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button onClick={() => setCoachingOpen(true)} className="text-left">
+              <div className="relative rounded-2xl border-2 border-primary bg-primary/5 p-5 hover:bg-primary/10 hover:shadow-md transition-all group">
+                <span className="absolute top-3 right-3 font-mono-ui text-[10px] font-semibold text-primary bg-rose-pale px-2.5 py-0.5 rounded-pill">
+                  IA · 10 min
+                </span>
+                <span className="text-2xl mb-2 block">✨</span>
+                <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                  Coaching profil
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground leading-relaxed">L'IA t'aide à optimiser ton profil, question par question.</p>
+              </div>
+            </button>
             <FirstTimeTooltip id="instagram-profil" text="Analyse ton profil : bio, feed, cohérence visuelle.">
               <HubCard to="/instagram/profil" emoji="👤" title="Mon profil" desc="Audit complet : bio, feed, stories à la une, posts épinglés, nom." />
             </FirstTimeTooltip>
@@ -177,6 +191,8 @@ export default function InstagramHub() {
             />
           </div>
         </ZoneSection>
+
+        <InstagramProfileCoaching open={coachingOpen} onOpenChange={setCoachingOpen} />
       </main>
     </div>
   );
