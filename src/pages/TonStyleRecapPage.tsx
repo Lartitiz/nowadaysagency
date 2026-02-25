@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ interface RecapSummary {
 
 export default function TonStyleRecapPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -33,13 +35,13 @@ export default function TonStyleRecapPage() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle().then(async ({ data: d }) => {
+    (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle().then(async ({ data: d }: any) => {
       setData(d);
       setLoading(false);
       if (d && !d.recap_summary) {
         setGenerating(true);
         try {
-          const stratRes = await supabase.from("brand_strategy").select("creative_concept").eq("user_id", user.id).maybeSingle();
+          const stratRes = await (supabase.from("brand_strategy") as any).select("creative_concept").eq(column, value).maybeSingle();
           const { data: fnData, error } = await supabase.functions.invoke("niche-ai", {
             body: {
               type: "generate-tone-recap",
@@ -67,7 +69,7 @@ export default function TonStyleRecapPage() {
         setGenerating(false);
       }
     });
-  }, [user?.id]);
+  }, [user?.id, column, value]);
 
   const summary: RecapSummary | null = data?.recap_summary as any;
 
@@ -100,7 +102,7 @@ export default function TonStyleRecapPage() {
     if (!data) return;
     setGenerating(true);
     try {
-      const stratRes = await supabase.from("brand_strategy").select("creative_concept").eq("user_id", user!.id).maybeSingle();
+      const stratRes = await (supabase.from("brand_strategy") as any).select("creative_concept").eq(column, value).maybeSingle();
       const { data: fnData, error } = await supabase.functions.invoke("niche-ai", {
         body: {
           type: "generate-tone-recap",
