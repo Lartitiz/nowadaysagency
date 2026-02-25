@@ -1,4 +1,6 @@
 import { useParams, Navigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 
 const TOOL_LABELS: Record<string, string> = {
@@ -17,6 +19,20 @@ const VALID_TOOLS = Object.keys(TOOL_LABELS);
 
 export default function SeoEmbed() {
   const { tool } = useParams<{ tool: string }>();
+  const [iframeSrc, setIframeSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    const buildSrc = async () => {
+      const base = `https://referencement-seo.lovable.app/${tool}`;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        setIframeSrc(`${base}?token=${session.access_token}`);
+      } else {
+        setIframeSrc(base);
+      }
+    };
+    if (tool && VALID_TOOLS.includes(tool)) buildSrc();
+  }, [tool]);
 
   if (!tool || !VALID_TOOLS.includes(tool)) {
     return <Navigate to="/seo" replace />;
@@ -33,13 +49,19 @@ export default function SeoEmbed() {
           <span className="mx-1">›</span>
           <span className="text-foreground font-medium">{TOOL_LABELS[tool]}</span>
         </nav>
-        <iframe
-          src={`https://referencement-seo.lovable.app/${tool}`}
-          className="w-full border-0 rounded-xl"
-          style={{ height: "calc(100vh - 120px)" }}
-          allow="clipboard-write"
-          title={TOOL_LABELS[tool]}
-        />
+        {iframeSrc ? (
+          <iframe
+            src={iframeSrc}
+            className="w-full border-0 rounded-xl"
+            style={{ height: "calc(100vh - 120px)" }}
+            allow="clipboard-write"
+            title={TOOL_LABELS[tool]}
+          />
+        ) : (
+          <div className="flex items-center justify-center" style={{ height: "calc(100vh - 120px)" }}>
+            <p className="text-sm text-muted-foreground">Chargement…</p>
+          </div>
+        )}
       </div>
     </div>
   );
