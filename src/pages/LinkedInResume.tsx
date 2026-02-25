@@ -7,7 +7,8 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Copy, Check, Loader2, RotateCcw, Search } from "lucide-react";
@@ -81,6 +82,9 @@ export default function LinkedInResume() {
   const [parcours, setParcours] = useState("");
   const [offre, setOffre] = useState("");
   const [cta, setCta] = useState("");
+  const [versions, setVersions] = useState<Record<string, string>>({});
+  const [selectedStyle, setSelectedStyle] = useState<"storytelling" | "pro">("storytelling");
+  // kept for DB compat
   const [summaryStory, setSummaryStory] = useState("");
   const [summaryPro, setSummaryPro] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -177,8 +181,23 @@ export default function LinkedInResume() {
       const content = res.data?.content || "";
       let parsed: any;
       try { parsed = JSON.parse(content); } catch { const m = content.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : {}; }
-      if (parsed.storytelling) setSummaryStory(parsed.storytelling);
-      if (parsed.pro) setSummaryPro(parsed.pro);
+      // New 6-version format
+      if (parsed.court_storytelling) {
+        setVersions({
+          court_storytelling: parsed.court_storytelling || "",
+          court_pro: parsed.court_pro || "",
+          moyen_storytelling: parsed.moyen_storytelling || "",
+          moyen_pro: parsed.moyen_pro || "",
+          long_storytelling: parsed.long_storytelling || "",
+          long_pro: parsed.long_pro || "",
+        });
+        setSummaryStory(parsed.moyen_storytelling || "");
+        setSummaryPro(parsed.moyen_pro || "");
+      } else {
+        // Legacy fallback
+        if (parsed.storytelling) setSummaryStory(parsed.storytelling);
+        if (parsed.pro) setSummaryPro(parsed.pro);
+      }
     } catch (e: any) {
       console.error("Erreur technique:", e);
       toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
@@ -370,35 +389,95 @@ export default function LinkedInResume() {
               {generating ? "Génération..." : "✨ Générer mon résumé"}
             </Button>
 
-            {(summaryStory || summaryPro) && (
-              <Tabs defaultValue="storytelling" className="mt-6">
-                <TabsList>
-                  <TabsTrigger value="storytelling">Version storytelling</TabsTrigger>
-                  <TabsTrigger value="pro">Version pro</TabsTrigger>
-                </TabsList>
-                <TabsContent value="storytelling" className="space-y-3">
-                  <Textarea value={summaryStory} onChange={(e) => setSummaryStory(e.target.value)} className="min-h-[250px]" />
-                  <CharacterCounter count={summaryStory.length} max={2600} />
-                  <LinkedInPreview text={summaryStory} cutoff={265} label="Résumé" />
-                  <div className="flex gap-2">
-                    <Button onClick={() => save(summaryStory)} className="rounded-pill gap-2">💾 Enregistrer</Button>
-                    <Button variant="outline" onClick={() => copyText(summaryStory, "story")} className="rounded-pill gap-2">
-                      {copied === "story" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} Copier
-                    </Button>
+            {/* ─── 6-version display ─── */}
+            {Object.keys(versions).length > 0 && (
+              <div className="mt-6 space-y-5">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-foreground">Style :</span>
+                  <ToggleGroup type="single" value={selectedStyle} onValueChange={(v) => { if (v) setSelectedStyle(v as any); }} className="bg-muted rounded-full p-1">
+                    <ToggleGroupItem value="storytelling" className="rounded-full px-4 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                      ✨ Storytelling
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="pro" className="rounded-full px-4 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                      💼 Pro
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
+
+                {(["court", "moyen", "long"] as const).map((length) => {
+                  const key = `${length}_${selectedStyle}`;
+                  const text = versions[key] || "";
+                  const wordLabel = length === "court" ? "~100 mots" : length === "moyen" ? "~200 mots" : "~300 mots";
+                  const lengthLabel = length === "court" ? "Court" : length === "moyen" ? "Moyen" : "Long";
+                  const isRecommended = length === "moyen";
+                  const lines = text.split("\n");
+                  const hookLines = lines.slice(0, 3).join("\n");
+                  const restLines = lines.slice(3).join("\n");
+
+                  return (
+                    <div key={key} className={`rounded-xl border bg-card p-5 space-y-3 ${isRecommended ? "border-primary/50 ring-1 ring-primary/20" : "border-border"}`}>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="secondary" className="text-xs">{lengthLabel}</Badge>
+                        <span className="text-xs text-muted-foreground">{wordLabel}</span>
+                        {isRecommended && <Badge className="bg-primary/10 text-primary text-xs border-0">⭐ Recommandé</Badge>}
+                      </div>
+
+                      {/* Hook highlight */}
+                      <div className="border-l-[3px] border-primary/60 bg-primary/5 rounded-r-lg pl-4 py-2">
+                        <p className="text-sm text-foreground whitespace-pre-line leading-relaxed font-medium">{hookLines}</p>
+                      </div>
+                      {restLines && (
+                        <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">{restLines}</p>
+                      )}
+
+                      <CharacterCounter count={text.length} max={2600} />
+                      <LinkedInPreview text={text} cutoff={265} label="Résumé" />
+
+                      <div className="flex gap-2 flex-wrap">
+                        <Button variant="outline" size="sm" onClick={() => copyText(text, key)} className="rounded-pill gap-1.5">
+                          {copied === key ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                          {copied === key ? "Copié" : "Copier"}
+                        </Button>
+                        <Button size="sm" onClick={() => save(text)} className="rounded-pill gap-1.5">
+                          ✅ Valider cette version
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Legacy fallback for old data */}
+            {Object.keys(versions).length === 0 && (summaryStory || summaryPro) && (
+              <div className="mt-6 space-y-4">
+                {summaryStory && (
+                  <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+                    <Badge variant="secondary" className="text-xs">Storytelling</Badge>
+                    <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">{summaryStory}</p>
+                    <CharacterCounter count={summaryStory.length} max={2600} />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => save(summaryStory)} className="rounded-pill gap-1.5">✅ Valider</Button>
+                      <Button variant="outline" size="sm" onClick={() => copyText(summaryStory, "story")} className="rounded-pill gap-1.5">
+                        {copied === "story" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} Copier
+                      </Button>
+                    </div>
                   </div>
-                </TabsContent>
-                <TabsContent value="pro" className="space-y-3">
-                  <Textarea value={summaryPro} onChange={(e) => setSummaryPro(e.target.value)} className="min-h-[250px]" />
-                  <CharacterCounter count={summaryPro.length} max={2600} />
-                  <LinkedInPreview text={summaryPro} cutoff={265} label="Résumé" />
-                  <div className="flex gap-2">
-                    <Button onClick={() => save(summaryPro)} className="rounded-pill gap-2">💾 Enregistrer</Button>
-                    <Button variant="outline" onClick={() => copyText(summaryPro, "pro")} className="rounded-pill gap-2">
-                      {copied === "pro" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} Copier
-                    </Button>
+                )}
+                {summaryPro && (
+                  <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+                    <Badge variant="secondary" className="text-xs">Pro</Badge>
+                    <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">{summaryPro}</p>
+                    <CharacterCounter count={summaryPro.length} max={2600} />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => save(summaryPro)} className="rounded-pill gap-1.5">✅ Valider</Button>
+                      <Button variant="outline" size="sm" onClick={() => copyText(summaryPro, "pro")} className="rounded-pill gap-1.5">
+                        {copied === "pro" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} Copier
+                      </Button>
+                    </div>
                   </div>
-                </TabsContent>
-              </Tabs>
+                )}
+              </div>
             )}
 
             {/* Example */}
