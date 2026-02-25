@@ -90,6 +90,14 @@ export const STRIPE_PRODUCTS = {
   },
 } as const;
 
+// Credit packs (one-time purchases)
+// After running setup-credit-packs, fill in the priceIds
+export const CREDIT_PACKS = {
+  pack_10: { credits: 10, price: 3.90, priceId: "price_1T4lcNI0YZbTj9IT2jUiJpNE", mode: "payment" as const, label: "10 crédits", emoji: "⚡" },
+  pack_30: { credits: 30, price: 8.90, priceId: "price_1T4lcOI0YZbTj9ITvP6M4k95", mode: "payment" as const, label: "30 crédits", emoji: "⚡" },
+  pack_60: { credits: 60, price: 14.90, priceId: "price_1T4lcOI0YZbTj9ITwB7OJBoD", mode: "payment" as const, label: "60 crédits", emoji: "🔥" },
+} as const;
+
 // AI usage limits per plan
 export const AI_LIMITS = {
   free: { generations: 3, audits: 1 },
