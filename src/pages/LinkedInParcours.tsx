@@ -10,7 +10,8 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
-import { Sparkles, Copy, Check, Plus, Trash2 } from "lucide-react";
+import { Sparkles, Copy, Check, Plus, Trash2, Lightbulb } from "lucide-react";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface Experience {
@@ -31,6 +32,7 @@ export default function LinkedInParcours() {
   const [copied, setCopied] = useState<number | null>(null);
   const [skills, setSkills] = useState<{ techniques: string[]; comportementales: string[] } | null>(null);
   const [generatingSkills, setGeneratingSkills] = useState(false);
+  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
   // Checklist states
   const [formationsDone, setFormationsDone] = useState(false);
@@ -263,7 +265,21 @@ export default function LinkedInParcours() {
           </AccordionItem>
         </Accordion>
 
-        <Button onClick={saveExperiences} className="mt-8 rounded-pill gap-2">💾 Enregistrer mon parcours</Button>
+        <div className="flex flex-wrap gap-3 mt-8">
+          <Button onClick={saveExperiences} className="rounded-pill gap-2">💾 Enregistrer mon parcours</Button>
+          <Button variant="outline" onClick={() => setShowIdeasDialog(true)} className="rounded-pill gap-2">
+            <Lightbulb className="h-4 w-4" /> Sauvegarder en idée
+          </Button>
+        </div>
+        <SaveToIdeasDialog
+          open={showIdeasDialog}
+          onOpenChange={setShowIdeasDialog}
+          contentType="post_linkedin"
+          subject="Parcours LinkedIn"
+          contentData={{ type: "generated", text: experiences.map(e => `${e.job_title} — ${e.company}\n${e.description_optimized}`).join("\n\n") }}
+          sourceModule="linkedin-parcours"
+          format="post"
+        />
       </main>
     </div>
   );

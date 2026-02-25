@@ -8,7 +8,8 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Save, Loader2, BookOpen, Sparkles, Check, X } from "lucide-react";
+import { Save, Loader2, BookOpen, Sparkles, Check, X, Lightbulb } from "lucide-react";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import AuditInsight from "@/components/AuditInsight";
 import {
   Dialog,
@@ -165,6 +166,7 @@ export default function InstagramHighlights() {
   const [saving, setSaving] = useState(false);
   const [statuses, setStatuses] = useState<Record<string, "done" | "todo" | "skip">>({});
   const [structureModal, setStructureModal] = useState<RecommendedHighlight | null>(null);
+  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
   // Load existing highlight statuses
   useEffect(() => {
@@ -411,10 +413,24 @@ export default function InstagramHighlights() {
         </div>
 
         {/* ── Save button ── */}
-        <Button onClick={handleSave} disabled={saving} className="rounded-full gap-2">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          {saving ? "Enregistrement..." : "💾 Sauvegarder"}
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={handleSave} disabled={saving} className="rounded-full gap-2">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {saving ? "Enregistrement..." : "💾 Sauvegarder"}
+          </Button>
+          <Button variant="outline" onClick={() => setShowIdeasDialog(true)} className="rounded-full gap-2">
+            <Lightbulb className="h-4 w-4" /> Sauvegarder en idée
+          </Button>
+        </div>
+        <SaveToIdeasDialog
+          open={showIdeasDialog}
+          onOpenChange={setShowIdeasDialog}
+          contentType="post_instagram"
+          subject="Highlights Instagram"
+          contentData={{ type: "generated", text: Object.entries(statuses).filter(([,s]) => s === "done").map(([k]) => k).join(", ") }}
+          sourceModule="instagram-highlights"
+          format="post"
+        />
       </main>
 
       {/* ── Structure Modal ── */}

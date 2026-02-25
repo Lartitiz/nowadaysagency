@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Copy, RefreshCw, FileText, Pencil, Check, ArrowRight, Sparkles, Wrench } from "lucide-react";
+import { Loader2, Copy, RefreshCw, FileText, Pencil, Check, ArrowRight, Sparkles, Wrench, Lightbulb } from "lucide-react";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -57,6 +58,7 @@ export default function SiteAPropos() {
   // Coaching brief state
   const [coachingBrief, setCoachingBrief] = useState<PreGenBrief | null>(null);
   const [recommendedAngle, setRecommendedAngle] = useState<string | null>(null);
+  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
   // Optimize mode state
   const [mode, setMode] = useState<Mode>("entry");
@@ -521,7 +523,19 @@ export default function SiteAPropos() {
             <Button variant="outline" size="sm" onClick={exportPDF} disabled={exporting}>
               <FileText className="h-3.5 w-3.5 mr-1" /> PDF
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowIdeasDialog(true)}>
+              <Lightbulb className="h-3.5 w-3.5 mr-1" /> Sauvegarder en idée
+            </Button>
           </div>
+          <SaveToIdeasDialog
+            open={showIdeasDialog}
+            onOpenChange={setShowIdeasDialog}
+            contentType="post_instagram"
+            subject="Page à propos"
+            contentData={{ type: "generated", text: `${data?.title || ""}\n\n${data?.story || ""}\n\n${data?.approach || ""}` }}
+            sourceModule="site-a-propos"
+            format="post"
+          />
 
           <div ref={recapRef} className="bg-white rounded-2xl border border-[hsl(var(--border))] p-8 max-md:p-5">
             <SectionBlock label="🎯 Titre d'accroche" text={data.title || ""} field="title" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} />
