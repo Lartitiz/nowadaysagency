@@ -143,3 +143,6 @@ verify_jwt = false
 
 [functions.optimize-sales-page]
 verify_jwt = false
+
+[functions.coach-chat]
+verify_jwt = false
