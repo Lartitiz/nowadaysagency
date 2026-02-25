@@ -8,7 +8,8 @@ import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Check, Sparkles, Loader2, RefreshCw, ChevronLeft, Blend, ArrowRight } from "lucide-react";
+import { Copy, Check, Sparkles, Loader2, RefreshCw, ChevronLeft, Blend, ArrowRight, Lightbulb } from "lucide-react";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { cn } from "@/lib/utils";
 import AuditInsight, { useAuditInsight } from "@/components/AuditInsight";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
@@ -112,6 +113,7 @@ export default function InstagramBio() {
   const [validatedAt, setValidatedAt] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
   // Load profile, branding, and existing validation
   useEffect(() => {
@@ -366,7 +368,19 @@ export default function InstagramBio() {
                 <Button variant="outline" size="sm" className="rounded-pill gap-1.5" onClick={() => startGenerator()}>
                   <RefreshCw className="h-3.5 w-3.5" /> Refaire
                 </Button>
+                <Button variant="outline" size="sm" className="rounded-pill gap-1.5" onClick={() => setShowIdeasDialog(true)}>
+                  <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
+                </Button>
               </div>
+              <SaveToIdeasDialog
+                open={showIdeasDialog}
+                onOpenChange={setShowIdeasDialog}
+                contentType="post_instagram"
+                subject="Bio Instagram"
+                contentData={{ type: "generated", text: validatedBio }}
+                sourceModule="instagram-bio"
+                format="post"
+              />
             </div>
             <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => setHistoryOpen(true)}>
               📜 Voir l'historique de mes bios

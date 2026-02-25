@@ -18,8 +18,9 @@ import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import {
   CalendarIcon, Loader2, Rocket, Trash2, Plus, RefreshCw,
-  ArrowRight, Check, Save, CalendarPlus, LayoutList, Calendar as CalendarIconFull, GitBranch
+  ArrowRight, Check, Save, CalendarPlus, LayoutList, Calendar as CalendarIconFull, GitBranch, Lightbulb
 } from "lucide-react";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import {
   LAUNCH_TEMPLATES, PHASE_STYLES, CATEGORY_COLORS, FORMAT_OPTIONS, CONTENT_TYPES,
   TIME_OPTIONS, FALLBACK_TIME_OPTIONS,
@@ -63,6 +64,7 @@ export default function InstagramLaunchPlan() {
 
   // Saving
   const [saving, setSaving] = useState(false);
+  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
   // Load launch
   useEffect(() => {
@@ -661,7 +663,19 @@ export default function InstagramLaunchPlan() {
                   <Button variant="outline" onClick={() => toast.success("Plan sauvegardé !")} className="rounded-full gap-2">
                     <Save className="h-4 w-4" /> Sauvegarder sans envoyer
                   </Button>
+                  <Button variant="outline" onClick={() => setShowIdeasDialog(true)} className="rounded-full gap-2">
+                    <Lightbulb className="h-4 w-4" /> Sauvegarder en idée
+                  </Button>
                 </div>
+                <SaveToIdeasDialog
+                  open={showIdeasDialog}
+                  onOpenChange={setShowIdeasDialog}
+                  contentType="post_instagram"
+                  subject={`Lancement : ${launch?.offer_name || "Mon lancement"}`}
+                  contentData={{ type: "generated", text: slots.map(s => `${s.date} — ${s.content_type}`).join("\n") }}
+                  sourceModule="instagram-launch"
+                  format="post"
+                />
               </CardContent>
             </Card>
           </div>

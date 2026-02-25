@@ -11,7 +11,8 @@ import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
-import { Save, Loader2, Sparkles, Mic, MicOff, Plus, X } from "lucide-react";
+import { Save, Loader2, Sparkles, Mic, MicOff, Plus, X, Lightbulb } from "lucide-react";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import AuditInsight from "@/components/AuditInsight";
 
 /* ─── Types ─── */
@@ -219,6 +220,7 @@ export default function InstagramProfileEdito() {
   const [suggestingFormats, setSuggestingFormats] = useState(false);
   const [suggestingRhythm, setSuggestingRhythm] = useState(false);
   const [rhythmSuggestion, setRhythmSuggestion] = useState<string | null>(null);
+  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
   // Load existing data + branding pillars
   useEffect(() => {
@@ -746,10 +748,24 @@ export default function InstagramProfileEdito() {
           </section>
 
           {/* ── Save button ── */}
-          <Button onClick={handleSave} disabled={saving} className="w-full rounded-pill gap-2">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            💾 Enregistrer ma ligne éditoriale
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={handleSave} disabled={saving} className="rounded-pill gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              💾 Enregistrer ma ligne éditoriale
+            </Button>
+            <Button variant="outline" onClick={() => setShowIdeasDialog(true)} className="rounded-pill gap-2">
+              <Lightbulb className="h-4 w-4" /> Sauvegarder en idée
+            </Button>
+          </div>
+          <SaveToIdeasDialog
+            open={showIdeasDialog}
+            onOpenChange={setShowIdeasDialog}
+            contentType="post_instagram"
+            subject="Ligne éditoriale Instagram"
+            contentData={{ type: "generated", text: `Objectif: ${editorial.main_objective}\nPiliers: ${editorial.pillars?.map(p => p.name).join(", ")}` }}
+            sourceModule="instagram-edito"
+            format="post"
+          />
         </div>
       </main>
     </div>

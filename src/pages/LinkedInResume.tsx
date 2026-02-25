@@ -11,7 +11,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
-import { Sparkles, Copy, Check, Loader2, RotateCcw, Search } from "lucide-react";
+import { Sparkles, Copy, Check, Loader2, RotateCcw, Search, Lightbulb } from "lucide-react";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -96,6 +97,7 @@ export default function LinkedInResume() {
 
   const [copied, setCopied] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
   const micPassion = useSpeechRecognition((t) => setPassion((p) => p + " " + t));
   const micParcours = useSpeechRecognition((t) => setParcours((p) => p + " " + t));
@@ -290,7 +292,19 @@ export default function LinkedInResume() {
               <Button variant="outline" onClick={() => { setMode(null); setSavedResume(""); }} className="rounded-pill gap-2">
                 <RotateCcw className="h-4 w-4" /> Regénérer de zéro
               </Button>
+              <Button variant="outline" onClick={() => setShowIdeasDialog(true)} className="rounded-pill gap-2">
+                <Lightbulb className="h-4 w-4" /> Sauvegarder en idée
+              </Button>
             </div>
+            <SaveToIdeasDialog
+              open={showIdeasDialog}
+              onOpenChange={setShowIdeasDialog}
+              contentType="post_linkedin"
+              subject="Résumé LinkedIn"
+              contentData={{ type: "generated", text: savedResume }}
+              sourceModule="linkedin-resume"
+              format="post"
+            />
 
             {/* Show last analysis if exists */}
             {analysis && <AnalysisCards analysis={analysis} onSaveVersion={(v) => save(v)} copyText={copyText} copied={copied} />}

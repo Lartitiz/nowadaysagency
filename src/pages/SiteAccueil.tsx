@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Sparkles, MessageCircle } from "lucide-react";
+import { ArrowLeft, Sparkles, MessageCircle, Lightbulb } from "lucide-react";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
@@ -36,6 +37,7 @@ export default function SiteAccueil() {
   const [brandingPercent, setBrandingPercent] = useState(100);
   const [showCoaching, setShowCoaching] = useState(false);
   const [coachingBrief, setCoachingBrief] = useState<PreGenBrief | null>(null);
+  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
   useEffect(() => {
     if (!user || !loading) return;
@@ -329,8 +331,20 @@ export default function SiteAccueil() {
         {/* Navigation */}
         <div className="flex justify-between mt-8">
           <Button variant="outline" onClick={() => goStep(Math.max(1, step - 1))} disabled={step === 1}>← Précédent</Button>
+          <Button variant="outline" onClick={() => setShowIdeasDialog(true)} className="gap-2">
+            <Lightbulb className="h-4 w-4" /> Sauvegarder en idée
+          </Button>
           <Button onClick={nextStep}>{step === totalSteps ? "Voir le récap →" : "Suivant →"}</Button>
         </div>
+        <SaveToIdeasDialog
+          open={showIdeasDialog}
+          onOpenChange={setShowIdeasDialog}
+          contentType="post_instagram"
+          subject="Page d'accueil"
+          contentData={{ type: "generated", text: `${data.hook_title || ""}\n\n${data.problem_block || ""}\n\n${data.offer_block || ""}` }}
+          sourceModule="site-accueil"
+          format="post"
+        />
       </main>
     </div>
   );
