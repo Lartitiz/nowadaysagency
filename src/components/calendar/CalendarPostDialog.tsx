@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { friendlyError } from "@/lib/error-messages";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { format as formatDate } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ interface Props {
 export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onDelete, onUnplan, onDateChange, prefillData }: Props) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { column, value } = useWorkspaceFilter();
   const [theme, setTheme] = useState("");
   const [angle, setAngle] = useState<string | null>(null);
   const [status, setStatus] = useState("idea");
@@ -108,7 +110,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Non connectée");
 
-      const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", session.user.id).maybeSingle();
+      const { data: profile } = await (supabase.from("profiles") as any).select("*").eq(column, value).maybeSingle();
 
       const res = await supabase.functions.invoke("generate-content", {
         body: {
