@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Copy, RefreshCw, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -39,6 +40,7 @@ interface Props {
 
 export default function ContentPlayground({ section }: Props) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const [activeAction, setActiveAction] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -58,10 +60,10 @@ export default function ContentPlayground({ section }: Props) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Non connectée");
 
-      const { data: profileData } = await supabase
-        .from("profiles")
+      const { data: profileData } = await (supabase
+        .from("profiles") as any)
         .select("activite, prenom, cible, piliers, tons, mission, offre, probleme_principal, type_activite")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .single();
 
       const res = await supabase.functions.invoke("generate-content", {

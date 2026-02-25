@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -79,6 +80,7 @@ interface StorytellingRow {
 
 function StoryCards() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const [stories, setStories] = useState<StorytellingRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +89,7 @@ function StoryCards() {
     if (!user) return;
     (supabase.from("storytelling" as any) as any)
       .select("id, title, step_7_polished, is_primary, updated_at")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("is_primary", { ascending: false })
       .order("updated_at", { ascending: false })
       .then(({ data }: any) => {
