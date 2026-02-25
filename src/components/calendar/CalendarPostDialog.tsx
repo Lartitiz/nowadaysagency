@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { PostCommentsSection } from "@/components/calendar/PostCommentsSection";
+import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { friendlyError } from "@/lib/error-messages";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { format as formatDate } from "date-fns";
@@ -62,8 +63,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [ownerName, setOwnerName] = useState("Moi");
 
   useEffect(() => {
-    (supabase.from("profiles") as any).select("prenom").eq(column, value).maybeSingle().then(({ data }: any) => {
+    (supabase.from("profiles") as any).select("prenom, instagram_username").eq(column, value).maybeSingle().then(({ data }: any) => {
       if (data?.prenom) setOwnerName(data.prenom);
+      if (data?.instagram_username) setIgUsername(data.instagram_username);
     });
   }, [column, value]);
   const [theme, setTheme] = useState("");
@@ -79,6 +81,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [isEditing, setIsEditing] = useState(false);
   const [showFullContent, setShowFullContent] = useState(false);
   const [showContentViewer, setShowContentViewer] = useState(false);
+  const [dialogTab, setDialogTab] = useState<"edit" | "preview">("edit");
+  const [igUsername, setIgUsername] = useState("");
 
   useEffect(() => {
     if (editingPost) {
@@ -114,6 +118,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     }
     setIsEditing(false);
     setShowFullContent(false);
+    setDialogTab("edit");
   }, [editingPost, open, defaultCanal, prefillData]);
 
   const guide = angle ? getGuide(angle) : null;
@@ -427,6 +432,36 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           </div>
         ) : (
         <div className="space-y-4 mt-2">
+          {/* Tabs: Edit / Preview */}
+          <div className="flex rounded-full border border-border overflow-hidden">
+            <button
+              onClick={() => setDialogTab("edit")}
+              className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${dialogTab === "edit" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              ✏️ Éditer
+            </button>
+            <button
+              onClick={() => setDialogTab("preview")}
+              className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${dialogTab === "preview" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              👁️ Prévisualiser
+            </button>
+          </div>
+
+          {dialogTab === "preview" ? (
+            <PreviewTab
+              canal={postCanal}
+              format={format}
+              caption={contentDraft}
+              theme={theme}
+              username={igUsername || ownerName}
+              displayName={ownerName}
+              onNavigateToGenerator={() => handleNavigateToGenerator("generate")}
+              hasAngle={!!angle}
+              hasTheme={!!theme.trim()}
+            />
+          ) : (
+          <>
           {/* Date picker */}
           {editingPost && selectedDate && (
             <div>
@@ -694,6 +729,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               </Button>
             )}
           </div>
+          </>
+          )}
         </div>
         )}
       </DialogContent>
@@ -739,5 +776,96 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       </SheetContent>
     </Sheet>
     </>
+  );
+}
+
+// ── Preview Tab ──
+
+function PreviewTab({ canal, format, caption, theme, username, displayName, onNavigateToGenerator, hasAngle, hasTheme }: {
+  canal: string;
+  format: string | null;
+  caption: string | null;
+  theme: string;
+  username: string;
+  displayName: string;
+  onNavigateToGenerator: () => void;
+  hasAngle: boolean;
+  hasTheme: boolean;
+}) {
+  const mockupCanal = (canal === "instagram" || canal === "linkedin") ? canal : "instagram";
+  const mockupFormat = (() => {
+    if (format === "post_carrousel") return "carousel" as const;
+    if (format === "reel") return "reel" as const;
+    if (format === "story_serie") return "story" as const;
+    return "post" as const;
+  })();
+
+  // Extract hashtags from caption
+  const hashtags = useMemo(() => {
+    if (!caption) return [];
+    return (caption.match(/#\w+/g) || []);
+  }, [caption]);
+
+  // Try to parse carousel slides from content_draft
+  const slides = useMemo(() => {
+    if (mockupFormat !== "carousel" || !caption) return undefined;
+    // Try JSON parse first
+    try {
+      const parsed = JSON.parse(caption);
+      if (Array.isArray(parsed)) {
+        return parsed.map((s: any, i: number) => ({
+          title: s.title || s.titre || `Slide ${i + 1}`,
+          body: s.body || s.texte || s.content || "",
+          slideNumber: i + 1,
+        }));
+      }
+    } catch { /* not JSON */ }
+    // Split by slide markers
+    const parts = caption.split(/(?:slide\s*\d+|---+|\n{3,})/i).filter(Boolean);
+    if (parts.length > 1) {
+      return parts.map((p, i) => ({
+        title: p.split("\n")[0]?.trim() || `Slide ${i + 1}`,
+        body: p.split("\n").slice(1).join("\n").trim(),
+        slideNumber: i + 1,
+      }));
+    }
+    return undefined;
+  }, [caption, mockupFormat]);
+
+  if (!caption) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <p className="text-3xl mb-3">👁️</p>
+        <p className="text-sm text-muted-foreground mb-4">
+          Génère d'abord ton contenu pour le prévisualiser ici.
+        </p>
+        {hasTheme && hasAngle && (
+          <Button onClick={onNavigateToGenerator} className="rounded-full gap-1.5">
+            <Sparkles className="h-4 w-4" /> Générer le contenu
+          </Button>
+        )}
+        {(!hasTheme || !hasAngle) && (
+          <p className="text-xs text-muted-foreground italic">
+            Remplis le thème et l'angle dans l'onglet Éditer.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex justify-center py-2 overflow-y-auto">
+      <SocialMockup
+        canal={mockupCanal}
+        format={mockupFormat}
+        username={username}
+        displayName={displayName}
+        caption={caption}
+        slides={slides}
+        hashtags={hashtags}
+        showComments={false}
+        readonly
+      />
+    </div>
   );
 }
