@@ -14,7 +14,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, Sparkles, Trash2, Save } from "lucide-react";
+import { CalendarIcon, Sparkles, Trash2, Save, RefreshCw } from "lucide-react";
 import type { SavedIdea } from "./CalendarIdeasSidebar";
 
 const FORMAT_OPTIONS = [
@@ -63,6 +63,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
   const [planDate, setPlanDate] = useState<Date | undefined>();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showTransformPicker, setShowTransformPicker] = useState(false);
 
   useEffect(() => {
     if (idea) {
@@ -72,6 +73,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       setNotes(idea.notes || "");
       setConfirmDelete(false);
       setShowDatePicker(false);
+      setShowTransformPicker(false);
       setPlanDate(undefined);
     }
   }, [idea]);
@@ -141,7 +143,28 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
     onOpenChange(false);
   };
 
+  const handleTransform = (targetFormat: string) => {
+    if (!idea) return;
+    const route = FORMAT_ROUTES[targetFormat] || "/instagram/creer";
+    navigate(route, {
+      state: {
+        fromIdeas: true,
+        ideaId: idea.id,
+        theme: title.trim(),
+        objectif: objective,
+        format: targetFormat,
+        notes,
+        sourceContent: idea.content_draft,
+        transformFrom: ideaFormat,
+      },
+    });
+    onOpenChange(false);
+  };
+
+  const transformFormats = FORMAT_OPTIONS.filter((f) => f.id !== ideaFormat);
+
   const content = (
+
     <div className="space-y-5 mt-2">
       {/* Titre */}
       <div>
@@ -261,6 +284,16 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
           >
             <Sparkles className="h-3.5 w-3.5" /> Générer le contenu
           </Button>
+          {idea?.content_draft && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTransformPicker((v) => !v)}
+              className="rounded-pill text-xs gap-1.5"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Transformer dans un autre format
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -274,6 +307,19 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
             {confirmDelete ? "Confirmer la suppression" : "Supprimer"}
           </Button>
         </div>
+        {showTransformPicker && (
+          <div className="flex flex-wrap gap-1.5">
+            {transformFormats.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => handleTransform(f.id)}
+                className="text-xs px-3 py-1.5 rounded-full border border-border hover:border-primary hover:bg-primary hover:text-primary-foreground transition-all"
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
         <Button onClick={handleSave} disabled={!title.trim()} className="w-full rounded-pill gap-1.5">
           <Save className="h-3.5 w-3.5" /> Enregistrer
         </Button>
