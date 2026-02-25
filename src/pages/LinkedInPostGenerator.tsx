@@ -242,16 +242,24 @@ export default function LinkedInPostGenerator() {
               <div className="flex flex-wrap items-center gap-3 mt-4 text-xs text-muted-foreground">
                 <span>
                   📊 {result.character_count} car.{" "}
-                  {result.character_count >= 1300 && result.character_count <= 1900
-                    ? "✅"
-                    : result.character_count < 800
-                    ? "⚠️ court"
-                    : "📏"}
+                  {(() => {
+                    const c = result.character_count;
+                    if (c < 500) return <span className="text-red-600 font-medium">Trop court</span>;
+                    if (c < 1300) return <span className="text-orange-600 font-medium">Correct</span>;
+                    if (c <= 1900) return <span className="text-green-600 font-medium">Sweet spot ✨</span>;
+                    if (c <= 3000) return <span className="text-orange-600 font-medium">Un peu long</span>;
+                    return <span className="text-red-600 font-medium">Trop long</span>;
+                  })()}
                 </span>
                 <span>🏷️ {result.hashtags?.length || 0} hashtag{(result.hashtags?.length || 0) > 1 ? "s" : ""}</span>
                 {result.template_used && (
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${OBJECTIF_COLORS[LINKEDIN_TEMPLATES_UI.find(t => t.id === result.template_used)?.objectif || ""] || "bg-muted"}`}>
                     {LINKEDIN_TEMPLATES_UI.find(t => t.id === result.template_used)?.label || result.template_used}
+                  </span>
+                )}
+                {result.hook_type_used && result.hook_type_used !== "auto" && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-border bg-muted">
+                    {LINKEDIN_HOOK_TYPES.find(h => h.id === result.hook_type_used)?.emoji} {LINKEDIN_HOOK_TYPES.find(h => h.id === result.hook_type_used)?.label || result.hook_type_used}
                   </span>
                 )}
               </div>
