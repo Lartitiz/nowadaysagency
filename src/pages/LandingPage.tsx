@@ -242,7 +242,7 @@ const FAQ_DATA = [
   { q: "C'est quoi la différence avec Canva / Later / ChatGPT ?", a: "Ces outils font une chose. Nous on couvre toute ta com' avec une méthode pensée pour les solopreneuses engagées. Pas des templates génériques." },
   { q: "Est-ce que ça marche pour mon secteur ?", a: "Si tu es dans la mode, l'artisanat, le bien-être, le design, la food, la culture, le coaching, la communication, le graphisme ou n'importe quel métier de service : oui. L'outil s'adapte à ton activité, quel que soit ton secteur." },
   { q: "Je suis débutante, c'est pour moi ?", a: "Surtout pour toi. L'outil est pensé pour celles qui ne savent pas par où commencer." },
-  { q: "C'est quoi le Now Studio ?", a: "Un accompagnement de 6 mois avec Laetitia. L'outil + des coachings individuels + une communauté premium. Pour celles qui veulent aller plus loin." },
+  { q: "C'est quoi « Ta binôme de com » ?", a: "Un accompagnement de 6 mois avec Laetitia. L'outil + des sessions visio individuelles + un support WhatsApp. Pour celles et ceux qui veulent structurer leur com' avec quelqu'un à leurs côtés." },
   { q: "Je peux annuler quand je veux ?", a: "Le plan Outil est sans engagement. Tu annules en 1 clic." },
   { q: "Mes données sont en sécurité ?", a: "Hébergées en Europe, chiffrées, jamais revendues. On est dans la com' éthique, pas dans la data." },
 ];
@@ -285,7 +285,7 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" onClick={scrollTo("features")} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Fonctionnalités</a>
             <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
-            <Link to="/studio/discover" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Now Studio</Link>
+            <Link to="/studio/discover" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Accompagnement</Link>
           </div>
           <div className="hidden md:flex items-center gap-3">
             <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Se connecter</Link>
@@ -301,7 +301,7 @@ export default function LandingPage() {
           <div className="md:hidden border-t border-border bg-card px-4 py-4 space-y-3 animate-fade-in">
             <a href="#features" onClick={scrollTo("features")} className="block text-sm font-medium">Fonctionnalités</a>
             <Link to="/pricing" className="block text-sm font-medium">Pricing</Link>
-            <Link to="/studio/discover" className="block text-sm font-medium">Now Studio</Link>
+            <Link to="/studio/discover" className="block text-sm font-medium">Accompagnement</Link>
             <Link to="/login" className="block text-sm font-medium text-muted-foreground">Se connecter</Link>
             <a href="#signup-section" onClick={scrollTo("signup-section")} className="block text-center rounded-pill bg-primary text-primary-foreground py-2.5 text-sm font-medium shadow-cta">
               Commencer gratuitement
@@ -635,10 +635,10 @@ export default function LandingPage() {
             {/* Now Studio */}
             <Reveal delay={0.2}>
               <div className="rounded-2xl bg-card border border-border p-6 text-left flex flex-col h-full hover:shadow-card-hover transition-shadow">
-                <span className="text-2xl mb-2">🌟</span>
-                <h3 className="font-display text-lg font-bold">Now Studio</h3>
-                <p className="text-primary font-bold text-xl mt-1">250€<span className="text-sm font-normal text-muted-foreground">/mois</span></p>
-                <p className="text-sm text-muted-foreground mt-1 mb-6">L'outil + l'accompagnement humain</p>
+                <span className="text-2xl mb-2">🤝</span>
+                <h3 className="font-display text-lg font-bold">Ta binôme de com</h3>
+                <p className="text-primary font-bold text-xl mt-1">250€<span className="text-sm font-normal text-muted-foreground">/mois × 6</span></p>
+                <p className="text-sm text-muted-foreground mt-1 mb-6">L'outil + Laetitia à tes côtés. On fait ensemble.</p>
                 <div className="flex-1" />
                 <Link to="/studio/discover" className="block text-center rounded-pill border border-border py-2.5 font-medium text-foreground hover:bg-secondary transition-colors text-sm">
                   En savoir plus
@@ -703,7 +703,7 @@ export default function LandingPage() {
               <nav className="flex flex-col gap-2 text-sm text-background/60">
                 <a href="#features" onClick={scrollTo("features")} className="hover:text-background transition-colors">Fonctionnalités</a>
                 <Link to="/pricing" className="hover:text-background transition-colors">Pricing</Link>
-                <Link to="/studio/discover" className="hover:text-background transition-colors">Now Studio</Link>
+                <Link to="/studio/discover" className="hover:text-background transition-colors">Accompagnement</Link>
                 <a href="#faq" onClick={scrollTo("faq")} className="hover:text-background transition-colors">FAQ</a>
               </nav>
             </div>

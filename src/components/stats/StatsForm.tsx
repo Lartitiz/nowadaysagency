@@ -153,7 +153,7 @@ export default function StatsForm({
             {(activeConfig.sales_pages || []).length === 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <NumInput label="Visiteurs plan com'" value={formData.page_views_plan} onChange={v => onFieldChange("page_views_plan", v)} />
-                <NumInput label="Visiteurs Now Studio" value={formData.page_views_academy} onChange={v => onFieldChange("page_views_academy", v)} />
+                <NumInput label="Visiteurs Accompagnement" value={formData.page_views_academy} onChange={v => onFieldChange("page_views_academy", v)} />
                 <NumInput label="Visiteurs Agency" value={formData.page_views_agency} onChange={v => onFieldChange("page_views_agency", v)} />
               </div>
             )}

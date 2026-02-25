@@ -26,7 +26,7 @@ export default function Step5OfferPrice({ data, save, callAI, aiLoading, aiResul
       <div className="space-y-4">
         <div>
           <label className="text-sm font-semibold block mb-1">Nom de l'offre</label>
-          <Input value={data.offer_name} onChange={(e) => save({ offer_name: e.target.value })} placeholder="Ex : Now Studio" />
+          <Input value={data.offer_name} onChange={(e) => save({ offer_name: e.target.value })} placeholder="Ex : Accompagnement 6 mois" />
         </div>
         <div>
           <label className="text-sm font-semibold block mb-1">Prix</label>

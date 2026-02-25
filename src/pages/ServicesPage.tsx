@@ -142,11 +142,11 @@ export default function ServicesPage() {
             Envie d'un accompagnement complet ?
           </h2>
           <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
-            Le Now Studio : 6 mois pour poser toute ta com' avec Laetitia à tes côtés.
+            Ta binôme de com : 6 mois pour structurer, créer et piloter ta communication. Ensemble.
           </p>
           <Button asChild variant="outline" className="rounded-full gap-2">
             <Link to="/studio">
-              Découvrir le Now Studio <ArrowRight className="h-4 w-4" />
+              Découvrir l'accompagnement <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
         </div>

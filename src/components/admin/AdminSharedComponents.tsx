@@ -61,7 +61,7 @@ export function DashboardMessageEditor({ value, onSave }: { value: string; onSav
         <Textarea
           value={msg}
           onChange={e => setMsg(e.target.value)}
-          placeholder="Bienvenue dans Now Pilot ! J'ai hâte de bosser ensemble 🌸"
+          placeholder="Bienvenue dans ton accompagnement ! J'ai hâte de bosser ensemble 🌸"
           className="min-h-[60px] text-sm pr-10"
         />
         <button type="button" onClick={toggle} className={`absolute right-2 bottom-2 p-1.5 rounded-full transition-all ${isListening ? "bg-destructive text-destructive-foreground animate-pulse" : "bg-muted text-muted-foreground hover:bg-secondary"}`}>🎤</button>

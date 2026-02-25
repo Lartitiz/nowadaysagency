@@ -51,7 +51,7 @@ export default function NowPilotPage() {
         <div className="mx-auto max-w-3xl px-6 py-16 text-center">
           <span className="text-sm font-semibold text-primary uppercase tracking-wide">🤝 Accompagnement</span>
           <h1 className="font-display text-3xl sm:text-4xl font-bold text-foreground mt-3 mb-4">
-            Now Pilot
+            Mon accompagnement
           </h1>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-2">
             3 mois je construis pour toi.<br />3 mois on fait ensemble.

@@ -18,7 +18,7 @@ const PRODUCT_LABELS: Record<string, string> = {
   coaching: "Coaching individuel",
   audit_perso: "Audit personnalisé",
   weekend: "Weekend Bourgogne",
-  studio_once: "Now Studio (paiement unique)",
+  studio_once: "Accompagnement Binôme (paiement unique)",
   unknown: "Achat",
 };
 
