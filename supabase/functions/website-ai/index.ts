@@ -8,6 +8,20 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 // Branding data now fetched via getUserContext
 
+function getPromptForSection(type: string): string {
+  const map: Record<string, string> = {
+    hero: "Génère une section hero avec : un titre principal (H1), un sous-titre (1-2 phrases), un bouton CTA principal, un espace pour image à droite ou en fond. La section fait environ 80vh. Le titre utilise le positionnement de l'utilisatrice si disponible.",
+    benefits: "Génère une section 3 colonnes avec icône/emoji, titre court et description (2-3 lignes) par colonne. Les bénéfices doivent parler du résultat pour la cliente, pas des features.",
+    testimonials: "Génère une section avec 3 cartes de témoignages : photo placeholder (cercle gris), citation entre guillemets, nom + contexte. Si des témoignages existent dans le branding, utilise-les.",
+    how_it_works: "Génère une section en 3 étapes numérotées (1, 2, 3) avec titre + description courte. Layout horizontal sur desktop, vertical sur mobile.",
+    pricing: "Génère une card de prix avec : nom de l'offre, liste de ce qui est inclus (5-8 points avec ✓), prix, CTA. PAS de prix barré ni de fausse urgence.",
+    faq: "Génère un accordéon FAQ (6 questions) avec un style clean. Les questions sont formulées comme la cliente les poserait.",
+    about_mini: "Génère une section à propos condensée : espace pour photo à gauche, texte court à droite (3-4 phrases), bouton CTA.",
+    social_proof: "Génère une section de preuve sociale : 3-4 chiffres clés en grand (ex: '150+ client·es accompagné·es') + espaces pour logos partenaires.",
+    footer: "Génère un footer avec : colonnes de liens, inscription newsletter (email + bouton), icônes réseaux sociaux, mentions légales.",
+  };
+  return map[type] || "Génère une section web générique avec titre, texte et CTA.";
+}
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -180,6 +194,15 @@ serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ diagnostic: diagnosticRaw }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+    } else if (action === "generate-section-html") {
+      const { section_type, variant_count = 2 } = params;
+      if (!section_type) {
+        return new Response(JSON.stringify({ error: "section_type requis" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      systemPrompt = `${WEBSITE_PRINCIPLES}\n\n${context}\n\nTu génères des templates HTML de sections web. Le HTML doit être :\n- AUTONOME : CSS inline uniquement (pas de classes Tailwind, pas de fichier CSS externe)\n- COMPATIBLE : fonctionne dans Squarespace, Wix, WordPress et en copier-coller dans n'importe quel CMS\n- RESPONSIVE : utilise des media queries inline ou des techniques flexbox/grid simples\n- PERSONNALISÉ : utilise le branding de l'utilisatrice (couleurs, ton, contenu)\n- ÉTHIQUE : pas de dark patterns, pas d'urgence artificielle\n- JAMAIS de cercles ni de ronds en fond dans les créations visuelles\n\nSi une charte graphique existe dans le contexte, utilise ses couleurs. Sinon utilise une palette neutre et élégante.\n\nSECTION À GÉNÉRER : ${section_type}\n\n${getPromptForSection(section_type)}\n\nGénère ${variant_count} variantes différentes.\n\nRéponds en JSON sans backticks :\n{"variants": [{"name": "Variante épurée", "description": "Style minimal, beaucoup d'espace", "html": "<!DOCTYPE html>..."}, {"name": "Variante colorée", "description": "Plus de couleur et de personnalité", "html": "<!DOCTYPE html>..."}]}`;
+      userPrompt = `Génère ${variant_count} variantes HTML pour la section ${section_type}.`;
 
     } else {
       return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
