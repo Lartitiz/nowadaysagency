@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { Loader2, Sparkles, BarChart3, RotateCcw } from "lucide-react";
+import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import AuditVisualResult, { type AuditVisualData, type AuditEvolution } from "@/components/audit/AuditVisualResult";
 import AuditBioBeforeAfter from "@/components/audit/AuditBioBeforeAfter";
@@ -538,7 +539,11 @@ export default function InstagramAudit() {
             ? "Mets à jour tes infos et relance l'analyse IA."
             : "Remplis les infos de ton profil. L'IA analyse tout et te donne un score avec des recommandations concrètes."}
         </p>
-        <AuditInputForm initial={initialForm} onSubmit={handleSubmit} loading={analyzing} isRedo={hasExistingAudit} />
+        {analyzing ? (
+          <AiLoadingIndicator context="audit" isLoading={analyzing} />
+        ) : (
+          <AuditInputForm initial={initialForm} onSubmit={handleSubmit} loading={analyzing} isRedo={hasExistingAudit} />
+        )}
       </main>
     </div>
   );

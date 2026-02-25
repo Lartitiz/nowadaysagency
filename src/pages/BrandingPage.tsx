@@ -6,6 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw, Loader2, LayoutGrid, ListOrdered, CheckCircle2, AlertTriangle, Zap } from "lucide-react";
+import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { supabase } from "@/integrations/supabase/client";
@@ -763,9 +764,8 @@ export default function BrandingPage() {
           </SheetHeader>
 
           {mirrorLoading ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Analyse en cours…</p>
+            <div className="py-6">
+              <AiLoadingIndicator context="branding" isLoading={mirrorLoading} />
             </div>
           ) : mirrorData ? (
             <div className="space-y-6 mt-4">

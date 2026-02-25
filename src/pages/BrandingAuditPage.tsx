@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { extractTextFromFile, isAcceptedFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
 import { Search, Loader2, Upload, FileText, X, ChevronDown, ChevronUp, ArrowRight } from "lucide-react";
+import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 
 /* ─── Types ─── */
 interface PillarDetail {
@@ -218,11 +219,7 @@ export default function BrandingAuditPage() {
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="container max-w-2xl mx-auto px-4 py-8">
-          <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-10 text-center">
-            <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
-            <p className="font-display font-bold text-lg mb-1">🔍 On analyse ta com'…</p>
-            <p className="text-sm text-muted-foreground">Ça peut prendre 30 secondes. On regarde tout en détail.</p>
-          </div>
+          <AiLoadingIndicator context="audit" isLoading={loading} />
         </main>
       </div>
     );
