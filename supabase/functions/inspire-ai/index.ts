@@ -85,7 +85,14 @@ ${source_text}
 """`;
     }
 
-    const systemPrompt = `${CORE_PRINCIPLES}
+    const systemPrompt = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
+- Reproduis fidèlement le style décrit
+- Réutilise les expressions signature naturellement dans le texte
+- RESPECTE les expressions interdites : ne les utilise JAMAIS
+- Imite les patterns de ton et de structure
+- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
+
+${CORE_PRINCIPLES}
 
 ${WRITING_RESOURCES}
 

@@ -43,7 +43,14 @@ Deno.serve(async (req) => {
       ? `ANGLE DEMANDÉ : ${angle} — Génère uniquement ce type de commentaire, mais propose quand même 4 variantes avec des tons différents.`
       : `Génère les 4 types : value (apport de valeur), question (question pertinente), remarkable (court et remarquable), expertise (expertise subtile).`;
 
-    const textPrompt = `${CORE_PRINCIPLES}
+    const textPrompt = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
+- Reproduis fidèlement le style décrit
+- Réutilise les expressions signature naturellement dans le texte
+- RESPECTE les expressions interdites : ne les utilise JAMAIS
+- Imite les patterns de ton et de structure
+- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
+
+${CORE_PRINCIPLES}
 
 ${ANTI_SLOP}
 

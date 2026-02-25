@@ -51,7 +51,14 @@ serve(async (req) => {
 
     // Clarify subject (fuzzy path)
     if (type === "clarify_subject") {
-      const systemPrompt = `Tu es experte en stories Instagram pour solopreneuses créatives.
+      const systemPrompt = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
+- Reproduis fidèlement le style décrit
+- Réutilise les expressions signature naturellement dans le texte
+- RESPECTE les expressions interdites : ne les utilise JAMAIS
+- Imite les patterns de ton et de structure
+- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
+
+Tu es experte en stories Instagram pour solopreneuses créatives.
 L'utilisatrice a une idée floue pour ses stories. Aide-la à préciser.
 
 ${branding_context || ""}
@@ -89,7 +96,14 @@ Réponds UNIQUEMENT avec le JSON.`;
 
     // Suggest subjects (no idea path)
     if (type === "suggest_subjects") {
-      const systemPrompt = `Tu es experte en stories Instagram pour solopreneuses créatives.
+      const systemPrompt = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
+- Reproduis fidèlement le style décrit
+- Réutilise les expressions signature naturellement dans le texte
+- RESPECTE les expressions interdites : ne les utilise JAMAIS
+- Imite les patterns de ton et de structure
+- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
+
+Tu es experte en stories Instagram pour solopreneuses créatives.
 
 ${branding_context || ""}
 
@@ -178,7 +192,14 @@ Réponds UNIQUEMENT avec le JSON.`;
 // ───────────────────────────────────────────────
 
 function buildDailyPrompt(brandingContext: string): string {
-  return `Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées.
+  return `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
+- Reproduis fidèlement le style décrit
+- Réutilise les expressions signature naturellement dans le texte
+- RESPECTE les expressions interdites : ne les utilise JAMAIS
+- Imite les patterns de ton et de structure
+- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
+
+Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées.
 
 ANTI-SLOP : JAMAIS de "Dans un monde où", "N'hésitez pas", "Plongeons dans", "En outre", "Cela étant dit", "Force est de constater", "Il convient de", tirets cadratins. SI DÉTECTÉ, RÉÉCRIRE.
 
@@ -281,7 +302,14 @@ Génère normalement. Ajoute un champ "personal_tip" dans le JSON :
 `;
   }
 
-  return `Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées (mode, artisanat, bien-être, design, coaching).
+  return `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
+- Reproduis fidèlement le style décrit
+- Réutilise les expressions signature naturellement dans le texte
+- RESPECTE les expressions interdites : ne les utilise JAMAIS
+- Imite les patterns de ton et de structure
+- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
+
+Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées (mode, artisanat, bien-être, design, coaching).
 
 ANTI-SLOP : JAMAIS de "Dans un monde où", "N'hésitez pas", "Plongeons dans", "En outre", "Cela étant dit", "Force est de constater", "Il convient de", tirets cadratins (—). SI DÉTECTÉ, RÉÉCRIRE.
 
