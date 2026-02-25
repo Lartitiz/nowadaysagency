@@ -256,7 +256,7 @@ export default function StrategiePage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Ma stratégie de contenu" />
+        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Ma ligne éditoriale" />
         <AuditRecommendationBanner />
 
         <h1 className="font-display text-[26px] font-bold text-foreground mb-1">Ta stratégie de contenu</h1>

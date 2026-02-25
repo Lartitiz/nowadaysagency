@@ -198,7 +198,7 @@ export default function TonStyleRecapPage() {
         {/* Fallback: show raw data while generating */}
         {!summary && (
           <div className="rounded-2xl bg-white border border-[hsl(var(--border))] shadow-[var(--shadow-card)] overflow-hidden p-6 sm:p-8 mb-6">
-            <h2 className="font-display text-[20px] font-bold mb-4" style={{ color: "#1a1a2e" }}>🎨 Mon ton & mes combats</h2>
+            <h2 className="font-display text-[20px] font-bold mb-4" style={{ color: "#1a1a2e" }}>🎨 Ma voix & mes combats</h2>
 
             {data?.voice_description && (
               <div className="mb-4">

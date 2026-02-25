@@ -85,7 +85,7 @@ const SECTION_CONFIGS: Record<Section, SectionConfig> = {
   },
   tone_style: {
     emoji: "🎨",
-    title: "Mon ton, mon style & mes combats",
+    title: "Ma voix & mes combats",
     parentLabel: "Branding",
     table: "brand_profile",
     fields: [
@@ -106,7 +106,7 @@ const SECTION_CONFIGS: Record<Section, SectionConfig> = {
   },
   content_strategy: {
     emoji: "🍒",
-    title: "Ma stratégie de contenu",
+    title: "Ma ligne éditoriale",
     parentLabel: "Branding",
     table: "brand_strategy",
     fields: [
