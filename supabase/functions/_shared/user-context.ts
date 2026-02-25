@@ -77,6 +77,52 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
   const options = { ...DEFAULT_OPTIONS, ...opts };
   const sections: string[] = [];
 
+  // === VOIX PERSONNELLE (PRIORITÉ ABSOLUE — en premier) ===
+  if (options.includeVoice && ctx.voice) {
+    const v = ctx.voice;
+    const voiceLines: string[] = [];
+
+    if (v.voice_summary) voiceLines.push(`- Comment elle écrit : ${v.voice_summary}`);
+
+    if (v.signature_expressions?.length) {
+      const exprs = Array.isArray(v.signature_expressions) ? v.signature_expressions : [];
+      if (exprs.length) voiceLines.push(`- Expressions signature (À RÉUTILISER) : ${exprs.join(", ")}`);
+    }
+
+    if (v.banned_expressions?.length) {
+      const banned = Array.isArray(v.banned_expressions) ? v.banned_expressions : [];
+      if (banned.length) voiceLines.push(`- Expressions INTERDITES (ne JAMAIS utiliser) : ${banned.join(", ")}`);
+    }
+
+    if (v.tone_patterns?.length) {
+      const patterns = Array.isArray(v.tone_patterns) ? v.tone_patterns : [];
+      if (patterns.length) voiceLines.push(`- Patterns de ton : ${patterns.join(", ")}`);
+    }
+
+    if (v.structure_patterns?.length) {
+      const structs = Array.isArray(v.structure_patterns) ? v.structure_patterns : [];
+      if (structs.length) voiceLines.push(`- Patterns de structure : ${structs.join(", ")}`);
+    }
+
+    if (v.formatting_habits?.length) {
+      const habits = Array.isArray(v.formatting_habits) ? v.formatting_habits : [];
+      if (habits.length) voiceLines.push(`- Habitudes de mise en forme : ${habits.join(", ")}`);
+    }
+
+    if (v.sample_texts?.length) {
+      const samples = Array.isArray(v.sample_texts) ? v.sample_texts : [];
+      const topSamples = samples.slice(0, 2);
+      if (topSamples.length) {
+        voiceLines.push(`- Exemples de textes validés par l'utilisatrice (INSPIRE-TOI de ce style) :`);
+        topSamples.forEach((s: string, i: number) => {
+          voiceLines.push(`  Exemple ${i + 1} : "${s.slice(0, 500)}"`);
+        });
+      }
+    }
+
+    if (voiceLines.length) sections.push(`VOIX PERSONNELLE (PRIORITÉ ABSOLUE — tout le contenu doit reproduire ce style) :\n${voiceLines.join("\n")}`);
+  }
+
   // === PROFIL UTILISATRICE ===
   if (options.includeProfile && ctx.profile) {
     const p = ctx.profile;
@@ -151,46 +197,6 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
     }
   }
 
-  // === VOIX PERSONNELLE (voice_profile) ===
-  if (options.includeVoice && ctx.voice) {
-    const v = ctx.voice;
-    const voiceLines: string[] = [];
-
-    if (v.voice_summary) voiceLines.push(`- Sa voix en résumé : ${v.voice_summary}`);
-
-    if (v.signature_expressions?.length) {
-      const exprs = Array.isArray(v.signature_expressions) ? v.signature_expressions : [];
-      if (exprs.length) voiceLines.push(`- Ses expressions signature (À RÉUTILISER) : ${exprs.join(", ")}`);
-    }
-
-    if (v.banned_expressions?.length) {
-      const banned = Array.isArray(v.banned_expressions) ? v.banned_expressions : [];
-      if (banned.length) voiceLines.push(`- Expressions INTERDITES (ne JAMAIS utiliser) : ${banned.join(", ")}`);
-    }
-
-    if (v.tone_patterns?.length) {
-      const patterns = Array.isArray(v.tone_patterns) ? v.tone_patterns : [];
-      if (patterns.length) voiceLines.push(`- Patterns de ton : ${patterns.join(" ; ")}`);
-    }
-
-    if (v.structure_patterns?.length) {
-      const structs = Array.isArray(v.structure_patterns) ? v.structure_patterns : [];
-      if (structs.length) voiceLines.push(`- Patterns de structure : ${structs.join(" ; ")}`);
-    }
-
-    if (v.sample_texts?.length) {
-      const samples = Array.isArray(v.sample_texts) ? v.sample_texts : [];
-      const topSamples = samples.slice(0, 2);
-      if (topSamples.length) {
-        voiceLines.push(`- Exemples de textes validés par l'utilisatrice (INSPIRE-TOI de ce style) :`);
-        topSamples.forEach((s: string, i: number) => {
-          voiceLines.push(`  Exemple ${i + 1} : "${s.slice(0, 500)}"`);
-        });
-      }
-    }
-
-    if (voiceLines.length) sections.push(`VOIX PERSONNELLE (PRIORITAIRE — le contenu DOIT sonner comme ça) :\n${voiceLines.join("\n")}`);
-  }
 
   // === PROPOSITION DE VALEUR ===
   if (ctx.proposition) {
@@ -320,13 +326,13 @@ export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
   dm: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // Audit Instagram: branding ✅, persona ✅, offers ✅, profile ✅, audit ✅
-  audit: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: true, includeVoice: false },
+  audit: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: true, includeVoice: true },
 
   // Pages de vente: everything + details
-  salesPage: { includeStory: true, includePersona: true, includeOffers: true, includeOffersDetails: true, includeProfile: true, includeEditorial: false, includeAudit: false },
+  salesPage: { includeStory: true, includePersona: true, includeOffers: true, includeOffersDetails: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // Offer coaching: branding ✅, story ✅, persona ✅, no offers
-  offerCoaching: { includeStory: true, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false },
+  offerCoaching: { includeStory: true, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // Creative flow / content generation: full context
   content: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true },
@@ -338,19 +344,19 @@ export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
   inspire: { includeStory: true, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // Launch plan: branding ✅, persona ✅, offers ✅, profile ✅
-  launch: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false },
+  launch: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // LinkedIn: branding ✅, story ✅, persona ✅, offers ✅, profile ✅
-  linkedin: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false },
+  linkedin: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // LinkedIn audit: branding ✅, persona ✅, offers ✅, profile ✅
-  linkedinAudit: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false },
+  linkedinAudit: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // Pinterest: branding ✅, persona ✅, profile ✅
-  pinterest: { includeStory: false, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false },
+  pinterest: { includeStory: false, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // Website / pages de vente: everything + offer details
-  website: { includeStory: true, includePersona: true, includeOffers: true, includeOffersDetails: true, includeProfile: true, includeEditorial: false, includeAudit: false },
+  website: { includeStory: true, includePersona: true, includeOffers: true, includeOffersDetails: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // Score content: branding ✅, profile ✅
   score: { includeStory: false, includePersona: false, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: false },
