@@ -34,6 +34,9 @@ export default function PropositionRecapPage() {
     if (!user) return;
     (supabase.from("brand_proposition") as any).select("*").eq(column, value).maybeSingle().then(({ data: d }: any) => {
       setData(d);
+    }).catch((e: any) => {
+      console.error(e);
+    }).finally(() => {
       setLoading(false);
     });
   }, [user?.id, column, value]);

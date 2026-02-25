@@ -48,15 +48,20 @@ export default function LivesPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const [livesRes, remindersRes] = await Promise.all([
-      supabase.from("lives").select("*").order("scheduled_at", { ascending: false }),
-      user
-        ? (supabase.from("live_reminders") as any).select("live_id").eq(column, value)
-        : Promise.resolve({ data: [] }),
-    ]);
-    if (livesRes.data) setLives(livesRes.data as Live[]);
-    if (remindersRes.data) setReminders(new Set(remindersRes.data.map((r: any) => r.live_id)));
-    setLoading(false);
+    try {
+      const [livesRes, remindersRes] = await Promise.all([
+        supabase.from("lives").select("*").order("scheduled_at", { ascending: false }),
+        user
+          ? (supabase.from("live_reminders") as any).select("live_id").eq(column, value)
+          : Promise.resolve({ data: [] }),
+      ]);
+      if (livesRes.data) setLives(livesRes.data as Live[]);
+      if (remindersRes.data) setReminders(new Set(remindersRes.data.map((r: any) => r.live_id)));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleReminder = async (liveId: string) => {

@@ -96,6 +96,9 @@ export default function PersonaRecapPage() {
         setPortrait(personaData.portrait as unknown as Portrait);
         setCustomName(personaData.portrait_prenom || (personaData.portrait as unknown as Portrait).prenom || "");
       }
+    }).catch((e) => {
+      console.error(e);
+    }).finally(() => {
       setLoading(false);
     });
   }, [user?.id, isDemoMode, column, value]);

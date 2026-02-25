@@ -226,8 +226,9 @@ export default function InstagramReels() {
     } catch (e) {
       console.error(e);
       toast.error("Erreur lors de la génération des hooks.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSelectHook = (hook: Hook) => {
@@ -300,8 +301,9 @@ export default function InstagramReels() {
     } catch (e) {
       console.error(e);
       toast.error("Erreur lors de la génération du script.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleCopyScript = () => {

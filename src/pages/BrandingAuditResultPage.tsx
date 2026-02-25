@@ -130,29 +130,34 @@ export default function BrandingAuditResultPage() {
   const loadAuditData = useCallback(async () => {
     if (!user || !id) return;
     setLoading(true);
-    const { data, error } = await (supabase
-      .from("branding_audits") as any)
-      .select("*")
-      .eq("id", id)
-      .eq(column, value)
-      .maybeSingle();
+    try {
+      const { data, error } = await (supabase
+        .from("branding_audits") as any)
+        .select("*")
+        .eq("id", id)
+        .eq(column, value)
+        .maybeSingle();
 
-    if (error || !data) {
-      navigate("/branding/audit", { replace: true });
-      return;
+      if (error || !data) {
+        navigate("/branding/audit", { replace: true });
+        return;
+      }
+
+      setAuditDate(new Date(data.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }));
+      setResult({
+        score_global: data.score_global ?? 0,
+        synthese: data.synthese ?? "",
+        points_forts: (data.points_forts as any[]) || [],
+        points_faibles: (data.points_faibles as any[]) || [],
+        audit_detail: (data.audit_detail as unknown as Record<string, PillarDetail>) || {},
+        plan_action_recommande: (data.plan_action as any[]) || [],
+        extraction_branding: data.extraction_branding as Record<string, any> | undefined,
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
-
-    setAuditDate(new Date(data.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }));
-    setResult({
-      score_global: data.score_global ?? 0,
-      synthese: data.synthese ?? "",
-      points_forts: (data.points_forts as any[]) || [],
-      points_faibles: (data.points_faibles as any[]) || [],
-      audit_detail: (data.audit_detail as unknown as Record<string, PillarDetail>) || {},
-      plan_action_recommande: (data.plan_action as any[]) || [],
-      extraction_branding: data.extraction_branding as Record<string, any> | undefined,
-    });
-    setLoading(false);
   }, [user, id]);
 
   const loadAuditRecs = useCallback(async () => {
