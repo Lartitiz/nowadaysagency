@@ -101,7 +101,7 @@ export default function InstagramStories() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const location = useLocation();
-  const highlightState = location.state as any;
+  
   const [searchParams] = useSearchParams();
   const calendarId = searchParams.get("calendar_id");
   const calendarState = location.state as any;
@@ -186,15 +186,6 @@ export default function InstagramStories() {
     fetchBranding();
   }, [user]);
 
-  // View mode
-  useEffect(() => {
-    if (highlightState?.viewSequenceId && user) {
-      setLoading(true);
-      // Fetch sequence logic (mock for now as we don't store sequences separately yet in this view)
-      // In real app, we would fetch from 'generated_stories' or similar
-      setLoading(false);
-    }
-  }, [highlightState, user]);
 
   const handleGenerate = async (quickMode = false) => {
     if (!user) return;
