@@ -4590,6 +4590,30 @@ export type Database = {
           },
         ]
       }
+      plan_step_overrides: {
+        Row: {
+          created_at: string
+          id: string
+          status: string
+          step_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          status?: string
+          step_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          status?: string
+          step_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       plan_tasks: {
         Row: {
           completed_at: string | null
