@@ -137,3 +137,6 @@ verify_jwt = false
 
 [functions.public-calendar-comment]
 verify_jwt = false
+
+[functions.audit-site-auto]
+verify_jwt = false
