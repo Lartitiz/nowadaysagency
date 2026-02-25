@@ -6486,10 +6486,12 @@ export type Database = {
           current_page: string | null
           diagnostic: string | null
           id: string
+          is_latest: boolean | null
           raw_result: Json | null
           recommendations: Json | null
           score_global: number | null
           scores: Json | null
+          site_url: string | null
           updated_at: string
           user_id: string
           workspace_id: string | null
@@ -6502,10 +6504,12 @@ export type Database = {
           current_page?: string | null
           diagnostic?: string | null
           id?: string
+          is_latest?: boolean | null
           raw_result?: Json | null
           recommendations?: Json | null
           score_global?: number | null
           scores?: Json | null
+          site_url?: string | null
           updated_at?: string
           user_id: string
           workspace_id?: string | null
@@ -6518,10 +6522,12 @@ export type Database = {
           current_page?: string | null
           diagnostic?: string | null
           id?: string
+          is_latest?: boolean | null
           raw_result?: Json | null
           recommendations?: Json | null
           score_global?: number | null
           scores?: Json | null
+          site_url?: string | null
           updated_at?: string
           user_id?: string
           workspace_id?: string | null
