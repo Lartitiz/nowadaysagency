@@ -158,7 +158,7 @@ export default function InstagramReels() {
   const [faceCam, setFaceCam] = useState("");
   const [subject, setSubject] = useState("");
   const [timeAvailable, setTimeAvailable] = useState("");
-  const [isLaunch, setIsLaunch] = useState(false);
+  const [isLaunch, setIsLaunch] = useState<boolean | null>(null);
 
   // Results
   const [hooks, setHooks] = useState<Hook[]>([]);
@@ -817,14 +817,14 @@ export default function InstagramReels() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => { setIsLaunch(true); }}
-                className={`rounded-2xl border p-4 text-left transition-all ${isLaunch ? "border-primary bg-rose-pale" : "border-border bg-card hover:border-primary/50"}`}
+                className={`rounded-2xl border p-4 text-left transition-all ${isLaunch === true ? "border-primary bg-rose-pale" : "border-border bg-card hover:border-primary/50"}`}
               >
                 <span className="text-lg">🚀</span>
                 <p className="font-display text-sm font-bold mt-1">Oui</p>
               </button>
               <button
                 onClick={() => { setIsLaunch(false); }}
-                className={`rounded-2xl border p-4 text-left transition-all ${!isLaunch ? "border-primary bg-rose-pale" : "border-border bg-card hover:border-primary/50"}`}
+                className={`rounded-2xl border p-4 text-left transition-all ${isLaunch === false ? "border-primary bg-rose-pale" : "border-border bg-card hover:border-primary/50"}`}
               >
                 <span className="text-lg">🌊</span>
                 <p className="font-display text-sm font-bold mt-1">Non</p>
