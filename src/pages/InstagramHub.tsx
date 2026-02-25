@@ -5,6 +5,7 @@ import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import FirstTimeTooltip from "@/components/FirstTimeTooltip";
+import { ZoneSection, HubCard, FormatPill } from "@/components/hub";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
@@ -173,63 +174,3 @@ export default function InstagramHub() {
   );
 }
 
-/* ─── Zone section wrapper ─── */
-function ZoneSection({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
-  return (
-    <section className="mb-6">
-      <h2 className="font-display text-lg font-bold text-foreground mb-3 flex items-center gap-2">
-        <span>{emoji}</span> {title}
-      </h2>
-      <div className="rounded-2xl border border-border bg-card/50 p-4">
-        {children}
-      </div>
-    </section>
-  );
-}
-
-/* ─── Hub card ─── */
-function HubCard({
-  to,
-  emoji,
-  title,
-  desc,
-  badge,
-  disabled,
-}: {
-  to: string;
-  emoji: string;
-  title: string;
-  desc: string;
-  badge?: string;
-  disabled?: boolean;
-}) {
-  const content = (
-    <div className={`relative rounded-2xl border border-border bg-card p-5 transition-all ${disabled ? "opacity-60 cursor-not-allowed" : "hover:border-primary hover:shadow-md group"}`}>
-      {badge && (
-        <span className="absolute top-3 right-3 font-mono-ui text-[10px] font-semibold text-muted-foreground bg-rose-pale px-2 py-0.5 rounded-pill">
-          {badge}
-        </span>
-      )}
-      <span className="text-2xl mb-2 block">{emoji}</span>
-      <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
-        {title}
-      </h3>
-      <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{desc}</p>
-    </div>
-  );
-
-  if (disabled) return content;
-
-  return <Link to={to}>{content}</Link>;
-}
-
-/* ─── Format pill ─── */
-function FormatPill({ emoji, label, soon }: { emoji: string; label: string; soon?: boolean }) {
-  return (
-    <span className={`inline-flex items-center gap-1.5 font-mono-ui text-xs font-semibold px-3 py-1.5 rounded-pill ${
-      soon ? "text-muted-foreground bg-muted" : "text-primary bg-rose-pale"
-    }`}>
-      {emoji} {label}{soon && " 🔜"}
-    </span>
-  );
-}
