@@ -123,6 +123,10 @@ Réponds UNIQUEMENT avec le JSON.`;
       });
     }
 
+    // Main sequence generation (type === "sequence" or any unmatched type)
+    // Note: types "clarify_subject", "suggest_subjects" and "daily" return early above.
+    // Everything else falls through to the main generation flow below.
+
     // Check recent sale sequences for garde-fou
     let gardeFouAlerte: string | null = null;
     if (objective === "vente") {
