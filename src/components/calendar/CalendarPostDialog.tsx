@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { PostCommentsSection } from "@/components/calendar/PostCommentsSection";
 import { friendlyError } from "@/lib/error-messages";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { format as formatDate } from "date-fns";
@@ -58,6 +59,13 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const navigate = useNavigate();
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
+  const [ownerName, setOwnerName] = useState("Moi");
+
+  useEffect(() => {
+    (supabase.from("profiles") as any).select("prenom").eq(column, value).maybeSingle().then(({ data }: any) => {
+      if (data?.prenom) setOwnerName(data.prenom);
+    });
+  }, [column, value]);
   const [theme, setTheme] = useState("");
   const [angle, setAngle] = useState<string | null>(null);
   const [status, setStatus] = useState("idea");
@@ -663,6 +671,11 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                 </ol>
               </CollapsibleContent>
             </Collapsible>
+          )}
+
+          {/* Comments section */}
+          {editingPost && (
+            <PostCommentsSection postId={editingPost.id} ownerName={ownerName} />
           )}
 
           {/* Actions */}
