@@ -6,7 +6,6 @@ import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Download, Copy, RefreshCw, ExternalLink, Loader2, Pencil, Sparkles, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { calculateBrandingCompletion, fetchBrandingData } from "@/lib/branding-completion";
 
@@ -265,39 +264,201 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
   };
 
   const handleExportPdf = async () => {
-    if (!sheetRef.current) return;
+    if (!data) return;
     setExporting(true);
     try {
-      const canvas = await html2canvas(sheetRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
-      const margin = 10;
+      const margin = 20;
       const contentW = pageW - margin * 2;
-      const imgH = (canvas.height / canvas.width) * contentW;
-      let remaining = imgH;
-      const pageContentH = pageH - margin * 2;
-      let isFirst = true;
+      let y = margin;
 
-      while (remaining > 0) {
-        if (!isFirst) pdf.addPage();
-        isFirst = false;
-        const sourceY = (imgH - remaining) / imgH * canvas.height;
-        const sliceH = Math.min(pageContentH / contentW * canvas.width, canvas.height - sourceY);
-        const sliceCanvas = document.createElement("canvas");
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = sliceH;
-        const ctx = sliceCanvas.getContext("2d")!;
-        ctx.drawImage(canvas, 0, sourceY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
-        const sliceImg = sliceCanvas.toDataURL("image/png");
-        const sliceImgH = (sliceH / canvas.width) * contentW;
-        pdf.addImage(sliceImg, "PNG", margin, margin, contentW, sliceImgH);
-        remaining -= pageContentH;
+      const COLOR_TITLE = brand?.visual_style ? "#E91E8C" : "#E91E8C";
+      const COLOR_SUBTITLE = "#1A1A2E";
+      const COLOR_BODY = "#333333";
+      const footerText = "Généré avec L'Assistant Com' · nowadays.agency";
+      const dateStr = new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+
+      const addFooter = () => {
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(7);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(`${footerText} · ${dateStr}`, pageW / 2, pageH - 8, { align: "center" });
+      };
+
+      const checkPage = (needed: number) => {
+        if (y + needed > pageH - 18) {
+          addFooter();
+          pdf.addPage();
+          y = margin;
+        }
+      };
+
+      const addSectionTitle = (title: string) => {
+        checkPage(14);
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(16);
+        pdf.setTextColor(COLOR_TITLE);
+        pdf.text(title, margin, y);
+        y += 3;
+        pdf.setDrawColor(COLOR_TITLE);
+        pdf.setLineWidth(0.5);
+        pdf.line(margin, y, margin + 40, y);
+        y += 8;
+      };
+
+      const addSubtitle = (text: string) => {
+        checkPage(10);
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(12);
+        pdf.setTextColor(COLOR_SUBTITLE);
+        pdf.text(text, margin, y);
+        y += 6;
+      };
+
+      const addBody = (text: string) => {
+        if (!text) return;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(10);
+        pdf.setTextColor(COLOR_BODY);
+        const lines = pdf.splitTextToSize(text, contentW);
+        for (const line of lines) {
+          checkPage(5);
+          pdf.text(line, margin, y);
+          y += 4.5;
+        }
+        y += 2;
+      };
+
+      const addBullet = (label: string, value: string) => {
+        if (!value) return;
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(10);
+        pdf.setTextColor(COLOR_SUBTITLE);
+        checkPage(5);
+        const labelW = pdf.getTextWidth(label + " : ");
+        pdf.text(label + " : ", margin + 2, y);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(COLOR_BODY);
+        const remaining = contentW - labelW - 4;
+        const valLines = pdf.splitTextToSize(value, remaining > 30 ? remaining : contentW);
+        if (remaining > 30) {
+          pdf.text(valLines[0], margin + 2 + labelW, y);
+          y += 4.5;
+          for (let i = 1; i < valLines.length; i++) {
+            checkPage(5);
+            pdf.text(valLines[i], margin + 4, y);
+            y += 4.5;
+          }
+        } else {
+          y += 4.5;
+          for (const vl of valLines) {
+            checkPage(5);
+            pdf.text(vl, margin + 4, y);
+            y += 4.5;
+          }
+        }
+      };
+
+      // ══════════ PAGE 1: HEADER ══════════
+      y = 40;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(28);
+      pdf.setTextColor(COLOR_TITLE);
+      const headerName = userName || "Mon Branding";
+      pdf.text(headerName, pageW / 2, y, { align: "center" });
+      y += 10;
+
+      if (userActivity) {
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(12);
+        pdf.setTextColor(COLOR_SUBTITLE);
+        pdf.text(userActivity, pageW / 2, y, { align: "center" });
+        y += 8;
       }
 
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(10);
+      pdf.setTextColor(150, 150, 150);
+      pdf.text(`Synthèse Branding · ${dateStr}`, pageW / 2, y, { align: "center" });
+      y += 5;
+      pdf.setDrawColor(COLOR_TITLE);
+      pdf.setLineWidth(0.3);
+      pdf.line(pageW / 2 - 25, y, pageW / 2 + 25, y);
+      y += 15;
+
+      // ══════════ L'ESSENTIEL ══════════
+      addSectionTitle("L'essentiel");
+      const pitch = proposition?.version_pitch_naturel || proposition?.version_final || proposition?.version_one_liner;
+      if (pitch) { addSubtitle("Pitch"); addBody(pitch); }
+      if (brand?.mission) { addBullet("Mission", brand.mission); }
+      if (brand?.positioning) { addBullet("Positionnement", brand.positioning); }
+      if (proposition?.version_one_liner && pitch !== proposition.version_one_liner) {
+        addBullet("One-liner", proposition.version_one_liner);
+      }
+      y += 4;
+
+      // ══════════ MA CLIENTE IDÉALE ══════════
+      if (persona) {
+        addSectionTitle("Ma cliente idéale");
+        const p = safeParseJson(persona.portrait);
+        if (p?.portrait_prenom) addBullet("Prénom", p.portrait_prenom);
+        if (persona.step_1_frustrations) addBullet("Frustrations", persona.step_1_frustrations);
+        if (persona.step_2_transformation) addBullet("Transformation", persona.step_2_transformation);
+        if (persona.step_3a_objections) addBullet("Objections", persona.step_3a_objections);
+        y += 4;
+      }
+
+      // ══════════ MA VOIX ══════════
+      if (brand) {
+        addSectionTitle("Ma voix & mes combats");
+        if (brand.voice_description) addBullet("Voix", brand.voice_description);
+        const reg = [brand.tone_register, brand.tone_level, brand.tone_style].filter(Boolean).join(" · ");
+        if (reg) addBullet("Registre", reg);
+        if (brand.tone_humor) addBullet("Humour", brand.tone_humor);
+        if (brand.key_expressions) addBullet("Expressions clés", brand.key_expressions);
+        if (brand.things_to_avoid) addBullet("À éviter", brand.things_to_avoid);
+        if (brand.combat_cause) addBullet("Cause", brand.combat_cause);
+        if (brand.combat_refusals) addBullet("Refus", brand.combat_refusals);
+        y += 4;
+      }
+
+      // ══════════ MA STRATÉGIE ══════════
+      if (strategy) {
+        addSectionTitle("Ma stratégie de contenu");
+        if (strategy.pillar_major) addBullet("Pilier majeur", strategy.pillar_major);
+        const minors = [strategy.pillar_minor_1, strategy.pillar_minor_2, strategy.pillar_minor_3].filter(Boolean);
+        if (minors.length) addBullet("Piliers secondaires", minors.join(", "));
+        if (strategy.creative_concept) addBullet("Concept créatif", strategy.creative_concept);
+        const facets = [strategy.facet_1, strategy.facet_2, strategy.facet_3].filter(Boolean);
+        if (facets.length) addBullet("Facettes", facets.join(", "));
+        y += 4;
+      }
+
+      // ══════════ MES OFFRES ══════════
+      if (offers && offers.length > 0) {
+        addSectionTitle("Mes offres");
+        for (const offer of offers) {
+          checkPage(18);
+          pdf.setFont("helvetica", "bold");
+          pdf.setFontSize(11);
+          pdf.setTextColor(COLOR_SUBTITLE);
+          const typeLabel = offer.offer_type === "paid" ? "💎 Payante" : offer.offer_type === "free" ? "🎁 Gratuite" : "🎤 Service";
+          pdf.text(`${offer.name || "Sans nom"} (${typeLabel})`, margin, y);
+          y += 5;
+          if (offer.price_text) addBullet("Prix", offer.price_text);
+          if (offer.promise) addBullet("Promesse", offer.promise);
+          if (offer.target_ideal) addBullet("Pour qui", offer.target_ideal);
+          y += 3;
+        }
+      }
+
+      addFooter();
       pdf.save(`synthese-branding-${new Date().toISOString().slice(0, 10)}.pdf`);
       toast.success("PDF téléchargé !");
-    } catch {
+    } catch (e) {
+      console.error("PDF export error:", e);
       toast.error("Erreur lors de l'export PDF");
     } finally {
       setExporting(false);
