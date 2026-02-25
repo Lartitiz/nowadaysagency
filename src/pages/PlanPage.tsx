@@ -11,7 +11,7 @@ import {
   ClipboardList, BarChart3, Construction,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { computePlan, GOAL_LABELS, TIME_LABELS, type PlanData, type PlanConfig, type PlanPhase, type PlanStep, type StepStatus } from "@/lib/plan-engine";
+import { computePlan, GOAL_LABELS, TIME_LABELS, type PlanData, type PlanConfig, type PlanPhase, type PlanStep, type StepStatus, type PlanStepOverride } from "@/lib/plan-engine";
 
 /* ═══════════════════════════════════════════════════════════════
    PLAN CONFIG SETUP (first visit questionnaire)
@@ -156,9 +156,26 @@ const STATUS_LABEL: Record<StepStatus, string> = {
   locked: "Bloqué",
 };
 
-function StepCard({ step }: { step: PlanStep }) {
+function ManualCheckbox({ checked, onToggle }: { checked: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onToggle(); }}
+      className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+        checked
+          ? "bg-primary border-primary"
+          : "border-muted-foreground/30 hover:border-primary/50"
+      }`}
+      aria-label={checked ? "Marquer comme non fait" : "Marquer comme fait"}
+    >
+      {checked && <Check className="h-3 w-3 text-primary-foreground" />}
+    </button>
+  );
+}
+
+function StepCard({ step, isOverridden, onToggleOverride }: { step: PlanStep; isOverridden: boolean; onToggleOverride?: () => void }) {
   const isLocked = step.status === "locked";
   const isDone = step.status === "done";
+  const canToggle = onToggleOverride && !isLocked && !step.comingSoon;
 
   return (
     <div
@@ -171,7 +188,13 @@ function StepCard({ step }: { step: PlanStep }) {
       }`}
     >
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 shrink-0">{STATUS_ICON[step.status]}</div>
+        <div className="mt-0.5 shrink-0">
+          {canToggle ? (
+            <ManualCheckbox checked={isDone} onToggle={onToggleOverride} />
+          ) : (
+            STATUS_ICON[step.status]
+          )}
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h4
@@ -226,7 +249,7 @@ function StepCard({ step }: { step: PlanStep }) {
   );
 }
 
-function PhaseSection({ phase }: { phase: PlanPhase }) {
+function PhaseSection({ phase, overrides, onToggleOverride }: { phase: PlanPhase; overrides: Set<string>; onToggleOverride: (stepId: string) => void }) {
   const [open, setOpen] = useState(!phase.locked);
   const doneCount = phase.steps.filter((s) => s.status === "done").length;
   const total = phase.steps.length;
@@ -258,7 +281,12 @@ function PhaseSection({ phase }: { phase: PlanPhase }) {
       {open && (
         <div className="mt-3 space-y-3 pl-2">
           {phase.steps.map((step) => (
-            <StepCard key={step.id} step={step} />
+            <StepCard
+              key={step.id}
+              step={step}
+              isOverridden={overrides.has(step.id)}
+              onToggleOverride={() => onToggleOverride(step.id)}
+            />
           ))}
         </div>
       )}
@@ -275,26 +303,37 @@ export default function PlanPage() {
   const { column, value } = useWorkspaceFilter();
   const [planData, setPlanData] = useState<PlanData | null>(null);
   const [config, setConfig] = useState<PlanConfig | null>(null);
-  const [hasConfig, setHasConfig] = useState<boolean | null>(null); // null = loading
+  const [hasConfig, setHasConfig] = useState<boolean | null>(null);
   const [editing, setEditing] = useState(false);
+  const [overrides, setOverrides] = useState<PlanStepOverride[]>([]);
+  const overrideSet = new Set(overrides.map(o => o.step_id));
+
+  const loadOverrides = useCallback(async (): Promise<PlanStepOverride[]> => {
+    if (!user) return [];
+    const { data } = await (supabase.from("plan_step_overrides") as any)
+      .select("step_id, status")
+      .eq("user_id", user.id);
+    const list = (data || []) as PlanStepOverride[];
+    setOverrides(list);
+    return list;
+  }, [user?.id]);
 
   const loadConfig = useCallback(async () => {
     if (!user) return;
-    const { data } = await (supabase
-      .from("user_plan_config") as any)
-      .select("*")
-      .eq(column, value)
-      .maybeSingle();
+    const [configRes, ov] = await Promise.all([
+      (supabase.from("user_plan_config") as any).select("*").eq(column, value).maybeSingle(),
+      loadOverrides(),
+    ]);
 
-    if (data) {
+    if (configRes.data) {
       const c: PlanConfig = {
-        weekly_time: data.weekly_time || "2_5h",
-        channels: (data.channels as string[]) || [],
-        main_goal: data.main_goal || "start",
+        weekly_time: configRes.data.weekly_time || "2_5h",
+        channels: (configRes.data.channels as string[]) || [],
+        main_goal: configRes.data.main_goal || "start",
       };
       setConfig(c);
       setHasConfig(true);
-      const plan = await computePlan({ column, value }, c);
+      const plan = await computePlan({ column, value }, c, ov);
       setPlanData(plan);
     } else {
       setHasConfig(false);
@@ -324,7 +363,26 @@ export default function PlanPage() {
     setConfig(c);
     setHasConfig(true);
     setEditing(false);
-    const plan = await computePlan({ column, value }, c);
+    const plan = await computePlan({ column, value }, c, overrides);
+    setPlanData(plan);
+  };
+
+  const toggleOverride = async (stepId: string) => {
+    if (!user || !config) return;
+    const isCurrentlyOverridden = overrideSet.has(stepId);
+
+    if (isCurrentlyOverridden) {
+      await (supabase.from("plan_step_overrides") as any)
+        .delete()
+        .eq("user_id", user.id)
+        .eq("step_id", stepId);
+    } else {
+      await (supabase.from("plan_step_overrides") as any)
+        .insert({ user_id: user.id, step_id: stepId, status: "done" });
+    }
+
+    const newOverrides = await loadOverrides();
+    const plan = await computePlan({ column, value }, config, newOverrides);
     setPlanData(plan);
   };
 
@@ -426,7 +484,7 @@ export default function PlanPage() {
 
         {/* Phases */}
         {planData.phases.map((phase) => (
-          <PhaseSection key={phase.id} phase={phase} />
+          <PhaseSection key={phase.id} phase={phase} overrides={overrideSet} onToggleOverride={toggleOverride} />
         ))}
       </main>
     </div>

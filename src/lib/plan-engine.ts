@@ -55,7 +55,12 @@ const TIME_LABELS: Record<string, string> = {
 
 export { GOAL_LABELS, TIME_LABELS };
 
-export async function computePlan(filter: { column: string; value: string }, config: PlanConfig): Promise<PlanData> {
+export interface PlanStepOverride {
+  step_id: string;
+  status: string;
+}
+
+export async function computePlan(filter: { column: string; value: string }, config: PlanConfig, overrides?: PlanStepOverride[]): Promise<PlanData> {
   // Fetch all needed data in parallel — simple existence/count checks
   const [
     brandProfileRes,
@@ -399,12 +404,13 @@ export async function computePlan(filter: { column: string; value: string }, con
     phases.push({ id: "daily", title: "Ton quotidien", emoji: "⚡", steps: phase4Steps, locked: !brandingComplete });
   }
 
-  // Apply locks
-  for (const phase of phases) {
-    if (phase.locked) {
+  // Apply manual overrides (don't override locked steps)
+  if (overrides && overrides.length > 0) {
+    const overrideMap = new Map(overrides.map(o => [o.step_id, o.status]));
+    for (const phase of phases) {
       for (const step of phase.steps) {
-        if (step.status === "todo") {
-          step.status = "locked";
+        if (step.status !== "locked" && overrideMap.has(step.id)) {
+          step.status = overrideMap.get(step.id) as StepStatus;
         }
       }
     }
