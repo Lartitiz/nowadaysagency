@@ -35,7 +35,7 @@ import DiscoveryCoachingCard from "@/components/dashboard/DiscoveryCoachingCard"
 import { checkBadges } from "@/lib/badges";
 import { trackError } from "@/lib/error-tracker";
 import OnboardingMissions from "@/components/dashboard/OnboardingMissions";
-
+import SessionFocusWidget from "@/components/dashboard/SessionFocusWidget";
 
 /* ── Types ── */
 export interface UserProfile {
@@ -383,34 +383,14 @@ export default function Dashboard() {
               </BentoCard>
             </FirstTimeTooltip>
           </div>
-          {!sessionActive && (
-            <div className="md:col-span-1">
-              <BentoCard
-                title=""
-                colSpan={12}
-                rowSpan={2}
-                animationDelay={nextDelay()}
-                onClick={() => {
-                  if (isDemoMode) {
-                    toast({ title: "Les sessions sont disponibles avec ton compte 😉" });
-                  } else {
-                    startSession();
-                  }
-                }}>
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">⏱️</span>
-                  <div className="min-w-0">
-                    <p className="font-heading text-sm font-bold text-foreground truncate">
-                      Session focus : 30 min
-                    </p>
-                    <p className="text-xs text-muted-foreground line-clamp-2">
-                      L'outil t'enchaîne les micro-tâches. Tu fais, tu avances, c'est fini.
-                    </p>
-                  </div>
-                </div>
-              </BentoCard>
-            </div>
-          )}
+          <div className="md:col-span-1 order-first md:order-last">
+            <SessionFocusWidget
+              brandingCompletion={dashData.brandingCompletion}
+              igAuditScore={dashData.igAuditScore}
+              calendarPostCount={dashData.weekPostsTotal}
+              animationDelay={nextDelay()}
+            />
+          </div>
         </div>
 
 
