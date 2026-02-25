@@ -312,6 +312,11 @@ export default function PricingPage() {
           </div>
         </div>
 
+        {/* ── Ethical note ── */}
+        <p className="text-sm text-muted-foreground italic text-center max-w-md mx-auto py-6">
+          Pas de période d'essai qui se transforme en prélèvement surprise. Pas d'engagement caché. Tu peux arrêter quand tu veux, en un clic.
+        </p>
+
         {/* ── Feature Comparison Table ── */}
         <div className="mb-16">
           <h2 className="font-display text-2xl font-bold text-center mb-8">
