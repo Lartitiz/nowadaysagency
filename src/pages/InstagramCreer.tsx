@@ -8,7 +8,7 @@ import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
 import { Loader2, ArrowRight, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ContentRecycling from "@/components/ContentRecycling";
-import ContentWorkshop from "@/components/ContentWorkshop";
+import DictationInput from "@/components/DictationInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
@@ -255,9 +255,13 @@ export default function InstagramCreer() {
               <ContentRecycling />
             </div>
           )}
-          {secondaryMode === "dictate" && profile && (
+          {secondaryMode === "dictate" && (
             <div className="mt-4 animate-fade-in">
-              <ContentWorkshop profile={profile} onIdeaGenerated={() => {}} />
+              <DictationInput onTranscribed={(text) => {
+                navigate("/atelier?canal=instagram", {
+                  state: { fromDictation: true, dictatedText: text },
+                });
+              }} />
             </div>
           )}
         </div>
