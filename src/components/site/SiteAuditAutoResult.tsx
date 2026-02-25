@@ -1,0 +1,385 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronDown, ChevronUp, ArrowRight, RotateCcw, Camera, CheckCircle2 } from "lucide-react";
+
+/* ─── Types ─── */
+
+interface Pilier {
+  score: number;
+  statut: "absent" | "flou" | "bon" | "excellent";
+  ce_qui_existe: string;
+  ce_qui_manque: string;
+  recommandation: string;
+  module_route?: string | null;
+}
+
+interface PointFort {
+  titre: string;
+  detail: string;
+  pilier: string;
+}
+
+interface Priorite {
+  titre: string;
+  detail: string;
+  impact: string;
+  pilier: string;
+  module_route?: string | null;
+  module_label?: string | null;
+}
+
+interface PlanAction {
+  priorite: number;
+  action: string;
+  module?: string;
+  route?: string;
+  temps_estime?: string;
+}
+
+interface PageAnalysis {
+  score: number;
+  resume: string;
+  problemes: string[];
+}
+
+export interface AutoAuditResult {
+  score_global: number;
+  synthese: string;
+  pages_analysees: string[];
+  pages_en_erreur: string[];
+  piliers: Record<string, Pilier>;
+  points_forts: PointFort[];
+  priorites: Priorite[];
+  plan_action: PlanAction[];
+  analyse_par_page: Record<string, PageAnalysis>;
+}
+
+interface SiteAuditAutoResultProps {
+  result: AutoAuditResult;
+  onReset: () => void;
+}
+
+/* ─── Constants ─── */
+
+const PILIER_META: Record<string, { emoji: string; label: string }> = {
+  clarte: { emoji: "🎯", label: "Clarté du message" },
+  copywriting: { emoji: "💬", label: "Copywriting" },
+  parcours: { emoji: "🗺️", label: "Parcours utilisateur·ice" },
+  confiance: { emoji: "🛡️", label: "Confiance" },
+  seo: { emoji: "🔎", label: "SEO basique" },
+  coherence_branding: { emoji: "🎨", label: "Cohérence branding" },
+  cta: { emoji: "👆", label: "Appels à l'action" },
+  structure: { emoji: "📐", label: "Structure & hiérarchie" },
+};
+
+const STATUT_BADGE: Record<string, { label: string; className: string }> = {
+  absent: { label: "Absent", className: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400" },
+  flou: { label: "Flou", className: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400" },
+  bon: { label: "Bon", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" },
+  excellent: { label: "Excellent", className: "bg-primary/10 text-primary" },
+};
+
+function scoreColor(score: number): string {
+  if (score >= 75) return "text-emerald-600";
+  if (score >= 50) return "text-amber-500";
+  return "text-red-500";
+}
+
+function scoreStroke(score: number): string {
+  if (score >= 75) return "stroke-emerald-500";
+  if (score >= 50) return "stroke-amber-400";
+  return "stroke-red-500";
+}
+
+/* ─── Score Circle ─── */
+
+function ScoreCircle({ score }: { score: number }) {
+  const [animated, setAnimated] = useState(0);
+  const r = 60;
+  const c = 2 * Math.PI * r;
+  const offset = c - (animated / 100) * c;
+
+  useEffect(() => {
+    const t = setTimeout(() => setAnimated(score), 100);
+    return () => clearTimeout(t);
+  }, [score]);
+
+  return (
+    <div className="relative inline-flex items-center justify-center">
+      <svg width="160" height="160" viewBox="0 0 140 140">
+        <circle cx="70" cy="70" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
+        <circle
+          cx="70" cy="70" r={r} fill="none"
+          className={`transition-all duration-1000 ease-out ${scoreStroke(score)}`}
+          strokeWidth="10" strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={offset}
+          transform="rotate(-90 70 70)"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className={`text-3xl font-display font-bold ${scoreColor(score)}`}>{animated}</span>
+        <span className="text-xs text-muted-foreground">/100</span>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main Component ─── */
+
+export default function SiteAuditAutoResult({ result, onReset }: SiteAuditAutoResultProps) {
+  const navigate = useNavigate();
+  const [expandedPilier, setExpandedPilier] = useState<string | null>(null);
+  const [checklistMode, setChecklistMode] = useState(false);
+  const [checkedActions, setCheckedActions] = useState<Record<number, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem("site-audit-checklist");
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const toggleChecked = (idx: number) => {
+    setCheckedActions(prev => {
+      const next = { ...prev, [idx]: !prev[idx] };
+      localStorage.setItem("site-audit-checklist", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const pilierEntries = Object.entries(result.piliers || {});
+
+  return (
+    <div className="space-y-6">
+      {/* ── Header : Score global ── */}
+      <div className="rounded-2xl border border-border bg-card p-8 flex flex-col items-center text-center">
+        <ScoreCircle score={result.score_global || 0} />
+        <p className="mt-4 text-sm text-muted-foreground max-w-lg">{result.synthese}</p>
+        <div className="mt-3 flex flex-wrap gap-2 justify-center">
+          <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-pill bg-muted text-muted-foreground">
+            📄 {result.pages_analysees?.length || 1} page{(result.pages_analysees?.length || 1) > 1 ? "s" : ""} analysée{(result.pages_analysees?.length || 1) > 1 ? "s" : ""}
+          </span>
+          {result.pages_en_erreur?.length > 0 && (
+            <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-pill bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+              ⚠️ {result.pages_en_erreur.length} page{result.pages_en_erreur.length > 1 ? "s" : ""} en erreur
+            </span>
+          )}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3 justify-center">
+          <Button variant="outline" size="sm" className="gap-2 rounded-pill" onClick={onReset}>
+            <RotateCcw className="h-4 w-4" /> Refaire l'audit
+          </Button>
+          <Button variant="ghost" size="sm" className="gap-2 rounded-pill" onClick={() => navigate("/site/audit?mode=screenshot")}>
+            <Camera className="h-4 w-4" /> Compléter avec un audit visuel
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Points forts ── */}
+      {result.points_forts?.length > 0 && (
+        <div className="rounded-2xl border border-border bg-card p-6 space-y-3">
+          <h3 className="font-display text-base font-bold text-foreground">✅ Points forts</h3>
+          <ul className="space-y-2">
+            {result.points_forts.map((p, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                <span className="shrink-0 mt-0.5 text-emerald-500">●</span>
+                <div>
+                  <span className="font-medium">{p.titre}</span>
+                  <span className="text-muted-foreground"> — {p.detail}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* ── Priorités d'action (mise en avant) ── */}
+      {result.priorites?.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="font-display text-base font-bold text-foreground">🎯 Tes 3 priorités</h3>
+          <div className="space-y-3">
+            {result.priorites.slice(0, 3).map((prio, i) => (
+              <div key={i} className="rounded-2xl border border-primary/20 bg-rose-pale p-5 flex gap-4 items-start">
+                <span className="flex items-center justify-center h-9 w-9 rounded-full bg-primary/10 text-primary text-lg font-bold shrink-0">
+                  {i + 1}
+                </span>
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-sm font-bold text-foreground">{prio.titre}</h4>
+                    <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-pill ${
+                      prio.impact === "fort"
+                        ? "bg-primary/10 text-primary"
+                        : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400"
+                    }`}>
+                      Impact {prio.impact}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{prio.detail}</p>
+                  {prio.module_route && (
+                    <Button variant="outline" size="sm" className="gap-1.5 rounded-pill text-xs" onClick={() => navigate(prio.module_route!)}>
+                      {prio.module_label || "Commencer"} <ArrowRight className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Piliers (grille) ── */}
+      <div className="space-y-3">
+        <h3 className="font-display text-base font-bold text-foreground">📊 Détail par pilier</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {pilierEntries.map(([key, pilier]) => {
+            const meta = PILIER_META[key] || { emoji: "📌", label: key };
+            const badge = STATUT_BADGE[pilier.statut] || STATUT_BADGE.flou;
+            const isOpen = expandedPilier === key;
+
+            return (
+              <Collapsible key={key} open={isOpen} onOpenChange={() => setExpandedPilier(isOpen ? null : key)}>
+                <CollapsibleTrigger className="w-full">
+                  <div className="rounded-2xl border border-border bg-card p-4 hover:border-primary/40 transition-all cursor-pointer text-left">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{meta.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium text-foreground block truncate">{meta.label}</span>
+                      </div>
+                      <span className={`text-lg font-bold ${scoreColor(pilier.score)}`}>{pilier.score}</span>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-pill ${badge.className}`}>
+                        {badge.label}
+                      </span>
+                      {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
+                    </div>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="rounded-b-2xl border border-t-0 border-border bg-card px-4 pb-4 space-y-3">
+                    {pilier.ce_qui_existe && (
+                      <div>
+                        <p className="text-xs font-bold text-emerald-600 mb-1">✅ Ce qui existe</p>
+                        <p className="text-sm text-muted-foreground">{pilier.ce_qui_existe}</p>
+                      </div>
+                    )}
+                    {pilier.ce_qui_manque && (
+                      <div>
+                        <p className="text-xs font-bold text-red-500 mb-1">❌ Ce qui manque</p>
+                        <p className="text-sm text-muted-foreground">{pilier.ce_qui_manque}</p>
+                      </div>
+                    )}
+                    {pilier.recommandation && (
+                      <div>
+                        <p className="text-xs font-bold text-primary mb-1">💡 Recommandation</p>
+                        <p className="text-sm text-muted-foreground">{pilier.recommandation}</p>
+                      </div>
+                    )}
+                    {pilier.module_route && (
+                      <Button variant="outline" size="sm" className="gap-1.5 rounded-pill text-xs" onClick={() => navigate(pilier.module_route!)}>
+                        Aller au module <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Analyse par page ── */}
+      {result.analyse_par_page && Object.keys(result.analyse_par_page).length > 1 && (
+        <div className="space-y-3">
+          <h3 className="font-display text-base font-bold text-foreground">📄 Analyse par page</h3>
+          <Tabs defaultValue={Object.keys(result.analyse_par_page)[0]}>
+            <TabsList className="w-full justify-start overflow-x-auto">
+              {Object.keys(result.analyse_par_page).map(path => (
+                <TabsTrigger key={path} value={path} className="text-xs">
+                  {path === "/" ? "Accueil" : path}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {Object.entries(result.analyse_par_page).map(([path, page]) => (
+              <TabsContent key={path} value={path}>
+                <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xl font-bold ${scoreColor(page.score)}`}>{page.score}/100</span>
+                    <p className="text-sm text-muted-foreground flex-1">{page.resume}</p>
+                  </div>
+                  {page.problemes?.length > 0 && (
+                    <ul className="space-y-1.5">
+                      {page.problemes.map((prob, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                          <span className="shrink-0 mt-0.5 text-amber-500">⚠️</span>
+                          <span>{prob}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </TabsContent>
+            ))}
+          </Tabs>
+        </div>
+      )}
+
+      {/* ── Plan d'action complet ── */}
+      {result.plan_action?.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-base font-bold text-foreground">📋 Plan d'action complet</h3>
+            <button
+              onClick={() => setChecklistMode(prev => !prev)}
+              className="text-xs text-primary font-semibold hover:underline"
+            >
+              {checklistMode ? "Vue liste" : "Vue checklist ✓"}
+            </button>
+          </div>
+          <div className="space-y-2">
+            {result.plan_action.map((action, idx) => (
+              <div key={idx} className={`rounded-xl border border-border bg-card p-4 flex items-start gap-3 ${checkedActions[idx] ? "opacity-60" : ""}`}>
+                {checklistMode ? (
+                  <Checkbox
+                    checked={!!checkedActions[idx]}
+                    onCheckedChange={() => toggleChecked(idx)}
+                    className="mt-0.5"
+                  />
+                ) : (
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
+                    {action.priorite || idx + 1}
+                  </span>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm text-foreground ${checkedActions[idx] ? "line-through" : ""}`}>
+                    {action.action}
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-1.5">
+                    {action.module && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-muted text-muted-foreground">
+                        {action.module}
+                      </span>
+                    )}
+                    {action.temps_estime && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-muted text-muted-foreground">
+                        ⏱️ {action.temps_estime}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {action.route && !checkedActions[idx] && (
+                  <Button variant="ghost" size="sm" className="shrink-0 gap-1 rounded-pill text-xs" onClick={() => navigate(action.route!)}>
+                    Faire <ArrowRight className="h-3 w-3" />
+                  </Button>
+                )}
+                {checkedActions[idx] && (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
