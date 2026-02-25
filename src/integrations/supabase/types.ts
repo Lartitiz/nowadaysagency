@@ -6302,6 +6302,62 @@ export type Database = {
           },
         ]
       }
+      website_audit: {
+        Row: {
+          answers: Json | null
+          audit_mode: string | null
+          completed: boolean | null
+          created_at: string
+          current_page: string | null
+          diagnostic: string | null
+          id: string
+          recommendations: Json | null
+          score_global: number | null
+          scores: Json | null
+          updated_at: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          answers?: Json | null
+          audit_mode?: string | null
+          completed?: boolean | null
+          created_at?: string
+          current_page?: string | null
+          diagnostic?: string | null
+          id?: string
+          recommendations?: Json | null
+          score_global?: number | null
+          scores?: Json | null
+          updated_at?: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          answers?: Json | null
+          audit_mode?: string | null
+          completed?: boolean | null
+          created_at?: string
+          current_page?: string | null
+          diagnostic?: string | null
+          id?: string
+          recommendations?: Json | null
+          score_global?: number | null
+          scores?: Json | null
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_audit_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       website_homepage: {
         Row: {
           benefits_block: string | null
