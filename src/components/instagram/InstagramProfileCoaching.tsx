@@ -157,7 +157,7 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
       }
       toast.success("Bio sauvegardée ! Retrouve-la dans ton espace Bio.");
       onOpenChange(false);
-      navigate("/espaces/instagram/bio");
+      navigate("/instagram/profil/bio");
     } catch {
       toast.error("Erreur lors de la sauvegarde");
     }
