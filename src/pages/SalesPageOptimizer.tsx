@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ArrowLeft, ChevronDown, ChevronUp, Copy, Pencil, Check, RotateCcw, ArrowRight, Zap } from "lucide-react";
+import SubPageHeader from "@/components/SubPageHeader";
+import { ChevronDown, ChevronUp, Copy, Pencil, Check, RotateCcw, ArrowRight, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -162,9 +163,7 @@ export default function SalesPageOptimizer() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
-        <Link to="/site" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
-          <ArrowLeft className="h-4 w-4" /> Retour au hub
-        </Link>
+        <SubPageHeader parentLabel="Site" parentTo="/site" currentLabel="Optimiser ma page" />
 
         {/* ── Recent banner ── */}
         {step === "input" && recentUrl && recentResult && recentDate && (

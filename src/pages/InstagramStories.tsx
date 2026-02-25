@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
+import SubPageHeader from "@/components/SubPageHeader";
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Sparkles, Mic, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -442,9 +443,7 @@ export default function InstagramStories() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <div className="mb-8">
-          <Link to="/atelier" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary mb-4 transition-colors">
-            <ArrowLeft className="h-4 w-4" /> Retour à l'atelier
-          </Link>
+          <SubPageHeader parentLabel="Créer" parentTo="/instagram/creer" currentLabel="Stories" />
           <h1 className="font-display text-3xl font-bold text-foreground">Créer une séquence de Stories</h1>
           <p className="text-muted-foreground mt-2">
             L'IA structure tes stories pour engager ta communauté sans y passer des heures.
