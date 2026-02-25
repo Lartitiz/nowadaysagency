@@ -37,16 +37,50 @@ const DEFAULT_OPTIONS: ContextOptions = {
  * Fetches all user context data from database in parallel.
  * If workspaceId is provided, queries filter by workspace_id instead of user_id.
  */
-export async function getUserContext(supabase: any, userId: string, workspaceId?: string) {
+export async function getUserContext(supabase: any, userId: string, workspaceId?: string, channel?: string) {
   const col = workspaceId ? "workspace_id" : "user_id";
   const val = workspaceId || userId;
 
+  // Build persona query: channel-specific → primary → any
+  const personaSelect = "step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches, portrait_prenom, portrait, label, is_primary, channels";
+  const fetchPersona = async () => {
+    // 1. Try channel-specific persona
+    if (channel) {
+      const { data: channelPersona } = await supabase
+        .from("persona")
+        .select(personaSelect)
+        .eq(col, val)
+        .contains("channels", [channel])
+        .limit(1)
+        .maybeSingle();
+      if (channelPersona) return channelPersona;
+    }
+    // 2. Fallback to primary persona
+    const { data: primaryPersona } = await supabase
+      .from("persona")
+      .select(personaSelect)
+      .eq(col, val)
+      .eq("is_primary", true)
+      .limit(1)
+      .maybeSingle();
+    if (primaryPersona) return primaryPersona;
+    // 3. Fallback to any persona
+    const { data: anyPersona } = await supabase
+      .from("persona")
+      .select(personaSelect)
+      .eq(col, val)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return anyPersona;
+  };
+
   const [
-    stRes, perRes, toneRes, propRes, stratRes, editoRes,
+    stRes, persona, toneRes, propRes, stratRes, editoRes,
     profileRes, offersRes, auditRes, voiceRes, charterRes, mirrorRes,
   ] = await Promise.all([
     supabase.from("storytelling").select("step_7_polished").eq(col, val).eq("is_primary", true).maybeSingle(),
-    supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches, portrait_prenom, portrait").eq(col, val).maybeSingle(),
+    fetchPersona(),
     supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq(col, val).maybeSingle(),
     supabase.from("brand_proposition").select("version_final, version_complete, version_bio, version_one_liner").eq(col, val).maybeSingle(),
     supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept, facet_1, facet_2, facet_3").eq(col, val).maybeSingle(),
@@ -61,7 +95,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
 
   return {
     storytelling: stRes.data,
-    persona: perRes.data,
+    persona,
     tone: toneRes.data,
     proposition: propRes.data,
     strategy: stratRes.data,
@@ -164,7 +198,9 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
   if (options.includePersona && ctx.persona) {
     const p = ctx.persona;
     const lines: string[] = [];
+    if (p.label) lines.push(`- Persona : ${p.label}`);
     if (p.portrait_prenom) lines.push(`- Prénom du persona : ${p.portrait_prenom}`);
+    if (p.channels?.length) lines.push(`- Canaux cibles : ${p.channels.join(", ")}`);
     if (p.step_1_frustrations) lines.push(`- Frustrations : ${p.step_1_frustrations}`);
     if (p.step_2_transformation) lines.push(`- Transformation rêvée : ${p.step_2_transformation}`);
     if (p.step_3a_objections) lines.push(`- Objections : ${p.step_3a_objections}`);
