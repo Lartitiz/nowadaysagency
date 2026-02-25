@@ -19,13 +19,13 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await anonClient.auth.getUser(authHeader.replace("Bearer ", ""));
     if (userError || !user) throw new Error("Unauthorized");
 
-    const { changed_field, old_value, new_value } = await req.json();
+    const { changed_field, old_value, new_value, workspace_id } = await req.json();
     if (!changed_field || !old_value || !new_value) {
       return new Response(JSON.stringify({ suggestions: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Get full user context
-    const ctx = await getUserContext(supabase, user.id);
+    const ctx = await getUserContext(supabase, user.id, workspace_id);
     const contextText = formatContextForAI(ctx, {
       includeStory: true, includePersona: true, includeOffers: true,
       includeProfile: true, includeEditorial: true, includeAudit: false,

@@ -37,10 +37,10 @@ serve(async (req) => {
       );
     }
 
-    const { step, answer, offerData } = await req.json();
+    const { step, answer, offerData, workspace_id } = await req.json();
 
     // Fetch full user context server-side for richer coaching
-    const ctx = await getUserContext(supabase, user.id);
+    const ctx = await getUserContext(supabase, user.id, workspace_id);
     const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.offerCoaching);
 
     const stepPrompts: Record<number, string> = {

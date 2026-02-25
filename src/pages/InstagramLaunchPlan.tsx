@@ -190,6 +190,7 @@ export default function InstagramLaunchPlan() {
           editorial_time: editorialTime || 3,
           preferred_formats: editoData?.preferred_formats || [],
           rhythm: editoData?.posts_frequency || "3 posts/semaine",
+          workspace_id: workspaceId,
         },
       });
 

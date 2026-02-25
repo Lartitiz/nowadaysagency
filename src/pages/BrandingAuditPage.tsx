@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -65,6 +65,7 @@ const SCORE_BAR_COLOR = (score: number) =>
 export default function BrandingAuditPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -188,7 +189,7 @@ export default function BrandingAuditPage() {
       if (documentText) payload.document_text = documentText;
       if (useFreeText && freeText.trim()) payload.free_text = freeText.trim();
 
-      const { data, error } = await supabase.functions.invoke("audit-branding", { body: payload });
+      const { data, error } = await supabase.functions.invoke("audit-branding", { body: { ...payload, workspace_id: workspaceId } });
 
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);

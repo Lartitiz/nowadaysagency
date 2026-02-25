@@ -4,7 +4,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Progress } from "@/components/ui/progress";
@@ -258,7 +258,8 @@ export default function BrandingSectionPage() {
   const completionPct = Math.round((filledCount / totalFields) * 100);
   const emptyCount = totalFields - filledCount;
 
-  const { suggestions, suggestionId, showSuggestions, checkImpact, dismissSuggestions } = useBrandingSuggestions();
+  const workspaceId = useWorkspaceId();
+  const { suggestions, suggestionId, showSuggestions, checkImpact, dismissSuggestions } = useBrandingSuggestions(workspaceId);
 
   const handleFieldUpdate = (field: string, value: string, oldValue?: string) => {
     setData(prev => ({ ...prev, [field]: value }));

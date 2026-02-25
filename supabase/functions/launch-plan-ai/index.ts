@@ -37,10 +37,10 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { launch, phases, template_type, extra_weekly_hours, editorial_time, preferred_formats, rhythm } = body;
+    const { launch, phases, template_type, extra_weekly_hours, editorial_time, preferred_formats, rhythm, workspace_id } = body;
 
     // Fetch full user context server-side
-    const ctx = await getUserContext(supabase, user.id);
+    const ctx = await getUserContext(supabase, user.id, workspace_id);
     const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.launch);
 
     const phasesStr = (phases || []).map((p: any) => `- ${p.emoji} ${p.label}: du ${p.start_date} au ${p.end_date}`).join("\n");
