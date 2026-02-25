@@ -1,0 +1,1 @@
+ALTER TABLE public.engagement_weekly_linkedin ADD COLUMN IF NOT EXISTS commented_accounts jsonb DEFAULT '[]'::jsonb;
