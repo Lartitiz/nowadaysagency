@@ -8,9 +8,11 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
-import { RefreshCw, Copy, Check, CalendarDays, Sparkles, Loader2 } from "lucide-react";
+import { RefreshCw, Copy, Check, Sparkles, Loader2 } from "lucide-react";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import BaseReminder from "@/components/BaseReminder";
+import CrosspostFileUploader, { type UploadedFile } from "@/components/crosspost/CrosspostFileUploader";
+import { cn } from "@/lib/utils";
 
 const SOURCE_TYPES = [
   { id: "newsletter", label: "📧 Ma newsletter" },
@@ -39,6 +41,8 @@ export default function LinkedInCrosspost() {
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<CrosspostResult | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [inputMode, setInputMode] = useState<"text" | "files" | "both">("text");
 
   const toggleTarget = (id: string) => {
     const next = new Set(targets);
@@ -47,17 +51,44 @@ export default function LinkedInCrosspost() {
     setTargets(next);
   };
 
+  const uploadFileToSupabase = async (file: File): Promise<string> => {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+    const path = `${user!.id}/crosspost-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const { error } = await supabase.storage.from("crosspost-uploads").upload(path, file, { contentType: file.type, upsert: false });
+    if (error) throw error;
+    const { data: signedData } = await supabase.storage.from("crosspost-uploads").createSignedUrl(path, 3600);
+    if (signedData?.signedUrl) return signedData.signedUrl;
+    throw new Error("Impossible de créer l'URL signée");
+  };
+
+  const canGenerate = () => {
+    if (targets.size === 0) return false;
+    if (inputMode === "text") return sourceContent.trim().length > 0;
+    if (inputMode === "files") return files.length > 0;
+    return sourceContent.trim().length > 0 || files.length > 0;
+  };
+
   const generate = async () => {
-    if (!sourceContent.trim() || targets.size === 0) return;
+    if (!canGenerate()) return;
     setGenerating(true);
     setResult(null);
     try {
+      // Upload files if any
+      let fileUrls: { url: string; type: string; name: string }[] = [];
+      if (files.length > 0) {
+        for (const f of files) {
+          const url = await uploadFileToSupabase(f.file);
+          fileUrls.push({ url, type: f.type, name: f.name });
+        }
+      }
+
       const res = await supabase.functions.invoke("linkedin-ai", {
         body: {
           action: "crosspost",
-          sourceContent,
+          sourceContent: sourceContent || "",
           sourceType,
           targetChannels: Array.from(targets),
+          fileUrls,
         },
       });
       if (res.error) throw new Error(res.error.message);
@@ -69,6 +100,14 @@ export default function LinkedInCrosspost() {
         else throw new Error("Format de réponse inattendu");
       }
       setResult(parsed);
+
+      // Cleanup uploaded files (non-blocking)
+      if (fileUrls.length > 0) {
+        Promise.all(fileUrls.map(f => {
+          const path = f.url.split("/crosspost-uploads/")[1]?.split("?")[0];
+          if (path) return supabase.storage.from("crosspost-uploads").remove([path]);
+        })).catch(console.error);
+      }
     } catch (e: any) {
       console.error("Erreur technique:", e);
       toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
@@ -92,25 +131,57 @@ export default function LinkedInCrosspost() {
         <h1 className="font-display text-[22px] font-bold text-foreground mb-1">🔄 Crossposting intelligent</h1>
         <p className="text-sm text-muted-foreground mb-6">Un contenu source → adapté pour chaque canal. Pas du copier-coller : chaque version apporte un angle spécifique.</p>
 
-        {/* Source type */}
+        {/* Input mode toggle */}
         <div className="mb-4">
           <p className="text-sm font-medium text-foreground mb-2">Contenu source :</p>
-          <div className="flex flex-wrap gap-2">
-            {SOURCE_TYPES.map((s) => (
-              <button key={s.id} onClick={() => setSourceType(s.id)} className={`text-sm px-4 py-2 rounded-full border transition-all ${sourceType === s.id ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"}`}>
-                {s.label}
+          <div className="flex gap-2 mb-3">
+            {([
+              { key: "text" as const, label: "✏️ Texte" },
+              { key: "files" as const, label: "📎 Fichiers" },
+              { key: "both" as const, label: "✏️📎 Les deux" },
+            ]).map((m) => (
+              <button
+                key={m.key}
+                onClick={() => setInputMode(m.key)}
+                className={cn(
+                  "text-sm px-4 py-2 rounded-full border transition-all flex items-center gap-1.5",
+                  inputMode === m.key ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"
+                )}
+              >
+                {m.label}
               </button>
             ))}
           </div>
-        </div>
 
-        {/* Source content */}
-        <Textarea
-          value={sourceContent}
-          onChange={(e) => setSourceContent(e.target.value)}
-          placeholder="Colle ton contenu ici..."
-          className="min-h-[150px] mb-4"
-        />
+          {/* Text input */}
+          {(inputMode === "text" || inputMode === "both") && (
+            <>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {SOURCE_TYPES.map((s) => (
+                  <button key={s.id} onClick={() => setSourceType(s.id)} className={`text-xs px-3 py-1.5 rounded-full border transition-all ${sourceType === s.id ? "bg-primary/10 text-primary border-primary/30" : "border-border hover:border-primary/40 text-muted-foreground"}`}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              <Textarea
+                value={sourceContent}
+                onChange={(e) => setSourceContent(e.target.value)}
+                placeholder={inputMode === "both" ? "Ajoute du contexte ou du texte complémentaire..." : "Colle ton contenu ici..."}
+                className="min-h-[120px] mb-3"
+              />
+            </>
+          )}
+
+          {/* File upload */}
+          {(inputMode === "files" || inputMode === "both") && (
+            <CrosspostFileUploader
+              files={files}
+              onFilesChange={setFiles}
+              maxFiles={10}
+              disabled={generating}
+            />
+          )}
+        </div>
 
         {/* Target channels */}
         <div className="mb-5">
@@ -129,9 +200,14 @@ export default function LinkedInCrosspost() {
           </div>
         </div>
 
-        <Button onClick={generate} disabled={generating || !sourceContent.trim() || targets.size === 0} className="rounded-full gap-2 mb-6">
+        <Button onClick={generate} disabled={generating || !canGenerate()} className="rounded-full gap-2 mb-6">
           {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {generating ? "Adaptation en cours..." : "✨ Adapter pour chaque canal"}
+          {generating
+            ? files.length > 0
+              ? `Extraction de ${files.length} fichier${files.length > 1 ? "s" : ""} + adaptation...`
+              : "Adaptation en cours..."
+            : "✨ Adapter pour chaque canal"
+          }
         </Button>
 
         {/* Results */}

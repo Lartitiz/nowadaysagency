@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LINKEDIN_PRINCIPLES, LINKEDIN_TEMPLATES, LINKEDIN_HOOK_TYPES_PROMPTS, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // Voice profile is fetched by getUserContext now
@@ -95,8 +95,57 @@ serve(async (req) => {
       userPrompt = "Adapte ce post Instagram pour LinkedIn.";
 
     } else if (action === "crosspost") {
-      const { sourceContent, sourceType, targetChannels } = params;
-      systemPrompt = `${LINKEDIN_PRINCIPLES}\n\n${context}\n\n${qualityBlocks}\n\nCONTENU SOURCE (${sourceType || "texte libre"}) :\n${sourceContent}\n\nADAPTE pour : ${JSON.stringify(targetChannels)}\n\nRÈGLES :\n- Chaque canal prend un ANGLE DIFFÉRENT du contenu source\n- LinkedIn : ton expert, 800-2000 car., 0-2 hashtags, question ouverte\n- Instagram : ton complice, 800-1500 car., 3-5 hashtags, CTA doux\n- Reel : script avec hook 0-3s, timing, cuts, 30-60 sec\n- Stories : séquence 5 stories, ton intime, stickers\n\nNE PAS copier-coller entre les canaux. Chaque version est une réécriture.\n\nRETOURNE un JSON :\n{\n  "versions": {\n    "linkedin": { "full_text": "...", "character_count": 1200, "angle_choisi": "..." },\n    "instagram": { "full_text": "...", "character_count": 900, "angle_choisi": "..." },\n    "reel": { "script": "...", "duration": "30-60s", "angle_choisi": "..." },\n    "stories": { "sequence": [...], "angle_choisi": "..." }\n  }\n}\nN'inclus que les canaux demandés.`;
+      const { sourceContent, sourceType, targetChannels, fileUrls } = params;
+      const uploadedFiles = fileUrls || [];
+
+      const crosspostSystemPrompt = `${LINKEDIN_PRINCIPLES}\n\n${context}\n\n${qualityBlocks}\n\nCONTENU SOURCE (${sourceType || "texte libre"}) :\n${sourceContent || "(voir fichiers joints)"}\n\nADAPTE pour : ${JSON.stringify(targetChannels)}\n\nRÈGLES :\n- Chaque canal prend un ANGLE DIFFÉRENT du contenu source\n- LinkedIn : ton expert, 800-2000 car., 0-2 hashtags, question ouverte\n- Instagram : ton complice, 800-1500 car., 3-5 hashtags, CTA doux\n- Reel : script avec hook 0-3s, timing, cuts, 30-60 sec\n- Stories : séquence 5 stories, ton intime, stickers\n\nNE PAS copier-coller entre les canaux. Chaque version est une réécriture.\n\nRETOURNE un JSON :\n{\n  "versions": {\n    "linkedin": { "full_text": "...", "character_count": 1200, "angle_choisi": "..." },\n    "instagram": { "full_text": "...", "character_count": 900, "angle_choisi": "..." },\n    "reel": { "script": "...", "duration": "30-60s", "angle_choisi": "..." },\n    "stories": { "sequence": [...], "angle_choisi": "..." }\n  }\n}\nN'inclus que les canaux demandés.`;
+
+      // If files are provided, use multimodal call
+      if (uploadedFiles.length > 0) {
+        const userContent: any[] = [];
+
+        userContent.push({
+          type: "text",
+          text: `Adapte ce contenu pour chaque canal demandé.\n\n${sourceContent ? `TEXTE COMPLÉMENTAIRE :\n${sourceContent}\n\n` : ""}Analyse les fichiers suivants. Ce sont d'anciens contenus (posts, articles, newsletters) à recycler. Extrais le contenu pertinent, puis adapte-le pour chaque canal demandé.`
+        });
+
+        for (const f of uploadedFiles) {
+          if (f.type === "image" || f.url.match(/\.(png|jpg|jpeg|webp)$/i)) {
+            userContent.push({
+              type: "image",
+              source: { type: "url", url: f.url }
+            });
+          } else if (f.type === "pdf" || f.url.match(/\.pdf$/i)) {
+            userContent.push({
+              type: "document",
+              source: { type: "url", url: f.url }
+            });
+          }
+        }
+
+        userContent.push({
+          type: "text",
+          text: `\n\nTu as reçu ${uploadedFiles.length} fichier(s). Extrais TOUT le contenu textuel visible. Si ce sont des captures de posts Instagram ou LinkedIn, extrais le texte du post, les hashtags, et note le format visuel. Puis adapte pour les canaux : ${JSON.stringify(targetChannels)}`
+        });
+
+        systemPrompt = VOICE_PRIORITY + crosspostSystemPrompt;
+        const content = await callAnthropic({
+          model: getModelForAction("linkedin_post"),
+          system: systemPrompt,
+          messages: [{ role: "user", content: userContent }],
+          temperature: 0.8,
+          max_tokens: 8192,
+        });
+
+        await logUsage(user.id, category, `linkedin_crosspost_files`);
+
+        return new Response(JSON.stringify({ content }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Text-only fallback
+      systemPrompt = crosspostSystemPrompt;
       userPrompt = "Adapte ce contenu pour chaque canal demandé.";
 
     } else if (action === "optimize-experience") {
