@@ -6486,6 +6486,7 @@ export type Database = {
           current_page: string | null
           diagnostic: string | null
           id: string
+          raw_result: Json | null
           recommendations: Json | null
           score_global: number | null
           scores: Json | null
@@ -6501,6 +6502,7 @@ export type Database = {
           current_page?: string | null
           diagnostic?: string | null
           id?: string
+          raw_result?: Json | null
           recommendations?: Json | null
           score_global?: number | null
           scores?: Json | null
@@ -6516,6 +6518,7 @@ export type Database = {
           current_page?: string | null
           diagnostic?: string | null
           id?: string
+          raw_result?: Json | null
           recommendations?: Json | null
           score_global?: number | null
           scores?: Json | null

@@ -1,0 +1,1 @@
+ALTER TABLE public.website_audit ADD COLUMN IF NOT EXISTS raw_result JSONB DEFAULT NULL;

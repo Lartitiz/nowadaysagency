@@ -9,144 +9,73 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { RotateCcw, ArrowRight, ArrowLeft, Eye, HelpCircle, Upload, Camera, Loader2, Link as LinkIcon, Palette } from "lucide-react";
-import { Link } from "react-router-dom";
+import { RotateCcw, ArrowRight, ArrowLeft, Eye, HelpCircle, Upload, Camera, Loader2, Link as LinkIcon, Palette, ChevronDown, Sparkles } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
 import SiteAuditResult from "@/components/site/SiteAuditResult";
+import SiteAuditAutoResult, { type AutoAuditResult } from "@/components/site/SiteAuditAutoResult";
 import { friendlyError } from "@/lib/error-messages";
 
-// ── Page options for page-by-page mode ──
-const PAGE_OPTIONS = [
-  { id: "accueil", label: "Page d'accueil" },
-  { id: "a-propos", label: "Page À propos" },
-  { id: "offres", label: "Page Offres / Services" },
-  { id: "contact", label: "Page Contact" },
-  { id: "produits", label: "Page Produits" },
+// ── Loading messages ──
+const LOADING_MESSAGES = [
+  { time: 0, text: "🔍 Connexion au site..." },
+  { time: 5000, text: "📖 Lecture des pages..." },
+  { time: 10000, text: "🧠 Analyse de la clarté, du copywriting, des CTA..." },
+  { time: 20000, text: "📊 Calcul du score et des recommandations..." },
+  { time: 30000, text: "⏳ Presque fini, l'IA peaufine les recommandations..." },
 ];
 
-// ── Shared types ──
+const MOTIVATIONAL_QUOTES = [
+  "Un bon site, c'est pas un site parfait. C'est un site qui convertit.",
+  "Tes visiteuses ne lisent pas : elles scannent. Chaque mot compte.",
+  "Le meilleur investissement, c'est un message clair.",
+  "Un CTA visible = une cliente en moins qui part sans agir.",
+  "Ton site est ta vitrine 24h/24. Autant qu'il bosse pour toi.",
+];
+
+// ── Old audit types (kept for backward compat) ──
 type AnswerValue = "oui" | "non" | "pas_sure" | null;
+interface AuditQuestion { id: string; text: string; tooltip: string; }
+interface AuditSection { id: string; emoji: string; title: string; questions: AuditQuestion[]; }
 
-interface AuditQuestion {
-  id: string;
-  text: string;
-  tooltip: string;
-}
-
-interface AuditSection {
-  id: string;
-  emoji: string;
-  title: string;
-  questions: AuditQuestion[];
-}
-
-// ── Global audit questionnaire ──
 const GLOBAL_SECTIONS: AuditSection[] = [
-  {
-    id: "clarte", emoji: "🎯", title: "Clarté du message",
-    questions: [
-      { id: "q1", text: "Ton titre principal décrit un bénéfice concret pour ta cliente idéale ?", tooltip: "Un bon titre dit ce que ta cliente va obtenir, pas ce que tu fais. 'Communique sans te trahir' > 'Agence de communication'." },
-      { id: "q2", text: "On comprend ce que tu fais + pour qui en moins de 10 secondes ?", tooltip: "Demande à une amie de regarder ta page 10 secondes et de te dire ce qu'elle a retenu." },
-      { id: "q3", text: "Ta page explique en quoi tu es différente des autres ?", tooltip: "Ce qui te rend unique n'est pas ton CV mais ta façon de faire et ta vision." },
-      { id: "q4", text: "Ton visuel et tes textes racontent la même histoire ?", tooltip: "Si ton texte est chaleureux mais tes visuels sont froids et corporate, il y a un décalage." },
-    ],
-  },
-  {
-    id: "copywriting", emoji: "💬", title: "Copywriting",
-    questions: [
-      { id: "q5", text: "Tes titres parlent de ce que ta cliente va obtenir (pas de ce que tu fais) ?", tooltip: "'Reprends confiance dans ta com' fonctionne mieux que 'Coaching en communication digitale'." },
-      { id: "q6", text: "Tu as un bouton d'action visible sans scroller ?", tooltip: "Si ta visiteuse doit scroller pour trouver le bouton, tu perds 40% de conversions." },
-      { id: "q7", text: "Le ton de tes textes correspond à ta cible ?", tooltip: "Parle comme ta cliente parle. Si elle dit 'j'en ai marre', ne dis pas 'lassitude professionnelle'." },
-      { id: "q8", text: "Tu as du micro-texte rassurant sous tes boutons (genre 'Sans engagement', 'Réponse en 24h') ?", tooltip: "Un petit texte sous le bouton réduit l'anxiété et augmente le taux de clic de 10 à 20%." },
-    ],
-  },
-  {
-    id: "parcours", emoji: "🗺️", title: "Parcours utilisateur·ice",
-    questions: [
-      { id: "q9", text: "Ton menu a moins de 6 éléments ?", tooltip: "Plus de 6 éléments = ta visiteuse ne sait plus où cliquer. Simplifie." },
-      { id: "q10", text: "Ta visiteuse peut passer à l'action en 3 clics max ?", tooltip: "Chaque clic supplémentaire fait perdre environ 20% des visiteuses." },
-      { id: "q11", text: "Chaque page a UN objectif principal clair ?", tooltip: "Une page = un objectif. Si ta page veut tout faire, elle ne fait rien." },
-      { id: "q12", text: "Tes pages ont toutes le même style et le même ton ?", tooltip: "L'incohérence visuelle ou tonale crée de la méfiance inconsciente." },
-    ],
-  },
-  {
-    id: "confiance", emoji: "🛡️", title: "Confiance",
-    questions: [
-      { id: "q13", text: "Tu as au moins un témoignage visible sur ta page d'accueil ?", tooltip: "Les témoignages sont le levier n°1 de conversion. Même un seul fait la différence." },
-      { id: "q14", text: "On sait combien ça coûte OU comment ça se passe avant de te contacter ?", tooltip: "L'opacité sur le prix ou le process est le frein n°1 à la prise de contact." },
-      { id: "q15", text: "Tu as une page À propos avec ta photo et ton histoire ?", tooltip: "Les gens achètent à des humains. Ta photo et ton histoire créent du lien." },
-    ],
-  },
-  {
-    id: "mobile", emoji: "📱", title: "Mobile",
-    questions: [
-      { id: "q16", text: "Ton site s'affiche bien sur mobile ?", tooltip: "60 à 80% de tes visiteuses viennent d'Instagram, donc du mobile." },
-      { id: "q17", text: "Ton site charge en moins de 3 secondes ?", tooltip: "Au-delà de 3 secondes, 53% des visiteuses quittent la page." },
-      { id: "q18", text: "Tes boutons sont assez grands pour être cliqués au pouce ?", tooltip: "Un bouton trop petit sur mobile = frustration = abandon." },
-    ],
-  },
-  {
-    id: "visuel", emoji: "🎨", title: "Hiérarchie visuelle",
-    questions: [
-      { id: "q19", text: "Tes textes sont bien lisibles (bon contraste, pas de gris clair sur blanc) ?", tooltip: "Si on doit plisser les yeux pour lire, on ne lira pas. Contraste minimum recommandé : 4.5:1." },
-      { id: "q20", text: "Tes sections sont bien espacées (pas de mur de texte) ?", tooltip: "Le blanc (espace vide) n'est pas du gaspillage, c'est de la respiration visuelle." },
-    ],
-  },
+  { id: "clarte", emoji: "🎯", title: "Clarté du message", questions: [
+    { id: "q1", text: "Ton titre principal décrit un bénéfice concret pour ta cliente idéale ?", tooltip: "Un bon titre dit ce que ta cliente va obtenir." },
+    { id: "q2", text: "On comprend ce que tu fais + pour qui en moins de 10 secondes ?", tooltip: "Demande à une amie de regarder ta page 10 secondes." },
+    { id: "q3", text: "Ta page explique en quoi tu es différente des autres ?", tooltip: "Ce qui te rend unique n'est pas ton CV." },
+    { id: "q4", text: "Ton visuel et tes textes racontent la même histoire ?", tooltip: "Si ton texte est chaleureux mais tes visuels sont froids, il y a un décalage." },
+  ]},
+  { id: "copywriting", emoji: "💬", title: "Copywriting", questions: [
+    { id: "q5", text: "Tes titres parlent de ce que ta cliente va obtenir ?", tooltip: "'Reprends confiance dans ta com' fonctionne mieux." },
+    { id: "q6", text: "Tu as un bouton d'action visible sans scroller ?", tooltip: "Si ta visiteuse doit scroller, tu perds 40% de conversions." },
+    { id: "q7", text: "Le ton de tes textes correspond à ta cible ?", tooltip: "Parle comme ta cliente parle." },
+    { id: "q8", text: "Tu as du micro-texte rassurant sous tes boutons ?", tooltip: "Un petit texte sous le bouton réduit l'anxiété." },
+  ]},
+  { id: "parcours", emoji: "🗺️", title: "Parcours utilisateur·ice", questions: [
+    { id: "q9", text: "Ton menu a moins de 6 éléments ?", tooltip: "Plus de 6 = confusion." },
+    { id: "q10", text: "Ta visiteuse peut passer à l'action en 3 clics max ?", tooltip: "Chaque clic supplémentaire fait perdre ~20%." },
+    { id: "q11", text: "Chaque page a UN objectif principal clair ?", tooltip: "Une page = un objectif." },
+    { id: "q12", text: "Tes pages ont toutes le même style ?", tooltip: "L'incohérence crée de la méfiance." },
+  ]},
+  { id: "confiance", emoji: "🛡️", title: "Confiance", questions: [
+    { id: "q13", text: "Tu as au moins un témoignage visible sur ta page d'accueil ?", tooltip: "Les témoignages sont le levier n°1." },
+    { id: "q14", text: "On sait combien ça coûte OU comment ça se passe ?", tooltip: "L'opacité sur le prix est le frein n°1." },
+    { id: "q15", text: "Tu as une page À propos avec ta photo et ton histoire ?", tooltip: "Les gens achètent à des humains." },
+  ]},
+  { id: "mobile", emoji: "📱", title: "Mobile", questions: [
+    { id: "q16", text: "Ton site s'affiche bien sur mobile ?", tooltip: "60-80% viennent du mobile." },
+    { id: "q17", text: "Ton site charge en moins de 3 secondes ?", tooltip: "Au-delà de 3s, 53% quittent." },
+    { id: "q18", text: "Tes boutons sont assez grands pour le pouce ?", tooltip: "Un bouton trop petit = frustration." },
+  ]},
+  { id: "visuel", emoji: "🎨", title: "Hiérarchie visuelle", questions: [
+    { id: "q19", text: "Tes textes sont bien lisibles ?", tooltip: "Bon contraste = minimum 4.5:1." },
+    { id: "q20", text: "Tes sections sont bien espacées ?", tooltip: "Le blanc, c'est de la respiration visuelle." },
+  ]},
 ];
 
-// ── Page-by-page questionnaire data ──
-const PAGE_QUESTIONS: Record<string, AuditQuestion[]> = {
-  accueil: [
-    { id: "acc_q1", text: "Ton titre principal décrit un bénéfice concret pour ta cliente idéale ?", tooltip: "Un bon titre dit ce que ta cliente va obtenir, pas ce que tu fais. 'Communique sans te trahir' > 'Agence de communication'." },
-    { id: "acc_q2", text: "On comprend ce que tu fais + pour qui en moins de 10 secondes ?", tooltip: "Demande à une amie de regarder ta page 10 secondes et de te dire ce qu'elle a retenu." },
-    { id: "acc_q3", text: "Ta page explique en quoi tu es différente des autres ?", tooltip: "Ce qui te rend unique n'est pas ton CV mais ta façon de faire et ta vision." },
-    { id: "acc_q4", text: "Ton visuel et tes textes racontent la même histoire ?", tooltip: "Si ton texte est chaleureux mais tes visuels sont froids et corporate, il y a un décalage." },
-    { id: "acc_q5", text: "Tes titres parlent de ce que ta cliente va obtenir (pas de ce que tu fais) ?", tooltip: "'Reprends confiance dans ta com' fonctionne mieux que 'Coaching en communication digitale'." },
-    { id: "acc_q6", text: "Tu as un bouton d'action visible sans scroller ?", tooltip: "Si ta visiteuse doit scroller pour trouver le bouton, tu perds 40% de conversions." },
-    { id: "acc_q7", text: "Le ton de tes textes correspond à ta cible ?", tooltip: "Parle comme ta cliente parle. Si elle dit 'j'en ai marre', ne dis pas 'lassitude professionnelle'." },
-    { id: "acc_q8", text: "Tu as du micro-texte rassurant sous tes boutons (genre 'Sans engagement', 'Réponse en 24h') ?", tooltip: "Un petit texte sous le bouton réduit l'anxiété et augmente le taux de clic de 10 à 20%." },
-    { id: "acc_q9", text: "Tu as une section qui présente tes offres ou services ?", tooltip: "Ta visiteuse doit voir ce que tu proposes sans avoir à chercher dans le menu." },
-    { id: "acc_q10", text: "Tu as un deuxième CTA plus bas dans la page (pas juste en haut) ?", tooltip: "Ta visiteuse qui scrolle a besoin d'un rappel à l'action en bas de page aussi." },
-    { id: "acc_q11", text: "Ta page fait moins de 10 scrolls sur mobile ?", tooltip: "Une page trop longue fatigue. Garde l'essentiel, coupe le superflu." },
-  ],
-  "a-propos": [
-    { id: "ap_q1", text: "Ta page commence par ta cliente (pas par toi) ?", tooltip: "Commence par le problème de ta cliente, pas par 'Je m'appelle…'. Elle veut savoir que tu la comprends." },
-    { id: "ap_q2", text: "Tu racontes ton histoire en moins de 300 mots ?", tooltip: "Ton histoire doit être percutante, pas exhaustive. Garde les moments clés." },
-    { id: "ap_q3", text: "Tu mentionnes tes valeurs de façon concrète (pas juste 'authenticité, bienveillance') ?", tooltip: "Au lieu de 'bienveillance', montre comment elle se traduit : 'Je ne te donnerai jamais de conseil que je n'appliquerais pas moi-même'." },
-    { id: "ap_q4", text: "Tu as un CTA en fin de page (prendre contact, découvrir les offres) ?", tooltip: "Ta visiteuse vient de lire ton histoire, elle est connectée. Ne la laisse pas partir sans direction." },
-    { id: "ap_q5", text: "Tu as ta photo sur cette page ?", tooltip: "Les gens achètent à des humains. Pas besoin d'une photo pro, une photo authentique suffit." },
-  ],
-  offres: [
-    { id: "off_q1", text: "Chaque offre a une page dédiée (pas tout mélangé) ?", tooltip: "Une page = une offre = une décision. Mélanger crée de la confusion." },
-    { id: "off_q2", text: "Tu montres les bénéfices AVANT les caractéristiques ?", tooltip: "Ta cliente veut savoir ce qu'elle va obtenir, pas le nombre de modules ou d'heures." },
-    { id: "off_q3", text: "Le prix est visible (ou au moins le processus pour l'obtenir) ?", tooltip: "L'opacité sur le prix est le frein n°1. Si tu ne veux pas afficher le prix, explique le processus." },
-    { id: "off_q4", text: "Tu as des témoignages sur cette page ?", tooltip: "Un témoignage spécifique à l'offre est 3x plus convaincant qu'un témoignage générique." },
-    { id: "off_q5", text: "Le CTA est clair et visible ?", tooltip: "Un seul bouton d'action par offre, bien visible, avec un texte d'action concret." },
-    { id: "off_q6", text: "Tu as une section FAQ sur cette page ?", tooltip: "La FAQ lève les dernières objections. 3-5 questions suffisent." },
-  ],
-  contact: [
-    { id: "ct_q1", text: "Le formulaire a 4 champs max ?", tooltip: "Chaque champ supplémentaire réduit le taux de complétion de 10%. Nom, email, message suffisent." },
-    { id: "ct_q2", text: "Tu proposes au moins 2 façons de te contacter ?", tooltip: "Formulaire + email, ou formulaire + DM Instagram. Certaines préfèrent un canal à l'autre." },
-    { id: "ct_q3", text: "Tu indiques un délai de réponse ?", tooltip: "'Je te réponds sous 48h' réduit l'anxiété et montre ton professionnalisme." },
-    { id: "ct_q4", text: "Tu as un texte rassurant avant le formulaire ?", tooltip: "Un petit paragraphe du genre 'Pas de spam, juste une conversation pour voir si on est faites pour travailler ensemble'." },
-  ],
-  produits: [
-    { id: "pr_q1", text: "Chaque produit a une photo de qualité ?", tooltip: "Une bonne photo vaut mille mots. Lumière naturelle, fond neutre, produit en situation." },
-    { id: "pr_q2", text: "Les descriptions parlent du bénéfice client (pas juste les caractéristiques) ?", tooltip: "'Te permet de…' plutôt que 'Contient…'. Le bénéfice d'abord, la technique ensuite." },
-    { id: "pr_q3", text: "Le bouton d'achat est visible sans scroller ?", tooltip: "Le bouton d'achat doit être visible dès l'arrivée sur la fiche produit." },
-    { id: "pr_q4", text: "Tu montres des avis clients sur les produits ?", tooltip: "Les avis augmentent la conversion de 20 à 30%. Même 2-3 avis font la différence." },
-    { id: "pr_q5", text: "Tu proposes des produits complémentaires ?", tooltip: "'Les clientes qui ont acheté ceci ont aussi aimé…' augmente le panier moyen." },
-  ],
-};
-
-const PAGE_LABELS: Record<string, { emoji: string; title: string }> = {
-  accueil: { emoji: "🏠", title: "Page d'accueil" },
-  "a-propos": { emoji: "👋", title: "Page À propos" },
-  offres: { emoji: "🎁", title: "Page Offres / Services" },
-  contact: { emoji: "💬", title: "Page Contact" },
-  produits: { emoji: "🛍️", title: "Page Produits" },
-};
+const PAGE_QUESTIONS: Record<string, AuditQuestion[]> = {};
 
 const ANSWER_OPTIONS: { value: AnswerValue; label: string }[] = [
   { value: "oui", label: "Oui ✅" },
@@ -154,7 +83,13 @@ const ANSWER_OPTIONS: { value: AnswerValue; label: string }[] = [
   { value: "pas_sure", label: "Pas sûr·e 🤷" },
 ];
 
-// ── Types ──
+// ── Additional page paths ──
+const EXTRA_PAGES = [
+  { path: "/a-propos", label: "À propos" },
+  { path: "/offres", label: "Offres / Services" },
+  { path: "/contact", label: "Contact" },
+];
+
 type AuditData = {
   id: string;
   audit_mode: string | null;
@@ -165,23 +100,33 @@ type AuditData = {
   diagnostic: string | null;
   recommendations: unknown[];
   current_page: string | null;
+  raw_result?: unknown;
 };
 
-// ── Component ──
+type Step = "input" | "loading" | "auto-results" | "questionnaire" | "old-results" | "screenshot";
+
 const SiteAuditPage = () => {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const [searchParams] = useSearchParams();
 
   const [loading, setLoading] = useState(true);
   const [existing, setExisting] = useState<AuditData | null>(null);
-  const [step, setStep] = useState<"choose" | "pick-pages" | "questionnaire" | "results" | "screenshot">("choose");
-  const [selectedPages, setSelectedPages] = useState<string[]>(["accueil"]);
-  const [otherPage, setOtherPage] = useState("");
-  const [includeOther, setIncludeOther] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [step, setStep] = useState<Step>("input");
 
-  // Screenshot audit state
+  // Auto audit state
+  const [siteUrl, setSiteUrl] = useState("");
+  const [extraPages, setExtraPages] = useState<string[]>([]);
+  const [customPath, setCustomPath] = useState("");
+  const [showExtraPages, setShowExtraPages] = useState(false);
+  const [autoResult, setAutoResult] = useState<AutoAuditResult | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0].text);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingQuote] = useState(() => MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)]);
+
+  // Screenshot state (kept from old)
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [screenshotUrl, setScreenshotUrl] = useState("");
@@ -191,16 +136,14 @@ const SiteAuditPage = () => {
   const [expandedProblem, setExpandedProblem] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Global questionnaire state
+  // Old questionnaire state (for legacy audits)
   const [currentSection, setCurrentSection] = useState(0);
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
-
-  // Page-by-page state
-  const [pbpPages, setPbpPages] = useState<string[]>([]);
-  const [currentPageIdx, setCurrentPageIdx] = useState(0);
   const [pbpAnswers, setPbpAnswers] = useState<Record<string, Record<string, AnswerValue>>>({});
+  const [saving, setSaving] = useState(false);
 
-  const loadAudit = async () => {
+  // Load existing audit
+  const loadAudit = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     const { data } = await (supabase.from("website_audit") as any)
@@ -211,113 +154,145 @@ const SiteAuditPage = () => {
       .maybeSingle();
     if (data) {
       setExisting(data);
-      if (data.audit_mode === "global" && data.answers && typeof data.answers === "object" && !data.answers.accueil) {
+      if (data.audit_mode === "auto" && data.raw_result) {
+        setAutoResult(data.raw_result as AutoAuditResult);
+      }
+      if (data.audit_mode === "global" && data.answers && typeof data.answers === "object") {
         setAnswers(data.answers as Record<string, AnswerValue>);
       }
       if (data.audit_mode === "page_by_page" && data.answers && typeof data.answers === "object") {
         setPbpAnswers(data.answers as Record<string, Record<string, AnswerValue>>);
-        // Reconstruct selected pages from answers keys or current_page
-        const storedPages = Object.keys(data.answers).filter(k => typeof data.answers[k] === "object");
-        if (storedPages.length > 0) setPbpPages(storedPages);
       }
     } else {
       setExisting(null);
     }
     setLoading(false);
-  };
+  }, [user, column, value]);
 
-  useEffect(() => { loadAudit(); }, [user?.id]);
+  useEffect(() => { loadAudit(); }, [loadAudit]);
 
-  const hasStarted = existing && (
-    existing.completed ||
-    (existing.answers && Object.keys(existing.answers).length > 0) ||
-    existing.audit_mode
-  );
+  // Check if URL param wants screenshot mode
+  useEffect(() => {
+    if (searchParams.get("mode") === "screenshot") setStep("screenshot");
+  }, [searchParams]);
 
-  // ── Save helpers ──
-  const saveGlobalAnswersToDb = useCallback(async (newAnswers: Record<string, AnswerValue>) => {
-    if (!existing?.id) return;
-    await (supabase.from("website_audit") as any)
-      .update({ answers: newAnswers })
-      .eq("id", existing.id);
-  }, [existing?.id]);
+  // Loading animation
+  useEffect(() => {
+    if (!analyzing) return;
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      // Non-linear progress: fast start, slow end, cap at 95%
+      const progress = Math.min(95, (1 - Math.exp(-elapsed / 15000)) * 100);
+      setLoadingProgress(progress);
 
-  const savePbpAnswersToDb = useCallback(async (newAnswers: Record<string, Record<string, AnswerValue>>) => {
-    if (!existing?.id) return;
-    await (supabase.from("website_audit") as any)
-      .update({ answers: newAnswers })
-      .eq("id", existing.id);
-  }, [existing?.id]);
+      // Update message based on elapsed time
+      let msg = LOADING_MESSAGES[0].text;
+      for (const lm of LOADING_MESSAGES) {
+        if (elapsed >= lm.time) msg = lm.text;
+      }
+      setLoadingMsg(msg);
+    }, 300);
+    return () => clearInterval(interval);
+  }, [analyzing]);
 
-  const upsertAudit = async (mode: string, pages?: string[]) => {
+  // ── Auto audit launch ──
+  const launchAutoAudit = async () => {
+    if (!siteUrl.trim()) { toast.error("Entre l'URL de ton site"); return; }
     if (!user) return;
-    setSaving(true);
-    const payload: Record<string, unknown> = {
-      user_id: user.id,
-      workspace_id: workspaceId !== user.id ? workspaceId : null,
-      audit_mode: mode,
-      answers: {},
-      scores: {},
-      score_global: 0,
-      diagnostic: null,
-      recommendations: [],
-      completed: false,
-      current_page: mode === "page_by_page" && pages?.length ? pages[0] : null,
-    };
 
-    if (existing?.id) {
-      await (supabase.from("website_audit") as any).update(payload).eq("id", existing.id);
-    } else {
-      await (supabase.from("website_audit") as any).insert(payload).select("id").single();
+    setAnalyzing(true);
+    setStep("loading");
+    setLoadingProgress(0);
+
+    try {
+      const pages_to_audit: string[] = [...extraPages];
+      if (customPath.trim() && customPath.trim().startsWith("/")) {
+        pages_to_audit.push(customPath.trim());
+      }
+
+      const { data, error } = await supabase.functions.invoke("audit-site-auto", {
+        body: {
+          site_url: siteUrl.trim(),
+          pages_to_audit: pages_to_audit.length > 0 ? pages_to_audit : undefined,
+          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error === "site_inaccessible") {
+        toast.error(data.message || "Site inaccessible");
+        setStep("input");
+        return;
+      }
+      if (data?.error) {
+        toast.error(data.message || data.error);
+        setStep("input");
+        return;
+      }
+      if (data?.quota) {
+        toast.error(data.message || "Quota atteint");
+        setStep("input");
+        return;
+      }
+
+      const result = data as AutoAuditResult;
+      setAutoResult(result);
+
+      // Save to DB
+      const payload: Record<string, unknown> = {
+        user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : null,
+        audit_mode: "auto",
+        answers: {},
+        scores: result.piliers || {},
+        score_global: result.score_global || 0,
+        diagnostic: result.synthese || null,
+        recommendations: result.plan_action || [],
+        completed: true,
+        raw_result: result,
+      };
+
+      if (existing?.id) {
+        await (supabase.from("website_audit") as any).update(payload).eq("id", existing.id);
+      } else {
+        const { data: inserted } = await (supabase.from("website_audit") as any).insert(payload).select("id").single();
+        if (inserted) setExisting({ ...payload, id: inserted.id } as any);
+      }
+
+      setStep("auto-results");
+    } catch (e) {
+      toast.error(friendlyError(e));
+      setStep("input");
+    } finally {
+      setAnalyzing(false);
     }
-
-    setAnswers({});
-    setPbpAnswers({});
-    setCurrentSection(0);
-    setCurrentPageIdx(0);
-    if (mode === "page_by_page" && pages) setPbpPages(pages);
-    await loadAudit();
-    setSaving(false);
-    setStep("questionnaire");
   };
 
-  const handleGlobal = () => upsertAudit("global");
-
-  const handlePageByPage = () => {
-    const allPages = [...selectedPages];
-    if (includeOther && otherPage.trim()) allPages.push(otherPage.trim());
-    if (allPages.length === 0) { toast.error("Sélectionne au moins une page"); return; }
-    upsertAudit("page_by_page", allPages);
-  };
-
+  // ── Reset ──
   const handleReset = async () => {
-    if (!existing?.id) return;
-    setSaving(true);
-    await (supabase.from("website_audit") as any).delete().eq("id", existing.id);
+    if (existing?.id) {
+      setSaving(true);
+      await (supabase.from("website_audit") as any).delete().eq("id", existing.id);
+      setSaving(false);
+    }
     setExisting(null);
+    setAutoResult(null);
     setAnswers({});
     setPbpAnswers({});
     setCurrentSection(0);
-    setCurrentPageIdx(0);
-    setStep("choose");
-    setSaving(false);
+    setSiteUrl("");
+    setExtraPages([]);
+    setCustomPath("");
+    setStep("input");
+    localStorage.removeItem("site-audit-checklist");
     toast.success("Audit réinitialisé");
   };
 
-  const togglePage = (id: string) => {
-    setSelectedPages(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
-  };
-
-  // ── Screenshot audit ──
+  // ── Screenshot handlers ──
   const handleScreenshotFile = (file: File) => {
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("L'image doit faire moins de 5 Mo");
-      return;
-    }
-    if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {
-      toast.error("Format accepté : PNG ou JPG");
-      return;
-    }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Max 5 Mo"); return; }
+    if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) { toast.error("Format : PNG ou JPG"); return; }
     setScreenshotFile(file);
     const reader = new FileReader();
     reader.onload = (e) => setScreenshotPreview(e.target?.result as string);
@@ -325,11 +300,7 @@ const SiteAuditPage = () => {
     setScreenshotResult(null);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) handleScreenshotFile(file);
-  };
+  const handleDrop = (e: React.DragEvent) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) handleScreenshotFile(file); };
 
   const analyzeScreenshot = async () => {
     if (!screenshotFile) return;
@@ -338,146 +309,27 @@ const SiteAuditPage = () => {
     try {
       const base64 = await new Promise<string>((resolve) => {
         const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          resolve(result.split(",")[1]); // Remove data:image/...;base64, prefix
-        };
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
         reader.readAsDataURL(screenshotFile);
       });
-
-      const imageType = screenshotFile.type === "image/png" ? "png" : "jpg";
-
       const { data, error } = await supabase.functions.invoke("website-ai", {
-        body: {
-          action: "audit-screenshot",
-          image_base64: base64,
-          image_type: imageType,
-          site_url: screenshotUrl || undefined,
-          page_type: screenshotPageType,
-          workspace_id: workspaceId,
-        },
+        body: { action: "audit-screenshot", image_base64: base64, image_type: screenshotFile.type === "image/png" ? "png" : "jpg", site_url: screenshotUrl || undefined, page_type: screenshotPageType, workspace_id: workspaceId },
       });
       if (error) throw error;
-
       const raw = data?.content || data;
       let parsed;
-      try {
-        const str = typeof raw === "string" ? raw : JSON.stringify(raw);
-        const cleaned = str.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-        parsed = typeof raw === "object" && raw.first_impression ? raw : JSON.parse(cleaned);
-      } catch {
-        throw new Error("Format de réponse inattendu");
-      }
+      try { const str = typeof raw === "string" ? raw : JSON.stringify(raw); parsed = typeof raw === "object" && raw.first_impression ? raw : JSON.parse(str.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim()); } catch { throw new Error("Format de réponse inattendu"); }
       setScreenshotResult(parsed);
-    } catch (err) {
-      toast.error(friendlyError(err));
-    } finally {
-      setScreenshotLoading(false);
-    }
+    } catch (err) { toast.error(friendlyError(err)); } finally { setScreenshotLoading(false); }
   };
 
-  // ── Global questionnaire navigation ──
-  const section = GLOBAL_SECTIONS[currentSection];
-  const totalSections = GLOBAL_SECTIONS.length;
-  const sectionComplete = section?.questions.every(q => answers[q.id] != null) ?? false;
-
-  const handleGlobalAnswer = (qId: string, val: AnswerValue) => {
-    setAnswers(prev => ({ ...prev, [qId]: val }));
+  const toggleExtraPage = (path: string) => {
+    setExtraPages(prev => prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]);
   };
 
-  const goNextGlobalSection = async () => {
-    await saveGlobalAnswersToDb(answers);
-    if (currentSection < totalSections - 1) {
-      setCurrentSection(prev => prev + 1);
-    } else {
-      setStep("results");
-    }
-  };
+  const hasOldAudit = existing && (existing.audit_mode === "global" || existing.audit_mode === "page_by_page") && existing.completed;
+  const hasAutoAudit = existing && existing.audit_mode === "auto" && existing.completed && autoResult;
 
-  const goPrevGlobalSection = () => {
-    if (currentSection > 0) setCurrentSection(prev => prev - 1);
-    else setStep("choose");
-  };
-
-  // ── Page-by-page navigation ──
-  const currentPbpPageId = pbpPages[currentPageIdx] ?? "";
-  const currentPbpQuestions = PAGE_QUESTIONS[currentPbpPageId] ?? [];
-  const currentPbpLabel = PAGE_LABELS[currentPbpPageId] ?? { emoji: "📄", title: currentPbpPageId };
-  const currentPbpPageAnswers = pbpAnswers[currentPbpPageId] ?? {};
-  const pbpPageComplete = currentPbpQuestions.length > 0 && currentPbpQuestions.every(q => currentPbpPageAnswers[q.id] != null);
-
-  const handlePbpAnswer = (qId: string, val: AnswerValue) => {
-    setPbpAnswers(prev => ({
-      ...prev,
-      [currentPbpPageId]: { ...(prev[currentPbpPageId] ?? {}), [qId]: val },
-    }));
-  };
-
-  const goNextPbpPage = async () => {
-    await savePbpAnswersToDb(pbpAnswers);
-    if (currentPageIdx < pbpPages.length - 1) {
-      setCurrentPageIdx(prev => prev + 1);
-    } else {
-      setStep("results");
-    }
-  };
-
-  const goPrevPbpPage = () => {
-    if (currentPageIdx > 0) setCurrentPageIdx(prev => prev - 1);
-    else setStep("choose");
-  };
-
-  const goToPbpPage = async (idx: number) => {
-    await savePbpAnswersToDb(pbpAnswers);
-    setCurrentPageIdx(idx);
-  };
-
-  // ── Shared question renderer ──
-  const renderQuestions = (
-    questions: AuditQuestion[],
-    currentAnswers: Record<string, AnswerValue>,
-    onAnswer: (qId: string, val: AnswerValue) => void,
-  ) => (
-    <div className="space-y-5">
-      {questions.map((q) => (
-        <div key={q.id} className="space-y-2.5">
-          <div className="flex items-start gap-2">
-            <p className="text-sm font-medium text-foreground leading-snug flex-1">{q.text}</p>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="shrink-0 mt-0.5 text-muted-foreground hover:text-primary transition-colors">
-                  <HelpCircle className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs text-xs">
-                {q.tooltip}
-              </TooltipContent>
-            </Tooltip>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {ANSWER_OPTIONS.map(opt => {
-              const isSelected = currentAnswers[q.id] === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  onClick={() => onAnswer(q.id, opt.value)}
-                  className={`font-mono-ui text-[12px] font-semibold px-4 py-2 rounded-pill border-2 transition-colors ${
-                    isSelected
-                      ? "border-primary bg-rose-pale text-primary"
-                      : "border-border bg-card text-muted-foreground hover:border-primary/50"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  // ── Render ──
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -495,213 +347,156 @@ const SiteAuditPage = () => {
       <AppHeader />
       <main className="container max-w-3xl mx-auto px-4 py-8 space-y-6">
         <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Audit de conversion" />
-        <div className="space-y-2">
-          <h1 className="text-2xl font-bold">🔍 Audit de conversion</h1>
-          <p className="text-muted-foreground">
-            Diagnostique ton site page par page ou en global, et découvre ce qui bloque tes visiteuses.
-          </p>
-        </div>
 
-        {/* ── Existing audit banner ── */}
-        {hasStarted && step === "choose" && (
-          <div className="rounded-2xl border border-primary bg-rose-pale p-6 space-y-4">
-            <p className="font-display text-base font-bold text-foreground">
-              {existing?.completed ? "✅ Tu as déjà un audit terminé !" : "📝 Tu as un audit en cours."}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {existing?.completed
-                ? `Score global : ${existing.score_global}/100. Tu peux consulter tes résultats ou recommencer.`
-                : "Tu peux reprendre là où tu en étais ou recommencer de zéro."}
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={() => setStep(existing?.completed ? "results" : "questionnaire")} className="gap-2 rounded-pill">
-                <Eye className="h-4 w-4" />
-                {existing?.completed ? "Voir mon dernier audit" : "Reprendre l'audit"}
-              </Button>
-              <Button variant="outline" onClick={handleReset} disabled={saving} className="gap-2 rounded-pill">
-                <RotateCcw className="h-4 w-4" />
-                Refaire un audit
-              </Button>
+        {/* ── STEP: Input (URL) ── */}
+        {step === "input" && (
+          <>
+            <div className="space-y-2 text-center">
+              <h1 className="text-2xl font-bold font-display">🔍 Audit de ton site</h1>
+              <p className="text-muted-foreground max-w-lg mx-auto">
+                Colle ton URL, l'IA fait le reste. En 30 secondes, tu sais exactement ce qui freine tes visiteuses.
+              </p>
             </div>
-          </div>
+
+            {/* Existing audit banners */}
+            {hasAutoAudit && (
+              <div className="rounded-2xl border border-primary bg-rose-pale p-5 space-y-3">
+                <p className="font-display text-sm font-bold text-foreground">
+                  ✅ Tu as un audit précédent (score : {existing?.score_global}/100)
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Button size="sm" onClick={() => setStep("auto-results")} className="gap-2 rounded-pill">
+                    <Eye className="h-4 w-4" /> Voir les résultats
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleReset} className="gap-2 rounded-pill">
+                    <RotateCcw className="h-4 w-4" /> Nouvel audit
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {hasOldAudit && !hasAutoAudit && (
+              <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                <p className="font-display text-sm font-bold text-foreground">
+                  📝 Tu as un audit précédent ({existing?.audit_mode === "global" ? "mode global" : "page par page"}).
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Button variant="outline" size="sm" onClick={() => setStep("old-results")} className="gap-2 rounded-pill">
+                    <Eye className="h-4 w-4" /> Voir les résultats
+                  </Button>
+                  <Button size="sm" className="gap-2 rounded-pill" onClick={handleReset}>
+                    <Sparkles className="h-4 w-4" /> Lancer un nouvel audit automatique
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* URL input */}
+            <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">URL de ton site</Label>
+                <Input
+                  placeholder="https://monsite.com"
+                  value={siteUrl}
+                  onChange={(e) => setSiteUrl(e.target.value)}
+                  className="text-base"
+                  type="url"
+                />
+              </div>
+
+              {/* Extra pages */}
+              <Collapsible open={showExtraPages} onOpenChange={setShowExtraPages}>
+                <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                  <ChevronDown className={`h-4 w-4 transition-transform ${showExtraPages ? "rotate-180" : ""}`} />
+                  📄 Pages supplémentaires à auditer (optionnel)
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3 space-y-3">
+                  <div className="space-y-2">
+                    {EXTRA_PAGES.map(ep => (
+                      <label key={ep.path} className="flex items-center gap-3 cursor-pointer group">
+                        <Checkbox checked={extraPages.includes(ep.path)} onCheckedChange={() => toggleExtraPage(ep.path)} />
+                        <span className="text-sm text-foreground group-hover:text-primary transition-colors">{ep.label}</span>
+                        <span className="text-xs text-muted-foreground">{ep.path}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Chemin personnalisé</Label>
+                    <Input placeholder="/portfolio" value={customPath} onChange={(e) => setCustomPath(e.target.value)} className="max-w-xs" />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              <Button onClick={launchAutoAudit} disabled={!siteUrl.trim() || analyzing} className="gap-2 rounded-pill w-full sm:w-auto">
+                <Sparkles className="h-4 w-4" /> Lancer l'audit
+              </Button>
+
+              <p className="text-xs text-muted-foreground text-center sm:text-left">~30 secondes · Analyse IA automatique</p>
+            </div>
+
+            {/* Secondary link to screenshot */}
+            <p className="text-sm text-muted-foreground text-center">
+              Tu préfères envoyer un screenshot ?{" "}
+              <button onClick={() => setStep("screenshot")} className="text-primary hover:underline font-medium">
+                Utilise l'audit visuel →
+              </button>
+            </p>
+          </>
         )}
 
-        {/* ── Mode selection ── */}
-        {!hasStarted && step === "choose" && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <button onClick={handleGlobal} disabled={saving} className="group relative rounded-2xl border bg-card p-6 text-left transition-all hover:border-primary hover:shadow-md cursor-pointer">
-              <span className="text-2xl mb-3 block">🌐</span>
-              <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">Audit global</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Un diagnostic rapide de tout ton site en 5 minutes.</p>
-              <span className="mt-3 inline-block font-mono-ui text-[10px] font-semibold px-2.5 py-0.5 rounded-pill text-primary bg-rose-pale">~5 min</span>
-            </button>
-            <button onClick={() => setStep("pick-pages")} disabled={saving} className="group relative rounded-2xl border bg-card p-6 text-left transition-all hover:border-primary hover:shadow-md cursor-pointer">
-              <span className="text-2xl mb-3 block">📄</span>
-              <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">Audit page par page</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Un diagnostic détaillé, page par page. Plus précis.</p>
-              <span className="mt-3 inline-block font-mono-ui text-[10px] font-semibold px-2.5 py-0.5 rounded-pill text-primary bg-rose-pale">~15 min</span>
-            </button>
-            <button onClick={() => setStep("screenshot")} disabled={saving} className="group relative rounded-2xl border bg-card p-6 text-left transition-all hover:border-primary hover:shadow-md cursor-pointer">
-              <span className="text-2xl mb-3 block">📸</span>
-              <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">Audit visuel (screenshot)</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Upload un screenshot et reçois un diagnostic visuel IA.</p>
-              <span className="mt-3 inline-block font-mono-ui text-[10px] font-semibold px-2.5 py-0.5 rounded-pill bg-primary/10 text-primary">IA Vision</span>
-            </button>
-          </div>
-        )}
-
-        {/* ── Page picker ── */}
-        {step === "pick-pages" && (
-          <div className="rounded-2xl border bg-card p-6 space-y-5">
-            <div>
-              <h3 className="font-display text-lg font-bold text-foreground mb-1">Quelles pages veux-tu auditer ?</h3>
-              <p className="text-sm text-muted-foreground">Sélectionne les pages de ton site à analyser.</p>
-            </div>
+        {/* ── STEP: Loading ── */}
+        {step === "loading" && (
+          <div className="rounded-2xl border border-border bg-card p-8 space-y-6">
             <div className="space-y-3">
-              {PAGE_OPTIONS.map(opt => (
-                <label key={opt.id} className="flex items-center gap-3 cursor-pointer group">
-                  <Checkbox checked={selectedPages.includes(opt.id)} onCheckedChange={() => togglePage(opt.id)} />
-                  <span className="text-sm text-foreground group-hover:text-primary transition-colors">{opt.label}</span>
-                </label>
-              ))}
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <Checkbox checked={includeOther} onCheckedChange={(v) => setIncludeOther(!!v)} />
-                <span className="text-sm text-foreground group-hover:text-primary transition-colors">Autre</span>
-              </label>
-              {includeOther && (
-                <Input placeholder="Ex : Blog, Portfolio, Landing page…" value={otherPage} onChange={(e) => setOtherPage(e.target.value)} className="max-w-sm" />
-              )}
+              <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+                  style={{ width: `${loadingProgress}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-foreground animate-pulse">{loadingMsg}</p>
+                <span className="text-xs text-muted-foreground">{Math.round(loadingProgress)}%</span>
+              </div>
             </div>
-            <div className="flex gap-3">
-              <Button onClick={handlePageByPage} disabled={saving || (selectedPages.length === 0 && !(includeOther && otherPage.trim()))} className="gap-2 rounded-pill">
-                Commencer l'audit <ArrowRight className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" onClick={() => setStep("choose")} className="rounded-pill">Retour</Button>
+
+            <div className="rounded-xl bg-muted/50 border border-border p-4">
+              <p className="text-sm text-muted-foreground italic text-center">
+                « {loadingQuote} »
+              </p>
             </div>
           </div>
         )}
 
-        {/* ── Global questionnaire ── */}
-        {step === "questionnaire" && existing?.audit_mode === "global" && section && (
-          <TooltipProvider delayDuration={200}>
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-mono-ui font-semibold">Section {currentSection + 1}/{totalSections}</span>
-                  <span>{section.emoji} {section.title}</span>
-                </div>
-                <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full rounded-full bg-primary transition-all duration-500 ease-out" style={{ width: `${((currentSection + 1) / totalSections) * 100}%` }} />
-                </div>
-              </div>
-              <div className="rounded-2xl border bg-card p-6 space-y-6">
-                <h3 className="font-display text-lg font-bold text-foreground">{section.emoji} {section.title}</h3>
-                {renderQuestions(section.questions, answers, handleGlobalAnswer)}
-              </div>
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={goPrevGlobalSection} className="gap-2 rounded-pill">
-                  <ArrowLeft className="h-4 w-4" />
-                  {currentSection === 0 ? "Retour" : "Précédent"}
-                </Button>
-                <Button onClick={goNextGlobalSection} disabled={!sectionComplete} className="gap-2 rounded-pill">
-                  {currentSection === totalSections - 1 ? "Voir mon diagnostic" : "Suivant"}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </TooltipProvider>
+        {/* ── STEP: Auto Results ── */}
+        {step === "auto-results" && autoResult && (
+          <SiteAuditAutoResult result={autoResult} onReset={handleReset} />
         )}
 
-        {/* ── Page-by-page questionnaire ── */}
-        {step === "questionnaire" && existing?.audit_mode === "page_by_page" && pbpPages.length > 0 && (
-          <TooltipProvider delayDuration={200}>
-            <div className="space-y-6">
-              {/* Page tabs */}
-              <div className="flex flex-wrap gap-2">
-                {pbpPages.map((pageId, idx) => {
-                  const label = PAGE_LABELS[pageId] ?? { emoji: "📄", title: pageId };
-                  const pageAnswers = pbpAnswers[pageId] ?? {};
-                  const pageQuestions = PAGE_QUESTIONS[pageId] ?? [];
-                  const isDone = pageQuestions.length > 0 && pageQuestions.every(q => pageAnswers[q.id] != null);
-                  const isCurrent = idx === currentPageIdx;
-                  return (
-                    <button
-                      key={pageId}
-                      onClick={() => goToPbpPage(idx)}
-                      className={`font-mono-ui text-[12px] font-semibold px-4 py-2 rounded-pill border-2 transition-colors ${
-                        isCurrent
-                          ? "border-primary bg-rose-pale text-primary"
-                          : isDone
-                            ? "border-primary/30 bg-rose-pale/50 text-primary/70"
-                            : "border-border bg-card text-muted-foreground hover:border-primary/50"
-                      }`}
-                    >
-                      {label.emoji} {label.title} {isDone && !isCurrent ? "✓" : ""}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Progress */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-mono-ui font-semibold">Page {currentPageIdx + 1}/{pbpPages.length}</span>
-                  <span>{currentPbpLabel.emoji} {currentPbpLabel.title}</span>
-                </div>
-                <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full rounded-full bg-primary transition-all duration-500 ease-out" style={{ width: `${((currentPageIdx + 1) / pbpPages.length) * 100}%` }} />
-                </div>
-              </div>
-
-              {/* Questions */}
-              {currentPbpQuestions.length > 0 ? (
-                <div className="rounded-2xl border bg-card p-6 space-y-6">
-                  <h3 className="font-display text-lg font-bold text-foreground">
-                    {currentPbpLabel.emoji} {currentPbpLabel.title}
-                  </h3>
-                  {renderQuestions(currentPbpQuestions, currentPbpPageAnswers, handlePbpAnswer)}
-                </div>
-              ) : (
-                <div className="rounded-2xl border bg-card p-6 text-center space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    Pas de questionnaire spécifique pour "{currentPbpPageId}". Tu peux passer à la page suivante.
-                  </p>
-                </div>
-              )}
-
-              {/* Navigation */}
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={goPrevPbpPage} className="gap-2 rounded-pill">
-                  <ArrowLeft className="h-4 w-4" />
-                  {currentPageIdx === 0 ? "Retour" : "Précédent"}
-                </Button>
-                <Button
-                  onClick={goNextPbpPage}
-                  disabled={currentPbpQuestions.length > 0 && !pbpPageComplete}
-                  className="gap-2 rounded-pill"
-                >
-                  {currentPageIdx === pbpPages.length - 1 ? "Voir mon diagnostic complet" : "Page suivante"}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </TooltipProvider>
+        {/* ── STEP: Old Results (backward compat) ── */}
+        {step === "old-results" && existing && (
+          <SiteAuditResult
+            auditId={existing.id}
+            auditMode={existing.audit_mode as "global" | "page_by_page"}
+            answers={existing.audit_mode === "global" ? answers : pbpAnswers}
+            globalSections={GLOBAL_SECTIONS}
+            pageQuestions={PAGE_QUESTIONS}
+            onReset={handleReset}
+          />
         )}
 
-        {/* ── Screenshot audit ── */}
+        {/* ── STEP: Screenshot ── */}
         {step === "screenshot" && (
           <div className="space-y-6">
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={() => { setStep("choose"); setScreenshotResult(null); setScreenshotFile(null); setScreenshotPreview(null); }} className="gap-2 rounded-pill">
+              <Button variant="outline" size="sm" onClick={() => { setStep("input"); setScreenshotResult(null); setScreenshotFile(null); setScreenshotPreview(null); }} className="gap-2 rounded-pill">
                 <ArrowLeft className="h-4 w-4" /> Retour
               </Button>
               <h2 className="font-display text-lg font-bold text-foreground">📸 Audit visuel par screenshot</h2>
             </div>
 
-            {/* Upload zone + options */}
             {!screenshotResult && (
               <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
-                {/* Drag & drop */}
                 <div
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleDrop}
@@ -717,84 +512,47 @@ const SiteAuditPage = () => {
                       <p className="text-xs text-muted-foreground">PNG ou JPG, max 5 Mo</p>
                     </>
                   )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg"
-                    className="hidden"
-                    onChange={(e) => { if (e.target.files?.[0]) handleScreenshotFile(e.target.files[0]); }}
-                  />
+                  <input ref={fileInputRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleScreenshotFile(e.target.files[0]); }} />
                 </div>
 
-                {/* URL context */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium flex items-center gap-1.5">
-                    <LinkIcon className="h-3.5 w-3.5" /> URL du site (optionnel, pour le contexte)
+                    <LinkIcon className="h-3.5 w-3.5" /> URL du site (optionnel)
                   </Label>
-                  <Input
-                    placeholder="https://monsite.com"
-                    value={screenshotUrl}
-                    onChange={(e) => setScreenshotUrl(e.target.value)}
-                  />
+                  <Input placeholder="https://monsite.com" value={screenshotUrl} onChange={(e) => setScreenshotUrl(e.target.value)} />
                 </div>
 
-                {/* Page type */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Type de page</Label>
                   <div className="flex flex-wrap gap-2">
-                    {[
-                      { id: "accueil", label: "🏠 Accueil" },
-                      { id: "a-propos", label: "👋 À propos" },
-                      { id: "offres", label: "🎁 Offres" },
-                      { id: "autre", label: "📄 Autre" },
-                    ].map((pt) => (
-                      <button
-                        key={pt.id}
-                        onClick={() => setScreenshotPageType(pt.id)}
-                        className={`text-xs font-semibold px-4 py-2 rounded-pill border-2 transition-colors ${
-                          screenshotPageType === pt.id
-                            ? "border-primary bg-rose-pale text-primary"
-                            : "border-border bg-card text-muted-foreground hover:border-primary/50"
-                        }`}
-                      >
+                    {[{ id: "accueil", label: "🏠 Accueil" }, { id: "a-propos", label: "👋 À propos" }, { id: "offres", label: "🎁 Offres" }, { id: "autre", label: "📄 Autre" }].map((pt) => (
+                      <button key={pt.id} onClick={() => setScreenshotPageType(pt.id)} className={`text-xs font-semibold px-4 py-2 rounded-pill border-2 transition-colors ${screenshotPageType === pt.id ? "border-primary bg-rose-pale text-primary" : "border-border bg-card text-muted-foreground hover:border-primary/50"}`}>
                         {pt.label}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <Button
-                  onClick={analyzeScreenshot}
-                  disabled={!screenshotFile || screenshotLoading}
-                  className="gap-2 rounded-pill w-full sm:w-auto"
-                >
+                <Button onClick={analyzeScreenshot} disabled={!screenshotFile || screenshotLoading} className="gap-2 rounded-pill w-full sm:w-auto">
                   {screenshotLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                   {screenshotLoading ? "Analyse en cours..." : "Analyser mon screenshot"}
                 </Button>
               </div>
             )}
 
-            {/* Loading */}
             {screenshotLoading && (
               <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  L'IA analyse ton screenshot...
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" /> L'IA analyse ton screenshot...
                 </div>
                 <Skeleton className="h-6 w-48" />
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-3/4" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Skeleton className="h-24 w-full rounded-xl" />
-                  <Skeleton className="h-24 w-full rounded-xl" />
-                </div>
               </div>
             )}
 
-            {/* Results */}
             {screenshotResult && !screenshotLoading && (
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                {/* Screenshot preview */}
                 <div className="lg:col-span-2">
                   {screenshotPreview && (
                     <div className="rounded-2xl border border-border overflow-hidden sticky top-4">
@@ -802,15 +560,9 @@ const SiteAuditPage = () => {
                     </div>
                   )}
                 </div>
-
-                {/* Diagnostic */}
                 <div className="lg:col-span-3 space-y-5">
-                  {/* Score */}
                   <div className="rounded-2xl border border-border bg-card p-5 flex items-center gap-4">
-                    <div className={`text-3xl font-display font-bold ${
-                      screenshotResult.score_estime >= 75 ? "text-emerald-600" :
-                      screenshotResult.score_estime >= 50 ? "text-amber-500" : "text-red-500"
-                    }`}>
+                    <div className={`text-3xl font-display font-bold ${screenshotResult.score_estime >= 75 ? "text-emerald-600" : screenshotResult.score_estime >= 50 ? "text-amber-500" : "text-red-500"}`}>
                       {screenshotResult.score_estime}/100
                     </div>
                     <div className="flex-1">
@@ -819,59 +571,47 @@ const SiteAuditPage = () => {
                     </div>
                   </div>
 
-                  {/* Points forts */}
-                  <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                    <h3 className="font-display text-sm font-bold text-foreground">✅ Points forts</h3>
-                    <ul className="space-y-2">
-                      {screenshotResult.points_forts?.map((p: string, i: number) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                          <span className="shrink-0 mt-0.5 text-emerald-500">●</span>
-                          <span>{p}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Problèmes */}
-                  <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                    <h3 className="font-display text-sm font-bold text-foreground">⚠️ Problèmes identifiés</h3>
-                    <div className="space-y-2">
-                      {screenshotResult.problemes?.map((prob: any, i: number) => {
-                        const impactColors: Record<string, string> = {
-                          fort: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400",
-                          moyen: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
-                          faible: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
-                        };
-                        const catEmojis: Record<string, string> = {
-                          visuel: "🎨", copy: "✍️", cta: "👆", confiance: "🛡️", navigation: "🗺️",
-                        };
-                        const isExpanded = expandedProblem === i;
-                        return (
-                          <button
-                            key={i}
-                            onClick={() => setExpandedProblem(isExpanded ? null : i)}
-                            className="w-full text-left rounded-xl border border-border p-4 hover:border-primary/40 transition-all space-y-2"
-                          >
-                            <div className="flex items-start gap-2">
-                              <span className="shrink-0">{catEmojis[prob.categorie] || "📌"}</span>
-                              <p className="text-sm text-foreground flex-1">{prob.description}</p>
-                              <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-pill ${impactColors[prob.impact] || impactColors.moyen}`}>
-                                {prob.impact}
-                              </span>
-                            </div>
-                            {isExpanded && (
-                              <div className="ml-6 mt-2 p-3 rounded-lg bg-muted/50 border border-border">
-                                <p className="text-xs font-bold text-foreground mb-1">💡 Suggestion</p>
-                                <p className="text-xs text-muted-foreground">{prob.suggestion}</p>
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
+                  {screenshotResult.points_forts?.length > 0 && (
+                    <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                      <h3 className="font-display text-sm font-bold text-foreground">✅ Points forts</h3>
+                      <ul className="space-y-2">
+                        {screenshotResult.points_forts.map((p: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                            <span className="shrink-0 mt-0.5 text-emerald-500">●</span>
+                            <span>{p}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Suggestions layout */}
+                  {screenshotResult.problemes?.length > 0 && (
+                    <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                      <h3 className="font-display text-sm font-bold text-foreground">⚠️ Problèmes identifiés</h3>
+                      <div className="space-y-2">
+                        {screenshotResult.problemes.map((prob: any, i: number) => {
+                          const impactColors: Record<string, string> = { fort: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400", moyen: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400", faible: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" };
+                          const catEmojis: Record<string, string> = { visuel: "🎨", copy: "✍️", cta: "👆", confiance: "🛡️", navigation: "🗺️" };
+                          return (
+                            <button key={i} onClick={() => setExpandedProblem(expandedProblem === i ? null : i)} className="w-full text-left rounded-xl border border-border p-4 hover:border-primary/40 transition-all space-y-2">
+                              <div className="flex items-start gap-2">
+                                <span className="shrink-0">{catEmojis[prob.categorie] || "📌"}</span>
+                                <p className="text-sm text-foreground flex-1">{prob.description}</p>
+                                <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-pill ${impactColors[prob.impact] || impactColors.moyen}`}>{prob.impact}</span>
+                              </div>
+                              {expandedProblem === i && (
+                                <div className="ml-6 mt-2 p-3 rounded-lg bg-muted/50 border border-border">
+                                  <p className="text-xs font-bold text-foreground mb-1">💡 Suggestion</p>
+                                  <p className="text-xs text-muted-foreground">{prob.suggestion}</p>
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {screenshotResult.suggestions_layout?.length > 0 && (
                     <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
                       <h3 className="font-display text-sm font-bold text-foreground">📐 Suggestions de mise en page</h3>
@@ -886,33 +626,18 @@ const SiteAuditPage = () => {
                     </div>
                   )}
 
-                  {/* Actions */}
                   <div className="flex flex-wrap gap-3">
                     <Button variant="outline" size="sm" className="gap-2 rounded-pill" onClick={() => { setScreenshotResult(null); }}>
                       <RotateCcw className="h-4 w-4" /> Refaire avec un autre screenshot
                     </Button>
                     <Button variant="ghost" size="sm" className="gap-2 rounded-pill" asChild>
-                      <Link to="/site/inspirations">
-                        <Palette className="h-4 w-4" /> 🎨 Voir des inspirations pour améliorer
-                      </Link>
+                      <Link to="/site/inspirations"><Palette className="h-4 w-4" /> 🎨 Voir des inspirations</Link>
                     </Button>
                   </div>
                 </div>
               </div>
             )}
           </div>
-        )}
-
-        {/* ── Results ── */}
-        {step === "results" && existing && (
-          <SiteAuditResult
-            auditId={existing.id}
-            auditMode={existing.audit_mode as "global" | "page_by_page"}
-            answers={existing.audit_mode === "global" ? answers : pbpAnswers}
-            globalSections={GLOBAL_SECTIONS}
-            pageQuestions={PAGE_QUESTIONS}
-            onReset={handleReset}
-          />
         )}
       </main>
     </div>
