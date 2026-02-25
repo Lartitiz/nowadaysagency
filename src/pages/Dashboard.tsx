@@ -127,7 +127,7 @@ export default function Dashboard() {
   });
 
   const defaultDashData: DashboardData = {
-    brandingCompletion: { storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 },
+    brandingCompletion: { storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, charter: 0, total: 0 },
     igAuditScore: null, liAuditScore: null,
     contactCount: 0, prospectCount: 0, prospectConversation: 0, prospectOffered: 0,
     calendarPostCount: 0, weekPostsPublished: 0, weekPostsTotal: 0, nextPost: null,
@@ -141,7 +141,7 @@ export default function Dashboard() {
       if (isDemoMode && demoData) {
         return {
           ...defaultDashData,
-          brandingCompletion: { storytelling: 20, persona: 20, proposition: 20, tone: 15, strategy: 10, total: demoData.branding.completion },
+          brandingCompletion: { storytelling: 20, persona: 20, proposition: 20, tone: 15, strategy: 10, charter: 0, total: demoData.branding.completion },
           igAuditScore: demoData.audit.score,
           calendarPostCount: demoData.calendar_posts.length,
           weekPostsTotal: 3,

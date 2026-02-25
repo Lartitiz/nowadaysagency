@@ -6,6 +6,7 @@ export interface BrandingCompletion {
   proposition: number;
   tone: number;
   strategy: number;
+  charter: number;
   total: number;
 }
 
@@ -15,15 +16,17 @@ export interface BrandingRawData {
   proposition: any | null;
   brandProfile: any | null;
   strategy: any | null;
+  charter: any | null;
 }
 
 export async function fetchBrandingData(userId: string): Promise<BrandingRawData> {
-  const [stRes, perRes, propRes, toneRes, stratRes] = await Promise.all([
+  const [stRes, perRes, propRes, toneRes, stratRes, charterRes] = await Promise.all([
     supabase.from("storytelling").select("id, is_primary, completed, step_7_polished, imported_text").eq("user_id", userId),
     supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_proposition").select("step_1_what, step_2a_process, step_2b_values, step_3_for_whom, version_final, version_pitch_naturel").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_strategy").select("step_1_hidden_facets, facet_1, pillar_major, creative_concept").eq("user_id", userId).maybeSingle(),
+    (supabase.from("brand_charter") as any).select("logo_url, color_primary, color_secondary, color_accent, font_title, font_body, mood_keywords, photo_style").eq("user_id", userId).maybeSingle(),
   ]);
 
   return {
@@ -32,6 +35,7 @@ export async function fetchBrandingData(userId: string): Promise<BrandingRawData
     proposition: propRes.data,
     brandProfile: toneRes.data,
     strategy: stratRes.data,
+    charter: charterRes.data,
   };
 }
 
@@ -96,9 +100,24 @@ export function calculateBrandingCompletion(data: BrandingRawData): BrandingComp
   const stratFilled = stratChecks.filter(filled).length;
   const strategy = Math.round((stratFilled / 3) * 100);
 
-  const total = Math.round((storytelling + persona + proposition + tone + strategy) / 5);
+  // CHARTER: weighted score
+  const ch = data.charter;
+  let charterScore = 0;
+  if (ch) {
+    if (filled(ch.logo_url)) charterScore += 20;
+    const defaults: Record<string, string> = { color_primary: "#E91E8C", color_secondary: "#1A1A2E", color_accent: "#FFE561" };
+    const changedColors = (["color_primary", "color_secondary", "color_accent"] as const)
+      .filter(k => ch[k] && ch[k] !== defaults[k]).length;
+    if (changedColors >= 3) charterScore += 25;
+    if (ch.font_title && ch.font_title !== "Inter" && ch.font_body && ch.font_body !== "Inter") charterScore += 20;
+    if (Array.isArray(ch.mood_keywords) && ch.mood_keywords.length >= 3) charterScore += 20;
+    if (filled(ch.photo_style)) charterScore += 15;
+  }
+  const charter = charterScore;
 
-  return { storytelling, persona, proposition, tone, strategy, total };
+  const total = Math.round((storytelling + persona + proposition + tone + strategy + charter) / 6);
+
+  return { storytelling, persona, proposition, tone, strategy, charter, total };
 }
 
 /**

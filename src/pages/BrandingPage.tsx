@@ -71,6 +71,14 @@ const CARDS: BrandingCard[] = [
     recapRoute: "/branding/section?section=content_strategy",
     scoreKey: "strategy",
   },
+  {
+    emoji: "🎨",
+    title: "Ma charte graphique",
+    description: "Tes couleurs, typos, logo et style visuel. Ce qui rend ta marque reconnaissable.",
+    stepperRoute: "/branding/charter",
+    recapRoute: "/branding/charter",
+    scoreKey: "charter",
+  },
 ];
 
 const RECOMMENDATIONS: Record<string, { low: string; mid: string; high: string; done: string }> = {
@@ -104,6 +112,12 @@ const RECOMMENDATIONS: Record<string, { low: string; mid: string; high: string; 
     high: "Presque ! Affine tes facettes cachées pour te démarquer.",
     done: "Ta stratégie est solide. Lance-toi dans la création !",
   },
+  charter: {
+    low: "Commence par uploader ton logo ou choisir tes couleurs.",
+    mid: "Ta charte prend forme ! Ajoute tes typos et ton style visuel.",
+    high: "Presque ! Il te manque ton style photo ou tes mots-clés visuels.",
+    done: "Ta charte graphique est complète. Ton identité visuelle est posée.",
+  },
 };
 
 function getRecommendation(scoreKey: string, pValue: number): string {
@@ -122,7 +136,7 @@ export default function BrandingPage() {
   const { isDemoMode } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
-  const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, total: 0 });
+  const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, charter: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [primaryStoryId, setPrimaryStoryId] = useState<string | null>(null);
   const [showSynthesis, setShowSynthesis] = useState(false);
@@ -175,6 +189,7 @@ export default function BrandingPage() {
         proposition: 100,
         tone: 80,
         strategy: 70,
+        charter: 0,
         total: DEMO_DATA.branding.completion,
       });
       setPrimaryStoryId("demo-story");
@@ -662,28 +677,6 @@ export default function BrandingPage() {
                     Coaching
                   </Button>
                 </div>
-              </div>
-
-              {/* Ma charte graphique card */}
-              <div
-                className="rounded-2xl border-2 bg-card p-5 transition-all border-primary/30 hover:border-primary hover:shadow-md cursor-pointer"
-                onClick={() => navigate("/branding/charter")}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <span className="text-2xl">🎨</span>
-                </div>
-                <h3 className="font-display text-base font-bold text-foreground mb-1">Ma charte graphique</h3>
-                <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">
-                  Logo, couleurs, typos, style visuel. Ton identité visuelle au complet.
-                </p>
-                <Button
-                  size="sm"
-                  className="rounded-pill text-xs w-full"
-                  onClick={(e) => { e.stopPropagation(); navigate("/branding/charter"); }}
-                >
-                  <Eye className="h-3.5 w-3.5 mr-1" />
-                  Ma charte
-                </Button>
               </div>
             </div>
 
