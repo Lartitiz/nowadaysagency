@@ -781,6 +781,50 @@ export type Database = {
           },
         ]
       }
+      branding_mirror_results: {
+        Row: {
+          alignments: Json | null
+          coherence_score: number | null
+          created_at: string
+          gaps: Json | null
+          id: string
+          quick_wins: Json | null
+          summary: string | null
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          alignments?: Json | null
+          coherence_score?: number | null
+          created_at?: string
+          gaps?: Json | null
+          id?: string
+          quick_wins?: Json | null
+          summary?: string | null
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          alignments?: Json | null
+          coherence_score?: number | null
+          created_at?: string
+          gaps?: Json | null
+          id?: string
+          quick_wins?: Json | null
+          summary?: string | null
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branding_mirror_results_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branding_suggestions: {
         Row: {
           created_at: string

@@ -16,6 +16,7 @@ export interface ContextOptions {
   includeAudit?: boolean;
   includeVoice?: boolean;
   includeCharter?: boolean;
+  includeMirror?: boolean;
 }
 
 // Default: include everything except detailed offer data and audit
@@ -29,6 +30,7 @@ const DEFAULT_OPTIONS: ContextOptions = {
   includeAudit: false,
   includeVoice: true,
   includeCharter: true,
+  includeMirror: false,
 };
 
 /**
@@ -41,7 +43,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
 
   const [
     stRes, perRes, toneRes, propRes, stratRes, editoRes,
-    profileRes, offersRes, auditRes, voiceRes, charterRes,
+    profileRes, offersRes, auditRes, voiceRes, charterRes, mirrorRes,
   ] = await Promise.all([
     supabase.from("storytelling").select("step_7_polished").eq(col, val).eq("is_primary", true).maybeSingle(),
     supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches, portrait_prenom, portrait").eq(col, val).maybeSingle(),
@@ -49,13 +51,12 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
     supabase.from("brand_proposition").select("version_final, version_complete, version_bio, version_one_liner").eq(col, val).maybeSingle(),
     supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept, facet_1, facet_2, facet_3").eq(col, val).maybeSingle(),
     supabase.from("instagram_editorial_line").select("main_objective, objective_details, posts_frequency, stories_frequency, time_available, pillars, preferred_formats, do_more, stop_doing, free_notes").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    // profiles table always uses user_id (no workspace_id column)
     supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, mission, offre, croyances_limitantes, verbatims, expressions_cles, ce_quon_evite, style_communication, validated_bio, instagram_display_name, instagram_username, instagram_bio, instagram_followers, instagram_frequency, differentiation_text, bio_cta_type, bio_cta_text").eq("user_id", userId).maybeSingle(),
     supabase.from("offers").select("*").eq(col, val).order("created_at", { ascending: true }),
     supabase.from("instagram_audit").select("score_global, score_bio, score_feed, score_edito, score_stories, score_epingles, resume, combo_gagnant").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    // voice_profile always uses user_id (personal voice, not workspace-scoped)
     supabase.from("voice_profile").select("voice_summary, signature_expressions, banned_expressions, tone_patterns, structure_patterns, formatting_habits, sample_texts").eq("user_id", userId).maybeSingle(),
     supabase.from("brand_charter").select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, font_accent, photo_style, mood_keywords, visual_donts, icon_style, border_radius, ai_generated_brief").eq(col, val).maybeSingle(),
+    supabase.from("branding_mirror_results").select("coherence_score, summary, alignments, gaps, quick_wins").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   return {
@@ -70,6 +71,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
     audit: auditRes.data,
     voice: voiceRes.data,
     charter: charterRes.data,
+    mirror: mirrorRes.data,
   };
 }
 
@@ -319,6 +321,18 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
     if (aLines.length) sections.push(`DERNIER AUDIT INSTAGRAM :\n${aLines.join("\n")}`);
   }
 
+  // === COHÉRENCE DE MARQUE (MIRROR) ===
+  if (options.includeMirror && ctx.mirror) {
+    const m = ctx.mirror;
+    const mLines: string[] = [];
+    if (m.coherence_score != null) mLines.push(`- Score de cohérence : ${m.coherence_score}/100`);
+    if (m.summary) mLines.push(`- Résumé : ${m.summary}`);
+    if (m.alignments?.length) mLines.push(`- Points alignés : ${JSON.stringify(m.alignments)}`);
+    if (m.gaps?.length) mLines.push(`- Écarts identifiés : ${JSON.stringify(m.gaps)}`);
+    if (m.quick_wins?.length) mLines.push(`- Quick wins suggérés : ${JSON.stringify(m.quick_wins)}`);
+    if (mLines.length) sections.push(`COHÉRENCE DE MARQUE (Branding Mirror) :\n${mLines.join("\n")}`);
+  }
+
   if (sections.length === 0) {
     return "NOTE : Le profil est très peu rempli. Les résultats seront plus pertinents une fois le Branding et les Offres complétés.\n";
   }
@@ -335,7 +349,7 @@ export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
   bio: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: false },
 
   // Posts/Carrousels: branding ✅, story ✅, persona ✅, offers ✅, profile ❌, editorial ✅
-  posts: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true, includeCharter: true },
+  posts: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true, includeCharter: true, includeMirror: true },
 
   // Reels: same as posts
   reels: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true, includeCharter: true },
@@ -359,7 +373,7 @@ export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
   offerCoaching: { includeStory: true, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // Creative flow / content generation: full context
-  content: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true, includeCharter: true },
+  content: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true, includeCharter: true, includeMirror: true },
 
   // Highlights: branding ✅, persona ✅, offers ✅, profile ✅
   highlights: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true },
@@ -371,7 +385,7 @@ export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
   launch: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true },
 
   // LinkedIn: branding ✅, story ✅, persona ✅, offers ✅, profile ✅
-  linkedin: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true },
+  linkedin: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true, includeMirror: true },
 
   // LinkedIn audit: branding ✅, persona ✅, offers ✅, profile ✅
   linkedinAudit: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
@@ -380,11 +394,14 @@ export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
   pinterest: { includeStory: false, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true },
 
   // Website / pages de vente: everything + offer details
-  website: { includeStory: true, includePersona: true, includeOffers: true, includeOffersDetails: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true },
+  website: { includeStory: true, includePersona: true, includeOffers: true, includeOffersDetails: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true, includeMirror: true },
 
   // Score content: branding ✅, profile ✅
   score: { includeStory: false, includePersona: false, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: false, includeCharter: false },
 
   // Website audit diagnostic: persona ✅, offers ✅, profile ✅, voice ✅, charter ✅
   websiteAudit: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true },
+
+  // Mirror: branding ✅, profile ✅, voice ✅
+  mirror: { includeStory: false, includePersona: false, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: false, includeMirror: true },
 };
