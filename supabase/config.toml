@@ -116,3 +116,6 @@ verify_jwt = false
 
 [functions.instagram-profile-coaching]
 verify_jwt = false
+
+[functions.linkedin-coaching]
+verify_jwt = false
