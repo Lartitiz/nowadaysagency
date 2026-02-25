@@ -196,6 +196,90 @@ export type Database = {
         }
         Relationships: []
       }
+      brand_charter: {
+        Row: {
+          ai_generated_brief: string | null
+          border_radius: string | null
+          color_accent: string | null
+          color_background: string | null
+          color_primary: string | null
+          color_secondary: string | null
+          color_text: string | null
+          completion_pct: number | null
+          created_at: string | null
+          custom_colors: Json | null
+          font_accent: string | null
+          font_body: string | null
+          font_title: string | null
+          icon_style: string | null
+          id: string
+          logo_url: string | null
+          logo_variants: Json | null
+          mood_board_urls: Json | null
+          mood_keywords: Json | null
+          photo_keywords: Json | null
+          photo_style: string | null
+          updated_at: string | null
+          uploaded_templates: Json | null
+          user_id: string
+          visual_donts: string | null
+        }
+        Insert: {
+          ai_generated_brief?: string | null
+          border_radius?: string | null
+          color_accent?: string | null
+          color_background?: string | null
+          color_primary?: string | null
+          color_secondary?: string | null
+          color_text?: string | null
+          completion_pct?: number | null
+          created_at?: string | null
+          custom_colors?: Json | null
+          font_accent?: string | null
+          font_body?: string | null
+          font_title?: string | null
+          icon_style?: string | null
+          id?: string
+          logo_url?: string | null
+          logo_variants?: Json | null
+          mood_board_urls?: Json | null
+          mood_keywords?: Json | null
+          photo_keywords?: Json | null
+          photo_style?: string | null
+          updated_at?: string | null
+          uploaded_templates?: Json | null
+          user_id: string
+          visual_donts?: string | null
+        }
+        Update: {
+          ai_generated_brief?: string | null
+          border_radius?: string | null
+          color_accent?: string | null
+          color_background?: string | null
+          color_primary?: string | null
+          color_secondary?: string | null
+          color_text?: string | null
+          completion_pct?: number | null
+          created_at?: string | null
+          custom_colors?: Json | null
+          font_accent?: string | null
+          font_body?: string | null
+          font_title?: string | null
+          icon_style?: string | null
+          id?: string
+          logo_url?: string | null
+          logo_variants?: Json | null
+          mood_board_urls?: Json | null
+          mood_keywords?: Json | null
+          photo_keywords?: Json | null
+          photo_style?: string | null
+          updated_at?: string | null
+          uploaded_templates?: Json | null
+          user_id?: string
+          visual_donts?: string | null
+        }
+        Relationships: []
+      }
       brand_profile: {
         Row: {
           channels: string[] | null
