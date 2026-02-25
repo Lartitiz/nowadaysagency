@@ -44,6 +44,7 @@ serve(async (req) => {
     const ctx = await getUserContext(supabase, user.id);
     const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.highlights);
 
+    const VOICE_PRIORITY = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n`;
     let systemPrompt = "";
     let userPrompt = "";
 
@@ -118,6 +119,7 @@ Même format JSON que précédemment. Réponds UNIQUEMENT en JSON valide, sans t
       return new Response(JSON.stringify({ error: "Type inconnu" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    systemPrompt = VOICE_PRIORITY + systemPrompt;
     const content = await callAnthropicSimple(getModelForAction("highlights"), systemPrompt, userPrompt, 0.8);
 
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
