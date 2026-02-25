@@ -42,9 +42,9 @@ async function countRows(
 
 /* ── Component scores ── */
 
-async function scoreBranding(userId: string): Promise<number> {
+async function scoreBranding(wf: WF): Promise<number> {
   try {
-    const raw = await fetchBrandingData(userId);
+    const raw = await fetchBrandingData(wf);
     const completion = calculateBrandingCompletion(raw);
     return Math.round(completion.total * 0.35);
   } catch {
@@ -160,7 +160,7 @@ export async function computeComScore(
   const since30 = daysAgo(30);
 
   const [branding, regularity, engagement, channels, aiUsage] = await Promise.all([
-    scoreBranding(userId),
+    scoreBranding(workspaceFilter),
     scoreRegularity(workspaceFilter, userId, since28),
     scoreEngagement(workspaceFilter, since28),
     scoreChannels(workspaceFilter, userId),

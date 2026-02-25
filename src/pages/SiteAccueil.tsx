@@ -46,7 +46,7 @@ export default function SiteAccueil() {
         setStep(hp.current_step || 1);
       }
       const { getBrandingCompletion } = await import("@/lib/branding-completion");
-      const { percent } = await getBrandingCompletion(user.id);
+      const { percent } = await getBrandingCompletion({ column, value });
       setBrandingPercent(percent);
       setLoading(false);
     };

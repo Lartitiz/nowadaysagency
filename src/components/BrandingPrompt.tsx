@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { getBrandingCompletion } from "@/lib/branding-completion";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { ArrowRight } from "lucide-react";
 
 interface Props {
@@ -17,11 +18,12 @@ interface Props {
 
 export default function BrandingPrompt({ section = "global", message, linkText, linkTo }: Props) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const [show, setShow] = useState(false);
 
   useEffect(() => {
     if (!user) return;
-    getBrandingCompletion(user.id).then(({ percent, toneComplete }) => {
+    getBrandingCompletion({ column, value }).then(({ percent, toneComplete }) => {
       if (section === "global" && percent < 50) setShow(true);
       else if (section === "tone" && !toneComplete) setShow(true);
       // proposition and strategie always show (not yet available)

@@ -165,7 +165,7 @@ export default function Dashboard() {
 
       const [profRes, brandingData, igAuditRes, liAuditRes, contactRes, prospectRes, prospectConvRes, prospectOffRes, calendarRes, weekPostsRes, weekPublishedRes, nextPostRes, planConfigRes, recsRes] = await Promise.all([
         (supabase.from("profiles") as any).select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq(column, value).single(),
-        fetchBrandingData(user.id),
+        fetchBrandingData({ column, value }),
         (supabase.from("instagram_audit") as any).select("score_global").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         (supabase.from("linkedin_audit") as any).select("score_global").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         (supabase.from("contacts") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("contact_type", "network"),

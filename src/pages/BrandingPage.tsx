@@ -207,7 +207,7 @@ export default function BrandingPage() {
     }
     if (!user) return;
     const load = async () => {
-      const data = await fetchBrandingData(user.id);
+      const data = await fetchBrandingData({ column, value });
       setCompletion(calculateBrandingCompletion(data));
 
       // Determine proposition card state
@@ -308,7 +308,7 @@ export default function BrandingPage() {
 
   const reloadCompletion = async () => {
     if (!user) return;
-    const data = await fetchBrandingData(user.id);
+    const data = await fetchBrandingData({ column, value });
     setCompletion(calculateBrandingCompletion(data));
     if (data.storytellingList && data.storytellingList.length > 0) {
       const primary = data.storytellingList.find((s: any) => s.is_primary);

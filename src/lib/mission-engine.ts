@@ -375,9 +375,10 @@ export function getMonday(d: Date): Date {
 }
 
 /** Compute progress percentages for the overview section */
-export async function computeProgress(state: AppState, userId: string) {
+export async function computeProgress(state: AppState, userId: string, wf?: { column: string; value: string }) {
   // Branding: use centralized calculation
-  const brandingData = await fetchBrandingData(userId);
+  const filter = wf || { column: "user_id", value: userId };
+  const brandingData = await fetchBrandingData(filter);
   const brandingCompletion = calculateBrandingCompletion(brandingData);
   const branding = brandingCompletion.total;
 
