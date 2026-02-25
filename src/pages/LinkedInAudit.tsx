@@ -209,6 +209,7 @@ export default function LinkedInAudit() {
 
       const res = await supabase.functions.invoke("linkedin-audit-ai", {
         body: {
+          workspace_id: workspaceId,
           profileUrl,
           objective,
           currentRhythm: rhythm,

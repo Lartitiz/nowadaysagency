@@ -78,7 +78,7 @@ export default function SiteAccueil() {
     setAiLoading(action);
     try {
       const { data: result, error } = await supabase.functions.invoke("website-ai", {
-        body: { action, ...extraParams },
+        body: { action, ...extraParams, workspace_id: workspaceId },
       });
       if (error) throw error;
       const raw = result?.content || "";

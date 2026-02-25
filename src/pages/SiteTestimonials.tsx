@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ const TIPS = [
 
 export default function SiteTestimonials() {
   const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
   const [rawTestimonial, setRawTestimonial] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -43,7 +45,7 @@ export default function SiteTestimonials() {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("website-ai", {
-        body: { action: "structure-testimonial", raw_testimonial: rawTestimonial },
+        body: { action: "structure-testimonial", raw_testimonial: rawTestimonial, workspace_id: workspaceId },
       });
       if (error) throw error;
       const raw = data?.content || "";
