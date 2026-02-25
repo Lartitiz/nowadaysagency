@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 import { useNavigate, Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -54,6 +55,7 @@ export default function InstagramCreer() {
   const [suggesting, setSuggesting] = useState(false);
   const [suggestion, setSuggestion] = useState<FormatSuggestion | null>(null);
   const [secondaryMode, setSecondaryMode] = useState<"none" | "recycle" | "dictate">("none");
+  const [contentCoachingOpen, setContentCoachingOpen] = useState(false);
   const [profile, setProfile] = useState<any>(null);
 
   // Load profile for dictate mode
@@ -119,6 +121,12 @@ export default function InstagramCreer() {
         <div className="mb-8">
           <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground">✨ Créer un contenu</h1>
           <p className="mt-2 text-sm text-muted-foreground">Chaque format a son propre générateur optimisé.</p>
+          <button
+            onClick={() => setContentCoachingOpen(true)}
+            className="text-xs text-muted-foreground hover:text-primary mt-2 transition-colors"
+          >
+            🤔 Je sais pas quoi poster...
+          </button>
         </div>
 
         {/* ─── Format grid ─── */}
@@ -252,6 +260,8 @@ export default function InstagramCreer() {
             </div>
           )}
         </div>
+
+        <ContentCoachingDialog open={contentCoachingOpen} onOpenChange={setContentCoachingOpen} />
       </main>
     </div>
   );

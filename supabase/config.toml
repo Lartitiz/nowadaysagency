@@ -119,3 +119,6 @@ verify_jwt = false
 
 [functions.linkedin-coaching]
 verify_jwt = false
+
+[functions.content-coaching]
+verify_jwt = false
