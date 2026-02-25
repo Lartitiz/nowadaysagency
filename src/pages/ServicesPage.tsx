@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Target, Search, Home, ArrowRight, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const CALENDLY_URL = "https://calendly.com/laetitia-mattioli/appel-decouverte-academy";
+const CALENDLY_URL = "https://calendly.com/laetitia-mattioli/appel-decouverte";
 
 const services = [
   {

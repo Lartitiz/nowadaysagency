@@ -13,7 +13,7 @@ import {
   MessageCircle, Users, Video, ExternalLink, Loader2,
 } from "lucide-react";
 
-const CALENDLY_URL = "https://calendly.com/laetitia-mattioli/appel-decouverte-academy";
+const CALENDLY_URL = "https://calendly.com/laetitia-mattioli/appel-decouverte";
 const WHATSAPP_URL = "https://wa.me/33614133921";
 
 interface Coaching {

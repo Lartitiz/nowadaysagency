@@ -2,30 +2,27 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Phone, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const CALENDLY_URL = "https://calendly.com/laetitia-mattioli/rendez-vous-avec-laetitia";
+const CALENDLY_URL = "https://calendly.com/laetitia-mattioli/appel-decouverte";
 
 const PHASES = [
   {
-    title: "Mois 1-3 : Je construis pour toi",
-    emoji: "🔧",
+    title: "Mois 1-2 : On construit ta stratégie",
+    emoji: "🧭",
     items: [
-      "Audit complet de ta communication",
-      "Positionnement & branding sur-mesure",
-      "Portrait de ta cible idéale",
-      "Ligne éditoriale & calendrier 3 mois",
-      "Contenus prêts à publier (10-15)",
-      "Templates Canva personnalisés",
+      "Atelier de lancement : audit de l'existant + questionnaire approfondi",
+      "Branding complet : positionnement, storytelling, persona, ton",
+      "Plan d'action sur 6 mois : canaux, calendrier, objectifs",
+      "Tout est intégré dans L'Assistant Com'",
     ],
   },
   {
-    title: "Mois 4-6 : On fait ensemble",
+    title: "Mois 3-6 : On applique ensemble",
     emoji: "🤝",
     items: [
-      "Suivi mensuel de tes résultats",
-      "Ajustements stratégiques en continu",
-      "Coaching sur tes contenus en direct",
-      "Support WhatsApp illimité",
-      "Bilan final & plan d'autonomie",
+      "1 session visio de 2h par mois : on crée ensemble",
+      "Support WhatsApp jours ouvrés (réponse 24-48h)",
+      "Validation de tes livrables par Laetitia",
+      "Accès premium à L'Assistant Com' (300 crédits IA/mois)",
     ],
   },
 ];
@@ -34,13 +31,11 @@ const DELIVERABLES = [
   "Audit de communication complet",
   "Branding & positionnement",
   "Portrait cible détaillé",
-  "Offres reformulées",
+  "Plan d'action 6 mois",
+  "Calendrier éditorial",
+  "Bio Instagram / LinkedIn optimisée",
+  "Contenus co-créés en session",
   "Ligne éditoriale complète",
-  "Calendrier éditorial 3 mois",
-  "Bio Instagram optimisée",
-  "10-15 contenus rédigés",
-  "Templates Canva sur-mesure",
-  "Plan de com' sur 6 mois",
 ];
 
 export default function NowPilotPage() {
@@ -51,13 +46,13 @@ export default function NowPilotPage() {
         <div className="mx-auto max-w-3xl px-6 py-16 text-center">
           <span className="text-sm font-semibold text-primary uppercase tracking-wide">🤝 Accompagnement</span>
           <h1 className="font-display text-3xl sm:text-4xl font-bold text-foreground mt-3 mb-4">
-            Mon accompagnement
+            Ta binôme de com
           </h1>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-2">
-            3 mois je construis pour toi.<br />3 mois on fait ensemble.
+            6 mois pour structurer, créer et piloter ta communication.<br />Ensemble.
           </p>
           <p className="text-sm text-muted-foreground mb-8">
-            L'accompagnement complet pour les solopreneuses qui veulent une communication pro, sans y passer leurs journées.
+            L'accompagnement complet pour les solopreneur·es engagé·es qui veulent une com' pro sans y passer leurs journées.
           </p>
           <Button asChild size="lg" className="rounded-full gap-2 text-base px-8">
             <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer">
@@ -104,7 +99,7 @@ export default function NowPilotPage() {
       {/* Pricing */}
       <div className="mx-auto max-w-3xl px-6 py-12 text-center">
         <h2 className="font-display text-2xl font-bold text-foreground mb-2">250€/mois × 6 mois</h2>
-        <p className="text-muted-foreground mb-2">300 crédits IA inclus · 9 sessions avec Laetitia · WhatsApp illimité</p>
+        <p className="text-muted-foreground mb-2">L'Assistant Com' Premium inclus · 6 sessions visio 2h · Support WhatsApp jours ouvrés</p>
         <p className="text-sm text-muted-foreground mb-6">L'outil complet + un regard humain expert sur ta communication.</p>
         <Button asChild size="lg" className="rounded-full gap-2 text-base px-8">
           <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer">

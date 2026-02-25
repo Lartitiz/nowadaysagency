@@ -234,7 +234,7 @@ export default function AccompagnementPage() {
           <main className="mx-auto max-w-2xl px-4 py-8 animate-fade-in">
             <div className="rounded-2xl bg-rose-pale border border-primary/10 p-8 text-center space-y-6">
               <span className="text-5xl block">🤝</span>
-              <h1 className="font-display text-2xl font-bold text-foreground">L'accompagnement Now Pilot, c'est quoi ?</h1>
+              <h1 className="font-display text-2xl font-bold text-foreground">Ta binôme de com, c'est quoi ?</h1>
               <div className="text-left space-y-3 max-w-md mx-auto">
                 {[
                   "6 mois de stratégie co-construite",
@@ -310,7 +310,7 @@ export default function AccompagnementPage() {
             <span className="text-5xl block">🎓</span>
             <h1 className="font-display text-2xl font-bold text-foreground">Programme terminé</h1>
             <p className="text-sm text-muted-foreground">
-              Ton accompagnement Now Pilot est terminé. Bravo pour tout le chemin parcouru ! 🎉
+              Ton accompagnement est terminé. Bravo pour tout le chemin parcouru ! 🎉
             </p>
             <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
               <span>{completedSess.length} session{completedSess.length > 1 ? "s" : ""} réalisée{completedSess.length > 1 ? "s" : ""}</span>
@@ -390,7 +390,7 @@ export default function AccompagnementPage() {
             <span className="text-2xl">🤝</span>
             <div>
               <h1 className="font-display text-xl font-bold text-foreground">Mon accompagnement</h1>
-              <p className="text-sm text-muted-foreground">Programme Now Pilot · 6 mois · Avec Laetitia</p>
+              <p className="text-sm text-muted-foreground">Binôme de com · 6 mois · Avec Laetitia</p>
             </div>
           </div>
           <p className="text-sm text-muted-foreground mb-2">Mois {program.current_month || 1}/6</p>

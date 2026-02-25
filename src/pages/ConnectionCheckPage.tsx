@@ -139,7 +139,7 @@ export default function ConnectionCheckPage() {
     // Coaching
     if (profile?.current_plan === "now_pilot") {
       const { data: prog } = await supabase.from("coaching_programs").select("id, current_month, current_phase").eq("client_user_id", user.id).eq("status", "active").maybeSingle();
-      results.push({ category: "Accompagnement", name: "Programme Now Pilot", status: prog ? "ok" : "error", detail: prog ? `Mois ${prog.current_month}` : "Plan Now Pilot actif mais AUCUN programme trouvé !" });
+      results.push({ category: "Accompagnement", name: "Programme Binôme", status: prog ? "ok" : "error", detail: prog ? `Mois ${prog.current_month}` : "Plan Binôme actif mais AUCUN programme trouvé !" });
       if (prog) {
         const { data: sessions } = await supabase.from("coaching_sessions").select("id").eq("program_id", prog.id);
         results.push({ category: "Accompagnement", name: "Sessions", status: (sessions?.length ?? 0) > 0 ? "ok" : "warning", detail: `${sessions?.length || 0} sessions` });

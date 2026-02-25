@@ -299,7 +299,7 @@ export default function PricingPage() {
               </div>
             ) : (
               <a
-                href="https://calendly.com/laetitia-mattioli/appel-decouverte-academy"
+                href="https://calendly.com/laetitia-mattioli/appel-decouverte"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-center rounded-pill border border-border py-2.5 font-medium text-foreground hover:bg-secondary transition-colors text-sm"

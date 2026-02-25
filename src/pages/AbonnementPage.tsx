@@ -20,11 +20,6 @@ const QUOTA_CATEGORIES: { key: AiCategory; emoji: string; label: string }[] = [
   { key: "adaptation", emoji: "🔄", label: "Adaptations" },
 ];
 
-const CREDIT_PACKS = [
-  { credits: 20, price: "4,90€", unitPrice: "~0,25€/crédit", badge: null },
-  { credits: 50, price: "9,90€", unitPrice: "~0,20€/crédit", badge: "Le + populaire" },
-  { credits: 100, price: "14,90€", unitPrice: "~0,15€/crédit", badge: "Meilleur prix" },
-] as const;
 
 function getProgressColor(pct: number): string {
   if (pct >= 80) return "bg-destructive";
@@ -80,13 +75,6 @@ export default function AbonnementPage() {
     setPortalLoading(false);
   };
 
-  const handleBuyPack = (credits: number, price: string) => {
-    const email = user?.email || "";
-    const text = encodeURIComponent(
-      `Bonjour Laetitia, je voudrais acheter un pack de ${credits} crédits (${price}). Mon email : ${email}`
-    );
-    window.open(`https://wa.me/33614133921?text=${text}`, "_blank");
-  };
 
   const planLabel = subInfo?.plan === "now_pilot" ? "🤝 Binôme de com" : subInfo?.plan === "studio" ? "Binôme de com" : subInfo?.plan === "outil" ? "Outil" : "Gratuit";
 
@@ -221,57 +209,23 @@ export default function AbonnementPage() {
               <p className="text-xs text-muted-foreground mt-1">
                 Tu as utilisé tous tes crédits. Ils se renouvellent le {renewalDate}.
               </p>
-              <p className="text-xs text-muted-foreground mt-2">En attendant, tu peux recharger :</p>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {CREDIT_PACKS.map(pack => (
-                  <Button
-                    key={pack.credits}
-                    size="sm"
-                    variant="outline"
-                    className="rounded-full text-xs gap-1"
-                    onClick={() => handleBuyPack(pack.credits, pack.price)}
-                  >
-                    <Zap className="h-3 w-3" /> +{pack.credits} · {pack.price}
-                  </Button>
-                ))}
-              </div>
+              <Link to="/pricing" className="inline-block mt-2 text-xs text-primary font-medium hover:underline">
+                Envie de crédits illimités ? Passe au plan Outil →
+              </Link>
             </div>
           )}
 
-          {/* ── Recharger section ── */}
-          {!isExhausted && (
+          {!isExhausted && plan === "free" && (
             <div className="mt-5 pt-4 border-t border-border">
-              <p className="text-sm font-semibold text-foreground mb-1">Besoin de plus de crédits ce mois-ci ?</p>
+              <p className="text-sm font-semibold text-foreground mb-1">Envie de crédits illimités ?</p>
               <p className="text-xs text-muted-foreground mb-3">
-                Les crédits bonus s'ajoutent à ton quota mensuel. Ils n'expirent pas et sont utilisés en dernier.
+                Le plan Outil te donne des crédits illimités sur toutes les catégories.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {CREDIT_PACKS.map(pack => (
-                  <div
-                    key={pack.credits}
-                    className="rounded-xl border border-border p-4 text-center hover:border-primary/40 transition-all relative"
-                  >
-                    {pack.badge && (
-                      <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-full whitespace-nowrap">
-                        {pack.badge}
-                      </span>
-                    )}
-                    <p className="text-sm font-semibold text-foreground flex items-center justify-center gap-1">
-                      <Zap className="h-4 w-4 text-primary" /> {pack.credits} crédits
-                    </p>
-                    <p className="text-lg font-bold text-primary mt-1">{pack.price}</p>
-                    <p className="text-[11px] text-muted-foreground">{pack.unitPrice}</p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="rounded-full mt-3 text-xs w-full"
-                      onClick={() => handleBuyPack(pack.credits, pack.price)}
-                    >
-                      Acheter
-                    </Button>
-                  </div>
-                ))}
-              </div>
+              <Link to="/pricing">
+                <Button size="sm" variant="outline" className="rounded-full text-xs">
+                  Voir les plans →
+                </Button>
+              </Link>
             </div>
           )}
         </div>
@@ -313,7 +267,7 @@ export default function AbonnementPage() {
               {plan === "now_pilot" ? (
                 <span className="inline-block mt-3 text-xs font-semibold text-primary">Plan actuel ✓</span>
               ) : (
-                <Button size="sm" variant="outline" className="mt-3 rounded-full text-xs" onClick={() => window.open("https://calendly.com/laetitia-mattioli/rendez-vous-avec-laetitia", "_blank")}>
+                <Button size="sm" variant="outline" className="mt-3 rounded-full text-xs" onClick={() => window.open("https://calendly.com/laetitia-mattioli/appel-decouverte", "_blank")}>
                   📞 Réserver un appel découverte
                 </Button>
               )}
