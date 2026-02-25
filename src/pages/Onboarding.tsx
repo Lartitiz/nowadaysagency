@@ -18,73 +18,75 @@ import { useToast } from "@/hooks/use-toast";
 
 /* ─── Step validation schemas ─── */
 const stepValidators: Record<number, { schema: z.ZodType<any>; getData: (a: Answers, b: BrandingAnswers) => any; message: string }> = {
-  1: {
+  2: {
     schema: z.object({ prenom: z.string().trim().min(2) }),
     getData: (a) => ({ prenom: a.prenom }),
     message: "Ton prénom doit faire au moins 2 caractères",
   },
-  2: {
+  3: {
     schema: z.object({ activite: z.string().trim().min(2) }),
     getData: (a) => ({ activite: a.activite }),
     message: "Décris ton activité en au moins 2 caractères",
   },
-  3: {
+  4: {
     schema: z.object({ activity_type: z.string().min(1) }),
     getData: (a) => ({ activity_type: a.activity_type }),
     message: "Choisis un type d'activité pour continuer",
   },
-  4: {
+  5: {
     schema: z.object({ canaux: z.array(z.string()).min(1) }),
     getData: (a) => ({ canaux: a.canaux }),
     message: "Choisis au moins un canal pour continuer",
   },
-  5: {
+  6: {
     schema: z.object({ blocage: z.string().min(1) }),
     getData: (a) => ({ blocage: a.blocage }),
     message: "Choisis ton blocage principal pour continuer",
   },
-  6: {
+  7: {
     schema: z.object({ objectif: z.string().min(1) }),
     getData: (a) => ({ objectif: a.objectif }),
     message: "Choisis un objectif pour continuer",
   },
-  7: {
+  8: {
     schema: z.object({ temps: z.string().min(1) }),
     getData: (a) => ({ temps: a.temps }),
     message: "Indique le temps que tu peux y consacrer",
   },
-  10: {
+  11: {
     schema: z.object({ positioning: z.string().trim().min(2) }),
     getData: (_, b) => ({ positioning: b.positioning }),
     message: "Décris ton positionnement en quelques mots",
   },
-  11: {
+  12: {
     schema: z.object({ mission: z.string().trim().min(2) }),
     getData: (_, b) => ({ mission: b.mission }),
     message: "Décris ta mission en quelques mots",
   },
-  12: {
+  13: {
     schema: z.object({ target_description: z.string().trim().min(2) }),
     getData: (_, b) => ({ target_description: b.target_description }),
     message: "Décris ta cliente idéale en quelques mots",
   },
-  13: {
+  14: {
     schema: z.object({ tone_keywords: z.array(z.string()).min(2) }),
     getData: (_, b) => ({ tone_keywords: b.tone_keywords }),
     message: "Choisis au moins 2 mots pour décrire ton ton",
   },
-  14: {
+  15: {
     schema: z.object({ offers: z.array(z.object({ name: z.string().trim().min(1) })).min(1).refine(arr => arr.some(o => o.name.length > 0)) }),
     getData: (_, b) => ({ offers: b.offers }),
     message: "Nomme au moins une offre pour continuer",
   },
-  15: {
+  16: {
     schema: z.object({ values: z.array(z.string()).refine(arr => arr.filter(v => v.trim()).length >= 2) }),
     getData: (_, b) => ({ values: b.values }),
     message: "Indique au moins 2 valeurs pour continuer",
   },
 };
 import WelcomeStep from "@/components/onboarding/steps/WelcomeStep";
+import PromiseStep from "@/components/onboarding/steps/PromiseStep";
+import BrandingTransitionStep from "@/components/onboarding/steps/BrandingTransitionStep";
 import ActivityStep from "@/components/onboarding/steps/ActivityStep";
 import ChannelsStep from "@/components/onboarding/steps/ChannelsStep";
 
@@ -142,7 +144,7 @@ export default function Onboarding() {
       )}
 
       {/* Progress bar — visible from step 0 */}
-      {step <= 15 && (
+      {step <= 17 && (
         <div className="fixed top-0 left-0 right-0 z-40 h-1 bg-border/30">
           <div
             className="h-full bg-primary transition-all duration-500 ease-out"
@@ -152,7 +154,7 @@ export default function Onboarding() {
       )}
 
       {/* Back button */}
-      {step > 0 && step <= 15 && (
+      {step > 0 && step <= 17 && (
         <button
           onClick={prev}
           className="fixed top-4 left-4 z-40 text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 transition-colors"
@@ -162,7 +164,7 @@ export default function Onboarding() {
       )}
 
       {/* Content */}
-      {step <= 16 ? (
+      {step <= 18 ? (
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="max-w-lg w-full flex-1 flex items-center">
             <div className="w-full">
@@ -175,19 +177,71 @@ export default function Onboarding() {
                 exit="exit"
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                {/* PHASE 1: QUI ES-TU */}
+                {/* PHASE 1: ACCUEIL */}
                 {step === 0 && <WelcomeStep onNext={next} />}
-                {step === 1 && <PrenomScreen value={answers.prenom} onChange={v => set("prenom", v)} onNext={validatedNext} />}
-                {step === 2 && <ActiviteScreen prenom={answers.prenom} value={answers.activite} onChange={v => set("activite", v)} onNext={validatedNext} />}
-                {step === 3 && <ActivityStep value={answers.activity_type} detailValue={answers.activity_detail} onChange={v => { set("activity_type", v); if (v !== "autre") { set("activity_detail", ""); setTimeout(validatedNext, 600); } }} onDetailChange={v => set("activity_detail", v)} onNext={validatedNext} />}
-                {step === 4 && <ChannelsStep value={answers.canaux} onChange={v => set("canaux", v)} onNext={validatedNext} />}
-                {step === 5 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setTimeout(validatedNext, 500); }} />}
-                {step === 6 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setTimeout(validatedNext, 500); }} />}
-                {step === 7 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setTimeout(validatedNext, 500); }} />}
-                {step === 8 && <InstagramScreen answers={answers} set={set} onNext={next} onSkip={next} />}
+                {step === 1 && <PromiseStep onNext={next} />}
 
-                {/* PHASE 2: NOURRIR L'OUTIL */}
-                {step === 9 && (
+                {/* PHASE 2: QUI ES-TU */}
+                {step === 2 && <PrenomScreen value={answers.prenom} onChange={v => set("prenom", v)} onNext={validatedNext} />}
+                {step === 3 && <ActiviteScreen prenom={answers.prenom} value={answers.activite} onChange={v => set("activite", v)} onNext={validatedNext} />}
+                {step === 4 && <ActivityStep value={answers.activity_type} detailValue={answers.activity_detail} onChange={v => { set("activity_type", v); if (v !== "autre") { set("activity_detail", ""); setTimeout(validatedNext, 600); } }} onDetailChange={v => set("activity_detail", v)} onNext={validatedNext} />}
+                {step === 5 && <ChannelsStep value={answers.canaux} onChange={v => set("canaux", v)} onNext={validatedNext} />}
+                {step === 6 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setTimeout(validatedNext, 500); }} />}
+                {step === 7 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setTimeout(validatedNext, 500); }} />}
+                {step === 8 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setTimeout(validatedNext, 500); }} />}
+                {step === 9 && <InstagramScreen answers={answers} set={set} onNext={next} onSkip={next} />}
+
+                {/* PHASE 3: BRANDING CONVERSATIONNEL */}
+                {step === 10 && <BrandingTransitionStep onNext={next} />}
+                {step === 11 && (
+                  <PositioningScreen
+                    value={brandingAnswers.positioning}
+                    onChange={v => setBranding("positioning", v)}
+                    placeholder={getPlaceholder("positioning")}
+                    hasAiSuggestion={!!auditResults.documents?.positioning && !brandingAnswers.positioning}
+                    onNext={validatedNext}
+                  />
+                )}
+                {step === 12 && (
+                  <MissionScreen
+                    value={brandingAnswers.mission}
+                    onChange={v => setBranding("mission", v)}
+                    placeholder={getPlaceholder("mission")}
+                    onNext={validatedNext}
+                  />
+                )}
+                {step === 13 && (
+                  <TargetScreen
+                    value={brandingAnswers.target_description}
+                    onChange={v => setBranding("target_description", v)}
+                    placeholder={getPlaceholder("target")}
+                    onNext={validatedNext}
+                  />
+                )}
+                {step === 14 && (
+                  <ToneScreen
+                    value={brandingAnswers.tone_keywords}
+                    onChange={v => setBranding("tone_keywords", v)}
+                    onNext={validatedNext}
+                  />
+                )}
+                {step === 15 && (
+                  <OffersScreen
+                    value={brandingAnswers.offers}
+                    onChange={v => setBranding("offers", v)}
+                    onNext={validatedNext}
+                  />
+                )}
+                {step === 16 && (
+                  <ValuesScreen
+                    value={brandingAnswers.values}
+                    onChange={v => setBranding("values", v)}
+                    onNext={() => { validatedNext(); handleFinish(); }}
+                  />
+                )}
+
+                {/* PHASE 4: IMPORT (après branding) */}
+                {step === 17 && (
                   <ImportScreen
                     files={isDemoMode ? [{ id: "demo-file", name: "Brief_Lea_Portraits.pdf", url: "" }] : uploadedFiles}
                     uploading={uploading}
@@ -199,56 +253,8 @@ export default function Onboarding() {
                   />
                 )}
 
-                {/* PHASE 3: BRANDING CONVERSATIONNEL */}
-                {step === 10 && (
-                  <PositioningScreen
-                    value={brandingAnswers.positioning}
-                    onChange={v => setBranding("positioning", v)}
-                    placeholder={getPlaceholder("positioning")}
-                    hasAiSuggestion={!!auditResults.documents?.positioning && !brandingAnswers.positioning}
-                    onNext={validatedNext}
-                  />
-                )}
-                {step === 11 && (
-                  <MissionScreen
-                    value={brandingAnswers.mission}
-                    onChange={v => setBranding("mission", v)}
-                    placeholder={getPlaceholder("mission")}
-                    onNext={validatedNext}
-                  />
-                )}
-                {step === 12 && (
-                  <TargetScreen
-                    value={brandingAnswers.target_description}
-                    onChange={v => setBranding("target_description", v)}
-                    placeholder={getPlaceholder("target")}
-                    onNext={validatedNext}
-                  />
-                )}
-                {step === 13 && (
-                  <ToneScreen
-                    value={brandingAnswers.tone_keywords}
-                    onChange={v => setBranding("tone_keywords", v)}
-                    onNext={validatedNext}
-                  />
-                )}
-                {step === 14 && (
-                  <OffersScreen
-                    value={brandingAnswers.offers}
-                    onChange={v => setBranding("offers", v)}
-                    onNext={validatedNext}
-                  />
-                )}
-                {step === 15 && (
-                  <ValuesScreen
-                    value={brandingAnswers.values}
-                    onChange={v => setBranding("values", v)}
-                    onNext={() => { validatedNext(); handleFinish(); }}
-                  />
-                )}
-
-                {/* PHASE 4: DIAGNOSTIC LOADING */}
-                {step === 16 && (
+                {/* PHASE 5: DIAGNOSTIC */}
+                {step === 18 && (
                   <DiagnosticLoading
                     hasInstagram={answers.canaux.includes("instagram") && !!answers.instagram}
                     hasWebsite={answers.canaux.includes("website") && !!answers.website}
@@ -258,7 +264,7 @@ export default function Onboarding() {
                     brandingAnswers={brandingAnswers}
                     onReady={(data) => {
                       setDiagnosticData(data);
-                      setStep(17);
+                      setStep(19);
                     }}
                   />
                 )}
@@ -268,7 +274,7 @@ export default function Onboarding() {
           </div>
 
           {/* Time remaining indicator */}
-          {step > 0 && step <= 15 && (
+          {step > 0 && step <= 17 && (
             <p className="text-center text-xs text-muted-foreground/60 pb-4 mt-2">
               {getTimeRemaining(step)}
             </p>
