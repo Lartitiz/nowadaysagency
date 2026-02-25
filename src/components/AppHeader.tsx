@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus } from "lucide-react";
-import AutoBreadcrumb from "@/components/AutoBreadcrumb";
+
 import { useDemoContext } from "@/contexts/DemoContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { Progress } from "@/components/ui/progress";
@@ -293,10 +293,6 @@ function AppHeaderInner() {
         </div>
       )}
 
-      {/* ─── Breadcrumb bar (below header, above content) ─── */}
-      <div className="mx-auto max-w-[1100px] px-6 pt-3 max-md:px-4">
-        <AutoBreadcrumb />
-      </div>
     </>
   );
 }
