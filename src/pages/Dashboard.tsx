@@ -33,6 +33,7 @@ import DiscoveryCoachingCard from "@/components/dashboard/DiscoveryCoachingCard"
 import { checkBadges } from "@/lib/badges";
 import { trackError } from "@/lib/error-tracker";
 import OnboardingMissions from "@/components/dashboard/OnboardingMissions";
+import WelcomeOverlay from "@/components/dashboard/WelcomeOverlay";
 import SessionFocusWidget from "@/components/dashboard/SessionFocusWidget";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 
@@ -310,6 +311,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      <WelcomeOverlay prenom={profile.prenom} />
       <AppHeader />
       
       <main id="main-content" className="mx-auto max-w-[1100px] px-4 sm:px-6 py-6 sm:py-8">
