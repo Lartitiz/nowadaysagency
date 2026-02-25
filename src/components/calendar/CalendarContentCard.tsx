@@ -1,3 +1,4 @@
+import { useState, useRef, useCallback, useMemo } from "react";
 import { type CalendarPost } from "@/lib/calendar-constants";
 import {
   OBJECTIVE_CARD_COLORS,
@@ -9,6 +10,8 @@ import {
 } from "@/lib/calendar-helpers";
 import { ChevronRight, Sparkles, Copy, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SocialMockup } from "@/components/social-mockup/SocialMockup";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   post: CalendarPost;
@@ -56,8 +59,30 @@ function StatusBadge({ status }: { status: string }) {
 
 /** Compact category-colored content card for calendar cells */
 export function CalendarContentCard({ post, onClick, variant = "compact", commentCount, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate }: Props) {
+  const isMobile = useIsMobile();
   const isStories = isStoriesPost(post);
   const isReel = isReelPost(post);
+  const hasPreview = !!post.content_draft && !isMobile;
+
+  // Hover preview state
+  const [showPreview, setShowPreview] = useState(false);
+  const hoverTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const onMouseEnter = useCallback(() => {
+    if (!hasPreview) return;
+    hoverTimeout.current = setTimeout(() => setShowPreview(true), 300);
+  }, [hasPreview]);
+  const onMouseLeave = useCallback(() => {
+    clearTimeout(hoverTimeout.current);
+    setShowPreview(false);
+  }, []);
+
+  const mockupCanal: "instagram" | "linkedin" = post.canal === "linkedin" ? "linkedin" : "instagram";
+  const mockupFormat: "post" | "carousel" | "reel" | "story" = (() => {
+    if (post.format === "post_carrousel") return "carousel";
+    if (post.format === "reel") return "reel";
+    if (post.format === "story" || post.format === "story_serie") return "story";
+    return "post";
+  })();
 
   // Unified color system: 1 color = 1 objective
   const objectifKey = getObjectifKey(post);
@@ -91,6 +116,7 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
     const catInfo = isStories ? { emoji: "📱", label: "Stories" } : CATEGORY_LABELS[objectifKey];
 
     return (
+      <div className="relative" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       <button onClick={onClick}
         className={cn(
           "w-full text-left rounded-lg border px-2.5 py-2 transition-shadow hover:shadow-sm cursor-pointer mb-1.5 group/card relative",
@@ -195,6 +221,25 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
           </span>
         )}
       </button>
+
+      {/* Hover preview popover */}
+      {showPreview && hasPreview && (
+        <div className="absolute left-full top-0 ml-2 z-50 pointer-events-none animate-in fade-in-0 zoom-in-95 duration-150" style={{ width: 280 }}>
+          <div className="rounded-xl border border-border shadow-lg bg-white overflow-hidden" style={{ maxHeight: 320 }}>
+            <SocialMockup
+              canal={mockupCanal}
+              format={mockupFormat}
+              username={post.canal === "linkedin" ? "Profil" : "username"}
+              displayName="Profil"
+              caption={post.content_draft || post.theme}
+              showComments={false}
+              readonly
+              compact
+            />
+          </div>
+        </div>
+      )}
+      </div>
     );
   }
 
