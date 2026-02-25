@@ -4363,6 +4363,7 @@ export type Database = {
         Row: {
           brands: Json | null
           buying_triggers: Json | null
+          channels: string[] | null
           completed: boolean | null
           created_at: string
           current_step: number | null
@@ -4372,6 +4373,8 @@ export type Database = {
           desires: Json | null
           frustrations_detail: Json | null
           id: string
+          is_primary: boolean
+          label: string | null
           motivations: Json | null
           objections: Json | null
           persona_channels: Json | null
@@ -4399,6 +4402,7 @@ export type Database = {
         Insert: {
           brands?: Json | null
           buying_triggers?: Json | null
+          channels?: string[] | null
           completed?: boolean | null
           created_at?: string
           current_step?: number | null
@@ -4408,6 +4412,8 @@ export type Database = {
           desires?: Json | null
           frustrations_detail?: Json | null
           id?: string
+          is_primary?: boolean
+          label?: string | null
           motivations?: Json | null
           objections?: Json | null
           persona_channels?: Json | null
@@ -4435,6 +4441,7 @@ export type Database = {
         Update: {
           brands?: Json | null
           buying_triggers?: Json | null
+          channels?: string[] | null
           completed?: boolean | null
           created_at?: string
           current_step?: number | null
@@ -4444,6 +4451,8 @@ export type Database = {
           desires?: Json | null
           frustrations_detail?: Json | null
           id?: string
+          is_primary?: boolean
+          label?: string | null
           motivations?: Json | null
           objections?: Json | null
           persona_channels?: Json | null
