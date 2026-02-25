@@ -245,6 +245,105 @@ serve(async (req) => {
 
       return new Response(JSON.stringify({ content: visionResult }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+    } else if (action === "optimize-about") {
+      const { url, current_text, focus: aboutFocus } = params;
+
+      let pageContent = current_text || "";
+
+      // If URL provided, scrape it
+      if (!pageContent && url) {
+        const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
+        if (firecrawlKey) {
+          try {
+            let formattedUrl = url.trim();
+            if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
+            const scrapeRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ url: formattedUrl, formats: ["markdown"], onlyMainContent: true }),
+            });
+            const scrapeData = await scrapeRes.json();
+            pageContent = scrapeData?.data?.markdown || scrapeData?.markdown || "";
+          } catch (e) {
+            console.error("Firecrawl error (optimize-about):", e);
+          }
+        }
+      }
+
+      if (!pageContent) {
+        return new Response(
+          JSON.stringify({ error: "Fournis l'URL de ta page ou colle ton texte actuel" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Get audit data if exists
+      const filterCol = workspace_id ? "workspace_id" : "user_id";
+      const filterVal = workspace_id || user.id;
+      const { data: auditData } = await supabase
+        .from("website_audit")
+        .select("scores, diagnostic, recommendations")
+        .eq(filterCol, filterVal)
+        .eq("completed", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let auditSection = "";
+      if (auditData) {
+        const scores = auditData.scores as any;
+        auditSection = `\nRÉSULTATS DE L'AUDIT SITE (si pertinent) :\n- Scores : ${JSON.stringify(scores)}\n- Diagnostic : ${typeof auditData.diagnostic === "string" ? auditData.diagnostic.slice(0, 500) : JSON.stringify(auditData.diagnostic).slice(0, 500)}\n`;
+      }
+
+      systemPrompt = `Tu es une experte en storytelling et pages À propos pour solopreneuses créatives.
+
+TEXTE ACTUEL DE LA PAGE À PROPOS :
+${pageContent.slice(0, 8000)}
+
+PROFIL BRANDING DE L'UTILISATRICE :
+${context}
+${auditSection}
+
+FOCUS DE L'UTILISATRICE : ${aboutFocus || "Amélioration générale"}
+
+Analyse cette page À propos et produis :
+
+DIAGNOSTIC (3-5 phrases) :
+- Quelle impression globale elle donne
+- Si elle parle d'abord de l'utilisatrice ou de sa cliente (l'erreur classique)
+- Si on sent une vraie personne ou un texte corporate
+- Si le storytelling est présent ou absent
+
+CE QUI FONCTIONNE (2-3 points max)
+
+CE QUI NE FONCTIONNE PAS (2-3 points max, concrets)
+
+VERSION AMÉLIORÉE COMPLÈTE : Réécris la page entière en gardant :
+- L'essence et les faits de l'originale (ne change pas l'histoire, améliore la façon de la raconter)
+- Le ton de l'utilisatrice (si le profil de voix est dispo, calque-le)
+
+Améliore :
+- La structure : commence par la cliente, pas par "Je m'appelle..."
+- L'accroche : une première phrase qui accroche, pas un résumé de CV
+- Le storytelling : montre le parcours comme une histoire, pas une liste de faits
+- Les valeurs : concrétise-les (pas "authenticité" mais comment ça se traduit)
+- Le CTA : termine par une invitation à l'action
+
+VARIANTES COURTES (optionnel) :
+- Version pitch (3 phrases)
+- Version bio Instagram (150 caractères)
+
+RÈGLES :
+- Écriture inclusive point médian
+- JAMAIS de tiret cadratin (remplace par : ou ;)
+- Le texte amélioré doit sonner comme l'utilisatrice, pas comme une IA
+- Si le profil de voix existe, reproduis le style fidèlement
+- Si l'audit a identifié des problèmes de confiance, adresse-les spécifiquement
+
+Réponds UNIQUEMENT en JSON sans backticks :
+{"diagnostic": "...", "points_forts": ["...", "..."], "problemes": ["...", "..."], "texte_ameliore": {"title": "...", "story": "...", "values_blocks": [{"title": "...", "description": "..."}], "approach": "...", "for_whom": "...", "cta": "..."}, "variantes": {"pitch": "...", "bio_instagram": "..."}, "score_avant": 45, "score_apres_estime": 78}`;
+      userPrompt = "Analyse et optimise ma page À propos.";
+
     } else {
       return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
