@@ -57,7 +57,7 @@ const MODULE_SKIP_ROUTES: Record<string, string> = {
 };
 
 const ACTION_ROUTES: Record<string, { label: string; route: string; emoji: string }> = {
-  bio: { label: "Réécrire ma bio maintenant", route: "/espaces/instagram/bio", emoji: "✍️" },
+  bio: { label: "Réécrire ma bio maintenant", route: "/instagram/profil/bio", emoji: "✍️" },
   story: { label: "Retravailler mon storytelling", route: "/branding/section?section=story", emoji: "📖" },
   persona: { label: "Affiner ma cible", route: "/branding/section?section=persona", emoji: "👩‍💻" },
   tone: { label: "Redéfinir mon ton", route: "/branding/section?section=tone_style", emoji: "🎨" },
