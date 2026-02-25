@@ -4,9 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
+import AiLoadingIndicator from "@/components/AiLoadingIndicator";
+import AboutOptimizeResult from "@/components/site/AboutOptimizeResult";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Copy, RefreshCw, FileText, Pencil, Check } from "lucide-react";
+import { Loader2, Copy, RefreshCw, FileText, Pencil, Check, ArrowRight, Sparkles, Wrench } from "lucide-react";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -31,6 +35,10 @@ const ANGLES = [
   { id: "parcours", emoji: "🛤️", label: "Le parcours", desc: "Ton narratif, chronologique, ton histoire." },
 ];
 
+const FOCUS_CHIPS = ["Mon histoire", "L'accroche", "Le ton", "La structure", "Tout"];
+
+type Mode = "entry" | "from-scratch" | "optimize-input" | "optimize-loading" | "optimize-result" | "display";
+
 export default function SiteAPropos() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -45,6 +53,17 @@ export default function SiteAPropos() {
   const [exporting, setExporting] = useState(false);
   const recapRef = useRef<HTMLDivElement>(null);
 
+  // Optimize mode state
+  const [mode, setMode] = useState<Mode>("entry");
+  const [inputMode, setInputMode] = useState<"url" | "text">("url");
+  const [optimizeUrl, setOptimizeUrl] = useState("");
+  const [optimizeText, setOptimizeText] = useState("");
+  const [optimizeFocus, setOptimizeFocus] = useState("");
+  const [optimizeResult, setOptimizeResult] = useState<any>(null);
+  const [originalText, setOriginalText] = useState("");
+  const [useAudit, setUseAudit] = useState(true);
+  const [auditScore, setAuditScore] = useState<number | null>(null);
+
   useEffect(() => {
     if (!user) return;
     (supabase.from("website_about") as any).select("*").eq(column, value).maybeSingle()
@@ -56,8 +75,27 @@ export default function SiteAPropos() {
             custom_facts: Array.isArray(d.custom_facts) ? d.custom_facts as unknown as { label: string; value: string }[] : [],
           });
           setSelectedAngle(d.angle || null);
+          if (d.title) setMode("display");
         }
         setLoading(false);
+      });
+    // Check for existing audit
+    (supabase.from("website_audit") as any)
+      .select("scores")
+      .eq(column, value)
+      .eq("completed", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data: a }: any) => {
+        if (a?.scores) {
+          const scores = typeof a.scores === "string" ? JSON.parse(a.scores) : a.scores;
+          const confiance = scores?.confiance || scores?.trust;
+          if (confiance) {
+            const s = confiance.max ? Math.round((confiance.score / confiance.max) * 100) : confiance.score;
+            setAuditScore(s);
+          }
+        }
       });
   }, [user?.id]);
 
@@ -88,13 +126,14 @@ export default function SiteAPropos() {
         await (supabase.from("website_about") as any).update({ ...aboutData, updated_at: new Date().toISOString() }).eq(column, value);
         setData({ ...aboutData, id: existing.id, custom_facts: data?.custom_facts || [] });
       } else {
-        const { data: inserted } = await supabase.from("website_about").insert({ 
+        const { data: inserted } = await supabase.from("website_about").insert({
           user_id: user.id,
           workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-          ...aboutData 
+          ...aboutData,
         } as any).select("id").single();
         setData({ ...aboutData, id: inserted?.id, custom_facts: [] });
       }
+      setMode("display");
       toast({ title: "Page à propos générée !" });
     } catch (e: any) {
       toast({ title: "Erreur", description: e.message, variant: "destructive" });
@@ -103,15 +142,45 @@ export default function SiteAPropos() {
     }
   };
 
+  const handleOptimize = async () => {
+    if (!user) return;
+    const url = inputMode === "url" ? optimizeUrl.trim() : undefined;
+    const text = inputMode === "text" ? optimizeText.trim() : undefined;
+    if (!url && !text) {
+      toast({ title: "Fournis l'URL de ta page ou colle ton texte", variant: "destructive" });
+      return;
+    }
+    setOriginalText(text || "");
+    setMode("optimize-loading");
+    try {
+      const { data: fnData, error } = await supabase.functions.invoke("website-ai", {
+        body: {
+          action: "optimize-about",
+          url,
+          current_text: text,
+          focus: optimizeFocus.trim() || undefined,
+          workspace_id: workspaceId,
+        },
+      });
+      if (error) throw error;
+      const raw = fnData.content?.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(raw);
+      setOptimizeResult(parsed);
+      // If we scraped a URL, store the original text from the result diagnostic
+      if (!text && url) setOriginalText("(contenu extrait de " + url + ")");
+      setMode("optimize-result");
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      setMode("optimize-input");
+    }
+  };
+
   const copyAll = () => {
     if (!data) return;
     const parts = [
-      data.title,
-      data.story,
+      data.title, data.story,
       data.values_blocks?.map(v => `${v.title}\n${v.description}`).join("\n\n"),
-      data.approach,
-      data.for_whom,
-      data.cta,
+      data.approach, data.for_whom, data.cta,
     ].filter(Boolean);
     navigator.clipboard.writeText(parts.join("\n\n---\n\n"));
     toast({ title: "Copié !" });
@@ -160,14 +229,74 @@ export default function SiteAPropos() {
     </div>
   );
 
-  // No data yet: show angle selection
-  if (!data?.title) {
+  // ─── ENTRY SCREEN ───
+  if (mode === "entry") {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
           <h1 className="font-display text-[26px] font-bold text-foreground mb-2">📖 Ma page À propos</h1>
+          <p className="text-[15px] text-muted-foreground mb-8">
+            Raconte ton histoire pour créer du lien. L'IA t'aide à trouver les mots.
+          </p>
+
+          <div className="space-y-4">
+            {/* Card 1: From scratch */}
+            <button
+              onClick={() => setMode("from-scratch")}
+              className="w-full text-left rounded-2xl border-2 border-border hover:border-primary hover:shadow-md bg-card p-6 transition-all group"
+            >
+              <div className="flex items-start gap-4">
+                <span className="flex items-center justify-center h-12 w-12 rounded-2xl bg-primary/10 text-primary shrink-0 group-hover:bg-primary/20 transition-colors">
+                  <Sparkles className="h-6 w-6" />
+                </span>
+                <div className="flex-1">
+                  <p className="font-display text-base font-bold text-foreground">✨ Rédiger ma page de zéro</p>
+                  <p className="text-[13px] text-muted-foreground mt-1">Tu n'as pas encore de page À propos ? On la crée ensemble.</p>
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground mt-1 group-hover:text-primary transition-colors" />
+              </div>
+            </button>
+
+            {/* Card 2: Optimize existing */}
+            <button
+              onClick={() => setMode("optimize-input")}
+              className="w-full text-left rounded-2xl border-2 border-border hover:border-primary hover:shadow-md bg-card p-6 transition-all group"
+            >
+              <div className="flex items-start gap-4">
+                <span className="flex items-center justify-center h-12 w-12 rounded-2xl bg-amber-500/10 text-amber-600 shrink-0 group-hover:bg-amber-500/20 transition-colors">
+                  <Wrench className="h-6 w-6" />
+                </span>
+                <div className="flex-1">
+                  <p className="font-display text-base font-bold text-foreground">🔧 Améliorer ma page existante</p>
+                  <p className="text-[13px] text-muted-foreground mt-1">Tu as déjà une page ? Colle ton URL ou ton texte, l'IA l'améliore.</p>
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground mt-1 group-hover:text-primary transition-colors" />
+              </div>
+            </button>
+          </div>
+
+          {/* If data already exists, show link to display */}
+          {data?.title && (
+            <button onClick={() => setMode("display")} className="mt-6 text-sm text-primary hover:underline">
+              📄 Voir ma page À propos actuelle →
+            </button>
+          )}
+        </main>
+      </div>
+    );
+  }
+
+  // ─── FROM SCRATCH: Angle selection ───
+  if (mode === "from-scratch") {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
+          <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
+          <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
+          <h1 className="font-display text-[26px] font-bold text-foreground mb-2">✨ Rédiger ma page de zéro</h1>
           <p className="text-[15px] text-muted-foreground mb-8">
             L'IA rédige ta page à propos à partir de ton branding. Choisis d'abord un angle.
           </p>
@@ -206,121 +335,208 @@ export default function SiteAPropos() {
     );
   }
 
-  // Display the generated about page
-  return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
+  // ─── OPTIMIZE INPUT ───
+  if (mode === "optimize-input") {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
+          <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
+          <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
+          <h1 className="font-display text-[26px] font-bold text-foreground mb-2">🔧 Améliorer ma page existante</h1>
+          <p className="text-[15px] text-muted-foreground mb-6">
+            Colle ton URL ou ton texte, l'IA l'analyse et te propose une version améliorée.
+          </p>
 
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <Button variant="outline" size="sm" onClick={copyAll}>
-            <Copy className="h-3.5 w-3.5 mr-1" /> Copier tout
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => generate(data.angle || "parcours")} disabled={generating}>
-            {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
-            Regénérer
-          </Button>
-          <Button variant="outline" size="sm" onClick={exportPDF} disabled={exporting}>
-            <FileText className="h-3.5 w-3.5 mr-1" /> PDF
-          </Button>
-        </div>
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
+            {/* Toggle URL / Text */}
+            <div className="flex items-center gap-3">
+              <span className={`text-sm font-medium ${inputMode === "url" ? "text-foreground" : "text-muted-foreground"}`}>Coller l'URL</span>
+              <Switch
+                checked={inputMode === "text"}
+                onCheckedChange={(checked) => setInputMode(checked ? "text" : "url")}
+              />
+              <span className={`text-sm font-medium ${inputMode === "text" ? "text-foreground" : "text-muted-foreground"}`}>Coller le texte</span>
+            </div>
 
-        <div ref={recapRef} className="bg-white rounded-2xl border border-[hsl(var(--border))] p-8 max-md:p-5">
-          {/* Title */}
-          <SectionBlock
-            label="🎯 Titre d'accroche"
-            text={data.title || ""}
-            field="title"
-            editing={editingField}
-            editValue={editValue}
-            onEdit={startEdit}
-            onSave={saveEdit}
-            onEditChange={setEditValue}
-            onCopy={copyText}
-          />
-
-          {/* Story */}
-          <SectionBlock
-            label="👑 Mon histoire"
-            text={data.story || ""}
-            field="story"
-            editing={editingField}
-            editValue={editValue}
-            onEdit={startEdit}
-            onSave={saveEdit}
-            onEditChange={setEditValue}
-            onCopy={copyText}
-          />
-
-          {/* Values */}
-          {data.values_blocks && data.values_blocks.length > 0 && (
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-3">
-                <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B" }}>
-                  ❤️ Mes valeurs
-                </p>
-                <button onClick={() => copyText(data.values_blocks!.map(v => `${v.title}\n${v.description}`).join("\n\n"))}
-                  className="text-xs font-semibold hover:opacity-70" style={{ color: "#fb3d80" }}>
-                  <Copy className="h-3 w-3 inline mr-1" />Copier
-                </button>
+            {inputMode === "url" ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">URL de ta page À propos</label>
+                <Input
+                  value={optimizeUrl}
+                  onChange={(e) => setOptimizeUrl(e.target.value)}
+                  placeholder="https://monsite.com/a-propos"
+                  className="rounded-xl"
+                />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {data.values_blocks.map((v, i) => (
-                  <div key={i} className="rounded-xl p-4" style={{ backgroundColor: "#FFF4F8" }}>
-                    <p style={{ fontWeight: 600, fontSize: 14, color: "#1a1a2e", marginBottom: 4 }}>{v.title}</p>
-                    <p style={{ fontSize: 13, color: "#4B5563", lineHeight: 1.6 }}>{v.description}</p>
-                  </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Texte de ta page</label>
+                <Textarea
+                  value={optimizeText}
+                  onChange={(e) => setOptimizeText(e.target.value)}
+                  placeholder="Colle le texte de ta page À propos actuelle..."
+                  className="rounded-xl min-h-[120px]"
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Qu'est-ce que tu veux améliorer ? <span className="text-muted-foreground font-normal">(optionnel)</span>
+              </label>
+              <Textarea
+                value={optimizeFocus}
+                onChange={(e) => setOptimizeFocus(e.target.value)}
+                placeholder="Ex: Mon histoire sonne faux, c'est trop long, on dirait une fiche Wikipedia..."
+                className="rounded-xl min-h-[70px]"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {FOCUS_CHIPS.map(chip => (
+                  <button
+                    key={chip}
+                    onClick={() => setOptimizeFocus(prev => prev ? `${prev}, ${chip}` : chip)}
+                    className="font-mono-ui text-[11px] font-semibold px-3 py-1 rounded-pill border border-border bg-card hover:border-primary hover:bg-rose-pale transition-colors"
+                  >
+                    {chip}
+                  </button>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* Approach */}
-          <SectionBlock
-            label="🛠️ Mon approche"
-            text={data.approach || ""}
-            field="approach"
-            editing={editingField}
-            editValue={editValue}
-            onEdit={startEdit}
-            onSave={saveEdit}
-            onEditChange={setEditValue}
-            onCopy={copyText}
+            {/* Audit banner */}
+            {auditScore !== null && (
+              <div className="rounded-xl border border-primary/20 bg-rose-pale p-4 space-y-2">
+                <p className="text-sm text-foreground">
+                  💡 Tu as un audit site avec un score confiance de <strong>{auditScore}/100</strong>. L'IA va utiliser ces recommandations pour améliorer ta page.
+                </p>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useAudit}
+                    onChange={(e) => setUseAudit(e.target.checked)}
+                    className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+                  />
+                  <span className="text-sm text-foreground">Utiliser les recommandations de mon audit</span>
+                </label>
+              </div>
+            )}
+
+            <Button
+              onClick={handleOptimize}
+              disabled={inputMode === "url" ? !optimizeUrl.trim() : !optimizeText.trim()}
+              className="w-full sm:w-auto rounded-pill gap-2"
+            >
+              ✨ Analyser et améliorer
+            </Button>
+            <p className="text-xs text-muted-foreground">~30 secondes · L'IA analyse ta page et propose des améliorations</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // ─── OPTIMIZE LOADING ───
+  if (mode === "optimize-loading") {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-[700px] px-6 py-12 max-md:px-4">
+          <AiLoadingIndicator isLoading={true} context="audit" />
+        </main>
+      </div>
+    );
+  }
+
+  // ─── OPTIMIZE RESULT ───
+  if (mode === "optimize-result" && optimizeResult) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
+          <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
+          <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
+          <h1 className="font-display text-[22px] font-bold text-foreground mb-6">🔧 Résultats de l'optimisation</h1>
+          <AboutOptimizeResult
+            result={optimizeResult}
+            originalText={originalText}
+            onRetry={() => setMode("optimize-input")}
+            userId={user!.id}
           />
+        </main>
+      </div>
+    );
+  }
 
-          {/* For whom */}
-          <SectionBlock
-            label="🎯 Pour qui"
-            text={data.for_whom || ""}
-            field="for_whom"
-            editing={editingField}
-            editValue={editValue}
-            onEdit={startEdit}
-            onSave={saveEdit}
-            onEditChange={setEditValue}
-            onCopy={copyText}
-          />
+  // ─── DISPLAY GENERATED PAGE ───
+  if (mode === "display" && data?.title) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
+          <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
 
-          {/* CTA */}
-          <SectionBlock
-            label="🔘 CTA"
-            text={data.cta || ""}
-            field="cta"
-            editing={editingField}
-            editValue={editValue}
-            onEdit={startEdit}
-            onSave={saveEdit}
-            onEditChange={setEditValue}
-            onCopy={copyText}
-            isLast
-          />
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <Button variant="outline" size="sm" onClick={() => setMode("entry")} className="gap-1.5">
+              ← Modifier
+            </Button>
+            <Button variant="outline" size="sm" onClick={copyAll}>
+              <Copy className="h-3.5 w-3.5 mr-1" /> Copier tout
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => generate(data.angle || "parcours")} disabled={generating}>
+              {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
+              Regénérer
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportPDF} disabled={exporting}>
+              <FileText className="h-3.5 w-3.5 mr-1" /> PDF
+            </Button>
+          </div>
 
-          {/* Footer */}
-          <p style={{ textAlign: "center", fontSize: 11, color: "#D1D5DB", marginTop: 32 }}>
-            L'Assistant Com' × Nowadays Agency
-          </p>
-        </div>
+          <div ref={recapRef} className="bg-white rounded-2xl border border-[hsl(var(--border))] p-8 max-md:p-5">
+            <SectionBlock label="🎯 Titre d'accroche" text={data.title || ""} field="title" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} />
+            <SectionBlock label="👑 Mon histoire" text={data.story || ""} field="story" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} />
+
+            {data.values_blocks && data.values_blocks.length > 0 && (
+              <div className="mb-8">
+                <div className="flex items-center justify-between mb-3">
+                  <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B" }}>
+                    ❤️ Mes valeurs
+                  </p>
+                  <button onClick={() => copyText(data.values_blocks!.map(v => `${v.title}\n${v.description}`).join("\n\n"))}
+                    className="text-xs font-semibold hover:opacity-70" style={{ color: "#fb3d80" }}>
+                    <Copy className="h-3 w-3 inline mr-1" />Copier
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {data.values_blocks.map((v, i) => (
+                    <div key={i} className="rounded-xl p-4" style={{ backgroundColor: "#FFF4F8" }}>
+                      <p style={{ fontWeight: 600, fontSize: 14, color: "#1a1a2e", marginBottom: 4 }}>{v.title}</p>
+                      <p style={{ fontSize: 13, color: "#4B5563", lineHeight: 1.6 }}>{v.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <SectionBlock label="🛠️ Mon approche" text={data.approach || ""} field="approach" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} />
+            <SectionBlock label="🎯 Pour qui" text={data.for_whom || ""} field="for_whom" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} />
+            <SectionBlock label="🔘 CTA" text={data.cta || ""} field="cta" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} isLast />
+
+            <p style={{ textAlign: "center", fontSize: 11, color: "#D1D5DB", marginTop: 32 }}>
+              L'Assistant Com' × Nowadays Agency
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Fallback to entry
+  return (
+    <div className="min-h-screen bg-background">
+      <AppHeader />
+      <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
+        <p className="text-muted-foreground">Chargement...</p>
       </main>
     </div>
   );
@@ -360,12 +576,7 @@ function SectionBlock({
         </div>
       </div>
       {isEditing ? (
-        <Textarea
-          value={editValue}
-          onChange={(e) => onEditChange(e.target.value)}
-          className="min-h-[100px] text-sm"
-          autoFocus
-        />
+        <Textarea value={editValue} onChange={(e) => onEditChange(e.target.value)} className="min-h-[100px] text-sm" autoFocus />
       ) : (
         <p style={{ fontSize: 14, color: "#1a1a2e", lineHeight: 1.7, whiteSpace: "pre-line" }}>{text}</p>
       )}
