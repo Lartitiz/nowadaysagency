@@ -4,8 +4,6 @@ import { trackError } from "@/lib/error-tracker";
 import { supabase } from "@/integrations/supabase/client";
 import { useDemoContext } from "@/contexts/DemoContext";
 
-const ADMIN_EMAILS = ["laetitia@nowadaysagency.com"];
-
 type Plan = "free" | "outil" | "pro" | "studio" | "now_pilot";
 
 type Feature =
@@ -108,7 +106,7 @@ export function useUserPlan(): UserPlanState {
     load();
   }, [load]);
 
-  const isAdminUser = ADMIN_EMAILS.includes(user?.email || "");
+  const { isAdmin: isAdminUser } = useAuth();
   const effectivePlan: Plan = isAdminUser ? "now_pilot" : (isDemoMode ? demoPlanResolved : plan);
 
   const canUseFeature = useCallback(
