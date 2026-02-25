@@ -110,6 +110,16 @@ function getMonthStart(): string {
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 }
 
+async function getBonusCredits(userId: string): Promise<number> {
+  const sb = getServiceClient();
+  const { data } = await sb
+    .from("profiles")
+    .select("bonus_credits")
+    .eq("user_id", userId)
+    .single();
+  return data?.bonus_credits || 0;
+}
+
 export async function checkQuota(
   userId: string,
   category: string,
@@ -134,6 +144,10 @@ export async function checkQuota(
   const sb = getServiceClient();
   const monthStart = getMonthStart();
 
+  // Get bonus credits for the user
+  const bonusCredits = await getBonusCredits(userId);
+  const effectiveTotalLimit = limits.total + bonusCredits;
+
   // Get all usage this month — filter by workspace or user
   const query = sb
     .from("ai_usage")
@@ -152,17 +166,17 @@ export async function checkQuota(
   const totalUsed = rows.length;
   const categoryUsed = rows.filter((r: any) => r.category === category).length;
 
-  // Build usage map
+  // Build usage map (effective total includes bonus)
   const usageMap: Record<string, { used: number; limit: number }> = {};
   for (const cat of Object.keys(limits)) {
     if (cat === "total") continue;
     const used = rows.filter((r: any) => r.category === cat).length;
     usageMap[cat] = { used, limit: limits[cat] };
   }
-  usageMap.total = { used: totalUsed, limit: limits.total };
+  usageMap.total = { used: totalUsed, limit: effectiveTotalLimit };
 
-  // Check total limit
-  if (totalUsed >= limits.total) {
+  // Check total limit (monthly + bonus)
+  if (totalUsed >= effectiveTotalLimit) {
     const nextMonth = new Date();
     nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
     const monthLabel = nextMonth.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
@@ -173,7 +187,7 @@ export async function checkQuota(
       remaining: 0,
       remaining_total: 0,
       usage: usageMap,
-      message: `Tu as utilisé tes ${limits.total} générations IA ce mois. Tes crédits se renouvellent le ${monthLabel}.`,
+      message: `Tu as utilisé tes ${effectiveTotalLimit} générations IA ce mois. Tes crédits se renouvellent le ${monthLabel}.`,
     };
   }
 
@@ -188,7 +202,7 @@ export async function checkQuota(
       plan,
       reason: "category",
       remaining: 0,
-      remaining_total: limits.total - totalUsed,
+      remaining_total: effectiveTotalLimit - totalUsed,
       usage: usageMap,
       message: `Tu as utilisé tes ${limits[category]} ${label} ce mois. Tes crédits se renouvellent le ${monthLabel}.`,
     };
@@ -198,7 +212,7 @@ export async function checkQuota(
     allowed: true,
     plan,
     remaining: limits[category] - categoryUsed - 1,
-    remaining_total: limits.total - totalUsed - 1,
+    remaining_total: effectiveTotalLimit - totalUsed - 1,
     usage: usageMap,
   };
 }
@@ -220,6 +234,35 @@ export async function logUsage(
     model_used: modelUsed || null,
     workspace_id: workspaceId || null,
   });
+
+  // After logging, check if user exceeded monthly base limit → decrement bonus
+  const plan = await getUserPlan(userId);
+  const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+  const monthStart = getMonthStart();
+
+  const { data: usageRows } = await sb
+    .from("ai_usage")
+    .select("id")
+    .eq("user_id", userId)
+    .gte("created_at", monthStart);
+
+  const totalUsed = (usageRows || []).length;
+
+  // If usage exceeds monthly base limit, this credit came from bonus
+  if (totalUsed > limits.total) {
+    const { data: profile } = await sb
+      .from("profiles")
+      .select("bonus_credits")
+      .eq("user_id", userId)
+      .single();
+    const currentBonus = profile?.bonus_credits || 0;
+    if (currentBonus > 0) {
+      await sb
+        .from("profiles")
+        .update({ bonus_credits: currentBonus - 1 })
+        .eq("user_id", userId);
+    }
+  }
 }
 
 /** @deprecated Use checkQuota + logUsage instead */

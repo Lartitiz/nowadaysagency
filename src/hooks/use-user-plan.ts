@@ -51,6 +51,7 @@ interface UserPlanState {
   plan: Plan;
   loading: boolean;
   usage: Record<string, CategoryUsage>;
+  bonusCredits: number;
   canUseFeature: (feature: Feature) => boolean;
   canGenerate: (category?: AiCategory) => boolean;
   canAudit: () => boolean;
@@ -68,6 +69,7 @@ export function useUserPlan(): UserPlanState {
   const { isDemoMode, demoData, demoPlan } = useDemoContext();
   const demoPlanResolved: Plan = isDemoMode ? (demoPlan as Plan) : "free";
   const [plan, setPlan] = useState<Plan>(isDemoMode ? demoPlanResolved : "free");
+  const [bonusCredits, setBonusCredits] = useState(0);
   const [usage, setUsage] = useState<Record<string, CategoryUsage>>(() => {
     if (isDemoMode) {
       return getDemoUsage(demoPlan, demoData);
@@ -92,6 +94,7 @@ export function useUserPlan(): UserPlanState {
       const { data, error } = await supabase.functions.invoke("check-subscription");
       if (!error && data) {
         setPlan((data.plan as Plan) || "free");
+        setBonusCredits(data.bonus_credits || 0);
         if (data.ai_usage && typeof data.ai_usage === "object") {
           setUsage(data.ai_usage);
         }
@@ -162,6 +165,7 @@ export function useUserPlan(): UserPlanState {
     plan: effectivePlan,
     loading,
     usage,
+    bonusCredits,
     canUseFeature,
     canGenerate,
     canAudit,

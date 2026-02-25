@@ -4638,6 +4638,7 @@ export type Database = {
           bio_cta_text: string | null
           bio_cta_type: string | null
           bio_generator_answers: Json | null
+          bonus_credits: number
           canaux: string[]
           ce_quon_evite: string
           cible: string
@@ -4701,6 +4702,7 @@ export type Database = {
           bio_cta_text?: string | null
           bio_cta_type?: string | null
           bio_generator_answers?: Json | null
+          bonus_credits?: number
           canaux?: string[]
           ce_quon_evite?: string
           cible?: string
@@ -4764,6 +4766,7 @@ export type Database = {
           bio_cta_text?: string | null
           bio_cta_type?: string | null
           bio_generator_answers?: Json | null
+          bonus_credits?: number
           canaux?: string[]
           ce_quon_evite?: string
           cible?: string

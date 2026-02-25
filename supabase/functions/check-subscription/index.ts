@@ -62,6 +62,14 @@ serve(async (req) => {
       .eq("user_id", userId)
       .single();
 
+    // Get bonus credits
+    const { data: profileData } = await supabaseClient
+      .from("profiles")
+      .select("bonus_credits")
+      .eq("user_id", userId)
+      .single();
+    const bonusCredits = profileData?.bonus_credits || 0;
+
     // Also check coaching_programs for active Now Pilot programs
     const { data: activeProgram } = await supabaseClient
       .from("coaching_programs")
@@ -102,7 +110,7 @@ serve(async (req) => {
       const used = rows.filter((r: any) => r.category === cat).length;
       usage[cat] = { used, limit: limits[cat] };
     }
-    usage.total = { used: rows.length, limit: limits.total };
+    usage.total = { used: rows.length, limit: limits.total + bonusCredits };
 
     return new Response(JSON.stringify({
       plan,
@@ -114,6 +122,7 @@ serve(async (req) => {
       source: sub?.source || "stripe",
       purchases: purchases || [],
       ai_usage: usage,
+      bonus_credits: bonusCredits,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

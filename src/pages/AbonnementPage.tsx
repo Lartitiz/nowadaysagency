@@ -4,9 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CreditCard, Loader2, ArrowRight, Zap, ChevronDown, ChevronUp } from "lucide-react";
+import { CreditCard, Loader2, ArrowRight, Zap, ChevronDown, ChevronUp, Gift } from "lucide-react";
 import { useUserPlan, type AiCategory } from "@/hooks/use-user-plan";
-import { STRIPE_PLANS } from "@/lib/stripe-config";
+import { STRIPE_PLANS, CREDIT_PACKS } from "@/lib/stripe-config";
 import { Link } from "react-router-dom";
 import PromoCodeInput from "@/components/PromoCodeInput";
 
@@ -35,12 +35,13 @@ function getNextRenewalDate(): string {
 
 export default function AbonnementPage() {
   const { user } = useAuth();
-  const { plan, usage, isPaid, isPilot, refresh } = useUserPlan();
+  const { plan, usage, isPaid, isPilot, bonusCredits, refresh } = useUserPlan();
 
   const [subInfo, setSubInfo] = useState<any>(null);
   const [loadingSub, setLoadingSub] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  const [packLoading, setPackLoading] = useState<string | null>(null);
 
   useEffect(() => {
     refresh();
@@ -75,6 +76,18 @@ export default function AbonnementPage() {
     setPortalLoading(false);
   };
 
+  const handleBuyPack = async (packKey: string, priceId: string) => {
+    if (!priceId) return;
+    setPackLoading(packKey);
+    try {
+      const { data } = await supabase.functions.invoke("create-checkout", {
+        body: { priceId, mode: "payment" },
+      });
+      if (data?.url) window.location.href = data.url;
+    } catch {}
+    setPackLoading(null);
+  };
+
 
   const planLabel = subInfo?.plan === "now_pilot" ? "🤝 Binôme de com" : subInfo?.plan === "studio" ? "Binôme de com" : subInfo?.plan === "outil" ? "Outil" : "Gratuit";
 
@@ -85,6 +98,8 @@ export default function AbonnementPage() {
   const isExhausted = totalRemaining === 0;
   const monthName = new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
   const renewalDate = getNextRenewalDate();
+
+  const packsAvailable = Object.values(CREDIT_PACKS).some(p => p.priceId);
 
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-8">
@@ -168,6 +183,16 @@ export default function AbonnementPage() {
             </p>
           </div>
 
+          {/* Bonus credits display */}
+          {bonusCredits > 0 && (
+            <div className="mt-3 flex items-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10">
+              <Gift className="h-4 w-4 text-primary" />
+              <span className="text-sm text-foreground">
+                🎁 Tu as aussi <strong>{bonusCredits} crédits bonus</strong> (jamais expirés)
+              </span>
+            </div>
+          )}
+
           {/* Category detail toggle */}
           <button
             onClick={() => setShowDetail(!showDetail)}
@@ -202,6 +227,37 @@ export default function AbonnementPage() {
             </div>
           )}
 
+          {/* Credit packs */}
+          {packsAvailable && (
+            <div className="mt-5 pt-4 border-t border-border">
+              <p className="text-sm font-semibold text-foreground mb-1">⚡ Acheter des crédits bonus</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Les crédits bonus ne s'épuisent jamais et sont utilisés après tes crédits mensuels.
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {Object.entries(CREDIT_PACKS).map(([key, pack]) => {
+                  if (!pack.priceId) return null;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => handleBuyPack(key, pack.priceId)}
+                      disabled={!!packLoading}
+                      className="flex flex-col items-center gap-1 p-3 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-all text-center"
+                    >
+                      {packLoading === key ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      ) : (
+                        <span className="text-lg">{pack.emoji}</span>
+                      )}
+                      <span className="text-sm font-semibold text-foreground">{pack.label}</span>
+                      <span className="text-xs text-primary font-semibold">{pack.price.toFixed(2).replace('.', ',')}€</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Exhausted state */}
           {isExhausted && (
             <div className="mt-4 p-4 rounded-xl bg-destructive/5 border border-destructive/20">
@@ -209,13 +265,19 @@ export default function AbonnementPage() {
               <p className="text-xs text-muted-foreground mt-1">
                 Tu as utilisé tous tes crédits. Ils se renouvellent le {renewalDate}.
               </p>
-              <Link to="/pricing" className="inline-block mt-2 text-xs text-primary font-medium hover:underline">
-                Envie de crédits illimités ? Passe au plan Outil →
-              </Link>
+              {packsAvailable ? (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tu peux acheter un pack de crédits bonus ci-dessus pour continuer.
+                </p>
+              ) : (
+                <Link to="/pricing" className="inline-block mt-2 text-xs text-primary font-medium hover:underline">
+                  Passer au plan Outil pour plus de crédits →
+                </Link>
+              )}
             </div>
           )}
 
-          {!isExhausted && plan === "free" && (
+          {!isExhausted && plan === "free" && !packsAvailable && (
             <div className="mt-5 pt-4 border-t border-border">
               <p className="text-sm font-semibold text-foreground mb-1">Envie de crédits illimités ?</p>
               <p className="text-xs text-muted-foreground mb-3">

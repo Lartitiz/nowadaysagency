@@ -83,7 +83,27 @@ serve(async (req) => {
 
           const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
           const priceId = lineItems.data[0]?.price?.id || "";
-          const productType = productTypeMap[priceId] || "unknown";
+          const product = lineItems.data[0]?.price?.product;
+
+          // Check if this is a credit pack purchase by looking at product metadata
+          let isCreditPack = false;
+          let packCredits = 0;
+          if (product && typeof product === "string") {
+            try {
+              const stripeProduct = await stripe.products.retrieve(product);
+              if (stripeProduct.metadata?.type === "credit_pack") {
+                isCreditPack = true;
+                packCredits = parseInt(stripeProduct.metadata.credits || "0", 10);
+              }
+            } catch (e) {
+              log("Could not retrieve product metadata", { product, error: String(e) });
+            }
+          }
+
+          let productType = productTypeMap[priceId] || "unknown";
+          if (isCreditPack) {
+            productType = `credit_pack_${packCredits}`;
+          }
 
           await supabase.from("purchases").insert({
             user_id: userId,
@@ -94,6 +114,21 @@ serve(async (req) => {
             currency: session.currency || "eur",
             status: "paid",
           });
+
+          // Credit pack: increment bonus_credits
+          if (isCreditPack && packCredits > 0) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("bonus_credits")
+              .eq("user_id", userId)
+              .single();
+            const currentBonus = profile?.bonus_credits || 0;
+            await supabase
+              .from("profiles")
+              .update({ bonus_credits: currentBonus + packCredits })
+              .eq("user_id", userId);
+            log("Bonus credits added", { userId, packCredits, newTotal: currentBonus + packCredits });
+          }
 
           // If studio one-time, activate studio plan
           if (productType === "studio_once") {
