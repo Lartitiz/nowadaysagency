@@ -497,7 +497,7 @@ export default function AdminAuditPage() {
         {/* Summary cards */}
         {results.length > 0 && !running && (
           <>
-            <div className="grid grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
               <div className="bg-green-50 dark:bg-green-950/30 rounded-xl p-4 text-center border border-green-200 dark:border-green-800">
                 <p className="text-2xl font-bold text-green-600">{okCount}</p>
                 <p className="text-xs text-green-600">OK</p>

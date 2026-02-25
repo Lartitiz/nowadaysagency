@@ -285,7 +285,7 @@ export default function InstagramEngagement() {
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full grid grid-cols-3">
+          <TabsList className="w-full grid grid-cols-1 sm:grid-cols-3">
             <TabsTrigger value="engagement">💬 Engagement</TabsTrigger>
             <TabsTrigger value="contacts">👥 Contacts</TabsTrigger>
             <TabsTrigger value="prospection">🎯 Prospection</TabsTrigger>

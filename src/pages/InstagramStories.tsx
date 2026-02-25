@@ -540,7 +540,7 @@ export default function InstagramStories() {
           <div className="mb-8 space-y-6">
             <div>
               <h2 className="font-display text-lg font-bold text-foreground mb-3">2. Tu as combien de temps ?</h2>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {TIME_OPTIONS.map((t) => (
                   <button
                     key={t.id}
@@ -557,7 +557,7 @@ export default function InstagramStories() {
 
             <div>
               <h2 className="font-display text-lg font-bold text-foreground mb-3">Tu veux faire de la face cam ?</h2>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {FACECAM_OPTIONS.map((fc) => (
                   <button
                     key={fc.id}
