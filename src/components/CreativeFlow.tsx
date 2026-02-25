@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import BaseReminder from "@/components/BaseReminder";
 import ContentScoring from "@/components/ContentScoring";
 import FeedbackLoop from "@/components/FeedbackLoop";
@@ -174,6 +175,8 @@ export default function CreativeFlow({
   const [anglesCollapsed, setAnglesCollapsed] = useState(false);
   const [questionsCollapsed, setQuestionsCollapsed] = useState(false);
 
+  const workspaceId = useWorkspaceId();
+
   const callCreativeFlow = useCallback(async (stepName: string, extra: any = {}) => {
     const res = await supabase.functions.invoke("creative-flow", {
       body: {
@@ -182,12 +185,13 @@ export default function CreativeFlow({
         context,
         profile: profile || {},
         calendarContext: calendarContext || undefined,
+        workspace_id: workspaceId,
         ...extra,
       },
     });
     if (res.error) throw new Error(res.error.message);
     return res.data;
-  }, [contentType, context, profile, calendarContext]);
+  }, [contentType, context, profile, calendarContext, workspaceId]);
 
   // Auto-start creative flow when coming from calendar
   useEffect(() => {
