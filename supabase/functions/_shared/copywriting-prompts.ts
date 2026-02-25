@@ -508,251 +508,142 @@ HASHTAGS :
 `;
 
 export const LINKEDIN_TEMPLATES: Record<string, string> = {
-  enquete_decryptage: `FORMAT : ENQUÊTE / DÉCRYPTAGE
-Objectif : Visibilité + crédibilité (Phase 1-2 du parcours)
+  enquete_decryptage: `TEMPLATE ENQUÊTE / DÉCRYPTAGE :
+STRUCTURE : Accroche stat/contrariante → Constat terrain → Analyse de fond → Ce que ça change concrètement → Ouverture question
+Hook recommandé : statistique ou contrariante
+Objectif : Crédibilité + Visibilité
+Longueur cible : 1500-1900 caractères`,
 
-ACCROCHES RECOMMANDÉES : statistique/chiffre choc, contrariante, frustration/coup de gueule
-Exemples d'accroches :
-- "Personne ne parle de ça, et ça me rend dingue."
-- "[Chiffre choc]. Et pourtant, on continue de faire comme si de rien n'était."
+  test_grandeur_nature: `TEMPLATE TEST GRANDEUR NATURE :
+STRUCTURE : Accroche "j'ai testé X pendant Y" → Le contexte : pourquoi j'ai testé → Ce qui s'est passé (chronologique) → Le verdict honnête → Ce que j'en retiens pour toi
+Hook recommandé : story ou confession
+Objectif : Confiance + Engagement
+Longueur cible : 1400-1800 caractères`,
 
-STRUCTURE (Observation + Analyse + Position) :
-Hook (2 lignes, avant "voir plus") : fait observé + angle original
-Ce que tu observes (2-3 phrases) : résumé factuel, exemples concrets
-Pourquoi c'est un problème (3-4 phrases) : analyse de fond, aller au bout de l'idée
-Ce que ça révèle (2-3 phrases) : regard philosophique/sociétal
-Ta position (1-2 phrases) : affirmation claire
-CTA : question ouverte invitant au débat
+  coup_de_gueule: `TEMPLATE COUP DE GUEULE ENGAGÉ :
+STRUCTURE : Accroche coup de poing → Le constat qui énerve (exemples concrets) → Pourquoi c'est un problème (aller au fond) → L'alternative que tu défends → CTA engagé
+Hook recommandé : frustration ou ennemi_commun
+Objectif : Visibilité + Engagement
+Longueur cible : 1300-1700 caractères
+ATTENTION : reste constructif·ve. Le coup de gueule doit proposer une alternative, pas juste critiquer.`,
 
-CONSIGNE : va au fond de l'analyse. Ne reste pas en surface. Le·la lecteur·ice doit apprendre quelque chose.`,
+  mythe_deconstruire: `TEMPLATE MYTHE À DÉCONSTRUIRE :
+STRUCTURE : Accroche "On vous a menti sur..." / "Non, [croyance populaire] n'est pas..." → Le mythe tel qu'on le croit → Pourquoi c'est faux (preuves, expérience) → La réalité nuancée → Ce que ça change dans la pratique
+Hook recommandé : contrariante ou question
+Objectif : Crédibilité + Visibilité
+Longueur cible : 1400-1800 caractères`,
 
-  test_grandeur_nature: `FORMAT : TEST GRANDEUR NATURE
-Objectif : Visibilité + confiance (Phase 2)
+  storytelling_lecon: `TEMPLATE STORYTELLING + LEÇON :
+STRUCTURE : Hook in medias res ou confession → Contexte (quand, où, pourquoi) → L'histoire (galères, surprises, retournements) → La leçon (sincère, pas moralisatrice) → CTA question intime
+Hook recommandé : story ou confession
+Objectif : Confiance + Engagement
+Longueur cible : 1500-1900 caractères`,
 
-ACCROCHES RECOMMANDÉES : story (in medias res), avant/après, confession
-Exemples d'accroches :
-- "J'ai testé [X] pendant [durée]. Verdict honnête."
-- "On m'a dit que [X] changeait tout. J'ai voulu vérifier."
+  histoire_cliente: `TEMPLATE HISTOIRE CLIENTE / ÉTUDE DE CAS :
+STRUCTURE : Hook résultat ou problème frappant → Le contexte client (qui, quel problème, avant) → Ce qu'on a fait ensemble (concret, pas de jargon) → Les résultats (chiffres ou qualitatif, après) → La leçon transférable
+Hook recommandé : avant_apres ou statistique
+Objectif : Vente + Crédibilité
+Longueur cible : 1400-1800 caractères
+Si pas de chiffres : utiliser du qualitatif ("elle a osé", "elle a structuré", "elle a gagné en clarté").`,
 
-STRUCTURE (Test/Verdict) :
-Hook (2 lignes) : "J'ai testé X" + promesse de verdict
-Contexte (2-3 phrases) : pourquoi ce test, dans quelles conditions
-Ce qui a marché (3-4 phrases) : résultats concrets, chiffres si possible
-Ce qui a foiré (2-3 phrases) : honnêteté totale, pas de "tout était parfait"
-Verdict (2-3 phrases) : synthèse nuancée, pour qui c'est adapté
-CTA : "Tu as déjà testé ? C'était quoi ton expérience ?"
+  surf_actu: `TEMPLATE SURF SUR L'ACTU :
+STRUCTURE : Accroche fait d'actualité → Ce qui se passe (résumé factuel, 2-3 phrases) → Ton angle expert (ce que personne ne dit) → Ce que ça change pour ton audience → Ouverture débat
+Hook recommandé : statistique ou question
+Objectif : Visibilité + Crédibilité
+Longueur cible : 1300-1700 caractères
+IMPORTANT : ne pas juste commenter l'actu, apporter un angle que personne d'autre n'a.`,
 
-CONSIGNE : la crédibilité vient de l'honnêteté. Ne cache pas les aspects négatifs.`,
+  regard_philosophique: `TEMPLATE REGARD PHILOSOPHIQUE :
+STRUCTURE : Question existentielle ou observation → Le lien avec ton métier/secteur → Ta réflexion de fond (aller loin dans l'idée) → Ce que ça dit de nous → Ouverture qui fait réfléchir
+Hook recommandé : question ou contrariante
+Objectif : Confiance + Engagement
+Longueur cible : 1500-1900 caractères
+C'est le format France Culture : on prend le temps de penser.`,
 
-  coup_de_gueule: `FORMAT : COUP DE GUEULE ENGAGÉ
-Objectif : Visibilité + engagement (Phase 1)
+  conseil_contre_intuitif: `TEMPLATE CONSEIL CONTRE-INTUITIF :
+STRUCTURE : Accroche "Arrête de..." ou "Le meilleur conseil que j'ai reçu..." → Le conseil mainstream que tout le monde donne → Pourquoi ça ne marche pas (ton expérience) → Ce qui marche VRAIMENT → Application concrète
+Hook recommandé : contrariante ou frustration
+Objectif : Crédibilité + Engagement
+Longueur cible : 1400-1700 caractères`,
 
-ACCROCHES RECOMMANDÉES : frustration/coup de gueule, ennemi commun, contrariante
-Exemples d'accroches :
-- "J'en peux plus de voir ça sur LinkedIn. Il faut qu'on en parle."
-- "Le vrai problème, c'est pas toi. C'est cette injonction qu'on te répète depuis des années."
+  before_after: `TEMPLATE BEFORE/AFTER :
+STRUCTURE : Accroche contraste frappant → AVANT : la situation de départ (concret, douloureux) → Le déclic / ce qui a changé → APRÈS : la situation actuelle → La clé : qu'est-ce qui a fait la différence
+Hook recommandé : avant_apres ou story
+Objectif : Vente + Confiance
+Longueur cible : 1300-1700 caractères`,
 
-STRUCTURE (Ennemi commun + Alternative) :
-Hook (2 lignes) : frustration ou indignation claire
-Ce qui t'énerve (2-3 phrases) : exemples concrets, situations vécues
-Pourquoi c'est un problème (3-4 phrases) : conséquences, qui ça impacte
-Ce que tu proposes à la place (2-3 phrases) : alternative constructive
-Ouverture (1-2 phrases) : message libérateur
+  build_in_public: `TEMPLATE BUILD IN PUBLIC :
+STRUCTURE : Accroche "Ce mois-ci, j'ai..." → Les coulisses (ce qui a marché, ce qui a foiré) → Les chiffres bruts (si pertinent) → Ce que j'ai appris → La suite
+Hook recommandé : confession ou liste
+Objectif : Confiance + Engagement
+Longueur cible : 1300-1700 caractères
+Authenticité max : montre les vrais chiffres, les vrais doutes.`,
 
-CTA : question qui invite à partager sa frustration aussi
+  identification_quotidien: `TEMPLATE IDENTIFICATION / QUOTIDIEN :
+STRUCTURE : Accroche scène du quotidien que l'audience reconnaît → Le détail qui fait "c'est tellement moi" → Le lien avec un enjeu pro plus large → Le message derrière → CTA doux
+Hook recommandé : confirmation ou story
+Objectif : Engagement + Confiance
+Longueur cible : 1200-1600 caractères
+C'est le format "on en parle de..." qui crée de la complicité.`,
 
-CONSIGNE : colère constructive, jamais cynique. Tu dénonces un système, pas des personnes.`,
+  contenu_lancement: `TEMPLATE CONTENU DE LANCEMENT :
+STRUCTURE : Accroche teasing ou annonce → Le problème que ça résout → Ce que c'est concrètement → Pour qui c'est fait → CTA clair (lien en commentaire)
+Hook recommandé : liste ou question
+Objectif : Vente
+Longueur cible : 1300-1700 caractères
+MAX 20% de tes posts. Le lancement doit être entouré de contenus de valeur.`,
+};
 
-  mythe_deconstruction: `FORMAT : MYTHE À DÉCONSTRUIRE
-Objectif : Visibilité + confiance (Phase 1-2)
+export const LINKEDIN_HOOK_TYPES_PROMPTS: Record<string, string> = {
+  statistique: `ACCROCHE STATISTIQUE :
+Commence par un chiffre frappant qui remet en question une croyance.
+Exemple : "78% des solopreneuses publient sur Instagram... pour 3% de taux d'engagement."
+Règle : le chiffre doit être vérifiable ou issu de ton expérience.`,
 
-ACCROCHES RECOMMANDÉES : contrariante, confirmation de suspicion, question provocante
-Exemples d'accroches :
-- "Arrête de [croyance populaire]. C'est la pire chose que tu puisses faire."
-- "Tu avais raison de douter de ce conseil qu'on voit partout."
+  contrariante: `ACCROCHE CONTRARIANTE :
+Affirme le contraire de ce que tout le monde pense.
+Exemple : "Le personal branding est une arnaque. (Enfin, celui qu'on vous vend.)"
+Règle : la suite doit nuancer et argumenter, pas juste provoquer.`,
 
-STRUCTURE (Mythe/Vérité Sandwich) :
-Hook (2 lignes) : affirmation contrariante
-Le mythe (2-3 phrases) : la croyance limitante, pourquoi elle persiste
-L'exemple qui le contredit (3-4 phrases) : cas concret, données, vécu
-La vérité (2-3 phrases) : ce qui marche vraiment
-Nuance (1-2 phrases) : montrer que c'est pas noir/blanc
+  story: `ACCROCHE STORY / IN MEDIAS RES :
+Plonge directement dans une scène, sans contexte.
+Exemple : "Il est 23h, je fixe mon écran. Mon post a 3 likes. J'hésite à tout supprimer."
+Règle : sensorialité (heure, lieu, action) + tension.`,
 
-CTA : "Et toi, c'est quoi le conseil que tu as arrêté de suivre ?"
+  confession: `ACCROCHE CONFESSION :
+Vulnérabilité assumée, aveu professionnel.
+Exemple : "J'ai mis 2 ans à comprendre que mon offre ne servait à rien."
+Règle : l'aveu doit être sincère ET mener à un apprentissage.`,
 
-CONSIGNE : déconstruis avec bienveillance. L'objectif c'est d'ouvrir les yeux, pas d'humilier.`,
+  frustration: `ACCROCHE FRUSTRATION PARTAGÉE :
+Nomme un agacement que ton audience ressent sans oser le dire.
+Exemple : "Tu en as pas marre qu'on te dise de 'juste être toi-même' comme stratégie de com' ?"
+Règle : la frustration est un pont vers une solution.`,
 
-  storytelling_lecon: `FORMAT : STORYTELLING PERSONNEL + LEÇON
-Objectif : Confiance (Phase 2-3)
+  question: `ACCROCHE QUESTION DE FOND :
+Pose une vraie question (pas rhétorique) qui fait réfléchir.
+Exemple : "Est-ce qu'on peut communiquer de manière éthique... et quand même être visible ?"
+Règle : la question doit être OUVERTE, pas binaire.`,
 
-ACCROCHES RECOMMANDÉES : story (in medias res), confession/vulnérabilité, avant/après
-Exemples d'accroches :
-- "Ce jour-là, j'ai failli tout arrêter."
-- "J'ai honte de l'admettre, mais pendant 2 ans j'ai fait exactement ce que je déconseille aujourd'hui."
+  liste: `ACCROCHE LISTE / PROMESSE :
+Annonce un contenu structuré avec un nombre.
+Exemple : "3 choses que j'aurais aimé savoir avant de lancer ma newsletter."
+Règle : le nombre doit être tenu. Pas de liste à rallonge.`,
 
-STRUCTURE (STAR : Situation → Tension → Action → Résultat) :
-Hook (2 lignes) : in medias res ou confession
-Situation (2-3 phrases) : quand, où, le contexte
-Tension (3-4 phrases) : ce qui s'est passé, les galères, les émotions
-Action (2-3 phrases) : ce que tu as fait, le déclic
-Résultat + Leçon (2-3 phrases) : sincère, pas moralisateur
+  avant_apres: `ACCROCHE AVANT/APRÈS :
+Contraste fort entre deux états.
+Exemple : "Il y a 6 mois, elle postait dans le vide. Aujourd'hui, ses posts génèrent des demandes de devis."
+Règle : le contraste doit être CONCRET, pas vague.`,
 
-CTA : "Tu as déjà vécu un moment comme ça ?"
+  ennemi_commun: `ACCROCHE ENNEMI COMMUN :
+Désigne un adversaire partagé (pas une personne, un système ou une pratique).
+Exemple : "Le marketing de la peur a fait assez de dégâts dans l'entrepreneuriat féminin."
+Règle : l'ennemi est une PRATIQUE, jamais une personne.`,
 
-CONSIGNE : les détails concrets rendent l'histoire vivante. "Un mardi matin" > "un jour". Émotionnel sans pathos.`,
-
-  histoire_cliente: `FORMAT : HISTOIRE CLIENTE + DÉCLIC
-Objectif : Confiance + vente (Phase 3-4)
-
-ACCROCHES RECOMMANDÉES : avant/après, statistique, story
-Exemples d'accroches :
-- "Il y a 6 mois, elle ne savait pas comment parler de son travail. Aujourd'hui, ses client·es viennent à elle."
-- "Quand [prénom] m'a contactée, elle avait [problème]. Voici ce qui a changé."
-
-STRUCTURE (Avant/Après + Méthode) :
-Hook (2 lignes) : résultat ou transformation frappante
-Portrait (2-3 phrases) : qui est cette cliente (anonymisée si besoin), sa situation de départ
-Le problème (2-3 phrases) : ce qui bloquait concrètement
-Ce qu'on a fait (3-4 phrases) : actions concrètes, pas de jargon
-Le résultat (2-3 phrases) : chiffres, changements concrets
-Leçon transférable (1-2 phrases) : ce que ça peut apporter au·à la lecteur·ice
-
-CTA : "Si tu te reconnais dans cette situation, envoie-moi un message."
-
-CONSIGNE : pas de "success story" trop lisse. Montrer aussi les doutes, les ajustements.`,
-
-  surf_actu: `FORMAT : SURF SUR L'ACTU
-Objectif : Visibilité (Phase 1)
-
-ACCROCHES RECOMMANDÉES : statistique, question provocante, contrariante
-Exemples d'accroches :
-- "[Fait d'actu]. Et ça devrait te concerner si tu es [cible]."
-- "Tout le monde parle de [actu]. Personne ne parle de [angle]."
-
-STRUCTURE (Actu + Angle expert) :
-Hook (2 lignes) : fait d'actualité + angle original
-Ce qui se passe (2-3 phrases) : résumé factuel
-Ce que personne ne dit (3-4 phrases) : ton angle unique, ton expertise
-Ce que ça change concrètement (2-3 phrases) : impact pour ta cible
-Ouverture (1-2 phrases) : invitation à la réflexion
-
-CTA : "Comment tu vois ça de ton côté ?"
-
-CONSIGNE : l'actu est le prétexte, pas le sujet. Ton expertise est le vrai sujet.`,
-
-  regard_philosophique: `FORMAT : REGARD PHILOSOPHIQUE / SOCIÉTAL
-Objectif : Crédibilité + engagement (Phase 2)
-
-ACCROCHES RECOMMANDÉES : question provocante, contrariante, ennemi commun
-Exemples d'accroches :
-- "Et si le problème, c'était pas ton contenu mais ta façon de penser ta visibilité ?"
-- "On parle beaucoup de [sujet]. Mais on oublie de poser la vraie question."
-
-STRUCTURE (Observation + Analyse + Position) :
-Hook (2 lignes) : question ou observation qui interpelle
-Observation (2-3 phrases) : ce que tu vois dans ton quotidien professionnel
-Analyse profonde (4-6 phrases) : aller au fond, faire des liens, regarder le sujet sous un angle inattendu
-Position (2-3 phrases) : ce que tu en retires, ta conviction
-
-CTA : question ouverte qui invite à la réflexion
-
-CONSIGNE : c'est le format le plus "France Culture" de tous. Prends le temps de développer la pensée. Pas de raccourcis intellectuels.`,
-
-  conseil_contre_intuitif: `FORMAT : CONSEIL CONTRE-INTUITIF
-Objectif : Crédibilité (Phase 2-3)
-
-ACCROCHES RECOMMANDÉES : contrariante, confirmation de suspicion
-Exemples d'accroches :
-- "Arrête de publier du contenu 'utile'. Sérieusement."
-- "Le meilleur conseil business qu'on m'a donné : fais moins."
-
-STRUCTURE (Mythe/Vérité + Preuve) :
-Hook (2 lignes) : affirmation qui va à l'encontre du consensus
-Le conseil classique (2-3 phrases) : ce que tout le monde dit
-Pourquoi c'est (partiellement) faux (3-4 phrases) : ton expérience, exemples concrets
-Le vrai conseil (2-3 phrases) : ce qui marche selon toi
-Nuance (1-2 phrases) : montrer que c'est pas dogmatique
-
-CTA : "Quel conseil 'universel' ne marche pas pour toi ?"
-
-CONSIGNE : le contrarian prend de la valeur quand il est argumenté. Pas juste "faites le contraire" mais "voici pourquoi".`,
-
-  before_after: `FORMAT : BEFORE/AFTER RÉVÉLATEUR
-Objectif : Confiance + vente (Phase 3-4)
-
-ACCROCHES RECOMMANDÉES : avant/après, statistique, story
-Exemples d'accroches :
-- "Il y a 1 an : 12 likes par post. Aujourd'hui : des client·es qui viennent à moi."
-- "Avant : [galère concrète]. Après : [résultat concret]."
-
-STRUCTURE (Avant/Après + Méthode) :
-Hook (2 lignes) : contraste frappant avant/après
-Le AVANT (2-3 phrases) : situation galère, concret, émotionnel
-Le déclic (2-3 phrases) : qu'est-ce qui a changé
-Le APRÈS (2-3 phrases) : résultat concret, chiffres si possible
-Ce qui a fait la différence (2-3 phrases) : actions clés
-Leçon (1-2 phrases) : transférable au·à la lecteur·ice
-
-CTA : "C'est quoi ton avant/après le plus marquant ?"
-
-CONSIGNE : les deux côtés doivent être vrais et concrets. Pas de "j'étais nulle, maintenant je suis parfaite".`,
-
-  build_in_public: `FORMAT : BUILD IN PUBLIC
-Objectif : Confiance + engagement (Phase 2-3)
-
-ACCROCHES RECOMMANDÉES : confession, story, statistique
-Exemples d'accroches :
-- "Je lance un nouveau projet. Voici exactement où j'en suis (spoiler : c'est pas glorieux)."
-- "Semaine 4 de [projet]. Ce que je n'avais pas prévu."
-
-STRUCTURE (Coulisses + Apprentissage) :
-Hook (2 lignes) : transparence sur un projet en cours
-Contexte (2-3 phrases) : c'est quoi le projet, pourquoi
-Ce qui s'est passé cette semaine (3-4 phrases) : victoires ET galères
-Ce que j'apprends (2-3 phrases) : leçon en temps réel
-La suite (1-2 phrases) : ce que tu vas faire
-
-CTA : "Tu construis aussi en public ? Raconte-moi ton projet."
-
-CONSIGNE : la valeur du build in public c'est l'honnêteté radicale. Montre les vrais chiffres, les vrais doutes.`,
-
-  identification_quotidien: `FORMAT : IDENTIFICATION / QUOTIDIEN
-Objectif : Engagement (Phase 1-2)
-
-ACCROCHES RECOMMANDÉES : confirmation de suspicion, question provocante, confession
-Exemples d'accroches :
-- "Ce moment où tu te demandes si c'est normal de douter autant après 3 ans d'entrepreneuriat."
-- "Dis-moi que tu es solopreneur·e sans me dire que tu es solopreneur·e."
-
-STRUCTURE (Observation + Identification + Ouverture) :
-Hook (2 lignes) : situation ultra-reconnaissable
-Description (3-4 phrases) : le quotidien, les détails qui font "c'est moi !"
-Réflexion (2-3 phrases) : pourquoi c'est comme ça, ce que ça dit de notre métier
-Message (1-2 phrases) : normalisation ou encouragement
-
-CTA : "Dis-moi en commentaire si ça te parle."
-
-CONSIGNE : l'identification vient des détails spécifiques, pas des généralités. Plus c'est précis, plus ça résonne.`,
-
-  contenu_lancement: `FORMAT : CONTENU DE LANCEMENT
-Objectif : Vente (Phase 4-5)
-
-ACCROCHES RECOMMANDÉES : avant/après, statistique, story
-Exemples d'accroches :
-- "Après 6 mois de travail en silence, voilà ce que je vous ai préparé."
-- "J'aurais pu garder ça pour moi. Mais c'est exactement ce qui m'a manqué quand j'ai commencé."
-
-STRUCTURE (Problème + Solution + Offre naturelle) :
-Hook (2 lignes) : le problème que tu résous
-Le constat (2-3 phrases) : ce que tu observes chez ta cible
-Ce que tu as créé (3-4 phrases) : ton offre, concrètement, sans jargon
-Pour qui c'est fait (2-3 phrases) : portrait de la personne idéale
-Ce que ça change (2-3 phrases) : résultat concret attendu
-Invitation (1-2 phrases) : CTA doux, pas pressant
-
-CTA : "Si ça résonne, envoie-moi un message. On en parle."
-
-CONSIGNE : JAMAIS de fausse urgence, de manipulation, de "plus que 3 places". L'offre doit parler d'elle-même. Vente douce et éthique.`,
+  confirmation: `ACCROCHE CONFIRMATION / VALIDATION :
+Valide ce que l'audience ressent ou pense secrètement.
+Exemple : "Si tu trouves que LinkedIn c'est chiant... c'est peut-être qu'on t'a mal expliqué."
+Règle : valider d'abord, puis ouvrir une porte.`,
 };
 
 export const LINKEDIN_TIPS = [
