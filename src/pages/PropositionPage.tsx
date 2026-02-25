@@ -268,7 +268,7 @@ export default function PropositionPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Ma proposition de valeur" />
+        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Ma proposition de valeur" useFromParam />
 
         <h1 className="font-display text-[26px] font-bold text-foreground mb-1">Ta proposition de valeur</h1>
         <p className="text-[15px] text-muted-foreground italic mb-8">

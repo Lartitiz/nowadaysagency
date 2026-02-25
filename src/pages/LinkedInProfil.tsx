@@ -116,7 +116,7 @@ export default function LinkedInProfil() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Optimiser mon profil" />
+        <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Optimiser mon profil" useFromParam />
 
         <div className="flex items-center justify-between mb-6">
           <div>

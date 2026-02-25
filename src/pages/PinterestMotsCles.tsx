@@ -76,7 +76,7 @@ export default function PinterestMotsCles() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Mes mots-clés" />
+        <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Mes mots-clés" useFromParam />
         <h1 className="font-display text-[22px] font-bold text-foreground mb-1">Tes mots-clés Pinterest</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Comment tes clientes décrivent tes produits ? Ces mots doivent être partout : titres, descriptions, tableaux.</p>
 

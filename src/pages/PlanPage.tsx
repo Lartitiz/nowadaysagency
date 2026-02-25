@@ -237,7 +237,7 @@ function StepCard({ step, isOverridden, onToggleOverride }: { step: PlanStep; is
             </span>
           ) : (
             <Button size="sm" variant={isDone ? "ghost" : "outline"} asChild className="rounded-full gap-1.5 text-xs h-8">
-              <Link to={step.route}>
+              <Link to={`${step.route}?from=/plan`}>
                 <ArrowRight className="h-3 w-3" />
                 {isDone ? "Voir / Modifier" : step.status === "in_progress" ? "Continuer" : "Commencer"}
               </Link>

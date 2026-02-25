@@ -507,7 +507,7 @@ export default function CalendarPage() {
       <AppHeader />
       <main id="main-content" className="mx-auto max-w-[1400px] px-6 py-8 max-md:px-4">
         {isInstagramRoute && (
-          <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Calendrier éditorial" />
+          <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Calendrier éditorial" useFromParam />
         )}
         <AuditRecommendationBanner />
         <div className="mb-6 flex items-start justify-between gap-4">

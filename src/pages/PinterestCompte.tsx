@@ -117,7 +117,7 @@ export default function PinterestCompte() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Optimiser mon compte" />
+        <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Optimiser mon compte" useFromParam />
 
          <h1 className="font-display text-[22px] font-bold text-foreground mb-1">Optimise ton compte Pinterest</h1>
          <p className="mt-1 text-[15px] text-muted-foreground mb-8">Configure ton compte pro, ta photo, ton nom et ta bio pour que Pinterest te mette en avant.</p>

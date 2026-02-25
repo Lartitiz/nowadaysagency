@@ -84,7 +84,7 @@ export default function PinterestEpingles() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Mes épingles" />
+        <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Mes épingles" useFromParam />
         <h1 className="font-display text-[22px] font-bold text-foreground mb-1">Tes épingles</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Chaque épingle est une porte d'entrée vers ton site. On va les optimiser pour qu'elles travaillent pour toi.</p>
 
