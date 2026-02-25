@@ -188,7 +188,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     profilesRes, subsRes, aiRes, brandRes, personaRes, storyRes, propRes, stratRes,
     aiPrevRes, draftsRes, calendarRes, scoresRes, authUsersRes,
   ] = await Promise.all([
-    supabase.from("profiles").select("user_id, email, created_at, onboarding_completed, type_activite, canaux, level"),
+    supabase.from("profiles").select("user_id, prenom, email, created_at, onboarding_completed, type_activite, canaux, level"),
     supabase.from("subscriptions").select("user_id, plan, status, created_at, canceled_at, current_period_start, current_period_end, source"),
     supabase.from("ai_usage").select("user_id, category, created_at, action_type, tokens_used").gte("created_at", monthStart),
     supabase.from("brand_profile").select("user_id, " + BRAND_PROFILE_FIELDS.join(", ")),
@@ -307,7 +307,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     .map(([userId, count]) => {
       const prof = profiles.find((p: any) => p.user_id === userId);
       const sub = subsByUser.get(userId);
-      return { user_id: userId, prenom: prof?.prenom || "?", plan: sub?.plan || "free", count };
+      return { user_id: userId, prenom: prof?.prenom || prof?.email || "Anonyme", plan: sub?.plan || "free", count };
     });
 
   // Content metrics
