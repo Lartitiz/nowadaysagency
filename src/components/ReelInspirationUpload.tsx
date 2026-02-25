@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { Loader2, X, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -37,6 +37,7 @@ interface Props {
 export default function ReelInspirationUpload({ onAnalysisComplete }: Props) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedImages, setUploadedImages] = useState<{ url: string; file?: File }[]>([]);
   const [savedInspirations, setSavedInspirations] = useState<SavedInspiration[]>([]);
@@ -124,6 +125,7 @@ export default function ReelInspirationUpload({ onAnalysisComplete }: Props) {
         body: {
           type: "analyze_inspiration",
           image_urls: imageUrls,
+          workspace_id: workspaceId,
         },
       });
 

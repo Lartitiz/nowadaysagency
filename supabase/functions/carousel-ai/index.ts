@@ -30,7 +30,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { type } = body;
+    const { type, workspace_id } = body;
 
     const category = (type === "suggest_topics" || type === "suggest_angles") ? "suggestion" : "content";
     const quotaCheck = await checkQuota(user.id, category);
@@ -41,7 +41,7 @@ serve(async (req) => {
       );
     }
 
-    const ctx = await getUserContext(supabase, user.id);
+    const ctx = await getUserContext(supabase, user.id, workspace_id);
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.posts);
 
     let systemPrompt = buildSystemPrompt(brandingContext);

@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { source_text, source_type, images, context } = body;
+    const { source_text, source_type, images, context, workspace_id } = body;
 
     const isScreenshot = source_type === "screenshot";
 
@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
     }
 
     // Fetch full user context server-side
-    const ctx = await getUserContext(supabase, user.id);
+    const ctx = await getUserContext(supabase, user.id, workspace_id);
     const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.inspire);
 
     let sourceBlock: string;

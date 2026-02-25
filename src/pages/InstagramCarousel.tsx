@@ -236,7 +236,7 @@ export default function InstagramCarousel() {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("carousel-ai", {
-        body: { type: "suggest_angles", carousel_type: carouselType, subject, objective, deepening_answers: deepeningAnswers },
+        body: { type: "suggest_angles", carousel_type: carouselType, subject, objective, deepening_answers: deepeningAnswers, workspace_id: workspaceId },
       });
       if (error) throw error;
       const raw = data?.content || "";
@@ -260,6 +260,7 @@ export default function InstagramCarousel() {
           type: "hooks", carousel_type: carouselType, subject, objective, slide_count: slideCount,
           deepening_answers: Object.values(deepeningAnswers).some(v => v.trim()) ? deepeningAnswers : undefined,
           chosen_angle: chosenAngle || undefined,
+          workspace_id: workspaceId,
         },
       });
       if (error) throw error;
@@ -289,6 +290,7 @@ export default function InstagramCarousel() {
           selected_offer: offerCtx ? `${offerCtx.name} (${offerCtx.price_text || "gratuit"})` : null,
           deepening_answers: Object.values(deepeningAnswers).some(v => v.trim()) ? deepeningAnswers : undefined,
           chosen_angle: chosenAngle || undefined,
+          workspace_id: workspaceId,
         },
       });
       if (error) throw error;
@@ -336,7 +338,7 @@ export default function InstagramCarousel() {
         .select("theme").eq(column, value).order("created_at", { ascending: false }).limit(10);
       const recentStr = recentPosts?.map(p => p.theme).join(", ") || "";
       const { data, error } = await supabase.functions.invoke("carousel-ai", {
-        body: { type: "suggest_topics", carousel_type: carouselType, objective, recent_posts: recentStr },
+        body: { type: "suggest_topics", carousel_type: carouselType, objective, recent_posts: recentStr, workspace_id: workspaceId },
       });
       if (error) throw error;
       const raw = data?.content || "";
