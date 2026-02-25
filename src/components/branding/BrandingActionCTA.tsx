@@ -16,12 +16,12 @@ const ACTIONS: Record<string, ActionDef[]> = {
   ],
   persona: [
     { label: "Écrire un post qui parle à ma cible", route: "/studio/discover" },
-    { label: "Générer un DM de prospection", route: "/espaces/instagram/prospection" },
-    { label: "Revoir ma bio Instagram", route: "/espaces/instagram/bio" },
+    { label: "Générer un DM de prospection", route: "/instagram/routine" },
+    { label: "Revoir ma bio Instagram", route: "/instagram/profil/bio" },
   ],
   value_proposition: [
-    { label: "Générer ma bio Instagram", route: "/espaces/instagram/bio" },
-    { label: "Générer ma bio LinkedIn", route: "/espaces/linkedin" },
+    { label: "Générer ma bio Instagram", route: "/instagram/profil/bio" },
+    { label: "Générer ma bio LinkedIn", route: "/linkedin/profil" },
     { label: "Écrire un post offre", route: "/studio/discover" },
   ],
   tone_style: [
