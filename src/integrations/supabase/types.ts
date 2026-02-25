@@ -3433,7 +3433,9 @@ export type Database = {
         Row: {
           banner_done: boolean | null
           created_at: string | null
+          creator_mode_done: boolean | null
           custom_url: string | null
+          featured_done: boolean | null
           id: string
           photo_done: boolean | null
           resume_analysis: Json | null
@@ -3454,7 +3456,9 @@ export type Database = {
         Insert: {
           banner_done?: boolean | null
           created_at?: string | null
+          creator_mode_done?: boolean | null
           custom_url?: string | null
+          featured_done?: boolean | null
           id?: string
           photo_done?: boolean | null
           resume_analysis?: Json | null
@@ -3475,7 +3479,9 @@ export type Database = {
         Update: {
           banner_done?: boolean | null
           created_at?: string | null
+          creator_mode_done?: boolean | null
           custom_url?: string | null
+          featured_done?: boolean | null
           id?: string
           photo_done?: boolean | null
           resume_analysis?: Json | null
