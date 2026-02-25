@@ -913,6 +913,54 @@ export type Database = {
           },
         ]
       }
+      calendar_comments: {
+        Row: {
+          author_name: string
+          author_role: string
+          calendar_post_id: string
+          content: string
+          created_at: string | null
+          id: string
+          is_resolved: boolean | null
+          share_id: string
+        }
+        Insert: {
+          author_name: string
+          author_role?: string
+          calendar_post_id: string
+          content: string
+          created_at?: string | null
+          id?: string
+          is_resolved?: boolean | null
+          share_id: string
+        }
+        Update: {
+          author_name?: string
+          author_role?: string
+          calendar_post_id?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_resolved?: boolean | null
+          share_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_comments_calendar_post_id_fkey"
+            columns: ["calendar_post_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_comments_share_id_fkey"
+            columns: ["share_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_shares"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_posts: {
         Row: {
           accroche: string | null
@@ -1036,6 +1084,56 @@ export type Database = {
           },
           {
             foreignKeyName: "calendar_posts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_shares: {
+        Row: {
+          canal_filter: string | null
+          created_at: string | null
+          expires_at: string | null
+          guest_name: string | null
+          id: string
+          is_active: boolean | null
+          label: string | null
+          share_token: string
+          show_content_draft: boolean | null
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          canal_filter?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          guest_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          label?: string | null
+          share_token?: string
+          show_content_draft?: boolean | null
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          canal_filter?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          guest_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          label?: string | null
+          share_token?: string
+          show_content_draft?: boolean | null
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_shares_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
