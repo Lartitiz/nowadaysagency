@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, GripVertical, MoreVertical, Trash2, CalendarIcon, Undo2 } from "lucide-react";
+import { Plus, GripVertical, MoreVertical, Trash2, CalendarIcon, Undo2, Search, X } from "lucide-react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -59,6 +59,8 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: P
   const { toast } = useToast();
   const [ideas, setIdeas] = useState<SavedIdea[]>([]);
   const [filter, setFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"recent" | "objective">("recent");
   const [showAddForm, setShowAddForm] = useState(false);
   const [planDialogIdea, setPlanDialogIdea] = useState<SavedIdea | null>(null);
   const [planDate, setPlanDate] = useState<Date | undefined>();
@@ -81,9 +83,11 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: P
     return () => { delete (window as any).__refreshIdeasSidebar; };
   }, [user?.id]);
 
-  const filteredIdeas = filter === "all"
-    ? ideas
-    : ideas.filter(i => {
+  const filteredIdeas = useMemo(() => {
+    let result = ideas;
+
+    if (filter !== "all") {
+      result = result.filter(i => {
         const f = i.format || "";
         if (filter === "post") return f.includes("post") || f === "";
         if (filter === "carousel") return f.includes("carrousel") || f === "carousel";
@@ -91,6 +95,25 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: P
         if (filter === "story") return f.includes("story");
         return true;
       });
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(i =>
+        (i.titre || "").toLowerCase().includes(q) ||
+        (i.notes || "").toLowerCase().includes(q)
+      );
+    }
+
+    if (sortBy === "objective") {
+      const objOrder: Record<string, number> = { visibilite: 0, confiance: 1, vente: 2 };
+      result = [...result].sort((a, b) =>
+        (objOrder[a.objectif || ""] ?? 99) - (objOrder[b.objectif || ""] ?? 99)
+      );
+    }
+
+    return result;
+  }, [ideas, filter, searchQuery, sortBy]);
 
   const handleDeleteIdea = async (id: string) => {
     await supabase.from("saved_ideas").delete().eq("id", id);
@@ -142,24 +165,60 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: P
       )}
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-display text-sm font-bold text-foreground">💡 Mes idées</h3>
-        <span className="text-xs text-muted-foreground">{ideas.length}</span>
+        <span className="text-xs text-muted-foreground">
+          {filteredIdeas.length !== ideas.length
+            ? `${filteredIdeas.length}/${ideas.length}`
+            : ideas.length}
+        </span>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-1 flex-wrap mb-3">
-        {FORMAT_FILTERS.map(f => (
-          <button key={f.id} onClick={() => setFilter(f.id)}
-            className={cn("text-[11px] px-2 py-1 rounded-full border transition-colors",
-              filter === f.id ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/40")}>
-            {f.label}
+      {/* Search */}
+      <div className="relative mb-2">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Chercher une idée..."
+          className="w-full text-xs border border-border rounded-lg pl-8 pr-8 py-1.5 bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground/50"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
           </button>
-        ))}
+        )}
+      </div>
+
+      {/* Filters + sort */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex gap-1 flex-wrap">
+          {FORMAT_FILTERS.map(f => (
+            <button key={f.id} onClick={() => setFilter(f.id)}
+              className={cn("text-[11px] px-2 py-1 rounded-full border transition-colors",
+                filter === f.id ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/40")}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => setSortBy(prev => prev === "recent" ? "objective" : "recent")}
+          className="text-[10px] text-muted-foreground hover:text-primary shrink-0 ml-1"
+          title={sortBy === "recent" ? "Trier par objectif" : "Trier par date"}
+        >
+          {sortBy === "recent" ? "🕐" : "🎯"}
+        </button>
       </div>
 
       {/* Ideas list */}
       <div className="flex-1 overflow-y-auto space-y-1.5 min-h-0">
         {filteredIdeas.length === 0 && (
-          <p className="text-xs text-muted-foreground text-center py-4">Aucune idée en attente</p>
+          <p className="text-xs text-muted-foreground text-center py-4">
+            {searchQuery.trim()
+              ? `Aucune idée trouvée pour "${searchQuery}"`
+              : "Aucune idée en attente"}
+          </p>
         )}
         {filteredIdeas.map(idea => (
           isMobile
