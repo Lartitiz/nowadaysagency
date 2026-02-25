@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, ArrowRight, RotateCcw, Sparkles, Loader2, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronUp, ArrowRight, RotateCcw, Sparkles, Loader2, RefreshCw, Palette } from "lucide-react";
 import {
   calculateWebsiteAuditScore,
   calculatePageByPageScore,
@@ -47,6 +47,14 @@ const EFFORT_BADGE: Record<string, { icon: string; label: string }> = {
   rapide: { icon: "⚡", label: "Rapide" },
   moyen: { icon: "⏱️", label: "Moyen" },
   long: { icon: "🔧", label: "Long" },
+};
+
+const CATEGORY_INSPIRATION_MAP: Record<string, string> = {
+  clarte: "hero",
+  copywriting: "hero",
+  confiance: "testimonials",
+  parcours: "how_it_works",
+  visuel: "benefits",
 };
 
 function barColor(score: number, max: number): string {
@@ -286,6 +294,10 @@ export default function SiteAuditResult({
             {allRecs.map((rec, i) => {
               const pBadge = PRIORITY_BADGE[rec.priority];
               const eBadge = EFFORT_BADGE[rec.effort];
+              // Determine if this rec's category has an inspiration link
+              const inspirationLink = CATEGORY_INSPIRATION_MAP[rec.categoryId];
+              const catScore = scoreResult.categories[rec.categoryId];
+              const showInspirationLink = inspirationLink && catScore && catScore.max > 0 && (catScore.score / catScore.max) < 0.75;
               return (
                 <div key={i} className="rounded-xl border border-border p-4 space-y-2">
                   <div className="flex flex-wrap gap-2">
@@ -297,11 +309,21 @@ export default function SiteAuditResult({
                     </span>
                   </div>
                   <p className="text-sm text-foreground">{rec.recommendation}</p>
-                  {rec.link && rec.linkLabel && (
-                    <Button variant="outline" size="sm" className="gap-1.5 rounded-pill text-xs" onClick={() => navigate(rec.link!)}>
-                      {rec.linkLabel} <ArrowRight className="h-3 w-3" />
-                    </Button>
-                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {rec.link && rec.linkLabel && (
+                      <Button variant="outline" size="sm" className="gap-1.5 rounded-pill text-xs" onClick={() => navigate(rec.link!)}>
+                        {rec.linkLabel} <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    )}
+                    {showInspirationLink && (
+                      <Button variant="ghost" size="sm" className="gap-1.5 rounded-pill text-xs" asChild>
+                        <Link to={`/site/inspirations?section=${inspirationLink}`}>
+                          <Palette className="h-3 w-3" />
+                          🎨 Voir un template
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
                 </div>
               );
             })}
