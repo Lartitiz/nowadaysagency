@@ -41,7 +41,7 @@ serve(async (req) => {
 
     const body = await req.json();
     const { workspace_id } = body;
-    const ctx = await getUserContext(supabase, user.id, workspace_id);
+    const ctx = await getUserContext(supabase, user.id, workspace_id, "linkedin");
     const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.linkedinAudit);
 
     // Build screenshot content array for multimodal

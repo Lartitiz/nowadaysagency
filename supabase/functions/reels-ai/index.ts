@@ -43,7 +43,7 @@ serve(async (req) => {
     const { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context, workspace_id } = await req.json();
 
     // Fetch full context server-side
-    const ctx = await getUserContext(supabase, user.id, workspace_id);
+    const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.reels);
 
     const systemPrompt = buildSystemPrompt(brandingContext);

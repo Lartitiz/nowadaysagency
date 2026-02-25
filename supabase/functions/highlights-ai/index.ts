@@ -41,7 +41,7 @@ serve(async (req) => {
     const { type, workspace_id } = body;
 
     // Fetch full user context server-side
-    const ctx = await getUserContext(supabase, user.id, workspace_id);
+    const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
     const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.highlights);
 
     const VOICE_PRIORITY = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n`;

@@ -54,7 +54,7 @@ serve(async (req) => {
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const ctx = await getUserContext(supabase, user.id, workspace_id);
+    const ctx = await getUserContext(supabase, user.id, workspace_id, "linkedin");
     const context = formatContextForAI(ctx, CONTEXT_PRESETS.linkedin);
     const qualityBlocks = `${ANTI_SLOP}\n\n${ETHICAL_GUARDRAILS}\n\n${ANTI_BIAS}\n\n${CHAIN_OF_THOUGHT}\n\nPRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.`;
     const branding = { storytelling: ctx.storytelling };

@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     const { prospect, approach_type, interactions_summary, conversation_history, selected_offer } = body;
 
     // Fetch full user context server-side
-    const ctx = await getUserContext(supabaseClient, user.id);
+    const ctx = await getUserContext(supabaseClient, user.id, undefined, "instagram");
     const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.dm);
 
     // Build offer block from the explicitly selected offer (or fallback to ctx.offers)

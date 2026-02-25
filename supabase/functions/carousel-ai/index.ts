@@ -41,7 +41,7 @@ serve(async (req) => {
       );
     }
 
-    const ctx = await getUserContext(supabase, user.id, workspace_id);
+    const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.posts);
 
     let systemPrompt = buildSystemPrompt(brandingContext);
