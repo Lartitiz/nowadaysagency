@@ -202,7 +202,7 @@ export default function LinkedInPostGenerator() {
     }
 
     const dateStr = getNextOptimalDate();
-    await supabase.from("calendar_posts").insert({
+    const { error } = await supabase.from("calendar_posts").insert({
       user_id: user.id,
       workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       date: dateStr,
@@ -212,7 +212,11 @@ export default function LinkedInPostGenerator() {
       status: "idea",
       content_draft: text,
     });
-    toast({ title: "Ajouté au calendrier LinkedIn !" });
+    if (error) {
+      toast({ title: "Erreur", description: "Impossible d'ajouter au calendrier", variant: "destructive" });
+    } else {
+      toast({ title: "Ajouté au calendrier LinkedIn !" });
+    }
   };
 
   const scoreColor = (score: number) => score >= 70 ? "text-green-600 bg-green-50" : score >= 40 ? "text-amber-600 bg-amber-50" : "text-red-600 bg-red-50";
