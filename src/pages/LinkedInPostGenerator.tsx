@@ -10,7 +10,8 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
-import { Sparkles, Copy, Check, RefreshCw, CalendarDays, Loader2, Search } from "lucide-react";
+import { Sparkles, Copy, Check, RefreshCw, CalendarDays, Loader2, Search, Lightbulb } from "lucide-react";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import BaseReminder from "@/components/BaseReminder";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import LinkedInPreview from "@/components/linkedin/LinkedInPreview";
@@ -83,6 +84,8 @@ export default function LinkedInPostGenerator() {
   const [improving, setImproving] = useState(false);
   const [improveResult, setImproveResult] = useState<ImproveResult | null>(null);
   const [copiedImprove, setCopiedImprove] = useState<string | null>(null);
+  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
+  const [ideasContent, setIdeasContent] = useState("");
 
   // Random tip
   const [tipIdx] = useState(() => Math.floor(Math.random() * LINKEDIN_TIPS.length));
@@ -435,7 +438,10 @@ export default function LinkedInPostGenerator() {
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => { setResult(null); generate(); }} className="rounded-full gap-1.5">
                     <RefreshCw className="h-3.5 w-3.5" /> Regénérer
-                  </Button>
+                   </Button>
+                   <Button variant="outline" size="sm" onClick={() => { setIdeasContent(result.full_text); setShowIdeasDialog(true); }} className="rounded-full gap-1.5">
+                     <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
+                   </Button>
                 </div>
 
                 <BaseReminder variant="atelier" />
@@ -550,12 +556,28 @@ export default function LinkedInPostGenerator() {
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => handleCalendar(improveResult.improved_version)} className="rounded-full gap-1.5">
                     <CalendarDays className="h-3.5 w-3.5" /> Calendrier
-                  </Button>
+                   </Button>
+                   <Button variant="outline" size="sm" onClick={() => { setIdeasContent(improveResult.improved_version); setShowIdeasDialog(true); }} className="rounded-full gap-1.5">
+                     <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
+                   </Button>
                 </div>
               </div>
             )}
           </TabsContent>
         </Tabs>
+        <SaveToIdeasDialog
+          open={showIdeasDialog}
+          onOpenChange={setShowIdeasDialog}
+          contentType="post_linkedin"
+          subject={sujet || "Post LinkedIn"}
+          contentData={{
+            type: "linkedin_post",
+            text: ideasContent,
+            template: template || "improve",
+          }}
+          sourceModule="linkedin-post"
+          format="post_texte"
+        />
       </main>
     </div>
   );
