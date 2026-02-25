@@ -156,12 +156,12 @@ export default function ClientsPage() {
             <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted flex items-center justify-center">
               <Lock className="h-5 w-5 text-muted-foreground" />
             </div>
-            <h3 className="font-display text-lg font-bold text-foreground mb-2">Fonctionnalité Now Studio</h3>
+            <h3 className="font-display text-lg font-bold text-foreground mb-2">Fonctionnalité accompagnement</h3>
             <p className="text-sm text-muted-foreground mb-5 max-w-sm mx-auto">
-              Le mode multi-clients est disponible à partir du plan Now Studio. Gère plusieurs client·es depuis un seul compte.
+              Le mode multi-clients est disponible avec l'accompagnement binôme. Gère plusieurs client·es depuis un seul compte.
             </p>
             <Button asChild className="rounded-full">
-              <Link to="/parametres">Découvrir le Now Studio →</Link>
+              <Link to="/parametres">Découvrir l'accompagnement →</Link>
             </Button>
           </div>
         </main>

@@ -67,7 +67,7 @@ const SECTIONS = [
     ],
   },
   {
-    title: "Now Studio exclusif",
+    title: "Ta binôme de com",
     rows: [
       { label: "Coachings individuels", free: false, outil: false, studio: "6 × 1h" },
       { label: "Validation par Laetitia", free: false, outil: false, studio: true },
@@ -83,19 +83,19 @@ const SECTIONS = [
 const FAQ = [
   {
     q: "Je peux annuler quand je veux ?",
-    a: "Oui, le plan Outil est sans engagement. Tu annules en 1 clic depuis ton espace. Le Now Studio est un engagement de 6 mois.",
+    a: "Oui, le plan Outil est sans engagement. Tu annules en 1 clic depuis ton espace. L'accompagnement binôme est un engagement de 6 mois.",
   },
   {
     q: "Je peux upgrader en cours de route ?",
-    a: "Oui ! Tu peux passer du gratuit à l'outil, ou de l'outil au Now Studio à tout moment.",
+    a: "Oui ! Tu peux passer du gratuit à l'outil, ou de l'outil à l'accompagnement binôme à tout moment.",
   },
   {
     q: "Il y a une garantie ?",
-    a: "Le Now Studio est satisfait ou remboursé si tu appliques tout et que tu n'as pas de résultats.",
+    a: "L'accompagnement binôme est satisfait ou remboursé si tu appliques tout et que tu n'as pas de résultats.",
   },
   {
-    q: "C'est quoi la différence entre l'outil et le Now Studio ?",
-    a: "L'outil, c'est l'IA qui t'aide au quotidien. Le Now Studio, c'est l'outil + Laetitia qui te coache, te débloque, et valide chaque étape.",
+    q: "C'est quoi la différence entre l'outil et l'accompagnement binôme ?",
+    a: "L'outil, c'est l'IA qui t'aide au quotidien. L'accompagnement binôme, c'est l'outil + Laetitia qui te coache, te débloque, et valide chaque étape.",
   },
   {
     q: "Mes données sont sécurisées ?",
@@ -277,7 +277,7 @@ export default function PricingPage() {
           {/* Now Studio */}
           <div className="rounded-2xl bg-card border border-border p-6 flex flex-col" style={{ background: "linear-gradient(180deg, hsl(48 100% 95%) 0%, hsl(0 0% 100%) 40%)" }}>
             <span className="text-2xl mb-2">🌟</span>
-            <h3 className="font-display text-xl font-bold">Now Studio</h3>
+            <h3 className="font-display text-xl font-bold">Ta binôme de com</h3>
             <p className="text-3xl font-bold mt-2 text-primary">
               250€
               <span className="text-base font-normal text-muted-foreground">

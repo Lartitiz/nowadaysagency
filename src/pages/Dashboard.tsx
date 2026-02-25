@@ -319,7 +319,7 @@ export default function Dashboard() {
           <h1 className="font-heading text-lg sm:text-[22px] md:text-[28px] font-bold text-foreground leading-tight">
             Hey <span className="text-primary">{profile.prenom}</span>,{" "}
             {isPilot && coachingMonth
-              ? <>programme Now Pilot · Mois {coachingMonth}/6 🤝</>
+              ? <>programme binôme · Mois {coachingMonth}/6 🤝</>
               : <>{welcomeMessage}</>
             }
           </h1>

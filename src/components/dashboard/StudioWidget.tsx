@@ -14,7 +14,7 @@ export default function StudioWidget() {
     >
       <div className="flex items-center gap-2 mb-3">
         <span className="text-xl">🌟</span>
-        <h3 className="font-display text-lg font-bold text-foreground">Mon Now Studio</h3>
+        <h3 className="font-display text-lg font-bold text-foreground">Mon accompagnement</h3>
       </div>
 
       <div className="mb-3">

@@ -88,7 +88,7 @@ export default function AbonnementPage() {
     window.open(`https://wa.me/33614133921?text=${text}`, "_blank");
   };
 
-  const planLabel = subInfo?.plan === "now_pilot" ? "🤝 Now Pilot" : subInfo?.plan === "studio" ? "Now Studio" : subInfo?.plan === "outil" ? "Outil" : "Gratuit";
+  const planLabel = subInfo?.plan === "now_pilot" ? "🤝 Binôme de com" : subInfo?.plan === "studio" ? "Binôme de com" : subInfo?.plan === "outil" ? "Outil" : "Gratuit";
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;
   const totalPct = totalLimit > 0 ? Math.round((totalUsed / totalLimit) * 100) : 0;
@@ -298,7 +298,7 @@ export default function AbonnementPage() {
             <div className={`rounded-xl border-2 p-4 text-center transition-all ${
               plan === "now_pilot" ? "border-primary bg-rose-pale" : "border-border hover:border-primary/30"
             }`}>
-              <h3 className="font-display font-bold text-foreground">🤝 Now Pilot</h3>
+              <h3 className="font-display font-bold text-foreground">🤝 Binôme de com</h3>
               <p className="text-lg font-semibold text-primary mt-1">250€/mois</p>
               <p className="text-xs text-muted-foreground mt-0.5">Engagement 6 mois</p>
               <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5 text-left">

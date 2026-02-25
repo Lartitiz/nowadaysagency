@@ -39,7 +39,7 @@ const BEFORE_AFTER = {
 };
 
 const INCLUDES = [
-  { emoji: "🛠️", title: "L'outil complet", desc: "Valeur 39€/mois — inclus dans le Studio" },
+  { emoji: "🛠️", title: "L'outil complet", desc: "Valeur 39€/mois — inclus dans l'accompagnement" },
   { emoji: "🎯", title: "6 coachings individuels d'1h", desc: "Avec Laetitia, en visio, sur-mesure" },
   { emoji: "👥", title: "Communauté premium + binôme", desc: "Une binôme attitrée pour avancer ensemble" },
   { emoji: "🎥", title: "Lives et masterclass exclusifs", desc: "Hot seats, exercices, Q&A réservés Studio" },
@@ -66,7 +66,7 @@ const TESTIMONIALS = [
   {
     name: "Amina",
     activity: "Mazeh Paris · Cosmétiques naturels",
-    quote: "Laetitia m'a aidée à trouver MA voix. Le Now Studio c'est le meilleur investissement que j'ai fait.",
+    quote: "Laetitia m'a aidée à trouver MA voix. L'accompagnement binôme c'est le meilleur investissement que j'ai fait.",
     result: "3× plus de DM qualifiés",
   },
   {
@@ -90,11 +90,11 @@ const NOT_FOR_YOU = [
 ];
 
 const OBJECTIONS = [
-  { q: "250€/mois c'est trop cher pour moi", a: "C'est moins qu'un community manager (800-2000€/mois). Et tu acquiers des compétences à vie. Le Now Studio est un investissement, pas une dépense." },
-  { q: "Je n'ai pas le temps", a: "Le Now Studio est conçu pour les entrepreneures débordées. 2-3h par semaine suffisent. L'outil automatise le reste." },
+  { q: "250€/mois c'est trop cher pour moi", a: "C'est moins qu'un community manager (800-2000€/mois). Et tu acquiers des compétences à vie. L'accompagnement binôme est un investissement, pas une dépense." },
+  { q: "Je n'ai pas le temps", a: "L'accompagnement binôme est conçu pour les entrepreneures débordées. 2-3h par semaine suffisent. L'outil automatise le reste." },
   { q: "Je suis débutante, c'est pour moi ?", a: "C'est même idéal ! Tu poses les bonnes bases dès le départ au lieu de perdre des mois à tâtonner." },
-  { q: "Et si ça ne marche pas ?", a: "Le Now Studio est satisfait ou remboursé. Si tu appliques tout et que tu n'as pas de résultats, on te rembourse." },
-  { q: "Je peux juste prendre l'outil à 39€ ?", a: "Bien sûr ! L'outil seul est déjà très complet. Le Now Studio ajoute l'accompagnement humain pour aller plus vite et plus loin." },
+  { q: "Et si ça ne marche pas ?", a: "L'accompagnement binôme est satisfait ou remboursé. Si tu appliques tout et que tu n'as pas de résultats, on te rembourse." },
+  { q: "Je peux juste prendre l'outil à 39€ ?", a: "Bien sûr ! L'outil seul est déjà très complet. L'accompagnement binôme ajoute l'humain pour aller plus vite et plus loin." },
   { q: "6 mois c'est un engagement long", a: "C'est le temps qu'il faut pour poser des fondations solides. Pas de raccourci, mais des résultats durables." },
   { q: "Qu'est-ce qui te différencie des autres ?", a: "10 ans d'expérience, enseignante en école de com', spécialisée solopreneuses engagées. Et un outil IA sur-mesure — pas un Google Doc." },
 ];
@@ -107,7 +107,7 @@ export default function NowStudioSalesPage() {
         <div className="absolute inset-0 bg-secondary/40" style={{ clipPath: "polygon(0 0, 100% 0, 100% 85%, 0 100%)" }} />
         <div className="relative mx-auto max-w-4xl px-4 pt-20 pb-28 sm:pt-28 sm:pb-36 text-center">
           <span className="inline-block mb-4 text-sm font-semibold text-primary bg-primary/10 px-4 py-1.5 rounded-pill">
-            🌟 Now Studio
+            🌟 Ta binôme de com
           </span>
           <h1 className="font-display text-[32px] sm:text-[48px] font-bold text-foreground leading-[1.15] mb-5">
             6 mois pour poser
