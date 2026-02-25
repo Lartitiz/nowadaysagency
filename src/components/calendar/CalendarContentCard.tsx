@@ -10,7 +10,7 @@ import {
 } from "@/lib/calendar-helpers";
 import { ChevronRight, Sparkles, Copy, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SocialMockup } from "@/components/social-mockup/SocialMockup";
+
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
@@ -78,13 +78,6 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
     setShowPreview(false);
   }, []);
 
-  const mockupCanal: "instagram" | "linkedin" = post.canal === "linkedin" ? "linkedin" : "instagram";
-  const mockupFormat: "post" | "carousel" | "reel" | "story" = (() => {
-    if (post.format === "post_carrousel") return "carousel";
-    if (post.format === "reel") return "reel";
-    if (post.format === "story" || post.format === "story_serie") return "story";
-    return "post";
-  })();
 
   // Unified color system: 1 color = 1 objective
   const objectifKey = getObjectifKey(post);
@@ -114,8 +107,34 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
       })
     : [];
 
+  // Status dot colors for detailed variant
+  const STATUS_DOT_COLORS: Record<string, string> = {
+    idea: "hsl(220, 9%, 76%)",
+    a_rediger: "hsl(217, 91%, 60%)",
+    planned: "hsl(217, 91%, 60%)",
+    drafting: "hsl(38, 92%, 50%)",
+    draft_ready: "hsl(338, 96%, 61%)",
+    ready: "hsl(338, 96%, 61%)",
+    published: "hsl(142, 71%, 45%)",
+  };
+
+  const CANAL_SHORT: Record<string, string> = {
+    instagram: "IG",
+    linkedin: "LI",
+    pinterest: "PI",
+  };
+
+  const OBJECTIF_EMOJIS: Record<string, string> = {
+    visibilite: "👀",
+    confiance: "🤝",
+    vente: "💰",
+    credibilite: "🏆",
+  };
+
   if (variant === "detailed") {
-    const catInfo = isStories ? { emoji: "📱", label: "Stories" } : CATEGORY_LABELS[objectifKey];
+    const dotColor = STATUS_DOT_COLORS[post.status] || STATUS_DOT_COLORS.idea;
+    const canalShort = CANAL_SHORT[post.canal] || post.canal?.toUpperCase()?.slice(0, 2) || "";
+    const objEmoji = OBJECTIF_EMOJIS[post.objectif || post.category || ""] || "";
 
     return (
       <div className="relative" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
@@ -184,16 +203,34 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
             )}
           </div>
         )}
-        <div className="flex items-center justify-between mb-0.5">
-          {isLaunch && <span className="text-[10px]">🚀</span>}
-          <StatusBadge status={post.status} />
+
+        {/* Post top: status dot left, canal label right */}
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-1.5">
+            <span className="shrink-0 rounded-full" style={{ width: 7, height: 7, backgroundColor: dotColor }} />
+            {isLaunch && <span className="text-[10px]">🚀</span>}
+          </div>
+          {canalShort && (
+            <span
+              className="text-muted-foreground uppercase"
+              style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, letterSpacing: "0.04em" }}
+            >
+              {canalShort}
+            </span>
+          )}
         </div>
+
         {isStories ? (
           <>
             <p className={cn("font-medium text-foreground truncate text-xs", post.status === "published" && "line-through")}>
               📱 Stories · {post.stories_structure || post.theme}
             </p>
-            <p className="text-muted-foreground truncate text-[10px] mt-0.5">{post.stories_count || "?"} stories · {post.stories_objective || ""}</p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-[9px] px-1.5 py-px rounded-full text-muted-foreground" style={{ background: "rgba(0,0,0,0.04)" }}>
+                📱 Stories
+              </span>
+              <span className="text-[10px] text-muted-foreground">{post.stories_count || "?"} stories · {post.stories_objective || ""}</span>
+            </div>
             {timingSummary.length > 0 && (
               <div className="mt-1 space-y-0">{timingSummary.map((t, i) => (
                 <p key={i} className="text-[10px] text-muted-foreground truncate">{t}</p>
@@ -205,10 +242,14 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
             <p className={cn("font-medium text-foreground truncate text-xs", post.status === "published" && "line-through")}>
               {hasTypeInfo ? `${typeEmoji} ${typeLabel}` : post.theme}
             </p>
-            <p className="text-muted-foreground truncate text-[10px] mt-0.5">
-              {formatEmoji && formatLabel ? `${formatEmoji} ${formatLabel}` : ""}
-              {catInfo ? ` · ${catInfo.emoji} ${catInfo.label}` : ""}
-            </p>
+            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+              {(formatEmoji || formatLabel) && (
+                <span className="text-[9px] px-1.5 py-px rounded-full text-muted-foreground" style={{ background: "rgba(0,0,0,0.04)" }}>
+                  {formatEmoji} {formatLabel}
+                </span>
+              )}
+              {objEmoji && <span className="text-[10px]">{objEmoji}</span>}
+            </div>
             {post.content_draft && !post.angle_suggestion && (
               <p className="text-muted-foreground truncate text-[10px] mt-0.5 line-clamp-2" style={{ WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden', whiteSpace: 'normal' }}>
                 {post.content_draft.split("\n").slice(0, 2).join(" ")}
@@ -229,21 +270,14 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
         )}
       </button>
 
-      {/* Hover preview popover */}
+      {/* Hover preview — simple text preview */}
       {showPreview && hasPreview && (
-        <div className="absolute left-full top-0 ml-2 z-50 pointer-events-none animate-in fade-in-0 zoom-in-95 duration-150" style={{ width: 280 }}>
-          <div className="rounded-xl border border-border shadow-lg bg-white overflow-hidden" style={{ maxHeight: 320 }}>
-            <SocialMockup
-              canal={mockupCanal}
-              format={mockupFormat}
-              username={ownerUsername || (post.canal === "linkedin" ? ownerDisplayName || "Mon profil" : "mon_compte")}
-              displayName={ownerDisplayName || "Mon profil"}
-              caption={post.content_draft || post.theme}
-              showComments={false}
-              readonly
-              compact
-              hideFollowButton
-            />
+        <div className="absolute left-full top-0 ml-2 z-50 pointer-events-none animate-in fade-in-0 zoom-in-95 duration-150" style={{ width: 260 }}>
+          <div className="rounded-xl border border-border shadow-lg bg-card overflow-hidden p-3" style={{ maxHeight: 200 }}>
+            <p className="text-[10px] uppercase mb-1 text-muted-foreground" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+              {post.canal} · {FORMAT_LABELS[post.format || ""] || "post"}
+            </p>
+            <p className="text-xs text-foreground whitespace-pre-wrap line-clamp-6">{post.content_draft}</p>
           </div>
         </div>
       )}
