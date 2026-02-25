@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
@@ -107,6 +108,7 @@ interface BrandingCoachingFlowProps {
 
 export default function BrandingCoachingFlow({ section, onComplete, onBack }: BrandingCoachingFlowProps) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { isDemoMode } = useDemoContext();
   const navigate = useNavigate();
 
@@ -142,10 +144,10 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
     if (isDemoMode || !user) return;
 
     const loadSession = async () => {
-      const { data } = await supabase
-        .from("branding_coaching_sessions")
+      const { data } = await (supabase
+        .from("branding_coaching_sessions") as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .eq("section", section)
         .maybeSingle();
 
@@ -171,10 +173,10 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
         }
       }
 
-      const { data: bp } = await supabase
-        .from("brand_profile")
+      const { data: bp } = await (supabase
+        .from("brand_profile") as any)
         .select("positioning, mission, values")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle();
       if (bp?.positioning || bp?.mission) {
         setHasPrefilledData(true);
@@ -189,9 +191,9 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
     if (contextRef.current) return contextRef.current;
     if (!user) return {};
     const [profileRes, brandRes, auditRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("branding_audits").select("score_global, points_forts, points_faibles").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      (supabase.from("profiles") as any).select("*").eq(column, value).maybeSingle(),
+      (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle(),
+      (supabase.from("branding_audits") as any).select("score_global, points_forts, points_faibles").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
     const ctx = {
       profile: profileRes.data,
@@ -571,7 +573,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
           if (typeof generatedStory === "string" && generatedStory.length > 50) {
             const { data: existing } = await (supabase.from("storytelling") as any)
               .select("id")
-              .eq("user_id", user!.id)
+              .eq(column, value)
               .eq("story_type", "fondatrice")
               .limit(1)
               .maybeSingle();
@@ -618,7 +620,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
           // Try update first, then upsert
           const { data: existing } = await (supabase.from("brand_charter") as any)
             .select("id")
-            .eq("user_id", user.id)
+            .eq(column, value)
             .maybeSingle();
           if (existing?.id) {
             await (supabase.from("brand_charter") as any)
@@ -641,7 +643,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
         // Map coaching insights to storytelling columns
         const { data: existing } = await (supabase.from("storytelling") as any)
           .select("id")
-          .eq("user_id", user.id)
+           .eq(column, value)
           .eq("story_type", "fondatrice")
           .limit(1)
           .maybeSingle();
@@ -758,10 +760,10 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
               className="rounded-pill text-muted-foreground mt-2"
               onClick={async () => {
                 if (user) {
-                  await supabase
-                    .from("branding_coaching_sessions")
+                   await (supabase
+                    .from("branding_coaching_sessions") as any)
                     .delete()
-                    .eq("user_id", user.id)
+                    .eq(column, value)
                     .eq("section", section);
                 }
                 setPhase("intro");
