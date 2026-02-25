@@ -264,7 +264,7 @@ export default function MiniDiagnostic() {
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
-                onClick={() => navigate(`/register?instagram=${result.handle}`)}
+                onClick={() => navigate(`/login?instagram=${result.handle}`)}
                 className="rounded-pill gap-2"
               >
                 Créer mon compte gratuitement <ArrowRight className="h-4 w-4" />
