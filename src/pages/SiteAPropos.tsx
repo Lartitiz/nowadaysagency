@@ -6,6 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import AboutOptimizeResult from "@/components/site/AboutOptimizeResult";
+import PreGenCoaching, { type PreGenBrief } from "@/components/coach/PreGenCoaching";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -37,7 +38,7 @@ const ANGLES = [
 
 const FOCUS_CHIPS = ["Mon histoire", "L'accroche", "Le ton", "La structure", "Tout"];
 
-type Mode = "entry" | "from-scratch" | "optimize-input" | "optimize-loading" | "optimize-result" | "display";
+type Mode = "entry" | "coaching" | "from-scratch" | "optimize-input" | "optimize-loading" | "optimize-result" | "display";
 
 export default function SiteAPropos() {
   const { user } = useAuth();
@@ -52,6 +53,10 @@ export default function SiteAPropos() {
   const [editValue, setEditValue] = useState("");
   const [exporting, setExporting] = useState(false);
   const recapRef = useRef<HTMLDivElement>(null);
+
+  // Coaching brief state
+  const [coachingBrief, setCoachingBrief] = useState<PreGenBrief | null>(null);
+  const [recommendedAngle, setRecommendedAngle] = useState<string | null>(null);
 
   // Optimize mode state
   const [mode, setMode] = useState<Mode>("entry");
@@ -104,9 +109,11 @@ export default function SiteAPropos() {
     setGenerating(true);
     setSelectedAngle(angle);
     try {
-      const { data: fnData, error } = await supabase.functions.invoke("website-ai", {
-        body: { action: "about-page", angle, workspace_id: workspaceId },
-      });
+      const body: any = { action: "about-page", angle, workspace_id: workspaceId };
+      if (coachingBrief?.summary) {
+        body.pre_gen_brief = coachingBrief.summary;
+      }
+      const { data: fnData, error } = await supabase.functions.invoke("website-ai", { body });
       if (error) throw error;
       const raw = fnData.content.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(raw);
@@ -142,6 +149,28 @@ export default function SiteAPropos() {
     }
   };
 
+  const handleCoachingComplete = (brief: PreGenBrief) => {
+    setCoachingBrief(brief);
+    // Detect recommended angle from brief
+    const summary = (brief.summary || "").toLowerCase();
+    let detected: string | null = null;
+    if (summary.includes("lettre") || summary.includes("intimiste") || summary.includes("personnel")) {
+      detected = "lettre";
+    } else if (summary.includes("manifeste") || summary.includes("engag") || summary.includes("conviction")) {
+      detected = "manifeste";
+    } else if (summary.includes("parcours") || summary.includes("histoire") || summary.includes("chronolog")) {
+      detected = "parcours";
+    }
+    if (brief.detected_angle) {
+      const a = brief.detected_angle.toLowerCase();
+      if (a.includes("lettre")) detected = "lettre";
+      else if (a.includes("manifeste")) detected = "manifeste";
+      else if (a.includes("parcours")) detected = "parcours";
+    }
+    setRecommendedAngle(detected);
+    setMode("from-scratch");
+  };
+
   const handleOptimize = async () => {
     if (!user) return;
     const url = inputMode === "url" ? optimizeUrl.trim() : undefined;
@@ -166,7 +195,6 @@ export default function SiteAPropos() {
       const raw = fnData.content?.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(raw);
       setOptimizeResult(parsed);
-      // If we scraped a URL, store the original text from the result diagnostic
       if (!text && url) setOriginalText("(contenu extrait de " + url + ")");
       setMode("optimize-result");
     } catch (e: any) {
@@ -242,9 +270,9 @@ export default function SiteAPropos() {
           </p>
 
           <div className="space-y-4">
-            {/* Card 1: From scratch */}
+            {/* Card 1: From scratch → coaching first */}
             <button
-              onClick={() => setMode("from-scratch")}
+              onClick={() => setMode("coaching")}
               className="w-full text-left rounded-2xl border-2 border-border hover:border-primary hover:shadow-md bg-card p-6 transition-all group"
             >
               <div className="flex items-start gap-4">
@@ -277,12 +305,37 @@ export default function SiteAPropos() {
             </button>
           </div>
 
-          {/* If data already exists, show link to display */}
           {data?.title && (
             <button onClick={() => setMode("display")} className="mt-6 text-sm text-primary hover:underline">
               📄 Voir ma page À propos actuelle →
             </button>
           )}
+        </main>
+      </div>
+    );
+  }
+
+  // ─── COACHING PRÉ-GÉNÉRATION ───
+  if (mode === "coaching") {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
+          <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
+          <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
+          <h1 className="font-display text-[22px] font-bold text-foreground mb-2">💬 On cadre ta page ensemble</h1>
+          <p className="text-[15px] text-muted-foreground mb-6">
+            Quelques questions rapides pour que l'IA rédige une page qui te ressemble vraiment.
+          </p>
+          <PreGenCoaching
+            generationType="about-page"
+            onComplete={handleCoachingComplete}
+            onSkip={() => {
+              setCoachingBrief(null);
+              setRecommendedAngle(null);
+              setMode("from-scratch");
+            }}
+          />
         </main>
       </div>
     );
@@ -297,9 +350,18 @@ export default function SiteAPropos() {
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
           <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
           <h1 className="font-display text-[26px] font-bold text-foreground mb-2">✨ Rédiger ma page de zéro</h1>
-          <p className="text-[15px] text-muted-foreground mb-8">
-            L'IA rédige ta page à propos à partir de ton branding. Choisis d'abord un angle.
+          <p className="text-[15px] text-muted-foreground mb-4">
+            L'IA rédige ta page à propos à partir de ton branding. Choisis un angle.
           </p>
+
+          {/* Coaching recommendation banner */}
+          {coachingBrief && recommendedAngle && (
+            <div className="rounded-xl border border-primary/20 bg-rose-pale p-4 mb-6">
+              <p className="text-sm text-foreground">
+                💡 D'après notre échange, je te recommande l'angle <strong>« {ANGLES.find(a => a.id === recommendedAngle)?.label} »</strong> 👇
+              </p>
+            </div>
+          )}
 
           <div className="space-y-3">
             {ANGLES.map(a => (
@@ -310,13 +372,20 @@ export default function SiteAPropos() {
                 className={`w-full text-left rounded-2xl border-2 p-5 transition-all ${
                   generating && selectedAngle === a.id
                     ? "border-primary bg-rose-pale"
+                    : recommendedAngle === a.id && !generating
+                    ? "border-primary bg-rose-pale shadow-sm"
                     : "border-border hover:border-primary hover:shadow-md bg-card"
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{a.emoji}</span>
                   <div className="flex-1">
-                    <p className="font-display text-base font-bold text-foreground">{a.label}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-display text-base font-bold text-foreground">{a.label}</p>
+                      {recommendedAngle === a.id && !generating && (
+                        <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">recommandé</span>
+                      )}
+                    </div>
                     <p className="text-[13px] text-muted-foreground">{a.desc}</p>
                   </div>
                   {generating && selectedAngle === a.id && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
@@ -349,35 +418,21 @@ export default function SiteAPropos() {
           </p>
 
           <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
-            {/* Toggle URL / Text */}
             <div className="flex items-center gap-3">
               <span className={`text-sm font-medium ${inputMode === "url" ? "text-foreground" : "text-muted-foreground"}`}>Coller l'URL</span>
-              <Switch
-                checked={inputMode === "text"}
-                onCheckedChange={(checked) => setInputMode(checked ? "text" : "url")}
-              />
+              <Switch checked={inputMode === "text"} onCheckedChange={(checked) => setInputMode(checked ? "text" : "url")} />
               <span className={`text-sm font-medium ${inputMode === "text" ? "text-foreground" : "text-muted-foreground"}`}>Coller le texte</span>
             </div>
 
             {inputMode === "url" ? (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">URL de ta page À propos</label>
-                <Input
-                  value={optimizeUrl}
-                  onChange={(e) => setOptimizeUrl(e.target.value)}
-                  placeholder="https://monsite.com/a-propos"
-                  className="rounded-xl"
-                />
+                <Input value={optimizeUrl} onChange={(e) => setOptimizeUrl(e.target.value)} placeholder="https://monsite.com/a-propos" className="rounded-xl" />
               </div>
             ) : (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Texte de ta page</label>
-                <Textarea
-                  value={optimizeText}
-                  onChange={(e) => setOptimizeText(e.target.value)}
-                  placeholder="Colle le texte de ta page À propos actuelle..."
-                  className="rounded-xl min-h-[120px]"
-                />
+                <Textarea value={optimizeText} onChange={(e) => setOptimizeText(e.target.value)} placeholder="Colle le texte de ta page À propos actuelle..." className="rounded-xl min-h-[120px]" />
               </div>
             )}
 
@@ -385,48 +440,29 @@ export default function SiteAPropos() {
               <label className="text-sm font-medium text-foreground">
                 Qu'est-ce que tu veux améliorer ? <span className="text-muted-foreground font-normal">(optionnel)</span>
               </label>
-              <Textarea
-                value={optimizeFocus}
-                onChange={(e) => setOptimizeFocus(e.target.value)}
-                placeholder="Ex: Mon histoire sonne faux, c'est trop long, on dirait une fiche Wikipedia..."
-                className="rounded-xl min-h-[70px]"
-              />
+              <Textarea value={optimizeFocus} onChange={(e) => setOptimizeFocus(e.target.value)} placeholder="Ex: Mon histoire sonne faux, c'est trop long, on dirait une fiche Wikipedia..." className="rounded-xl min-h-[70px]" />
               <div className="flex flex-wrap gap-1.5">
                 {FOCUS_CHIPS.map(chip => (
-                  <button
-                    key={chip}
-                    onClick={() => setOptimizeFocus(prev => prev ? `${prev}, ${chip}` : chip)}
-                    className="font-mono-ui text-[11px] font-semibold px-3 py-1 rounded-pill border border-border bg-card hover:border-primary hover:bg-rose-pale transition-colors"
-                  >
+                  <button key={chip} onClick={() => setOptimizeFocus(prev => prev ? `${prev}, ${chip}` : chip)} className="font-mono-ui text-[11px] font-semibold px-3 py-1 rounded-pill border border-border bg-card hover:border-primary hover:bg-rose-pale transition-colors">
                     {chip}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Audit banner */}
             {auditScore !== null && (
               <div className="rounded-xl border border-primary/20 bg-rose-pale p-4 space-y-2">
                 <p className="text-sm text-foreground">
                   💡 Tu as un audit site avec un score confiance de <strong>{auditScore}/100</strong>. L'IA va utiliser ces recommandations pour améliorer ta page.
                 </p>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={useAudit}
-                    onChange={(e) => setUseAudit(e.target.checked)}
-                    className="rounded border-border text-primary focus:ring-primary h-4 w-4"
-                  />
+                  <input type="checkbox" checked={useAudit} onChange={(e) => setUseAudit(e.target.checked)} className="rounded border-border text-primary focus:ring-primary h-4 w-4" />
                   <span className="text-sm text-foreground">Utiliser les recommandations de mon audit</span>
                 </label>
               </div>
             )}
 
-            <Button
-              onClick={handleOptimize}
-              disabled={inputMode === "url" ? !optimizeUrl.trim() : !optimizeText.trim()}
-              className="w-full sm:w-auto rounded-pill gap-2"
-            >
+            <Button onClick={handleOptimize} disabled={inputMode === "url" ? !optimizeUrl.trim() : !optimizeText.trim()} className="w-full sm:w-auto rounded-pill gap-2">
               ✨ Analyser et améliorer
             </Button>
             <p className="text-xs text-muted-foreground">~30 secondes · L'IA analyse ta page et propose des améliorations</p>
@@ -457,12 +493,7 @@ export default function SiteAPropos() {
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
           <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
           <h1 className="font-display text-[22px] font-bold text-foreground mb-6">🔧 Résultats de l'optimisation</h1>
-          <AboutOptimizeResult
-            result={optimizeResult}
-            originalText={originalText}
-            onRetry={() => setMode("optimize-input")}
-            userId={user!.id}
-          />
+          <AboutOptimizeResult result={optimizeResult} originalText={originalText} onRetry={() => setMode("optimize-input")} userId={user!.id} />
         </main>
       </div>
     );

@@ -4,10 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Sparkles, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
+import PreGenCoaching, { type PreGenBrief } from "@/components/coach/PreGenCoaching";
 import {
   HomepageData, EMPTY, STEPS, FRAMEWORKS, PAGE_TYPES,
 } from "@/components/site/SiteShared";
@@ -33,6 +34,8 @@ export default function SiteAccueil() {
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [aiResults, setAiResults] = useState<Record<string, any>>({});
   const [brandingPercent, setBrandingPercent] = useState(100);
+  const [showCoaching, setShowCoaching] = useState(false);
+  const [coachingBrief, setCoachingBrief] = useState<PreGenBrief | null>(null);
 
   useEffect(() => {
     if (!user || !loading) return;
@@ -77,9 +80,11 @@ export default function SiteAccueil() {
     if (!user) return;
     setAiLoading(action);
     try {
-      const { data: result, error } = await supabase.functions.invoke("website-ai", {
-        body: { action, ...extraParams, workspace_id: workspaceId },
-      });
+      const body: any = { action, ...extraParams, workspace_id: workspaceId };
+      if (coachingBrief?.summary) {
+        body.pre_gen_brief = coachingBrief.summary;
+      }
+      const { data: result, error } = await supabase.functions.invoke("website-ai", { body });
       if (error) throw error;
       const raw = result?.content || "";
       let parsed: any;
@@ -196,6 +201,43 @@ export default function SiteAccueil() {
         {brandingPercent < 50 && (
           <div className="rounded-xl bg-rose-pale border border-primary/20 p-4 mb-6">
             <p className="text-sm text-foreground">💡 Plus ton branding est complet, plus les textes générés seront pertinents. <Link to="/branding" className="text-primary font-semibold hover:underline">Compléter mon branding →</Link></p>
+          </div>
+        )}
+
+        {/* Pre-gen coaching banner */}
+        {!showCoaching && !coachingBrief && (
+          <button
+            onClick={() => setShowCoaching(true)}
+            className="w-full rounded-xl border border-border bg-card hover:border-primary/40 p-4 mb-6 text-left transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <MessageCircle className="h-5 w-5 text-primary shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">💬 Besoin d'aide pour cadrer ta page ? Démarre un mini-coaching</p>
+                <p className="text-xs text-muted-foreground mt-0.5">3-5 questions pour que l'IA comprenne exactement ce que tu veux.</p>
+              </div>
+            </div>
+          </button>
+        )}
+
+        {showCoaching && !coachingBrief && (
+          <div className="mb-6">
+            <PreGenCoaching
+              generationType="sales-page"
+              onComplete={(brief) => {
+                setCoachingBrief(brief);
+                setShowCoaching(false);
+                toast.success("Coaching terminé ! L'IA utilisera tes réponses pour la génération.");
+              }}
+              onSkip={() => setShowCoaching(false)}
+            />
+          </div>
+        )}
+
+        {coachingBrief && (
+          <div className="rounded-xl border border-primary/20 bg-rose-pale p-4 mb-6 flex items-center justify-between">
+            <p className="text-sm text-foreground">✅ Coaching terminé : l'IA utilisera tes réponses pour générer ta page.</p>
+            <button onClick={() => { setCoachingBrief(null); setShowCoaching(false); }} className="text-xs text-muted-foreground hover:text-foreground">✕</button>
           </div>
         )}
 
