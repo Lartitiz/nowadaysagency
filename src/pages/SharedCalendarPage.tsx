@@ -1,13 +1,16 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, ChevronRight, Loader2, MessageCircle, Send, AlertCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, MessageCircle, Send, AlertCircle, Check, X } from "lucide-react";
 import { formatDistanceToNow, format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from "date-fns";
 import { fr } from "date-fns/locale";
+import { SocialMockup } from "@/components/social-mockup/SocialMockup";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ShareData {
   label: string | null;
@@ -60,8 +63,20 @@ const FORMAT_EMOJIS: Record<string, string> = {
   story: "📱", story_serie: "📱", live: "🎤",
 };
 
+function mapFormat(f: string | null): "post" | "carousel" | "reel" | "story" {
+  if (f === "post_carrousel") return "carousel";
+  if (f === "reel") return "reel";
+  if (f === "story" || f === "story_serie") return "story";
+  return "post";
+}
+
+function mapCanal(c: string): "instagram" | "linkedin" {
+  return c === "linkedin" ? "linkedin" : "instagram";
+}
+
 export default function SharedCalendarPage() {
   const { token } = useParams<{ token: string }>();
+  const isMobile = useIsMobile();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [share, setShare] = useState<ShareData | null>(null);
@@ -76,12 +91,21 @@ export default function SharedCalendarPage() {
   const [nameInput, setNameInput] = useState("");
   const hasName = !!(guestName || share?.guest_name);
 
-  // Comment sheet
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [commentText, setCommentText] = useState("");
+  // Post detail dialog
+  const [selectedPostIndex, setSelectedPostIndex] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
+  const [revisionMode, setRevisionMode] = useState(false);
+  const [revisionText, setRevisionText] = useState("");
+  const [currentSlide, setCurrentSlide] = useState(1);
 
   const effectiveName = guestName || share?.guest_name || "";
+
+  // Ordered posts for navigation
+  const orderedPosts = useMemo(() =>
+    [...posts].sort((a, b) => a.date.localeCompare(b.date) || a.theme.localeCompare(b.theme)),
+  [posts]);
+
+  const selectedPost = selectedPostIndex !== null ? orderedPosts[selectedPostIndex] : null;
 
   const fetchData = async (ws?: Date) => {
     if (!token) return;
@@ -102,7 +126,6 @@ export default function SharedCalendarPage() {
       setPosts(data.posts || []);
       setComments(data.comments || []);
 
-      // Restore guest_name
       if (data.share?.guest_name && !guestName) {
         setGuestName(data.share.guest_name);
         localStorage.setItem(storageKey, data.share.guest_name);
@@ -127,7 +150,6 @@ export default function SharedCalendarPage() {
     const name = nameInput.trim();
     setGuestName(name);
     localStorage.setItem(storageKey, name);
-    // Update guest_name on share (fire-and-forget via edge function is not available, so we just store locally)
   };
 
   const weekDays = useMemo(() =>
@@ -147,8 +169,27 @@ export default function SharedCalendarPage() {
   const getPostComments = (postId: string) => comments.filter(c => c.calendar_post_id === postId);
   const getUnresolvedCount = (postId: string) => getPostComments(postId).filter(c => !c.is_resolved).length;
 
-  const sendComment = async () => {
-    if (!commentText.trim() || !selectedPost || !token) return;
+  const openPost = (post: Post) => {
+    const idx = orderedPosts.findIndex(p => p.id === post.id);
+    setSelectedPostIndex(idx >= 0 ? idx : 0);
+    setRevisionMode(false);
+    setRevisionText("");
+    setCurrentSlide(1);
+  };
+
+  const navigatePost = (dir: "prev" | "next") => {
+    if (selectedPostIndex === null) return;
+    const newIdx = dir === "next" ? selectedPostIndex + 1 : selectedPostIndex - 1;
+    if (newIdx >= 0 && newIdx < orderedPosts.length) {
+      setSelectedPostIndex(newIdx);
+      setRevisionMode(false);
+      setRevisionText("");
+      setCurrentSlide(1);
+    }
+  };
+
+  const sendCommentRaw = async (content: string) => {
+    if (!content.trim() || !selectedPost || !token) return;
     setSending(true);
 
     const optimisticComment: Comment = {
@@ -157,13 +198,12 @@ export default function SharedCalendarPage() {
       share_id: "",
       author_name: effectiveName || "Invité·e",
       author_role: "guest",
-      content: commentText.trim(),
+      content: content.trim(),
       is_resolved: false,
       created_at: new Date().toISOString(),
     };
 
     setComments(prev => [...prev, optimisticComment]);
-    setCommentText("");
 
     try {
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -174,7 +214,7 @@ export default function SharedCalendarPage() {
           token,
           calendar_post_id: selectedPost.id,
           author_name: effectiveName || "Invité·e",
-          content: optimisticComment.content,
+          content: content.trim(),
         }),
       });
 
@@ -185,6 +225,59 @@ export default function SharedCalendarPage() {
     } catch { /* keep optimistic */ }
     setSending(false);
   };
+
+  const handleMockupComment = (content: string) => {
+    const isCarousel = mapFormat(selectedPost?.format ?? null) === "carousel";
+    const prefix = isCarousel && currentSlide > 0 ? `[SLIDE ${currentSlide}] ` : "";
+    sendCommentRaw(prefix + content);
+  };
+
+  const handleValidate = () => {
+    sendCommentRaw("[VALIDATION] Ce post est validé ✅");
+  };
+
+  const handleRevisionSubmit = () => {
+    if (!revisionText.trim()) return;
+    sendCommentRaw(`[REVISION] ${revisionText.trim()}`);
+    setRevisionMode(false);
+    setRevisionText("");
+  };
+
+  // Parse slides for carousel
+  const parseSlides = (post: Post) => {
+    if (mapFormat(post.format) !== "carousel" || !post.content_draft) return undefined;
+    try {
+      const parsed = JSON.parse(post.content_draft);
+      if (Array.isArray(parsed)) {
+        return parsed.map((s: any, i: number) => ({
+          title: s.title || s.titre || `Slide ${i + 1}`,
+          body: s.body || s.texte || s.content || "",
+          slideNumber: i + 1,
+        }));
+      }
+    } catch { /* not JSON */ }
+    const parts = post.content_draft.split(/(?:slide\s*\d+|---+|\n{3,})/i).filter(Boolean);
+    if (parts.length > 1) {
+      return parts.map((p, i) => ({
+        title: p.split("\n")[0]?.trim() || `Slide ${i + 1}`,
+        body: p.split("\n").slice(1).join("\n").trim(),
+        slideNumber: i + 1,
+      }));
+    }
+    return undefined;
+  };
+
+  // Map comments for SocialMockup
+  const mockupComments = useMemo(() => {
+    if (!selectedPost) return [];
+    return getPostComments(selectedPost.id).map(c => ({
+      id: c.id,
+      authorName: c.author_name,
+      content: c.content,
+      createdAt: c.created_at,
+      isResolved: c.is_resolved,
+    }));
+  }, [selectedPost, comments]);
 
   // ── Error state ──
   if (error) {
@@ -213,7 +306,115 @@ export default function SharedCalendarPage() {
     );
   }
 
-  const selectedPostComments = selectedPost ? getPostComments(selectedPost.id) : [];
+  // ── Post detail content (shared between Dialog and Sheet) ──
+  const postDetailContent = selectedPost ? (() => {
+    const caption = selectedPost.content_draft || selectedPost.theme;
+    const slides = parseSlides(selectedPost);
+    const hashtags = (caption.match(/#\w+/g) || []);
+    const isCarousel = mapFormat(selectedPost.format) === "carousel";
+    const placeholderText = isCarousel && currentSlide > 0
+      ? `Slide ${currentSlide} — ton retour...`
+      : "Ton retour sur ce post...";
+
+    return (
+      <div className="flex flex-col h-full">
+        {/* Mini breadcrumb + navigation */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-white shrink-0">
+          <button
+            onClick={() => navigatePost("prev")}
+            disabled={selectedPostIndex === 0}
+            className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4 text-gray-600" />
+          </button>
+          <span className="text-[11px] text-gray-500 font-medium">
+            Sem. du {format(weekStart, "d MMM", { locale: fr })} · Post {(selectedPostIndex ?? 0) + 1}/{orderedPosts.length}
+          </span>
+          <button
+            onClick={() => navigatePost("next")}
+            disabled={selectedPostIndex === orderedPosts.length - 1}
+            className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 transition-colors"
+          >
+            <ChevronRight className="h-4 w-4 text-gray-600" />
+          </button>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 bg-gray-50">
+          <div className="flex justify-center">
+            <SocialMockup
+              canal={mapCanal(selectedPost.canal)}
+              format={mapFormat(selectedPost.format)}
+              username={profile.prenom || "user"}
+              displayName={profile.prenom || "Utilisateur"}
+              caption={caption}
+              slides={slides}
+              hashtags={hashtags}
+              showComments={true}
+              comments={mockupComments}
+              onAddComment={handleMockupComment}
+              readonly={false}
+            />
+          </div>
+
+          {/* Validation buttons */}
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <Button
+              onClick={handleValidate}
+              disabled={sending}
+              className="rounded-full gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-4 h-9"
+            >
+              <Check className="h-3.5 w-3.5" /> Validé
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setRevisionMode(!revisionMode)}
+              className="rounded-full gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50 text-xs px-4 h-9"
+            >
+              <X className="h-3.5 w-3.5" /> À revoir
+            </Button>
+          </div>
+
+          {revisionMode && (
+            <div className="mt-3 max-w-[400px] mx-auto space-y-2">
+              <Textarea
+                placeholder="Qu'est-ce qu'il faut changer ?"
+                value={revisionText}
+                onChange={e => setRevisionText(e.target.value)}
+                className="text-xs min-h-[60px] rounded-lg border-gray-300 resize-none bg-white"
+              />
+              <Button
+                onClick={handleRevisionSubmit}
+                disabled={!revisionText.trim() || sending}
+                className="rounded-full text-xs h-8 bg-orange-600 hover:bg-orange-700 text-white w-full"
+              >
+                {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Envoyer la demande de révision"}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Guest name prompt if needed */}
+        {!hasName && (
+          <div className="border-t border-gray-200 px-4 py-3 bg-white shrink-0">
+            <p className="text-[11px] text-gray-500 mb-2">Pour commenter, dis-nous comment tu t'appelles :</p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Ton prénom"
+                value={nameInput}
+                onChange={e => setNameInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && confirmName()}
+                className="text-xs h-8 rounded-lg border-gray-300"
+              />
+              <Button size="sm" onClick={confirmName} disabled={!nameInput.trim()} className="h-8 text-xs rounded-lg bg-gray-900 text-white hover:bg-gray-800">
+                OK
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  })() : null;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
@@ -298,7 +499,11 @@ export default function SharedCalendarPage() {
                     const canalInfo = CANAL_LABELS[post.canal];
 
                     return (
-                      <div key={post.id} className="mb-2 last:mb-0 rounded-lg border border-gray-200 bg-white p-2 text-xs">
+                      <button
+                        key={post.id}
+                        onClick={() => openPost(post)}
+                        className="mb-2 last:mb-0 rounded-lg border border-gray-200 bg-white p-2 text-xs w-full text-left hover:border-gray-400 hover:shadow-sm transition-all cursor-pointer"
+                      >
                         <div className="flex items-start gap-1.5 mb-1">
                           {post.format && FORMAT_EMOJIS[post.format] && (
                             <span className="text-sm leading-none">{FORMAT_EMOJIS[post.format]}</span>
@@ -325,14 +530,11 @@ export default function SharedCalendarPage() {
                           </p>
                         )}
 
-                        <button
-                          onClick={() => setSelectedPost(post)}
-                          className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-700 transition-colors"
-                        >
+                        <div className="flex items-center gap-1 text-[10px] text-gray-400">
                           <MessageCircle className="h-3 w-3" />
                           {unresolvedCount > 0 ? `💬 ${unresolvedCount}` : "Commenter"}
-                        </button>
-                      </div>
+                        </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -352,83 +554,20 @@ export default function SharedCalendarPage() {
         </p>
       </footer>
 
-      {/* Comment sheet */}
-      <Sheet open={!!selectedPost} onOpenChange={(o) => { if (!o) setSelectedPost(null); }}>
-        <SheetContent side="right" className="w-full sm:max-w-md flex flex-col bg-white">
-          <SheetHeader className="border-b border-gray-200 pb-3">
-            <SheetTitle className="text-sm font-semibold text-gray-900" style={{ fontFamily: "'Libre Baskerville', serif" }}>
-              {selectedPost?.theme}
-            </SheetTitle>
-            {selectedPost && (
-              <p className="text-[10px] text-gray-400">
-                {format(new Date(selectedPost.date), "EEEE d MMMM", { locale: fr })} · {CANAL_LABELS[selectedPost.canal]?.label || selectedPost.canal}
-              </p>
-            )}
-          </SheetHeader>
-
-          <div className="flex-1 overflow-y-auto py-3 space-y-3">
-            {selectedPostComments.length === 0 && (
-              <p className="text-xs text-gray-400 text-center py-8">Aucun commentaire pour l'instant. Sois le/la premier·e !</p>
-            )}
-
-            {selectedPostComments.map(c => {
-              const isOwner = c.author_role === "owner";
-              return (
-                <div key={c.id} className="flex gap-2">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0 ${isOwner ? "bg-gray-900 text-white" : "bg-gray-200 text-gray-600"}`}>
-                    {(c.author_name || "?").charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-xs font-medium text-gray-800">{c.author_name}</span>
-                      {isOwner && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Auteur·e</span>}
-                      <span className="text-[9px] text-gray-400 ml-auto">
-                        {formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: fr })}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-700 leading-relaxed">{c.content}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Comment input */}
-          <div className="border-t border-gray-200 pt-3 space-y-2">
-            {!hasName && (
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Ton prénom"
-                  value={nameInput}
-                  onChange={e => setNameInput(e.target.value)}
-                  className="text-xs h-8 rounded-lg border-gray-300"
-                />
-                <Button size="sm" onClick={confirmName} disabled={!nameInput.trim()} className="h-8 text-xs rounded-lg bg-gray-900 text-white hover:bg-gray-800">
-                  OK
-                </Button>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Textarea
-                placeholder={hasName ? "Ton commentaire…" : "Entre ton prénom d'abord"}
-                value={commentText}
-                onChange={e => setCommentText(e.target.value)}
-                disabled={!hasName}
-                className="text-xs min-h-[60px] rounded-lg border-gray-300 resize-none"
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendComment(); } }}
-              />
-              <Button
-                size="icon"
-                onClick={sendComment}
-                disabled={!commentText.trim() || !hasName || sending}
-                className="h-10 w-10 rounded-lg bg-gray-900 text-white hover:bg-gray-800 shrink-0 self-end"
-              >
-                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
+      {/* Post detail — Dialog on desktop, fullscreen Sheet on mobile */}
+      {isMobile ? (
+        <Sheet open={selectedPost !== null} onOpenChange={(o) => { if (!o) setSelectedPostIndex(null); }}>
+          <SheetContent side="bottom" className="h-[100dvh] p-0 flex flex-col rounded-none">
+            {postDetailContent}
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Dialog open={selectedPost !== null} onOpenChange={(o) => { if (!o) setSelectedPostIndex(null); }}>
+          <DialogContent className="max-w-[480px] p-0 overflow-hidden max-h-[90vh] flex flex-col">
+            {postDetailContent}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
