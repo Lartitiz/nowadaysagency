@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserPlan } from "@/hooks/use-user-plan";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -52,6 +53,7 @@ export default function AssistantPanel({ onClose }: { onClose: () => void }) {
   const location = useLocation();
   const isMobile = useIsMobile();
   const { isPilot } = useUserPlan();
+  const workspaceId = useWorkspaceId();
 
   const welcomeMsg = isPilot ? WELCOME_PILOT : WELCOME_DEFAULT;
 
@@ -83,6 +85,7 @@ export default function AssistantPanel({ onClose }: { onClose: () => void }) {
           conversation_history: messages
             .filter((m) => m.role === "user" || m.role === "assistant")
             .map((m) => ({ role: m.role, content: m.content })),
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         };
 
         // If pending actions and this is a confirmation
@@ -121,14 +124,14 @@ export default function AssistantPanel({ onClose }: { onClose: () => void }) {
         setLoading(false);
       }
     },
-    [messages, loading, pendingActions]
+    [messages, loading, pendingActions, workspaceId, user?.id]
   );
 
   const handleUndo = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("assistant-chat", {
-        body: { undo: true },
+        body: { undo: true, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       });
       if (error) throw error;
       setMessages((prev) => [...prev, { role: "assistant", content: data.message }]);
