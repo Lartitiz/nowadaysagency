@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.branding-mirror]
 verify_jwt = false
+
+[functions.charter-coaching]
+verify_jwt = false

@@ -9,11 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Upload, X, Plus, Search } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Upload, X, Plus, Search, Sparkles, FileText } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 
 const GOOGLE_FONTS = [
   "Inter", "Poppins", "Montserrat", "Playfair Display", "Libre Baskerville",
@@ -107,6 +109,9 @@ function loadGoogleFont(font: string) {
 export default function BrandCharterPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") === "coaching" ? "coaching" : "fiche";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const { column, value } = useWorkspaceFilter();
   const [data, setData] = useState<CharterData>(INITIAL);
   const [loading, setLoading] = useState(true);
@@ -306,6 +311,48 @@ export default function BrandCharterPage() {
           <span className="text-2xl">🎨</span>
           <h1 className="font-display text-[26px] font-bold text-foreground">Ma charte graphique</h1>
         </div>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="coaching" className="gap-1.5">
+              <Sparkles className="h-3.5 w-3.5" /> Coaching IA
+            </TabsTrigger>
+            <TabsTrigger value="fiche" className="gap-1.5">
+              <FileText className="h-3.5 w-3.5" /> Ma fiche
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="coaching" className="mt-4">
+            <BrandingCoachingFlow
+              section="charter"
+              onComplete={() => {
+                setActiveTab("fiche");
+                // Reload charter data
+                const reload = async () => {
+                  const { data: row } = await (supabase.from("brand_charter") as any)
+                    .select("*")
+                    .eq(column, value)
+                    .maybeSingle();
+                  if (row) {
+                    setData({
+                      ...INITIAL,
+                      ...row,
+                      custom_colors: row.custom_colors || [],
+                      mood_keywords: row.mood_keywords || [],
+                      photo_keywords: row.photo_keywords || [],
+                      mood_board_urls: row.mood_board_urls || [],
+                      uploaded_templates: row.uploaded_templates || [],
+                    });
+                  }
+                };
+                reload();
+              }}
+              onBack={() => navigate("/branding")}
+            />
+          </TabsContent>
+
+          <TabsContent value="fiche" className="mt-4">
 
         {/* Completion bar */}
         <div className="flex items-center gap-3 mb-6">
@@ -536,6 +583,9 @@ export default function BrandCharterPage() {
             Dernière modification : {format(new Date(data.updated_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
           </p>
         )}
+
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
