@@ -110,3 +110,6 @@ verify_jwt = false
 
 [functions.audit-visual-templates]
 verify_jwt = false
+
+[functions.carousel-visual]
+verify_jwt = false
