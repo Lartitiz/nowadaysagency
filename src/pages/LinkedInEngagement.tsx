@@ -6,11 +6,10 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Check, ExternalLink } from "lucide-react";
 
 const TARGETS: Record<number, { comments: number; messages: number }> = {
   3: { comments: 2, messages: 1 },
@@ -32,6 +31,12 @@ function getEmoji(done: number, target: number) {
   return "😅";
 }
 
+interface StrategyAccount {
+  name: string;
+  niche?: string;
+  url?: string;
+}
+
 export default function LinkedInEngagement() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -43,6 +48,10 @@ export default function LinkedInEngagement() {
   const [commentsDone, setCommentsDone] = useState(0);
   const [messagesDone, setMessagesDone] = useState(0);
   const [history, setHistory] = useState<any[]>([]);
+
+  // Strategy accounts
+  const [strategyAccounts, setStrategyAccounts] = useState<StrategyAccount[]>([]);
+  const [commentedAccounts, setCommentedAccounts] = useState<Set<string>>(new Set());
 
   const monday = useMemo(() => toLocalDateStr(getMonday(new Date())), []);
   const sunday = useMemo(() => {
@@ -60,31 +69,42 @@ export default function LinkedInEngagement() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const [weekRes, histRes] = await Promise.all([
+      const [weekRes, histRes, stratRes] = await Promise.all([
         (supabase.from("engagement_weekly_linkedin") as any).select("*").eq(column, value).eq("week_start", monday).maybeSingle(),
         (supabase.from("engagement_weekly_linkedin") as any).select("*").eq(column, value).neq("week_start", monday).order("week_start", { ascending: false }).limit(10),
+        (supabase.from("linkedin_comment_strategy") as any).select("accounts").eq(column, value).maybeSingle(),
       ]);
       if (weekRes.data) {
         setWeeklyId(weekRes.data.id);
         setObjective(weekRes.data.objective ?? 5);
         setCommentsDone(weekRes.data.comments_done ?? 0);
         setMessagesDone(weekRes.data.messages_done ?? 0);
+        // Load commented accounts from weekly data
+        const saved = weekRes.data.commented_accounts;
+        if (Array.isArray(saved)) setCommentedAccounts(new Set(saved));
       }
       setHistory(histRes.data || []);
+      if (stratRes.data?.accounts) {
+        try {
+          const accs = typeof stratRes.data.accounts === "string" ? JSON.parse(stratRes.data.accounts) : stratRes.data.accounts;
+          if (Array.isArray(accs)) setStrategyAccounts(accs);
+        } catch { /* ignore */ }
+      }
     };
     load();
   }, [user, monday]);
 
-  const saveWeekly = async (newComments?: number, newMessages?: number) => {
+  const saveWeekly = async (newComments?: number, newMessages?: number, newCommentedAccounts?: Set<string>) => {
     if (!user) return;
     const c = newComments ?? commentsDone;
     const m = newMessages ?? messagesDone;
     const t = TARGETS[objective] || TARGETS[5];
+    const ca = newCommentedAccounts ?? commentedAccounts;
     const payload: any = {
       user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, week_start: monday, objective,
       comments_target: t.comments, comments_done: c,
       messages_target: t.messages, messages_done: m,
-      total_done: c + m, updated_at: new Date().toISOString(),
+      total_done: c + m, commented_accounts: Array.from(ca), updated_at: new Date().toISOString(),
     };
     if (weeklyId) {
       await supabase.from("engagement_weekly_linkedin").update(payload).eq("id", weeklyId);
@@ -97,6 +117,15 @@ export default function LinkedInEngagement() {
   const incrementComments = () => { const v = Math.min(commentsDone + 1, targets.comments); setCommentsDone(v); saveWeekly(v, messagesDone); };
   const incrementMessages = () => { const v = Math.min(messagesDone + 1, targets.messages); setMessagesDone(v); saveWeekly(commentsDone, v); };
 
+  const toggleAccountCommented = (name: string) => {
+    setCommentedAccounts(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      saveWeekly(undefined, undefined, next);
+      return next;
+    });
+  };
+
   const changeObjective = async (obj: number) => {
     setObjective(obj);
     setCommentsDone(0); setMessagesDone(0);
@@ -106,7 +135,7 @@ export default function LinkedInEngagement() {
       user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, week_start: monday, objective: obj,
       comments_target: t.comments, comments_done: 0,
       messages_target: t.messages, messages_done: 0,
-      total_done: 0, updated_at: new Date().toISOString(),
+      total_done: 0, commented_accounts: [], updated_at: new Date().toISOString(),
     };
     if (weeklyId) {
       await supabase.from("engagement_weekly_linkedin").update(payload).eq("id", weeklyId);
@@ -114,6 +143,7 @@ export default function LinkedInEngagement() {
       const { data } = await supabase.from("engagement_weekly_linkedin").insert(payload).select("id").single();
       if (data) setWeeklyId(data.id);
     }
+    setCommentedAccounts(new Set());
   };
 
   return (
@@ -124,6 +154,17 @@ export default function LinkedInEngagement() {
 
         <h1 className="font-display text-[22px] font-bold text-foreground mb-1">Ton engagement LinkedIn</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Sur LinkedIn, les commentaires sont rois. C'est là que tu te rends visible et que tu crées des connexions.</p>
+
+        {/* Guide – visible, not collapsed */}
+        <div className="rounded-xl bg-rose-pale p-5 text-sm space-y-3 mb-8">
+          <h3 className="font-semibold text-foreground">💡 5 règles pour commenter efficacement</h3>
+          <p><strong>1. 15+ mots minimum.</strong> Les commentaires courts ("Super !", "Merci du partage") sont ignorés par l'algorithme.</p>
+          <p><strong>2. Donne ton point de vue.</strong> Dire "c'est bien" ne sert à rien. Mouille-toi, apporte ton expertise.</p>
+          <p><strong>3. Commente dans les 60 premières minutes.</strong> C'est la Golden Hour du post : ton commentaire sera vu par tout le monde.</p>
+          <p><strong>4. Réponds aux réponses.</strong> Créer un thread sous un commentaire est plus puissant qu'un commentaire isolé.</p>
+          <p><strong>5. Choisis les sujets, pas les gens.</strong> Commente ce qui t'intéresse vraiment, pas les gros comptes "pour prendre des abonnés".</p>
+          <p className="text-muted-foreground">💡 Bonus : si un commentaire prend plus de 10% d'engagement par rapport au post original, transforme-le en publication.</p>
+        </div>
 
         {/* Weekly checklist */}
         <section className="space-y-4">
@@ -187,6 +228,50 @@ export default function LinkedInEngagement() {
           </div>
         </section>
 
+        {/* Strategy accounts checklist */}
+        {strategyAccounts.length > 0 && (
+          <section className="mt-8 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-base font-bold text-foreground">🎯 Mes comptes à commenter cette semaine</h2>
+              <Link to="/linkedin/comment-strategy" className="text-xs text-primary hover:underline flex items-center gap-1">
+                Modifier ma liste <ExternalLink className="h-3 w-3" />
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {strategyAccounts.map((acc) => {
+                const isChecked = commentedAccounts.has(acc.name);
+                return (
+                  <button
+                    key={acc.name}
+                    onClick={() => toggleAccountCommented(acc.name)}
+                    className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${isChecked ? "border-primary/40 bg-primary/5" : "border-border bg-card hover:border-primary/30"}`}
+                  >
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${isChecked ? "bg-primary border-primary" : "border-border"}`}>
+                      {isChecked && <Check className="h-3.5 w-3.5 text-primary-foreground" />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`text-sm font-medium ${isChecked ? "text-muted-foreground line-through" : "text-foreground"}`}>{acc.name}</p>
+                      {acc.niche && <p className="text-xs text-muted-foreground truncate">{acc.niche}</p>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {commentedAccounts.size}/{strategyAccounts.length} commentés cette semaine
+            </p>
+          </section>
+        )}
+
+        {strategyAccounts.length === 0 && (
+          <div className="mt-8 rounded-xl border border-dashed border-border p-5 text-center">
+            <p className="text-sm text-muted-foreground mb-2">Tu n'as pas encore défini de comptes à commenter.</p>
+            <Link to="/linkedin/comment-strategy">
+              <Button variant="outline" size="sm" className="rounded-pill">🎯 Créer ma stratégie commentaires</Button>
+            </Link>
+          </div>
+        )}
+
         {/* History */}
         {history.length > 0 && (
           <Accordion type="single" collapsible className="mt-6">
@@ -209,20 +294,6 @@ export default function LinkedInEngagement() {
             </AccordionItem>
           </Accordion>
         )}
-
-        {/* Guide */}
-        <Collapsible className="mt-8">
-          <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <ChevronDown className="h-4 w-4" />
-            💡 3 règles pour commenter sur LinkedIn
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-3 rounded-xl bg-rose-pale p-5 text-sm space-y-3">
-            <p><strong>1. Donne ton point de vue.</strong> Dire "c'est bien" ne sert à rien. Mouille-toi.</p>
-            <p><strong>2. Argumente.</strong> Plus tu expliques, plus tu apportes de la valeur.</p>
-            <p><strong>3. Choisis les sujets, pas les gens.</strong> Commenter les gros comptes pour "prendre des abonnés", c'est grillé. Commente ce qui t'intéresse vraiment.</p>
-            <p className="text-muted-foreground">💡 Bonus : si un de tes commentaires prend plus de 10% d'engagement par rapport au post original, transforme-le en publication.</p>
-          </CollapsibleContent>
-        </Collapsible>
       </main>
     </div>
   );

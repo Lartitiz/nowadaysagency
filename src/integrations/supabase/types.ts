@@ -2069,6 +2069,7 @@ export type Database = {
       }
       engagement_weekly_linkedin: {
         Row: {
+          commented_accounts: Json | null
           comments_done: number | null
           comments_target: number | null
           created_at: string | null
@@ -2083,6 +2084,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          commented_accounts?: Json | null
           comments_done?: number | null
           comments_target?: number | null
           created_at?: string | null
@@ -2097,6 +2099,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          commented_accounts?: Json | null
           comments_done?: number | null
           comments_target?: number | null
           created_at?: string | null
