@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,7 @@ const SCORE_BAR_COLOR = (score: number) =>
 
 export default function BrandingAuditPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -104,10 +106,10 @@ export default function BrandingAuditPage() {
       }
       if (profile?.linkedin_url) setLinkedinUrl(profile.linkedin_url);
 
-      const { data: prevAudit } = await supabase
-        .from("branding_audits")
+      const { data: prevAudit } = await (supabase
+        .from("branding_audits") as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
