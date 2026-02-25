@@ -24,7 +24,7 @@ import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
 import { CalendarLegend } from "@/components/calendar/CalendarLegend";
 import { CalendarCategoryFilters } from "@/components/calendar/CalendarCategoryFilters";
 import { StoriesMixBanner } from "@/components/calendar/StoriesMixBanner";
-import { WeekRecapBar } from "@/components/calendar/WeekRecapBar";
+
 import { BalanceGauge } from "@/components/calendar/BalanceGauge";
 import { CalendarKanbanView } from "@/components/calendar/CalendarKanbanView";
 import { CalendarListView } from "@/components/calendar/CalendarListView";
@@ -681,7 +681,7 @@ export default function CalendarPage() {
             ownerUsername={igUsername}
             ownerDisplayName={ownerName}
           />
-          <WeekRecapBar posts={weekPosts} compact={false} />
+          
         </>
       )}
     </>
