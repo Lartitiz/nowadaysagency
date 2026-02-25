@@ -48,13 +48,13 @@ export default function GenerateButton({ onClick, loading, disabled, label = "G�
       const notAvailable = catUsage && catUsage.limit === 0;
 
       toast({
-        title: notAvailable ? "Fonctionnalité premium" : "😅 Plus de crédits !",
+        title: notAvailable ? "Fonctionnalité premium" : "Tes crédits du mois sont utilisés",
         description: (
           <div className="space-y-2">
             <p>
               {notAvailable
                 ? `Les ${catLabel} sont disponibles à partir du plan Outil.`
-                : `Tu as utilisé tes ${catUsage?.limit} ${catLabel} ce mois-ci.`}
+                : `Tes ${catUsage?.limit} ${catLabel} du mois sont passé·es. Ça veut dire que tu bosses ta com', et ça c'est cool. Ils reviennent le 1er du mois.`}
             </p>
             {!notAvailable && (
               <div className="flex flex-wrap gap-1.5 pt-1">
@@ -74,7 +74,7 @@ export default function GenerateButton({ onClick, loading, disabled, label = "G�
             </Link>
           </div>
         ),
-        variant: "destructive",
+        variant: "default",
       });
       return;
     }
@@ -97,8 +97,8 @@ export default function GenerateButton({ onClick, loading, disabled, label = "G�
         )}
       </Button>
       {isLow && (
-        <span className="text-xs text-destructive/80">
-          ⚠️ Plus que {remaining} {CATEGORY_LABELS[category] || category} ce mois
+        <span className="text-xs text-muted-foreground">
+          💡 Il te reste {remaining} {CATEGORY_LABELS[category] || category} ce mois
         </span>
       )}
     </div>
