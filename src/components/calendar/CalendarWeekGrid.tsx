@@ -20,6 +20,7 @@ interface Props {
   onEditPost: (post: CalendarPost) => void;
   onMovePost?: (postId: string, newDate: string) => void;
   onAddIdea?: (dateStr: string) => void;
+  onQuickCreate: (dateStr: string, title: string) => void;
 }
 
 /* ── Draggable content card ── */
@@ -42,13 +43,14 @@ function DraggableWeekCard({ post, onClick }: { post: CalendarPost; onClick: () 
 
 /* ── Droppable day column ── */
 function DroppableWeekDay({
-  date, dateStr, isToday, posts, onCreatePost, onEditPost, onAddIdea,
+  date, dateStr, isToday, posts, onCreatePost, onEditPost, onAddIdea, onQuickCreate,
 }: {
   date: Date; dateStr: string; isToday: boolean;
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
-  onAddIdea: (dateStr: string) => void;
+  onAddIdea: (dateStr: string) => void; onQuickCreate: (dateStr: string, title: string) => void;
 }) {
-  const isPast = new Date(dateStr + "T00:00:00") < new Date(toLocalDateStr(new Date()) + "T00:00:00");
+  const [inlineInput, setInlineInput] = useState(false);
+  const [inlineValue, setInlineValue] = useState("");
   const { setNodeRef, isOver } = useDroppable({ id: dateStr });
   const dayLabel = date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
 
@@ -72,6 +74,46 @@ function DroppableWeekDay({
           <DraggableWeekCard key={p.id} post={p} onClick={() => onEditPost(p)} />
         ))}
       </div>
+
+      {posts.length === 0 && !inlineInput && (
+        <button
+          data-droppable-area
+          onClick={() => setInlineInput(true)}
+          className="w-full h-full min-h-[80px] flex items-center justify-center text-xs text-muted-foreground/40 hover:text-primary/60 hover:bg-primary/5 rounded-lg transition-colors cursor-text"
+        >
+          + Clic pour ajouter
+        </button>
+      )}
+
+      {inlineInput && (
+        <div className="mt-1">
+          <input
+            autoFocus
+            value={inlineValue}
+            onChange={(e) => setInlineValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && inlineValue.trim()) {
+                onQuickCreate(dateStr, inlineValue.trim());
+                setInlineValue("");
+                setInlineInput(false);
+              }
+              if (e.key === "Escape") {
+                setInlineValue("");
+                setInlineInput(false);
+              }
+            }}
+            onBlur={() => {
+              if (inlineValue.trim()) {
+                onQuickCreate(dateStr, inlineValue.trim());
+              }
+              setInlineValue("");
+              setInlineInput(false);
+            }}
+            placeholder="Titre du post..."
+            className="w-full text-xs border border-primary/40 rounded-lg px-2 py-1.5 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/60"
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -119,7 +161,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
 }
 
 /* ── Main (no DndContext — parent provides it) ── */
-export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea }: Props) {
+export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onQuickCreate }: Props) {
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
 
@@ -199,6 +241,7 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
                 onCreatePost={onCreatePost}
                 onEditPost={onEditPost}
                 onAddIdea={addIdeaHandler}
+                onQuickCreate={onQuickCreate}
               />
             );
           })}

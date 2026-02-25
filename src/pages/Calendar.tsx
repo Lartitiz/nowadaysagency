@@ -237,6 +237,23 @@ export default function CalendarPage() {
     toast({ title: "Post supprimé" });
   };
 
+  const handleQuickCreate = async (dateStr: string, title: string) => {
+    if (!user) return;
+    const { data, error } = await supabase.from("calendar_posts").insert({
+      user_id: user.id,
+      date: dateStr,
+      theme: title,
+      status: "idea",
+      canal: canalFilter !== "all" ? canalFilter : "instagram",
+      ...(column !== "user_id" ? { [column]: value } : {}),
+    }).select().single();
+
+    if (!error && data) {
+      setPosts(prev => [...prev, data as CalendarPost]);
+      toast({ title: "💡 Idée ajoutée !", description: title });
+    }
+  };
+
   const handleMovePost = async (postId: string, newDate: string) => {
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, date: newDate } : p)));
     const { error } = await supabase.from("calendar_posts")
@@ -429,7 +446,7 @@ export default function CalendarPage() {
           <CalendarWeekGrid
             weekDays={weekDays} postsByDate={postsByDate} todayStr={todayStr} isMobile={isMobile}
             onCreatePost={openCreateDialog} onEditPost={handlePostClick} onMovePost={handleMovePost}
-            onAddIdea={openCreateDialog}
+            onAddIdea={openCreateDialog} onQuickCreate={handleQuickCreate}
           />
         </>
       )}
