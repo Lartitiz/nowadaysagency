@@ -34,6 +34,7 @@ interface BioVersion {
   character_count: number;
   style_note: string;
   pourquoi?: string;
+  structure?: string;
 }
 
 interface BrandingContext {
@@ -769,15 +770,22 @@ export default function InstagramBio() {
            ═══════════════════════════════════════ */}
         {view === "results" && (
           <div className="space-y-6 animate-fade-in">
-            <h2 className="font-display text-lg font-bold text-foreground">📝 3 propositions de bio</h2>
+            <h2 className="font-display text-lg font-bold text-foreground">📝 {versions.length} propositions de bio</h2>
             <AiGeneratedMention />
 
             {versions.map((v, i) => (
               <div key={i} className="rounded-2xl border border-border bg-card p-6 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-display text-sm font-bold text-foreground">
-                    {String.fromCharCode(65 + i)} · {v.label}
-                  </h3>
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-display text-sm font-bold text-foreground">
+                      {String.fromCharCode(65 + i)} · {v.label}
+                    </h3>
+                    {v.structure && (
+                      <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                        {BIO_STRUCTURES.find(s => s.id === v.structure)?.name || v.structure}
+                      </span>
+                    )}
+                  </div>
                   <span className={`text-xs px-2 py-0.5 rounded-pill ${v.character_count <= 150 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
                     {v.character_count}/150 car.
                   </span>
@@ -800,7 +808,7 @@ export default function InstagramBio() {
             <div className="flex flex-wrap gap-3">
               <Button variant="outline" className="rounded-pill gap-2" onClick={handleGenerate} disabled={generating}>
                 {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                Regénérer 3 nouvelles propositions
+                Regénérer de nouvelles propositions
               </Button>
               <Button variant="outline" className="rounded-pill gap-2" onClick={() => { setSelectedLines([]); setView("mixer"); }}>
                 <Blend className="h-4 w-4" /> Mixer : prendre des bouts de chaque
