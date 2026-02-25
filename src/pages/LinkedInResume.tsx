@@ -306,6 +306,7 @@ export default function LinkedInResume() {
                     placeholder="Copie-colle ton résumé LinkedIn ici..."
                     className="min-h-[200px]"
                   />
+                  {existingText.trim() && <CharacterCounter count={existingText.length} max={2600} />}
                 </div>
                 <div className="flex gap-3">
                   <Button onClick={analyzeResume} disabled={analyzing || !existingText.trim()} className="rounded-pill gap-2">
@@ -482,6 +483,8 @@ function AnalysisCards({ analysis, onSaveVersion, copyText, copied, onBack }: {
           <div className="border-2 border-primary rounded-2xl p-6 bg-card shadow-sm">
             <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{analysis.proposed_version}</p>
           </div>
+          <CharacterCounter count={analysis.proposed_version.length} max={2600} />
+          <LinkedInPreview text={analysis.proposed_version} cutoff={265} label="Résumé" />
           <div className="flex gap-3">
             <Button onClick={() => onSaveVersion(analysis.proposed_version!)} className="rounded-pill gap-2">
               💾 Enregistrer cette version
