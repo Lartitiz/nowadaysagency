@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import BrandingImportDialog from "@/components/branding/BrandingImportDialog";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +26,8 @@ import { useBrandingSuggestions } from "@/hooks/use-branding-suggestions";
 import { DEMO_DATA } from "@/lib/demo-data";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { usePersonas } from "@/hooks/use-personas";
+import PersonaList from "@/components/branding/PersonaList";
 
 type Section = "story" | "persona" | "tone_style" | "content_strategy";
 
@@ -203,6 +205,18 @@ export default function BrandingSectionPage() {
     try { return localStorage.getItem(`spark_dismissed_${section}`) === "1"; } catch { return false; }
   });
 
+  // Multi-persona support
+  const isPersonaSection = section === "persona";
+  const { personas, refetch: refetchPersonas, setPrimary, updateChannels, deletePersona } = usePersonas();
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
+
+  // When personas load, select the first one (primary)
+  useEffect(() => {
+    if (isPersonaSection && personas.length > 0 && !selectedPersonaId) {
+      setSelectedPersonaId(personas[0].id);
+    }
+  }, [personas, isPersonaSection, selectedPersonaId]);
+
   // Redirect value_proposition to recap page
   useEffect(() => {
     if (searchParams.get("section") === "value_proposition") {
@@ -216,6 +230,24 @@ export default function BrandingSectionPage() {
     }
   }, [config, navigate]);
 
+  // Load persona by selected ID
+  const loadPersonaById = useCallback(async (personaId: string) => {
+    const { data: row } = await (supabase.from("persona") as any)
+      .select("*")
+      .eq("id", personaId)
+      .maybeSingle();
+    if (row) {
+      setData(row);
+      setLastUpdated(row.updated_at || null);
+    }
+  }, []);
+
+  // Select a persona
+  const handleSelectPersona = useCallback((id: string) => {
+    setSelectedPersonaId(id);
+    loadPersonaById(id);
+  }, [loadPersonaById]);
+
   useEffect(() => {
     if (!config) return;
     if (isDemoMode) {
@@ -228,6 +260,14 @@ export default function BrandingSectionPage() {
 
     const load = async () => {
       const table = config.table;
+
+      // For persona: if we have a selectedPersonaId, load that specific one
+      if (isPersonaSection && selectedPersonaId) {
+        await loadPersonaById(selectedPersonaId);
+        setLoading(false);
+        return;
+      }
+
       // Fetch all columns for synthesis support
       let query = (supabase.from(table as any) as any)
         .select("*")
@@ -238,10 +278,18 @@ export default function BrandingSectionPage() {
         query = query.eq("is_primary", true);
       }
       
+      // persona: fetch primary first
+      if (isPersonaSection) {
+        query = query.eq("is_primary", true);
+      }
+
       const { data: row } = await query.maybeSingle();
       if (row) {
         setData(row);
         setLastUpdated(row.updated_at || null);
+        if (isPersonaSection && row.id) {
+          setSelectedPersonaId(row.id);
+        }
       }
       setLoading(false);
     };
@@ -303,7 +351,9 @@ export default function BrandingSectionPage() {
 
         <div className="flex items-center gap-3 mb-2">
           <span className="text-2xl">{config.emoji}</span>
-          <h1 className="font-display text-[26px] font-bold text-foreground">{config.title}</h1>
+          <h1 className="font-display text-[26px] font-bold text-foreground">
+            {isPersonaSection && personas.length > 1 ? "Mes personas" : config.title}
+          </h1>
         </div>
 
         {/* Completion bar */}
@@ -323,17 +373,43 @@ export default function BrandingSectionPage() {
           <BrandingSpark section={section} onDismiss={() => setSparkDismissed(true)} />
         )}
 
+        {/* Multi-persona list */}
+        {isPersonaSection && !isDemoMode && personas.length > 0 && (
+          <PersonaList
+            personas={personas}
+            selectedId={selectedPersonaId}
+            onSelect={handleSelectPersona}
+            onSetPrimary={async (id) => { await setPrimary(id); }}
+            onUpdateChannels={async (id, ch) => { await updateChannels(id, ch); }}
+            onDelete={async (id) => {
+              await deletePersona(id);
+              if (selectedPersonaId === id) {
+                const remaining = personas.filter((p) => p.id !== id);
+                if (remaining.length > 0) handleSelectPersona(remaining[0].id);
+              }
+            }}
+            onCreateNew={() => {
+              // Navigate to persona stepper with new=true to force insert
+              navigate("/branding/persona?new=true");
+            }}
+          />
+        )}
+
         <Tabs value={activeTab} onValueChange={(v) => {
           setActiveTab(v);
           // When switching to synthese tab, reload data from DB
           if (v === "synthese" && !isDemoMode && user) {
-            const table = config.table;
-            const cols = "*";
-            let q = (supabase.from(table as any) as any).select(cols).eq(column, value);
-            if (table === "storytelling") q = q.eq("is_primary", true);
-            q.maybeSingle().then(({ data: row }: any) => {
-              if (row) { setData(row); setLastUpdated(row.updated_at || null); }
-            });
+            if (isPersonaSection && selectedPersonaId) {
+              loadPersonaById(selectedPersonaId);
+            } else {
+              const table = config.table;
+              const cols = "*";
+              let q = (supabase.from(table as any) as any).select(cols).eq(column, value);
+              if (table === "storytelling") q = q.eq("is_primary", true);
+              q.maybeSingle().then(({ data: row }: any) => {
+                if (row) { setData(row); setLastUpdated(row.updated_at || null); }
+              });
+            }
           }
         }} className="w-full">
           <TabsList className="w-full mb-6">
@@ -450,19 +526,24 @@ export default function BrandingSectionPage() {
                     setLastCoachingUpdate(new Date().toISOString());
                     setActiveTab("fiche");
                     if (!isDemoMode && user) {
-                      const cols = "*";
-                      let query = (supabase.from(config.table as any) as any)
-                        .select(cols)
-                        .eq(column, value);
-                      if (config.table === "storytelling") {
-                        query = query.eq("is_primary", true);
-                      }
-                      query.maybeSingle().then(({ data: row }: any) => {
-                        if (row) {
-                          setData(row);
-                          setLastUpdated(row.updated_at || null);
+                      if (isPersonaSection && selectedPersonaId) {
+                        loadPersonaById(selectedPersonaId);
+                        refetchPersonas();
+                      } else {
+                        const cols = "*";
+                        let query = (supabase.from(config.table as any) as any)
+                          .select(cols)
+                          .eq(column, value);
+                        if (config.table === "storytelling") {
+                          query = query.eq("is_primary", true);
                         }
-                      });
+                        query.maybeSingle().then(({ data: row }: any) => {
+                          if (row) {
+                            setData(row);
+                            setLastUpdated(row.updated_at || null);
+                          }
+                        });
+                      }
                     }
                   }}
                   onBack={() => setActiveTab("fiche")}

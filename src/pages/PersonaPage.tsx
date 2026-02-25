@@ -74,6 +74,7 @@ export default function PersonaPage() {
   // Coaching mode detection
   const fromAudit = searchParams.get("from") === "audit";
   const recId = searchParams.get("rec_id") || undefined;
+  const isNewPersona = searchParams.get("new") === "true";
   const [coachingMode, setCoachingMode] = useState(false);
 
   useEffect(() => {
@@ -83,17 +84,21 @@ export default function PersonaPage() {
   useEffect(() => {
     if (!user || !loading) return;
     const load = async () => {
-      const [pRes, profRes, bpRes] = await Promise.all([
-        (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle(),
+      const [profRes, bpRes] = await Promise.all([
         (supabase.from("profiles") as any).select("activite, prenom, tons").eq(column, value).single(),
         (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register").eq(column, value).maybeSingle(),
       ]);
-      if (pRes.data) {
-        const { id, user_id, created_at, updated_at, ...rest } = pRes.data;
-        setData(rest as PersonaData);
-        setExistingId(id);
-        setCurrentStep(rest.current_step || 1);
-        if (rest.starting_point) setStarted(true);
+
+      // If new=true, don't load an existing persona — start fresh
+      if (!isNewPersona) {
+        const pRes = await (supabase.from("persona") as any).select("*").eq(column, value).eq("is_primary", true).maybeSingle();
+        if (pRes.data) {
+          const { id, user_id, created_at, updated_at, ...rest } = pRes.data;
+          setData(rest as PersonaData);
+          setExistingId(id);
+          setCurrentStep(rest.current_step || 1);
+          if (rest.starting_point) setStarted(true);
+        }
       }
       setProfile({ ...(profRes.data || {}), ...(bpRes.data || {}) });
       setLoading(false);
@@ -109,10 +114,18 @@ export default function PersonaPage() {
     if (existingId) {
       await supabase.from("persona").update(payload as any).eq("id", existingId);
     } else {
-      const { data: inserted } = await supabase.from("persona").insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined } as any).select("id").single();
+      // New persona: is_primary = false if other personas exist, true otherwise
+      const { count } = await (supabase.from("persona") as any).select("id", { count: "exact", head: true }).eq(column, value);
+      const isPrimary = !count || count === 0;
+      const { data: inserted } = await supabase.from("persona").insert({
+        ...payload,
+        user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+        is_primary: isPrimary,
+      } as any).select("id").single();
       if (inserted) setExistingId(inserted.id);
     }
-  }, [user, existingId]);
+  }, [user, existingId, column, value]);
 
   const debouncedSave = useCallback((updated: PersonaData) => {
     if (saveTimeout.current) clearTimeout(saveTimeout.current);

@@ -6,6 +6,7 @@ import ContentScoring from "@/components/ContentScoring";
 import FeedbackLoop from "@/components/FeedbackLoop";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import ABTestAccroches from "@/components/ABTestAccroches";
+import PersonaBadge from "@/components/branding/PersonaBadge";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Button } from "@/components/ui/button";
@@ -150,6 +151,7 @@ export default function CreativeFlow({
   quickModeLoading,
 }: CreativeFlowProps) {
   const { toast } = useToast();
+  const channelFromType = contentType?.includes("linkedin") ? "linkedin" : contentType?.includes("instagram") || contentType?.includes("carousel") || contentType?.includes("reel") || contentType?.includes("stories") ? "instagram" : undefined;
   const [step, setStep] = useState<FlowStep>(skipToQuestions ? "angles" : "choose-mode");
   const [autoStarted, setAutoStarted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -388,6 +390,7 @@ export default function CreativeFlow({
 
       {/* ── Step indicator ── */}
       {step !== "choose-mode" && <StepIndicator current={step} />}
+      {channelFromType && <PersonaBadge channel={channelFromType} className="mb-3" />}
 
       {/* ── Loading dots ── */}
       {loading && (
