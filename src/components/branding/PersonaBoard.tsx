@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { toast } from "sonner";
 import { Pencil, Check, X, Plus, Trash2 } from "lucide-react";
@@ -110,6 +111,7 @@ function ensureObj(val: any): Record<string, any> {
 
 function useSave(table: string, onUpdated?: PersonaBoardProps["onUpdated"]) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { isDemoMode } = useDemoContext();
 
   const save = async (field: string, value: any) => {
@@ -120,7 +122,7 @@ function useSave(table: string, onUpdated?: PersonaBoardProps["onUpdated"]) {
     if (!user) return;
     const { error } = await (supabase.from(table as any) as any)
       .update({ [field]: value })
-      .eq("user_id", user.id);
+      .eq(column, value);
     if (error) { toast.error("Erreur de sauvegarde"); return; }
     toast.success("Sauvegardé");
     onUpdated?.(field, typeof value === "string" ? value : JSON.stringify(value));

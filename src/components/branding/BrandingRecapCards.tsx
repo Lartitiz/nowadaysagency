@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { toast } from "sonner";
 import { Pencil, Loader2, ChevronDown, ChevronUp } from "lucide-react";
@@ -53,6 +54,7 @@ interface EditableWrapperProps {
 
 function EditableWrapper({ value, field, table, multiline = true, onUpdated, children }: EditableWrapperProps) {
   const { user } = useAuth();
+  const { column, value: wsValue } = useWorkspaceFilter();
   const { isDemoMode } = useDemoContext();
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value || "");
@@ -70,7 +72,7 @@ function EditableWrapper({ value, field, table, multiline = true, onUpdated, chi
     setIsSaving(true);
     try {
       if (table === "storytelling" || table === "persona") {
-        const filterQuery = (supabase.from(table as any) as any).select("id").eq("user_id", user.id);
+        const filterQuery = (supabase.from(table as any) as any).select("id").eq(column, wsValue);
         const filteredQuery = table === "storytelling" ? filterQuery.eq("is_primary", true) : filterQuery;
         const { data: existing } = await filteredQuery.maybeSingle();
         if (existing) {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -43,6 +44,7 @@ const DEMO_HISTORY: Record<string, { messages: any[]; created_at: string; questi
 
 export default function BrandingCoachingHistory({ section }: Props) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { isDemoMode } = useDemoContext();
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,10 +56,10 @@ export default function BrandingCoachingHistory({ section }: Props) {
       return;
     }
     if (!user) return;
-    supabase
-      .from("branding_coaching_sessions")
+    (supabase
+      .from("branding_coaching_sessions") as any)
       .select("id, messages, created_at, question_count, is_complete")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .eq("section", section)
       .order("created_at", { ascending: true })
       .then(({ data }) => {

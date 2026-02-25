@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Download, Copy, RefreshCw, ExternalLink, Loader2, Pencil, Sparkles, Link2 } from "lucide-react";
@@ -175,6 +176,7 @@ function VoiceLayersSummary({ layers }: { layers?: Array<{name: string; summary:
 
 export default function BrandingSynthesisSheet({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const [data, setData] = useState<SynthesisData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -556,10 +558,10 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
               setSharing(true);
               try {
                 // Check for existing active link
-                const { data: existing } = await supabase
-                  .from("shared_branding_links")
+                const { data: existing } = await (supabase
+                  .from("shared_branding_links") as any)
                   .select("token")
-                  .eq("user_id", user.id)
+                  .eq(column, value)
                   .eq("is_active", true)
                   .gte("expires_at", new Date().toISOString())
                   .limit(1) as any;
