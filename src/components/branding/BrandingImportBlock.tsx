@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Upload, FileText, Globe, Sparkles, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
@@ -9,64 +10,89 @@ import { supabase } from "@/integrations/supabase/client";
 import { extractTextFromFile, isAcceptedFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
 import type { BrandingExtraction } from "@/lib/branding-import-types";
 
+const MAX_FILES = 10;
+const MAX_CHARS = 100_000;
+
 interface Props {
   onResult: (extraction: BrandingExtraction) => void;
 }
 
 export default function BrandingImportBlock({ onResult }: Props) {
-  const [mode, setMode] = useState<'idle' | 'file' | 'text' | 'url'>('idle');
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const addFiles = useCallback((newFiles: File[]) => {
+    setFiles((prev) => {
+      const accepted = newFiles.filter(isAcceptedFile);
+      if (accepted.length === 0 && newFiles.length > 0) {
+        toast.error("Format non supporté. Utilise un PDF, Word ou fichier texte.");
+        return prev;
+      }
+      const combined = [...prev, ...accepted];
+      if (combined.length > MAX_FILES) {
+        toast.error("10 fichiers maximum.");
+        return combined.slice(0, MAX_FILES);
+      }
+      return combined;
+    });
+  }, []);
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && isAcceptedFile(droppedFile)) {
-      setFile(droppedFile);
-      setMode('file');
-    } else {
-      toast.error("Format non supporté. Utilise un PDF, Word ou fichier texte.");
-    }
-  }, []);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    addFiles(droppedFiles);
+  }, [addFiles]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f && isAcceptedFile(f)) {
-      setFile(f);
-      setMode('file');
-    } else if (f) {
-      toast.error("Format non supporté. Utilise un PDF, Word ou fichier texte.");
+    if (e.target.files) {
+      addFiles(Array.from(e.target.files));
     }
+    // Reset so same files can be re-selected
+    e.target.value = "";
   };
 
   const handleAnalyze = async () => {
     setAnalyzing(true);
     try {
-      let payload: { text?: string; url?: string } = {};
+      const parts: string[] = [];
 
-      if (mode === 'file' && file) {
-        const extractedText = await extractTextFromFile(file);
-        if (extractedText.trim().length < 50) {
-          toast.error("Le fichier ne contient pas assez de texte.");
-          setAnalyzing(false);
-          return;
+      // Extract text from all files
+      if (files.length > 0) {
+        for (const file of files) {
+          const extractedText = await extractTextFromFile(file);
+          if (extractedText.trim().length > 0) {
+            parts.push(extractedText.trim());
+          }
         }
-        payload = { text: extractedText };
-      } else if (mode === 'text') {
-        if (text.trim().length < 50) {
-          toast.error("Colle au moins quelques phrases pour qu'on puisse analyser.");
-          setAnalyzing(false);
-          return;
-        }
-        payload = { text: text.trim() };
-      } else if (mode === 'url') {
-        let cleanUrl = url.trim();
-        if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+      }
+
+      // Add pasted text
+      if (text.trim().length > 0) {
+        parts.push(text.trim());
+      }
+
+      let combinedText = parts.join("\n\n--- DOCUMENT SUIVANT ---\n\n");
+
+      // Truncate if needed
+      if (combinedText.length > MAX_CHARS) {
+        combinedText = combinedText.slice(0, MAX_CHARS);
+        toast.info("Documents tronqués pour respecter la limite.");
+      }
+
+      // Build payload
+      let cleanUrl: string | undefined;
+      if (url.trim().length > 0) {
+        cleanUrl = url.trim();
+        if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
           cleanUrl = `https://${cleanUrl}`;
         }
         try {
@@ -76,14 +102,25 @@ export default function BrandingImportBlock({ onResult }: Props) {
           setAnalyzing(false);
           return;
         }
-        payload = { url: cleanUrl };
-      } else {
-        toast.error("Choisis un fichier, colle du texte ou entre une URL.");
+      }
+
+      if (combinedText.length === 0 && !cleanUrl) {
+        toast.error("Ajoute au moins un fichier, du texte ou une URL.");
         setAnalyzing(false);
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('analyze-branding-import', {
+      if (combinedText.length > 0 && combinedText.length < 50 && !cleanUrl) {
+        toast.error("Pas assez de contenu pour analyser. Ajoute plus de texte.");
+        setAnalyzing(false);
+        return;
+      }
+
+      const payload: { text?: string; url?: string } = {};
+      if (combinedText.length > 0) payload.text = combinedText;
+      if (cleanUrl) payload.url = cleanUrl;
+
+      const { data, error } = await supabase.functions.invoke("analyze-branding-import", {
         body: payload,
       });
 
@@ -100,14 +137,21 @@ export default function BrandingImportBlock({ onResult }: Props) {
     }
   };
 
-  const hasInput = (mode === 'file' && file) || (mode === 'text' && text.trim().length > 0) || (mode === 'url' && url.trim().length > 0);
+  const hasInput = files.length > 0 || text.trim().length > 0 || url.trim().length > 0;
+
+  const sourceCount = [files.length > 0, text.trim().length > 0, url.trim().length > 0].filter(Boolean).length;
+  const analyzeLabel = sourceCount > 0
+    ? files.length > 0
+      ? `Analyser ${files.length} document${files.length > 1 ? "s" : ""}${sourceCount > 1 ? " + autres sources" : ""} et pré-remplir mon branding`
+      : "Analyser et pré-remplir mon branding"
+    : "Analyser et pré-remplir mon branding";
 
   if (analyzing) {
     return (
       <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-8 mb-8 text-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
         <p className="font-display font-bold text-foreground text-base mb-1">
-          ✨ On analyse ton document…
+          ✨ On analyse tes documents…
         </p>
         <p className="text-sm text-muted-foreground">
           Ça peut prendre quelques secondes.
@@ -128,38 +172,58 @@ export default function BrandingImportBlock({ onResult }: Props) {
       {/* File drop zone */}
       <div
         className={`rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors mb-4
-          ${dragOver ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/40'}`}
+          ${dragOver ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
       >
-        {file ? (
-          <div className="flex items-center justify-center gap-3">
-            <FileText className="h-5 w-5 text-primary shrink-0" />
-            <span className="text-sm font-medium text-foreground truncate max-w-[200px]">{file.name}</span>
-            <button
-              onClick={(e) => { e.stopPropagation(); setFile(null); setMode('idle'); }}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </button>
+        {files.length > 0 ? (
+          <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {files.map((f, i) => (
+                <Badge key={`${f.name}-${i}`} variant="secondary" className="gap-1.5 py-1 px-2.5 text-xs">
+                  <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span className="truncate max-w-[150px]">
+                    {f.name.length > 25 ? f.name.slice(0, 22) + "…" : f.name}
+                  </span>
+                  <button
+                    onClick={() => removeFile(i)}
+                    className="text-muted-foreground hover:text-foreground ml-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">{files.length}/{MAX_FILES} fichiers</p>
+            {files.length < MAX_FILES && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-3.5 w-3.5 mr-1" /> Ajouter d'autres fichiers
+              </Button>
+            )}
           </div>
         ) : (
           <>
             <Upload className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">
-              <span className="max-md:hidden">📎 Glisse ton fichier ici ou clique pour uploader</span>
-              <span className="md:hidden">📎 Clique pour choisir un fichier</span>
+              <span className="max-md:hidden">📎 Glisse tes fichiers ici ou clique pour uploader (jusqu'à 10)</span>
+              <span className="md:hidden">📎 Clique pour choisir des fichiers</span>
             </p>
             <p className="text-xs text-muted-foreground/70 mt-1">
-              Formats acceptés : PDF, Word (.docx), texte (.txt)
+              PDF, Word (.docx), texte (.txt) — jusqu'à 10 fichiers
             </p>
           </>
         )}
         <input
           ref={fileInputRef}
           type="file"
+          multiple
           accept={ACCEPTED_MIME_TYPES}
           onChange={handleFileSelect}
           className="hidden"
@@ -169,7 +233,7 @@ export default function BrandingImportBlock({ onResult }: Props) {
       {/* Separator */}
       <div className="flex items-center gap-3 my-4">
         <div className="flex-1 h-px bg-border" />
-        <span className="text-xs text-muted-foreground font-medium">OU</span>
+        <span className="text-xs text-muted-foreground font-medium">ET / OU</span>
         <div className="flex-1 h-px bg-border" />
       </div>
 
@@ -179,7 +243,7 @@ export default function BrandingImportBlock({ onResult }: Props) {
         <Textarea
           placeholder="Colle ici ton brief, tes notes, ton plan de com'..."
           value={text}
-          onChange={(e) => { setText(e.target.value); if (e.target.value.trim()) setMode('text'); }}
+          onChange={(e) => setText(e.target.value)}
           className="min-h-[100px]"
         />
       </div>
@@ -187,7 +251,7 @@ export default function BrandingImportBlock({ onResult }: Props) {
       {/* Separator */}
       <div className="flex items-center gap-3 my-4">
         <div className="flex-1 h-px bg-border" />
-        <span className="text-xs text-muted-foreground font-medium">OU</span>
+        <span className="text-xs text-muted-foreground font-medium">ET / OU</span>
         <div className="flex-1 h-px bg-border" />
       </div>
 
@@ -200,7 +264,7 @@ export default function BrandingImportBlock({ onResult }: Props) {
             <Input
               placeholder="https://monsite.com"
               value={url}
-              onChange={(e) => { setUrl(e.target.value); if (e.target.value.trim()) setMode('url'); }}
+              onChange={(e) => setUrl(e.target.value)}
               className="pl-9"
             />
           </div>
@@ -215,7 +279,7 @@ export default function BrandingImportBlock({ onResult }: Props) {
         size="lg"
       >
         <Sparkles className="h-4 w-4" />
-        Analyser et pré-remplir mon branding
+        {analyzeLabel}
       </Button>
     </div>
   );
