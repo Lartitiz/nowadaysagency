@@ -135,52 +135,52 @@ export default function OffersPage() {
                     return (
                       <div
                         key={offer.id}
-                        className="rounded-2xl border-2 bg-card p-5 transition-all border-border hover:border-primary/30 hover:shadow-md cursor-pointer"
+                        className="rounded-2xl border-2 bg-card p-4 transition-all border-border hover:border-primary/30 hover:shadow-md cursor-pointer flex flex-col justify-between"
+                        style={{ maxHeight: 200 }}
                         onClick={() => navigate(`/branding/offres/${offer.id}`)}
                       >
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="font-display text-sm font-bold text-foreground truncate flex-1">
-                            {offer.name || "Sans nom"}
-                          </h3>
-                          <Badge variant="secondary" className={`${config.badge} text-[10px] ml-2 shrink-0`}>
-                            {config.emoji}
-                          </Badge>
-                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <h3 className="font-display text-sm font-bold text-foreground truncate flex-1">
+                              {config.emoji} {offer.name || "Sans nom"}
+                            </h3>
+                            {isComplete && <span className="text-xs ml-2 shrink-0">✅</span>}
+                          </div>
 
-                        {offer.price_text && (
-                          <p className="text-xs font-semibold text-primary mb-1">{offer.price_text}</p>
-                        )}
-
-                        {offer.promise && (
-                          <p className="text-xs italic text-muted-foreground mb-2 line-clamp-2">"{offer.promise}"</p>
-                        )}
-
-                        {offer.target_ideal && (
-                          <p className="text-[11px] text-muted-foreground mb-3">🎯 {offer.target_ideal}</p>
-                        )}
-
-                        {/* Completion bar */}
-                        <div className="flex items-center gap-2 mb-3">
-                          <Progress value={pct} className="h-1.5 flex-1" />
-                          <span className={`font-mono-ui text-[10px] font-semibold ${isComplete ? "text-emerald-600" : "text-muted-foreground"}`}>
-                            {isComplete ? "✅" : `${pct}%`}
-                          </span>
-                        </div>
-
-                        <Button
-                          size="sm"
-                          variant={isComplete ? "outline" : "default"}
-                          className="rounded-full text-xs w-full"
-                          onClick={(e) => { e.stopPropagation(); navigate(`/branding/offres/${offer.id}`); }}
-                        >
-                          {isComplete ? (
-                            <><Eye className="h-3.5 w-3.5 mr-1" />Voir la fiche</>
-                          ) : pct > 0 ? (
-                            <>Continuer →</>
-                          ) : (
-                            <><Sparkles className="h-3.5 w-3.5 mr-1" />Commencer</>
+                          {offer.price_text && (
+                            <p className="text-xs font-semibold text-primary mb-1">{offer.price_text}</p>
                           )}
-                        </Button>
+
+                          {(offer.description_short || offer.promise) && (
+                            <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                              {(() => { const t = offer.description_short || offer.promise || ""; return t.length > 80 ? t.slice(0, 80) + "…" : t; })()}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Progress value={pct} className="h-1.5 flex-1" />
+                            <span className={`font-mono-ui text-[10px] font-semibold ${isComplete ? "text-emerald-600" : "text-muted-foreground"}`}>
+                              {isComplete ? "100%" : `${pct}%`}
+                            </span>
+                          </div>
+
+                          <Button
+                            size="sm"
+                            variant={isComplete ? "outline" : "default"}
+                            className="rounded-full text-xs w-full"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/branding/offres/${offer.id}`); }}
+                          >
+                            {isComplete ? (
+                              <><Eye className="h-3.5 w-3.5 mr-1" />Voir la fiche</>
+                            ) : pct > 0 ? (
+                              <>Continuer →</>
+                            ) : (
+                              <><Sparkles className="h-3.5 w-3.5 mr-1" />Commencer</>
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     );
                   })}
