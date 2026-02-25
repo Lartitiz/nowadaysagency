@@ -15,6 +15,7 @@ import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { Link } from "react-router-dom";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { useDemoContext } from "@/contexts/DemoContext";
+import BioBeforeAfter from "@/components/bio/BioBeforeAfter";
 
 /* ═══════════════════════════════════════════════
    TYPES
@@ -35,6 +36,7 @@ interface BioVersion {
   style_note: string;
   pourquoi?: string;
   structure?: string;
+  score?: number;
 }
 
 interface BrandingContext {
@@ -773,6 +775,14 @@ export default function InstagramBio() {
             <h2 className="font-display text-lg font-bold text-foreground">📝 {versions.length} propositions de bio</h2>
             <AiGeneratedMention />
 
+            {bioAnalysis && bioAnalysis.score > 0 && versions.length > 0 && (
+              <BioBeforeAfter
+                currentBio={bioAnalysis.bio_displayed}
+                currentScore={bioAnalysis.score}
+                bestBio={versions.reduce((best, v) => (v.score || 0) > (best.score || 0) ? v : best, versions[0])}
+              />
+            )}
+
             {versions.map((v, i) => (
               <div key={i} className="rounded-2xl border border-border bg-card p-6 space-y-3">
                 <div className="flex items-center justify-between flex-wrap gap-1">
@@ -783,6 +793,14 @@ export default function InstagramBio() {
                     {v.structure && (
                       <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
                         {BIO_STRUCTURES.find(s => s.id === v.structure)?.name || v.structure}
+                      </span>
+                    )}
+                    {v.score && (
+                      <span className={cn(
+                        "text-sm font-bold px-2 py-0.5 rounded-full",
+                        v.score >= 70 ? "text-green-700 bg-green-50" : v.score >= 40 ? "text-amber-700 bg-amber-50" : "text-red-700 bg-red-50"
+                      )}>
+                        {v.score}/100
                       </span>
                     )}
                   </div>
