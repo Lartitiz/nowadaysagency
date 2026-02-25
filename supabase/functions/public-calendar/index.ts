@@ -15,6 +15,9 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const token = url.searchParams.get("token");
     const weekStart = url.searchParams.get("week_start");
+    const monthStart = url.searchParams.get("month_start");
+    const period = url.searchParams.get("period"); // "week" | "month" | "all"
+    const updateGuestName = url.searchParams.get("guest_name");
 
     if (!token) {
       return new Response(JSON.stringify({ error: "missing_token" }), {
@@ -51,6 +54,14 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Update guest name if provided
+    if (updateGuestName && updateGuestName.trim()) {
+      await supabase
+        .from("calendar_shares")
+        .update({ guest_name: updateGuestName.trim() })
+        .eq("id", share.id);
+    }
+
     // Fetch profile
     const { data: profile } = await supabase
       .from("profiles")
@@ -58,11 +69,10 @@ Deno.serve(async (req) => {
       .eq("user_id", share.user_id)
       .maybeSingle();
 
-    // Always include content_draft (wording) and category (phase) for guest view
     let postsQuery = supabase
       .from("calendar_posts")
       .select(
-        "id, date, theme, canal, format, objectif, status, notes, content_draft, category, audience_phase, accroche, angle"
+        "id, date, theme, canal, format, objectif, status, notes, content_draft, category, audience_phase, accroche, angle, updated_at"
       )
       .eq("user_id", share.user_id)
       .order("date");
@@ -75,18 +85,24 @@ Deno.serve(async (req) => {
       postsQuery = postsQuery.eq("canal", share.canal_filter);
     }
 
-    if (weekStart) {
-      const start = new Date(weekStart);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 6);
-      const endStr = end.toISOString().slice(0, 10);
-      postsQuery = postsQuery.gte("date", weekStart).lte("date", endStr);
+    // Date filtering
+    if (period !== "all") {
+      if (weekStart) {
+        const start = new Date(weekStart);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
+        postsQuery = postsQuery.gte("date", weekStart).lte("date", end.toISOString().slice(0, 10));
+      } else if (monthStart) {
+        const start = new Date(monthStart);
+        const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+        postsQuery = postsQuery.gte("date", monthStart).lte("date", end.toISOString().slice(0, 10));
+      }
     }
 
     const { data: posts } = await postsQuery;
     const postIds = (posts || []).map((p: any) => p.id);
 
-    // Fetch comments for these posts
+    // Fetch comments
     let comments: any[] = [];
     if (postIds.length > 0) {
       const { data: cmts } = await supabase
@@ -98,13 +114,19 @@ Deno.serve(async (req) => {
       comments = cmts || [];
     }
 
+    // Find last updated_at
+    const lastUpdated = (posts || []).reduce((max: string, p: any) => {
+      return p.updated_at > max ? p.updated_at : max;
+    }, "");
+
     return new Response(
       JSON.stringify({
         share: {
+          id: share.id,
           label: share.label,
           canal_filter: share.canal_filter,
           show_content_draft: share.show_content_draft,
-          guest_name: share.guest_name,
+          guest_name: updateGuestName?.trim() || share.guest_name,
           guest_can_edit_status: share.guest_can_edit_status ?? true,
           guest_can_edit_wording: share.guest_can_edit_wording ?? false,
           view_mode: share.view_mode ?? "table",
@@ -117,6 +139,7 @@ Deno.serve(async (req) => {
           wording: p.content_draft || null,
         })),
         comments,
+        last_updated: lastUpdated || null,
       }),
       {
         status: 200,
