@@ -19,6 +19,7 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
 
 // Lazy-loaded pages
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -212,9 +213,9 @@ function AnimatedRoutes() {
               <Route path="/parametres/connexions" element={<ProtectedRoute><ConnectionCheckPage /></ProtectedRoute>} />
               <Route path="/abonnement" element={<ProtectedRoute><AbonnementPage /></ProtectedRoute>} />
               <Route path="/accompagnement" element={<ProtectedRoute><AccompagnementPage /></ProtectedRoute>} />
-              <Route path="/admin/coaching" element={<ProtectedRoute><AdminCoachingPage /></ProtectedRoute>} />
+              <Route path="/admin/coaching" element={<AdminRoute><AdminCoachingPage /></AdminRoute>} />
               <Route path="/clients" element={<Navigate to="/admin/coaching" replace />} />
-              <Route path="/admin/audit" element={<ProtectedRoute><AdminAuditPage /></ProtectedRoute>} />
+              <Route path="/admin/audit" element={<AdminRoute><AdminAuditPage /></AdminRoute>} />
               <Route path="/admin/analytics" element={<Navigate to="/admin/coaching" replace />} />
               <Route path="/now-pilot" element={<NowPilotPage />} />
               <Route path="/legal-ia" element={<ProtectedRoute><LegalAiPage /></ProtectedRoute>} />
