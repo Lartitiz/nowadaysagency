@@ -9,6 +9,7 @@ export default function HubCard({
   tag,
   disabled,
   progressLabel = null,
+  onClick,
 }: {
   to: string;
   emoji: string;
@@ -18,6 +19,7 @@ export default function HubCard({
   tag?: string;
   disabled?: boolean;
   progressLabel?: string | null;
+  onClick?: () => void;
 }) {
   const displayTag = badge || tag;
   const content = (
@@ -39,6 +41,10 @@ export default function HubCard({
   );
 
   if (disabled) return content;
+
+  if (onClick) {
+    return <button type="button" onClick={onClick} className="text-left w-full">{content}</button>;
+  }
 
   return <Link to={to}>{content}</Link>;
 }
