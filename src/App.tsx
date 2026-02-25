@@ -85,6 +85,7 @@ const PinterestMotsCles = lazy(() => import("./pages/PinterestMotsCles"));
 const PinterestEpingles = lazy(() => import("./pages/PinterestEpingles"));
 const PinterestRoutine = lazy(() => import("./pages/PinterestRoutine"));
 const SiteHub = lazy(() => import("./pages/SiteHub"));
+const SeoHub = lazy(() => import("./pages/SeoHub"));
 const SiteAccueil = lazy(() => import("./pages/SiteAccueil"));
 const SiteAccueilRecap = lazy(() => import("./pages/SiteAccueilRecap"));
 const SiteAPropos = lazy(() => import("./pages/SiteAPropos"));
@@ -273,6 +274,7 @@ function AnimatedRoutes() {
               <Route path="/calendrier" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
               {/* Site Web module */}
               <Route path="/site" element={<ProtectedRoute><SiteHub /></ProtectedRoute>} />
+              <Route path="/seo" element={<ProtectedRoute><SeoHub /></ProtectedRoute>} />
               <Route path="/site/accueil" element={<ProtectedRoute><SiteAccueil /></ProtectedRoute>} />
               <Route path="/site/accueil/recap" element={<ProtectedRoute><SiteAccueilRecap /></ProtectedRoute>} />
               <Route path="/site/a-propos" element={<ProtectedRoute><SiteAPropos /></ProtectedRoute>} />
