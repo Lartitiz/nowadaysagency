@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Sparkles, Upload, X, Loader2, ArrowRight, ArrowLeft, ChevronRight, Download, RotateCcw } from "lucide-react";
+import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Link, useNavigate } from "react-router-dom";
 
 // ── Types ──
@@ -689,22 +690,29 @@ export default function LinkedInAudit() {
 
         {/* Navigation */}
         {step < 5 && (
-          <div className="flex justify-between mt-8">
-            {step > 0 ? (
-              <Button variant="outline" onClick={() => setStep((s) => s - 1)} className="gap-2 rounded-pill">
-                <ArrowLeft className="h-4 w-4" /> Retour
+          <>
+            <div className="flex justify-between mt-8">
+              {step > 0 ? (
+                <Button variant="outline" onClick={() => setStep((s) => s - 1)} className="gap-2 rounded-pill">
+                  <ArrowLeft className="h-4 w-4" /> Retour
+                </Button>
+              ) : <div />}
+              <Button onClick={handleNext} disabled={analyzing} className="gap-2 rounded-pill">
+                {step === 4 && !analyzing ? (
+                  <><Sparkles className="h-4 w-4" /> Voir mon audit complet</>
+                ) : step === 4 && analyzing ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Analyse en cours...</>
+                ) : (
+                  <>Suivant <ArrowRight className="h-4 w-4" /></>
+                )}
               </Button>
-            ) : <div />}
-            <Button onClick={handleNext} disabled={analyzing} className="gap-2 rounded-pill">
-              {analyzing ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Analyse en cours...</>
-              ) : step === 4 ? (
-                <><Sparkles className="h-4 w-4" /> Voir mon audit complet</>
-              ) : (
-                <>Suivant <ArrowRight className="h-4 w-4" /></>
-              )}
-            </Button>
-          </div>
+            </div>
+            {analyzing && (
+              <div className="mt-6">
+                <AiLoadingIndicator context="audit" isLoading={analyzing} />
+              </div>
+            )}
+          </>
         )}
         </>
         )}
