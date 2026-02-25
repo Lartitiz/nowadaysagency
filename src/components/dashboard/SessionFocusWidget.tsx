@@ -65,7 +65,7 @@ function getSmartFocus(
 
   // PRIORITY 5 — No content planned this week
   if (calendarPostCount === 0) {
-    return { emoji: "📅", title: "Planifie ta semaine de contenu", description: "Aucun post prévu cette semaine. On fixe 2-3 publications ?", cta: "Ouvrir le calendrier", route: "/calendrier", duration: "15 min", type: "content" };
+    return { emoji: "📅", title: "Planifie ta semaine de contenu", description: "Aucun post prévu cette semaine. On fixe 2-3 publications ?", cta: "Planifier avec l'IA", route: "/calendrier?coaching=1", duration: "15 min", type: "content" };
   }
 
   // PRIORITY 6 — Default

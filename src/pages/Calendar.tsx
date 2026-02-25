@@ -13,7 +13,8 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import CalendarCoachingDialog from "@/components/calendar/CalendarCoachingDialog";
 import { CANAL_FILTERS, type CalendarPost } from "@/lib/calendar-constants";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { CalendarWeekGrid } from "@/components/calendar/CalendarWeekGrid";
@@ -72,6 +73,7 @@ export default function CalendarPage() {
   const [postsPerWeek, setPostsPerWeek] = useState(3);
   const [selectedIdea, setSelectedIdea] = useState<SavedIdea | null>(null);
   const [ideaDetailOpen, setIdeaDetailOpen] = useState(false);
+  const [coachingOpen, setCoachingOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -89,6 +91,9 @@ export default function CalendarPage() {
       setSelectedDate(today);
       setPrefillData({ theme: prefillTheme, notes: prefillContent || "" });
       setDialogOpen(true);
+    }
+    if (searchParams.get("coaching") === "1") {
+      setCoachingOpen(true);
     }
   }, [searchParams]);
 
@@ -439,11 +444,16 @@ export default function CalendarPage() {
           <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Calendrier éditorial" />
         )}
         <AuditRecommendationBanner />
-        <div className="mb-6">
-          <h1 className="font-display text-[22px] sm:text-3xl md:text-4xl font-bold text-foreground">
-            📅 Mon calendrier éditorial
-          </h1>
-          <p className="mt-1 text-[15px] text-muted-foreground">Planifie tes contenus, visualise ta semaine, ne te demande plus jamais « je poste quoi aujourd'hui ».</p>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-display text-[22px] sm:text-3xl md:text-4xl font-bold text-foreground">
+              📅 Mon calendrier éditorial
+            </h1>
+            <p className="mt-1 text-[15px] text-muted-foreground">Planifie tes contenus, visualise ta semaine, ne te demande plus jamais « je poste quoi aujourd'hui ».</p>
+          </div>
+          <Button onClick={() => setCoachingOpen(true)} className="shrink-0 gap-1.5 rounded-full" size="sm">
+            <Sparkles className="h-3.5 w-3.5" /> Planifier ma semaine
+          </Button>
         </div>
 
         <BrandingPrompt section="strategie" />
@@ -521,6 +531,12 @@ export default function CalendarPage() {
           onOpenChange={setIdeaDetailOpen}
           onUpdated={handleIdeaUpdated}
           onPlanned={handleIdeaPlannedFromSheet}
+        />
+
+        <CalendarCoachingDialog
+          open={coachingOpen}
+          onOpenChange={setCoachingOpen}
+          onPostAdded={fetchPosts}
         />
       </main>
     </div>
