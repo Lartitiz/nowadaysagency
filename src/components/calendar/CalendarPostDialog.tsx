@@ -460,6 +460,23 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             </div>
           </div>
 
+          {/* Canal */}
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">Canal</label>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { id: "instagram", emoji: "📸", label: "Instagram" },
+                { id: "linkedin", emoji: "💼", label: "LinkedIn" },
+                { id: "pinterest", emoji: "📌", label: "Pinterest" },
+              ].map((c) => (
+                <button key={c.id} onClick={() => setPostCanal(c.id)}
+                  className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${postCanal === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                  {c.emoji} {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Angle */}
           <div>
             <label className="text-sm font-medium mb-1.5 block">Angle</label>
