@@ -22,6 +22,7 @@ import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
 import { CalendarLegend } from "@/components/calendar/CalendarLegend";
 import { CalendarCategoryFilters } from "@/components/calendar/CalendarCategoryFilters";
 import { StoriesMixBanner } from "@/components/calendar/StoriesMixBanner";
+import { CalendarKanbanView } from "@/components/calendar/CalendarKanbanView";
 import { CalendarIdeasSidebar, type SavedIdea } from "@/components/calendar/CalendarIdeasSidebar";
 import { IdeaDetailSheet } from "@/components/calendar/IdeaDetailSheet";
 import { CalendarWeekHeader } from "@/components/calendar/CalendarWeekHeader";
@@ -60,7 +61,8 @@ export default function CalendarPage() {
   const isInstagramRoute = location.pathname.startsWith("/instagram/");
   const [searchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<"month" | "week">("week");
+  const [viewMode, setViewMode] = useState<"month" | "week" | "kanban">("week");
+  const [kanbanPeriod, setKanbanPeriod] = useState<"week" | "month" | "all">("week");
   const [posts, setPosts] = useState<CalendarPost[]>([]);
   const [canalFilter, setCanalFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -142,23 +144,28 @@ export default function CalendarPage() {
       return;
     }
     if (!user) return;
-    let startDate: string, endDate: string;
-    if (viewMode === "week") {
-      startDate = toLocalDateStr(weekDays[0]);
-      endDate = toLocalDateStr(weekDays[6]);
+    let query = (supabase.from("calendar_posts") as any).select("*").eq(column, value);
+
+    if (viewMode === "kanban" && kanbanPeriod === "all") {
+      // No date filter — fetch all posts
     } else {
-      startDate = toLocalDateStr(new Date(year, month, 1));
-      endDate = toLocalDateStr(new Date(year, month + 1, 0));
+      let startDate: string, endDate: string;
+      if (viewMode === "kanban" && kanbanPeriod === "month") {
+        startDate = toLocalDateStr(new Date(year, month, 1));
+        endDate = toLocalDateStr(new Date(year, month + 1, 0));
+      } else if (viewMode === "week" || (viewMode === "kanban" && kanbanPeriod === "week")) {
+        startDate = toLocalDateStr(weekDays[0]);
+        endDate = toLocalDateStr(weekDays[6]);
+      } else {
+        startDate = toLocalDateStr(new Date(year, month, 1));
+        endDate = toLocalDateStr(new Date(year, month + 1, 0));
+      }
+      query = query.gte("date", startDate).lte("date", endDate);
     }
-    const { data } = await (supabase
-      .from("calendar_posts") as any)
-      .select("*")
-      .eq(column, value)
-      .gte("date", startDate)
-      .lte("date", endDate)
-      .order("date");
+
+    const { data } = await query.order("date");
     if (data) setPosts(data as CalendarPost[]);
-  }, [user, year, month, viewMode, weekStart, isDemoMode]);
+  }, [user, year, month, viewMode, weekStart, isDemoMode, kanbanPeriod]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
@@ -451,27 +458,50 @@ export default function CalendarPage() {
 
       {/* View toggle + Navigation */}
       <div className="flex items-center justify-between mb-4">
-        <Button variant="outline" size="icon" onClick={viewMode === "month" ? prevMonth : prevWeek} className="rounded-full">
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
+        {viewMode !== "kanban" ? (
+          <Button variant="outline" size="icon" onClick={viewMode === "month" ? prevMonth : prevWeek} className="rounded-full">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+        ) : <div />}
         <div className="flex items-center gap-3">
           <div className="flex rounded-full border border-border overflow-hidden">
             <button onClick={() => setViewMode("week")}
               className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "week" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               Semaine
             </button>
+            <button onClick={() => setViewMode("kanban")}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "kanban" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              Kanban
+            </button>
             <button onClick={() => setViewMode("month")}
               className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               Mois
             </button>
           </div>
-          <span className="font-display text-lg font-bold capitalize">
-            {viewMode === "month" ? monthName : weekLabel}
-          </span>
+          {viewMode === "kanban" ? (
+            <div className="flex rounded-full border border-border overflow-hidden">
+              {([
+                { id: "week", label: "Cette semaine" },
+                { id: "month", label: "Ce mois" },
+                { id: "all", label: "Tout" },
+              ] as const).map((p) => (
+                <button key={p.id} onClick={() => setKanbanPeriod(p.id)}
+                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${kanbanPeriod === p.id ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span className="font-display text-lg font-bold capitalize">
+              {viewMode === "month" ? monthName : weekLabel}
+            </span>
+          )}
         </div>
-        <Button variant="outline" size="icon" onClick={viewMode === "month" ? nextMonth : nextWeek} className="rounded-full">
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+        {viewMode !== "kanban" ? (
+          <Button variant="outline" size="icon" onClick={viewMode === "month" ? nextMonth : nextWeek} className="rounded-full">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        ) : <div />}
       </div>
 
       {/* Week header stats */}
@@ -479,7 +509,15 @@ export default function CalendarPage() {
         <CalendarWeekHeader weekLabel={weekLabel} weekPosts={weekPosts} postsPerWeekTarget={postsPerWeek} />
       )}
 
-      {viewMode === "month" ? (
+      {viewMode === "kanban" ? (
+        <CalendarKanbanView
+          posts={posts}
+          onEditPost={handlePostClick}
+          onStatusChange={handleQuickStatusChange}
+          canalFilter={canalFilter}
+          categoryFilter={categoryFilter}
+        />
+      ) : viewMode === "month" ? (
         <CalendarGrid
           calendarDays={calendarDays} postsByDate={postsByDate} todayStr={todayStr} isMobile={isMobile}
           onCreatePost={openCreateDialog} onEditPost={handlePostClick} onMovePost={handleMovePost}
