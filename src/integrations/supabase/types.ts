@@ -5290,6 +5290,39 @@ export type Database = {
           },
         ]
       }
+      shared_branding_links: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          title: string | null
+          token: string
+          user_id: string
+          views_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          title?: string | null
+          token?: string
+          user_id: string
+          views_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          title?: string | null
+          token?: string
+          user_id?: string
+          views_count?: number | null
+        }
+        Relationships: []
+      }
       stats_config: {
         Row: {
           business_metrics: Json | null

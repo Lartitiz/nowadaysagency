@@ -115,6 +115,7 @@ const LinkedInCommentStrategy = lazy(() => import("./pages/LinkedInCommentStrate
 const LinkedInCrosspost = lazy(() => import("./pages/LinkedInCrosspost"));
 const InstagramInspiration = lazy(() => import("./pages/InstagramInspiration"));
 const InvitePage = lazy(() => import("./pages/InvitePage"));
+const SharedBrandingPage = lazy(() => import("./pages/SharedBrandingPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -137,11 +138,11 @@ const SuspenseFallback = () => (
   </div>
 );
 
-const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilot", "/pricing", "/services", "/studio/discover"];
+const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilot", "/pricing", "/services", "/studio/discover", "/share/branding"];
 
 function AnimatedRoutes() {
   const location = useLocation();
-  const showAppWidgets = !PUBLIC_PATHS.includes(location.pathname) && !location.pathname.startsWith("/invite/");
+  const showAppWidgets = !PUBLIC_PATHS.includes(location.pathname) && !location.pathname.startsWith("/invite/") && !location.pathname.startsWith("/share/");
 
   return (
     <>
@@ -215,6 +216,7 @@ function AnimatedRoutes() {
               <Route path="/legal-ia" element={<ProtectedRoute><LegalAiPage /></ProtectedRoute>} />
               <Route path="/payment/success" element={<PaymentSuccessPage />} />
               <Route path="/invite/:token" element={<InvitePage />} />
+              <Route path="/share/branding/:token" element={<SharedBrandingPage />} />
               {/* Instagram module */}
               <Route path="/instagram" element={<ProtectedRoute><InstagramHub /></ProtectedRoute>} />
               <Route path="/instagram/profil" element={<ProtectedRoute><InstagramProfile /></ProtectedRoute>} />
