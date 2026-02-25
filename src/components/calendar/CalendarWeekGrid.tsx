@@ -82,7 +82,9 @@ function DroppableWeekDay({
   const [inlineInput, setInlineInput] = useState(false);
   const [inlineValue, setInlineValue] = useState("");
   const { setNodeRef, isOver } = useDroppable({ id: dateStr });
-  const dayLabel = date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+
+  const dayName = date.toLocaleDateString("fr-FR", { weekday: "short" });
+  const dayNum = date.getDate();
 
   return (
     <div
@@ -96,18 +98,37 @@ function DroppableWeekDay({
         isOver && "bg-primary/10 ring-2 ring-primary/30 ring-inset",
       )}
     >
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          <span className={cn("text-xs font-semibold capitalize", isToday ? "text-primary font-bold" : "text-foreground")}>
-            {dayLabel}
+      {/* Today badge */}
+      {isToday && (
+        <span
+          className="absolute top-[-1px] left-1/2 -translate-x-1/2 text-[9px] font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded-b-full z-10"
+        >
+          Aujourd'hui
+        </span>
+      )}
+
+      {/* Day header */}
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex flex-col items-start">
+          <span
+            className={cn("uppercase", isToday ? "text-primary" : "text-muted-foreground")}
+            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.05em" }}
+          >
+            {dayName}
           </span>
-          {isToday && (
-            <span className="text-[9px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
-              Aujourd'hui
+          {isToday ? (
+            <span className="flex items-center justify-center rounded-full bg-primary text-primary-foreground font-bold" style={{ width: 28, height: 28, fontSize: 13 }}>
+              {dayNum}
+            </span>
+          ) : (
+            <span className="text-foreground font-bold" style={{ fontSize: 18 }}>
+              {dayNum}
             </span>
           )}
         </div>
-        <AddPostMenu dateStr={dateStr} onAddIdea={onAddIdea} />
+        <div className={cn("transition-opacity", isToday ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
+          <AddPostMenu dateStr={dateStr} onAddIdea={onAddIdea} />
+        </div>
       </div>
 
       {/* Today summary */}
@@ -155,7 +176,8 @@ function DroppableWeekDay({
         <button
           data-droppable-area
           onClick={() => setInlineInput(true)}
-          className="w-full h-full min-h-[80px] flex items-center justify-center text-xs text-muted-foreground/40 hover:text-primary/60 hover:bg-primary/5 rounded-lg transition-colors cursor-text"
+          className="w-full h-full min-h-[80px] flex items-center justify-center text-xs rounded-lg border border-dashed border-transparent group-hover:border-border transition-all cursor-text opacity-0 group-hover:opacity-100"
+          style={{ color: "hsl(330, 20%, 80%)" }}
         >
           + Clic pour ajouter
         </button>
