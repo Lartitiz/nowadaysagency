@@ -158,7 +158,7 @@ export default function InstagramLaunch() {
   // Fetch profile for AI prompts
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("*").eq("user_id", user.id).single().then(({ data }) => {
+    (supabase.from("profiles") as any).select("*").eq(column, value).single().then(({ data }: any) => {
       if (data) setProfile(data);
     });
   }, [user?.id]);

@@ -98,10 +98,10 @@ export default function InstagramProfile() {
           .from("audit_validations" as any) as any)
           .select("section, status")
           .eq(column, value),
-        supabase
-          .from("profiles")
+        (supabase
+          .from("profiles") as any)
           .select("instagram_display_name, instagram_bio, instagram_highlights, instagram_highlights_count, instagram_pinned_posts, instagram_feed_description, instagram_pillars")
-          .eq("user_id", user.id)
+          .eq(column, value)
           .maybeSingle(),
       ]);
       if (auditData) setAudit(auditData as AuditData);
