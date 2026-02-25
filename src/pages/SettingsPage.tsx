@@ -57,7 +57,10 @@ export default function SettingsPage() {
     try {
       const { data, error } = await supabase.functions.invoke("check-subscription");
       if (!error && data) setSubInfo(data);
-    } catch {}
+    } catch (e) {
+      console.error("Settings error:", e);
+      toast({ title: "Erreur", description: "Une erreur est survenue. Réessaie.", variant: "destructive" });
+    }
     setLoadingSub(false);
   };
 
