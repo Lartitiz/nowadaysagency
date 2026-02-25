@@ -573,11 +573,11 @@ export default function BrandingAuditResultPage() {
           {/* ─── Instagram Pillar Action Plan ─── */}
           {igScores && (() => {
             const PILLAR_ACTIONS: Record<string, { label: string; coaching_module: string; route: string; emoji: string }> = {
-              score_bio: { label: "Optimiser ma bio", coaching_module: "bio", route: "/espaces/instagram/bio", emoji: "✍️" },
+              score_bio: { label: "Optimiser ma bio", coaching_module: "bio", route: "/instagram/profil/bio", emoji: "✍️" },
               score_feed: { label: "Harmoniser mon feed", coaching_module: "feed", route: "/instagram/creer", emoji: "📸" },
               score_edito: { label: "Structurer ma ligne éditoriale", coaching_module: "editorial", route: "/branding/section?section=content_strategy", emoji: "🍒" },
-              score_stories: { label: "Structurer mes stories à la une", coaching_module: "alaune", route: "/espaces/instagram/highlights", emoji: "⭐" },
-              score_epingles: { label: "Choisir mes posts épinglés", coaching_module: "epingles", route: "/espaces/instagram/epingles", emoji: "📌" },
+              score_stories: { label: "Structurer mes stories à la une", coaching_module: "alaune", route: "/instagram/profil/stories", emoji: "⭐" },
+              score_epingles: { label: "Choisir mes posts épinglés", coaching_module: "epingles", route: "/instagram/profil/epingles", emoji: "📌" },
             };
             const sorted = Object.entries(PILLAR_ACTIONS)
               .map(([key, action]) => ({ key, ...action, score: (igScores as any)[key] ?? 20 }))
