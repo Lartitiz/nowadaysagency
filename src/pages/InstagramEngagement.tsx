@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import EngagementCoachingDialog from "@/components/engagement/EngagementCoachingDialog";
 import { toLocalDateStr } from "@/lib/utils";
 import UpgradeGate from "@/components/UpgradeGate";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +42,7 @@ export default function InstagramEngagement() {
   const workspaceId = useWorkspaceId();
   const [showConfetti, setShowConfetti] = useState(false);
   const [activeTab, setActiveTab] = useState("engagement");
+  const [coachingOpen, setCoachingOpen] = useState(false);
 
   const [currentStreak, setCurrentStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
@@ -264,6 +266,17 @@ export default function InstagramEngagement() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 space-y-6">
         <SubPageHeader parentTo="/instagram" parentLabel="Instagram" currentLabel="Routine d'engagement" />
 
+        <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">✨ Coaching commentaires</p>
+            <p className="text-xs text-muted-foreground">L'IA t'aide à écrire des commentaires qui attirent les bonnes personnes.</p>
+          </div>
+          <button onClick={() => setCoachingOpen(true)} className="shrink-0 rounded-pill bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity">
+            Commencer
+          </button>
+        </div>
+
+        <EngagementCoachingDialog open={coachingOpen} onOpenChange={setCoachingOpen} platform="instagram" />
         <StreakSection
           currentStreak={currentStreak}
           bestStreak={bestStreak}

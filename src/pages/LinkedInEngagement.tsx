@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import EngagementCoachingDialog from "@/components/engagement/EngagementCoachingDialog";
 import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +45,7 @@ export default function LinkedInEngagement() {
   const workspaceId = useWorkspaceId();
 
   const [weeklyId, setWeeklyId] = useState<string | null>(null);
+  const [coachingOpen, setCoachingOpen] = useState(false);
   const [objective, setObjective] = useState(5);
   const [commentsDone, setCommentsDone] = useState(0);
   const [messagesDone, setMessagesDone] = useState(0);
@@ -153,8 +155,19 @@ export default function LinkedInEngagement() {
         <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Mon engagement" />
 
         <h1 className="font-display text-[22px] font-bold text-foreground mb-1">Ton engagement LinkedIn</h1>
-        <p className="text-sm text-muted-foreground italic mb-6">Sur LinkedIn, les commentaires sont rois. C'est là que tu te rends visible et que tu crées des connexions.</p>
+        <p className="text-sm text-muted-foreground italic mb-4">Sur LinkedIn, les commentaires sont rois. C'est là que tu te rends visible et que tu crées des connexions.</p>
 
+        <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between gap-3 mb-6">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">✨ Coaching commentaires</p>
+            <p className="text-xs text-muted-foreground">L'IA t'aide à écrire des commentaires qui attirent les bonnes personnes.</p>
+          </div>
+          <button onClick={() => setCoachingOpen(true)} className="shrink-0 rounded-pill bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity">
+            Commencer
+          </button>
+        </div>
+
+        <EngagementCoachingDialog open={coachingOpen} onOpenChange={setCoachingOpen} platform="linkedin" />
         {/* Guide – visible, not collapsed */}
         <div className="rounded-xl bg-rose-pale p-5 text-sm space-y-3 mb-8">
           <h3 className="font-semibold text-foreground">💡 5 règles pour commenter efficacement</h3>
