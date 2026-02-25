@@ -16,7 +16,7 @@ import Confetti from "@/components/Confetti";
 import { toast } from "sonner";
 import { MarkdownText } from "@/components/ui/markdown-text";
 
-type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers";
+type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers" | "charter";
 
 interface Message {
   id: string;
@@ -43,6 +43,7 @@ const SECTION_META: Record<Section, { emoji: string; title: string; description:
   tone_style: { emoji: "🎨", title: "Ma voix & mes combats", description: "On va définir ta voix. Comment tu parles, ce que tu défends, tes limites.", duration: "~5 min" },
   content_strategy: { emoji: "🍒", title: "Ma ligne éditoriale", description: "On va poser tes piliers de contenu et ta ligne éditoriale.", duration: "~4 min" },
   offers: { emoji: "🎁", title: "Mes offres", description: "On va formuler tes offres de manière désirable.", duration: "~5 min" },
+  charter: { emoji: "🎨", title: "Ma charte graphique", description: "On va définir ton identité visuelle : couleurs, typos, style, ambiance.", duration: "~4 min" },
 };
 
 const LOADING_PHRASES = [
@@ -202,12 +203,76 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
     return ctx;
   }, [user?.id]);
 
+  // Charter coaching state
+  const charterStepRef = useRef(0);
+  const charterDataRef = useRef<any>(null);
+
   const askAI = useCallback(async (msgs: Message[]): Promise<AIResponse | null> => {
     setLoading(true);
     setError(null);
     setLoadingPhrase(LOADING_PHRASES[Math.floor(Math.random() * LOADING_PHRASES.length)]);
 
     try {
+      // Charter section uses a different edge function with step-based flow
+      if (section === "charter") {
+        const stepNum = charterStepRef.current + 1;
+        const lastUserMsg = [...msgs].reverse().find(m => m.role === "user");
+        const answer = lastUserMsg?.content || "Commence la session.";
+
+        const { data, error: fnError } = await supabase.functions.invoke("charter-coaching", {
+          body: {
+            step: stepNum,
+            answer,
+            charterData: charterDataRef.current || {},
+          },
+        });
+
+        if (fnError) {
+          console.error("[CharterCoaching] Edge function error:", fnError);
+          setError("L'IA a eu un blanc. Ça arrive 😅");
+          toast.error("L'IA a eu un blanc. Réessaie.");
+          return null;
+        }
+
+        const parsed = data?.response || data;
+        if (!parsed) {
+          setError("Réponse vide de l'IA. Réessaie.");
+          return null;
+        }
+
+        // Map charter response to AIResponse format
+        const CHARTER_TOPICS = ["mood_place", "colors", "visual_style", "typography", "logo", "visual_donts"];
+        const CHARTER_QUESTIONS = [
+          "Si ta marque était un lieu, ce serait quoi ?",
+          "Quelles couleurs te font vibrer quand tu penses à ta marque ? Pas celles que tu 'devrais' utiliser : celles qui te PARLENT. Décris-les ou donne des codes HEX.",
+          "Comment décrirais-tu le style de tes visuels ? Donne-moi 3 mots qui décrivent l'ambiance visuelle que tu veux créer.",
+          "Pour les polices de caractères : tu préfères un style plutôt classique et élégant, moderne et clean, ou manuscrit et organique ?",
+          "As-tu déjà un logo ? Si oui, décris-le. Si non, pas de panique !",
+          "Qu'est-ce que tu DÉTESTES visuellement ? Les trucs qui te font fuir quand tu les vois sur un compte Instagram ?",
+        ];
+        const coveredTopic = CHARTER_TOPICS[stepNum - 1] || null;
+        const isComplete = stepNum >= 6;
+        const nextQuestion = !isComplete ? CHARTER_QUESTIONS[stepNum] : "";
+
+        const questionText = isComplete
+          ? `${parsed.feedback || ""}\n\n${parsed.suggestion || ""}`
+          : `${parsed.feedback || ""}\n\n${parsed.suggestion || ""}\n\n---\n\n${nextQuestion}`;
+
+        return {
+          question: questionText.trim(),
+          question_type: "textarea" as const,
+          placeholder: "Ta réponse...",
+          covered_topic: coveredTopic,
+          extracted_insights: { ...parsed.extracted, ai_generated_brief: parsed.ai_generated_brief },
+          is_complete: isComplete,
+          completion_percentage: Math.round((stepNum / 6) * 100),
+          remaining_topics: CHARTER_TOPICS.slice(stepNum),
+          final_summary: isComplete
+            ? `✅ Ta charte graphique est posée !\n\n${parsed.ai_generated_brief || parsed.feedback || ""}`
+            : undefined,
+        };
+      }
+
       const context = await fetchContext();
 
       // Send ALL messages — no pruning — the prompt's checklist prevents loops
@@ -319,6 +384,48 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
       return;
     }
 
+    // Charter: show first question directly (step-based, no initial API call)
+    if (section === "charter") {
+      charterStepRef.current = 0;
+      const CHARTER_QUESTIONS = [
+        "Si ta marque était un lieu, ce serait quoi ? Un café cosy avec des plantes, une galerie d'art contemporain, un marché artisanal en plein air, un studio de yoga épuré, une boutique vintage colorée, ou autre chose ?",
+        "Quelles couleurs te font vibrer quand tu penses à ta marque ? Pas celles que tu 'devrais' utiliser : celles qui te PARLENT. Décris-les (ex : rose vif, vert sauge, jaune moutarde, bleu nuit) ou donne des codes HEX si tu les as.",
+        "Comment décrirais-tu le style de tes visuels ? Plutôt minimaliste et épuré ? Coloré et pop ? Artisanal et chaleureux ? Luxe et raffiné ? Donne-moi 3 mots qui décrivent l'ambiance visuelle que tu veux créer.",
+        "Pour les polices de caractères : tu préfères un style plutôt classique et élégant (serif type Playfair Display), moderne et clean (sans-serif type Montserrat), ou manuscrit et organique ?",
+        "As-tu déjà un logo ? Si oui, décris-le. Si non, pas de panique : on peut travailler sans. L'important c'est d'avoir une identité visuelle cohérente, le logo vient après.",
+        "Dernière question : qu'est-ce que tu DÉTESTES visuellement ? Les trucs qui te font fuir quand tu les vois sur un compte Instagram ?",
+      ];
+
+      // If resuming existing session, figure out which step we're on
+      if (hasExistingSession && messagesRef.current.length > 0) {
+        const userMsgs = messagesRef.current.filter(m => m.role === "user").length;
+        charterStepRef.current = userMsgs;
+        if (userMsgs < CHARTER_QUESTIONS.length) {
+          setCurrentQuestion({
+            question: CHARTER_QUESTIONS[userMsgs],
+            question_type: "textarea",
+            placeholder: "Ta réponse...",
+            is_complete: false,
+            completion_percentage: Math.round((userMsgs / 6) * 100),
+          });
+          setCompletionPct(Math.round((userMsgs / 6) * 100));
+        }
+        return;
+      }
+
+      setCurrentQuestion({
+        question: CHARTER_QUESTIONS[0],
+        question_type: "textarea",
+        placeholder: "Décris le lieu qui te vient en tête...",
+        is_complete: false,
+        completion_percentage: 0,
+      });
+      const initial = [makeMsg("assistant", CHARTER_QUESTIONS[0])];
+      setMessages(initial);
+      setCompletionPct(0);
+      return;
+    }
+
     if (hasExistingSession && messagesRef.current.length > 0) {
       lastCallMsgsRef.current = messagesRef.current;
       const response = await askAI(messagesRef.current);
@@ -338,7 +445,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
       setMessages(initial);
       setCompletionPct(response.completion_percentage || 5);
     }
-  }, [isDemoMode, demoQuestions, hasExistingSession, askAI, updateCoveredTopics]);
+  }, [isDemoMode, demoQuestions, hasExistingSession, askAI, updateCoveredTopics, section]);
 
   const handleNext = useCallback(async () => {
     const userAnswer = currentQuestion?.question_type === "select" || currentQuestion?.question_type === "multi_select"
@@ -384,6 +491,11 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
     }
 
     // Real mode
+    // For charter, increment the step counter
+    if (section === "charter") {
+      charterStepRef.current = nextIndex;
+    }
+
     const currentMessages = messagesRef.current;
     const newMessages: Message[] = [
       ...currentMessages,
@@ -488,7 +600,38 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
   const saveInsights = async (sec: string, insights: Record<string, any>) => {
     if (!user) return;
     try {
-      if (sec === "persona") {
+      if (sec === "charter") {
+        // Save charter insights to brand_charter
+        const charterPayload: Record<string, any> = {};
+        if (insights.mood_keywords) charterPayload.mood_keywords = insights.mood_keywords;
+        if (insights.color_primary) charterPayload.color_primary = insights.color_primary;
+        if (insights.color_secondary) charterPayload.color_secondary = insights.color_secondary;
+        if (insights.color_accent) charterPayload.color_accent = insights.color_accent;
+        if (insights.photo_style) charterPayload.photo_style = insights.photo_style;
+        if (insights.font_title) charterPayload.font_title = insights.font_title;
+        if (insights.font_body) charterPayload.font_body = insights.font_body;
+        if (insights.visual_donts) charterPayload.visual_donts = insights.visual_donts;
+        if (insights.ai_generated_brief) charterPayload.ai_generated_brief = insights.ai_generated_brief;
+
+        if (Object.keys(charterPayload).length > 0) {
+          charterPayload.updated_at = new Date().toISOString();
+          // Try update first, then upsert
+          const { data: existing } = await (supabase.from("brand_charter") as any)
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (existing?.id) {
+            await (supabase.from("brand_charter") as any)
+              .update(charterPayload)
+              .eq("id", existing.id);
+          } else {
+            await (supabase.from("brand_charter") as any)
+              .insert({ user_id: user.id, ...charterPayload });
+          }
+          // Update local ref for next step
+          charterDataRef.current = { ...charterDataRef.current, ...charterPayload };
+        }
+      } else if (sec === "persona") {
         await supabase.from("persona").upsert({
           user_id: user.id,
           ...insights,

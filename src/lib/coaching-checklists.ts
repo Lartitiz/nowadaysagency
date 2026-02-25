@@ -4,6 +4,7 @@ export const COACHING_CHECKLISTS: Record<string, string[]> = {
   tone_style: ["tone_description", "tone_do", "tone_dont", "combats", "visual_style"],
   content_strategy: ["content_pillars", "content_twist", "content_formats", "content_frequency", "content_editorial_line"],
   offers: ["offer_name", "offer_price", "offer_target", "offer_promise", "offer_includes"],
+  charter: ["mood_place", "colors", "visual_style", "typography", "logo", "visual_donts"],
 };
 
 export const COACHING_LABELS: Record<string, Record<string, string>> = {
@@ -44,5 +45,13 @@ export const COACHING_LABELS: Record<string, Record<string, string>> = {
     offer_target: "Pour qui",
     offer_promise: "La promesse",
     offer_includes: "Ce qui est inclus",
+  },
+  charter: {
+    mood_place: "Lieu imaginaire de ta marque",
+    colors: "Tes couleurs",
+    visual_style: "Ton style visuel",
+    typography: "Tes polices",
+    logo: "Ton logo",
+    visual_donts: "Ce que tu détestes visuellement",
   },
 };
