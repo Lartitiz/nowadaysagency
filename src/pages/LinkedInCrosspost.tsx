@@ -84,9 +84,9 @@ export default function LinkedInCrosspost() {
     if (!canGenerate()) return;
     setGenerating(true);
     setResult(null);
+    let fileUrls: { url: string; type: string; name: string }[] = [];
     try {
       // Upload files if any
-      let fileUrls: { url: string; type: string; name: string }[] = [];
       if (files.length > 0) {
         for (const f of files) {
           const url = await uploadFileToSupabase(f.file);
@@ -113,19 +113,17 @@ export default function LinkedInCrosspost() {
       }
       setResult(parsed);
       setActiveVersionKey(Object.keys(parsed.versions || {})[0] || "");
-
-      // Cleanup uploaded files (non-blocking)
+    } catch (e: any) {
+      console.error("Erreur technique:", e);
+      toastHook({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+    } finally {
+      setGenerating(false);
       if (fileUrls.length > 0) {
         Promise.all(fileUrls.map(f => {
           const path = f.url.split("/crosspost-uploads/")[1]?.split("?")[0];
           if (path) return supabase.storage.from("crosspost-uploads").remove([path]);
         })).catch(console.error);
       }
-    } catch (e: any) {
-      console.error("Erreur technique:", e);
-      toastHook({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
-    } finally {
-      setGenerating(false);
     }
   };
 
