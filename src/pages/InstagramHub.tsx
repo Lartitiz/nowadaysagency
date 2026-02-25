@@ -146,6 +146,7 @@ export default function InstagramHub() {
               <FormatPill emoji="🎬" label="Reel" />
               <FormatPill emoji="📱" label="Story" />
               <FormatPill emoji="💼" label="LinkedIn" />
+              <FormatPill emoji="🔄" label="Crosspost" to="/linkedin/crosspost" />
             </div>
           </Link>
         </ZoneSection>

@@ -31,6 +31,7 @@ const ALL_FORMAT_OPTIONS: FormatOption[] = [
   { id: "reel", emoji: "🎬", label: "Reel", desc: "Script complet avec hook", route: "/instagram/reels?from=/instagram/creer", channel: "instagram" },
   { id: "story", emoji: "📱", label: "Story", desc: "Séquence avec stickers", route: "/instagram/stories?from=/instagram/creer", channel: "instagram" },
   { id: "linkedin", emoji: "💼", label: "LinkedIn", desc: "Post LinkedIn", route: "/linkedin/post?from=/instagram/creer", channel: "linkedin" },
+  { id: "crosspost", emoji: "🔄", label: "Crosspost", desc: "Adapter un contenu existant", route: "/linkedin/crosspost?from=/instagram/creer", channel: "instagram" },
   { id: "pinterest", emoji: "📌", label: "Pinterest", desc: "Épingle optimisée", route: "", comingSoon: true, channel: "pinterest" },
   { id: "newsletter", emoji: "📧", label: "Newsletter", desc: "Email engageant", route: "", comingSoon: true, channel: "newsletter" },
 ];
