@@ -6495,6 +6495,47 @@ export type Database = {
           },
         ]
       }
+      website_inspirations: {
+        Row: {
+          created_at: string
+          custom_colors: Json | null
+          html_code: string
+          id: string
+          section_type: string
+          user_id: string
+          variant: number
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          custom_colors?: Json | null
+          html_code?: string
+          id?: string
+          section_type: string
+          user_id: string
+          variant?: number
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          custom_colors?: Json | null
+          html_code?: string
+          id?: string
+          section_type?: string
+          user_id?: string
+          variant?: number
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_inspirations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       website_profile: {
         Row: {
           cms: string | null
