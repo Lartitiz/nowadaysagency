@@ -188,7 +188,7 @@ export default function LinkedInCrosspost() {
 
         {/* Input mode toggle */}
         <div className="mb-4">
-          <p className="text-sm font-medium text-foreground mb-2">Contenu source :</p>
+          <p className="text-sm font-medium text-foreground mb-2">Ton contenu source :</p>
           <div className="flex gap-2 mb-3">
             {([
               { key: "text" as const, label: "✏️ Texte" },
