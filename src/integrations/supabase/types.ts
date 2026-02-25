@@ -196,6 +196,59 @@ export type Database = {
         }
         Relationships: []
       }
+      beta_feedback: {
+        Row: {
+          admin_notes: string | null
+          content: string
+          created_at: string
+          details: string | null
+          id: string
+          page_url: string | null
+          screenshot_url: string | null
+          severity: string | null
+          status: string
+          type: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          content: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          page_url?: string | null
+          screenshot_url?: string | null
+          severity?: string | null
+          status?: string
+          type: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          content?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          page_url?: string | null
+          screenshot_url?: string | null
+          severity?: string | null
+          status?: string
+          type?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beta_feedback_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bio_versions: {
         Row: {
           bio_text: string

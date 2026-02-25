@@ -16,6 +16,7 @@ import SessionOverlay from "@/components/session/SessionOverlay";
 import AiDebugShortcut from "@/components/admin/AiDebugShortcut";
 import AssistantButton from "./components/assistant/AssistantButton";
 import CoachChat from "./components/coach/CoachChat";
+import BetaFeedbackWidget from "./components/feedback/BetaFeedbackWidget";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
@@ -163,7 +164,9 @@ function AnimatedRoutes() {
       <SessionOverlay />
       <AiDebugShortcut />
       {showAppWidgets && <AssistantButton />}
-      {showCoach && <CoachChat />}
+      {/* BETA_MODE: replace CoachChat with BetaFeedbackWidget during beta */}
+      {showCoach && <BetaFeedbackWidget />}
+      {/* {showCoach && <CoachChat />} */}
       <AnimatePresence mode="popLayout">
         <motion.div
           key={location.pathname}
