@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.charter-coaching]
 verify_jwt = false
+
+[functions.audit-visual-templates]
+verify_jwt = false

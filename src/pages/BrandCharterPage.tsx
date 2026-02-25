@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Upload, X, Plus, Search, Sparkles, FileText } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { ArrowLeft, Upload, X, Plus, Search, Sparkles, FileText, Loader2, CheckCircle2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -119,6 +120,11 @@ export default function BrandCharterPage() {
   const [templatesUploading, setTemplatesUploading] = useState(false);
   const dataRef = useRef(data);
   dataRef.current = data;
+
+  // Audit state
+  const [auditing, setAuditing] = useState(false);
+  const [auditResult, setAuditResult] = useState<any>(null);
+  const [auditDialogOpen, setAuditDialogOpen] = useState(false);
 
   // Load fonts on data change
   useEffect(() => {
@@ -274,6 +280,44 @@ export default function BrandCharterPage() {
 
   const removeCustomColor = (idx: number) => {
     update("custom_colors", data.custom_colors.filter((_, i) => i !== idx));
+  };
+
+  // Audit templates
+  const handleAuditTemplates = async () => {
+    if (!user || data.uploaded_templates.length === 0) return;
+    setAuditing(true);
+    try {
+      const templateUrls = data.uploaded_templates.map(t => t.url);
+      const { data: result, error } = await supabase.functions.invoke("audit-visual-templates", {
+        body: { template_urls: templateUrls },
+      });
+      if (error) throw error;
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      setAuditResult(result.result);
+      setAuditDialogOpen(true);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erreur lors de l'audit des templates");
+    } finally {
+      setAuditing(false);
+    }
+  };
+
+  const applyDetectedCharter = () => {
+    if (!auditResult?.extracted_charter) return;
+    const ec = auditResult.extracted_charter;
+    const updates: Partial<CharterData> = {};
+    if (ec.color_primary) updates.color_primary = ec.color_primary;
+    if (ec.color_secondary) updates.color_secondary = ec.color_secondary;
+    if (ec.color_accent) updates.color_accent = ec.color_accent;
+    if (ec.mood_keywords?.length) updates.mood_keywords = ec.mood_keywords;
+    setData(prev => ({ ...prev, ...updates }));
+    triggerSave();
+    setAuditDialogOpen(false);
+    toast.success("Charte détectée appliquée !");
   };
 
   const completionPct = computeCompletion(data);
@@ -571,8 +615,18 @@ export default function BrandCharterPage() {
             )}
 
             {data.uploaded_templates.length > 0 && (
-              <Button variant="outline" size="sm" className="mt-3 gap-1.5 text-xs w-full" disabled>
-                <Search className="h-3.5 w-3.5" /> 🔍 Auditer mes templates (bientôt)
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 gap-1.5 text-xs w-full"
+                onClick={handleAuditTemplates}
+                disabled={auditing}
+              >
+                {auditing ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyse en cours...</>
+                ) : (
+                  <><Search className="h-3.5 w-3.5" /> 🔍 Auditer mes templates</>
+                )}
               </Button>
             )}
           </section>
@@ -583,6 +637,128 @@ export default function BrandCharterPage() {
             Dernière modification : {format(new Date(data.updated_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
           </p>
         )}
+
+          {/* Audit Dialog */}
+          <Dialog open={auditDialogOpen} onOpenChange={setAuditDialogOpen}>
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">🔍 Audit de tes templates</DialogTitle>
+                <DialogDescription>Analyse visuelle de tes templates existants</DialogDescription>
+              </DialogHeader>
+
+              {auditResult && (
+                <div className="space-y-5 mt-2">
+                  {/* Coherence score */}
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Score de cohérence</p>
+                    <div className="relative inline-flex items-center justify-center w-20 h-20">
+                      <svg className="w-20 h-20 -rotate-90" viewBox="0 0 36 36">
+                        <path
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke="hsl(var(--muted))"
+                          strokeWidth="3"
+                        />
+                        <path
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke={auditResult.coherence_score >= 70 ? "hsl(var(--primary))" : auditResult.coherence_score >= 40 ? "hsl(45, 93%, 47%)" : "hsl(0, 84%, 60%)"}
+                          strokeWidth="3"
+                          strokeDasharray={`${auditResult.coherence_score}, 100`}
+                        />
+                      </svg>
+                      <span className="absolute text-lg font-bold text-foreground">{auditResult.coherence_score}</span>
+                    </div>
+                    {auditResult.coherence_notes && (
+                      <p className="text-xs text-muted-foreground mt-1">{auditResult.coherence_notes}</p>
+                    )}
+                  </div>
+
+                  {/* Detected colors */}
+                  {auditResult.detected_colors?.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-foreground mb-2">Couleurs détectées</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {auditResult.detected_colors.map((c: string, i: number) => (
+                          <div key={i} className="flex items-center gap-1.5">
+                            <div className="w-8 h-8 rounded-full border-2 border-background shadow-sm" style={{ backgroundColor: c }} />
+                            <span className="font-mono text-[10px] text-muted-foreground uppercase">{c}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Detected mood */}
+                  {auditResult.detected_mood?.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-foreground mb-2">Ambiance détectée</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {auditResult.detected_mood.map((m: string, i: number) => (
+                          <span key={i} className="rounded-full px-3 py-1 text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                            {m}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Font style & layout */}
+                  {auditResult.detected_font_style && (
+                    <div>
+                      <p className="text-sm font-medium text-foreground mb-1">Style typographique</p>
+                      <p className="text-xs text-muted-foreground">{auditResult.detected_font_style}</p>
+                    </div>
+                  )}
+                  {auditResult.detected_layout && (
+                    <div>
+                      <p className="text-sm font-medium text-foreground mb-1">Mise en page</p>
+                      <p className="text-xs text-muted-foreground">{auditResult.detected_layout}</p>
+                    </div>
+                  )}
+
+                  {/* Gaps */}
+                  {auditResult.gaps?.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-foreground mb-2">⚠️ Incohérences détectées</p>
+                      <ul className="space-y-1">
+                        {auditResult.gaps.map((g: string, i: number) => (
+                          <li key={i} className="text-xs text-muted-foreground flex gap-1.5">
+                            <span className="text-amber-500 shrink-0">•</span> {g}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Recommendations */}
+                  {auditResult.recommendations?.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-foreground mb-2">💡 Recommandations</p>
+                      <ul className="space-y-1">
+                        {auditResult.recommendations.map((r: string, i: number) => (
+                          <li key={i} className="text-xs text-muted-foreground flex gap-1.5">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> {r}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <DialogFooter className="mt-4 gap-2">
+                <Button variant="outline" size="sm" onClick={() => setAuditDialogOpen(false)}>
+                  Fermer
+                </Button>
+                {auditResult?.extracted_charter && (
+                  <Button size="sm" onClick={applyDetectedCharter} className="gap-1.5">
+                    📥 Appliquer la charte détectée
+                  </Button>
+                )}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           </TabsContent>
         </Tabs>
