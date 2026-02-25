@@ -96,7 +96,7 @@ serve(async (req) => {
       );
     }
     const body = await req.json();
-    const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt } = body;
+    const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt, workspace_id } = body;
 
     let systemPrompt = "";
     let userPrompt = "";
@@ -107,7 +107,7 @@ serve(async (req) => {
       userPrompt = rawPrompt || "";
     } else if (type === "playground") {
       // Playground: use branding context + user-provided prompt
-      const ctx = await getUserContext(supabase, user.id);
+      const ctx = await getUserContext(supabase, user.id, workspace_id);
       const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
       const profileBlock = buildProfileBlock(profile || {});
       const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "");
@@ -116,7 +116,7 @@ serve(async (req) => {
     } else {
       const canalLabel = canal === "linkedin" ? "LinkedIn" : canal === "blog" ? "un article de blog" : canal === "pinterest" ? "Pinterest" : "Instagram";
       const profileBlock = buildProfileBlock(profile || {});
-      const ctx = await getUserContext(supabase, user.id);
+      const ctx = await getUserContext(supabase, user.id, workspace_id);
       const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
       const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "");
 
