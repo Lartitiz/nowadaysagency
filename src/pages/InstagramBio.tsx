@@ -136,7 +136,7 @@ export default function InstagramBio() {
     if (!user || brandingLoaded) return;
     const load = async () => {
       const [{ data: prof }, { data: val }, { data: bp }, { data: persona }, { data: prop }, { data: strat }, { data: story }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("user_id", user.id).single(),
+        (supabase.from("profiles") as any).select("*").eq(column, value).single(),
         (supabase.from("audit_validations") as any).select("*").eq(column, value).eq("section", "bio").maybeSingle(),
         (supabase.from("brand_profile") as any).select("voice_description, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, combat_cause, combat_fights, combat_alternative, combat_refusals, mission, offer").eq(column, value).maybeSingle(),
         (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle(),
@@ -218,12 +218,12 @@ export default function InstagramBio() {
     setGenerating(true);
     try {
       // Save differentiation + CTA to profile
-      await supabase.from("profiles").update({
+      await (supabase.from("profiles") as any).update({
         differentiation_type: diffAngle || null,
         differentiation_text: diffText || null,
         bio_cta_type: ctaType || null,
         bio_cta_text: ctaText || null,
-      } as any).eq("user_id", user.id);
+      } as any).eq(column, value);
 
       const res = await supabase.functions.invoke("generate-content", {
         body: {
@@ -263,10 +263,10 @@ export default function InstagramBio() {
         validated_content: { bio: bioText },
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id,section" });
-      await supabase.from("profiles").update({
+      await (supabase.from("profiles") as any).update({
         validated_bio: bioText,
         validated_bio_at: new Date().toISOString(),
-      } as any).eq("user_id", user.id);
+      } as any).eq(column, value);
       setValidatedBio(bioText);
       setValidatedAt(new Date().toISOString());
       setView("validated");

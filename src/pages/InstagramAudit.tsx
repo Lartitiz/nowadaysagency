@@ -43,7 +43,7 @@ export default function InstagramAudit() {
     if (!user) return;
     Promise.all([
       (supabase.from("instagram_audit") as any).select("*").eq(column, value).order("created_at", { ascending: false }).limit(2),
-      supabase.from("profiles").select("instagram_display_name, instagram_username, instagram_bio, instagram_bio_link, instagram_photo_description, instagram_photo_url, instagram_highlights, instagram_highlights_count, instagram_pinned_posts, instagram_feed_description, instagram_followers, instagram_posts_per_month, instagram_frequency, instagram_pillars").eq("user_id", user.id).maybeSingle(),
+      (supabase.from("profiles") as any).select("instagram_display_name, instagram_username, instagram_bio, instagram_bio_link, instagram_photo_description, instagram_photo_url, instagram_highlights, instagram_highlights_count, instagram_pinned_posts, instagram_feed_description, instagram_followers, instagram_posts_per_month, instagram_frequency, instagram_pillars").eq(column, value).maybeSingle(),
     ]).then(([{ data: rows }, { data: profile }]) => {
       if (rows && rows.length > 0) {
         const latest = rows[0];
@@ -108,7 +108,7 @@ export default function InstagramAudit() {
       const pinnedPosts = [form.pinnedPost1, form.pinnedPost2, form.pinnedPost3].filter(Boolean).map((d) => ({ description: d }));
       const pillarsArray = form.pillars ? form.pillars.split(",").map((s) => s.trim()).filter(Boolean) : [];
 
-      await supabase.from("profiles").update({
+      await (supabase.from("profiles") as any).update({
         instagram_display_name: form.displayName || null,
         instagram_username: form.username || null,
         instagram_bio: form.bio || null,
@@ -122,7 +122,7 @@ export default function InstagramAudit() {
         instagram_posts_per_month: form.postsPerMonth ? parseInt(form.postsPerMonth) : null,
         instagram_frequency: form.frequency || null,
         instagram_pillars: pillarsArray.length ? pillarsArray : null,
-      } as any).eq("user_id", user.id);
+      } as any).eq(column, value);
 
       // 2. Upload screenshots
       const screenshotUrls: string[] = [];
@@ -228,11 +228,11 @@ export default function InstagramAudit() {
   const handleAdoptBio = async (bio: string) => {
     if (!user) return;
     try {
-      await supabase.from("profiles").update({
+      await (supabase.from("profiles") as any).update({
         instagram_bio: bio,
         validated_bio: bio,
         validated_bio_at: new Date().toISOString(),
-      } as any).eq("user_id", user.id);
+      } as any).eq(column, value);
 
       await supabase.from("audit_validations").upsert({
         user_id: user.id,
