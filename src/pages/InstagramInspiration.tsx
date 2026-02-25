@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -36,6 +36,7 @@ export default function InstagramInspiration() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const profileUserId = useProfileUserId();
   const [accounts, setAccounts] = useState<AccountData[]>([
     { ...EMPTY_ACCOUNT },
     { ...EMPTY_ACCOUNT },
@@ -51,8 +52,8 @@ export default function InstagramInspiration() {
     if (!user) return;
     const load = async () => {
       const [accRes, notesRes] = await Promise.all([
-        (supabase.from("inspiration_accounts") as any).select("*").eq(column, value).order("slot_index"),
-        (supabase.from("inspiration_notes") as any).select("*").eq(column, value).limit(1),
+        (supabase.from("inspiration_accounts") as any).select("*").eq("user_id", profileUserId).order("slot_index"),
+        (supabase.from("inspiration_notes") as any).select("*").eq("user_id", profileUserId).limit(1),
       ]);
 
       if (accRes.data) {
@@ -103,8 +104,8 @@ export default function InstagramInspiration() {
       for (let i = 0; i < 3; i++) {
         const acc = accounts[i];
         const payload = {
-          user_id: user.id,
-          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+          user_id: profileUserId,
+          workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
           slot_index: i + 1,
           account_handle: acc.account_handle,
           appeal: acc.appeal,
@@ -125,8 +126,8 @@ export default function InstagramInspiration() {
         await supabase.from("inspiration_notes").update({ content: notes }).eq("id", notesId);
       } else if (notes.trim()) {
         const { data } = await supabase.from("inspiration_notes").insert({
-          user_id: user.id,
-          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+          user_id: profileUserId,
+          workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
           content: notes
         }).select().single();
         if (data) setNotesId(data.id);
