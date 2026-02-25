@@ -19,10 +19,13 @@ interface ScreenshotFile { file: File; preview: string; type: ScreenshotType; }
 interface AuditElement { name: string; score: number; max_score: number; status: string; feedback: string; recommendation: string; }
 interface AuditSection { score: number; elements: AuditElement[]; }
 interface Priority { rank: number; title: string; impact: string; why: string; action_label: string; action_route: string; }
+interface GranularCriterion { score: number; max: number; feedback: string; }
+interface GranularSection { total: number; [key: string]: GranularCriterion | number; }
 interface AuditResult {
   score_global: number;
   sections: { profil: AuditSection; contenu: AuditSection; strategie: AuditSection; reseau: AuditSection };
   top_5_priorities: Priority[];
+  granular_scores?: { headline?: GranularSection; about?: GranularSection };
 }
 
 // ── Constants ──
@@ -493,6 +496,9 @@ export default function LinkedInAudit() {
           )}
         </div>
 
+        {/* ─── Granular Scores ─── */}
+        {result.granular_scores && <GranularScoresSection granular={result.granular_scores} />}
+
         {/* ─── Section scores ─── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {sections.map(({ key, label }) => {
@@ -702,6 +708,91 @@ export default function LinkedInAudit() {
         </>
         )}
       </main>
+    </div>
+  );
+}
+
+/* ─── Granular Scores Sub-component ─── */
+
+const HEADLINE_CRITERIA: Record<string, string> = {
+  impact_80_chars: "Impact des 80 premiers caractères",
+  keywords: "Mots-clés recherchables",
+  structure: "Structure claire",
+  no_buzzwords: "Zéro buzzwords vides",
+  value_prop: "Proposition de valeur visible",
+};
+
+const ABOUT_CRITERIA: Record<string, string> = {
+  hook_3_lines: "Hook des 3 premières lignes",
+  storytelling: "Storytelling / structure narrative",
+  cta: "CTA clair",
+  social_proof: "Preuve sociale / crédibilité",
+  tone_coherence: "Ton cohérent avec le branding",
+};
+
+function GranularBar({ score, max, label, feedback }: { score: number; max: number; label: string; feedback: string }) {
+  const pct = max > 0 ? (score / max) * 100 : 0;
+  const color = pct >= 70 ? "bg-green-500" : pct >= 40 ? "bg-amber-500" : "bg-red-500";
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-foreground font-medium">{label}</span>
+        <span className="text-xs font-bold text-muted-foreground tabular-nums">{score}/{max}</span>
+      </div>
+      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed">{feedback}</p>
+    </div>
+  );
+}
+
+function GranularScoresSection({ granular }: { granular: { headline?: GranularSection; about?: GranularSection } }) {
+  const renderSection = (
+    data: GranularSection | undefined,
+    criteriaMap: Record<string, string>,
+    emoji: string,
+    title: string,
+    maxTotal: number,
+  ) => {
+    if (!data) return null;
+    const total = typeof data.total === "number" ? data.total : 0;
+    const si = getScoreInfo(Math.round((total / maxTotal) * 100));
+
+    return (
+      <AccordionItem value={title} className="rounded-2xl border border-border bg-card px-4">
+        <AccordionTrigger className="hover:no-underline">
+          <span className="flex items-center gap-2">
+            <span>{emoji} {title}</span>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-pill ${si.bg} ${si.color}`}>
+              {total}/{maxTotal}
+            </span>
+          </span>
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="space-y-4 pt-2">
+            {Object.entries(criteriaMap).map(([key, label]) => {
+              const criterion = data[key];
+              if (!criterion || typeof criterion === "number") return null;
+              const c = criterion as GranularCriterion;
+              return <GranularBar key={key} score={c.score} max={c.max} label={label} feedback={c.feedback} />;
+            })}
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    );
+  };
+
+  return (
+    <div className="space-y-2">
+      <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui">
+        🔬 Scoring granulaire
+      </h3>
+      <Accordion type="multiple" className="space-y-2">
+        {renderSection(granular.headline, HEADLINE_CRITERIA, "📝", "Headline", 25)}
+        {renderSection(granular.about, ABOUT_CRITERIA, "📄", "À propos", 25)}
+      </Accordion>
     </div>
   );
 }
