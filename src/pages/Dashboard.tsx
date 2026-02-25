@@ -187,10 +187,10 @@ export default function Dashboard() {
         main_goal: (planConfigRes.data as any)?.main_goal || "visibility",
       };
       let planData: PlanData | null = null;
-      try { planData = await computePlan(user.id, config); } catch (e) { trackError(e, { page: "Dashboard", action: "computePlan" }); }
+      try { planData = await computePlan({ column, value }, config); } catch (e) { trackError(e, { page: "Dashboard", action: "computePlan" }); }
 
       // Check badges on load
-      checkBadges(user.id, bc.total);
+      checkBadges({ column, value }, user.id, bc.total);
 
       return {
         brandingCompletion: bc,

@@ -52,14 +52,14 @@ async function scoreBranding(wf: WF): Promise<number> {
   }
 }
 
-async function scoreRegularity(wf: WF, userId: string, since: string): Promise<number> {
+async function scoreRegularity(wf: WF, since: string): Promise<number> {
   try {
     const actual = await countRows("calendar_posts", wf, (q: any) =>
       q.eq("status", "published").gte("date", since),
     );
     const { data } = await (supabase.from as any)("user_plan_config")
       .select("weekly_time")
-      .eq("user_id", userId)
+      .eq(wf.column, wf.value)
       .maybeSingle();
     const weeklyKey = data?.weekly_time ?? "2_5h";
     const target4w = (WEEKLY_TARGET[weeklyKey] ?? 2) * 4;
@@ -80,11 +80,11 @@ async function scoreEngagement(wf: WF, since: string): Promise<number> {
   }
 }
 
-async function scoreChannels(wf: WF, userId: string): Promise<number> {
+async function scoreChannels(wf: WF): Promise<number> {
   try {
     const { data: profile } = await (supabase.from as any)("profiles")
       .select("canaux")
-      .eq("user_id", userId)
+      .eq(wf.column, wf.value)
       .maybeSingle();
 
     const declared: string[] = profile?.canaux ?? [];
@@ -153,7 +153,6 @@ async function scoreAiUsage(wf: WF, since: string): Promise<number> {
 /* ── Main ── */
 
 export async function computeComScore(
-  userId: string,
   workspaceFilter: WF,
 ): Promise<ComScore> {
   const since28 = daysAgo(28);
@@ -161,9 +160,9 @@ export async function computeComScore(
 
   const [branding, regularity, engagement, channels, aiUsage] = await Promise.all([
     scoreBranding(workspaceFilter),
-    scoreRegularity(workspaceFilter, userId, since28),
+    scoreRegularity(workspaceFilter, since28),
     scoreEngagement(workspaceFilter, since28),
-    scoreChannels(workspaceFilter, userId),
+    scoreChannels(workspaceFilter),
     scoreAiUsage(workspaceFilter, since30),
   ]);
 
@@ -174,7 +173,7 @@ export async function computeComScore(
   try {
     const since56 = daysAgo(56);
     const [prevReg, prevEng, prevAi] = await Promise.all([
-      scoreRegularity(workspaceFilter, userId, since56),
+      scoreRegularity(workspaceFilter, since56),
       scoreEngagement(workspaceFilter, since56),
       scoreAiUsage(workspaceFilter, since56),
     ]);

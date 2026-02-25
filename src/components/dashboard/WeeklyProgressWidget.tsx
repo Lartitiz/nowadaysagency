@@ -108,7 +108,7 @@ export default function WeeklyProgressWidget({ animationDelay = 0, brandingCompl
 
     toast.success("✅ Publié !");
     fetchWeekData();
-    if (user) checkBadges(user.id, brandingCompletion);
+    if (user) checkBadges({ column, value }, user.id, brandingCompletion);
   };
 
   // Progress bar color

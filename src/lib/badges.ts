@@ -138,23 +138,22 @@ export function getConsecutiveStreaks(weeklyData: WeekStreakStatus[]): number {
 }
 
 /* ── Badge stats fetcher ── */
-export async function getUserBadgeStats(userId: string): Promise<BadgeStats> {
+export async function getUserBadgeStats(filter: { column: string; value: string }): Promise<BadgeStats> {
   const [publishedRes, carouselRes, reelRes, bioRes, auditRes] = await Promise.all([
-    supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "published"),
-    supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "published").in("format", ["carousel", "post_carrousel"]),
-    supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "published").eq("format", "reel"),
-    supabase.from("audit_validations").select("id").eq("user_id", userId).eq("section", "bio").eq("status", "validated").maybeSingle(),
-    supabase.from("instagram_audit").select("score_global").eq("user_id", userId).order("created_at", { ascending: false }).limit(2),
+    (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value).eq("status", "published"),
+    (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value).eq("status", "published").in("format", ["carousel", "post_carrousel"]),
+    (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value).eq("status", "published").eq("format", "reel"),
+    (supabase.from("audit_validations") as any).select("id").eq(filter.column, filter.value).eq("section", "bio").eq("status", "validated").maybeSingle(),
+    (supabase.from("instagram_audit") as any).select("score_global").eq(filter.column, filter.value).order("created_at", { ascending: false }).limit(2),
   ]);
 
   // Get completed weeks (last 12 weeks)
   const now = new Date();
   const twelveWeeksAgo = new Date(now);
   twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84);
-  const { data: recentPosts } = await supabase
-    .from("calendar_posts")
+  const { data: recentPosts } = await (supabase.from("calendar_posts") as any)
     .select("date, status")
-    .eq("user_id", userId)
+    .eq(filter.column, filter.value)
     .gte("date", twelveWeeksAgo.toISOString().split("T")[0])
     .lte("date", now.toISOString().split("T")[0]);
 
@@ -190,14 +189,13 @@ export async function getUserBadgeStats(userId: string): Promise<BadgeStats> {
 }
 
 /* ── Check and unlock new badges ── */
-export async function checkBadges(userId: string, brandingCompletion: number = 0): Promise<void> {
-  const stats = await getUserBadgeStats(userId);
+export async function checkBadges(filter: { column: string; value: string }, userId: string, brandingCompletion: number = 0): Promise<void> {
+  const stats = await getUserBadgeStats(filter);
   stats.branding_completion = brandingCompletion;
 
-  const { data: existing } = await supabase
-    .from("user_badges")
+  const { data: existing } = await (supabase.from("user_badges") as any)
     .select("badge_id")
-    .eq("user_id", userId);
+    .eq(filter.column, filter.value);
 
   const existingIds = (existing || []).map((b: any) => b.badge_id);
 

@@ -32,7 +32,7 @@ export interface AppState {
   websiteHomepage: any;
 }
 
-export async function fetchAppState(userId: string): Promise<AppState> {
+export async function fetchAppState(filter: { column: string; value: string }): Promise<AppState> {
   const weekStart = getMonday(new Date()).toISOString().split("T")[0];
 
   const [
@@ -40,21 +40,21 @@ export async function fetchAppState(userId: string): Promise<AppState> {
     rhythmRes, postsRes, engRes, hlRes, ideasRes,
     liRes, pintRes, webRes, editoRes,
   ] = await Promise.all([
-    supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_profile").select("*").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_proposition").select("*").eq("user_id", userId).maybeSingle(),
-    supabase.from("persona").select("*").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_strategy").select("*").eq("user_id", userId).maybeSingle(),
-    supabase.from("storytelling").select("*").eq("user_id", userId).eq("is_primary", true).maybeSingle(),
-    supabase.from("user_rhythm").select("*").eq("user_id", userId).maybeSingle(),
-    supabase.from("calendar_posts").select("id").eq("user_id", userId).gte("date", weekStart),
-    supabase.from("engagement_weekly").select("*").eq("user_id", userId).eq("week_start", weekStart).maybeSingle(),
-    supabase.from("instagram_highlights").select("id").eq("user_id", userId).eq("is_selected", true),
-    supabase.from("saved_ideas").select("id").eq("user_id", userId),
-    supabase.from("linkedin_profile").select("*").eq("user_id", userId).maybeSingle(),
-    supabase.from("pinterest_profile").select("*").eq("user_id", userId).maybeSingle(),
-    supabase.from("website_homepage").select("*").eq("user_id", userId).maybeSingle(),
-    supabase.from("instagram_editorial_line").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    (supabase.from("profiles") as any).select("*").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("brand_profile") as any).select("*").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("brand_proposition") as any).select("*").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("persona") as any).select("*").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("brand_strategy") as any).select("*").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("storytelling") as any).select("*").eq(filter.column, filter.value).eq("is_primary", true).maybeSingle(),
+    (supabase.from("user_rhythm") as any).select("*").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("calendar_posts") as any).select("id").eq(filter.column, filter.value).gte("date", weekStart),
+    (supabase.from("engagement_weekly") as any).select("*").eq(filter.column, filter.value).eq("week_start", weekStart).maybeSingle(),
+    (supabase.from("instagram_highlights") as any).select("id").eq(filter.column, filter.value).eq("is_selected", true),
+    (supabase.from("saved_ideas") as any).select("id").eq(filter.column, filter.value),
+    (supabase.from("linkedin_profile") as any).select("*").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("pinterest_profile") as any).select("*").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("website_homepage") as any).select("*").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("instagram_editorial_line") as any).select("*").eq(filter.column, filter.value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const rhythm = rhythmRes.data;

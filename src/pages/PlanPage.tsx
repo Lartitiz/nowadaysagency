@@ -294,7 +294,7 @@ export default function PlanPage() {
       };
       setConfig(c);
       setHasConfig(true);
-      const plan = await computePlan(user.id, c);
+      const plan = await computePlan({ column, value }, c);
       setPlanData(plan);
     } else {
       setHasConfig(false);
@@ -324,7 +324,7 @@ export default function PlanPage() {
     setConfig(c);
     setHasConfig(true);
     setEditing(false);
-    const plan = await computePlan(user.id, c);
+    const plan = await computePlan({ column, value }, c);
     setPlanData(plan);
   };
 
