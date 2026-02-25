@@ -193,7 +193,19 @@ export default function CalendarPage() {
   const [selectedIdea, setSelectedIdea] = useState<SavedIdea | null>(null);
   const [ideaDetailOpen, setIdeaDetailOpen] = useState(false);
   const [coachingOpen, setCoachingOpen] = useState(false);
+  const [ownerName, setOwnerName] = useState("");
+  const [igUsername, setIgUsername] = useState("");
 
+  // Load profile info for hover previews
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("prenom, instagram_username").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+      if (data) {
+        setOwnerName(data.prenom || "");
+        setIgUsername(data.instagram_username || "");
+      }
+    });
+  }, [user?.id]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
@@ -666,6 +678,8 @@ export default function CalendarPage() {
             onQuickDuplicate={handleQuickDuplicate}
             onQuickDelete={handleQuickDelete}
             onQuickGenerate={handleQuickGenerate}
+            ownerUsername={igUsername}
+            ownerDisplayName={ownerName}
           />
           <WeekRecapBar posts={weekPosts} compact={false} />
         </>
