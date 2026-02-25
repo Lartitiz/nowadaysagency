@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ interface RecapSummary {
 
 export default function PropositionRecapPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -30,11 +32,11 @@ export default function PropositionRecapPage() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("brand_proposition").select("*").eq("user_id", user.id).maybeSingle().then(({ data: d }) => {
+    (supabase.from("brand_proposition") as any).select("*").eq(column, value).maybeSingle().then(({ data: d }: any) => {
       setData(d);
       setLoading(false);
     });
-  }, [user?.id]);
+  }, [user?.id, column, value]);
 
   const summary: RecapSummary | null = data?.recap_summary as any;
 
@@ -67,9 +69,9 @@ export default function PropositionRecapPage() {
     setGenerating(true);
     try {
       const [profRes, bpRes, perRes] = await Promise.all([
-        supabase.from("profiles").select("activite, prenom").eq("user_id", user!.id).single(),
-        supabase.from("brand_profile").select("mission, offer, combat_cause, combat_fights, combat_refusals").eq("user_id", user!.id).maybeSingle(),
-        supabase.from("persona").select("step_1_frustrations, step_2_transformation").eq("user_id", user!.id).maybeSingle(),
+        (supabase.from("profiles") as any).select("activite, prenom").eq(column, value).single(),
+        (supabase.from("brand_profile") as any).select("mission, offer, combat_cause, combat_fights, combat_refusals").eq(column, value).maybeSingle(),
+        (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle(),
       ]);
       const { data: fnData, error } = await supabase.functions.invoke("proposition-ai", {
         body: {
