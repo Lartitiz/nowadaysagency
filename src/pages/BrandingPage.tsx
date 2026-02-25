@@ -245,7 +245,7 @@ export default function BrandingPage() {
         (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle(),
         (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle(),
       ]);
-      const profiles = await supabase.from("profiles").select("activite, prenom, mission").eq("user_id", user.id).single();
+      const profiles = await (supabase.from("profiles") as any).select("activite, prenom, mission").eq(column, value).single();
 
       const syntheticData = {
         step_1_what: profiles.data?.activite || "",

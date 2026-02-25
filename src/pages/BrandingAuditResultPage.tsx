@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -105,6 +106,7 @@ const SCORE_BAR_COLOR = (score: number) =>
 export default function BrandingAuditResultPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<AuditResult | null>(null);
@@ -128,11 +130,11 @@ export default function BrandingAuditResultPage() {
   const loadAuditData = useCallback(async () => {
     if (!user || !id) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("branding_audits")
+    const { data, error } = await (supabase
+      .from("branding_audits") as any)
       .select("*")
       .eq("id", id)
-      .eq("user_id", user.id)
+      .eq(column, value)
       .maybeSingle();
 
     if (error || !data) {
@@ -155,10 +157,10 @@ export default function BrandingAuditResultPage() {
 
   const loadAuditRecs = useCallback(async () => {
     if (!user || !id) return;
-    const { data } = await supabase
-      .from("audit_recommendations")
+    const { data } = await (supabase
+      .from("audit_recommendations") as any)
       .select("id, module, label, completed, completed_at, position")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .eq("audit_id", id)
       .order("position", { ascending: true });
     if (data) setAuditRecs(data as AuditRec[]);
@@ -172,7 +174,7 @@ export default function BrandingAuditResultPage() {
     if (!user) return;
     const { data } = await (supabase.from("instagram_audit") as any)
       .select("score_bio, score_feed, score_edito, score_stories, score_epingles")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();

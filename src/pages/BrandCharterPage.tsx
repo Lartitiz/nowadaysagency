@@ -135,8 +135,8 @@ export default function BrandCharterPage() {
     if (!user) return;
     const loadMeta = async () => {
       const [{ data: profile }, { data: bp }] = await Promise.all([
-        supabase.from("profiles").select("type_activite").eq("user_id", user.id).maybeSingle(),
-        (supabase.from("brand_profile") as any).select("tone_register, tone_style, tone_humor, tone_keywords").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("profiles") as any).select("type_activite").eq(column, value).maybeSingle(),
+        (supabase.from("brand_profile") as any).select("tone_register, tone_style, tone_humor, tone_keywords").eq(column, value).maybeSingle(),
       ]);
       if (profile?.type_activite) {
         setUserSector(ACTIVITY_TO_SECTOR[profile.type_activite] || DEFAULT_SECTOR);
