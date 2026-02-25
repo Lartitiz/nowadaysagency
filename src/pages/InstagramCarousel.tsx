@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -239,9 +240,7 @@ export default function InstagramCarousel() {
         body: { type: "suggest_angles", carousel_type: carouselType, subject, objective, deepening_answers: deepeningAnswers, workspace_id: workspaceId },
       });
       if (error) throw error;
-      const raw = data?.content || "";
-      const jsonStr = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      const parsed = JSON.parse(jsonStr);
+      const parsed = parseAIResponse(data?.content || "");
       setAngles(parsed.angles || []);
       setStep(4);
     } catch (e: any) {
@@ -264,9 +263,7 @@ export default function InstagramCarousel() {
         },
       });
       if (error) throw error;
-      const raw = data?.content || "";
-      const jsonStr = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      const parsed = JSON.parse(jsonStr);
+      const parsed = parseAIResponse(data?.content || "");
       setHooks(parsed.hooks || []);
       setStep(5);
     } catch (e: any) {
@@ -294,9 +291,7 @@ export default function InstagramCarousel() {
         },
       });
       if (error) throw error;
-      const raw = data?.content || "";
-      const jsonStr = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      const parsed = JSON.parse(jsonStr);
+      const parsed = parseAIResponse(data?.content || "");
       setSlides(parsed.slides || []);
       setCaption(parsed.caption || null);
       setQualityCheck(parsed.quality_check || null);
@@ -341,9 +336,7 @@ export default function InstagramCarousel() {
         body: { type: "suggest_topics", carousel_type: carouselType, objective, recent_posts: recentStr, workspace_id: workspaceId },
       });
       if (error) throw error;
-      const raw = data?.content || "";
-      const jsonStr = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      const parsed = JSON.parse(jsonStr);
+      const parsed = parseAIResponse(data?.content || "");
       setTopics(parsed.topics || []);
     } catch (e: any) {
       console.error(e);

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -219,9 +220,7 @@ export default function InstagramStories() {
       });
 
       if (error) throw error;
-      const raw = data?.content || "";
-      const jsonStr = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      const parsed = JSON.parse(jsonStr);
+      const parsed = parseAIResponse(data?.content || "");
       
       setSequenceResult(parsed);
       setStep(5); // Result view

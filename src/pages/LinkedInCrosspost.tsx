@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -104,13 +105,7 @@ export default function LinkedInCrosspost() {
         },
       });
       if (res.error) throw new Error(res.error.message);
-      const content = res.data?.content || "";
-      let parsed: CrosspostResult;
-      try { parsed = JSON.parse(content); } catch {
-        const match = content.match(/\{[\s\S]*\}/);
-        if (match) parsed = JSON.parse(match[0]);
-        else throw new Error("Format de réponse inattendu");
-      }
+      let parsed: CrosspostResult = parseAIResponse(res.data?.content || "");
       setResult(parsed);
       setActiveVersionKey(Object.keys(parsed.versions || {})[0] || "");
     } catch (e: any) {

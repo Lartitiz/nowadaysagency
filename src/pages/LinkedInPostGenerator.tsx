@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -104,14 +105,7 @@ export default function LinkedInPostGenerator() {
       });
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
-      let parsed: PostResult;
-      try {
-        parsed = JSON.parse(content);
-      } catch {
-        const match = content.match(/\{[\s\S]*\}/);
-        if (match) parsed = JSON.parse(match[0]);
-        else throw new Error("Format de réponse inattendu");
-      }
+      let parsed: PostResult = parseAIResponse(content);
       setResult(parsed);
     } catch (e: any) {
       console.error("Erreur technique:", e);
@@ -131,14 +125,7 @@ export default function LinkedInPostGenerator() {
       });
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
-      let parsed: ImproveResult;
-      try {
-        parsed = JSON.parse(content);
-      } catch {
-        const match = content.match(/\{[\s\S]*\}/);
-        if (match) parsed = JSON.parse(match[0]);
-        else throw new Error("Format de réponse invalide");
-      }
+      let parsed: ImproveResult = parseAIResponse(content);
       setImproveResult(parsed);
     } catch (e: any) {
       console.error("Erreur technique:", e);
