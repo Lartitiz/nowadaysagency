@@ -13,7 +13,7 @@ import { Sparkles, Save, PenLine, ArrowLeft, CalendarDays, RefreshCw, Mic } from
 import { Link } from "react-router-dom";
 import CreativeFlow from "@/components/CreativeFlow";
 import ContentRecycling from "@/components/ContentRecycling";
-import ContentWorkshop from "@/components/ContentWorkshop";
+import DictationInput from "@/components/DictationInput";
 import {
   OBJECTIFS, FORMATS, CANAUX,
   getRecommendedFormats, formatIdToGuideKey,
@@ -62,7 +62,7 @@ export default function AtelierPage() {
   const [showRecapEdit, setShowRecapEdit] = useState(false);
   const [atelierMode, setAtelierMode] = useState<"create" | "recycle" | "dictate">("create");
 
-  // Pre-fill from calendar data
+  // Pre-fill from calendar or dictation data
   useEffect(() => {
     if (fromCalendar && calendarData) {
       if (calendarData.objectif) setObjectif(calendarData.objectif);
@@ -74,6 +74,11 @@ export default function AtelierPage() {
         );
         if (matchedFormat) setSelectedFormat(matchedFormat.id);
       }
+    }
+    // Handle dictation redirect
+    if (calendarData?.fromDictation && calendarData?.dictatedText) {
+      setSujetLibre(calendarData.dictatedText);
+      setAtelierMode("create");
     }
   }, []);
 
@@ -297,12 +302,14 @@ export default function AtelierPage() {
         )}
 
         <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground mb-1">
-          {fromCalendar ? "✨ Rédiger un contenu" : "💡 Atelier d'idées"}
+          {fromCalendar ? "✨ Rédiger un contenu" : atelierMode === "dictate" ? "🎤 Dicte ton contenu" : "💡 Atelier d'idées"}
         </h1>
         <p className="text-sm text-muted-foreground mb-4">
           {fromCalendar
             ? "Crée ton contenu avec l'aide de l'IA, en mode co-création."
-            : "Trouve des idées de contenu adaptées à ton activité et ta cible."}
+            : atelierMode === "dictate"
+              ? "Parle naturellement, l'IA transforme ta dictée en post structuré."
+              : "Trouve des idées de contenu adaptées à ton activité et ta cible."}
         </p>
 
         <BrandingPrompt section="global" />
@@ -343,8 +350,11 @@ export default function AtelierPage() {
         )}
 
         {/* Dictate mode */}
-        {!fromCalendar && atelierMode === "dictate" && profile && (
-          <ContentWorkshop profile={profile} onIdeaGenerated={() => {}} />
+        {!fromCalendar && atelierMode === "dictate" && (
+          <DictationInput onTranscribed={(text) => {
+            setSujetLibre(text);
+            setAtelierMode("create");
+          }} />
         )}
 
         {/* Hide selectors when coming from calendar (unless user wants to edit) */}
