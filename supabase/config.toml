@@ -101,3 +101,6 @@ verify_jwt = false
 
 [functions.import-branding-data]
 verify_jwt = false
+
+[functions.branding-mirror]
+verify_jwt = false

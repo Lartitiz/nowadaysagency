@@ -5,7 +5,8 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw, Loader2, LayoutGrid, ListOrdered } from "lucide-react";
+import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw, Loader2, LayoutGrid, ListOrdered, CheckCircle2, AlertTriangle, Zap } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { supabase } from "@/integrations/supabase/client";
 import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
@@ -135,6 +136,30 @@ export default function BrandingPage() {
   const [viewMode, setViewMode] = useState<"free" | "guided">(() => {
     try { return (localStorage.getItem("branding_mode") as "free" | "guided") || "free"; } catch { return "free"; }
   });
+  const [mirrorOpen, setMirrorOpen] = useState(false);
+  const [mirrorLoading, setMirrorLoading] = useState(false);
+  const [mirrorData, setMirrorData] = useState<any>(null);
+
+  const canShowMirror = completion.tone > 0 && !!lastAudit;
+
+  const runMirror = async () => {
+    setMirrorOpen(true);
+    if (mirrorData) return; // already loaded
+    setMirrorLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("branding-mirror");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setMirrorData(data);
+    } catch (e: any) {
+      console.error("Mirror error:", e);
+      const { friendlyError } = await import("@/lib/error-messages");
+      toast.error(friendlyError(e));
+      setMirrorOpen(false);
+    } finally {
+      setMirrorLoading(false);
+    }
+  };
 
   // Coaching mode from audit
   const fromAudit = searchParams.get("from") === "audit";
@@ -405,23 +430,32 @@ export default function BrandingPage() {
               )}
             </div>
 
-            {/* Synthesis button */}
-            <div className="mb-8">
+            {/* Synthesis + Mirror buttons */}
+            <div className="mb-8 flex flex-col sm:flex-row gap-2">
               {completion.total >= 10 ? (
                 <Button
                   variant="outline"
-                  className="w-full gap-2 text-sm"
+                  className="flex-1 gap-2 text-sm"
                   onClick={() => setShowSynthesis(true)}
                 >
                   <ClipboardList className="h-4 w-4" />
                   📋 Générer ma fiche de synthèse
                 </Button>
               ) : (
-                <div className="text-center py-3 px-4 rounded-xl bg-muted/40 border border-border">
+                <div className="flex-1 text-center py-3 px-4 rounded-xl bg-muted/40 border border-border">
                   <p className="text-xs text-muted-foreground">
                     Remplis au moins ton positionnement ou ta cible pour générer ta fiche de synthèse.
                   </p>
                 </div>
+              )}
+              {canShowMirror && (
+                <Button
+                  variant="outline"
+                  className="gap-2 text-sm sm:w-auto"
+                  onClick={runMirror}
+                >
+                  🪞 Mon Branding Mirror
+                </Button>
               )}
             </div>
 
@@ -705,6 +739,102 @@ export default function BrandingPage() {
           </>
         )}
       </main>
+
+      {/* Branding Mirror Sheet */}
+      <Sheet open={mirrorOpen} onOpenChange={setMirrorOpen}>
+        <SheetContent side="right" className="overflow-y-auto sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle className="text-lg font-display">🪞 Branding Mirror</SheetTitle>
+          </SheetHeader>
+
+          {mirrorLoading ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Analyse en cours…</p>
+            </div>
+          ) : mirrorData ? (
+            <div className="space-y-6 mt-4">
+              {/* Coherence Score */}
+              <div className="text-center space-y-2">
+                <p className="text-4xl font-bold font-display" style={{ color: mirrorData.coherence_score >= 70 ? 'hsl(var(--chart-2))' : mirrorData.coherence_score >= 40 ? 'hsl(var(--chart-4))' : 'hsl(var(--destructive))' }}>
+                  {mirrorData.coherence_score}/100
+                </p>
+                <Progress value={mirrorData.coherence_score} className="h-2.5 mx-auto max-w-[200px]" />
+                <p className="text-xs text-muted-foreground">Score de cohérence</p>
+              </div>
+
+              {/* Summary */}
+              <p className="text-sm text-foreground leading-relaxed bg-muted/50 rounded-xl p-3 border border-border">
+                {mirrorData.summary}
+              </p>
+
+              {/* Alignments */}
+              {mirrorData.alignments?.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4 text-chart-2" /> Ce qui est aligné
+                  </h4>
+                  <div className="space-y-2">
+                    {mirrorData.alignments.map((a: any, i: number) => (
+                      <div key={i} className="rounded-lg bg-chart-2/10 border border-chart-2/20 p-3">
+                        <p className="text-xs font-semibold text-foreground">{a.aspect}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{a.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Gaps */}
+              {mirrorData.gaps?.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                    <AlertTriangle className="h-4 w-4 text-chart-4" /> Les écarts à ajuster
+                  </h4>
+                  <div className="space-y-2">
+                    {mirrorData.gaps.map((g: any, i: number) => (
+                      <div key={i} className="rounded-lg bg-chart-4/10 border border-chart-4/20 p-3 space-y-1">
+                        <p className="text-xs font-semibold text-foreground">{g.aspect}</p>
+                        <p className="text-xs text-muted-foreground"><span className="font-medium">Déclaré :</span> {g.declared}</p>
+                        <p className="text-xs text-muted-foreground"><span className="font-medium">Réalité :</span> {g.actual}</p>
+                        <p className="text-xs text-primary font-medium mt-1">💡 {g.suggestion}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Quick wins */}
+              {mirrorData.quick_wins?.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                    <Zap className="h-4 w-4 text-primary" /> 3 quick wins
+                  </h4>
+                  <div className="space-y-1.5">
+                    {mirrorData.quick_wins.map((qw: string, i: number) => (
+                      <div key={i} className="flex gap-2 text-xs text-foreground">
+                        <span className="text-primary font-bold shrink-0">{i + 1}.</span>
+                        <span>{qw}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Regenerate */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-2 text-xs"
+                onClick={() => { setMirrorData(null); runMirror(); }}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Refaire l'analyse
+              </Button>
+            </div>
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
