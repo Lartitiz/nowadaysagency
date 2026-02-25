@@ -83,14 +83,14 @@
       <div id="app-loading" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:system-ui,sans-serif;">
         <p style="color:#999;font-size:14px;">Chargement...</p>
         <p id="loading-help" style="color:#999;font-size:12px;margin-top:20px;display:none;">
-          Le chargement prend plus de temps que prévu.<br>
-          <a href="javascript:void(0)" onclick="clearCacheAndReload()" style="color:#fb3d80;text-decoration:underline;">Cliquer ici pour réinitialiser</a>
+          Presque prêt·e ! Si ça ne charge toujours pas dans quelques secondes :<br>
+          <a href="javascript:void(0)" onclick="clearCacheAndReload()" style="color:#fb3d80;text-decoration:underline;">Réessayer →</a>
         </p>
       </div>
     </div>
     <script>
       // Show help after 10s
-      setTimeout(function(){var el=document.getElementById('loading-help');if(el)el.style.display='block';},10000);
+      setTimeout(function(){var el=document.getElementById('loading-help');if(el)el.style.display='block';},6000);
       // Hide loading when React mounts
       window.addEventListener('app-ready',function(){var el=document.getElementById('app-loading');if(el)el.remove();});
       // Unregister any stale service workers
