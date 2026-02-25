@@ -140,7 +140,7 @@ export default function SettingsPage() {
     toast({ title: "Compte supprimé. À bientôt peut-être 💛" });
   };
 
-  const planLabel = subInfo?.plan === "now_pilot" ? "Now Pilot" : subInfo?.plan === "studio" ? "Now Studio" : subInfo?.plan === "outil" ? "Outil" : "Gratuit";
+  const planLabel = subInfo?.plan === "now_pilot" ? "Binôme de com" : subInfo?.plan === "studio" ? "Binôme de com" : subInfo?.plan === "outil" ? "Outil" : "Gratuit";
 
   return (
     <div className="min-h-screen bg-background">
@@ -198,7 +198,7 @@ export default function SettingsPage() {
                       💎 Passer au plan Outil (39€/mois)
                     </Button>
                     <Button size="sm" variant="outline" className="rounded-full" asChild>
-                      <Link to="/studio/discover">🌟 Découvrir le Now Studio</Link>
+                      <Link to="/studio/discover">🌟 Découvrir l'accompagnement</Link>
                     </Button>
                   </>
                 )}
@@ -209,7 +209,7 @@ export default function SettingsPage() {
                       Gérer mon abonnement
                     </Button>
                     <Button size="sm" variant="outline" className="rounded-full" asChild>
-                      <Link to="/studio/discover">🌟 Upgrader vers le Now Studio</Link>
+                      <Link to="/studio/discover">🌟 Upgrader vers l'accompagnement</Link>
                     </Button>
                   </>
                 )}
@@ -372,7 +372,7 @@ const QUOTA_CATEGORIES = [
 
 function AiQuotaDisplay() {
   const { plan, usage, isPaid } = useUserPlan();
-  const planLabel = plan === "now_pilot" ? "Now Pilot" : plan === "studio" ? "Now Studio (250€/mois)" : plan === "outil" ? "Outil (39€/mois)" : "Gratuit";
+  const planLabel = plan === "now_pilot" ? "Binôme de com" : plan === "studio" ? "Binôme de com (250€/mois)" : plan === "outil" ? "Outil (39€/mois)" : "Gratuit";
   const total = usage.total;
   const nextMonth = new Date();
   nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
