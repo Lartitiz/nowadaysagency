@@ -88,7 +88,7 @@ export default function LinkedInHub() {
       });
     };
     fetch();
-  }, [user?.id]);
+  }, [user?.id, column, value]);
 
   const progressMap: Record<string, string | null> = {
     "/linkedin/audit": null,
