@@ -60,9 +60,9 @@ const DEEPENING_QUESTIONS: Record<string, { question: string; placeholder: strin
     { question: "Il y a une erreur courante que ta cible fait sur ce sujet ?", placeholder: "L'erreur classique..." },
   ],
   tutoriel: [
-    { question: "Quel problème concret tu résous avec ces tips ? La galère que ta cible vit au quotidien.", placeholder: "La galère que ta cible vit..." },
-    { question: "Quel est LE tip le plus contre-intuitif ou surprenant que tu veux partager ?", placeholder: "Le tip qui surprend..." },
-    { question: "Il y a une erreur courante que ta cible fait sur ce sujet ?", placeholder: "L'erreur classique..." },
+    { question: "C'est quoi le résultat final que la personne va obtenir en suivant ton tuto ?", placeholder: "Le résultat concret..." },
+    { question: "Combien d'étapes il y a ? Et quelle est l'étape que les gens ratent le plus souvent ?", placeholder: "L'étape piège..." },
+    { question: "Il y a un outil, une astuce ou un raccourci que tu utilises et que les gens ne connaissent pas ?", placeholder: "L'astuce secrète..." },
   ],
   storytelling: [
     { question: "Raconte-moi le moment déclencheur. Le jour, la scène, ce qui s'est passé.", placeholder: "Le moment, la scène..." },
