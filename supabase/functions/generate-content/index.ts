@@ -202,6 +202,8 @@ IMPORTANT : Réponds UNIQUEMENT en JSON :
         const bc = body.brandingContext || {};
         const diff = body.differentiation || {};
         const cta = body.ctaInfo || {};
+        const structureChoice = body.structureChoice || "";
+        const structureData = structureChoice ? `\nSTRUCTURE CHOISIE : ${structureChoice}\nL'utilisatrice a choisi la structure "${structureChoice}". Adapte les 3 propositions à cette structure tout en gardant les 3 angles (promesse, différenciation, personnalité).` : "";
         const diffTypeLabels: Record<string,string> = { parcours: "Son parcours / expertise", valeurs: "Ses valeurs / engagements", methode: "Sa méthode unique", clients: "Ce que ses clients disent", style: "Son style / esthétique" };
         const ctaTypeLabels: Record<string,string> = { freebie: "télécharger une ressource gratuite", rdv: "prendre RDV", boutique: "voir sa boutique / ses offres", newsletter: "s'inscrire à sa newsletter", dm: "envoyer un DM", site: "visiter son site" };
 
@@ -228,7 +230,7 @@ DIFFÉRENCIATION :
 CTA SOUHAITÉ :
 - Action : ${ctaTypeLabels[cta.type] || cta.type || "?"}
 ${cta.text ? `- Nom du freebie/newsletter : ${cta.text}` : ""}
-
+${structureData}
 CONSIGNE :
 Génère 3 propositions de bio Instagram.
 

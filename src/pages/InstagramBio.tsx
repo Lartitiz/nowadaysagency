@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, Check, Sparkles, Loader2, RefreshCw, ChevronLeft, Blend, ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import AuditInsight, { useAuditInsight } from "@/components/AuditInsight";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { Link } from "react-router-dom";
@@ -47,7 +48,58 @@ interface BrandingContext {
   combats: string;
 }
 
-type View = "audit" | "branding-check" | "differentiation" | "cta" | "results" | "mixer" | "validated";
+type View = "audit" | "branding-check" | "structure-choice" | "differentiation" | "cta" | "results" | "mixer" | "validated";
+
+const BIO_STRUCTURES = [
+  {
+    id: "directe",
+    name: "La Directe",
+    emoji: "🎯",
+    description: "Hook percutant + qui tu es + CTA. Droit au but.",
+    perfect_for: "Prestataires de services, freelances",
+    example_format: "Ligne 1 : hook / ce que tu fais\nLigne 2 : pour qui\nLigne 3 : preuve ou personnalité\nLigne 4 : CTA",
+  },
+  {
+    id: "stratege",
+    name: "La Stratège",
+    emoji: "♟️",
+    description: "Problème de ta cible + ta solution + CTA. Tu montres que tu comprends.",
+    perfect_for: "Coachs, consultantes, formatrices",
+    example_format: "Ligne 1 : problème de ta cible\nLigne 2 : ta solution\nLigne 3 : crédibilité\nLigne 4 : CTA",
+  },
+  {
+    id: "engagee",
+    name: "L'Engagée",
+    emoji: "✊",
+    description: "Ta mission + ta personnalité + CTA. Pour celles qui ont un positionnement militant.",
+    perfect_for: "Marques engagées, militantes, valeurs fortes",
+    example_format: "Ligne 1 : ta mission / ton combat\nLigne 2 : comment tu agis\nLigne 3 : ta touche perso\nLigne 4 : CTA",
+  },
+  {
+    id: "prouveuse",
+    name: "La Prouveuse",
+    emoji: "📊",
+    description: "Résultat concret + méthode + CTA. Les chiffres parlent.",
+    perfect_for: "Celles qui ont des résultats mesurables",
+    example_format: "Ligne 1 : résultat clé chiffré\nLigne 2 : comment (ta méthode)\nLigne 3 : crédibilité ou personnalité\nLigne 4 : CTA",
+  },
+  {
+    id: "storytelleuse",
+    name: "La Storytelleuse",
+    emoji: "📖",
+    description: "Mini-histoire en 4 lignes. Ta personnalité EST le produit.",
+    perfect_for: "Profils incarnés, artistes, créatrices",
+    example_format: "Ligne 1 : mini-récit (d'où tu viens)\nLigne 2 : ce que tu fais maintenant\nLigne 3 : ton style unique\nLigne 4 : CTA",
+  },
+  {
+    id: "convertisseuse",
+    name: "La Convertisseuse",
+    emoji: "🚀",
+    description: "Micro-landing page. Offre + bénéfice + urgence + CTA. Pour les lancements.",
+    perfect_for: "Lancements, offres limitées, promos",
+    example_format: "Ligne 1 : offre spécifique\nLigne 2 : bénéfice clé\nLigne 3 : urgence ou preuve sociale\nLigne 4 : CTA direct",
+  },
+];
 
 const DIFF_ANGLES = [
   { id: "parcours", emoji: "🎓", label: "Mon parcours / expertise", prompt: "Résume ton parcours en 1 phrase (d'où tu viens, ce qui t'a amenée là)" },
@@ -99,6 +151,7 @@ export default function InstagramBio() {
   const [diffText, setDiffText] = useState("");
   const [ctaType, setCtaType] = useState("");
   const [ctaText, setCtaText] = useState("");
+  const [bioStructure, setBioStructure] = useState<string>("");
 
   const [generating, setGenerating] = useState(false);
   const [versions, setVersions] = useState<BioVersion[]>([]);
@@ -232,6 +285,7 @@ export default function InstagramBio() {
           brandingContext: brandingCtx,
           differentiation: { type: diffAngle, text: diffText },
           ctaInfo: { type: ctaType, text: ctaText },
+          structureChoice: bioStructure,
         },
       });
       if (res.error) throw new Error(res.error.message);
@@ -503,7 +557,7 @@ export default function InstagramBio() {
                     )}
                   </div>
                   <div className="flex flex-wrap gap-3 pt-2">
-                    <Button className="rounded-pill gap-2" onClick={() => setView("differentiation")}>
+                    <Button className="rounded-pill gap-2" onClick={() => setView("structure-choice")}>
                       Tout est bon 👍 <ArrowRight className="h-4 w-4" />
                     </Button>
                     <Link to="/branding">
@@ -525,7 +579,7 @@ export default function InstagramBio() {
                         🎨 Compléter mon branding d'abord
                       </Button>
                     </Link>
-                    <Button variant="outline" className="rounded-pill gap-2" onClick={() => setView("differentiation")}>
+                    <Button variant="outline" className="rounded-pill gap-2" onClick={() => setView("structure-choice")}>
                       Continuer quand même <ArrowRight className="h-4 w-4" />
                     </Button>
                   </div>
@@ -534,6 +588,57 @@ export default function InstagramBio() {
 
               <Button variant="ghost" size="sm" className="rounded-pill gap-1" onClick={() => setView("audit")}>
                 <ChevronLeft className="h-4 w-4" /> Retour
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════
+           VIEW: STRUCTURE CHOICE
+           ═══════════════════════════════════════ */}
+        {view === "structure-choice" && (
+          <div className="space-y-4 animate-fade-in">
+            <div className="text-center space-y-2">
+              <h2 className="text-lg font-bold">Quelle stratégie pour ta bio ?</h2>
+              <p className="text-sm text-muted-foreground">Choisis la structure qui correspond le mieux à ta situation. L'IA adaptera ses propositions.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {BIO_STRUCTURES.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setBioStructure(s.id)}
+                  className={cn(
+                    "text-left p-4 rounded-xl border-2 transition-all hover:shadow-md",
+                    bioStructure === s.id
+                      ? "border-primary bg-primary/5 shadow-sm"
+                      : "border-border hover:border-primary/40"
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xl">{s.emoji}</span>
+                    <span className="font-bold text-sm">{s.name}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">{s.description}</p>
+                  <p className="text-xs text-primary/70">Parfait pour : {s.perfect_for}</p>
+                </button>
+              ))}
+            </div>
+            {bioStructure && (
+              <div className="bg-muted/50 rounded-lg p-3 text-xs text-muted-foreground">
+                <p className="font-medium mb-1">Format :</p>
+                <pre className="whitespace-pre-wrap">{BIO_STRUCTURES.find(s => s.id === bioStructure)?.example_format}</pre>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" className="rounded-pill gap-1" onClick={() => setView("branding-check")}>
+                ← Retour
+              </Button>
+              <Button
+                className="rounded-pill gap-2 flex-1"
+                disabled={!bioStructure}
+                onClick={() => setView("differentiation")}
+              >
+                Continuer →
               </Button>
             </div>
           </div>
@@ -589,7 +694,7 @@ export default function InstagramBio() {
               )}
 
               <div className="flex justify-between pt-2">
-                <Button variant="ghost" size="sm" className="rounded-pill gap-1" onClick={() => setView("branding-check")}>
+                <Button variant="ghost" size="sm" className="rounded-pill gap-1" onClick={() => setView("structure-choice")}>
                   <ChevronLeft className="h-4 w-4" /> Précédent
                 </Button>
                 <Button size="sm" className="rounded-pill gap-1" onClick={() => setView("cta")} disabled={!diffAngle}>
