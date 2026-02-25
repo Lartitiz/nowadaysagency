@@ -6,23 +6,20 @@ import { useAutoSave, SaveIndicator } from "@/hooks/use-auto-save";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Upload, X, Plus, Search, Sparkles, FileText, Loader2, CheckCircle2, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
-import { generatePersonalizedPalettes, type Emotion, type Universe, type StyleAxis, type GeneratedPalette } from "@/lib/charter-palette-generator";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Slider } from "@/components/ui/slider";
+import { ArrowLeft, Upload, X, Sparkles, FileText, Loader2, CheckCircle2, GripVertical } from "lucide-react";
+import { type Emotion, type Universe, type StyleAxis, type GeneratedPalette } from "@/lib/charter-palette-generator";
+import CharterColorsSection from "@/components/branding/charter/CharterColorsSection";
+import CharterTypographySection from "@/components/branding/charter/CharterTypographySection";
+import CharterTemplatesSection from "@/components/branding/charter/CharterTemplatesSection";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
-import { SECTOR_PALETTES, ACTIVITY_TO_SECTOR, DEFAULT_SECTOR } from "@/lib/charter-palettes";
-import { FONT_COMBOS } from "@/lib/charter-fonts";
-import { GOOGLE_FONTS_LIST } from "@/lib/google-fonts-list";
+import { ACTIVITY_TO_SECTOR, DEFAULT_SECTOR } from "@/lib/charter-palettes";
 
 const MOOD_OPTIONS = [
   "Minimaliste", "Coloré", "Vintage", "Épuré", "Artisanal", "Pop",
@@ -109,92 +106,6 @@ function loadGoogleFont(font: string) {
   link.rel = "stylesheet";
   link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@400;700&display=swap`;
   document.head.appendChild(link);
-}
-
-// ── FontAutocomplete component ──
-function FontAutocomplete({ label, value, onChange, allowEmpty }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  allowEmpty?: boolean;
-}) {
-  const [query, setQuery] = useState(value);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { setQuery(value); }, [value]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const filtered = GOOGLE_FONTS_LIST.filter(f =>
-    f.toLowerCase().includes(query.toLowerCase())
-  ).slice(0, 12);
-
-  const selectFont = (font: string) => {
-    loadGoogleFont(font);
-    onChange(font);
-    setQuery(font);
-    setOpen(false);
-  };
-
-  return (
-    <div ref={ref} className="relative">
-      <label className="text-sm font-medium text-foreground mb-1.5 block">{label}</label>
-      <Input
-        value={query}
-        onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        placeholder="Tape pour chercher une police Google Fonts…"
-        className="text-sm"
-      />
-      {allowEmpty && query && (
-        <button
-          onClick={() => { onChange(""); setQuery(""); }}
-          className="absolute right-3 top-[38px] text-muted-foreground hover:text-foreground"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      )}
-      {open && filtered.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full rounded-xl border border-border bg-card shadow-lg max-h-60 overflow-y-auto">
-          {filtered.map(font => {
-            loadGoogleFont(font);
-            return (
-              <button
-                key={font}
-                onMouseDown={(e) => { e.preventDefault(); selectFont(font); }}
-                className="w-full text-left px-3 py-2.5 hover:bg-muted/50 transition-colors flex items-center justify-between gap-3"
-              >
-                <div className="flex-1 min-w-0">
-                  <span className="text-xs font-medium text-foreground">{font}</span>
-                  <p
-                    style={{ fontFamily: `'${font}', sans-serif`, fontWeight: 400 }}
-                    className="text-sm text-muted-foreground truncate mt-0.5"
-                  >
-                    Communique sans te trahir
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-      {value && (
-        <p
-          className="mt-2 text-base text-muted-foreground"
-          style={{ fontFamily: `'${value}', sans-serif` }}
-        >
-          Communique sans te trahir
-        </p>
-      )}
-    </div>
-  );
 }
 
 // ── MoodboardSection component ──
@@ -488,40 +399,6 @@ export default function BrandCharterPage() {
     }
   };
 
-  // Template upload
-  const handleTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || !user) return;
-    if (data.uploaded_templates.length + files.length > 10) {
-      toast.error("Maximum 10 templates");
-      return;
-    }
-    setTemplatesUploading(true);
-    try {
-      const newTemplates = [...data.uploaded_templates];
-      for (const file of Array.from(files)) {
-        const ext = file.name.split(".").pop();
-        const path = `${user.id}/templates/${Date.now()}-${file.name}`;
-        const { error } = await supabase.storage.from("brand-assets").upload(path, file);
-        if (error) throw error;
-        const { data: urlData } = supabase.storage.from("brand-assets").getPublicUrl(path);
-        newTemplates.push({ url: urlData.publicUrl, name: file.name });
-      }
-      update("uploaded_templates", newTemplates);
-      toast.success("Templates uploadés !");
-    } catch (err: any) {
-      toast.error("Erreur lors de l'upload");
-      console.error(err);
-    } finally {
-      setTemplatesUploading(false);
-    }
-  };
-
-  const removeTemplate = (idx: number) => {
-    const newT = data.uploaded_templates.filter((_, i) => i !== idx);
-    update("uploaded_templates", newT);
-  };
-
   const toggleMood = (keyword: string) => {
     const current = data.mood_keywords;
     if (current.includes(keyword)) {
@@ -533,17 +410,6 @@ export default function BrandCharterPage() {
     }
   };
 
-  const addCustomColor = () => {
-    if (data.custom_colors.length >= 5) {
-      toast.info("Maximum 5 couleurs supplémentaires");
-      return;
-    }
-    update("custom_colors", [...data.custom_colors, "#cccccc"]);
-  };
-
-  const removeCustomColor = (idx: number) => {
-    update("custom_colors", data.custom_colors.filter((_, i) => i !== idx));
-  };
 
   // Audit templates
   const handleAuditTemplates = async () => {
@@ -694,377 +560,30 @@ export default function BrandCharterPage() {
           </section>
 
           {/* SECTION 2: Palette de couleurs */}
-          <section className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="font-display text-base font-bold text-foreground mb-4">🎨 Ma palette de couleurs</h2>
-            <div className="space-y-3">
-              {([
-                ["color_primary", "Primaire"],
-                ["color_secondary", "Secondaire"],
-                ["color_accent", "Accent"],
-                ["color_background", "Fond"],
-                ["color_text", "Texte"],
-              ] as const).map(([key, label]) => (
-                <div key={key} className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={data[key]}
-                    onChange={e => update(key, e.target.value)}
-                    className="w-10 h-10 rounded-lg border border-border cursor-pointer p-0.5"
-                  />
-                  <span className="text-sm text-foreground font-medium w-24">{label}</span>
-                  <span className="font-mono text-xs text-muted-foreground uppercase">{data[key]}</span>
-                </div>
-              ))}
-
-              {data.custom_colors.map((color, idx) => (
-                <div key={idx} className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={color}
-                    onChange={e => {
-                      const newColors = [...data.custom_colors];
-                      newColors[idx] = e.target.value;
-                      update("custom_colors", newColors);
-                    }}
-                    className="w-10 h-10 rounded-lg border border-border cursor-pointer p-0.5"
-                  />
-                  <span className="text-sm text-foreground font-medium w-24">Custom {idx + 1}</span>
-                  <span className="font-mono text-xs text-muted-foreground uppercase">{color}</span>
-                  <button onClick={() => removeCustomColor(idx)} className="ml-auto text-muted-foreground hover:text-destructive">
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-
-              {data.custom_colors.length < 5 && (
-                <Button variant="outline" size="sm" onClick={addCustomColor} className="gap-1.5 text-xs">
-                  <Plus className="h-3.5 w-3.5" /> Ajouter une couleur
-                </Button>
-              )}
-            </div>
-
-            {/* Live preview */}
-            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
-              {[data.color_primary, data.color_secondary, data.color_accent, data.color_background, data.color_text, ...data.custom_colors].map((c, i) => (
-                <div
-                  key={i}
-                  className="w-10 h-10 rounded-full border-2 border-background shadow-sm"
-                  style={{ backgroundColor: c }}
-                  title={c}
-                />
-              ))}
-            </div>
-
-            {/* Palette Questionnaire */}
-            <div className="mt-5 pt-5 border-t border-border space-y-5">
-              <h3 className="text-sm font-semibold text-foreground">✨ Génère ta palette personnalisée</h3>
-
-              {/* Q1: Emotions (multi-select, max 2) */}
-              <div>
-                <p className="text-xs font-medium text-foreground mb-2">Quelle émotion principale veux-tu transmettre ? <span className="text-muted-foreground">(max 2)</span></p>
-                <div className="flex flex-wrap gap-2">
-                  {([
-                    { id: "confidence" as Emotion, label: "🌟 Confiance et expertise" },
-                    { id: "warmth" as Emotion, label: "💛 Chaleur et proximité" },
-                    { id: "energy" as Emotion, label: "⚡ Énergie et audace" },
-                    { id: "calm" as Emotion, label: "🌿 Calme et sérénité" },
-                    { id: "creativity" as Emotion, label: "🎨 Créativité et originalité" },
-                    { id: "engagement" as Emotion, label: "✊ Engagement et conviction" },
-                  ]).map(opt => {
-                    const selected = selectedEmotions.includes(opt.id);
-                    return (
-                      <button
-                        key={opt.id}
-                        onClick={() => {
-                          if (selected) {
-                            setSelectedEmotions(prev => prev.filter(e => e !== opt.id));
-                          } else if (selectedEmotions.length < 2) {
-                            setSelectedEmotions(prev => [...prev, opt.id]);
-                          }
-                        }}
-                        className={`text-xs px-3 py-1.5 rounded-full border transition-all ${selected ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:border-primary/40"}`}
-                      >
-                        {opt.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Q2: Universe (single select) */}
-              <div>
-                <p className="text-xs font-medium text-foreground mb-2">Quel univers visuel te parle le plus ?</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {([
-                    { id: "warm" as Universe, label: "Tons chauds", desc: "terracotta, miel, rouille", swatches: ["#C4724E", "#D4A574", "#8B6F47", "#F5F0EB", "#3D2E24"] },
-                    { id: "cool" as Universe, label: "Tons froids", desc: "bleu, vert sauge, gris", swatches: ["#6B8FA3", "#8B9E7E", "#B8CDD6", "#F8FAFB", "#2C3E4A"] },
-                    { id: "pop" as Universe, label: "Pop & coloré", desc: "rose, jaune, bleu électrique", swatches: ["#E91E8C", "#FFE561", "#6C63FF", "#FFFFFF", "#1A1A2E"] },
-                    { id: "minimal" as Universe, label: "Minimaliste & neutre", desc: "noir, blanc, beige", swatches: ["#2C2C2C", "#E8E8E8", "#C4956A", "#FFFFFF", "#1A1A1A"] },
-                    { id: "nature" as Universe, label: "Nature & organique", desc: "vert forêt, brun, crème", swatches: ["#5C7A6E", "#8B6F47", "#A8C5B8", "#F5FAF7", "#2D3E36"] },
-                  ]).map(opt => (
-                    <button
-                      key={opt.id}
-                      onClick={() => setSelectedUniverse(opt.id)}
-                      className={`text-left rounded-xl border p-3 transition-all ${selectedUniverse === opt.id ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border hover:border-primary/40"}`}
-                    >
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        {opt.swatches.map((c, i) => (
-                          <div key={i} className="w-4 h-4 rounded-md border border-border" style={{ backgroundColor: c }} />
-                        ))}
-                      </div>
-                      <p className="text-xs font-medium text-foreground">{opt.label}</p>
-                      <p className="text-[10px] text-muted-foreground">{opt.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Q3: Style sliders */}
-              <div>
-                <p className="text-xs font-medium text-foreground mb-3">Tu préfères un style plutôt…</p>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-[10px] text-muted-foreground mb-1.5">
-                      <span>Doux et féminin</span>
-                      <span>Bold et affirmé</span>
-                    </div>
-                    <Slider value={[styleAxes.softBold]} min={0} max={100} step={5} onValueChange={([v]) => setStyleAxes(prev => ({ ...prev, softBold: v }))} />
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-[10px] text-muted-foreground mb-1.5">
-                      <span>Classique et intemporel</span>
-                      <span>Moderne et tendance</span>
-                    </div>
-                    <Slider value={[styleAxes.classicModern]} min={0} max={100} step={5} onValueChange={([v]) => setStyleAxes(prev => ({ ...prev, classicModern: v }))} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Generate button */}
-              <Button
-                size="sm"
-                className="w-full gap-2"
-                disabled={selectedEmotions.length === 0 || !selectedUniverse}
-                onClick={() => {
-                  if (!selectedUniverse) return;
-                  const palettes = generatePersonalizedPalettes(selectedEmotions, selectedUniverse, styleAxes);
-                  setGeneratedPalettes(palettes);
-                }}
-              >
-                <Sparkles className="h-4 w-4" />
-                Générer mes palettes
-              </Button>
-
-              {/* Generated palettes */}
-              {generatedPalettes.length > 0 && (
-                <div className="space-y-3 pt-2">
-                  <p className="text-xs font-semibold text-foreground">🎨 Tes palettes personnalisées</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {generatedPalettes.map((palette, idx) => (
-                      <div key={idx} className="rounded-xl border border-border bg-background p-3 space-y-2">
-                        <div className="flex items-center gap-1.5">
-                          {Object.values(palette.colors).map((c, i) => (
-                            <div key={i} className="w-7 h-7 rounded-lg border border-border" style={{ backgroundColor: c }} title={c} />
-                          ))}
-                        </div>
-                        <p className="text-xs font-medium text-foreground">{palette.name}</p>
-                        <div className="flex gap-1.5">
-                          <Button
-                            size="sm"
-                            variant="default"
-                            className="flex-1 text-[10px] h-7"
-                            onClick={() => {
-                              update("color_primary", palette.colors.primary);
-                              update("color_secondary", palette.colors.secondary);
-                              update("color_accent", palette.colors.accent);
-                              update("color_background", palette.colors.background);
-                              update("color_text", palette.colors.text);
-                              toast.success("Palette appliquée !");
-                            }}
-                          >
-                            Appliquer
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 text-[10px] h-7"
-                            onClick={() => {
-                              update("color_primary", palette.colors.primary);
-                              update("color_secondary", palette.colors.secondary);
-                              update("color_accent", palette.colors.accent);
-                              update("color_background", palette.colors.background);
-                              update("color_text", palette.colors.text);
-                              toast.success("Palette chargée — personnalise les couleurs ci-dessus.");
-                              // Scroll to color pickers
-                              window.scrollTo({ top: 0, behavior: "smooth" });
-                            }}
-                          >
-                            Personnaliser
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Collapsible sector palettes */}
-              <Collapsible open={sectorPalettesOpen} onOpenChange={setSectorPalettesOpen}>
-                <CollapsibleTrigger asChild>
-                  <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mt-2">
-                    {sectorPalettesOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                    Voir les palettes par secteur d'activité
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="mt-3">
-                  <p className="text-xs text-muted-foreground mb-2">Secteur détecté : <span className="font-medium text-foreground">{userSector}</span></p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {(SECTOR_PALETTES[userSector] || SECTOR_PALETTES[DEFAULT_SECTOR]).map((palette) => (
-                      <button
-                        key={palette.name}
-                        onClick={() => {
-                          update("color_primary", palette.colors.primary);
-                          update("color_secondary", palette.colors.secondary);
-                          update("color_accent", palette.colors.accent);
-                          update("color_background", palette.colors.background);
-                          update("color_text", palette.colors.text);
-                          toast.success("Palette appliquée !");
-                        }}
-                        className="rounded-xl border border-border hover:border-primary/50 bg-background p-3 text-left transition-all hover:shadow-sm"
-                      >
-                        <div className="flex items-center gap-1.5 mb-2">
-                          {[palette.colors.primary, palette.colors.secondary, palette.colors.accent, palette.colors.background, palette.colors.text].map((c, i) => (
-                            <div key={i} className="w-5 h-5 rounded-lg border border-border" style={{ backgroundColor: c }} />
-                          ))}
-                        </div>
-                        <p className="text-xs font-medium text-foreground">{palette.name}</p>
-                      </button>
-                    ))}
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => setAllPalettesOpen(true)} className="text-xs text-muted-foreground mt-3">
-                    Voir toutes les palettes →
-                  </Button>
-                </CollapsibleContent>
-              </Collapsible>
-            </div>
-          </section>
-
-          {/* All palettes dialog */}
-          <Dialog open={allPalettesOpen} onOpenChange={setAllPalettesOpen}>
-            <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Toutes les palettes</DialogTitle>
-                <DialogDescription>Choisis une palette pour l'appliquer à ta charte graphique.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-5">
-                {Object.entries(SECTOR_PALETTES).map(([sector, palettes]) => (
-                  <div key={sector}>
-                    <h4 className="text-sm font-semibold text-foreground mb-2">{sector}</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {palettes.map((palette) => (
-                        <button
-                          key={palette.name}
-                          onClick={() => {
-                            update("color_primary", palette.colors.primary);
-                            update("color_secondary", palette.colors.secondary);
-                            update("color_accent", palette.colors.accent);
-                            update("color_background", palette.colors.background);
-                            update("color_text", palette.colors.text);
-                            toast.success("Palette appliquée ! Tu peux ajuster chaque couleur.");
-                            setAllPalettesOpen(false);
-                          }}
-                          className="rounded-xl border border-border hover:border-primary/50 bg-background p-3 text-left transition-all hover:shadow-sm"
-                        >
-                          <div className="flex items-center gap-1.5 mb-1.5">
-                            {[palette.colors.primary, palette.colors.secondary, palette.colors.accent, palette.colors.background, palette.colors.text].map((c, i) => (
-                              <div key={i} className="w-5 h-5 rounded-full border border-border" style={{ backgroundColor: c }} />
-                            ))}
-                          </div>
-                          <p className="text-xs font-medium text-foreground">{palette.name}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </DialogContent>
-          </Dialog>
+          <CharterColorsSection
+            data={data}
+            onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
+            userSector={userSector}
+            selectedEmotions={selectedEmotions}
+            setSelectedEmotions={setSelectedEmotions}
+            selectedUniverse={selectedUniverse}
+            setSelectedUniverse={setSelectedUniverse}
+            styleAxes={styleAxes}
+            setStyleAxes={setStyleAxes}
+            generatedPalettes={generatedPalettes}
+            setGeneratedPalettes={setGeneratedPalettes}
+            allPalettesOpen={allPalettesOpen}
+            setAllPalettesOpen={setAllPalettesOpen}
+            sectorPalettesOpen={sectorPalettesOpen}
+            setSectorPalettesOpen={setSectorPalettesOpen}
+          />
 
           {/* SECTION 3: Typographies */}
-          <section className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="font-display text-base font-bold text-foreground mb-4">🔤 Mes typographies</h2>
-            <div className="space-y-5">
-              {([
-                ["font_title", "Police titres"] as const,
-                ["font_body", "Police corps de texte"] as const,
-              ]).map(([key, label]) => (
-                <FontAutocomplete
-                  key={key}
-                  label={label}
-                  value={data[key]}
-                  onChange={(v) => { update(key, v); loadGoogleFont(v); }}
-                />
-              ))}
-              <FontAutocomplete
-                label="Police accent (optionnel)"
-                value={data.font_accent || ""}
-                onChange={(v) => { update("font_accent", v || null); if (v) loadGoogleFont(v); }}
-                allowEmpty
-              />
-            </div>
-
-            {/* Font combo suggestions */}
-            <div className="mt-5 pt-5 border-t border-border">
-              <h3 className="text-sm font-semibold text-foreground mb-1">💡 Combinaisons typographiques suggérées</h3>
-              {toneKeywords.length === 0 ? (
-                <p className="text-xs text-muted-foreground mb-3">
-                  Remplis ta section <a href="/branding/voice" className="text-primary hover:underline">Ma voix & mes combats</a> pour des suggestions personnalisées.
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground mb-3">Basées sur ton style de voix</p>
-              )}
-              <div className="space-y-2">
-                {(() => {
-                  const scored = FONT_COMBOS.map(combo => {
-                    const score = toneKeywords.length > 0
-                      ? combo.tone_match.filter(t => toneKeywords.some(tk => tk.includes(t) || t.includes(tk))).length
-                      : 0;
-                    return { ...combo, score };
-                  });
-                  const sorted = [...scored].sort((a, b) => b.score - a.score);
-                  const toShow = toneKeywords.length > 0 ? sorted.slice(0, 3) : sorted;
-                  toShow.forEach(c => { loadGoogleFont(c.title); loadGoogleFont(c.body); });
-                  return toShow.map(combo => (
-                    <button
-                      key={combo.name}
-                      onClick={() => {
-                        update("font_title", combo.title);
-                        update("font_body", combo.body);
-                        loadGoogleFont(combo.title);
-                        loadGoogleFont(combo.body);
-                        toast.success(`Combo "${combo.name}" appliqué !`);
-                      }}
-                      className="w-full rounded-xl border border-border hover:border-primary/50 bg-background p-4 text-left transition-all hover:shadow-sm"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-foreground">{combo.name}</span>
-                        {combo.score > 0 && (
-                          <span className="text-[10px] text-primary font-medium">✦ Recommandé</span>
-                        )}
-                      </div>
-                      <p style={{ fontFamily: `'${combo.title}', serif`, fontWeight: 700 }} className="text-base text-foreground leading-tight mb-1">
-                        Communique sans te trahir
-                      </p>
-                      <p style={{ fontFamily: `'${combo.body}', sans-serif` }} className="text-sm text-muted-foreground leading-snug mb-2">
-                        Et voici le corps de texte pour voir le contraste entre les deux polices.
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">{combo.description}</p>
-                    </button>
-                  ));
-                })()}
-              </div>
-            </div>
-          </section>
+          <CharterTypographySection
+            data={data}
+            onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
+            toneKeywords={toneKeywords}
+          />
 
           {/* SECTION: Moodboard */}
           <MoodboardSection
@@ -1122,63 +641,15 @@ export default function BrandCharterPage() {
           </section>
 
           {/* SECTION 5: Templates */}
-          <section className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="font-display text-base font-bold text-foreground mb-4">📐 Mes templates existants</h2>
-
-            {data.uploaded_templates.length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-4">
-                {data.uploaded_templates.map((t, idx) => (
-                  <div key={idx} className="relative group">
-                    <img
-                      src={t.url}
-                      alt={t.name}
-                      className="w-full aspect-square object-cover rounded-xl border border-border"
-                    />
-                    <button
-                      onClick={() => removeTemplate(idx)}
-                      className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                    <p className="text-[10px] text-muted-foreground mt-1 truncate">{t.name}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {data.uploaded_templates.length < 10 && (
-              <label className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors p-6">
-                <Upload className="h-6 w-6 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">
-                  {templatesUploading ? "Upload en cours..." : "Uploader des templates (PNG, JPG, PDF)"}
-                </span>
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  multiple
-                  className="hidden"
-                  onChange={handleTemplateUpload}
-                  disabled={templatesUploading}
-                />
-              </label>
-            )}
-
-            {data.uploaded_templates.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3 gap-1.5 text-xs w-full"
-                onClick={handleAuditTemplates}
-                disabled={auditing}
-              >
-                {auditing ? (
-                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyse en cours...</>
-                ) : (
-                  <><Search className="h-3.5 w-3.5" /> 🔍 Auditer mes templates</>
-                )}
-              </Button>
-            )}
-          </section>
+          <CharterTemplatesSection
+            data={data}
+            onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
+            userId={user?.id || ""}
+            templatesUploading={templatesUploading}
+            setTemplatesUploading={setTemplatesUploading}
+            onAuditTemplates={handleAuditTemplates}
+            auditing={auditing}
+          />
         </div>
 
         {data.updated_at && (
