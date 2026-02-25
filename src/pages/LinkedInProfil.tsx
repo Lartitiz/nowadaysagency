@@ -89,7 +89,7 @@ export default function LinkedInProfil() {
   const generateTitle = async () => {
     setGenerating(true);
     try {
-      const res = await supabase.functions.invoke("linkedin-ai", { body: { action: "title" } });
+      const res = await supabase.functions.invoke("linkedin-ai", { body: { action: "title", workspace_id: workspaceId } });
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: string[];

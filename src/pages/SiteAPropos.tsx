@@ -67,7 +67,7 @@ export default function SiteAPropos() {
     setSelectedAngle(angle);
     try {
       const { data: fnData, error } = await supabase.functions.invoke("website-ai", {
-        body: { action: "about-page", angle },
+        body: { action: "about-page", angle, workspace_id: workspaceId },
       });
       if (error) throw error;
       const raw = fnData.content.replace(/```json|```/g, "").trim();

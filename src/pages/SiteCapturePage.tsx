@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { friendlyError } from "@/lib/error-messages";
 
 export default function SiteCapturePage() {
   const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
   const [leadName, setLeadName] = useState("");
   const [leadDesc, setLeadDesc] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,7 +30,7 @@ export default function SiteCapturePage() {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("website-ai", {
-        body: { action: "capture-page", lead_magnet_name: leadName, lead_magnet_description: leadDesc },
+        body: { action: "capture-page", lead_magnet_name: leadName, lead_magnet_description: leadDesc, workspace_id: workspaceId },
       });
       if (error) throw error;
       const raw = data?.content || "";

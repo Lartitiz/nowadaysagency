@@ -75,7 +75,7 @@ export default function LinkedInParcours() {
     setGeneratingIdx(idx);
     try {
       const res = await supabase.functions.invoke("linkedin-ai", {
-        body: { action: "optimize-experience", job_title: exp.job_title, company: exp.company, description: exp.description_raw },
+        body: { action: "optimize-experience", job_title: exp.job_title, company: exp.company, description: exp.description_raw, workspace_id: workspaceId },
       });
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
@@ -111,7 +111,7 @@ export default function LinkedInParcours() {
   const suggestSkills = async () => {
     setGeneratingSkills(true);
     try {
-      const res = await supabase.functions.invoke("linkedin-ai", { body: { action: "suggest-skills" } });
+      const res = await supabase.functions.invoke("linkedin-ai", { body: { action: "suggest-skills", workspace_id: workspaceId } });
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: any;

@@ -30,8 +30,8 @@ serve(async (req) => {
       );
     }
 
-    const { action, ...params } = await req.json();
-    const ctx = await getUserContext(supabase, user.id);
+    const { action, workspace_id, ...params } = await req.json();
+    const ctx = await getUserContext(supabase, user.id, workspace_id);
     const context = formatContextForAI(ctx, CONTEXT_PRESETS.website) + "\nPRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.\n";
 
     const VOICE_PRIORITY = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n`;

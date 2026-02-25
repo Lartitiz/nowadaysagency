@@ -86,7 +86,7 @@ export default function LinkedInPostGenerator() {
     setResult(null);
     try {
       const res = await supabase.functions.invoke("linkedin-ai", {
-        body: { action: "generate-post", template, audience, sujet, anecdote, emotion, conviction, hook_type: hookType },
+        body: { action: "generate-post", template, audience, sujet, anecdote, emotion, conviction, hook_type: hookType, workspace_id: workspaceId },
       });
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
@@ -113,7 +113,7 @@ export default function LinkedInPostGenerator() {
     setImproveResult(null);
     try {
       const res = await supabase.functions.invoke("linkedin-ai", {
-        body: { action: "improve-post", postContent: existingPost },
+        body: { action: "improve-post", postContent: existingPost, workspace_id: workspaceId },
       });
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
