@@ -14,7 +14,7 @@ export interface DemoIntakeQuestion {
 export const DEMO_INTAKE_DATA = {
   questions: [
     {
-      question: "Léa, bienvenue dans Now Pilot ! 🌸 Avant notre premier appel, j'aimerais savoir : c'est quoi ton urgence n°1 en ce moment ? Un lancement, une refonte de site, un truc précis ?",
+      question: "Léa, bienvenue dans ton accompagnement ! 🌸 Avant notre premier appel, j'aimerais savoir : c'est quoi ton urgence n°1 en ce moment ? Un lancement, une refonte de site, un truc précis ?",
       question_type: "textarea" as const,
       placeholder: "Ce qui te presse le plus en ce moment...",
       demo_answer: "Mon site est vieillissant, j'aimerais le refondre d'ici avril. Et je veux aussi avoir une vraie stratégie de contenu sur Instagram, parce que je poste un peu au hasard.",
@@ -28,7 +28,7 @@ export const DEMO_INTAKE_DATA = {
       completion_percentage: 30,
     },
     {
-      question: "Ok, c'est super courant et on va bosser là-dessus. De l'accompagnement Now Pilot, tu attends quoi exactement ? Si tu pouvais résumer en une phrase ?",
+      question: "Ok, c'est super courant et on va bosser là-dessus. De l'accompagnement, tu attends quoi exactement ? Si tu pouvais résumer en une phrase ?",
       question_type: "textarea" as const,
       placeholder: "Ce que tu espères retirer de ces 6 mois...",
       demo_answer: "Avoir une stratégie claire, savoir quoi poster et quand, et surtout me sentir légitime quand je parle de mes offres.",
@@ -56,7 +56,7 @@ export const DEMO_INTAKE_DATA = {
       completion_percentage: 92,
     },
   ] as DemoIntakeQuestion[],
-  kickoff_summary: "Léa est photographe portraitiste, spécialisée entrepreneures. Son urgence : refonte site (avril) + stratégie Instagram. Mal à l'aise avec la vente. Attend de Now Pilot : clarté stratégique + légitimité. Contenu existant solide (coulisses, avant/après) mais sans structure. Lancement offre branding express prévu en mai.",
+  kickoff_summary: "Léa est photographe portraitiste, spécialisée entrepreneures. Son urgence : refonte site (avril) + stratégie Instagram. Mal à l'aise avec la vente. Attend de l'accompagnement : clarté stratégique + légitimité. Contenu existant solide (coulisses, avant/après) mais sans structure. Lancement offre branding express prévu en mai.",
   suggested_agenda: [
     "Valider le positionnement (déjà bien posé)",
     "Définir les 4 piliers de contenu",

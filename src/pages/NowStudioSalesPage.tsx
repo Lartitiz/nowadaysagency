@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/accordion";
 import { Check, X, ArrowRight, Sparkles, Star } from "lucide-react";
 
-const CALENDLY_URL = "https://calendly.com/laetitia-mattioli/appel-decouverte-academy";
+const CALENDLY_URL = "https://calendly.com/laetitia-mattioli/appel-decouverte";
 
 function CalendlyCTA({ className = "" }: { className?: string }) {
   return (

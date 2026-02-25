@@ -36,7 +36,7 @@ export default function PromoCodeInput() {
   };
 
   if (result) {
-    const planLabel = result.plan === "now_pilot" ? "Now Pilot" : result.plan === "studio" ? "Now Studio" : "Outil";
+    const planLabel = result.plan === "now_pilot" ? "Binôme de com" : result.plan === "studio" ? "Binôme de com" : "Outil";
     const expiryLabel = result.expires_at
       ? new Date(result.expires_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
       : "illimité";

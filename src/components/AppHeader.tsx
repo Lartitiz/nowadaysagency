@@ -403,7 +403,7 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
           </>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => window.open("mailto:hello@nowadays.com", "_blank")} className="gap-2 cursor-pointer">
+        <DropdownMenuItem onClick={() => window.open("mailto:laetitia@nowadaysagency.com", "_blank")} className="gap-2 cursor-pointer">
           <HelpCircle className="h-4 w-4" /> Aide & support
         </DropdownMenuItem>
         <DropdownMenuSeparator />

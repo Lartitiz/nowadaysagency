@@ -39,7 +39,7 @@ function getSuggestions(pathname: string): string[] {
 
 const WELCOME_DEFAULT = `Hey ! Je connais ton branding, tes offres, ta cible. Pose-moi une question ou dis-moi ce que tu veux changer.\n\nExemples :\n· "Supprime mon offre Academy"\n· "Ajoute un post lundi sur le SEO"\n· "C'est quoi un bon taux d'engagement ?"\n· "Planifie 3 posts pour la semaine prochaine"`;
 
-const WELCOME_PILOT = `Hey ! Programme Now Pilot 🤝\nPose-moi une question ou dis-moi ce que tu veux changer.\n\nPour les questions stratégiques, n'hésite pas à écrire à Laetitia sur WhatsApp.\n\nExemples :\n· "Reformule ma bio"\n· "Planifie 3 posts pour la semaine"\n· "Analyse mes stats de la semaine"`;
+const WELCOME_PILOT = `Hey ! Accompagnement Binôme 🤝\nPose-moi une question ou dis-moi ce que tu veux changer.\n\nPour les questions stratégiques, écris à Laetitia sur WhatsApp.\n\nExemples :\n· "Reformule ma bio"\n· "Planifie 3 posts pour la semaine"\n· "Analyse mes stats de la semaine"`;
 
 function isConfirmation(msg: string): boolean {
   const lower = msg.toLowerCase().trim();
