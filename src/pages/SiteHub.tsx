@@ -19,6 +19,7 @@ const CMS_OPTIONS = [
 const CARDS = [
   { emoji: "🔍", title: "Audit de conversion", desc: "Diagnostique ton site et découvre ce qui empêche tes visiteuses de passer à l'action.", to: "/site/audit", tag: "IA + Guide" },
   { emoji: "🏠", title: "Ma page d'accueil / vente", desc: "Rédige les textes de ta page section par section. Page d'accueil, page de vente ou page de services.", to: "/site/accueil", tag: "IA + Guide" },
+  { emoji: "🔧", title: "Optimiser ma page existante", desc: "Tu as déjà une page de vente ? Colle ton URL, l'IA l'analyse et te propose des améliorations section par section.", to: "/site/optimiser", tag: "IA" },
   { emoji: "🎁", title: "Ma page de capture", desc: "Récolte des emails avec un lead magnet. Structure minimale et efficace.", to: "/site/capture", tag: "IA + Guide" },
   { emoji: "👋", title: "Ma page À propos", desc: "Raconte ton histoire pour créer du lien.", to: "/site/a-propos", tag: "IA + Guide" },
   { emoji: "💬", title: "Mes témoignages", desc: "Récolte et structure des témoignages qui convertissent.", to: "/site/temoignages", tag: "IA + Guide" },

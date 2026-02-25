@@ -5515,6 +5515,47 @@ export type Database = {
           },
         ]
       }
+      sales_page_optimizations: {
+        Row: {
+          created_at: string
+          focus: string | null
+          id: string
+          raw_result: Json | null
+          score_global: number | null
+          site_url: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          focus?: string | null
+          id?: string
+          raw_result?: Json | null
+          score_global?: number | null
+          site_url: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          focus?: string | null
+          id?: string
+          raw_result?: Json | null
+          score_global?: number | null
+          site_url?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_page_optimizations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_ideas: {
         Row: {
           accroche_long: string | null

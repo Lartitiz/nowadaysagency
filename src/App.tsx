@@ -96,6 +96,7 @@ const SiteCapturePage = lazy(() => import("./pages/SiteCapturePage"));
 const SiteAuditPage = lazy(() => import("./pages/SiteAuditPage"));
 const SiteInspirationsPage = lazy(() => import("./pages/SiteInspirationsPage"));
 const SiteInspirationGeneratorPage = lazy(() => import("./pages/SiteInspirationGeneratorPage"));
+const SalesPageOptimizer = lazy(() => import("./pages/SalesPageOptimizer"));
 const LegalAiPage = lazy(() => import("./pages/LegalAiPage"));
 const PaymentSuccessPage = lazy(() => import("./pages/PaymentSuccessPage"));
 const ClientsPage = lazy(() => import("./pages/ClientsPage"));
@@ -295,6 +296,7 @@ function AnimatedRoutes() {
               <Route path="/site/audit" element={<ProtectedRoute><SiteAuditPage /></ProtectedRoute>} />
               <Route path="/site/inspirations" element={<ProtectedRoute><SiteInspirationsPage /></ProtectedRoute>} />
               <Route path="/site/inspirations/:sectionType" element={<ProtectedRoute><SiteInspirationGeneratorPage /></ProtectedRoute>} />
+              <Route path="/site/optimiser" element={<ProtectedRoute><SalesPageOptimizer /></ProtectedRoute>} />
               {/* Redirects from old routes */}
               <Route path="/instagram/idees" element={<Navigate to="/idees?canal=instagram" replace />} />
               <Route path="/instagram/calendrier" element={<Navigate to="/calendrier?canal=instagram" replace />} />
