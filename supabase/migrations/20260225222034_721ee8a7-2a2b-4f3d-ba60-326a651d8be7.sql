@@ -1,0 +1,3 @@
+
+ALTER TABLE public.website_audit ADD COLUMN IF NOT EXISTS site_url TEXT DEFAULT NULL;
+ALTER TABLE public.website_audit ADD COLUMN IF NOT EXISTS is_latest BOOLEAN DEFAULT true;
