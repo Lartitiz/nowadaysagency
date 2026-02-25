@@ -7,6 +7,7 @@ import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import FirstTimeTooltip from "@/components/FirstTimeTooltip";
+import { ZoneSection, HubCard, FormatPill } from "@/components/hub";
 import { useDemoContext } from "@/contexts/DemoContext";
 
 interface ProgressData {
@@ -165,64 +166,3 @@ export default function LinkedInHub() {
   );
 }
 
-/* ─── Zone section wrapper ─── */
-function ZoneSection({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
-  return (
-    <section className="mb-6">
-      <h2 className="font-display text-lg font-bold text-foreground mb-3 flex items-center gap-2">
-        <span>{emoji}</span> {title}
-      </h2>
-      <div className="rounded-2xl border border-border bg-card/50 p-4">
-        {children}
-      </div>
-    </section>
-  );
-}
-
-/* ─── Hub card ─── */
-function HubCard({
-  to,
-  emoji,
-  title,
-  desc,
-  tag,
-  progressLabel,
-}: {
-  to: string;
-  emoji: string;
-  title: string;
-  desc: string;
-  tag: string;
-  progressLabel?: string | null;
-}) {
-  return (
-    <Link to={to} className="group relative rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all block">
-      {tag && (
-        <span className="absolute top-3 right-3 font-mono-ui text-[10px] font-semibold text-primary bg-rose-pale px-2.5 py-0.5 rounded-pill">
-          {tag}
-        </span>
-      )}
-      <span className="text-2xl mb-2 block">{emoji}</span>
-      <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
-        {title}
-      </h3>
-      <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{desc}</p>
-      {progressLabel && (
-        <p className="text-xs text-muted-foreground font-medium mt-1">{progressLabel}</p>
-      )}
-    </Link>
-  );
-}
-
-/* ─── Format pill ─── */
-function FormatPill({ emoji, label, to }: { emoji: string; label: string; to: string }) {
-  return (
-    <Link
-      to={to}
-      onClick={(e) => e.stopPropagation()}
-      className="inline-flex items-center gap-1.5 font-mono-ui text-xs font-semibold px-3 py-1.5 rounded-pill text-primary bg-rose-pale hover:bg-primary/20 transition-colors"
-    >
-      {emoji} {label}
-    </Link>
-  );
-}
