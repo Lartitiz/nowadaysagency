@@ -88,7 +88,7 @@ export const MESSAGES = {
     badges: {
       icon: "🏅",
       title: "Tes badges arrivent bientôt",
-      body: "Publie ton premier contenu pour débloquer ton premier badge.",
+      body: "Les badges arrivent au fil de ta pratique. Pas de course, pas de classement : juste toi qui avances.",
     },
     audit: {
       icon: "🔍",
