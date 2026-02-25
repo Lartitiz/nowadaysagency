@@ -5,6 +5,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, AnthropicError, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { validateInput, ValidationError, GenerateContentSchema } from "../_shared/input-validators.ts";
 
 function buildProfileBlock(profile: any): string {
   const lines = [
@@ -95,7 +96,7 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const body = await req.json();
+    const body = validateInput(await req.json(), GenerateContentSchema);
     const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt, workspace_id } = body;
 
     let systemPrompt = "";

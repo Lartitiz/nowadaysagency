@@ -4,6 +4,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { validateInput, ValidationError, InspireAiSchema } from "../_shared/input-validators.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -44,7 +45,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const body = await req.json();
+    const body = validateInput(await req.json(), InspireAiSchema);
     const { source_text, source_type, images, context, workspace_id } = body;
 
     const isScreenshot = source_type === "screenshot";

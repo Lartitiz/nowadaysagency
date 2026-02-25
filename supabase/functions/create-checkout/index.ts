@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { validateInput, ValidationError, CreateCheckoutSchema } from "../_shared/input-validators.ts";
 
 const log = (step: string, details?: any) => {
   console.log(`[CREATE-CHECKOUT] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
@@ -36,8 +37,7 @@ serve(async (req) => {
     if (!user?.email) throw new Error("Non authentifié");
     log("User authenticated", { email: user.email });
 
-    const { priceId, mode, successUrl, cancelUrl } = await req.json();
-    if (!priceId) throw new Error("priceId requis");
+    const { priceId, mode, successUrl, cancelUrl } = validateInput(await req.json(), CreateCheckoutSchema);
     log("Request body parsed", { priceId, mode });
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
@@ -107,10 +107,11 @@ serve(async (req) => {
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
+    const status = error instanceof ValidationError ? 400 : 500;
     log("ERROR", { message: msg });
     return new Response(JSON.stringify({ error: msg }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      status,
     });
   }
 });

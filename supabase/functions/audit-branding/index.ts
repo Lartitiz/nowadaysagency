@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { validateInput, ValidationError, AuditBrandingSchema } from "../_shared/input-validators.ts";
 
 function htmlToText(html: string): string {
   return html
@@ -104,8 +105,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = await req.json();
-    const { site_url, instagram_username, linkedin_url, document_text, free_text, workspace_id } = body;
+    const body = validateInput(await req.json(), AuditBrandingSchema);
+    const { site_url, instagram_username, linkedin_url, document_text, free_text, workspace_id, social_links } = body;
 
     // Workspace-aware filtering
     const filterCol = workspace_id ? "workspace_id" : "user_id";
@@ -359,8 +360,9 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
   } catch (e) {
     console.error("audit-branding error:", e);
     const msg = e instanceof Error ? e.message : "Erreur inconnue";
+    const status = e instanceof ValidationError ? 400 : 500;
     return new Response(JSON.stringify({ error: msg }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

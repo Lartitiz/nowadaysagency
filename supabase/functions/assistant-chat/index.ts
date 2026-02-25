@@ -3,6 +3,7 @@ import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { validateInput, ValidationError, AssistantChatSchema } from "../_shared/input-validators.ts";
 
 function getServiceClient() {
   return createClient(
@@ -290,7 +291,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { message, conversation_history, confirmed_actions, undo, workspace_id } = await req.json();
+    const { message, conversation_history, confirmed_actions, undo, workspace_id } = validateInput(await req.json(), AssistantChatSchema);
     const sb = getServiceClient();
 
     // Handle undo
