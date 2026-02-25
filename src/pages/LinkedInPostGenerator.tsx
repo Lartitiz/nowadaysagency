@@ -363,10 +363,15 @@ export default function LinkedInPostGenerator() {
             </details>
 
             {/* Generate button */}
-            <Button onClick={generate} disabled={generating || !template} className="rounded-full gap-2">
+            <Button onClick={generate} disabled={generating || !template || !sujet.trim()} className="rounded-full gap-2">
               {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {generating ? "Rédaction en cours..." : "✨ Rédiger mon post LinkedIn"}
             </Button>
+            {(!template || !sujet.trim()) && !generating && (
+              <p className="text-xs text-muted-foreground mt-2">
+                {!template ? "👆 Choisis un type de post au-dessus" : "✏️ Indique ton sujet pour continuer"}
+              </p>
+            )}
 
             {/* Create Result */}
             {result && !generating && (
