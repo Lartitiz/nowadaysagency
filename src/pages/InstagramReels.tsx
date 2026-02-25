@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import BaseReminder from "@/components/BaseReminder";
 import ContentScoring from "@/components/ContentScoring";
@@ -220,9 +221,7 @@ export default function InstagramReels() {
         body: { type: "hooks", objective, face_cam: faceCam, subject, time_available: timeAvailable, is_launch: isLaunch, branding_context: brandingContext, inspiration_context: inspCtx, workspace_id: workspaceId },
       });
       if (error) throw error;
-      const raw = data?.content || "";
-      const jsonStr = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      const parsed = JSON.parse(jsonStr);
+      const parsed = parseAIResponse(data?.content || "");
       setHooks(parsed.hooks || []);
       setStep(6);
     } catch (e) {
@@ -270,9 +269,7 @@ export default function InstagramReels() {
         },
       });
       if (error) throw error;
-      const raw = data?.content || "";
-      const jsonStr = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      const parsed: ScriptResult = JSON.parse(jsonStr);
+      const parsed: ScriptResult = parseAIResponse(data?.content || "");
       setScriptResult(parsed);
 
       // Pre-check auto items
