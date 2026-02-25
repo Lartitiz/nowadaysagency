@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useNavigate } from "react-router-dom";
 
 interface AuditCoachingPanelProps {
   open: boolean;
@@ -55,6 +56,16 @@ const MODULE_SKIP_ROUTES: Record<string, string> = {
   branding: "/branding",
 };
 
+const ACTION_ROUTES: Record<string, { label: string; route: string; emoji: string }> = {
+  bio: { label: "Réécrire ma bio maintenant", route: "/espaces/instagram/bio", emoji: "✍️" },
+  story: { label: "Retravailler mon storytelling", route: "/branding/section?section=story", emoji: "📖" },
+  persona: { label: "Affiner ma cible", route: "/branding/section?section=persona", emoji: "👩‍💻" },
+  tone: { label: "Redéfinir mon ton", route: "/branding/section?section=tone_style", emoji: "🎨" },
+  editorial: { label: "Revoir ma ligne éditoriale", route: "/branding/section?section=content_strategy", emoji: "🍒" },
+  offers: { label: "Reformuler mes offres", route: "/branding/offres", emoji: "🎁" },
+  branding: { label: "Compléter mon branding", route: "/branding", emoji: "💎" },
+};
+
 export default function AuditCoachingPanel({
   open, onOpenChange, module, pillarKey, pillarLabel, pillarEmoji,
   recId, conseil, onComplete, onSkipToModule,
@@ -62,6 +73,7 @@ export default function AuditCoachingPanel({
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("loading");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [intro, setIntro] = useState("");
@@ -372,6 +384,18 @@ export default function AuditCoachingPanel({
               <p className="text-sm text-muted-foreground mt-2">
                 L'IA s'en souviendra pour tes prochains contenus.
               </p>
+              {ACTION_ROUTES[module] && (
+                <Button
+                  onClick={() => {
+                    onOpenChange(false);
+                    navigate(ACTION_ROUTES[module].route);
+                  }}
+                  className="w-full gap-2 mt-6"
+                  size="lg"
+                >
+                  {ACTION_ROUTES[module].emoji} {ACTION_ROUTES[module].label} →
+                </Button>
+              )}
             </div>
           )}
         </div>
