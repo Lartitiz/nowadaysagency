@@ -20,8 +20,6 @@ import FirstTimeTooltip from "@/components/FirstTimeTooltip";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { useActiveChannels, ALL_CHANNELS } from "@/hooks/use-active-channels";
 import { computePlan, type PlanData } from "@/lib/plan-engine";
-import { startOfWeek, endOfWeek, format } from "date-fns";
-import { fr } from "date-fns/locale";
 import BentoGrid from "@/components/dashboard/BentoGrid";
 import BentoCard from "@/components/dashboard/BentoCard";
 import SpaceBentoCard from "@/components/dashboard/SpaceBentoCard";
@@ -159,32 +157,23 @@ export default function Dashboard() {
       }
       if (!user) return defaultDashData;
 
-      const now = new Date();
-      const weekStart = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
-      const weekEnd = format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      const wsId = activeWorkspace?.id || null;
 
-      const [profRes, brandingData, igAuditRes, liAuditRes, contactRes, prospectRes, prospectConvRes, prospectOffRes, calendarRes, weekPostsRes, weekPublishedRes, nextPostRes, planConfigRes, recsRes] = await Promise.all([
-        (supabase.from("profiles") as any).select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq(column, value).single(),
+      const [summaryRes, brandingData] = await Promise.all([
+        supabase.rpc("get_dashboard_summary", {
+          p_user_id: user.id,
+          p_workspace_id: wsId,
+        } as any),
         fetchBrandingData({ column, value }),
-        (supabase.from("instagram_audit") as any).select("score_global").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        (supabase.from("linkedin_audit") as any).select("score_global").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        (supabase.from("contacts") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("contact_type", "network"),
-        (supabase.from("contacts") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("contact_type", "prospect"),
-        (supabase.from("contacts") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("contact_type", "prospect").eq("prospect_stage", "in_conversation"),
-        (supabase.from("contacts") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("contact_type", "prospect").eq("prospect_stage", "offer_sent"),
-        (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(column, value),
-        (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(column, value).gte("date", weekStart).lte("date", weekEnd),
-        (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(column, value).gte("date", weekStart).lte("date", weekEnd).eq("status", "published"),
-        (supabase.from("calendar_posts") as any).select("date, theme").eq(column, value).gte("date", format(now, "yyyy-MM-dd")).order("date", { ascending: true }).limit(1).maybeSingle(),
-        (supabase.from("user_plan_config") as any).select("*").eq(column, value).maybeSingle(),
-        (supabase.from("audit_recommendations") as any).select("id, titre, route, completed").eq(column, value).order("position", { ascending: true }).limit(5),
       ]);
 
+      const s = (summaryRes.data as any) || {};
       const bc = calculateBrandingCompletion(brandingData);
+
       const config = {
-        weekly_time: (planConfigRes.data as any)?.weekly_time?.toString() || "2_5h",
-        channels: (planConfigRes.data?.channels as string[]) || ["instagram"],
-        main_goal: (planConfigRes.data as any)?.main_goal || "visibility",
+        weekly_time: s.plan_config?.weekly_time?.toString() || "2_5h",
+        channels: (s.plan_config?.channels as string[]) || ["instagram"],
+        main_goal: s.plan_config?.main_goal || "visibility",
       };
       let planData: PlanData | null = null;
       try { planData = await computePlan({ column, value }, config); } catch (e) { trackError(e, { page: "Dashboard", action: "computePlan" }); }
@@ -194,18 +183,18 @@ export default function Dashboard() {
 
       return {
         brandingCompletion: bc,
-        igAuditScore: igAuditRes.data?.score_global ?? null,
-        liAuditScore: liAuditRes.data?.score_global ?? null,
-        contactCount: contactRes.count ?? 0,
-        prospectCount: prospectRes.count ?? 0,
-        prospectConversation: prospectConvRes.count ?? 0,
-        prospectOffered: prospectOffRes.count ?? 0,
-        calendarPostCount: calendarRes.count ?? 0,
-        weekPostsTotal: weekPostsRes.count ?? 0,
-        weekPostsPublished: weekPublishedRes.count ?? 0,
-        nextPost: nextPostRes.data ? { date: nextPostRes.data.date, theme: nextPostRes.data.theme } : null,
+        igAuditScore: s.ig_audit_score ?? null,
+        liAuditScore: s.li_audit_score ?? null,
+        contactCount: s.contact_count ?? 0,
+        prospectCount: s.prospect_count ?? 0,
+        prospectConversation: s.prospect_conversation ?? 0,
+        prospectOffered: s.prospect_offered ?? 0,
+        calendarPostCount: s.calendar_post_count ?? 0,
+        weekPostsTotal: s.week_posts_total ?? 0,
+        weekPostsPublished: s.week_posts_published ?? 0,
+        nextPost: s.next_post ? { date: s.next_post.date, theme: s.next_post.theme } : null,
         planData,
-        recommendations: recsRes.data || [],
+        recommendations: s.recommendations || [],
       };
     },
     enabled: !!user || isDemoMode,

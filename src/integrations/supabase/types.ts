@@ -6794,6 +6794,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_dashboard_summary: {
+        Args: { p_user_id: string; p_workspace_id?: string }
+        Returns: Json
+      }
       get_user_owner_workspace: {
         Args: { target_user_id: string }
         Returns: string
