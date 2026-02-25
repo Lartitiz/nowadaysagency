@@ -145,7 +145,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { user_id, section, messages, context, covered_topics } = await req.json();
+    const { user_id, section, messages, context, covered_topics, workspace_id } = await req.json();
 
     if (!user_id || !section) {
       return new Response(JSON.stringify({ error: "user_id et section requis" }), {

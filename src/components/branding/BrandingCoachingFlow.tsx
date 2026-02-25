@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
@@ -109,6 +109,8 @@ interface BrandingCoachingFlowProps {
 export default function BrandingCoachingFlow({ section, onComplete, onBack }: BrandingCoachingFlowProps) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
+  const profileUserId = useProfileUserId();
   const { isDemoMode } = useDemoContext();
   const navigate = useNavigate();
 
@@ -282,7 +284,8 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
 
       const { data, error: fnError } = await supabase.functions.invoke("branding-coaching", {
         body: {
-          user_id: user!.id,
+          user_id: profileUserId,
+          workspace_id: workspaceId,
           section,
           messages: simpleMsgs,
           context,
@@ -559,7 +562,8 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
           const ctx = await fetchContext();
           const { data: storyGenData } = await supabase.functions.invoke("branding-coaching", {
             body: {
-              user_id: user!.id,
+              user_id: profileUserId,
+              workspace_id: workspaceId,
               section: "story_generate",
               messages: [
                 ...updatedMessages,
