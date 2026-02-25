@@ -119,7 +119,7 @@ const IntakePage = lazy(() => import("./pages/IntakePage"));
 const LinkedInPostGenerator = lazy(() => import("./pages/LinkedInPostGenerator"));
 const LinkedInCommentStrategy = lazy(() => import("./pages/LinkedInCommentStrategy"));
 const LinkedInCrosspost = lazy(() => import("./pages/LinkedInCrosspost"));
-const InstagramInspiration = lazy(() => import("./pages/InstagramInspiration"));
+
 const InvitePage = lazy(() => import("./pages/InvitePage"));
 const SharedBrandingPage = lazy(() => import("./pages/SharedBrandingPage"));
 const VoiceGuidePage = lazy(() => import("./pages/VoiceGuidePage"));
