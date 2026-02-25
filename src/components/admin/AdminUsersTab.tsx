@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Search, ChevronUp, ChevronDown, Eye, X, Sparkles, Calendar, UserRound } from "lucide-react";
+import { Search, ChevronUp, ChevronDown, Eye, X, Sparkles, Calendar, UserRound, Download } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -223,6 +223,26 @@ export default function AdminUsersTab() {
           ))}
         </div>
         <span className="text-sm text-muted-foreground whitespace-nowrap">{filtered.length} utilisatrice{filtered.length > 1 ? "s" : ""}</span>
+        <Button variant="outline" size="sm" onClick={() => {
+          const PLAN_CSV: Record<string, string> = { free: "Free", outil: "Outil", studio: "Binôme", now_pilot: "Now Pilot", pro: "Pro" };
+          const header = "email;prenom;plan;activite;date_inscription;derniere_connexion";
+          const rows = filtered.map((u) => {
+            const di = u.created_at ? u.created_at.slice(0, 10) : "";
+            const dc = u.last_sign_in ? u.last_sign_in.slice(0, 10) : "";
+            return [u.email, u.prenom, PLAN_CSV[u.plan] || u.plan, u.activite || "", di, dc].map(v => `"${(v || "").replace(/"/g, '""')}"`).join(";");
+          });
+          const csv = "\uFEFF" + header + "\n" + rows.join("\n");
+          const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `utilisatrices-nowadays-${new Date().toISOString().slice(0, 10)}.csv`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }}>
+          <Download className="h-4 w-4 mr-1" />
+          Exporter CSV
+        </Button>
       </div>
 
       {/* Table */}
