@@ -93,7 +93,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       setObjectif(editingPost.objectif || null);
       setPostCanal(editingPost.canal || "instagram");
       setFormat((editingPost as any).format || null);
-      setContentDraft((editingPost as any).content_draft || null);
+      // Use content_draft, fallback to story_sequence_detail.full_content
+      const draft = (editingPost as any).content_draft || (editingPost.story_sequence_detail as any)?.full_content || null;
+      setContentDraft(draft);
       setAccroche((editingPost as any).accroche || null);
     } else if (prefillData) {
       setTheme(prefillData.theme || "");
@@ -621,13 +623,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
           {/* Rédaction section */}
           <div>
-            <label className="text-sm font-medium mb-2 block">✍️ Rédaction rapide</label>
+            <label className="text-sm font-medium mb-2 block">✍️ Rédaction</label>
 
-            {!angle ? (
-              <p className="text-xs italic text-muted-foreground">
-                💡 Choisis un angle pour débloquer la rédaction rapide.
-              </p>
-            ) : contentDraft && !isEditing ? (
+            {contentDraft && !isEditing ? (
               /* Content exists - show preview */
               <div className="space-y-3">
                 <div className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap">
@@ -650,7 +648,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                   <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="rounded-pill text-xs gap-1.5">
                     ✏️ Modifier
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleQuickGenerate} disabled={isGenerating} className="rounded-pill text-xs gap-1.5">
+                  <Button variant="outline" size="sm" onClick={handleQuickGenerate} disabled={isGenerating || !angle} className="rounded-pill text-xs gap-1.5">
                     {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Regénérer
                   </Button>
                   <Button variant="outline" size="sm" onClick={handleOpenAtelier} className="rounded-pill text-xs gap-1.5">
@@ -675,13 +673,21 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             ) : (
               /* No content yet */
               <div className="space-y-2">
+                {!angle && (
+                  <p className="text-xs italic text-muted-foreground mb-1">
+                    💡 Choisis un angle pour débloquer la rédaction rapide.
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground mb-2">Pas encore de contenu rédigé.</p>
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" size="sm" onClick={handleOpenAtelier} className="rounded-pill text-xs gap-1.5">
                     <Sparkles className="h-3 w-3" /> Rédiger avec l'atelier créatif
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleQuickGenerate} disabled={isGenerating || !theme.trim()} className="rounded-pill text-xs gap-1.5">
+                  <Button variant="outline" size="sm" onClick={handleQuickGenerate} disabled={isGenerating || !theme.trim() || !angle} className="rounded-pill text-xs gap-1.5">
                     {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />} Générer en mode rapide
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="rounded-pill text-xs gap-1.5">
+                    ✏️ Écrire manuellement
                   </Button>
                 </div>
               </div>
