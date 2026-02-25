@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ interface RecapSummary {
 
 export default function StrategieRecapPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
   const [data, setData] = useState<any>(null);
   const [summary, setSummary] = useState<RecapSummary | null>(null);
@@ -40,13 +42,13 @@ export default function StrategieRecapPage() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("brand_strategy").select("*").eq("user_id", user.id).maybeSingle()
+    (supabase.from("brand_strategy") as any).select("*").eq(column, value).maybeSingle()
       .then(({ data: d }) => {
         setData(d);
         if (d?.recap_summary) setSummary(d.recap_summary as unknown as RecapSummary);
         setLoading(false);
       });
-  }, [user?.id]);
+  }, [user?.id, column, value]);
 
   const saveRecapField = async (path: string[], value: string) => {
     if (!data || !summary) return;
@@ -87,11 +89,11 @@ export default function StrategieRecapPage() {
     setGenerating(true);
     try {
       const [profileRes, personaRes, propositionRes, toneRes, editorialRes] = await Promise.all([
-        supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("persona").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("brand_proposition").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("brand_profile").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("instagram_editorial_line").select("*").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("profiles") as any).select("*").eq(column, value).maybeSingle(),
+        (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle(),
+        (supabase.from("brand_proposition") as any).select("*").eq(column, value).maybeSingle(),
+        (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle(),
+        (supabase.from("instagram_editorial_line") as any).select("*").eq(column, value).maybeSingle(),
       ]);
       const { data: fnData, error } = await supabase.functions.invoke("strategy-ai", {
         body: { type: "generate-recap", strategy_data: data, profile: profileRes.data, persona: personaRes.data, proposition: propositionRes.data, tone: toneRes.data, editorial_line: editorialRes.data },
