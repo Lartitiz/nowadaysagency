@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams, useNavigate } from "react-router-dom";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { Loader2 } from "lucide-react";
 
 export default function StorytellingEditPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { id } = useParams();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -21,14 +23,14 @@ export default function StorytellingEditPage() {
 
   useEffect(() => {
     if (!user || !id || !loading) return;
-    supabase.from("storytelling").select("title, imported_text, step_7_polished").eq("id", id).eq("user_id", user.id).single().then(({ data }) => {
+    (supabase.from("storytelling") as any).select("title, imported_text, step_7_polished").eq("id", id).eq(column, value).single().then(({ data }: any) => {
       if (data) {
         setTitle((data as any).title || "");
         setText((data as any).imported_text || (data as any).step_7_polished || "");
       }
       setLoading(false);
     });
-  }, [user?.id, id]);
+  }, [user?.id, id, column, value]);
 
   const handleSave = async () => {
     if (!id) return;

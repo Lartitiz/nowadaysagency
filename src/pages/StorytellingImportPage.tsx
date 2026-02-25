@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ const TYPES = [
 
 export default function StorytellingImportPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -40,8 +42,8 @@ export default function StorytellingImportPage() {
     if (profile) return profile;
     if (!user) return null;
     const [profRes, bpRes] = await Promise.all([
-      supabase.from("profiles").select("activite, prenom, tons").eq("user_id", user.id).single(),
-      supabase.from("brand_profile").select("mission, offer, target_description, tone_register, key_expressions, things_to_avoid").eq("user_id", user.id).maybeSingle(),
+      (supabase.from("profiles") as any).select("activite, prenom, tons").eq(column, value).single(),
+      (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register, key_expressions, things_to_avoid").eq(column, value).maybeSingle(),
     ]);
     const merged = { ...(profRes.data || {}), ...(bpRes.data || {}) };
     setProfile(merged);
@@ -87,10 +89,10 @@ export default function StorytellingImportPage() {
       }
 
       // Check if any existing storytelling is marked primary
-      const { data: existing } = await supabase
-        .from("storytelling")
+      const { data: existing } = await (supabase
+        .from("storytelling") as any)
         .select("id")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .eq("is_primary", true);
 
       const isPrimary = !existing || existing.length === 0;
