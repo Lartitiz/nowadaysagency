@@ -21,10 +21,20 @@ interface Props {
   onMovePost?: (postId: string, newDate: string) => void;
   onAddIdea?: (dateStr: string) => void;
   onQuickCreate: (dateStr: string, title: string) => void;
+  onQuickStatusChange?: (postId: string, newStatus: string) => void;
+  onQuickDuplicate?: (post: CalendarPost) => void;
+  onQuickDelete?: (postId: string) => void;
+  onQuickGenerate?: (post: CalendarPost) => void;
 }
 
 /* ── Draggable content card ── */
-function DraggableWeekCard({ post, onClick }: { post: CalendarPost; onClick: () => void }) {
+function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate }: {
+  post: CalendarPost; onClick: () => void;
+  onQuickStatusChange?: (postId: string, newStatus: string) => void;
+  onQuickDuplicate?: (post: CalendarPost) => void;
+  onQuickDelete?: (postId: string) => void;
+  onQuickGenerate?: (post: CalendarPost) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id });
   const style: React.CSSProperties = {
     transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
@@ -36,7 +46,12 @@ function DraggableWeekCard({ post, onClick }: { post: CalendarPost; onClick: () 
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <CalendarContentCard post={post} onClick={onClick} variant="detailed" />
+      <CalendarContentCard post={post} onClick={onClick} variant="detailed"
+        onQuickStatusChange={onQuickStatusChange}
+        onQuickDuplicate={onQuickDuplicate}
+        onQuickDelete={onQuickDelete}
+        onQuickGenerate={onQuickGenerate}
+      />
     </div>
   );
 }
@@ -44,10 +59,15 @@ function DraggableWeekCard({ post, onClick }: { post: CalendarPost; onClick: () 
 /* ── Droppable day column ── */
 function DroppableWeekDay({
   date, dateStr, isToday, posts, onCreatePost, onEditPost, onAddIdea, onQuickCreate,
+  onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate,
 }: {
   date: Date; dateStr: string; isToday: boolean;
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
   onAddIdea: (dateStr: string) => void; onQuickCreate: (dateStr: string, title: string) => void;
+  onQuickStatusChange?: (postId: string, newStatus: string) => void;
+  onQuickDuplicate?: (post: CalendarPost) => void;
+  onQuickDelete?: (postId: string) => void;
+  onQuickGenerate?: (post: CalendarPost) => void;
 }) {
   const [inlineInput, setInlineInput] = useState(false);
   const [inlineValue, setInlineValue] = useState("");
@@ -71,7 +91,12 @@ function DroppableWeekDay({
       </div>
       <div className="space-y-1">
         {posts.map((p) => (
-          <DraggableWeekCard key={p.id} post={p} onClick={() => onEditPost(p)} />
+          <DraggableWeekCard key={p.id} post={p} onClick={() => onEditPost(p)}
+            onQuickStatusChange={onQuickStatusChange}
+            onQuickDuplicate={onQuickDuplicate}
+            onQuickDelete={onQuickDelete}
+            onQuickGenerate={onQuickGenerate}
+          />
         ))}
       </div>
 
@@ -161,7 +186,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
 }
 
 /* ── Main (no DndContext — parent provides it) ── */
-export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onQuickCreate }: Props) {
+export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onQuickCreate, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate }: Props) {
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
 
@@ -242,6 +267,10 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
                 onEditPost={onEditPost}
                 onAddIdea={addIdeaHandler}
                 onQuickCreate={onQuickCreate}
+                onQuickStatusChange={onQuickStatusChange}
+                onQuickDuplicate={onQuickDuplicate}
+                onQuickDelete={onQuickDelete}
+                onQuickGenerate={onQuickGenerate}
               />
             );
           })}

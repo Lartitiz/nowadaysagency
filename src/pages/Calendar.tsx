@@ -254,6 +254,51 @@ export default function CalendarPage() {
     }
   };
 
+  const handleQuickStatusChange = async (postId: string, newStatus: string) => {
+    await supabase.from("calendar_posts").update({ status: newStatus }).eq("id", postId);
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, status: newStatus } : p));
+    const statusLabels: Record<string, string> = {
+      a_rediger: "📝 À rédiger", drafting: "✏️ En rédaction", ready: "✅ Prêt", published: "🟢 Publié"
+    };
+    toast({ title: statusLabels[newStatus] || newStatus });
+  };
+
+  const handleQuickDuplicate = async (post: CalendarPost) => {
+    if (!user) return;
+    const { data: dupData, error } = await supabase.from("calendar_posts").insert({
+      user_id: user.id,
+      date: post.date,
+      theme: `${post.theme} (copie)`,
+      status: "idea",
+      canal: post.canal,
+      objectif: post.objectif,
+      format: post.format,
+      notes: post.notes,
+      angle: post.angle,
+      ...(column !== "user_id" ? { [column]: value } : {}),
+    }).select().single();
+    if (!error && dupData) {
+      setPosts(prev => [...prev, dupData as CalendarPost]);
+      toast({ title: "📋 Post dupliqué !" });
+    }
+  };
+
+  const handleQuickDelete = async (postId: string) => {
+    await supabase.from("calendar_posts").delete().eq("id", postId);
+    setPosts(prev => prev.filter(p => p.id !== postId));
+    toast({ title: "🗑️ Post supprimé" });
+  };
+
+  const handleQuickGenerate = (post: CalendarPost) => {
+    const route = getGeneratorRoute(post);
+    if (route) {
+      navigate(route, { state: { fromCalendar: true, postId: post.id, theme: post.theme } });
+    } else {
+      setEditingPost(post);
+      setDialogOpen(true);
+    }
+  };
+
   const handleMovePost = async (postId: string, newDate: string) => {
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, date: newDate } : p)));
     const { error } = await supabase.from("calendar_posts")
@@ -447,6 +492,10 @@ export default function CalendarPage() {
             weekDays={weekDays} postsByDate={postsByDate} todayStr={todayStr} isMobile={isMobile}
             onCreatePost={openCreateDialog} onEditPost={handlePostClick} onMovePost={handleMovePost}
             onAddIdea={openCreateDialog} onQuickCreate={handleQuickCreate}
+            onQuickStatusChange={handleQuickStatusChange}
+            onQuickDuplicate={handleQuickDuplicate}
+            onQuickDelete={handleQuickDelete}
+            onQuickGenerate={handleQuickGenerate}
           />
         </>
       )}
