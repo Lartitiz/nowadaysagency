@@ -21,7 +21,7 @@ const DEMO_SUGGESTIONS: Suggestion[] = [
     reason: "Ne reflète pas ton nouveau positionnement",
     current_value: "Photographe portrait · Studio Lyon",
     suggested_value: "Photographe portrait & personal branding · Studio Lyon · Je capture ta confiance ✨",
-    link: "/espaces/instagram/bio",
+    link: "/instagram/profil/bio",
     impact: "fort",
   },
   {
