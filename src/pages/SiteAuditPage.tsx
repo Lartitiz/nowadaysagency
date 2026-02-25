@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { RotateCcw, ArrowRight, ArrowLeft, Eye, HelpCircle } from "lucide-react";
+import SiteAuditResult from "@/components/site/SiteAuditResult";
 
 // ── Page options for page-by-page mode ──
 const PAGE_OPTIONS = [
@@ -599,13 +600,16 @@ const SiteAuditPage = () => {
           </TooltipProvider>
         )}
 
-        {/* ── Results placeholder ── */}
-        {step === "results" && (
-          <div className="rounded-2xl border bg-card p-6 text-center space-y-3">
-            <p className="text-lg font-display font-bold text-foreground">📊 Résultats de ton audit</p>
-            <p className="text-sm text-muted-foreground">Tes résultats détaillés seront affichés ici.</p>
-            <Button variant="outline" onClick={() => setStep("choose")} className="rounded-pill">Retour</Button>
-          </div>
+        {/* ── Results ── */}
+        {step === "results" && existing && (
+          <SiteAuditResult
+            auditId={existing.id}
+            auditMode={existing.audit_mode as "global" | "page_by_page"}
+            answers={existing.audit_mode === "global" ? answers : pbpAnswers}
+            globalSections={GLOBAL_SECTIONS}
+            pageQuestions={PAGE_QUESTIONS}
+            onReset={handleReset}
+          />
         )}
       </main>
     </div>
