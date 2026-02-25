@@ -8,11 +8,15 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
-import { RefreshCw, Copy, Check, Sparkles, Loader2 } from "lucide-react";
+import { RefreshCw, Copy, Check, Sparkles, Loader2, CalendarDays, Lightbulb } from "lucide-react";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import BaseReminder from "@/components/BaseReminder";
 import CrosspostFileUploader, { type UploadedFile } from "@/components/crosspost/CrosspostFileUploader";
 import { cn } from "@/lib/utils";
+import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
+import { toast } from "sonner";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 
 const SOURCE_TYPES = [
   { id: "newsletter", label: "📧 Ma newsletter" },
@@ -34,7 +38,8 @@ interface CrosspostResult {
 
 export default function LinkedInCrosspost() {
   const { user } = useAuth();
-  const { toast } = useToast();
+  const { toast: toastHook } = useToast();
+  const workspaceId = useWorkspaceId();
   const [sourceType, setSourceType] = useState("libre");
   const [sourceContent, setSourceContent] = useState("");
   const [targets, setTargets] = useState<Set<string>>(new Set(["linkedin", "instagram"]));
@@ -43,6 +48,9 @@ export default function LinkedInCrosspost() {
   const [copied, setCopied] = useState<string | null>(null);
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [inputMode, setInputMode] = useState<"text" | "files" | "both">("text");
+  const [showCalendarDialog, setShowCalendarDialog] = useState(false);
+  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
+  const [activeVersionKey, setActiveVersionKey] = useState<string>("");
 
   const toggleTarget = (id: string) => {
     const next = new Set(targets);
@@ -100,6 +108,7 @@ export default function LinkedInCrosspost() {
         else throw new Error("Format de réponse inattendu");
       }
       setResult(parsed);
+      setActiveVersionKey(Object.keys(parsed.versions || {})[0] || "");
 
       // Cleanup uploaded files (non-blocking)
       if (fileUrls.length > 0) {
@@ -110,7 +119,7 @@ export default function LinkedInCrosspost() {
       }
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toastHook({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setGenerating(false);
     }
@@ -120,6 +129,55 @@ export default function LinkedInCrosspost() {
     navigator.clipboard.writeText(text);
     setCopied(key);
     setTimeout(() => setCopied(null), 2000);
+  };
+
+  const getActiveVersion = () => result?.versions?.[activeVersionKey] || null;
+  const getActiveVersionText = () => {
+    const v = getActiveVersion();
+    if (!v) return "";
+    return v.full_text || v.script || JSON.stringify(v.sequence, null, 2) || "";
+  };
+  const getActiveChannelLabel = () => TARGET_CHANNELS.find((c) => c.id === activeVersionKey)?.label || activeVersionKey;
+  const getActiveChannelCanal = () => activeVersionKey === "linkedin" ? "linkedin" : "instagram";
+  const getActiveFormat = () => {
+    if (activeVersionKey === "reel") return "reel";
+    if (activeVersionKey === "stories") return "story_serie";
+    if (activeVersionKey === "instagram") return "carousel";
+    return "post";
+  };
+
+  const handleAddToCalendar = async (dateStr: string) => {
+    if (!user) return;
+    const text = getActiveVersionText();
+    const label = getActiveChannelLabel();
+    const version = getActiveVersion();
+    const insertData: any = {
+      user_id: user.id,
+      date: dateStr,
+      theme: `Crosspost ${label} : ${sourceType}`,
+      canal: getActiveChannelCanal(),
+      format: getActiveFormat(),
+      content_draft: text.slice(0, 500),
+      accroche: text.split("\n")[0]?.slice(0, 200) || "",
+      status: "ready",
+      story_sequence_detail: {
+        type: "crosspost",
+        source_type: sourceType,
+        target_channel: activeVersionKey,
+        angle_choisi: version?.angle_choisi || "",
+        full_content: text,
+      },
+    };
+    if (workspaceId && workspaceId !== user.id) {
+      insertData.workspace_id = workspaceId;
+    }
+    const { error } = await supabase.from("calendar_posts").insert(insertData);
+    setShowCalendarDialog(false);
+    if (error) {
+      toast.error("Erreur lors de la planification");
+    } else {
+      toast.success("📅 Planifié dans ton calendrier !");
+    }
   };
 
   return (
@@ -213,7 +271,7 @@ export default function LinkedInCrosspost() {
         {/* Results */}
         {result && result.versions && !generating && (
           <div className="space-y-4 animate-fade-in">
-            <Tabs defaultValue={Object.keys(result.versions)[0]}>
+            <Tabs defaultValue={Object.keys(result.versions)[0]} onValueChange={setActiveVersionKey}>
               <TabsList>
                 {Object.keys(result.versions).map((key) => {
                   const label = TARGET_CHANNELS.find((c) => c.id === key)?.label || key;
@@ -232,10 +290,16 @@ export default function LinkedInCrosspost() {
                       <p className="text-xs text-primary mt-1">💡 Angle choisi : {version.angle_choisi}</p>
                     </div>
                     <RedFlagsChecker content={text} onFix={() => {}} />
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={() => handleCopy(text, key)} className="rounded-full gap-1.5">
                         {copied === key ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                         {copied === key ? "Copié !" : "Copier"}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => { setActiveVersionKey(key); setShowCalendarDialog(true); }} className="rounded-full gap-1.5">
+                        <CalendarDays className="h-3.5 w-3.5" /> Planifier
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => { setActiveVersionKey(key); setShowIdeasDialog(true); }} className="rounded-full gap-1.5">
+                        <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
                       </Button>
                     </div>
                   </TabsContent>
@@ -243,6 +307,29 @@ export default function LinkedInCrosspost() {
               })}
             </Tabs>
             <BaseReminder variant="atelier" />
+
+            <AddToCalendarDialog
+              open={showCalendarDialog}
+              onOpenChange={setShowCalendarDialog}
+              onConfirm={handleAddToCalendar}
+              contentLabel={`🔄 Crosspost ${getActiveChannelLabel()}`}
+              contentEmoji="🔄"
+            />
+            <SaveToIdeasDialog
+              open={showIdeasDialog}
+              onOpenChange={setShowIdeasDialog}
+              contentType={activeVersionKey === "linkedin" ? "post_linkedin" : "post_instagram"}
+              subject={`Crosspost ${getActiveChannelLabel()} : ${sourceType}`}
+              contentData={{
+                type: "crosspost",
+                source_type: sourceType,
+                target_channel: activeVersionKey,
+                text: getActiveVersionText(),
+                angle_choisi: getActiveVersion()?.angle_choisi || "",
+              }}
+              sourceModule="crosspost"
+              format={getActiveFormat()}
+            />
           </div>
         )}
       </main>
