@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -51,7 +52,10 @@ export default function AbonnementPage() {
       try {
         const { data } = await supabase.functions.invoke("check-subscription");
         if (data) setSubInfo(data);
-      } catch {}
+      } catch (e) {
+        console.error("Abonnement error:", e);
+        toast.error("Une erreur est survenue. Réessaie ou contacte le support.");
+      }
       setLoadingSub(false);
     })();
   }, []);
@@ -61,7 +65,10 @@ export default function AbonnementPage() {
     try {
       const { data } = await supabase.functions.invoke("create-portal-session");
       if (data?.url) window.open(data.url, "_blank");
-    } catch {}
+    } catch (e) {
+      console.error("Abonnement error:", e);
+      toast.error("Une erreur est survenue. Réessaie ou contacte le support.");
+    }
     setPortalLoading(false);
   };
 
@@ -72,7 +79,10 @@ export default function AbonnementPage() {
         body: { priceId, mode: "subscription" },
       });
       if (data?.url) window.location.href = data.url;
-    } catch {}
+    } catch (e) {
+      console.error("Abonnement error:", e);
+      toast.error("Une erreur est survenue. Réessaie ou contacte le support.");
+    }
     setPortalLoading(false);
   };
 
@@ -84,7 +94,10 @@ export default function AbonnementPage() {
         body: { priceId, mode: "payment" },
       });
       if (data?.url) window.location.href = data.url;
-    } catch {}
+    } catch (e) {
+      console.error("Abonnement error:", e);
+      toast.error("Une erreur est survenue. Réessaie ou contacte le support.");
+    }
     setPackLoading(null);
   };
 
