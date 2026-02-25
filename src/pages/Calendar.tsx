@@ -23,6 +23,8 @@ import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
 import { CalendarLegend } from "@/components/calendar/CalendarLegend";
 import { CalendarCategoryFilters } from "@/components/calendar/CalendarCategoryFilters";
 import { StoriesMixBanner } from "@/components/calendar/StoriesMixBanner";
+import { WeekRecapBar } from "@/components/calendar/WeekRecapBar";
+import { BalanceGauge } from "@/components/calendar/BalanceGauge";
 import { CalendarKanbanView } from "@/components/calendar/CalendarKanbanView";
 import { CalendarListView } from "@/components/calendar/CalendarListView";
 import { CalendarIdeasSidebar, type SavedIdea } from "@/components/calendar/CalendarIdeasSidebar";
@@ -641,6 +643,7 @@ export default function CalendarPage() {
       ) : (
         <>
           <StoriesMixBanner weekDays={weekDays} />
+          <BalanceGauge posts={weekPosts} />
           <CalendarWeekGrid
             weekDays={weekDays} postsByDate={postsByDate} todayStr={todayStr} isMobile={isMobile}
             onCreatePost={openCreateDialog} onEditPost={handlePostClick} onMovePost={handleMovePost}
@@ -650,6 +653,7 @@ export default function CalendarPage() {
             onQuickDelete={handleQuickDelete}
             onQuickGenerate={handleQuickGenerate}
           />
+          <WeekRecapBar posts={weekPosts} compact={false} />
         </>
       )}
     </>
