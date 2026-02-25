@@ -459,7 +459,7 @@ export default function Dashboard() {
               rowSpan={2}
               variant="default"
               borderColor="hsl(var(--primary))"
-              onClick={() => window.open("https://referencement-seo.lovable.app/", "_blank")}
+              onClick={() => navigate("/seo")}
               animationDelay={nextDelay()}
             >
               <span className="text-2xl mb-2 block">🔍</span>
