@@ -215,7 +215,7 @@ export default function InstagramReels() {
       const brandingContext = await fetchBrandingContext();
       const inspCtx = inspirationAnalysis ? `Patterns : ${inspirationAnalysis.patterns_communs}\nRecommandation : ${inspirationAnalysis.recommandation}` : undefined;
       const { data, error } = await supabase.functions.invoke("reels-ai", {
-        body: { type: "hooks", objective, face_cam: faceCam, subject, time_available: timeAvailable, is_launch: isLaunch, branding_context: brandingContext, inspiration_context: inspCtx },
+        body: { type: "hooks", objective, face_cam: faceCam, subject, time_available: timeAvailable, is_launch: isLaunch, branding_context: brandingContext, inspiration_context: inspCtx, workspace_id: workspaceId },
       });
       if (error) throw error;
       const raw = data?.content || "";
@@ -263,6 +263,7 @@ export default function InstagramReels() {
           selected_hook: hook,
           pre_gen_answers: answers || undefined,
           inspiration_context: inspCtx,
+          workspace_id: workspaceId,
         },
       });
       if (error) throw error;

@@ -40,11 +40,11 @@ serve(async (req) => {
       );
     }
 
-    // Fetch full context server-side
-    const ctx = await getUserContext(supabase, user.id);
-    const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.reels);
+    const { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context, workspace_id } = await req.json();
 
-    const { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context } = await req.json();
+    // Fetch full context server-side
+    const ctx = await getUserContext(supabase, user.id, workspace_id);
+    const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.reels);
 
     const systemPrompt = buildSystemPrompt(brandingContext);
 
