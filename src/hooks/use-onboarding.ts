@@ -9,6 +9,32 @@ import { getActivityExamples } from "@/lib/activity-examples";
 import { TOTAL_STEPS } from "@/lib/onboarding-constants";
 import { type DiagnosticData } from "@/lib/diagnostic-data";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { posthog } from "@/lib/posthog";
+
+/* ────────────────────────────────────────────── helpers */
+
+function getStepName(step: number): string {
+  const names: Record<number, string> = {
+    0: "welcome",
+    1: "prenom",
+    2: "activite",
+    3: "activity_type",
+    4: "canaux",
+    5: "blocage",
+    6: "objectif",
+    7: "temps",
+    8: "instagram_website",
+    9: "import_documents",
+    10: "positioning",
+    11: "mission",
+    12: "target_description",
+    13: "tone_keywords",
+    14: "offers",
+    15: "values",
+    16: "building_diagnostic",
+  };
+  return names[step] || "unknown_" + step;
+}
 
 /* ────────────────────────────────────────────── types */
 
@@ -166,7 +192,15 @@ export function useOnboarding() {
     setBrandingAnswers(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  const next = useCallback(() => setStep(s => s + 1), []);
+  const next = useCallback(() => setStep(s => {
+    const newStep = s + 1;
+    posthog.capture("onboarding_step_completed", {
+      step: s,
+      next_step: newStep,
+      step_name: getStepName(s),
+    });
+    return newStep;
+  }), []);
   const prev = useCallback(() => setStep(s => Math.max(0, s - 1)), []);
 
   // Endowed progress
@@ -328,6 +362,14 @@ export function useOnboarding() {
       }
 
       // 2. user_plan_config
+      // Track onboarding completion
+      posthog.capture("onboarding_completed", {
+        total_steps: TOTAL_STEPS,
+        has_instagram: Boolean(answers.instagram),
+        has_website: Boolean(answers.website),
+        uploaded_files: uploadedFiles.length,
+      });
+
       const { data: existingConfig } = await supabase
         .from("user_plan_config").select("id").eq("user_id", user.id).maybeSingle();
       const configData = {
