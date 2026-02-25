@@ -203,7 +203,7 @@ IMPORTANT : Réponds UNIQUEMENT en JSON :
         const diff = body.differentiation || {};
         const cta = body.ctaInfo || {};
         const structureChoice = body.structureChoice || "";
-        const structureData = structureChoice ? `\nSTRUCTURE CHOISIE : ${structureChoice}\nL'utilisatrice a choisi la structure "${structureChoice}". Adapte les 3 propositions à cette structure tout en gardant les 3 angles (promesse, différenciation, personnalité).` : "";
+        const structureData = structureChoice ? `\nSTRUCTURE CHOISIE PAR L'UTILISATRICE : ${structureChoice}\nLes propositions A, B et C doivent utiliser cette structure. La proposition D doit utiliser une structure DIFFÉRENTE recommandée par l'IA.` : "";
         const diffTypeLabels: Record<string,string> = { parcours: "Son parcours / expertise", valeurs: "Ses valeurs / engagements", methode: "Sa méthode unique", clients: "Ce que ses clients disent", style: "Son style / esthétique" };
         const ctaTypeLabels: Record<string,string> = { freebie: "télécharger une ressource gratuite", rdv: "prendre RDV", boutique: "voir sa boutique / ses offres", newsletter: "s'inscrire à sa newsletter", dm: "envoyer un DM", site: "visiter son site" };
 
@@ -232,7 +232,24 @@ CTA SOUHAITÉ :
 ${cta.text ? `- Nom du freebie/newsletter : ${cta.text}` : ""}
 ${structureData}
 CONSIGNE :
-Génère 3 propositions de bio Instagram.
+Génère 5 propositions de bio Instagram.
+
+Chaque proposition doit avoir un angle ET une structure différents :
+· Proposition A : structure choisie par l'utilisatrice + focus promesse (bénéfice client)
+· Proposition B : structure choisie par l'utilisatrice + focus différenciation (ce qui la rend unique)
+· Proposition C : structure choisie par l'utilisatrice + focus personnalité (son style, son énergie)
+· Proposition D : structure alternative recommandée par l'IA (choisis la plus adaptée parmi les 6 structures : directe, stratege, engagee, prouveuse, storytelleuse, convertisseuse)
+· Proposition E : version créative libre, surprenante, qui casse les codes
+
+STRUCTURES DE RÉFÉRENCE :
+- directe : Hook + Qui + CTA. Droit au but.
+- stratege : Problème + Solution + CTA.
+- engagee : Mission + Personnalité + CTA.
+- prouveuse : Résultat + Méthode + CTA.
+- storytelleuse : Mini-histoire narrative.
+- convertisseuse : Offre + Bénéfice + Urgence + CTA.
+
+Pour chaque proposition, indique la structure utilisée dans le label.
 
 RÈGLES :
 - 150 caractères MAX par bio complète (la bio entière, toutes lignes incluses)
@@ -246,14 +263,10 @@ RÈGLES :
 - Des phrases complètes, pas des mots-clés en vrac
 - Utilise les MOTS de l'utilisatrice, pas du jargon marketing
 - Ne pas commencer par un emoji
-- Chaque proposition doit avoir un angle différent :
-  · Proposition A : focus promesse (bénéfice client)
-  · Proposition B : focus différenciation (ce qui la rend unique)
-  · Proposition C : focus personnalité (son style, son énergie)
 
 Réponds UNIQUEMENT en JSON :
-{"bios":[{"label":"Focus promesse","bio_text":"ligne1\\nligne2\\nligne3\\nligne4","character_count":142,"pourquoi":"Cette version met en avant le bénéfice pour ta cible."}]}`;
-        userPrompt = "Génère 3 versions de bio Instagram pour moi.";
+{"bios":[{"label":"🎯 La Directe — Focus promesse","bio_text":"ligne1\\nligne2\\nligne3\\nligne4","character_count":142,"pourquoi":"Cette version met en avant le bénéfice pour ta cible.","structure":"directe"}]}`;
+        userPrompt = "Génère 5 versions de bio Instagram pour moi.";
 
       } else if (type === "bio") {
         // SECTION 1 (règles d'écriture uniquement via CORE_PRINCIPLES)
