@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Upload, X, Plus, Search, Sparkles, FileText, Loader2, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Upload, X, Plus, Search, Sparkles, FileText, Loader2, CheckCircle2, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 import { generatePersonalizedPalettes, type Emotion, type Universe, type StyleAxis, type GeneratedPalette } from "@/lib/charter-palette-generator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Slider } from "@/components/ui/slider";
@@ -22,12 +22,7 @@ import { fr } from "date-fns/locale";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import { SECTOR_PALETTES, ACTIVITY_TO_SECTOR, DEFAULT_SECTOR } from "@/lib/charter-palettes";
 import { FONT_COMBOS } from "@/lib/charter-fonts";
-
-const GOOGLE_FONTS = [
-  "Inter", "Poppins", "Montserrat", "Playfair Display", "Libre Baskerville",
-  "Lora", "Raleway", "Open Sans", "Nunito", "DM Sans",
-  "Space Grotesk", "Outfit", "Cormorant Garamond", "Josefin Sans", "Work Sans",
-];
+import { GOOGLE_FONTS_LIST } from "@/lib/google-fonts-list";
 
 const MOOD_OPTIONS = [
   "Minimaliste", "Coloré", "Vintage", "Épuré", "Artisanal", "Pop",
@@ -66,6 +61,8 @@ interface CharterData {
   completion_pct: number;
   ai_generated_brief: string | null;
   updated_at?: string;
+  moodboard_images: { url: string; path: string; name: string }[];
+  moodboard_description: string | null;
 }
 
 const INITIAL: CharterData = {
@@ -88,6 +85,8 @@ const INITIAL: CharterData = {
   uploaded_templates: [],
   completion_pct: 0,
   ai_generated_brief: null,
+  moodboard_images: [],
+  moodboard_description: null,
 };
 
 function computeCompletion(d: CharterData): number {
@@ -110,6 +109,228 @@ function loadGoogleFont(font: string) {
   link.rel = "stylesheet";
   link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@400;700&display=swap`;
   document.head.appendChild(link);
+}
+
+// ── FontAutocomplete component ──
+function FontAutocomplete({ label, value, onChange, allowEmpty }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  allowEmpty?: boolean;
+}) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setQuery(value); }, [value]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = GOOGLE_FONTS_LIST.filter(f =>
+    f.toLowerCase().includes(query.toLowerCase())
+  ).slice(0, 12);
+
+  const selectFont = (font: string) => {
+    loadGoogleFont(font);
+    onChange(font);
+    setQuery(font);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <label className="text-sm font-medium text-foreground mb-1.5 block">{label}</label>
+      <Input
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder="Tape pour chercher une police Google Fonts…"
+        className="text-sm"
+      />
+      {allowEmpty && query && (
+        <button
+          onClick={() => { onChange(""); setQuery(""); }}
+          className="absolute right-3 top-[38px] text-muted-foreground hover:text-foreground"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full rounded-xl border border-border bg-card shadow-lg max-h-60 overflow-y-auto">
+          {filtered.map(font => {
+            loadGoogleFont(font);
+            return (
+              <button
+                key={font}
+                onMouseDown={(e) => { e.preventDefault(); selectFont(font); }}
+                className="w-full text-left px-3 py-2.5 hover:bg-muted/50 transition-colors flex items-center justify-between gap-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-medium text-foreground">{font}</span>
+                  <p
+                    style={{ fontFamily: `'${font}', sans-serif`, fontWeight: 400 }}
+                    className="text-sm text-muted-foreground truncate mt-0.5"
+                  >
+                    Communique sans te trahir
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {value && (
+        <p
+          className="mt-2 text-base text-muted-foreground"
+          style={{ fontFamily: `'${value}', sans-serif` }}
+        >
+          Communique sans te trahir
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── MoodboardSection component ──
+function MoodboardSection({ images, description, onImagesChange, onDescriptionChange, userId }: {
+  images: { url: string; path: string; name: string }[];
+  description: string | null;
+  onImagesChange: (imgs: { url: string; path: string; name: string }[]) => void;
+  onDescriptionChange: (desc: string | null) => void;
+  userId: string;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (files: FileList | null) => {
+    if (!files || !userId) return;
+    const remaining = 9 - images.length;
+    if (remaining <= 0) {
+      toast.info("Maximum 9 images pour le moodboard");
+      return;
+    }
+    const toUpload = Array.from(files).slice(0, remaining);
+    if (toUpload.length === 0) return;
+    setUploading(true);
+    try {
+      const newImages = [...images];
+      for (const file of toUpload) {
+        const ext = file.name.split(".").pop();
+        const path = `${userId}/${Date.now()}-${file.name}`;
+        const { error } = await supabase.storage.from("moodboards").upload(path, file);
+        if (error) throw error;
+        // Get signed URL (private bucket)
+        const { data: signedData } = await supabase.storage.from("moodboards").createSignedUrl(path, 60 * 60 * 24 * 365);
+        newImages.push({ url: signedData?.signedUrl || "", path, name: file.name });
+      }
+      onImagesChange(newImages);
+      toast.success("Images ajoutées !");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erreur lors de l'upload");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeImage = async (idx: number) => {
+    const img = images[idx];
+    if (img.path) {
+      await supabase.storage.from("moodboards").remove([img.path]);
+    }
+    onImagesChange(images.filter((_, i) => i !== idx));
+  };
+
+  const handleDragStart = (idx: number) => setDragIdx(idx);
+  const handleDragOver = (e: React.DragEvent, idx: number) => { e.preventDefault(); setDragOverIdx(idx); };
+  const handleDrop = (idx: number) => {
+    if (dragIdx === null || dragIdx === idx) { setDragIdx(null); setDragOverIdx(null); return; }
+    const reordered = [...images];
+    const [moved] = reordered.splice(dragIdx, 1);
+    reordered.splice(idx, 0, moved);
+    onImagesChange(reordered);
+    setDragIdx(null);
+    setDragOverIdx(null);
+  };
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5">
+      <h2 className="font-display text-base font-bold text-foreground mb-4">🎭 Mon moodboard</h2>
+      <p className="text-xs text-muted-foreground mb-4">Ajoute 4 à 9 images qui représentent l'univers visuel de ta marque. Glisse pour réordonner.</p>
+
+      {/* Grid */}
+      {images.length > 0 && (
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          {images.map((img, idx) => (
+            <div
+              key={img.path || idx}
+              draggable
+              onDragStart={() => handleDragStart(idx)}
+              onDragOver={(e) => handleDragOver(e, idx)}
+              onDrop={() => handleDrop(idx)}
+              onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+              className={`relative group aspect-square rounded-xl border overflow-hidden cursor-grab transition-all ${
+                dragOverIdx === idx ? "border-primary ring-2 ring-primary/20" : "border-border"
+              }`}
+            >
+              <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/10 transition-colors" />
+              <button
+                onClick={() => removeImage(idx)}
+                className="absolute top-1.5 right-1.5 bg-background/80 backdrop-blur-sm rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X className="h-3 w-3 text-foreground" />
+              </button>
+              <div className="absolute top-1.5 left-1.5 opacity-0 group-hover:opacity-60 transition-opacity">
+                <GripVertical className="h-4 w-4 text-foreground" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Upload zone */}
+      {images.length < 9 && (
+        <label
+          className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors p-6"
+        >
+          <Upload className="h-6 w-6 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">
+            {uploading ? "Upload en cours..." : `Ajouter des images (${images.length}/9)`}
+          </span>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => { handleUpload(e.target.files); e.target.value = ""; }}
+            disabled={uploading}
+          />
+        </label>
+      )}
+
+      {/* Description */}
+      <div className="mt-4">
+        <label className="text-sm font-medium text-foreground mb-1.5 block">Décris l'ambiance de ton moodboard (optionnel)</label>
+        <Textarea
+          value={description || ""}
+          onChange={(e) => onDescriptionChange(e.target.value || null)}
+          placeholder="Ex : ambiance chaleureuse, couleurs terre, lumière dorée, textures naturelles…"
+          rows={2}
+          className="text-sm"
+        />
+      </div>
+    </section>
+  );
 }
 
 export default function BrandCharterPage() {
@@ -188,6 +409,8 @@ export default function BrandCharterPage() {
           photo_keywords: row.photo_keywords || [],
           mood_board_urls: row.mood_board_urls || [],
           uploaded_templates: row.uploaded_templates || [],
+          moodboard_images: row.moodboard_images || [],
+          moodboard_description: row.moodboard_description || null,
         });
       }
       setLoading(false);
@@ -221,6 +444,8 @@ export default function BrandCharterPage() {
       completion_pct: pct,
       logo_url: d.logo_url,
       logo_variants: d.logo_variants || [],
+      moodboard_images: d.moodboard_images,
+      moodboard_description: d.moodboard_description,
     };
 
     if (d.id) {
@@ -425,6 +650,8 @@ export default function BrandCharterPage() {
                       photo_keywords: row.photo_keywords || [],
                       mood_board_urls: row.mood_board_urls || [],
                       uploaded_templates: row.uploaded_templates || [],
+                      moodboard_images: row.moodboard_images || [],
+                      moodboard_description: row.moodboard_description || null,
                     });
                   }
                 };
@@ -768,32 +995,22 @@ export default function BrandCharterPage() {
             <h2 className="font-display text-base font-bold text-foreground mb-4">🔤 Mes typographies</h2>
             <div className="space-y-5">
               {([
-                ["font_title", "Titre"],
-                ["font_body", "Corps"],
-                ["font_accent", "Accent (optionnel)"],
-              ] as const).map(([key, label]) => (
-                <div key={key}>
-                  <label className="text-sm font-medium text-foreground mb-1.5 block">{label}</label>
-                  <select
-                    value={data[key] || ""}
-                    onChange={e => update(key, e.target.value || null)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                  >
-                    {key === "font_accent" && <option value="">Aucune</option>}
-                    {GOOGLE_FONTS.map(f => (
-                      <option key={f} value={f}>{f}</option>
-                    ))}
-                  </select>
-                  {data[key] && (
-                    <p
-                      className="mt-2 text-sm text-muted-foreground"
-                      style={{ fontFamily: `'${data[key]}', sans-serif` }}
-                    >
-                      Voici à quoi ressemble cette police
-                    </p>
-                  )}
-                </div>
+                ["font_title", "Police titres"] as const,
+                ["font_body", "Police corps de texte"] as const,
+              ]).map(([key, label]) => (
+                <FontAutocomplete
+                  key={key}
+                  label={label}
+                  value={data[key]}
+                  onChange={(v) => { update(key, v); loadGoogleFont(v); }}
+                />
               ))}
+              <FontAutocomplete
+                label="Police accent (optionnel)"
+                value={data.font_accent || ""}
+                onChange={(v) => { update("font_accent", v || null); if (v) loadGoogleFont(v); }}
+                allowEmpty
+              />
             </div>
 
             {/* Font combo suggestions */}
@@ -808,7 +1025,6 @@ export default function BrandCharterPage() {
               )}
               <div className="space-y-2">
                 {(() => {
-                  // Score and sort combos by tone match
                   const scored = FONT_COMBOS.map(combo => {
                     const score = toneKeywords.length > 0
                       ? combo.tone_match.filter(t => toneKeywords.some(tk => tk.includes(t) || t.includes(tk))).length
@@ -817,10 +1033,7 @@ export default function BrandCharterPage() {
                   });
                   const sorted = [...scored].sort((a, b) => b.score - a.score);
                   const toShow = toneKeywords.length > 0 ? sorted.slice(0, 3) : sorted;
-
-                  // Load fonts for displayed combos
                   toShow.forEach(c => { loadGoogleFont(c.title); loadGoogleFont(c.body); });
-
                   return toShow.map(combo => (
                     <button
                       key={combo.name}
@@ -840,7 +1053,7 @@ export default function BrandCharterPage() {
                         )}
                       </div>
                       <p style={{ fontFamily: `'${combo.title}', serif`, fontWeight: 700 }} className="text-base text-foreground leading-tight mb-1">
-                        Voici un titre d'exemple
+                        Communique sans te trahir
                       </p>
                       <p style={{ fontFamily: `'${combo.body}', sans-serif` }} className="text-sm text-muted-foreground leading-snug mb-2">
                         Et voici le corps de texte pour voir le contraste entre les deux polices.
@@ -852,6 +1065,16 @@ export default function BrandCharterPage() {
               </div>
             </div>
           </section>
+
+          {/* SECTION: Moodboard */}
+          <MoodboardSection
+            images={data.moodboard_images}
+            description={data.moodboard_description}
+            onImagesChange={(imgs) => update("moodboard_images", imgs)}
+            onDescriptionChange={(desc) => update("moodboard_description", desc)}
+            userId={user?.id || ""}
+          />
+
           <section className="rounded-2xl border border-border bg-card p-5">
             <h2 className="font-display text-base font-bold text-foreground mb-4">✨ Mon style visuel</h2>
             <p className="text-xs text-muted-foreground mb-3">Choisis 3 à 5 mots-clés qui définissent ton univers visuel :</p>

@@ -261,6 +261,8 @@ export type Database = {
           logo_variants: Json | null
           mood_board_urls: Json | null
           mood_keywords: Json | null
+          moodboard_description: string | null
+          moodboard_images: Json | null
           photo_keywords: Json | null
           photo_style: string | null
           updated_at: string | null
@@ -288,6 +290,8 @@ export type Database = {
           logo_variants?: Json | null
           mood_board_urls?: Json | null
           mood_keywords?: Json | null
+          moodboard_description?: string | null
+          moodboard_images?: Json | null
           photo_keywords?: Json | null
           photo_style?: string | null
           updated_at?: string | null
@@ -315,6 +319,8 @@ export type Database = {
           logo_variants?: Json | null
           mood_board_urls?: Json | null
           mood_keywords?: Json | null
+          moodboard_description?: string | null
+          moodboard_images?: Json | null
           photo_keywords?: Json | null
           photo_style?: string | null
           updated_at?: string | null
