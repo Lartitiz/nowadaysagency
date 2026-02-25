@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Lock } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserPlan } from "@/hooks/use-user-plan";
 
@@ -11,25 +11,25 @@ type Feature =
   | "coaching" | "studio_space" | "laetitia_validation" | "studio_lives" | "direct_channel" | "binome";
 
 const UPGRADE_MESSAGES: Partial<Record<Feature, string>> = {
-  prospection: "Le mini-CRM de prospection est disponible avec le plan Outil.",
-  dm_generator: "Le générateur de DM personnalisés est disponible avec le plan Outil.",
-  comments_generator: "Le générateur de commentaires stratégiques est disponible avec le plan Outil.",
-  import_stats: "L'import de tes stats est disponible avec le plan Outil.",
-  generation_unlimited: "Tu as utilisé tes 3 générations gratuites ce mois-ci.",
-  audit_unlimited: "Tu as déjà fait ton audit gratuit ce mois-ci.",
-  lives: "Les lives mensuels sont réservés aux abonnées.",
-  community_write: "Poster dans la communauté est réservé aux abonnées.",
-  offer_workshop: "L'atelier positionnement offre est disponible avec le plan Outil.",
-  contacts_strategiques: "Les contacts stratégiques sont disponibles avec le plan Outil.",
-  routine_engagement: "La routine d'engagement est disponible avec le plan Outil.",
-  editorial_line: "La ligne éditoriale est disponible avec le plan Outil.",
-  calendar: "Le calendrier éditorial est disponible avec le plan Outil.",
-  coaching: "Les coachings individuels sont réservés au Now Studio.",
-  studio_space: "L'espace privé est réservé aux membres du Now Studio.",
-  laetitia_validation: "La validation par Laetitia est réservée au Now Studio.",
-  studio_lives: "Les lives exclusifs sont réservés au Now Studio.",
-  direct_channel: "Le canal direct est réservé au Now Studio.",
-  binome: "Le binôme est réservé au Now Studio.",
+  prospection: "Le mini-CRM de prospection fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
+  dm_generator: "Le générateur de DM personnalisés fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
+  comments_generator: "Le générateur de commentaires stratégiques fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
+  import_stats: "L'import de tes stats fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
+  generation_unlimited: "Tu as utilisé tes 3 générations gratuites du mois. Elles reviennent le 1er du mois.",
+  audit_unlimited: "Tu as déjà fait ton audit gratuit du mois. Il revient le 1er du mois.",
+  lives: "Les lives mensuels font partie de l'abonnement.",
+  community_write: "Poster dans la communauté fait partie de l'abonnement.",
+  offer_workshop: "L'atelier positionnement offre fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
+  contacts_strategiques: "Les contacts stratégiques font partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
+  routine_engagement: "La routine d'engagement fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
+  editorial_line: "La ligne éditoriale fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
+  calendar: "Le calendrier éditorial fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
+  coaching: "Les coachings individuels font partie du Now Studio.",
+  studio_space: "L'espace privé fait partie du Now Studio.",
+  laetitia_validation: "La validation par Laetitia fait partie du Now Studio.",
+  studio_lives: "Les lives exclusifs font partie du Now Studio.",
+  direct_channel: "Le canal direct fait partie du Now Studio.",
+  binome: "Le binôme fait partie du Now Studio.",
 };
 
 interface UpgradeGateProps {
@@ -49,23 +49,23 @@ export default function UpgradeGate({ feature, children, fallback }: UpgradeGate
 
   if (fallback) return <>{fallback}</>;
 
-  const message = UPGRADE_MESSAGES[feature] || "Cette fonctionnalité est disponible avec un plan supérieur.";
+  const message = UPGRADE_MESSAGES[feature] || "Cette fonctionnalité fait partie d'un plan supérieur. Tu peux voir ce que chaque plan inclut.";
   const isStudioFeature = ["coaching", "studio_space", "laetitia_validation", "studio_lives", "direct_channel", "binome"].includes(feature);
 
   return (
     <div className="rounded-2xl border border-border bg-card p-8 text-center">
       <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-        <Lock className="h-5 w-5 text-muted-foreground" />
+        <Sparkles className="h-5 w-5 text-muted-foreground" />
       </div>
       <h3 className="font-display text-lg font-bold text-foreground mb-2">
-        Fonctionnalité {isStudioFeature ? "Now Studio" : "premium"}
+        {isStudioFeature ? "Disponible avec le Now Studio" : "Disponible avec le plan Outil"}
       </h3>
       <p className="text-sm text-muted-foreground mb-5 max-w-sm mx-auto">
         {message}
       </p>
       <Button asChild className="rounded-full">
         <Link to="/parametres">
-          {isStudioFeature ? "Découvrir le Now Studio →" : "Voir les plans →"}
+          {isStudioFeature ? "Découvrir le Now Studio →" : "Voir ce que ça inclut →"}
         </Link>
       </Button>
     </div>
