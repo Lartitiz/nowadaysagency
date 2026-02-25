@@ -15,6 +15,7 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     suggestion: 0,
     import: 0,
     adaptation: 0,
+    deep_research: 3,
   },
   outil: {
     total: 100,
@@ -25,6 +26,7 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     suggestion: 10,
     import: 3,
     adaptation: 10,
+    deep_research: 15,
   },
   studio: {
     total: 300,
@@ -35,6 +37,7 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     suggestion: 30,
     import: 10,
     adaptation: 30,
+    deep_research: 30,
   },
   now_pilot: {
     total: 300,
@@ -45,6 +48,7 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     suggestion: 30,
     import: 10,
     adaptation: 30,
+    deep_research: 30,
   },
   pro: {
     total: 500,
@@ -55,6 +59,7 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     suggestion: 50,
     import: 15,
     adaptation: 50,
+    deep_research: 30,
   },
 };
 
@@ -66,6 +71,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   suggestion: "suggestions",
   import: "imports",
   adaptation: "adaptations",
+  deep_research: "recherches approfondies",
 };
 
 export interface QuotaResult {

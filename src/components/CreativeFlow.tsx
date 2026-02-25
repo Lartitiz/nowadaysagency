@@ -12,8 +12,9 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import {
   Sparkles, Zap, Target, RefreshCw, Copy, Save, CalendarPlus,
-  ChevronDown, ChevronUp, MessageSquarePlus, PenLine,
+  ChevronDown, ChevronUp, MessageSquarePlus, PenLine, Search,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 /* ─── Types ─── */
 interface Angle {
@@ -170,6 +171,8 @@ export default function CreativeFlow({
   const [result, setResult] = useState<GeneratedContent | null>(null);
   const [editedContent, setEditedContent] = useState("");
   const [adjusting, setAdjusting] = useState(false);
+  const [deepResearch, setDeepResearch] = useState(false);
+  const [loadingPhase, setLoadingPhase] = useState<"research" | "writing" | null>(null);
 
   // Collapsed sections
   const [anglesCollapsed, setAnglesCollapsed] = useState(false);
@@ -270,14 +273,21 @@ export default function CreativeFlow({
     setQuestionsCollapsed(true);
     setStep("result");
     try {
+      if (deepResearch) {
+        setLoadingPhase("research");
+        // Small delay so the user sees the research phase
+        await new Promise((r) => setTimeout(r, 800));
+      }
       const answersArr = questions.map((q, i) => ({ question: q.question, answer: answers[i] || "" }));
       const followUpArr = followUpQuestions.length
         ? followUpQuestions.map((q, i) => ({ question: q.question, answer: followUpAnswers[i] || "" }))
         : undefined;
+      if (deepResearch) setLoadingPhase("writing");
       const data = await callCreativeFlow("generate", {
         angle: selectedAngle,
         answers: answersArr,
         followUpAnswers: followUpArr,
+        deepResearch,
       });
       const gen: GeneratedContent = {
         content: data.content || data.raw || "",
@@ -295,6 +305,7 @@ export default function CreativeFlow({
       setQuestionsCollapsed(false);
     } finally {
       setLoading(false);
+      setLoadingPhase(null);
     }
   };
 
@@ -539,6 +550,23 @@ export default function CreativeFlow({
                   </div>
                 )}
 
+                {/* Deep research toggle */}
+                {hasAnswers && (
+                  <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+                    <Switch
+                      checked={deepResearch}
+                      onCheckedChange={setDeepResearch}
+                      id="deep-research"
+                    />
+                    <label htmlFor="deep-research" className="cursor-pointer flex-1">
+                      <span className="text-sm font-medium text-foreground">🔍 Approfondir avec une recherche web</span>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        L'IA cherche des données récentes, des stats, des tendances avant de rédiger. Plus long, mais plus riche.
+                      </p>
+                    </label>
+                  </div>
+                )}
+
                 <div className="flex flex-wrap gap-2 pt-2">
                   {hasAnswers && !hasRequestedFollowUp && (
                     <Button variant="ghost" size="sm" onClick={requestFollowUp} disabled={loading} className="rounded-pill gap-1.5">
@@ -547,7 +575,11 @@ export default function CreativeFlow({
                   )}
                   {hasAnswers && (
                     <Button onClick={generateContent} disabled={loading} className="rounded-pill gap-1.5">
-                      <Sparkles className="h-4 w-4" /> Rédiger mon contenu
+                      {deepResearch ? (
+                        <><Search className="h-4 w-4" /> Rechercher puis générer <span className="text-xs opacity-70">~30s</span></>
+                      ) : (
+                        <><Sparkles className="h-4 w-4" /> Rédiger mon contenu</>
+                      )}
                     </Button>
                   )}
                 </div>
@@ -560,6 +592,29 @@ export default function CreativeFlow({
               {Object.values(answers).filter(Boolean).length} réponse(s) données
             </p>
           )}
+        </div>
+      )}
+
+      {/* ── Loading indicator for deep research ── */}
+      {step === "result" && loading && (
+        <div className="flex flex-col items-center justify-center py-12 animate-fade-in">
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+            {loadingPhase === "research" ? (
+              <Search className="h-5 w-5 text-primary animate-pulse" />
+            ) : (
+              <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+            )}
+          </div>
+          <p className="text-sm font-medium text-foreground">
+            {loadingPhase === "research"
+              ? "🔍 Recherche en cours..."
+              : loadingPhase === "writing"
+              ? "✍️ Rédaction en cours..."
+              : "✨ Génération en cours..."}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {loadingPhase === "research" ? "Analyse des tendances et données récentes" : "Création de ton contenu personnalisé"}
+          </p>
         </div>
       )}
 

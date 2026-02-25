@@ -55,7 +55,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id } = body;
+    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch } = body;
 
     const profileBlock = profile ? buildProfileBlock(profile) : "";
     const ctx = await getUserContext(supabase, user.id, workspace_id);
@@ -384,6 +384,62 @@ Réponds UNIQUEMENT en JSON :
 
     // Prepend voice priority instruction
     systemPrompt = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + systemPrompt;
+
+    // ── Deep Research (web search via Anthropic) ──
+    if (deepResearch && step === "generate") {
+      // Check deep_research quota
+      const { checkQuota, logUsage } = await import("../_shared/plan-limiter.ts");
+      const drQuota = await checkQuota(user.id, "deep_research");
+      if (!drQuota.allowed) {
+        return new Response(
+          JSON.stringify({ error: "limit_reached", message: drQuota.message, remaining: 0 }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+      const theme = calendarContext?.theme || context || contentType || "contenu";
+      const activite = profile?.activite || "";
+
+      const searchResponse = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey!,
+          "anthropic-version": "2025-01-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-5-20250929",
+          max_tokens: 2048,
+          tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
+          messages: [{
+            role: "user",
+            content: `Recherche des données récentes, statistiques, tendances et exemples concrets sur le sujet suivant : ${theme}. Contexte : ${activite}. Résume les 3-5 points les plus pertinents et intéressants pour créer du contenu social media engageant.`,
+          }],
+        }),
+      });
+
+      if (searchResponse.ok) {
+        const searchData = await searchResponse.json();
+        // Extract all text blocks from the response
+        const textParts: string[] = [];
+        for (const block of (searchData.content || [])) {
+          if (block.type === "text") {
+            textParts.push(block.text);
+          }
+        }
+        const researchResult = textParts.join("\n\n");
+
+        if (researchResult.trim()) {
+          systemPrompt += `\n\n--- RECHERCHE WEB ---\n${researchResult}\n--- FIN RECHERCHE ---\n\nUtilise ces données pour enrichir le contenu avec des faits concrets, des chiffres, des exemples récents. Ne cite pas les sources directement mais intègre les infos naturellement.`;
+        }
+      } else {
+        console.error("Deep research web search failed:", searchResponse.status);
+      }
+
+      // Log deep research usage
+      await logUsage(user.id, "deep_research", "web_search", undefined, "claude-sonnet-4-5-20250929", workspace_id);
+    }
 
     // ── Call Anthropic ──
     let rawContent: string;
