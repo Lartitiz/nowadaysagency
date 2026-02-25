@@ -57,8 +57,11 @@ serve(async (req) => {
     const body = await req.json();
     const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch } = body;
 
+    // Determine channel from contentType for persona selection
+    const channelFromType = contentType?.includes("linkedin") ? "linkedin" : contentType?.includes("instagram") || contentType?.includes("carousel") || contentType?.includes("reel") || contentType?.includes("stories") ? "instagram" : undefined;
+
     const profileBlock = profile ? buildProfileBlock(profile) : "";
-    const ctx = await getUserContext(supabase, user.id, workspace_id);
+    const ctx = await getUserContext(supabase, user.id, workspace_id, channelFromType);
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
     
     // Fetch voice profile (personal, always user_id)
