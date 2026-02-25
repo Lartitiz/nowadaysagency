@@ -19,6 +19,7 @@ import BrandingFicheCards from "@/components/branding/BrandingFicheCards";
 import StoryFicheCards from "@/components/branding/StoryFicheCards";
 import BrandingCoachingHistory from "@/components/branding/BrandingCoachingHistory";
 import BrandingSuggestionsCard from "@/components/branding/BrandingSuggestionsCard";
+import BrandingSpark from "@/components/branding/BrandingSpark";
 import { useBrandingSuggestions } from "@/hooks/use-branding-suggestions";
 import { DEMO_DATA } from "@/lib/demo-data";
 import { format } from "date-fns";
@@ -196,6 +197,9 @@ export default function BrandingSectionPage() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [lastCoachingUpdate, setLastCoachingUpdate] = useState<string | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [sparkDismissed, setSparkDismissed] = useState(() => {
+    try { return localStorage.getItem(`spark_dismissed_${section}`) === "1"; } catch { return false; }
+  });
 
   // Redirect value_proposition to recap page
   useEffect(() => {
@@ -311,6 +315,10 @@ export default function BrandingSectionPage() {
             {completionPct}%{emptyCount > 0 ? ` · ${emptyCount} champ${emptyCount > 1 ? "s" : ""} manquant${emptyCount > 1 ? "s" : ""}` : ""}
           </span>
         </div>
+
+        {!sparkDismissed && completionPct < 20 && (
+          <BrandingSpark section={section} onDismiss={() => setSparkDismissed(true)} />
+        )}
 
         <Tabs value={activeTab} onValueChange={(v) => {
           setActiveTab(v);
