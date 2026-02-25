@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Plus, Mail, ExternalLink, Lock, Copy, Check, Loader2 } from "lucide-react";
+import { Plus, Mail, ExternalLink, Lock, Copy, Check, Loader2, Globe, Instagram, Linkedin, X, LinkIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace, Workspace } from "@/contexts/WorkspaceContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -29,6 +29,13 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
+interface ExtraLink {
+  type: string;
+  url: string;
+}
+
+const EXTRA_LINK_TYPES = ["Pinterest", "TikTok", "YouTube", "Autre"];
+
 export default function ClientsPage() {
   const { user, isAdmin } = useAuth();
   const { workspaces, switchWorkspace, loading, activeRole } = useWorkspace();
@@ -37,6 +44,10 @@ export default function ClientsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [extraLinks, setExtraLinks] = useState<ExtraLink[]>([]);
   const [creating, setCreating] = useState(false);
 
   // Invite dialog state
@@ -48,13 +59,48 @@ export default function ClientsPage() {
   const [inviteLink, setInviteLink] = useState("");
   const [copied, setCopied] = useState(false);
 
+  const resetForm = () => {
+    setName("");
+    setEmail("");
+    setWebsiteUrl("");
+    setInstagramUrl("");
+    setLinkedinUrl("");
+    setExtraLinks([]);
+  };
+
+  const addExtraLink = () => {
+    if (extraLinks.length >= 5) {
+      toast.error("5 liens supplémentaires maximum.");
+      return;
+    }
+    setExtraLinks([...extraLinks, { type: "Autre", url: "" }]);
+  };
+
+  const updateExtraLink = (index: number, field: "type" | "url", value: string) => {
+    setExtraLinks((prev) => prev.map((l, i) => (i === index ? { ...l, [field]: value } : l)));
+  };
+
+  const removeExtraLink = (index: number) => {
+    setExtraLinks((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleCreate = useCallback(async () => {
     if (!name.trim() || !user?.id) return;
     setCreating(true);
     try {
+      const insertData: Record<string, any> = {
+        name: name.trim(),
+        created_by: user.id,
+      };
+      if (websiteUrl.trim()) insertData.website_url = websiteUrl.trim();
+      if (instagramUrl.trim()) insertData.instagram_url = instagramUrl.trim();
+      if (linkedinUrl.trim()) insertData.linkedin_url = linkedinUrl.trim();
+      const validExtra = extraLinks.filter((l) => l.url.trim());
+      if (validExtra.length > 0) insertData.extra_links = validExtra;
+
       const { data: ws, error: wsErr } = await supabase
         .from("workspaces" as any)
-        .insert({ name: name.trim(), created_by: user.id } as any)
+        .insert(insertData as any)
         .select("id")
         .single();
 
@@ -67,8 +113,7 @@ export default function ClientsPage() {
       if (memErr) throw memErr;
 
       toast.success(`Espace "${name.trim()}" créé !`);
-      setName("");
-      setEmail("");
+      resetForm();
       setDialogOpen(false);
       window.location.reload();
     } catch (e: any) {
@@ -77,7 +122,7 @@ export default function ClientsPage() {
     } finally {
       setCreating(false);
     }
-  }, [name, user?.id]);
+  }, [name, user?.id, websiteUrl, instagramUrl, linkedinUrl, extraLinks]);
 
   const handleOpen = (wsId: string) => {
     switchWorkspace(wsId);
@@ -108,7 +153,6 @@ export default function ClientsPage() {
       if (error) throw error;
 
       if (data?.error) {
-        // Edge function returned an application-level error
         if (data.error.includes("déjà membre") || data.error.includes("déjà en attente")) {
           toast.error("Cette personne est déjà membre de cet espace.");
         } else {
@@ -202,30 +246,57 @@ export default function ClientsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {workspaces.map((ws) => (
-              <Card key={ws.id} className="p-5 space-y-3 rounded-[20px] border border-border hover:border-primary/30 transition-colors">
-                <div className="flex items-start justify-between">
-                  <h3 className="font-display text-base font-bold text-foreground">{ws.name}</h3>
-                  <Badge variant="secondary" className="text-[10px] shrink-0">
-                    {ws.plan === "free" ? "Gratuit" : ws.plan}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button size="sm" className="flex-1" onClick={() => handleOpen(ws.id)}>
-                    <ExternalLink className="h-3.5 w-3.5 mr-1" /> Ouvrir
-                  </Button>
-                  <Button size="sm" variant="outline" className="shrink-0" onClick={() => openInviteDialog(ws)}>
-                    <Mail className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </Card>
-            ))}
+            {workspaces.map((ws) => {
+              const wsAny = ws as any;
+              const hasWebsite = !!wsAny.website_url;
+              const hasInstagram = !!wsAny.instagram_url;
+              const hasLinkedin = !!wsAny.linkedin_url;
+              const hasLinks = hasWebsite || hasInstagram || hasLinkedin;
+
+              return (
+                <Card key={ws.id} className="p-5 space-y-3 rounded-[20px] border border-border hover:border-primary/30 transition-colors">
+                  <div className="flex items-start justify-between">
+                    <h3 className="font-display text-base font-bold text-foreground">{ws.name}</h3>
+                    <Badge variant="secondary" className="text-[10px] shrink-0">
+                      {ws.plan === "free" ? "Gratuit" : ws.plan}
+                    </Badge>
+                  </div>
+                  {hasLinks && (
+                    <div className="flex items-center gap-2">
+                      {hasWebsite && (
+                        <a href={wsAny.website_url.startsWith("http") ? wsAny.website_url : `https://${wsAny.website_url}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors" title="Site web">
+                          <Globe className="h-4 w-4" />
+                        </a>
+                      )}
+                      {hasInstagram && (
+                        <a href={wsAny.instagram_url.startsWith("http") ? wsAny.instagram_url : `https://instagram.com/${wsAny.instagram_url.replace("@", "")}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors" title="Instagram">
+                          <Instagram className="h-4 w-4" />
+                        </a>
+                      )}
+                      {hasLinkedin && (
+                        <a href={wsAny.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors" title="LinkedIn">
+                          <Linkedin className="h-4 w-4" />
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" className="flex-1" onClick={() => handleOpen(ws.id)}>
+                      <ExternalLink className="h-3.5 w-3.5 mr-1" /> Ouvrir
+                    </Button>
+                    <Button size="sm" variant="outline" className="shrink-0" onClick={() => openInviteDialog(ws)}>
+                      <Mail className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         )}
 
         {/* Create dialog */}
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-md">
+        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+          <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-display">Nouvel espace client</DialogTitle>
               <DialogDescription className="sr-only">Créer un nouvel espace de travail pour un·e client·e</DialogDescription>
@@ -251,6 +322,73 @@ export default function ClientsPage() {
                   placeholder="marie@exemple.com"
                 />
                 <p className="text-[11px] text-muted-foreground">L'invitation par email sera disponible prochainement.</p>
+              </div>
+
+              {/* Links section */}
+              <div className="space-y-3 pt-2 border-t border-border">
+                <Label className="text-sm font-medium">🔗 Liens utiles (optionnel)</Label>
+                <p className="text-[11px] text-muted-foreground -mt-1">Ces liens seront analysés pour pré-remplir le branding automatiquement.</p>
+
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={websiteUrl}
+                      onChange={(e) => setWebsiteUrl(e.target.value)}
+                      placeholder="https://monsite.com"
+                      className="pl-9"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={instagramUrl}
+                      onChange={(e) => setInstagramUrl(e.target.value)}
+                      placeholder="@compte ou https://instagram.com/compte"
+                      className="pl-9"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={linkedinUrl}
+                      onChange={(e) => setLinkedinUrl(e.target.value)}
+                      placeholder="URL du profil LinkedIn"
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+
+                {/* Extra links */}
+                {extraLinks.map((link, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Select value={link.type} onValueChange={(v) => updateExtraLink(i, "type", v)}>
+                      <SelectTrigger className="w-[120px] shrink-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EXTRA_LINK_TYPES.map((t) => (
+                          <SelectItem key={t} value={t}>{t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      value={link.url}
+                      onChange={(e) => updateExtraLink(i, "url", e.target.value)}
+                      placeholder="https://..."
+                      className="flex-1"
+                    />
+                    <Button variant="ghost" size="icon" className="shrink-0" onClick={() => removeExtraLink(i)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+
+                {extraLinks.length < 5 && (
+                  <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={addExtraLink}>
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Ajouter un autre lien
+                  </Button>
+                )}
               </div>
             </div>
             <DialogFooter>
