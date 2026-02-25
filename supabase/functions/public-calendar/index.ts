@@ -58,12 +58,11 @@ Deno.serve(async (req) => {
       .eq("user_id", share.user_id)
       .maybeSingle();
 
-    // Fetch posts
+    // Always include content_draft (wording) and category (phase) for guest view
     let postsQuery = supabase
       .from("calendar_posts")
       .select(
-        "id, date, theme, canal, format, objectif, status, notes" +
-          (share.show_content_draft ? ", content_draft" : "")
+        "id, date, theme, canal, format, objectif, status, notes, content_draft, category, audience_phase, accroche, angle"
       )
       .eq("user_id", share.user_id)
       .order("date");
@@ -106,9 +105,17 @@ Deno.serve(async (req) => {
           canal_filter: share.canal_filter,
           show_content_draft: share.show_content_draft,
           guest_name: share.guest_name,
+          guest_can_edit_status: share.guest_can_edit_status ?? true,
+          guest_can_edit_wording: share.guest_can_edit_wording ?? false,
+          view_mode: share.view_mode ?? "table",
+          show_columns: share.show_columns ?? ["theme", "status", "date", "wording", "canal", "format", "phase"],
         },
         profile: profile || {},
-        posts: posts || [],
+        posts: (posts || []).map((p: any) => ({
+          ...p,
+          phase: p.category || p.audience_phase || null,
+          wording: p.content_draft || null,
+        })),
         comments,
       }),
       {
