@@ -16,6 +16,7 @@ import { Link } from "react-router-dom";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { useDemoContext } from "@/contexts/DemoContext";
 import BioBeforeAfter from "@/components/bio/BioBeforeAfter";
+import CharacterCounter from "@/components/bio/CharacterCounter";
 
 /* ═══════════════════════════════════════════════
    TYPES
@@ -397,6 +398,7 @@ export default function InstagramBio() {
                 </span>
               </div>
               <BioPreviewCard bio={validatedBio} />
+              <CharacterCounter text={validatedBio} maxLength={150} />
               <div className="flex flex-wrap gap-2 mt-4">
                 <Button variant="outline" size="sm" className="rounded-pill gap-1.5" onClick={() => copyBio(validatedBio, "validated")}>
                   {copiedField === "validated" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
@@ -427,6 +429,7 @@ export default function InstagramBio() {
                 placeholder={activityExamples.bio_example}
                 className="min-h-[120px]"
               />
+              <CharacterCounter text={currentBioText} maxLength={150} />
               <div className="flex flex-wrap gap-3">
                 <Button onClick={handleAnalyzeBio} disabled={analyzingBio || !currentBioText.trim()} className="rounded-pill gap-2">
                   {analyzingBio ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
