@@ -73,7 +73,7 @@ function getSmartFocus(
     return {
       emoji: "📊", title: "Audite ton Instagram",
       description: "5 min pour comprendre où tu en es et quoi améliorer en premier.",
-      cta: "Lancer l'audit", route: "/espaces/instagram/audit",
+      cta: "Lancer l'audit", route: "/instagram/audit",
       duration: "5 min", type: "audit",
     };
   }
@@ -83,7 +83,7 @@ function getSmartFocus(
     return {
       emoji: "📱", title: "Améliore ton profil Instagram",
       description: `Score : ${igAuditScore}/100. On optimise ta bio et ton feed.`,
-      cta: "Voir les priorités", route: "/espaces/instagram/audit",
+      cta: "Voir les priorités", route: "/instagram/audit",
       duration: "15 min", type: "audit", extra: { auditScore: igAuditScore },
     };
   }
