@@ -355,6 +355,52 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
     { label: "Site web" },
   ]],
 
+  // ── SEO ──
+  ["/seo/audit", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "SEO", path: "/seo" },
+    { label: "Audit" },
+  ]],
+  ["/seo/idees", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "SEO", path: "/seo" },
+    { label: "Mots-clés" },
+  ]],
+  ["/seo/cockpit", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "SEO", path: "/seo" },
+    { label: "Cockpit" },
+  ]],
+  ["/seo/analyser", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "SEO", path: "/seo" },
+    { label: "Analyser" },
+  ]],
+  ["/seo/optimiser", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "SEO", path: "/seo" },
+    { label: "Optimiser" },
+  ]],
+  ["/seo/structure", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "SEO", path: "/seo" },
+    { label: "Structure" },
+  ]],
+  ["/seo/presse", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "SEO", path: "/seo" },
+    { label: "Presse" },
+  ]],
+  ["/seo/plan", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "SEO", path: "/seo" },
+    { label: "Mon plan" },
+  ]],
+  ["/seo", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "SEO" },
+  ]],
+
   // ── Transversal ──
   ["/atelier/rediger", [
     { label: "Accueil", path: "/dashboard" },
