@@ -133,7 +133,7 @@ export default function ComScoreWidget({ animationDelay }: ComScoreWidgetProps) 
     queryKey: ["com-score", user?.id, wf.value, isDemoMode],
     enabled: !!user && !isDemoMode,
     staleTime: 3 * 60 * 1000,
-    queryFn: () => computeComScore(user!.id, wf),
+    queryFn: () => computeComScore(wf),
   });
 
   const s = isDemoMode ? DEMO_SCORE : score;

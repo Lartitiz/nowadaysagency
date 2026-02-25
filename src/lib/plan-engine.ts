@@ -55,7 +55,7 @@ const TIME_LABELS: Record<string, string> = {
 
 export { GOAL_LABELS, TIME_LABELS };
 
-export async function computePlan(userId: string, config: PlanConfig): Promise<PlanData> {
+export async function computePlan(filter: { column: string; value: string }, config: PlanConfig): Promise<PlanData> {
   // Fetch all needed data in parallel — simple existence/count checks
   const [
     brandProfileRes,
@@ -73,20 +73,20 @@ export async function computePlan(userId: string, config: PlanConfig): Promise<P
     propRes,
     toneRes,
   ] = await Promise.all([
-    supabase.from("brand_profile").select("mission, voice_description, tone_register, offer").eq("user_id", userId).maybeSingle(),
-    supabase.from("persona").select("step_1_frustrations, step_2_transformation").eq("user_id", userId).maybeSingle(),
-    supabase.from("storytelling").select("id", { count: "exact", head: true }).eq("user_id", userId),
-    supabase.from("offers").select("id", { count: "exact", head: true }).eq("user_id", userId),
-    supabase.from("instagram_audit").select("score_global").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("instagram_audit").select("score_bio").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    Promise.resolve(supabase.from("linkedin_audit").select("score_global").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle()).catch(() => ({ data: null })),
-    supabase.from("instagram_editorial_line").select("pillars").eq("user_id", userId).maybeSingle(),
-    supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", userId),
-    supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("contact_type", "network"),
-    supabase.from("contacts").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("contact_type", "prospect"),
-    supabase.from("brand_strategy").select("facet_1, pillar_major, creative_concept, step_1_hidden_facets").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_proposition").select("step_1_what, version_final").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_profile").select("tone_register, tone_level, tone_style, combat_cause, combat_fights, key_expressions").eq("user_id", userId).maybeSingle(),
+    (supabase.from("brand_profile") as any).select("mission, voice_description, tone_register, offer").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("storytelling") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value),
+    (supabase.from("offers") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value),
+    (supabase.from("instagram_audit") as any).select("score_global").eq(filter.column, filter.value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    (supabase.from("instagram_audit") as any).select("score_bio").eq(filter.column, filter.value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    Promise.resolve((supabase.from("linkedin_audit") as any).select("score_global").eq(filter.column, filter.value).order("created_at", { ascending: false }).limit(1).maybeSingle()).catch(() => ({ data: null })),
+    (supabase.from("instagram_editorial_line") as any).select("pillars").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value),
+    (supabase.from("contacts") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value).eq("contact_type", "network"),
+    (supabase.from("contacts") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value).eq("contact_type", "prospect"),
+    (supabase.from("brand_strategy") as any).select("facet_1, pillar_major, creative_concept, step_1_hidden_facets").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("brand_proposition") as any).select("step_1_what, version_final").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("brand_profile") as any).select("tone_register, tone_level, tone_style, combat_cause, combat_fights, key_expressions").eq(filter.column, filter.value).maybeSingle(),
   ]);
   const auditLi = liAuditResult?.data;
 

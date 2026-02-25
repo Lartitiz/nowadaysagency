@@ -82,7 +82,7 @@ export default function CommPlanPage() {
           main_goal: data.main_goal,
         };
         setConfig(cfg);
-        const planData = await computePlan(user.id, cfg);
+        const planData = await computePlan({ column, value }, cfg);
         setPlan(planData);
       } else {
         setShowSetup(true);
@@ -110,7 +110,7 @@ export default function CommPlanPage() {
       }
 
       setConfig(cfg);
-      const planData = await computePlan(user.id, cfg);
+      const planData = await computePlan({ column, value }, cfg);
       setPlan(planData);
       setShowSetup(false);
     } finally {
