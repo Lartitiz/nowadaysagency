@@ -5,30 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
-import { ArrowLeft, User, PenLine, Briefcase, Star, MessageCircle, Lightbulb, CalendarDays, Search, Sparkles, RefreshCw } from "lucide-react";
-
-interface CardDef {
-  icon: React.ElementType;
-  emoji: string;
-  title: string;
-  desc: string;
-  to: string;
-  tag: string;
-}
-
-const CARDS: CardDef[] = [
-  { icon: Search, emoji: "🔍", title: "Auditer mon compte", desc: "Score complet et priorités d'action.", to: "/linkedin/audit", tag: "IA" },
-  { icon: User, emoji: "👤", title: "Optimiser mon profil", desc: "Titre, photo, bannière, URL.", to: "/linkedin/profil", tag: "Checklist" },
-  { icon: PenLine, emoji: "✍️", title: "Mon résumé (À propos)", desc: "Rédige un résumé qui donne envie.", to: "/linkedin/resume", tag: "Guide + IA" },
-  { icon: Sparkles, emoji: "✨", title: "Créer un post", desc: "L'IA écrit ton post LinkedIn.", to: "/linkedin/post", tag: "IA" },
-  { icon: Briefcase, emoji: "💼", title: "Mon parcours", desc: "Expériences, formations, compétences.", to: "/linkedin/parcours", tag: "Guide + IA" },
-  { icon: Star, emoji: "⭐", title: "Mes recommandations", desc: "Demande et gère tes recommandations.", to: "/linkedin/recommandations", tag: "Exercice" },
-  { icon: MessageCircle, emoji: "💬", title: "Mon engagement", desc: "Commentaires et messages stratégiques.", to: "/linkedin/engagement", tag: "Suivi hebdo" },
-  { icon: MessageCircle, emoji: "🎯", title: "Stratégie commentaires", desc: "Tes 10-15 comptes à commenter.", to: "/linkedin/comment-strategy", tag: "Exercice" },
-  { icon: RefreshCw, emoji: "♻️", title: "Recycler un contenu", desc: "Adapte un contenu pour LinkedIn.", to: "/linkedin/crosspost", tag: "IA" },
-  { icon: Lightbulb, emoji: "💡", title: "Trouver des idées", desc: "Idées de contenu LinkedIn.", to: "/atelier?canal=linkedin", tag: "IA" },
-  { icon: CalendarDays, emoji: "📅", title: "Mon calendrier", desc: "Planifie tes posts LinkedIn.", to: "/calendrier?canal=linkedin", tag: "Planning" },
-];
+import { ArrowLeft } from "lucide-react";
+import FirstTimeTooltip from "@/components/FirstTimeTooltip";
+import { useDemoContext } from "@/contexts/DemoContext";
 
 interface ProgressData {
   profileSteps: number;
@@ -43,6 +22,7 @@ interface ProgressData {
 
 export default function LinkedInHub() {
   const { user } = useAuth();
+  const { isDemoMode } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const [progress, setProgress] = useState<ProgressData>({
     profileSteps: 0, summaryDone: false, experienceCount: 0,
@@ -50,6 +30,19 @@ export default function LinkedInHub() {
   });
 
   useEffect(() => {
+    if (isDemoMode) {
+      setProgress({
+        profileSteps: 3,
+        summaryDone: true,
+        experienceCount: 4,
+        recoCount: 2,
+        engagementWeekly: "6/10",
+        ideasCount: 8,
+        calendarCount: 3,
+        commentAccountsCount: 12,
+      });
+      return;
+    }
     if (!user) return;
     const fetch = async () => {
       const now = new Date();
@@ -94,21 +87,15 @@ export default function LinkedInHub() {
     fetch();
   }, [user?.id]);
 
-  const getProgressLabel = (index: number): string | null => {
-    switch (index) {
-      case 0: return null; // audit
-      case 1: return `${progress.profileSteps}/4 éléments`;
-      case 2: return progress.summaryDone ? "✓ Rédigé" : "À faire";
-      case 3: return null; // créer un post
-      case 4: return `${progress.experienceCount} expérience${progress.experienceCount !== 1 ? "s" : ""}`;
-      case 5: return `${progress.recoCount}/5 reçues`;
-      case 6: return progress.engagementWeekly;
-      case 7: return `${progress.commentAccountsCount} compte${progress.commentAccountsCount !== 1 ? "s" : ""}`;
-      case 8: return null; // recycler
-      case 9: return `${progress.ideasCount} idée${progress.ideasCount !== 1 ? "s" : ""}`;
-      case 10: return `${progress.calendarCount} post${progress.calendarCount !== 1 ? "s" : ""} ce mois`;
-      default: return null;
-    }
+  const progressMap: Record<string, string | null> = {
+    "/linkedin/audit": null,
+    "/linkedin/profil": `${progress.profileSteps}/4 éléments`,
+    "/linkedin/resume": progress.summaryDone ? "✓ Rédigé" : "À faire",
+    "/linkedin/parcours": `${progress.experienceCount} expérience${progress.experienceCount !== 1 ? "s" : ""}`,
+    "/linkedin/recommandations": `${progress.recoCount}/5 reçues`,
+    "/linkedin/engagement": progress.engagementWeekly,
+    "/linkedin/comment-strategy": `${progress.commentAccountsCount} compte${progress.commentAccountsCount !== 1 ? "s" : ""}`,
+    "/calendrier?canal=linkedin": `${progress.calendarCount} post${progress.calendarCount !== 1 ? "s" : ""} ce mois`,
   };
 
   return (
@@ -127,28 +114,115 @@ export default function LinkedInHub() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {CARDS.map((card, idx) => {
-            const progressLabel = getProgressLabel(idx);
-            return (
-              <Link
-                key={card.to}
-                to={card.to}
-                className="group relative rounded-2xl border border-border bg-card p-6 hover:border-primary hover:shadow-md transition-all"
-              >
-                <span className="text-2xl mb-3 block">{card.emoji}</span>
-                <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">
-                  {card.title}
-                </h3>
-                <p className="mt-1 text-sm text-muted-foreground">{card.desc}</p>
-                <span className="mt-3 inline-block font-mono-ui text-[10px] font-semibold text-primary bg-rose-pale px-2.5 py-0.5 rounded-pill">
-                  {card.tag}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
+        {/* ─── ZONE 1 : POSER LES BASES ─── */}
+        <ZoneSection emoji="🏗️" title="Poser les bases">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <FirstTimeTooltip id="linkedin-audit" text="Commence ici : un scan complet de ton profil LinkedIn avec des priorités d'action.">
+              <HubCard to="/linkedin/audit" emoji="🔍" title="Auditer mon compte" desc="Score complet et priorités d'action." tag="IA" progressLabel={progressMap["/linkedin/audit"]} />
+            </FirstTimeTooltip>
+            <HubCard to="/linkedin/profil" emoji="👤" title="Optimiser mon profil" desc="Titre, photo, bannière, URL." tag="Checklist" progressLabel={progressMap["/linkedin/profil"]} />
+            <HubCard to="/linkedin/resume" emoji="✍️" title="Mon résumé (À propos)" desc="Rédige un résumé qui donne envie." tag="Guide + IA" progressLabel={progressMap["/linkedin/resume"]} />
+            <HubCard to="/linkedin/parcours" emoji="💼" title="Mon parcours" desc="Expériences, formations, compétences." tag="Guide + IA" progressLabel={progressMap["/linkedin/parcours"]} />
+            <HubCard to="/linkedin/recommandations" emoji="⭐" title="Mes recommandations" desc="Demande et gère tes recommandations." tag="Exercice" progressLabel={progressMap["/linkedin/recommandations"]} />
+          </div>
+        </ZoneSection>
+
+        {/* ─── ZONE 2 : CRÉER ─── */}
+        <ZoneSection emoji="✨" title="Créer">
+          <FirstTimeTooltip id="linkedin-create" text="L'IA génère un post LinkedIn calibré sur ton branding.">
+            <Link
+              to="/linkedin/post"
+              className="group block rounded-2xl border-2 border-primary bg-primary/5 p-6 sm:p-8 hover:bg-primary/10 hover:shadow-md transition-all text-center"
+            >
+              <span className="text-3xl mb-3 block">✨</span>
+              <h3 className="font-display text-xl sm:text-2xl font-bold text-primary group-hover:text-foreground transition-colors">
+                Créer un contenu LinkedIn
+              </h3>
+              <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
+                Post, recyclage ou idées : choisis ton format.
+              </p>
+              <div className="flex justify-center gap-3 mt-5 flex-wrap">
+                <FormatPill emoji="📝" label="Créer un post" to="/linkedin/post" />
+                <FormatPill emoji="♻️" label="Recycler un contenu" to="/linkedin/crosspost" />
+                <FormatPill emoji="💡" label="Trouver des idées" to="/atelier?canal=linkedin" />
+              </div>
+            </Link>
+          </FirstTimeTooltip>
+        </ZoneSection>
+
+        {/* ─── ZONE 3 : ENGAGER & PLANIFIER ─── */}
+        <ZoneSection emoji="💬" title="Engager & Planifier">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <FirstTimeTooltip id="linkedin-engagement" text="Tes actions hebdo pour développer ton réseau.">
+              <HubCard to="/linkedin/engagement" emoji="💬" title="Mon engagement" desc="Commentaires et messages stratégiques." tag="Suivi hebdo" progressLabel={progressMap["/linkedin/engagement"]} />
+            </FirstTimeTooltip>
+            <HubCard to="/linkedin/comment-strategy" emoji="🎯" title="Stratégie commentaires" desc="Tes 10-15 comptes à commenter." tag="Exercice" progressLabel={progressMap["/linkedin/comment-strategy"]} />
+            <HubCard to="/calendrier?canal=linkedin" emoji="📅" title="Mon calendrier" desc="Planifie tes posts LinkedIn." tag="Planning" progressLabel={progressMap["/calendrier?canal=linkedin"]} />
+          </div>
+        </ZoneSection>
       </main>
     </div>
+  );
+}
+
+/* ─── Zone section wrapper ─── */
+function ZoneSection({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
+  return (
+    <section className="mb-6">
+      <h2 className="font-display text-lg font-bold text-foreground mb-3 flex items-center gap-2">
+        <span>{emoji}</span> {title}
+      </h2>
+      <div className="rounded-2xl border border-border bg-card/50 p-4">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+/* ─── Hub card ─── */
+function HubCard({
+  to,
+  emoji,
+  title,
+  desc,
+  tag,
+  progressLabel,
+}: {
+  to: string;
+  emoji: string;
+  title: string;
+  desc: string;
+  tag: string;
+  progressLabel?: string | null;
+}) {
+  return (
+    <Link to={to} className="group relative rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all block">
+      {tag && (
+        <span className="absolute top-3 right-3 font-mono-ui text-[10px] font-semibold text-primary bg-rose-pale px-2.5 py-0.5 rounded-pill">
+          {tag}
+        </span>
+      )}
+      <span className="text-2xl mb-2 block">{emoji}</span>
+      <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+        {title}
+      </h3>
+      <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{desc}</p>
+      {progressLabel && (
+        <p className="text-xs text-muted-foreground font-medium mt-1">{progressLabel}</p>
+      )}
+    </Link>
+  );
+}
+
+/* ─── Format pill ─── */
+function FormatPill({ emoji, label, to }: { emoji: string; label: string; to: string }) {
+  return (
+    <Link
+      to={to}
+      onClick={(e) => e.stopPropagation()}
+      className="inline-flex items-center gap-1.5 font-mono-ui text-xs font-semibold px-3 py-1.5 rounded-pill text-primary bg-rose-pale hover:bg-primary/20 transition-colors"
+    >
+      {emoji} {label}
+    </Link>
   );
 }
