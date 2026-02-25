@@ -15,6 +15,7 @@ export interface ContextOptions {
   includeEditorial?: boolean;
   includeAudit?: boolean;
   includeVoice?: boolean;
+  includeCharter?: boolean;
 }
 
 // Default: include everything except detailed offer data and audit
@@ -27,6 +28,7 @@ const DEFAULT_OPTIONS: ContextOptions = {
   includeEditorial: true,
   includeAudit: false,
   includeVoice: true,
+  includeCharter: true,
 };
 
 /**
@@ -39,7 +41,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
 
   const [
     stRes, perRes, toneRes, propRes, stratRes, editoRes,
-    profileRes, offersRes, auditRes, voiceRes,
+    profileRes, offersRes, auditRes, voiceRes, charterRes,
   ] = await Promise.all([
     supabase.from("storytelling").select("step_7_polished").eq(col, val).eq("is_primary", true).maybeSingle(),
     supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches, portrait_prenom, portrait").eq(col, val).maybeSingle(),
@@ -53,6 +55,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
     supabase.from("instagram_audit").select("score_global, score_bio, score_feed, score_edito, score_stories, score_epingles, resume, combo_gagnant").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     // voice_profile always uses user_id (personal voice, not workspace-scoped)
     supabase.from("voice_profile").select("voice_summary, signature_expressions, banned_expressions, tone_patterns, structure_patterns, formatting_habits, sample_texts").eq("user_id", userId).maybeSingle(),
+    supabase.from("brand_charter").select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, font_accent, photo_style, mood_keywords, visual_donts, icon_style, border_radius, ai_generated_brief").eq(col, val).maybeSingle(),
   ]);
 
   return {
@@ -66,6 +69,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
     offers: offersRes.data || [],
     audit: auditRes.data,
     voice: voiceRes.data,
+    charter: charterRes.data,
   };
 }
 
@@ -197,6 +201,26 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
     }
   }
 
+  // === CHARTE GRAPHIQUE ===
+  if (options.includeCharter && ctx.charter) {
+    const ch = ctx.charter;
+    const chLines: string[] = [];
+    if (ch.color_primary) chLines.push(`- Couleur principale : ${ch.color_primary}`);
+    if (ch.color_secondary) chLines.push(`- Couleur secondaire : ${ch.color_secondary}`);
+    if (ch.color_accent) chLines.push(`- Couleur accent : ${ch.color_accent}`);
+    if (ch.color_background) chLines.push(`- Fond : ${ch.color_background}`);
+    if (ch.color_text) chLines.push(`- Texte : ${ch.color_text}`);
+    if (ch.font_title) chLines.push(`- Police titres : ${ch.font_title}`);
+    if (ch.font_body) chLines.push(`- Police corps : ${ch.font_body}`);
+    if (ch.mood_keywords?.length) {
+      const keywords = Array.isArray(ch.mood_keywords) ? ch.mood_keywords : [];
+      if (keywords.length) chLines.push(`- Style visuel : ${keywords.join(", ")}`);
+    }
+    if (ch.photo_style) chLines.push(`- Style photo : ${ch.photo_style}`);
+    if (ch.visual_donts) chLines.push(`- Interdits visuels : ${ch.visual_donts}`);
+    if (ch.ai_generated_brief) chLines.push(`- Brief IA : ${ch.ai_generated_brief}`);
+    if (chLines.length) sections.push(`CHARTE GRAPHIQUE :\n${chLines.join("\n")}`);
+  }
 
   // === PROPOSITION DE VALEUR ===
   if (ctx.proposition) {
@@ -308,56 +332,56 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
  */
 export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
   // Bio: branding ✅, story ❌, persona ✅, offers ✅, profile ✅, editorial ❌, audit ❌
-  bio: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
+  bio: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: false },
 
   // Posts/Carrousels: branding ✅, story ✅, persona ✅, offers ✅, profile ❌, editorial ✅
-  posts: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true },
+  posts: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true, includeCharter: true },
 
   // Reels: same as posts
-  reels: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true },
+  reels: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true, includeCharter: true },
 
   // Stories: same as posts
-  stories: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true },
+  stories: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true, includeCharter: true },
 
   // Commentaires: branding ✅ only
-  comments: { includeStory: false, includePersona: false, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: false },
+  comments: { includeStory: false, includePersona: false, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: false, includeCharter: false },
 
   // DM prospection: branding ✅, persona ✅, offers ✅
-  dm: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
+  dm: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: false },
 
   // Audit Instagram: branding ✅, persona ✅, offers ✅, profile ✅, audit ✅
-  audit: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: true, includeVoice: true },
+  audit: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: true, includeVoice: true, includeCharter: false },
 
   // Pages de vente: everything + details
-  salesPage: { includeStory: true, includePersona: true, includeOffers: true, includeOffersDetails: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
+  salesPage: { includeStory: true, includePersona: true, includeOffers: true, includeOffersDetails: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true },
 
   // Offer coaching: branding ✅, story ✅, persona ✅, no offers
   offerCoaching: { includeStory: true, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // Creative flow / content generation: full context
-  content: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true },
+  content: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true, includeCharter: true },
 
   // Highlights: branding ✅, persona ✅, offers ✅, profile ✅
-  highlights: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
+  highlights: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true },
 
   // Inspire: branding ✅, story ✅, persona ✅, profile ✅
-  inspire: { includeStory: true, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
+  inspire: { includeStory: true, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true },
 
   // Launch plan: branding ✅, persona ✅, offers ✅, profile ✅
-  launch: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
+  launch: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true },
 
   // LinkedIn: branding ✅, story ✅, persona ✅, offers ✅, profile ✅
-  linkedin: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
+  linkedin: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true },
 
   // LinkedIn audit: branding ✅, persona ✅, offers ✅, profile ✅
   linkedinAudit: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
 
   // Pinterest: branding ✅, persona ✅, profile ✅
-  pinterest: { includeStory: false, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
+  pinterest: { includeStory: false, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true },
 
   // Website / pages de vente: everything + offer details
-  website: { includeStory: true, includePersona: true, includeOffers: true, includeOffersDetails: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true },
+  website: { includeStory: true, includePersona: true, includeOffers: true, includeOffersDetails: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true },
 
   // Score content: branding ✅, profile ✅
-  score: { includeStory: false, includePersona: false, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: false },
+  score: { includeStory: false, includePersona: false, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: false, includeCharter: false },
 };
