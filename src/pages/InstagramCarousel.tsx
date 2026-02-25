@@ -4,7 +4,8 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw, Copy, CalendarDays, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
@@ -152,6 +153,13 @@ export default function InstagramCarousel() {
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
   const [calendarPostId, setCalendarPostId] = useState<string | null>(null);
+
+  // Visual step state
+  const [templateStyle, setTemplateStyle] = useState("");
+  const [visualSlides, setVisualSlides] = useState<{ slide_number: number; html: string }[]>([]);
+  const [visualLoading, setVisualLoading] = useState(false);
+  const [charterData, setCharterData] = useState<any>(null);
+  const [charterLoaded, setCharterLoaded] = useState(false);
 
   // Speech recognition for deepening questions
   const { isListening, toggle } = useSpeechRecognition((text) => {
@@ -382,8 +390,47 @@ export default function InstagramCarousel() {
     setCaption({ ...caption, [field]: value });
   };
 
-  const totalSteps = 6;
-  const stepLabels = ["Type", "Contexte", "Questions", "Angle", "Accroche", "Carrousel"];
+  const totalSteps = 7;
+  const stepLabels = ["Type", "Contexte", "Questions", "Angle", "Accroche", "Texte", "Visuel"];
+
+  // Load charter data for visual step
+  useEffect(() => {
+    if (!user || charterLoaded) return;
+    const loadCharter = async () => {
+      const { data: ch } = await (supabase.from("brand_charter") as any)
+        .select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, border_radius")
+        .eq(column, value)
+        .maybeSingle();
+      setCharterData(ch);
+      setCharterLoaded(true);
+    };
+    loadCharter();
+  }, [user?.id, charterLoaded]);
+
+  // Visual generation handler
+  const handleGenerateVisual = async (style: string) => {
+    if (!user || slides.length === 0) return;
+    setTemplateStyle(style);
+    setVisualLoading(true);
+    setVisualSlides([]);
+    try {
+      const { data, error } = await supabase.functions.invoke("carousel-visual", {
+        body: {
+          slides: slides.map(s => ({ slide_number: s.slide_number, role: s.role, title: s.title, body: s.body })),
+          template_style: style,
+          charter: charterData || undefined,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      setVisualSlides(data.result?.slides_html || []);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erreur lors de la génération des visuels");
+    } finally {
+      setVisualLoading(false);
+    }
+  };
 
   // ── Loading state ──
   if (loading) {
@@ -399,6 +446,136 @@ export default function InstagramCarousel() {
           <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">{loadingMessages[step] || "L'IA travaille..."}</p>
           <p className="text-xs text-muted-foreground mt-2">✨ Ça peut prendre quelques secondes.</p>
+        </main>
+      </div>
+    );
+  }
+
+  // ═══ STEP 7: VISUAL ═══
+  if (step === 7 && slides.length > 0) {
+    const TEMPLATE_OPTIONS = [
+      { id: "clean", label: "Clean", icon: "—", desc: "Épuré, aéré" },
+      { id: "bold", label: "Bold", icon: "B", desc: "Impact fort" },
+      { id: "gradient", label: "Dégradé", icon: "◐", desc: "Fond dégradé" },
+      { id: "quote", label: "Citation", icon: "❝", desc: "Style citation" },
+      { id: "numbered", label: "Numéroté", icon: "1.", desc: "Éducatif" },
+      { id: "split", label: "Split", icon: "▌", desc: "2 colonnes" },
+      { id: "photo", label: "Photo", icon: "🖼", desc: "Fond image" },
+      { id: "story", label: "Story", icon: "📖", desc: "Intime" },
+    ];
+
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 animate-fade-in">
+          <SubPageHeader parentLabel="Créer" parentTo="/instagram/creer" currentLabel="Carrousel" useFromParam breadcrumbs={[{ label: "Dashboard", to: "/dashboard" }, { label: "Créer", to: "/instagram/creer" }]} />
+          <ProgressBar step={step} total={totalSteps} labels={stepLabels} />
+
+          <h1 className="font-display text-2xl font-bold text-foreground mb-2">✨ Visuel du carrousel</h1>
+          <p className="text-sm text-muted-foreground mb-6">Choisis un style de template pour générer les visuels de tes slides.</p>
+
+          {/* Charter warning */}
+          {charterLoaded && !charterData && (
+            <div className="rounded-xl border border-border bg-amber-50 dark:bg-amber-950/20 p-4 mb-6">
+              <p className="text-sm text-foreground">Tu n'as pas encore de charte graphique. L'IA va utiliser des couleurs par défaut.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Pour des visuels vraiment à ton image,{" "}
+                <a href="/branding/charter" className="text-primary hover:underline">remplis ta charte graphique</a>.
+              </p>
+            </div>
+          )}
+
+          {/* Visual loading */}
+          {visualLoading && (
+            <div className="text-center py-16">
+              <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">L'IA dessine ton carrousel...</p>
+              <p className="text-xs text-muted-foreground mt-2">✨ Ça peut prendre 15-30 secondes.</p>
+            </div>
+          )}
+
+          {/* Template selector (show if no visual yet or to regenerate) */}
+          {!visualLoading && visualSlides.length === 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              {TEMPLATE_OPTIONS.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => handleGenerateVisual(t.id)}
+                  className="rounded-xl border-2 border-border hover:border-primary/60 bg-card p-4 text-center transition-all hover:shadow-md"
+                >
+                  <div className="text-2xl mb-1">{t.icon}</div>
+                  <p className="text-sm font-semibold text-foreground">{t.label}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{t.desc}</p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Visual preview */}
+          {!visualLoading && visualSlides.length > 0 && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-foreground">Aperçu ({visualSlides.length} slides)</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setVisualSlides([])} className="text-xs gap-1.5">
+                    Changer de style
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleGenerateVisual(templateStyle)} className="text-xs gap-1.5">
+                    <RefreshCw className="h-3.5 w-3.5" /> Régénérer
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {visualSlides.map((vs, idx) => (
+                  <div key={idx} className="rounded-xl border border-border overflow-hidden bg-card">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 border-b border-border">
+                      <span className="text-xs font-medium text-muted-foreground">Slide {vs.slide_number}</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <div
+                        style={{ transform: "scale(0.35)", transformOrigin: "top left", width: "1080px", height: "1350px" }}
+                      >
+                        <iframe
+                          srcDoc={vs.html}
+                          title={`Slide ${vs.slide_number}`}
+                          width="1080"
+                          height="1350"
+                          style={{ border: "none", pointerEvents: "none" }}
+                          sandbox="allow-same-origin"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Actions */}
+              <div className="rounded-2xl border border-border bg-muted/30 p-5 space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={() => { setStep(6); setVisualSlides([]); }} className="rounded-full gap-1.5 text-xs">
+                    ← Modifier le texte
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleCopyAll} className="rounded-full gap-1.5 text-xs">
+                    <Copy className="h-3.5 w-3.5" /> Copier le texte
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowCalendarDialog(true)} className="rounded-full gap-1.5 text-xs">
+                    <CalendarDays className="h-3.5 w-3.5" /> Planifier
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Back to text */}
+          {!visualLoading && visualSlides.length === 0 && (
+            <Button variant="ghost" size="sm" onClick={() => setStep(6)} className="text-xs text-muted-foreground mt-4">
+              ← Retour au texte
+            </Button>
+          )}
+
+          <AddToCalendarDialog open={showCalendarDialog} onOpenChange={setShowCalendarDialog} onConfirm={handleAddToCalendar} contentLabel={`Carrousel : ${subject || typeObj?.label}`} contentEmoji="🎠" />
         </main>
       </div>
     );
@@ -427,8 +604,16 @@ export default function InstagramCarousel() {
             onPlanifier={() => setShowCalendarDialog(true)}
             onSave={() => setShowIdeasDialog(true)}
             onRegenerate={() => { setStep(5); setSlides([]); setCaption(null); }}
-            onNew={() => { setStep(1); setSlides([]); setHooks([]); setCaption(null); setAngles([]); setChosenAngle(null); setDeepeningAnswers({}); setCurrentQuestion(0); }}
+            onNew={() => { setStep(1); setSlides([]); setHooks([]); setCaption(null); setAngles([]); setChosenAngle(null); setDeepeningAnswers({}); setCurrentQuestion(0); setVisualSlides([]); setTemplateStyle(""); }}
           />
+
+          {/* Generate visual button */}
+          <div className="mt-6 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-5 text-center">
+            <p className="text-sm font-medium text-foreground mb-2">Ton texte est prêt ? Passe aux visuels !</p>
+            <Button onClick={() => { setStep(7); setVisualSlides([]); }} className="gap-2">
+              <Sparkles className="h-4 w-4" /> Générer le visuel
+            </Button>
+          </div>
 
           <AddToCalendarDialog open={showCalendarDialog} onOpenChange={setShowCalendarDialog} onConfirm={handleAddToCalendar} contentLabel={`Carrousel : ${subject || typeObj?.label}`} contentEmoji="🎠" />
           <SaveToIdeasDialog open={showIdeasDialog} onOpenChange={setShowIdeasDialog} contentType="post_instagram" subject={subject || typeObj?.label || "Carrousel"} contentData={{ slides, caption, qualityCheck }} sourceModule="carousel" format="carousel" objectif={objective} />
