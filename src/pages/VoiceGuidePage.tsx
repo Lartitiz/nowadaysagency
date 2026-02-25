@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Sparkles, RefreshCw, Copy, Download, Loader2, Check, X } from "lucide-react";
@@ -25,6 +26,7 @@ interface VoiceGuide {
 
 export default function VoiceGuidePage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const [guide, setGuide] = useState<VoiceGuide | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -36,7 +38,7 @@ export default function VoiceGuidePage() {
     const load = async () => {
       const { data } = await (supabase.from("voice_guides") as any)
         .select("guide_data")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .maybeSingle();
       if (data?.guide_data) setGuide(data.guide_data);
       setLoading(false);

@@ -52,7 +52,7 @@ export default function LinkedInRecommandations() {
     if (!user) return;
     const load = async () => {
       const [profRes, recoRes] = await Promise.all([
-        supabase.from("profiles").select("prenom").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("profiles") as any).select("prenom").eq(column, value).maybeSingle(),
         (supabase.from("linkedin_recommendations") as any).select("*").eq(column, value).order("created_at"),
       ]);
       if (profRes.data?.prenom) setPrenom(profRes.data.prenom);
