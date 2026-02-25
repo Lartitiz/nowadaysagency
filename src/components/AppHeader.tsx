@@ -449,10 +449,14 @@ function WorkspaceSwitcher({
         {workspaces.map((ws) => (
           <DropdownMenuItem
             key={ws.id}
-            onClick={() => {
+            onClick={async () => {
               if (ws.id !== activeWorkspace?.id) {
-                switchWorkspace(ws.id);
-                navigate("/dashboard");
+                await switchWorkspace(ws.id);
+                if (window.location.pathname === "/dashboard") {
+                  window.location.reload();
+                } else {
+                  navigate("/dashboard");
+                }
               }
             }}
             className="gap-2 cursor-pointer"
