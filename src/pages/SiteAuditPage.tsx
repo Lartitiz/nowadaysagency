@@ -101,6 +101,9 @@ type AuditData = {
   recommendations: unknown[];
   current_page: string | null;
   raw_result?: unknown;
+  site_url?: string | null;
+  is_latest?: boolean;
+  created_at?: string;
 };
 
 type Step = "input" | "loading" | "auto-results" | "questionnaire" | "old-results" | "screenshot";
@@ -142,18 +145,20 @@ const SiteAuditPage = () => {
   const [pbpAnswers, setPbpAnswers] = useState<Record<string, Record<string, AnswerValue>>>({});
   const [saving, setSaving] = useState(false);
 
-  // Load existing audit
+  // Load existing audit (latest)
   const loadAudit = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     const { data } = await (supabase.from("website_audit") as any)
       .select("*")
       .eq(column, value)
+      .eq("is_latest", true)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (data) {
       setExisting(data);
+      if (data.site_url) setSiteUrl(data.site_url);
       if (data.audit_mode === "auto" && data.raw_result) {
         setAutoResult(data.raw_result as AutoAuditResult);
       }
@@ -239,7 +244,13 @@ const SiteAuditPage = () => {
       const result = data as AutoAuditResult;
       setAutoResult(result);
 
-      // Save to DB
+      // Save to DB — mark old audits as not latest, always insert new
+      await (supabase.from("website_audit") as any)
+        .update({ is_latest: false })
+        .eq(column, value)
+        .eq("audit_mode", "auto")
+        .eq("is_latest", true);
+
       const payload: Record<string, unknown> = {
         user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : null,
@@ -251,14 +262,12 @@ const SiteAuditPage = () => {
         recommendations: result.plan_action || [],
         completed: true,
         raw_result: result,
+        site_url: siteUrl.trim(),
+        is_latest: true,
       };
 
-      if (existing?.id) {
-        await (supabase.from("website_audit") as any).update(payload).eq("id", existing.id);
-      } else {
-        const { data: inserted } = await (supabase.from("website_audit") as any).insert(payload).select("id").single();
-        if (inserted) setExisting({ ...payload, id: inserted.id } as any);
-      }
+      const { data: inserted } = await (supabase.from("website_audit") as any).insert(payload).select("id").single();
+      if (inserted) setExisting({ ...payload, id: inserted.id, created_at: new Date().toISOString() } as any);
 
       setStep("auto-results");
     } catch (e) {
@@ -270,23 +279,23 @@ const SiteAuditPage = () => {
   };
 
   // ── Reset ──
-  const handleReset = async () => {
-    if (existing?.id) {
-      setSaving(true);
-      await (supabase.from("website_audit") as any).delete().eq("id", existing.id);
-      setSaving(false);
-    }
-    setExisting(null);
+  const handleReset = () => {
     setAutoResult(null);
     setAnswers({});
     setPbpAnswers({});
     setCurrentSection(0);
-    setSiteUrl("");
     setExtraPages([]);
     setCustomPath("");
     setStep("input");
     localStorage.removeItem("site-audit-checklist");
-    toast.success("Audit réinitialisé");
+  };
+
+  // ── Re-run audit (keep old, start new) ──
+  const handleRerun = () => {
+    // Keep the existing URL pre-filled, go back to input to re-launch
+    setAutoResult(null);
+    setStep("input");
+    localStorage.removeItem("site-audit-checklist");
   };
 
   // ── Screenshot handlers ──
@@ -470,7 +479,14 @@ const SiteAuditPage = () => {
 
         {/* ── STEP: Auto Results ── */}
         {step === "auto-results" && autoResult && (
-          <SiteAuditAutoResult result={autoResult} onReset={handleReset} />
+          <SiteAuditAutoResult
+            result={autoResult}
+            onReset={handleReset}
+            onRerun={handleRerun}
+            siteUrl={siteUrl}
+            userId={user?.id}
+            workspaceFilter={{ column, value }}
+          />
         )}
 
         {/* ── STEP: Old Results (backward compat) ── */}

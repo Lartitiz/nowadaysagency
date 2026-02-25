@@ -4,7 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronDown, ChevronUp, ArrowRight, RotateCcw, Camera, CheckCircle2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ChevronDown, ChevronUp, ArrowRight, RotateCcw, Camera, CheckCircle2, History, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 /* ─── Types ─── */
 
@@ -58,9 +62,20 @@ export interface AutoAuditResult {
   analyse_par_page: Record<string, PageAnalysis>;
 }
 
+interface PastAudit {
+  id: string;
+  score_global: number;
+  created_at: string;
+  raw_result: AutoAuditResult | null;
+}
+
 interface SiteAuditAutoResultProps {
   result: AutoAuditResult;
   onReset: () => void;
+  onRerun?: () => void;
+  siteUrl?: string;
+  userId?: string;
+  workspaceFilter?: { column: string; value: string };
 }
 
 /* ─── Constants ─── */
@@ -128,9 +143,27 @@ function ScoreCircle({ score }: { score: number }) {
   );
 }
 
+/* ─── Comparison helpers ─── */
+
+function ScoreDiff({ current, previous }: { current: number; previous: number }) {
+  const diff = current - previous;
+  if (diff > 0)
+    return <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-600"><TrendingUp className="h-3 w-3" /> +{diff}</span>;
+  if (diff < 0)
+    return <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-red-500"><TrendingDown className="h-3 w-3" /> {diff}</span>;
+  return <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-muted-foreground"><Minus className="h-3 w-3" /> =</span>;
+}
+
 /* ─── Main Component ─── */
 
-export default function SiteAuditAutoResult({ result, onReset }: SiteAuditAutoResultProps) {
+export default function SiteAuditAutoResult({
+  result,
+  onReset,
+  onRerun,
+  siteUrl,
+  userId,
+  workspaceFilter,
+}: SiteAuditAutoResultProps) {
   const navigate = useNavigate();
   const [expandedPilier, setExpandedPilier] = useState<string | null>(null);
   const [checklistMode, setChecklistMode] = useState(false);
@@ -141,6 +174,37 @@ export default function SiteAuditAutoResult({ result, onReset }: SiteAuditAutoRe
     } catch { return {}; }
   });
 
+  // History & comparison
+  const [pastAudits, setPastAudits] = useState<PastAudit[]>([]);
+  const [previousResult, setPreviousResult] = useState<AutoAuditResult | null>(null);
+  const [previousDate, setPreviousDate] = useState<string | null>(null);
+  const [viewingOld, setViewingOld] = useState<PastAudit | null>(null);
+
+  // Displayed result (current or old selected)
+  const displayResult = viewingOld?.raw_result || result;
+
+  useEffect(() => {
+    if (!userId || !workspaceFilter) return;
+    const load = async () => {
+      const { data } = await (supabase.from("website_audit") as any)
+        .select("id, score_global, created_at, raw_result")
+        .eq(workspaceFilter.column, workspaceFilter.value)
+        .eq("audit_mode", "auto")
+        .eq("completed", true)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (data && data.length > 0) {
+        setPastAudits(data);
+        // The second item is the previous audit (first is the current)
+        if (data.length > 1 && data[1].raw_result) {
+          setPreviousResult(data[1].raw_result as AutoAuditResult);
+          setPreviousDate(data[1].created_at);
+        }
+      }
+    };
+    load();
+  }, [userId, workspaceFilter]);
+
   const toggleChecked = (idx: number) => {
     setCheckedActions(prev => {
       const next = { ...prev, [idx]: !prev[idx] };
@@ -149,40 +213,115 @@ export default function SiteAuditAutoResult({ result, onReset }: SiteAuditAutoRe
     });
   };
 
-  const pilierEntries = Object.entries(result.piliers || {});
+  const pilierEntries = Object.entries(displayResult.piliers || {});
 
   return (
     <div className="space-y-6">
+      {/* ── Viewing old audit banner ── */}
+      {viewingOld && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-4 flex items-center justify-between">
+          <p className="text-sm text-foreground">
+            📂 Tu consultes l'audit du <strong>{format(new Date(viewingOld.created_at), "d MMM yyyy", { locale: fr })}</strong> (score : {viewingOld.score_global}/100)
+          </p>
+          <Button variant="outline" size="sm" className="rounded-pill gap-1.5" onClick={() => setViewingOld(null)}>
+            Revenir à l'audit actuel
+          </Button>
+        </div>
+      )}
+
+      {/* ── Comparison banner ── */}
+      {!viewingOld && previousResult && previousDate && (
+        <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-muted-foreground">
+              📈 Comparaison avec ton audit du {format(new Date(previousDate), "d MMM yyyy", { locale: fr })} :
+            </span>
+            <ScoreDiff current={result.score_global} previous={previousResult.score_global} />
+          </div>
+          {result.score_global > previousResult.score_global && (
+            <p className="text-sm font-medium text-emerald-600">
+              🎉 Bravo, +{result.score_global - previousResult.score_global} points depuis ton dernier audit !
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {pilierEntries.map(([key, pilier]) => {
+              const prev = previousResult.piliers?.[key];
+              if (!prev) return null;
+              const meta = PILIER_META[key] || { emoji: "📌", label: key };
+              return (
+                <div key={key} className="inline-flex items-center gap-1.5 text-xs bg-muted px-2 py-1 rounded-pill">
+                  <span>{meta.emoji}</span>
+                  <span className="text-foreground">{meta.label}</span>
+                  <ScoreDiff current={pilier.score} previous={prev.score} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Header : Score global ── */}
       <div className="rounded-2xl border border-border bg-card p-8 flex flex-col items-center text-center">
-        <ScoreCircle score={result.score_global || 0} />
-        <p className="mt-4 text-sm text-muted-foreground max-w-lg">{result.synthese}</p>
+        <ScoreCircle score={displayResult.score_global || 0} />
+        <p className="mt-4 text-sm text-muted-foreground max-w-lg">{displayResult.synthese}</p>
         <div className="mt-3 flex flex-wrap gap-2 justify-center">
           <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-pill bg-muted text-muted-foreground">
-            📄 {result.pages_analysees?.length || 1} page{(result.pages_analysees?.length || 1) > 1 ? "s" : ""} analysée{(result.pages_analysees?.length || 1) > 1 ? "s" : ""}
+            📄 {displayResult.pages_analysees?.length || 1} page{(displayResult.pages_analysees?.length || 1) > 1 ? "s" : ""} analysée{(displayResult.pages_analysees?.length || 1) > 1 ? "s" : ""}
           </span>
-          {result.pages_en_erreur?.length > 0 && (
+          {displayResult.pages_en_erreur?.length > 0 && (
             <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-pill bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-              ⚠️ {result.pages_en_erreur.length} page{result.pages_en_erreur.length > 1 ? "s" : ""} en erreur
+              ⚠️ {displayResult.pages_en_erreur.length} page{displayResult.pages_en_erreur.length > 1 ? "s" : ""} en erreur
             </span>
           )}
         </div>
         <div className="mt-4 flex flex-wrap gap-3 justify-center">
-          <Button variant="outline" size="sm" className="gap-2 rounded-pill" onClick={onReset}>
-            <RotateCcw className="h-4 w-4" /> Refaire l'audit
-          </Button>
-          <Button variant="ghost" size="sm" className="gap-2 rounded-pill" onClick={() => navigate("/site/audit?mode=screenshot")}>
-            <Camera className="h-4 w-4" /> Compléter avec un audit visuel
-          </Button>
+          {!viewingOld && onRerun && (
+            <Button variant="outline" size="sm" className="gap-2 rounded-pill" onClick={onRerun}>
+              <RotateCcw className="h-4 w-4" /> Refaire l'audit
+            </Button>
+          )}
+          {!viewingOld && (
+            <Button variant="ghost" size="sm" className="gap-2 rounded-pill" onClick={() => navigate("/site/audit?mode=screenshot")}>
+              <Camera className="h-4 w-4" /> Compléter avec un audit visuel
+            </Button>
+          )}
+          {pastAudits.length > 1 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2 rounded-pill">
+                  <History className="h-4 w-4" /> Voir tous mes audits
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-64">
+                {pastAudits.map((audit, i) => (
+                  <DropdownMenuItem
+                    key={audit.id}
+                    onClick={() => {
+                      if (i === 0) { setViewingOld(null); } else { setViewingOld(audit); }
+                    }}
+                    className="flex items-center justify-between"
+                  >
+                    <span className="text-sm">
+                      {format(new Date(audit.created_at), "d MMM yyyy", { locale: fr })}
+                      {i === 0 && " (actuel)"}
+                    </span>
+                    <span className={`text-sm font-bold ${scoreColor(audit.score_global)}`}>
+                      {audit.score_global}/100
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
 
       {/* ── Points forts ── */}
-      {result.points_forts?.length > 0 && (
+      {displayResult.points_forts?.length > 0 && (
         <div className="rounded-2xl border border-border bg-card p-6 space-y-3">
           <h3 className="font-display text-base font-bold text-foreground">✅ Points forts</h3>
           <ul className="space-y-2">
-            {result.points_forts.map((p, i) => (
+            {displayResult.points_forts.map((p, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-foreground">
                 <span className="shrink-0 mt-0.5 text-emerald-500">●</span>
                 <div>
@@ -195,12 +334,12 @@ export default function SiteAuditAutoResult({ result, onReset }: SiteAuditAutoRe
         </div>
       )}
 
-      {/* ── Priorités d'action (mise en avant) ── */}
-      {result.priorites?.length > 0 && (
+      {/* ── Priorités d'action ── */}
+      {displayResult.priorites?.length > 0 && (
         <div className="space-y-3">
           <h3 className="font-display text-base font-bold text-foreground">🎯 Tes 3 priorités</h3>
           <div className="space-y-3">
-            {result.priorites.slice(0, 3).map((prio, i) => (
+            {displayResult.priorites.slice(0, 3).map((prio, i) => (
               <div key={i} className="rounded-2xl border border-primary/20 bg-rose-pale p-5 flex gap-4 items-start">
                 <span className="flex items-center justify-center h-9 w-9 rounded-full bg-primary/10 text-primary text-lg font-bold shrink-0">
                   {i + 1}
@@ -217,7 +356,7 @@ export default function SiteAuditAutoResult({ result, onReset }: SiteAuditAutoRe
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground">{prio.detail}</p>
-                  {prio.module_route && (
+                  {!viewingOld && prio.module_route && (
                     <Button variant="outline" size="sm" className="gap-1.5 rounded-pill text-xs" onClick={() => navigate(prio.module_route!)}>
                       {prio.module_label || "Commencer"} <ArrowRight className="h-3 w-3" />
                     </Button>
@@ -237,6 +376,7 @@ export default function SiteAuditAutoResult({ result, onReset }: SiteAuditAutoRe
             const meta = PILIER_META[key] || { emoji: "📌", label: key };
             const badge = STATUT_BADGE[pilier.statut] || STATUT_BADGE.flou;
             const isOpen = expandedPilier === key;
+            const prevPilier = previousResult?.piliers?.[key];
 
             return (
               <Collapsible key={key} open={isOpen} onOpenChange={() => setExpandedPilier(isOpen ? null : key)}>
@@ -248,6 +388,9 @@ export default function SiteAuditAutoResult({ result, onReset }: SiteAuditAutoRe
                         <span className="text-sm font-medium text-foreground block truncate">{meta.label}</span>
                       </div>
                       <span className={`text-lg font-bold ${scoreColor(pilier.score)}`}>{pilier.score}</span>
+                      {!viewingOld && prevPilier && (
+                        <ScoreDiff current={pilier.score} previous={prevPilier.score} />
+                      )}
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-pill ${badge.className}`}>
                         {badge.label}
                       </span>
@@ -275,7 +418,7 @@ export default function SiteAuditAutoResult({ result, onReset }: SiteAuditAutoRe
                         <p className="text-sm text-muted-foreground">{pilier.recommandation}</p>
                       </div>
                     )}
-                    {pilier.module_route && (
+                    {!viewingOld && pilier.module_route && (
                       <Button variant="outline" size="sm" className="gap-1.5 rounded-pill text-xs" onClick={() => navigate(pilier.module_route!)}>
                         Aller au module <ArrowRight className="h-3 w-3" />
                       </Button>
@@ -289,18 +432,18 @@ export default function SiteAuditAutoResult({ result, onReset }: SiteAuditAutoRe
       </div>
 
       {/* ── Analyse par page ── */}
-      {result.analyse_par_page && Object.keys(result.analyse_par_page).length > 1 && (
+      {displayResult.analyse_par_page && Object.keys(displayResult.analyse_par_page).length > 1 && (
         <div className="space-y-3">
           <h3 className="font-display text-base font-bold text-foreground">📄 Analyse par page</h3>
-          <Tabs defaultValue={Object.keys(result.analyse_par_page)[0]}>
+          <Tabs defaultValue={Object.keys(displayResult.analyse_par_page)[0]}>
             <TabsList className="w-full justify-start overflow-x-auto">
-              {Object.keys(result.analyse_par_page).map(path => (
+              {Object.keys(displayResult.analyse_par_page).map(path => (
                 <TabsTrigger key={path} value={path} className="text-xs">
                   {path === "/" ? "Accueil" : path}
                 </TabsTrigger>
               ))}
             </TabsList>
-            {Object.entries(result.analyse_par_page).map(([path, page]) => (
+            {Object.entries(displayResult.analyse_par_page).map(([path, page]) => (
               <TabsContent key={path} value={path}>
                 <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
                   <div className="flex items-center gap-3">
@@ -325,21 +468,23 @@ export default function SiteAuditAutoResult({ result, onReset }: SiteAuditAutoRe
       )}
 
       {/* ── Plan d'action complet ── */}
-      {result.plan_action?.length > 0 && (
+      {displayResult.plan_action?.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-display text-base font-bold text-foreground">📋 Plan d'action complet</h3>
-            <button
-              onClick={() => setChecklistMode(prev => !prev)}
-              className="text-xs text-primary font-semibold hover:underline"
-            >
-              {checklistMode ? "Vue liste" : "Vue checklist ✓"}
-            </button>
+            {!viewingOld && (
+              <button
+                onClick={() => setChecklistMode(prev => !prev)}
+                className="text-xs text-primary font-semibold hover:underline"
+              >
+                {checklistMode ? "Vue liste" : "Vue checklist ✓"}
+              </button>
+            )}
           </div>
           <div className="space-y-2">
-            {result.plan_action.map((action, idx) => (
+            {displayResult.plan_action.map((action, idx) => (
               <div key={idx} className={`rounded-xl border border-border bg-card p-4 flex items-start gap-3 ${checkedActions[idx] ? "opacity-60" : ""}`}>
-                {checklistMode ? (
+                {checklistMode && !viewingOld ? (
                   <Checkbox
                     checked={!!checkedActions[idx]}
                     onCheckedChange={() => toggleChecked(idx)}
@@ -367,7 +512,7 @@ export default function SiteAuditAutoResult({ result, onReset }: SiteAuditAutoRe
                     )}
                   </div>
                 </div>
-                {action.route && !checkedActions[idx] && (
+                {!viewingOld && action.route && !checkedActions[idx] && (
                   <Button variant="ghost" size="sm" className="shrink-0 gap-1 rounded-pill text-xs" onClick={() => navigate(action.route!)}>
                     Faire <ArrowRight className="h-3 w-3" />
                   </Button>
