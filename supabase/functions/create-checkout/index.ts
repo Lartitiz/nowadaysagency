@@ -76,10 +76,21 @@ serve(async (req) => {
       },
     };
 
+    // Prix du plan Binôme de com (studio_monthly) : engagement 6 mois
+    const STUDIO_MONTHLY_PRICE_ID = "price_1T3ipcI0YZbTj9ITlKOQN5Tm";
+
     if (mode === "subscription") {
       sessionParams.subscription_data = {
         metadata: { user_id: user.id },
       };
+
+      // Limiter à 6 mois uniquement pour le plan Binôme de com
+      if (priceId === STUDIO_MONTHLY_PRICE_ID) {
+        const cancelAt = new Date();
+        cancelAt.setMonth(cancelAt.getMonth() + 6);
+        sessionParams.subscription_data.cancel_at = Math.floor(cancelAt.getTime() / 1000);
+        log("Studio plan: auto-cancel set", { cancelAt: cancelAt.toISOString() });
+      }
     } else {
       sessionParams.payment_intent_data = {
         metadata: { user_id: user.id },
