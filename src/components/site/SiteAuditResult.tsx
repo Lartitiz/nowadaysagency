@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, ArrowRight, RotateCcw, Sparkles, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, ArrowRight, RotateCcw, Sparkles, Loader2, RefreshCw } from "lucide-react";
 import {
   calculateWebsiteAuditScore,
   calculatePageByPageScore,
@@ -13,10 +13,8 @@ import {
   type AuditScoreResult,
   type CategoryRecommendation,
 } from "@/lib/website-audit-score";
-import { MarkdownText } from "@/components/ui/markdown-text";
-
-// ── Questions lookup for answer display ──
-import type { ReactNode } from "react";
+import { friendlyError } from "@/lib/error-messages";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 
 interface SiteAuditResultProps {
   auditId: string;
@@ -25,6 +23,12 @@ interface SiteAuditResultProps {
   globalSections: { id: string; emoji: string; title: string; questions: { id: string; text: string }[] }[];
   pageQuestions: Record<string, { id: string; text: string }[]>;
   onReset: () => void;
+}
+
+interface AiDiagnosticData {
+  positif: string[];
+  priorites: { titre: string; detail: string; impact: "fort" | "moyen"; module?: string | null }[];
+  premier_pas: string;
 }
 
 const ANSWER_DISPLAY: Record<string, { icon: string; label: string; className: string }> = {
@@ -52,13 +56,12 @@ function barColor(score: number, max: number): string {
   return "bg-red-500";
 }
 
-// ── Animated SVG circle ──
 function ScoreCircle({ score }: { score: number }) {
   const [animatedScore, setAnimatedScore] = useState(0);
   const radius = 60;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (animatedScore / 100) * circumference;
-  const { color, emoji } = getWebsiteScoreLabel(score);
+  const { color } = getWebsiteScoreLabel(score);
 
   useEffect(() => {
     const timer = setTimeout(() => setAnimatedScore(score), 100);
@@ -89,6 +92,22 @@ function ScoreCircle({ score }: { score: number }) {
   );
 }
 
+/** Try to parse the AI diagnostic JSON from either a raw string or already-parsed object */
+function parseDiagnostic(raw: unknown): AiDiagnosticData | null {
+  if (!raw) return null;
+  try {
+    if (typeof raw === "object" && raw !== null && "positif" in raw) return raw as AiDiagnosticData;
+    const str = typeof raw === "string" ? raw : JSON.stringify(raw);
+    // Strip potential markdown fences
+    const cleaned = str.replace(/^```json?\s*/i, "").replace(/\s*```$/i, "").trim();
+    const parsed = JSON.parse(cleaned);
+    if (parsed?.positif && parsed?.priorites && parsed?.premier_pas) return parsed as AiDiagnosticData;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export default function SiteAuditResult({
   auditId,
   auditMode,
@@ -98,12 +117,13 @@ export default function SiteAuditResult({
   onReset,
 }: SiteAuditResultProps) {
   const navigate = useNavigate();
+  const workspaceId = useWorkspaceId();
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
-  const [aiDiagnostic, setAiDiagnostic] = useState<string | null>(null);
+  const [aiDiagnostic, setAiDiagnostic] = useState<AiDiagnosticData | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [diagnosticLoaded, setDiagnosticLoaded] = useState(false);
 
-  // Calculate scores
   const scoreResult: AuditScoreResult = useMemo(() => {
     if (auditMode === "global") {
       return calculateWebsiteAuditScore(answers as Record<string, string>);
@@ -113,7 +133,6 @@ export default function SiteAuditResult({
 
   const scoreLabel = getWebsiteScoreLabel(scoreResult.total);
 
-  // Collect all recommendations sorted by priority
   const allRecs = useMemo(() => {
     const recs: (CategoryRecommendation & { categoryId: string })[] = [];
     for (const [catId, cat] of Object.entries(scoreResult.categories)) {
@@ -130,18 +149,13 @@ export default function SiteAuditResult({
     if (saved || !auditId) return;
     const save = async () => {
       await (supabase.from("website_audit") as any)
-        .update({
-          scores: scoreResult.categories,
-          score_global: scoreResult.total,
-          completed: true,
-        })
+        .update({ scores: scoreResult.categories, score_global: scoreResult.total, completed: true })
         .eq("id", auditId);
       setSaved(true);
     };
     save();
   }, [auditId, scoreResult, saved]);
 
-  // Get questions list for a category (for expanding)
   const getQuestionsForCategory = (catId: string): { id: string; text: string }[] => {
     if (auditMode === "global") {
       const sec = globalSections.find(s => s.id === catId);
@@ -158,7 +172,22 @@ export default function SiteAuditResult({
     return pageAnswers?.[qId] ?? null;
   };
 
-  // AI diagnostic
+  // ── Load existing diagnostic from DB ──
+  useEffect(() => {
+    if (!auditId) return;
+    const loadDiag = async () => {
+      const { data } = await (supabase.from("website_audit") as any)
+        .select("diagnostic")
+        .eq("id", auditId)
+        .maybeSingle();
+      const parsed = parseDiagnostic(data?.diagnostic);
+      if (parsed) setAiDiagnostic(parsed);
+      setDiagnosticLoaded(true);
+    };
+    loadDiag();
+  }, [auditId]);
+
+  // ── Generate AI diagnostic ──
   const generateAiDiagnostic = async () => {
     setAiLoading(true);
     try {
@@ -174,33 +203,22 @@ export default function SiteAuditResult({
           score_global: scoreResult.total,
           answers,
           weak_categories: weakCategories,
+          workspace_id: workspaceId,
         },
       });
       if (error) throw error;
-      const diagnostic = data?.diagnostic || data?.result || "";
-      setAiDiagnostic(diagnostic);
-      // Save to DB
-      await (supabase.from("website_audit") as any)
-        .update({ diagnostic })
-        .eq("id", auditId);
+
+      const rawDiag = data?.diagnostic || data?.content || "";
+      const parsed = parseDiagnostic(rawDiag);
+      if (!parsed) throw new Error("Format de réponse inattendu");
+      setAiDiagnostic(parsed);
     } catch (e) {
-      toast.error("Erreur lors de la génération du diagnostic IA");
+      console.error("AI diagnostic error:", e);
+      toast.error(friendlyError(e));
     } finally {
       setAiLoading(false);
     }
   };
-
-  // Load existing diagnostic
-  useEffect(() => {
-    const loadDiag = async () => {
-      const { data } = await (supabase.from("website_audit") as any)
-        .select("diagnostic")
-        .eq("id", auditId)
-        .maybeSingle();
-      if (data?.diagnostic) setAiDiagnostic(data.diagnostic);
-    };
-    loadDiag();
-  }, [auditId]);
 
   return (
     <div className="space-y-6">
@@ -231,7 +249,7 @@ export default function SiteAuditResult({
                 <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer">
                   <span className="text-base">{cat.emoji}</span>
                   <span className="text-sm font-medium text-foreground flex-1 text-left">{cat.label}</span>
-                  <span className="text-xs font-mono-ui text-muted-foreground">{cat.score}/{cat.max}</span>
+                  <span className="text-xs text-muted-foreground">{cat.score}/{cat.max}</span>
                   <div className="w-24 h-2 rounded-full bg-muted overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-700 ${barColor(cat.score, cat.max)}`}
@@ -249,7 +267,7 @@ export default function SiteAuditResult({
                     return (
                       <div key={q.id} className="flex items-start gap-2 text-sm">
                         <span className="shrink-0 mt-0.5">{display?.icon ?? "—"}</span>
-                        <span className={`${display?.className ?? "text-muted-foreground"}`}>{q.text}</span>
+                        <span className={display?.className ?? "text-muted-foreground"}>{q.text}</span>
                       </div>
                     );
                   })}
@@ -280,12 +298,7 @@ export default function SiteAuditResult({
                   </div>
                   <p className="text-sm text-foreground">{rec.recommendation}</p>
                   {rec.link && rec.linkLabel && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5 rounded-pill text-xs"
-                      onClick={() => navigate(rec.link!)}
-                    >
+                    <Button variant="outline" size="sm" className="gap-1.5 rounded-pill text-xs" onClick={() => navigate(rec.link!)}>
                       {rec.linkLabel} <ArrowRight className="h-3 w-3" />
                     </Button>
                   )}
@@ -296,16 +309,62 @@ export default function SiteAuditResult({
         </div>
       )}
 
-      {/* ── AI diagnostic ── */}
+      {/* ── AI Diagnostic ── */}
       <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
         {aiDiagnostic ? (
           <>
-            <h3 className="font-display text-base font-bold text-foreground">💡 Mon diagnostic personnalisé</h3>
-            <div className="rounded-xl bg-rose-pale border border-primary/20 p-5">
-              <div className="prose prose-sm max-w-none text-foreground">
-                <MarkdownText content={aiDiagnostic} />
+            {/* ✅ Ce qui va bien */}
+            <div className="space-y-3">
+              <h3 className="font-display text-base font-bold text-foreground">✅ Ce qui va bien</h3>
+              <ul className="space-y-2">
+                {aiDiagnostic.positif.map((point, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                    <span className="shrink-0 mt-0.5 text-emerald-500">●</span>
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* 🎯 Tes 3 priorités */}
+            <div className="space-y-3">
+              <h3 className="font-display text-base font-bold text-foreground">🎯 Tes 3 priorités</h3>
+              <div className="space-y-3">
+                {aiDiagnostic.priorites.map((prio, i) => (
+                  <div key={i} className="rounded-xl border border-border p-4 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center justify-center h-7 w-7 rounded-full bg-primary/10 text-primary text-sm font-bold">{i + 1}</span>
+                      <h4 className="text-sm font-bold text-foreground flex-1">{prio.titre}</h4>
+                      <span className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-pill ${
+                        prio.impact === "fort"
+                          ? "bg-primary/10 text-primary"
+                          : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400"
+                      }`}>
+                        {prio.impact === "fort" ? "Impact fort" : "Impact moyen"}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground pl-10">{prio.detail}</p>
+                    {prio.module && (
+                      <div className="pl-10">
+                        <Button variant="outline" size="sm" className="gap-1.5 rounded-pill text-xs" onClick={() => navigate(prio.module!)}>
+                          Y aller <ArrowRight className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
+
+            {/* ⚡ Ton premier pas */}
+            <div className="space-y-2">
+              <h3 className="font-display text-base font-bold text-foreground">⚡ Ton premier pas</h3>
+              <div className="rounded-xl bg-rose-pale border border-primary/20 p-5">
+                <p className="text-sm text-foreground">{aiDiagnostic.premier_pas}</p>
+              </div>
+            </div>
+
+            {/* Regénérer */}
             <Button
               variant="outline"
               size="sm"
@@ -313,8 +372,8 @@ export default function SiteAuditResult({
               onClick={generateAiDiagnostic}
               disabled={aiLoading}
             >
-              {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              Regénérer le diagnostic
+              {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              🔄 Regénérer
             </Button>
           </>
         ) : (
@@ -324,7 +383,7 @@ export default function SiteAuditResult({
             </p>
             <Button
               onClick={generateAiDiagnostic}
-              disabled={aiLoading}
+              disabled={aiLoading || !diagnosticLoaded}
               className="gap-2 rounded-pill"
             >
               {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
