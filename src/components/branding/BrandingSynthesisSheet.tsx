@@ -981,6 +981,9 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
           <Button variant="outline" size="sm" className="gap-2 text-sm" onClick={() => { onClose(); navigate("/branding"); }}>
             <Pencil className="h-3.5 w-3.5" /> Modifier le branding
           </Button>
+          <Button variant="outline" size="sm" className="gap-2 text-sm" onClick={() => { onClose(); navigate("/branding/voice-guide"); }}>
+            🎤 Voir mon guide de voix
+          </Button>
         </div>
         </div>{/* end inner padding wrapper */}
       </div>{/* end sheetRef */}
