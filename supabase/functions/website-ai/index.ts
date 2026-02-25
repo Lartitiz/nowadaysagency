@@ -204,6 +204,47 @@ serve(async (req) => {
       systemPrompt = `${WEBSITE_PRINCIPLES}\n\n${context}\n\nTu génères des templates HTML de sections web. Le HTML doit être :\n- AUTONOME : CSS inline uniquement (pas de classes Tailwind, pas de fichier CSS externe)\n- COMPATIBLE : fonctionne dans Squarespace, Wix, WordPress et en copier-coller dans n'importe quel CMS\n- RESPONSIVE : utilise des media queries inline ou des techniques flexbox/grid simples\n- PERSONNALISÉ : utilise le branding de l'utilisatrice (couleurs, ton, contenu)\n- ÉTHIQUE : pas de dark patterns, pas d'urgence artificielle\n- JAMAIS de cercles ni de ronds en fond dans les créations visuelles\n\nSi une charte graphique existe dans le contexte, utilise ses couleurs. Sinon utilise une palette neutre et élégante.\n\nSECTION À GÉNÉRER : ${section_type}\n\n${getPromptForSection(section_type)}\n\nGénère ${variant_count} variantes différentes.\n\nRéponds en JSON sans backticks :\n{"variants": [{"name": "Variante épurée", "description": "Style minimal, beaucoup d'espace", "html": "<!DOCTYPE html>..."}, {"name": "Variante colorée", "description": "Plus de couleur et de personnalité", "html": "<!DOCTYPE html>..."}]}`;
       userPrompt = `Génère ${variant_count} variantes HTML pour la section ${section_type}.`;
 
+    } else if (action === "audit-screenshot") {
+      const { image_base64, image_type, site_url, page_type } = params;
+      if (!image_base64) {
+        return new Response(JSON.stringify({ error: "image_base64 requis" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const mediaType = image_type === "png" ? "image/png" : "image/jpeg";
+
+      const screenshotSystemPrompt = `${WEBSITE_PRINCIPLES}\n\n${context}\n\nTu analyses le screenshot d'une page web pour identifier les problèmes de conversion et d'UX.\n\nTYPE DE PAGE : ${page_type || "accueil"}\nURL (contexte) : ${site_url || "non fournie"}\n\nAnalyse cette capture d'écran et identifie :\n\n1. PREMIÈRES IMPRESSIONS (ce qu'on comprend en 3 secondes)\n2. POINTS FORTS visuels (2-3 max)\n3. PROBLÈMES DE CONVERSION identifiés (classés par impact) :\n   - Pour chaque problème : description + suggestion concrète de fix\n   - Catégorise : "visuel", "copy", "cta", "confiance", "navigation"\n4. SUGGESTIONS DE MISE EN PAGE (si la structure peut être améliorée)\n5. SCORE ESTIMÉ sur 100\n\nRÈGLES :\n- Écriture inclusive point médian\n- JAMAIS de tiret cadratin\n- Ton direct et bienveillant\n- Suggestions concrètes et actionnables\n- Si la charte branding est disponible, vérifie la cohérence\n- Ne fais pas de remarques sur les images placeholder ou les contenus de test\n\nRéponds en JSON sans backticks :\n{"first_impression": "...", "points_forts": ["..."], "problemes": [{"categorie": "visuel|copy|cta|confiance|navigation", "description": "...", "suggestion": "...", "impact": "fort|moyen|faible"}], "suggestions_layout": ["..."], "score_estime": 72}`;
+
+      // Use Anthropic vision API with image content
+      const visionMessages: any[] = [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: mediaType,
+                data: image_base64,
+              },
+            },
+            {
+              type: "text",
+              text: "Analyse ce screenshot de site web et donne-moi un diagnostic de conversion complet.",
+            },
+          ],
+        },
+      ];
+
+      const visionResult = await callAnthropic({
+        model: getModelForAction("audit"),
+        system: VOICE_PRIORITY + screenshotSystemPrompt,
+        messages: visionMessages,
+        temperature: 0.7,
+        max_tokens: 4096,
+      });
+
+      return new Response(JSON.stringify({ content: visionResult }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
     } else {
       return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
