@@ -131,3 +131,9 @@ verify_jwt = false
 
 [functions.setup-credit-packs]
 verify_jwt = false
+
+[functions.public-calendar]
+verify_jwt = false
+
+[functions.public-calendar-comment]
+verify_jwt = false
