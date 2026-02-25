@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ export default function OfferWorkshopPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const [offer, setOffer] = useState<any>(null);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -144,7 +145,7 @@ export default function OfferWorkshopPage() {
     setAiResponse(null);
     try {
       const res = await supabase.functions.invoke("offer-coaching", {
-        body: { step: stepNum, answer, offerData: { ...offer, ...formData }, brandContext: {} },
+        body: { step: stepNum, answer, offerData: { ...offer, ...formData }, brandContext: {}, workspace_id: workspaceId },
       });
       
       if (res.error) {

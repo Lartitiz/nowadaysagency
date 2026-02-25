@@ -45,7 +45,7 @@ const DEMO_SUGGESTIONS: Suggestion[] = [
   },
 ];
 
-export function useBrandingSuggestions() {
+export function useBrandingSuggestions(workspaceId?: string) {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -72,7 +72,7 @@ export function useBrandingSuggestions() {
 
     try {
       const { data, error } = await supabase.functions.invoke("analyze-branding-impact", {
-        body: { changed_field: field, old_value: oldValue, new_value: newValue },
+        body: { changed_field: field, old_value: oldValue, new_value: newValue, workspace_id: workspaceId },
       });
 
       if (error) throw error;
@@ -90,7 +90,7 @@ export function useBrandingSuggestions() {
       console.error("Impact analysis failed:", e);
     }
     setIsAnalyzing(false);
-  }, [user, isDemoMode]);
+  }, [user, isDemoMode, workspaceId]);
 
   const dismissSuggestions = useCallback(() => {
     setShowSuggestions(false);

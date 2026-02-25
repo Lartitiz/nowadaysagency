@@ -105,7 +105,11 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { site_url, instagram_username, linkedin_url, document_text, free_text } = body;
+    const { site_url, instagram_username, linkedin_url, document_text, free_text, workspace_id } = body;
+
+    // Workspace-aware filtering
+    const filterCol = workspace_id ? "workspace_id" : "user_id";
+    const filterVal = workspace_id || user.id;
 
     // Collect sources
     const sources: Record<string, string> = {};
@@ -130,7 +134,7 @@ Deno.serve(async (req) => {
       const { data: audit } = await sbService
         .from("instagram_audit")
         .select("resume, score_bio, score_global, details, content_analysis, editorial_recommendations")
-        .eq("user_id", user.id)
+        .eq(filterCol, filterVal)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -294,6 +298,7 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
     );
     await sbService.from("branding_audits").insert({
       user_id: user.id,
+      workspace_id: workspace_id || null,
       sources_used: sourcesUsed,
       site_url: site_url || null,
       instagram_username: instagram_username || null,
@@ -312,6 +317,7 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
       .filter((pf: any) => pf.action?.route)
       .map((pf: any, idx: number) => ({
         user_id: user.id,
+        workspace_id: workspace_id || null,
         audit_id: undefined as string | undefined,
         position: idx + 1,
         titre: pf.titre,
@@ -330,14 +336,14 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
     const { data: lastAudit } = await sbService
       .from("branding_audits")
       .select("id")
-      .eq("user_id", user.id)
+      .eq(filterCol, filterVal)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (lastAudit && recommendations.length > 0) {
       // Delete old recommendations for this user
-      await sbService.from("audit_recommendations").delete().eq("user_id", user.id);
+      await sbService.from("audit_recommendations").delete().eq(filterCol, filterVal);
       // Insert new ones
       await sbService.from("audit_recommendations").insert(
         recommendations.map((r: any) => ({ ...r, audit_id: lastAudit.id }))
