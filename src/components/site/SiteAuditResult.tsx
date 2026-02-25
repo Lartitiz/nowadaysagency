@@ -162,13 +162,18 @@ export default function SiteAuditResult({
   const generateAiDiagnostic = async () => {
     setAiLoading(true);
     try {
+      const weakCategories = Object.entries(scoreResult.categories)
+        .filter(([, cat]) => cat.max > 0 && (cat.score / cat.max) < 0.75)
+        .map(([, cat]) => cat.label);
+
       const { data, error } = await supabase.functions.invoke("website-ai", {
         body: {
           action: "audit-diagnostic",
-          auditMode,
+          audit_mode: auditMode,
           scores: scoreResult.categories,
-          scoreGlobal: scoreResult.total,
+          score_global: scoreResult.total,
           answers,
+          weak_categories: weakCategories,
         },
       });
       if (error) throw error;
