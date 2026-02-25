@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
@@ -15,6 +16,7 @@ export default function FeedbackLoop({ content, onUpdate }: FeedbackLoopProps) {
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
   const [previousContent, setPreviousContent] = useState<string | null>(null);
+  const workspaceId = useWorkspaceId();
 
   const { isListening, isSupported, toggle } = useSpeechRecognition((text) => {
     setFeedback((prev) => prev + (prev ? " " : "") + text);
@@ -33,6 +35,7 @@ export default function FeedbackLoop({ content, onUpdate }: FeedbackLoopProps) {
           profile: {},
           content,
           adjustment: feedback,
+          workspace_id: workspaceId,
         },
       });
       if (error) throw error;

@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { friendlyError } from "@/lib/error-messages";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 Mo
 export default function ContentRecycling() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const workspaceId = useWorkspaceId();
   const [source, setSource] = useState("");
   const [selectedFormats, setSelectedFormats] = useState<Record<string, boolean>>(
     Object.fromEntries(FORMATS.map(f => [f.id, f.checked]))
@@ -95,6 +97,7 @@ export default function ContentRecycling() {
           profile: {},
           sourceText: source || undefined,
           formats,
+          workspace_id: workspaceId,
           ...(fileBase64 && fileMimeType ? { fileBase64, fileMimeType } : {}),
         },
       });
