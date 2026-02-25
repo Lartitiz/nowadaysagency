@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ function getPreview(row: StorytellingRow): string {
 
 export default function StorytellingListPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
   const navigate = useNavigate();
   const { isDemoMode, demoData } = useDemoContext();
@@ -78,16 +80,16 @@ export default function StorytellingListPage() {
       return;
     }
     if (!user) return;
-    const { data } = await supabase
-      .from("storytelling")
+    const { data } = await (supabase
+      .from("storytelling") as any)
       .select("id, title, story_type, source, is_primary, step_7_polished, imported_text, pitch_short, created_at, completed")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("created_at", { ascending: false });
     setItems((data as StorytellingRow[]) || []);
     setLoading(false);
   };
 
-  useEffect(() => { fetchItems(); }, [user?.id, isDemoMode]);
+  useEffect(() => { fetchItems(); }, [user?.id, isDemoMode, column, value]);
 
   const setPrimary = async (id: string) => {
     await supabase.from("storytelling").update({ is_primary: true } as any).eq("id", id);
