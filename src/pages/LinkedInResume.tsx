@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import LinkedInPreview from "@/components/linkedin/LinkedInPreview";
 import CharacterCounter from "@/components/linkedin/CharacterCounter";
+import BioHistoryDrawer from "@/components/bio/BioHistoryDrawer";
 
 /* ─── Types ─── */
 interface AnalysisReco {
@@ -90,6 +91,7 @@ export default function LinkedInResume() {
   const [propValue, setPropValue] = useState<string | null>(null);
 
   const [copied, setCopied] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const micPassion = useSpeechRecognition((t) => setPassion((p) => p + " " + t));
   const micParcours = useSpeechRecognition((t) => setParcours((p) => p + " " + t));
@@ -202,6 +204,15 @@ export default function LinkedInResume() {
       const { data } = await supabase.from("linkedin_profile").insert(payload).select("id").single();
       if (data) setProfileId(data.id);
     }
+    // Save to bio history
+    await (supabase.from("bio_versions") as any).insert({
+      user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : null,
+      platform: "linkedin",
+      bio_text: text,
+      source: "generated",
+    });
+
     setSavedResume(text);
     setSavedDate(new Date().toISOString());
     setMode("saved");
@@ -397,6 +408,15 @@ export default function LinkedInResume() {
             </div>
           </div>
         )}
+      <Button variant="ghost" size="sm" className="text-xs text-muted-foreground mt-4" onClick={() => setHistoryOpen(true)}>
+        📜 Voir l'historique de mes résumés
+      </Button>
+      <BioHistoryDrawer
+        platform="linkedin"
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        onReuse={(text) => { setExistingText(text); setMode("existing"); }}
+      />
       </main>
     </div>
   );

@@ -196,6 +196,50 @@ export type Database = {
         }
         Relationships: []
       }
+      bio_versions: {
+        Row: {
+          bio_text: string
+          created_at: string | null
+          id: string
+          platform: string
+          score: number | null
+          source: string | null
+          structure_type: string | null
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          bio_text: string
+          created_at?: string | null
+          id?: string
+          platform?: string
+          score?: number | null
+          source?: string | null
+          structure_type?: string | null
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          bio_text?: string
+          created_at?: string | null
+          id?: string
+          platform?: string
+          score?: number | null
+          source?: string | null
+          structure_type?: string | null
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bio_versions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_charter: {
         Row: {
           ai_generated_brief: string | null

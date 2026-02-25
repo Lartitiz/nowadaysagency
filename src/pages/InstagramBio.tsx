@@ -17,6 +17,7 @@ import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { useDemoContext } from "@/contexts/DemoContext";
 import BioBeforeAfter from "@/components/bio/BioBeforeAfter";
 import CharacterCounter from "@/components/bio/CharacterCounter";
+import BioHistoryDrawer from "@/components/bio/BioHistoryDrawer";
 
 /* ═══════════════════════════════════════════════
    TYPES
@@ -167,6 +168,7 @@ export default function InstagramBio() {
   const [validatedBio, setValidatedBio] = useState<string | null>(null);
   const [validatedAt, setValidatedAt] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // Load profile, branding, and existing validation
   useEffect(() => {
@@ -312,6 +314,17 @@ export default function InstagramBio() {
   const handleValidate = async (bioText: string) => {
     if (!user) return;
     try {
+      // Save to bio history
+      await (supabase.from("bio_versions") as any).insert({
+        user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : null,
+        platform: "instagram",
+        bio_text: bioText,
+        score: bioAnalysis?.score || null,
+        structure_type: bioStructure || null,
+        source: "generated",
+      });
+
       await supabase.from("audit_validations").upsert({
         user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
@@ -412,6 +425,9 @@ export default function InstagramBio() {
                 </Button>
               </div>
             </div>
+            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => setHistoryOpen(true)}>
+              📜 Voir l'historique de mes bios
+            </Button>
           </div>
         )}
 
@@ -508,6 +524,9 @@ export default function InstagramBio() {
                 <AiGeneratedMention />
               </div>
             )}
+            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => setHistoryOpen(true)}>
+              📜 Voir l'historique de mes bios
+            </Button>
           </div>
         )}
 
@@ -918,6 +937,12 @@ export default function InstagramBio() {
             </p>
           </div>
         )}
+      <BioHistoryDrawer
+        platform="instagram"
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        onReuse={(text) => { setCurrentBioText(text); setView("audit"); }}
+      />
       </main>
     </div>
   );
