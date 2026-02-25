@@ -123,6 +123,7 @@ const LinkedInCrosspost = lazy(() => import("./pages/LinkedInCrosspost"));
 const CheckoutBinomePage = lazy(() => import("./pages/CheckoutBinomePage"));
 const InvitePage = lazy(() => import("./pages/InvitePage"));
 const SharedBrandingPage = lazy(() => import("./pages/SharedBrandingPage"));
+const SharedCalendarPage = lazy(() => import("./pages/SharedCalendarPage"));
 const VoiceGuidePage = lazy(() => import("./pages/VoiceGuidePage"));
 const BrandCharterPage = lazy(() => import("./pages/BrandCharterPage"));
 
@@ -151,7 +152,7 @@ const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilo
 
 function AnimatedRoutes() {
   const location = useLocation();
-  const showAppWidgets = !PUBLIC_PATHS.includes(location.pathname) && !location.pathname.startsWith("/invite/") && !location.pathname.startsWith("/share/");
+  const showAppWidgets = !PUBLIC_PATHS.includes(location.pathname) && !location.pathname.startsWith("/invite/") && !location.pathname.startsWith("/share/") && !location.pathname.startsWith("/calendrier/partage/");
 
   return (
     <>
@@ -229,6 +230,7 @@ function AnimatedRoutes() {
               <Route path="/payment/success" element={<PaymentSuccessPage />} />
               <Route path="/invite/:token" element={<InvitePage />} />
               <Route path="/share/branding/:token" element={<SharedBrandingPage />} />
+              <Route path="/calendrier/partage/:token" element={<SharedCalendarPage />} />
               {/* Instagram module */}
               <Route path="/instagram" element={<ProtectedRoute><InstagramHub /></ProtectedRoute>} />
               <Route path="/instagram/profil" element={<ProtectedRoute><InstagramProfile /></ProtectedRoute>} />
