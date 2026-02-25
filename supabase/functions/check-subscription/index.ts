@@ -23,6 +23,39 @@ serve(async (req) => {
 
     const userId = userData.user.id;
 
+    // Check admin role
+    const { data: roleRow } = await supabaseClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const isAdmin = roleRow?.role === "admin";
+
+    if (isAdmin) {
+      // Admin gets unlimited access
+      const unlimitedUsage: Record<string, { used: number; limit: number }> = {};
+      for (const cat of Object.keys(PLAN_LIMITS.now_pilot)) {
+        if (cat === "total") continue;
+        unlimitedUsage[cat] = { used: 0, limit: 9999 };
+      }
+      unlimitedUsage.total = { used: 0, limit: 9999 };
+
+      return new Response(JSON.stringify({
+        plan: "now_pilot",
+        status: "active",
+        current_period_end: null,
+        studio_months_paid: 0,
+        studio_end_date: null,
+        cancel_at: null,
+        source: "admin",
+        purchases: [],
+        ai_usage: unlimitedUsage,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
     const { data: sub } = await supabaseClient
       .from("subscriptions")
       .select("*")

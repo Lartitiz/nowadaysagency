@@ -5,8 +5,6 @@ import { useNavigate } from "react-router-dom";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { posthog } from "@/lib/posthog";
 
-const ADMIN_EMAILS = ["laetitia@nowadaysagency.com"];
-
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -24,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const lastHiddenAt = useRef<number>(0);
 
@@ -220,7 +219,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, []);
 
-  const isAdmin = ADMIN_EMAILS.includes(user?.email || "");
+  // Fetch admin role when user changes
+  useEffect(() => {
+    if (isDemoMode || !user) {
+      setIsAdmin(false);
+      return;
+    }
+    supabase.from("user_roles").select("role").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+      setIsAdmin(data?.role === "admin");
+    });
+  }, [user?.id, isDemoMode]);
 
   // Memoize the context value to prevent unnecessary re-renders of all consumers
   const value = useMemo<AuthContextType>(
