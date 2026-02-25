@@ -303,7 +303,7 @@ export default function SettingsPage() {
               </ul>
             </div>
             <p className="text-muted-foreground">Tes données sont utilisées uniquement pour personnaliser les générations dans l'app. Elles ne sont pas partagées avec des tiers.</p>
-            <Link to="/legal-ia" className="text-primary text-xs font-medium hover:underline">En savoir plus →</Link>
+            <Link to="/legal-ia" className="text-primary text-xs font-medium hover:underline">Nos engagements →</Link>
           </div>
         </Section>
 
