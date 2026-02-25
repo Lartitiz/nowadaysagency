@@ -140,3 +140,6 @@ verify_jwt = false
 
 [functions.audit-site-auto]
 verify_jwt = false
+
+[functions.optimize-sales-page]
+verify_jwt = false
