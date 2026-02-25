@@ -1,7 +1,9 @@
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const SECTION_TYPES = [
   { id: "hero", emoji: "🚀", title: "Section Hero", desc: "Titre + sous-titre + CTA + image", popular: true },
@@ -17,6 +19,22 @@ const SECTION_TYPES = [
 
 export default function SiteInspirationsPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const highlightedSection = searchParams.get("section");
+  const cardRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  useEffect(() => {
+    if (!highlightedSection) return;
+    const el = cardRefs.current[highlightedSection];
+    if (el) {
+      // Small delay to ensure layout is ready
+      setTimeout(() => {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("animate-pulse");
+        setTimeout(() => el.classList.remove("animate-pulse"), 2000);
+      }, 150);
+    }
+  }, [highlightedSection]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -39,8 +57,14 @@ export default function SiteInspirationsPage() {
           {SECTION_TYPES.map((section) => (
             <button
               key={section.id}
+              ref={(el) => { cardRefs.current[section.id] = el; }}
               onClick={() => navigate(`/site/inspirations/${section.id}`)}
-              className="rounded-2xl border border-border bg-card p-5 text-left hover:border-primary/40 hover:shadow-sm transition-all group space-y-2"
+              className={cn(
+                "rounded-2xl border bg-card p-5 text-left hover:border-primary/40 hover:shadow-sm transition-all group space-y-2",
+                highlightedSection === section.id
+                  ? "border-primary shadow-sm ring-2 ring-primary/20"
+                  : "border-border"
+              )}
             >
               <div className="flex items-center gap-2">
                 <span className="text-2xl">{section.emoji}</span>
