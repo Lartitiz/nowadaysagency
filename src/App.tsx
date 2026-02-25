@@ -120,6 +120,7 @@ const LinkedInPostGenerator = lazy(() => import("./pages/LinkedInPostGenerator")
 const LinkedInCommentStrategy = lazy(() => import("./pages/LinkedInCommentStrategy"));
 const LinkedInCrosspost = lazy(() => import("./pages/LinkedInCrosspost"));
 
+const CheckoutBinomePage = lazy(() => import("./pages/CheckoutBinomePage"));
 const InvitePage = lazy(() => import("./pages/InvitePage"));
 const SharedBrandingPage = lazy(() => import("./pages/SharedBrandingPage"));
 const VoiceGuidePage = lazy(() => import("./pages/VoiceGuidePage"));
@@ -146,7 +147,7 @@ const SuspenseFallback = () => (
   </div>
 );
 
-const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilot", "/pricing", "/services", "/studio/discover", "/share/branding"];
+const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilot", "/pricing", "/services", "/studio/discover", "/share/branding", "/checkout/binome"];
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -224,6 +225,7 @@ function AnimatedRoutes() {
               <Route path="/admin/analytics" element={<Navigate to="/admin/coaching" replace />} />
               <Route path="/now-pilot" element={<NowPilotPage />} />
               <Route path="/legal-ia" element={<ProtectedRoute><LegalAiPage /></ProtectedRoute>} />
+              <Route path="/checkout/binome" element={<CheckoutBinomePage />} />
               <Route path="/payment/success" element={<PaymentSuccessPage />} />
               <Route path="/invite/:token" element={<InvitePage />} />
               <Route path="/share/branding/:token" element={<SharedBrandingPage />} />
