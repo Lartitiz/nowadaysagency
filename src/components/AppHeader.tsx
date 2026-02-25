@@ -59,7 +59,7 @@ export default function AppHeader() {
 
 function AppHeaderInner() {
   const { activeWorkspace, workspaces, isMultiWorkspace, switchWorkspace, activeRole } = useWorkspace();
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const { plan, usage, isPilot } = useUserPlan();
@@ -68,7 +68,7 @@ function AppHeaderInner() {
   const [hasCoaching, setHasCoaching] = useState(false);
   const [coachingMonth, setCoachingMonth] = useState<number | null>(null);
   const [coachingPhase, setCoachingPhase] = useState<string | null>(null);
-  const isAdmin = user?.email === "laetitia@nowadaysagency.com";
+  
 
   // Check if user has an active coaching program
   useEffect(() => {

@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProgramWithProfile, SessionData } from "@/components/admin/admin-coaching-types";
 
 export default function AdminCoachingPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { workspaces } = useWorkspace();
   const [programs, setPrograms] = useState<ProgramWithProfile[]>([]);
   const [sessions, setSessions] = useState<SessionData[]>([]);
@@ -22,7 +22,7 @@ export default function AdminCoachingPage() {
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
   const [standaloneWorkspaces, setStandaloneWorkspaces] = useState<Workspace[]>([]);
 
-  const isAdmin = user?.email === "laetitia@nowadaysagency.com";
+  
 
   const loadData = useCallback(async () => {
     if (!isAdmin || !user?.id) return;
