@@ -6,11 +6,16 @@ import {
   TYPE_SHORT_LABELS,
   CATEGORY_LABELS,
 } from "@/lib/calendar-helpers";
+import { ChevronRight, Sparkles, Copy, Trash2 } from "lucide-react";
 
 interface Props {
   post: CalendarPost;
   onClick: () => void;
   variant?: "compact" | "detailed";
+  onQuickStatusChange?: (postId: string, newStatus: string) => void;
+  onQuickDuplicate?: (post: CalendarPost) => void;
+  onQuickDelete?: (postId: string) => void;
+  onQuickGenerate?: (post: CalendarPost) => void;
 }
 
 function isStoriesPost(post: CalendarPost): boolean {
@@ -41,7 +46,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 /** Compact category-colored content card for calendar cells */
-export function CalendarContentCard({ post, onClick, variant = "compact" }: Props) {
+export function CalendarContentCard({ post, onClick, variant = "compact", onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate }: Props) {
   const isStories = isStoriesPost(post);
   const isReel = isReelPost(post);
   const cat = isStories
@@ -72,13 +77,72 @@ export function CalendarContentCard({ post, onClick, variant = "compact" }: Prop
 
     return (
       <button onClick={onClick}
-        className="w-full text-left rounded-lg border px-2.5 py-2 transition-shadow hover:shadow-sm cursor-pointer mb-1.5"
+        className="w-full text-left rounded-lg border px-2.5 py-2 transition-shadow hover:shadow-sm cursor-pointer mb-1.5 group/card relative"
         style={{
           backgroundColor: colors.bg,
           borderLeftWidth: "3px", borderLeftColor: colors.borderLeft,
           borderColor: `${colors.borderLeft}33`,
           borderLeftStyle: post.status === "a_rediger" || post.status === "idea" ? "dashed" : "solid",
         }}>
+        {/* Quick actions — visible au hover */}
+        {(onQuickStatusChange || onQuickDuplicate || onQuickDelete || onQuickGenerate) && (
+          <div
+            className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150 z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {onQuickStatusChange && post.status !== "published" && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const order = ["idea", "a_rediger", "drafting", "ready", "published"];
+                  const currentIdx = order.indexOf(post.status);
+                  const nextStatus = order[Math.min(currentIdx + 1, order.length - 1)];
+                  onQuickStatusChange(post.id, nextStatus);
+                }}
+                className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-primary/10 hover:border-primary/30 text-muted-foreground hover:text-primary transition-colors"
+                title="Avancer le statut"
+              >
+                <ChevronRight className="h-3 w-3" />
+              </button>
+            )}
+            {onQuickGenerate && (post.status === "idea" || post.status === "a_rediger") && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickGenerate(post);
+                }}
+                className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-primary/10 hover:border-primary/30 text-muted-foreground hover:text-primary transition-colors"
+                title="Générer avec l'IA"
+              >
+                <Sparkles className="h-3 w-3" />
+              </button>
+            )}
+            {onQuickDuplicate && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickDuplicate(post);
+                }}
+                className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-accent hover:border-border text-muted-foreground hover:text-foreground transition-colors"
+                title="Dupliquer"
+              >
+                <Copy className="h-3 w-3" />
+              </button>
+            )}
+            {onQuickDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickDelete(post.id);
+                }}
+                className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-destructive/10 hover:border-destructive/30 text-muted-foreground hover:text-destructive transition-colors"
+                title="Supprimer"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        )}
         <div className="flex items-center justify-between mb-0.5">
           {isLaunch && <span className="text-[10px]">🚀</span>}
           <StatusBadge status={post.status} />
