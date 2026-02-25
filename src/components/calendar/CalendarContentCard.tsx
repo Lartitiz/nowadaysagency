@@ -1,12 +1,14 @@
 import { type CalendarPost } from "@/lib/calendar-constants";
 import {
-  CATEGORY_CARD_COLORS,
+  OBJECTIVE_CARD_COLORS,
+  STATUS_BORDER_STYLE,
   FORMAT_EMOJIS,
   FORMAT_LABELS,
   TYPE_SHORT_LABELS,
   CATEGORY_LABELS,
 } from "@/lib/calendar-helpers";
 import { ChevronRight, Sparkles, Copy, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Props {
   post: CalendarPost;
@@ -26,16 +28,22 @@ function isReelPost(post: CalendarPost): boolean {
   return post.format === "reel";
 }
 
+/** Resolve objective key for color mapping */
+function getObjectifKey(post: CalendarPost): string {
+  if (isStoriesPost(post)) return "stories";
+  return post.objectif || post.category || "default";
+}
+
 /** Status badge */
 function StatusBadge({ status }: { status: string }) {
-  const configs: Record<string, { icon: string; label: string; bg: string; text: string }> = {
-    idea: { icon: "💡", label: "Idée", bg: "bg-muted", text: "text-muted-foreground" },
-    a_rediger: { icon: "📝", label: "Planifié", bg: "bg-blue-50", text: "text-blue-700" },
-    planned: { icon: "📝", label: "Planifié", bg: "bg-blue-50", text: "text-blue-700" },
-    drafting: { icon: "✏️", label: "En cours", bg: "bg-amber-50", text: "text-amber-700" },
-    draft_ready: { icon: "✅", label: "Rédigé", bg: "bg-green-50", text: "text-green-700" },
-    ready: { icon: "✅", label: "Rédigé", bg: "bg-green-50", text: "text-green-700" },
-    published: { icon: "🟢", label: "Publié", bg: "bg-emerald-50", text: "text-emerald-800" },
+  const configs: Record<string, { icon: string; bg: string; text: string }> = {
+    idea: { icon: "💡", bg: "bg-muted", text: "text-muted-foreground" },
+    a_rediger: { icon: "📝", bg: "bg-blue-50", text: "text-blue-700" },
+    planned: { icon: "📝", bg: "bg-blue-50", text: "text-blue-700" },
+    drafting: { icon: "✏️", bg: "bg-amber-50", text: "text-amber-700" },
+    draft_ready: { icon: "✅", bg: "bg-green-50", text: "text-green-700" },
+    ready: { icon: "✅", bg: "bg-green-50", text: "text-green-700" },
+    published: { icon: "🟢", bg: "bg-emerald-50", text: "text-emerald-800" },
   };
   const c = configs[status] || configs.idea;
   return (
@@ -49,13 +57,11 @@ function StatusBadge({ status }: { status: string }) {
 export function CalendarContentCard({ post, onClick, variant = "compact", onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate }: Props) {
   const isStories = isStoriesPost(post);
   const isReel = isReelPost(post);
-  const cat = isStories
-    ? "stories"
-    : isReel ? "visibilite"
-      : post.category || (post.objectif === "vente" ? "vente" : post.objectif === "visibilite" ? "visibilite" : "confiance");
-  const colors = isReel
-    ? { bg: "hsl(217, 91%, 96%)", borderLeft: "hsl(217, 91%, 60%)" }
-    : CATEGORY_CARD_COLORS[cat] || CATEGORY_CARD_COLORS.confiance;
+
+  // Unified color system: 1 color = 1 objective
+  const objectifKey = getObjectifKey(post);
+  const colors = OBJECTIVE_CARD_COLORS[objectifKey] || OBJECTIVE_CARD_COLORS.default;
+  const borderStyle = STATUS_BORDER_STYLE[post.status] || STATUS_BORDER_STYLE.idea;
 
   const typeLabel = post.content_type ? (TYPE_SHORT_LABELS[post.content_type] || post.content_type) : null;
   const typeEmoji = post.content_type_emoji || "";
@@ -65,6 +71,14 @@ export function CalendarContentCard({ post, onClick, variant = "compact", onQuic
   const isLaunch = !!post.launch_id;
   const hasTypeInfo = !!typeLabel;
 
+  const cardStyle = {
+    backgroundColor: colors.bg,
+    borderLeftWidth: "3px",
+    borderLeftColor: colors.borderLeft,
+    borderLeftStyle: borderStyle.style as any,
+    borderColor: `${colors.borderLeft}22`,
+  };
+
   const timingSummary = post.stories_timing
     ? Object.entries(post.stories_timing).map(([k, v]) => {
         const emoji = k === "matin" ? "🌅" : k === "midi" ? "☀️" : "🌙";
@@ -73,17 +87,15 @@ export function CalendarContentCard({ post, onClick, variant = "compact", onQuic
     : [];
 
   if (variant === "detailed") {
-    const catInfo = isStories ? { emoji: "📱", label: "Stories" } : CATEGORY_LABELS[cat];
+    const catInfo = isStories ? { emoji: "📱", label: "Stories" } : CATEGORY_LABELS[objectifKey];
 
     return (
       <button onClick={onClick}
-        className="w-full text-left rounded-lg border px-2.5 py-2 transition-shadow hover:shadow-sm cursor-pointer mb-1.5 group/card relative"
-        style={{
-          backgroundColor: colors.bg,
-          borderLeftWidth: "3px", borderLeftColor: colors.borderLeft,
-          borderColor: `${colors.borderLeft}33`,
-          borderLeftStyle: post.status === "a_rediger" || post.status === "idea" ? "dashed" : "solid",
-        }}>
+        className={cn(
+          "w-full text-left rounded-lg border px-2.5 py-2 transition-shadow hover:shadow-sm cursor-pointer mb-1.5 group/card relative",
+          post.status === "published" && "opacity-70",
+        )}
+        style={cardStyle}>
         {/* Quick actions — visible au hover */}
         {(onQuickStatusChange || onQuickDuplicate || onQuickDelete || onQuickGenerate) && (
           <div
@@ -149,7 +161,9 @@ export function CalendarContentCard({ post, onClick, variant = "compact", onQuic
         </div>
         {isStories ? (
           <>
-            <p className="font-medium text-foreground truncate text-xs">📱 Stories · {post.stories_structure || post.theme}</p>
+            <p className={cn("font-medium text-foreground truncate text-xs", post.status === "published" && "line-through")}>
+              📱 Stories · {post.stories_structure || post.theme}
+            </p>
             <p className="text-muted-foreground truncate text-[10px] mt-0.5">{post.stories_count || "?"} stories · {post.stories_objective || ""}</p>
             {timingSummary.length > 0 && (
               <div className="mt-1 space-y-0">{timingSummary.map((t, i) => (
@@ -159,7 +173,9 @@ export function CalendarContentCard({ post, onClick, variant = "compact", onQuic
           </>
         ) : (
           <>
-            <p className="font-medium text-foreground truncate text-xs">{hasTypeInfo ? `${typeEmoji} ${typeLabel}` : post.theme}</p>
+            <p className={cn("font-medium text-foreground truncate text-xs", post.status === "published" && "line-through")}>
+              {hasTypeInfo ? `${typeEmoji} ${typeLabel}` : post.theme}
+            </p>
             <p className="text-muted-foreground truncate text-[10px] mt-0.5">
               {formatEmoji && formatLabel ? `${formatEmoji} ${formatLabel}` : ""}
               {catInfo ? ` · ${catInfo.emoji} ${catInfo.label}` : ""}
@@ -179,24 +195,26 @@ export function CalendarContentCard({ post, onClick, variant = "compact", onQuic
   // Compact variant (month view)
   return (
     <button onClick={onClick}
-      className="w-full text-left rounded-md border px-1.5 py-1 transition-shadow hover:shadow-sm cursor-pointer mb-0.5"
-      style={{
-        backgroundColor: colors.bg,
-        borderLeftWidth: "3px", borderLeftColor: colors.borderLeft,
-        borderColor: `${colors.borderLeft}22`,
-        borderLeftStyle: post.status === "a_rediger" || post.status === "idea" ? "dashed" : "solid",
-      }}>
+      className={cn(
+        "w-full text-left rounded-md border px-1.5 py-1 transition-shadow hover:shadow-sm cursor-pointer mb-0.5",
+        post.status === "published" && "opacity-70",
+      )}
+      style={cardStyle}>
       <div className="flex items-center justify-between">
         {isLaunch && <span className="text-[9px] leading-none">🚀</span>}
         <StatusBadge status={post.status} />
       </div>
       {isReel ? (
-        <p className="font-medium text-foreground truncate text-[11px] leading-tight">🎬 {post.theme}</p>
+        <p className={cn("font-medium text-foreground truncate text-[11px] leading-tight", post.status === "published" && "line-through")}>
+          🎬 {post.theme}
+        </p>
       ) : isStories ? (
-        <p className="font-medium text-foreground truncate text-[11px] leading-tight">📱 {post.stories_count || ""} stories</p>
+        <p className={cn("font-medium text-foreground truncate text-[11px] leading-tight", post.status === "published" && "line-through")}>
+          📱 {post.stories_count || ""} stories
+        </p>
       ) : (
         <>
-          <p className="font-medium text-foreground truncate text-[11px] leading-tight">
+          <p className={cn("font-medium text-foreground truncate text-[11px] leading-tight", post.status === "published" && "line-through")}>
             {hasTypeInfo ? `${typeEmoji} ${typeLabel}` : post.theme}
           </p>
           {(formatEmoji || !hasTypeInfo) && (

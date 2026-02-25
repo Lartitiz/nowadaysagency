@@ -1,11 +1,32 @@
 // ── Calendar display helpers ──
 
+/** @deprecated Use OBJECTIVE_CARD_COLORS instead */
 export const CATEGORY_CARD_COLORS: Record<string, { bg: string; borderLeft: string }> = {
-  visibilite: { bg: "hsl(340, 100%, 97%)", borderLeft: "hsl(338, 96%, 61%)" },
-  confiance: { bg: "hsl(271, 81%, 96%)", borderLeft: "hsl(271, 81%, 56%)" },
-  vente: { bg: "hsl(45, 100%, 94%)", borderLeft: "hsl(38, 92%, 50%)" },
-  post_lancement: { bg: "hsl(142, 76%, 94%)", borderLeft: "hsl(142, 71%, 45%)" },
-  stories: { bg: "hsl(263, 70%, 96%)", borderLeft: "hsl(263, 70%, 50%)" },
+  visibilite: { bg: "hsl(210, 100%, 96%)", borderLeft: "hsl(210, 80%, 55%)" },
+  confiance: { bg: "hsl(142, 76%, 95%)", borderLeft: "hsl(142, 60%, 45%)" },
+  vente: { bg: "hsl(25, 100%, 96%)", borderLeft: "hsl(25, 95%, 55%)" },
+  post_lancement: { bg: "hsl(142, 76%, 95%)", borderLeft: "hsl(142, 60%, 45%)" },
+  stories: { bg: "hsl(340, 80%, 96%)", borderLeft: "hsl(340, 80%, 55%)" },
+};
+
+/** Couleurs par OBJECTIF (fond + bordure gauche) */
+export const OBJECTIVE_CARD_COLORS: Record<string, { bg: string; borderLeft: string; text: string }> = {
+  visibilite:  { bg: "hsl(210, 100%, 96%)", borderLeft: "hsl(210, 80%, 55%)", text: "hsl(210, 80%, 35%)" },
+  confiance:   { bg: "hsl(142, 76%, 95%)",  borderLeft: "hsl(142, 60%, 45%)", text: "hsl(142, 60%, 30%)" },
+  vente:       { bg: "hsl(25, 100%, 96%)",  borderLeft: "hsl(25, 95%, 55%)",  text: "hsl(25, 95%, 35%)" },
+  credibilite: { bg: "hsl(270, 80%, 96%)",  borderLeft: "hsl(270, 60%, 55%)", text: "hsl(270, 60%, 35%)" },
+  stories:     { bg: "hsl(340, 80%, 96%)",  borderLeft: "hsl(340, 80%, 55%)", text: "hsl(340, 80%, 35%)" },
+  default:     { bg: "hsl(0, 0%, 97%)",     borderLeft: "hsl(0, 0%, 65%)",    text: "hsl(0, 0%, 40%)" },
+};
+
+/** Style de border-left par STATUT */
+export const STATUS_BORDER_STYLE: Record<string, { style: string; opacity: string }> = {
+  idea:      { style: "dotted", opacity: "0.5" },
+  a_rediger: { style: "dashed", opacity: "0.7" },
+  drafting:  { style: "dashed", opacity: "1" },
+  ready:     { style: "solid",  opacity: "1" },
+  draft_ready: { style: "solid", opacity: "1" },
+  published: { style: "solid",  opacity: "1" },
 };
 
 export const FORMAT_EMOJIS: Record<string, string> = {
