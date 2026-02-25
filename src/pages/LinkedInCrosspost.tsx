@@ -289,7 +289,14 @@ export default function LinkedInCrosspost() {
                       )}
                       <p className="text-xs text-primary mt-1">💡 Angle choisi : {version.angle_choisi}</p>
                     </div>
-                    <RedFlagsChecker content={text} onFix={() => {}} />
+                    <RedFlagsChecker content={text} onFix={(fixed) => {
+                      if (!result) return;
+                      const updatedVersions = { ...result.versions };
+                      const version = updatedVersions[key];
+                      if (version.full_text) updatedVersions[key] = { ...version, full_text: fixed };
+                      else if (version.script) updatedVersions[key] = { ...version, script: fixed };
+                      setResult({ ...result, versions: updatedVersions });
+                    }} />
                     <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={() => handleCopy(text, key)} className="rounded-full gap-1.5">
                         {copied === key ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
