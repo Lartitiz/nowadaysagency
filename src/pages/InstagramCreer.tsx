@@ -117,7 +117,7 @@ export default function InstagramCreer() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-2xl px-4 py-8 animate-fade-in">
-        <SubPageHeader parentLabel="Dashboard" parentTo="/dashboard" currentLabel="Créer un contenu" />
+        <SubPageHeader parentLabel="Dashboard" parentTo="/dashboard" currentLabel="Créer un contenu" useFromParam />
 
         <div className="mb-8">
           <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground">✨ Créer un contenu</h1>

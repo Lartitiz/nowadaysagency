@@ -492,7 +492,7 @@ export default function InstagramProfileEdito() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Ligne éditoriale" />
+        <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Ligne éditoriale" useFromParam />
 
         <h1 className="font-display text-[26px] font-bold text-foreground">📊 Ma ligne éditoriale</h1>
         <p className="mt-2 text-sm text-muted-foreground mb-8">

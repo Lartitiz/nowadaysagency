@@ -267,7 +267,7 @@ export default function StorytellingPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Mes storytellings" parentTo="/branding/storytelling" currentLabel="Rédiger" />
+        <SubPageHeader parentLabel="Mes storytellings" parentTo="/branding/storytelling" currentLabel="Rédiger" useFromParam />
         <AuditRecommendationBanner />
 
         <h1 className="font-display text-[26px] font-bold text-foreground mb-1">Ton histoire</h1>
