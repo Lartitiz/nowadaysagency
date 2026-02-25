@@ -395,7 +395,11 @@ export default function Dashboard() {
             <SessionFocusWidget
               brandingCompletion={dashData.brandingCompletion}
               igAuditScore={dashData.igAuditScore}
-              calendarPostCount={dashData.weekPostsTotal}
+              liAuditScore={dashData.liAuditScore}
+              calendarPostCount={dashData.calendarPostCount}
+              weekPostsPublished={dashData.weekPostsPublished}
+              weekPostsTotal={dashData.weekPostsTotal}
+              contactCount={dashData.contactCount}
               animationDelay={nextDelay()}
             />
           </div>
