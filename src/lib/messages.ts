@@ -29,8 +29,8 @@ export const MESSAGES = {
       body: "Ça arrive même aux meilleur·es. Relance la génération.",
     },
     ai_credits_empty: {
-      title: "Plus de crédits ce mois-ci",
-      body: "Tes crédits se renouvellent le 1er du mois. En attendant, tu peux acheter un pack.",
+      title: "Tes crédits du mois sont utilisés",
+      body: "Bonne nouvelle : ça veut dire que tu avances. Ils reviennent le 1er du mois. Et si tu veux continuer maintenant, tu peux ajouter un petit pack sans engagement.",
     },
     not_found: {
       title: "Page introuvable",
