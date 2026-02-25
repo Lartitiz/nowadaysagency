@@ -96,7 +96,7 @@ serve(async (req) => {
       );
     }
     const body = await req.json();
-    const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt } = body;
+    const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt } = body;
 
     let systemPrompt = "";
     let userPrompt = "";
@@ -105,6 +105,14 @@ serve(async (req) => {
     if (type === "raw") {
       systemPrompt = `${CORE_PRINCIPLES}`;
       userPrompt = rawPrompt || "";
+    } else if (type === "playground") {
+      // Playground: use branding context + user-provided prompt
+      const ctx = await getUserContext(supabase, user.id);
+      const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
+      const profileBlock = buildProfileBlock(profile || {});
+      const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "");
+      systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nIMPORTANT :\n- Utilise le ton, le vocabulaire et le style de l'utilisatrice\n- Le contenu doit sonner authentique, pas IA\n- Respecte les expressions interdites\n- Sois concise et actionnable`;
+      userPrompt = playground_prompt || rawPrompt || "";
     } else {
       const canalLabel = canal === "linkedin" ? "LinkedIn" : canal === "blog" ? "un article de blog" : canal === "pinterest" ? "Pinterest" : "Instagram";
       const profileBlock = buildProfileBlock(profile || {});

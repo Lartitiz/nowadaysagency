@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClipboardList, MessageSquare, Sparkles, History, FileText, ArrowLeft, FileDown } from "lucide-react";
+import ContentPlayground from "@/components/branding/ContentPlayground";
 import SynthesisRenderer from "@/components/branding/SynthesisRenderer";
 import EditableField from "@/components/branding/EditableField";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
@@ -482,7 +483,10 @@ export default function BrandingSectionPage() {
         </Tabs>
 
         {completionPct >= 80 && (
-          <BrandingActionCTA section={section} />
+          <>
+            <BrandingActionCTA section={section} />
+            <ContentPlayground section={section} />
+          </>
         )}
       </main>
     </div>
