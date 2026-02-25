@@ -67,7 +67,7 @@ export default function InstagramCreer() {
 
   const handleFormatClick = (format: FormatOption) => {
     if (format.comingSoon) return;
-    console.log("Navigating to:", format.route);
+    
     navigate(format.route);
   };
 
