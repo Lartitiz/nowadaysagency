@@ -18,6 +18,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import { SECTOR_PALETTES, ACTIVITY_TO_SECTOR, DEFAULT_SECTOR } from "@/lib/charter-palettes";
+import { FONT_COMBOS } from "@/lib/charter-fonts";
 
 const GOOGLE_FONTS = [
   "Inter", "Poppins", "Montserrat", "Playfair Display", "Libre Baskerville",
@@ -128,22 +129,29 @@ export default function BrandCharterPage() {
   const [auditDialogOpen, setAuditDialogOpen] = useState(false);
   const [userSector, setUserSector] = useState<string>(DEFAULT_SECTOR);
   const [allPalettesOpen, setAllPalettesOpen] = useState(false);
-
-  // Load user sector from profile
+  const [toneKeywords, setToneKeywords] = useState<string[]>([]);
+  // Load user sector + tone from profile/brand_profile
   useEffect(() => {
     if (!user) return;
-    const loadSector = async () => {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("type_activite")
-        .eq("user_id", user.id)
-        .maybeSingle();
+    const loadMeta = async () => {
+      const [{ data: profile }, { data: bp }] = await Promise.all([
+        supabase.from("profiles").select("type_activite").eq("user_id", user.id).maybeSingle(),
+        (supabase.from("brand_profile") as any).select("tone_register, tone_style, tone_humor, tone_keywords").eq("user_id", user.id).maybeSingle(),
+      ]);
       if (profile?.type_activite) {
-        const mapped = ACTIVITY_TO_SECTOR[profile.type_activite] || DEFAULT_SECTOR;
-        setUserSector(mapped);
+        setUserSector(ACTIVITY_TO_SECTOR[profile.type_activite] || DEFAULT_SECTOR);
       }
+      // Collect tone words for font matching
+      const words: string[] = [];
+      if (bp?.tone_register) words.push(bp.tone_register.toLowerCase());
+      if (bp?.tone_style) words.push(bp.tone_style.toLowerCase());
+      if (bp?.tone_humor) words.push(bp.tone_humor.toLowerCase());
+      if (Array.isArray(bp?.tone_keywords)) {
+        words.push(...bp.tone_keywords.map((k: string) => k.toLowerCase()));
+      }
+      setToneKeywords(words);
     };
-    loadSector();
+    loadMeta();
   }, [user?.id]);
 
   // Load fonts on data change
@@ -616,9 +624,63 @@ export default function BrandCharterPage() {
                 </div>
               ))}
             </div>
-          </section>
 
-          {/* SECTION 4: Style visuel */}
+            {/* Font combo suggestions */}
+            <div className="mt-5 pt-5 border-t border-border">
+              <h3 className="text-sm font-semibold text-foreground mb-1">💡 Combinaisons typographiques suggérées</h3>
+              {toneKeywords.length === 0 ? (
+                <p className="text-xs text-muted-foreground mb-3">
+                  Remplis ta section <a href="/branding/voice" className="text-primary hover:underline">Ma voix & mes combats</a> pour des suggestions personnalisées.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground mb-3">Basées sur ton style de voix</p>
+              )}
+              <div className="space-y-2">
+                {(() => {
+                  // Score and sort combos by tone match
+                  const scored = FONT_COMBOS.map(combo => {
+                    const score = toneKeywords.length > 0
+                      ? combo.tone_match.filter(t => toneKeywords.some(tk => tk.includes(t) || t.includes(tk))).length
+                      : 0;
+                    return { ...combo, score };
+                  });
+                  const sorted = [...scored].sort((a, b) => b.score - a.score);
+                  const toShow = toneKeywords.length > 0 ? sorted.slice(0, 3) : sorted;
+
+                  // Load fonts for displayed combos
+                  toShow.forEach(c => { loadGoogleFont(c.title); loadGoogleFont(c.body); });
+
+                  return toShow.map(combo => (
+                    <button
+                      key={combo.name}
+                      onClick={() => {
+                        update("font_title", combo.title);
+                        update("font_body", combo.body);
+                        loadGoogleFont(combo.title);
+                        loadGoogleFont(combo.body);
+                        toast.success(`Combo "${combo.name}" appliqué !`);
+                      }}
+                      className="w-full rounded-xl border border-border hover:border-primary/50 bg-background p-4 text-left transition-all hover:shadow-sm"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-foreground">{combo.name}</span>
+                        {combo.score > 0 && (
+                          <span className="text-[10px] text-primary font-medium">✦ Recommandé</span>
+                        )}
+                      </div>
+                      <p style={{ fontFamily: `'${combo.title}', serif`, fontWeight: 700 }} className="text-base text-foreground leading-tight mb-1">
+                        Voici un titre d'exemple
+                      </p>
+                      <p style={{ fontFamily: `'${combo.body}', sans-serif` }} className="text-sm text-muted-foreground leading-snug mb-2">
+                        Et voici le corps de texte pour voir le contraste entre les deux polices.
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">{combo.description}</p>
+                    </button>
+                  ));
+                })()}
+              </div>
+            </div>
+          </section>
           <section className="rounded-2xl border border-border bg-card p-5">
             <h2 className="font-display text-base font-bold text-foreground mb-4">✨ Mon style visuel</h2>
             <p className="text-xs text-muted-foreground mb-3">Choisis 3 à 5 mots-clés qui définissent ton univers visuel :</p>
