@@ -225,8 +225,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAdmin(false);
       return;
     }
-    supabase.from("user_roles").select("role").eq("user_id", user.id).maybeSingle().then(({ data }) => {
-      setIsAdmin(data?.role === "admin");
+    supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle().then(({ data }) => {
+      setIsAdmin(!!data);
     });
   }, [user?.id, isDemoMode]);
 
