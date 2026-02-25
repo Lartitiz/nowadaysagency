@@ -577,7 +577,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
         )}
 
         {/* ═══ MON TON & MES COMBATS ═══ */}
-        <SectionSep emoji="🗣️" title="Mon ton & mes combats" />
+        <SectionSep emoji="🗣️" title="Ma voix & mes combats" />
 
         {brand && (brand.tone_register || brand.tone_style || brand.combat_cause) ? (
           <div className="space-y-10">

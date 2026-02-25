@@ -144,7 +144,7 @@ export default function StrategieRecapPage() {
     <div className="min-h-screen bg-background"><AppHeader />
       <main className="mx-auto max-w-[640px] px-6 py-8">
         <SubPageHeader breadcrumbs={[{ label: "Branding", to: "/branding" }, { label: "Ma stratégie", to: "/branding/section?section=content_strategy" }]} currentLabel="Récap" />
-        <h1 className="font-display text-[26px] font-bold text-foreground mb-4">🚀 Ma stratégie de contenu</h1>
+        <h1 className="font-display text-[26px] font-bold text-foreground mb-4">🚀 Ma ligne éditoriale</h1>
         <p className="text-muted-foreground mb-6">La synthèse de ta stratégie n'a pas encore été générée.</p>
         <Button onClick={generateSummary} disabled={generating}>
           {generating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Génération...</> : "✨ Générer ma fiche récap"}
@@ -168,7 +168,7 @@ export default function StrategieRecapPage() {
 
         <div ref={recapRef} id="strategie-recap" className="bg-white p-8 max-md:p-5 rounded-2xl print:p-6">
           <div className="flex justify-between items-start mb-6">
-            <h1 style={{ fontFamily: "'Libre Baskerville', serif", fontSize: 24, fontWeight: 700, color: "#1a1a2e" }}>🚀 Ma stratégie de contenu</h1>
+            <h1 style={{ fontFamily: "'Libre Baskerville', serif", fontSize: 24, fontWeight: 700, color: "#1a1a2e" }}>🚀 Ma ligne éditoriale</h1>
             <button onClick={exportPDF} disabled={exporting} className="flex items-center gap-1.5 text-sm font-medium hover:opacity-80 transition-opacity" style={{ color: "#fb3d80" }}>
               <FileText className="h-4 w-4" />{exporting ? "Export..." : "Exporter PDF"}
             </button>
