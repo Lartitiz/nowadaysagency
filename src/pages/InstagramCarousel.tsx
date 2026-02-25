@@ -5,6 +5,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
+import BaseReminder from "@/components/BaseReminder";
 import { Loader2, RefreshCw, Copy, CalendarDays, Sparkles, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -613,6 +614,8 @@ export default function InstagramCarousel() {
               <Sparkles className="h-4 w-4" /> Générer le visuel
             </Button>
           </div>
+
+          <BaseReminder variant="atelier" />
 
           <AddToCalendarDialog open={showCalendarDialog} onOpenChange={setShowCalendarDialog} onConfirm={handleAddToCalendar} contentLabel={`Carrousel : ${subject || typeObj?.label}`} contentEmoji="🎠" />
           <SaveToIdeasDialog open={showIdeasDialog} onOpenChange={setShowIdeasDialog} contentType="post_instagram" subject={subject || typeObj?.label || "Carrousel"} contentData={{ slides, caption, qualityCheck }} sourceModule="carousel" format="carousel" objectif={objective} />
