@@ -241,7 +241,6 @@ export default function BrandingPage() {
         .select("id, created_at, score_global, points_forts, points_faibles")
         .eq(column, value)
         .order("created_at", { ascending: false })
-        .order("created_at", { ascending: false })
         .limit(1);
       if (auditData && auditData.length > 0) {
         setLastAudit(auditData[0]);
@@ -261,7 +260,13 @@ export default function BrandingPage() {
         (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle(),
         (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle(),
       ]);
-      const profiles = await (supabase.from("profiles") as any).select("activite, prenom, mission").eq(column, value).single();
+      const profiles = await (supabase.from("profiles") as any).select("activite, prenom, mission").eq(column, value).maybeSingle();
+
+      if (!profiles.data) {
+        toast.error("Complète ton profil d'abord — va dans Onboarding pour renseigner tes infos.");
+        setGeneratingProp(false);
+        return;
+      }
 
       const syntheticData = {
         step_1_what: profiles.data?.activite || "",
