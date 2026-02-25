@@ -169,6 +169,7 @@ export default function AtelierPage() {
           objectif,
           format: selectedFormatLabel || undefined,
           sujet: sujetLibre || undefined,
+          workspace_id: workspaceId,
         },
       });
       if (res.error) throw new Error(res.error.message);

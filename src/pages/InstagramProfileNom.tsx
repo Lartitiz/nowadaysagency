@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import AuditInsight from "@/components/AuditInsight";
 export default function InstagramProfileNom() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const workspaceId = useWorkspaceId();
   const [currentName, setCurrentName] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -23,7 +25,7 @@ export default function InstagramProfileNom() {
     setGenerating(true);
     try {
       const res = await supabase.functions.invoke("generate-content", {
-        body: { type: "instagram-nom", profile: {} },
+        body: { type: "instagram-nom", profile: {}, workspace_id: workspaceId },
       });
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
