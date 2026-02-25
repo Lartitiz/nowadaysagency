@@ -166,6 +166,19 @@ export default function BrandingPage() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setMirrorData(data);
+      // Save mirror results to database
+      const wsId = workspaceId !== user?.id ? workspaceId : undefined;
+      await supabase.from("branding_mirror_results").upsert({
+        user_id: user!.id,
+        workspace_id: wsId || null,
+        coherence_score: data.coherence_score,
+        summary: data.summary,
+        alignments: data.alignments,
+        gaps: data.gaps,
+        quick_wins: data.quick_wins,
+      }, { onConflict: "user_id" }).then(({ error: saveErr }) => {
+        if (saveErr) console.error("Mirror save error:", saveErr);
+      });
     } catch (e: any) {
       console.error("Mirror error:", e);
       const { friendlyError } = await import("@/lib/error-messages");
