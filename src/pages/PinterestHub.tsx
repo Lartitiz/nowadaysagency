@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -18,6 +19,7 @@ const CARDS = [
 
 export default function PinterestHub() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const [progress, setProgress] = useState({ profileSteps: 0, boardsCount: 0, pinsCount: 0, ideasCount: 0, calendarCount: 0 });
 
   useEffect(() => {
@@ -27,11 +29,11 @@ export default function PinterestHub() {
       const monthStart = toLocalDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
       const monthEnd = toLocalDateStr(new Date(now.getFullYear(), now.getMonth() + 1, 0));
       const [profRes, boardRes, pinRes, ideasRes, calRes] = await Promise.all([
-        supabase.from("pinterest_profile").select("pro_account_done, photo_done, name_done, bio_done, url_done").eq("user_id", user.id).maybeSingle(),
-        supabase.from("pinterest_boards").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("pinterest_pins").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("saved_ideas").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("canal", "pinterest"),
-        supabase.from("calendar_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("canal", "pinterest").gte("date", monthStart).lte("date", monthEnd),
+        (supabase.from("pinterest_profile") as any).select("pro_account_done, photo_done, name_done, bio_done, url_done").eq(column, value).maybeSingle(),
+        (supabase.from("pinterest_boards") as any).select("id", { count: "exact", head: true }).eq(column, value),
+        (supabase.from("pinterest_pins") as any).select("id", { count: "exact", head: true }).eq(column, value),
+        (supabase.from("saved_ideas") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("canal", "pinterest"),
+        (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("canal", "pinterest").gte("date", monthStart).lte("date", monthEnd),
       ]);
       const pp = profRes.data;
       setProgress({

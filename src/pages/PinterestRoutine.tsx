@@ -34,7 +34,7 @@ export default function PinterestRoutine() {
 
   useEffect(() => {
     if (!user) return;
-    (supabase.from("pinterest_routine") as any).select("*").eq("user_id", user.id).eq("current_month", currentMonth).maybeSingle().then(({ data }: any) => {
+    (supabase.from("pinterest_routine") as any).select("*").eq(column, value).eq("current_month", currentMonth).maybeSingle().then(({ data }: any) => {
       if (data) {
         setRoutineId(data.id);
         setRhythm(data.rhythm || "2h_monthly");

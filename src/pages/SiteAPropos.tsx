@@ -85,7 +85,7 @@ export default function SiteAPropos() {
 
       const { data: existing } = await (supabase.from("website_about") as any).select("id").eq(column, value).maybeSingle();
       if (existing) {
-        await (supabase.from("website_about") as any).update({ ...aboutData, updated_at: new Date().toISOString() }).eq("user_id", user.id);
+        await (supabase.from("website_about") as any).update({ ...aboutData, updated_at: new Date().toISOString() }).eq(column, value);
         setData({ ...aboutData, id: existing.id, custom_facts: data?.custom_facts || [] });
       } else {
         const { data: inserted } = await supabase.from("website_about").insert({ 
@@ -130,7 +130,7 @@ export default function SiteAPropos() {
   const saveEdit = async (field: string) => {
     if (!user || !data) return;
     const update: any = { [field]: editValue, updated_at: new Date().toISOString() };
-    await (supabase.from("website_about") as any).update(update).eq("user_id", user.id);
+    await (supabase.from("website_about") as any).update(update).eq(column, value);
     setData({ ...data, [field]: editValue });
     setEditingField(null);
     toast({ title: "Sauvegardé !" });

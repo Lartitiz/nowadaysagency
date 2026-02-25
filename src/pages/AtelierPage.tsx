@@ -81,7 +81,7 @@ export default function AtelierPage() {
   useEffect(() => {
     if (!user) return;
     Promise.all([
-      supabase.from("profiles").select("*").eq("user_id", user.id).single(),
+      (supabase.from("profiles") as any).select("*").eq(column, value).single(),
       (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle(),
     ]).then(([profRes, bpRes]) => {
       if (profRes.data) setProfile(profRes.data);
