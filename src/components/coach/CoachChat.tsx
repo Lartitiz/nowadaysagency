@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { MessageCircle, X, Send, Trash2 } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useUserPlan } from "@/hooks/use-user-plan";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -18,17 +18,19 @@ interface ChatMessage {
 
 const STORAGE_KEY = "coach_chat_history";
 const SEEN_KEY = "coach_seen";
+const TOOLTIP_KEY = "coach_tooltip_shown";
 const MAX_MESSAGES = 50;
 
 const PAGE_CONTEXT_MAP: Record<string, string> = {
   "/calendrier": "calendrier-editorial",
+  "/contenu": "generateur-contenu",
   "/branding": "branding",
   "/branding/charte": "charte-graphique",
   "/branding/storytelling": "branding-storytelling",
   "/branding/proposition": "proposition-valeur",
   "/branding/persona": "persona-cible",
   "/branding/strategie": "strategie-contenu",
-  "/branding/ton-style": "ton-et-voix",
+  "/branding/ton": "ton-et-voix",
   "/site": "site-web",
   "/site/accueil": "page-de-vente",
   "/site/optimiser": "optimiseur-page-vente",
@@ -38,7 +40,6 @@ const PAGE_CONTEXT_MAP: Record<string, string> = {
   "/instagram/audit": "audit-instagram",
   "/instagram/engagement": "engagement-instagram",
   "/linkedin": "linkedin",
-  "/contenu": "generateur-contenu",
   "/dashboard": "tableau-de-bord",
 };
 
@@ -50,13 +51,11 @@ const SUGGESTION_CHIPS = [
 ];
 
 function getPageContext(pathname: string): string {
-  // Exact match first
   if (PAGE_CONTEXT_MAP[pathname]) return PAGE_CONTEXT_MAP[pathname];
-  // Prefix match
   for (const [prefix, ctx] of Object.entries(PAGE_CONTEXT_MAP)) {
     if (pathname.startsWith(prefix + "/")) return ctx;
   }
-  return "page inconnue";
+  return "navigation-generale";
 }
 
 function loadHistory(): ChatMessage[] {
@@ -77,6 +76,7 @@ function saveHistory(messages: ChatMessage[]) {
 export default function CoachChat() {
   const { user } = useAuth();
   const { activeWorkspace } = useWorkspace();
+  const { plan, usage, refresh: refreshPlan } = useUserPlan();
   const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
@@ -85,21 +85,35 @@ export default function CoachChat() {
   const [messages, setMessages] = useState<ChatMessage[]>(loadHistory);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [bounce, setBounce] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Bounce animation on first visit
+  // Quota logic
+  const contentUsage = usage?.content;
+  const dailyLimit = plan === "free" ? 10 : plan === "outil" ? 50 : plan === "pro" ? 50 : 999;
+  const used = contentUsage?.used ?? 0;
+  const remaining = Math.max(0, dailyLimit - used);
+  const quotaReached = remaining <= 0 && plan !== "now_pilot" && plan !== "studio";
+
+  // Delayed entrance (500ms)
   useEffect(() => {
-    if (!localStorage.getItem(SEEN_KEY)) {
-      setBounce(true);
+    const t = setTimeout(() => setVisible(true), 500);
+    return () => clearTimeout(t);
+  }, []);
+
+  // First-visit tooltip
+  useEffect(() => {
+    if (visible && !localStorage.getItem(TOOLTIP_KEY)) {
+      setShowTooltip(true);
       const t = setTimeout(() => {
-        setBounce(false);
-        localStorage.setItem(SEEN_KEY, "1");
-      }, 2000);
+        setShowTooltip(false);
+        localStorage.setItem(TOOLTIP_KEY, "1");
+      }, 5000);
       return () => clearTimeout(t);
     }
-  }, []);
+  }, [visible]);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -130,7 +144,7 @@ export default function CoachChat() {
   }, [open]);
 
   const sendMessage = useCallback(async (text: string) => {
-    if (!text.trim() || loading) return;
+    if (!text.trim() || loading || quotaReached) return;
 
     const userMsg: ChatMessage = { role: "user", content: text.trim() };
     const updated = [...messages, userMsg];
@@ -158,6 +172,7 @@ export default function CoachChat() {
       const final = [...updated, assistantMsg];
       setMessages(final);
       saveHistory(final);
+      refreshPlan();
     } catch (e) {
       console.error("coach-chat error:", e);
       const errMsg: ChatMessage = {
@@ -170,7 +185,7 @@ export default function CoachChat() {
     } finally {
       setLoading(false);
     }
-  }, [messages, loading, location.pathname, activeWorkspace?.id]);
+  }, [messages, loading, quotaReached, location.pathname, activeWorkspace?.id, refreshPlan]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -189,7 +204,7 @@ export default function CoachChat() {
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
   };
 
-  if (!user) return null;
+  if (!user || !visible) return null;
 
   const showSuggestions = messages.length <= 1 && !loading;
 
@@ -197,7 +212,14 @@ export default function CoachChat() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-        <span className="font-semibold text-foreground text-[15px]">💬 Coach Com'</span>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-foreground text-[15px]">💬 Coach Com'</span>
+          {dailyLimit < 999 && (
+            <span className="text-xs text-muted-foreground">
+              {used}/{dailyLimit}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           <button
             onClick={resetChat}
@@ -242,6 +264,7 @@ export default function CoachChat() {
                 key={chip.label}
                 onClick={() => sendMessage(`${chip.emoji} ${chip.label}`)}
                 className="text-xs bg-rose-pale text-primary rounded-full px-3 py-1.5 hover:bg-rose-soft transition-colors text-left"
+                disabled={quotaReached}
               >
                 {chip.emoji} {chip.label}
               </button>
@@ -250,29 +273,61 @@ export default function CoachChat() {
         )}
       </div>
 
-      {/* Input */}
+      {/* Input / Quota limit */}
       <div className="px-3 py-2 border-t border-border shrink-0">
-        <div className="flex items-end gap-2">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => { setInput(e.target.value); autoResize(e.target); }}
-            onKeyDown={handleKeyDown}
-            placeholder="Pose ta question..."
-            rows={1}
-            className="flex-1 resize-none rounded-xl border border-input bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors max-h-[120px]"
-            disabled={loading}
-          />
-          <Button
-            size="icon"
-            className="shrink-0 h-9 w-9 rounded-xl"
-            onClick={() => sendMessage(input)}
-            disabled={!input.trim() || loading}
-          >
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
+        {quotaReached ? (
+          <div className="text-center py-2 space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Tu as utilisé tes {dailyLimit} messages du jour. Passe en Pro pour 50 messages/jour 🚀
+            </p>
+            <Button size="sm" variant="outline" asChild>
+              <Link to="/pricing">Voir les plans</Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-end gap-2">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => { setInput(e.target.value); autoResize(e.target); }}
+              onKeyDown={handleKeyDown}
+              placeholder="Pose ta question..."
+              rows={1}
+              className="flex-1 resize-none rounded-xl border border-input bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors max-h-[120px]"
+              disabled={loading}
+            />
+            <Button
+              size="icon"
+              className="shrink-0 h-9 w-9 rounded-xl"
+              onClick={() => sendMessage(input)}
+              disabled={!input.trim() || loading}
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
+    </div>
+  );
+
+  const floatingButton = (
+    <div className="relative">
+      <button
+        onClick={() => { setOpen(true); setShowTooltip(false); }}
+        className={cn(
+          "h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-cta flex items-center justify-center hover:-translate-y-px hover:shadow-strong transition-all",
+          !localStorage.getItem(SEEN_KEY) && "animate-bounce"
+        )}
+      >
+        <MessageCircle className="h-6 w-6" />
+        <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-accent border-2 border-background" />
+      </button>
+      {showTooltip && (
+        <div className="absolute bottom-full right-0 mb-2 w-56 bg-card border border-border rounded-xl px-3 py-2 shadow-lg text-xs text-foreground animate-fade-in">
+          Besoin d'aide ? Ton coach com' est là 💬
+          <div className="absolute bottom-0 right-5 translate-y-1/2 rotate-45 w-2 h-2 bg-card border-r border-b border-border" />
+        </div>
+      )}
     </div>
   );
 
@@ -280,16 +335,11 @@ export default function CoachChat() {
   if (isMobile) {
     return (
       <>
-        <button
-          onClick={() => setOpen(true)}
-          className={cn(
-            "fixed bottom-20 right-4 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-cta flex items-center justify-center transition-transform",
-            bounce && "animate-bounce"
-          )}
-        >
-          <MessageCircle className="h-6 w-6" />
-          <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
-        </button>
+        {!open && (
+          <div className="fixed bottom-20 right-4 z-50">
+            {floatingButton}
+          </div>
+        )}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetContent side="bottom" className="h-[85vh] p-0 rounded-t-2xl [&>button:last-child]:hidden">
             <span className="sr-only">Coach Com'</span>
@@ -304,16 +354,9 @@ export default function CoachChat() {
   return (
     <>
       {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          className={cn(
-            "fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-cta flex items-center justify-center hover:-translate-y-px hover:shadow-strong transition-all",
-            bounce && "animate-bounce"
-          )}
-        >
-          <MessageCircle className="h-6 w-6" />
-          <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
-        </button>
+        <div className="fixed bottom-6 right-6 z-50">
+          {floatingButton}
+        </div>
       )}
       {open && (
         <div className="fixed bottom-6 right-6 z-50 w-[380px] h-[520px] rounded-2xl shadow-xl border border-border bg-background overflow-hidden flex flex-col">
@@ -327,8 +370,6 @@ export default function CoachChat() {
 /* ── Chat bubble ── */
 function ChatBubble({ message, onNavigate }: { message: ChatMessage; onNavigate: (path: string) => void }) {
   const isUser = message.role === "user";
-
-  // Detect internal links in assistant messages
   const content = message.content;
 
   return (
@@ -341,11 +382,7 @@ function ChatBubble({ message, onNavigate }: { message: ChatMessage; onNavigate:
             : "bg-muted text-foreground rounded-bl-sm"
         )}
       >
-        {isUser ? (
-          content
-        ) : (
-          <CoachMarkdown content={content} onNavigate={onNavigate} />
-        )}
+        {isUser ? content : <CoachMarkdown content={content} onNavigate={onNavigate} />}
       </div>
     </div>
   );
@@ -353,9 +390,6 @@ function ChatBubble({ message, onNavigate }: { message: ChatMessage; onNavigate:
 
 /* ── Markdown with clickable internal links ── */
 function CoachMarkdown({ content, onNavigate }: { content: string; onNavigate: (path: string) => void }) {
-  // Split on internal route patterns like **/branding** or **Nom du module**
-  // but use MarkdownText for rendering
-  // For internal links: detect patterns like /calendrier, /branding etc. and make them clickable
   const parts = content.split(/(\/[a-z][a-z0-9\-\/]*)/g);
 
   if (parts.length === 1) {

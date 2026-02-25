@@ -15,6 +15,7 @@ import { SessionProvider } from "@/contexts/SessionContext";
 import SessionOverlay from "@/components/session/SessionOverlay";
 import AiDebugShortcut from "@/components/admin/AiDebugShortcut";
 import AssistantButton from "./components/assistant/AssistantButton";
+import CoachChat from "./components/coach/CoachChat";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
@@ -153,6 +154,7 @@ const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilo
 function AnimatedRoutes() {
   const location = useLocation();
   const showAppWidgets = !PUBLIC_PATHS.includes(location.pathname) && !location.pathname.startsWith("/invite/") && !location.pathname.startsWith("/share/") && !location.pathname.startsWith("/calendrier/partage/");
+  const showCoach = showAppWidgets && location.pathname !== "/onboarding" && location.pathname !== "/welcome";
 
   return (
     <>
@@ -160,6 +162,7 @@ function AnimatedRoutes() {
       <SessionOverlay />
       <AiDebugShortcut />
       {showAppWidgets && <AssistantButton />}
+      {showCoach && <CoachChat />}
       <AnimatePresence mode="popLayout">
         <motion.div
           key={location.pathname}
