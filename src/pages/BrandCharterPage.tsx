@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
+import { SECTOR_PALETTES, ACTIVITY_TO_SECTOR, DEFAULT_SECTOR } from "@/lib/charter-palettes";
 
 const GOOGLE_FONTS = [
   "Inter", "Poppins", "Montserrat", "Playfair Display", "Libre Baskerville",
@@ -125,6 +126,25 @@ export default function BrandCharterPage() {
   const [auditing, setAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<any>(null);
   const [auditDialogOpen, setAuditDialogOpen] = useState(false);
+  const [userSector, setUserSector] = useState<string>(DEFAULT_SECTOR);
+  const [allPalettesOpen, setAllPalettesOpen] = useState(false);
+
+  // Load user sector from profile
+  useEffect(() => {
+    if (!user) return;
+    const loadSector = async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("type_activite")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (profile?.type_activite) {
+        const mapped = ACTIVITY_TO_SECTOR[profile.type_activite] || DEFAULT_SECTOR;
+        setUserSector(mapped);
+      }
+    };
+    loadSector();
+  }, [user?.id]);
 
   // Load fonts on data change
   useEffect(() => {
@@ -489,7 +509,80 @@ export default function BrandCharterPage() {
                 />
               ))}
             </div>
+
+            {/* Sector palettes */}
+            <div className="mt-5 pt-5 border-t border-border">
+              <h3 className="text-sm font-semibold text-foreground mb-3">💡 Palettes inspirantes pour ton secteur</h3>
+              <p className="text-xs text-muted-foreground mb-3">Secteur détecté : <span className="font-medium text-foreground">{userSector}</span></p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {(SECTOR_PALETTES[userSector] || SECTOR_PALETTES[DEFAULT_SECTOR]).map((palette) => (
+                  <button
+                    key={palette.name}
+                    onClick={() => {
+                      update("color_primary", palette.colors.primary);
+                      update("color_secondary", palette.colors.secondary);
+                      update("color_accent", palette.colors.accent);
+                      update("color_background", palette.colors.background);
+                      update("color_text", palette.colors.text);
+                      toast.success("Palette appliquée ! Tu peux ajuster chaque couleur.");
+                    }}
+                    className="rounded-xl border border-border hover:border-primary/50 bg-background p-3 text-left transition-all hover:shadow-sm"
+                  >
+                    <div className="flex items-center gap-1.5 mb-2">
+                      {[palette.colors.primary, palette.colors.secondary, palette.colors.accent, palette.colors.background, palette.colors.text].map((c, i) => (
+                        <div key={i} className="w-5 h-5 rounded-full border border-border" style={{ backgroundColor: c }} />
+                      ))}
+                    </div>
+                    <p className="text-xs font-medium text-foreground">{palette.name}</p>
+                  </button>
+                ))}
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setAllPalettesOpen(true)} className="text-xs text-muted-foreground mt-3">
+                Voir toutes les palettes →
+              </Button>
+            </div>
           </section>
+
+          {/* All palettes dialog */}
+          <Dialog open={allPalettesOpen} onOpenChange={setAllPalettesOpen}>
+            <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Toutes les palettes</DialogTitle>
+                <DialogDescription>Choisis une palette pour l'appliquer à ta charte graphique.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-5">
+                {Object.entries(SECTOR_PALETTES).map(([sector, palettes]) => (
+                  <div key={sector}>
+                    <h4 className="text-sm font-semibold text-foreground mb-2">{sector}</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {palettes.map((palette) => (
+                        <button
+                          key={palette.name}
+                          onClick={() => {
+                            update("color_primary", palette.colors.primary);
+                            update("color_secondary", palette.colors.secondary);
+                            update("color_accent", palette.colors.accent);
+                            update("color_background", palette.colors.background);
+                            update("color_text", palette.colors.text);
+                            toast.success("Palette appliquée ! Tu peux ajuster chaque couleur.");
+                            setAllPalettesOpen(false);
+                          }}
+                          className="rounded-xl border border-border hover:border-primary/50 bg-background p-3 text-left transition-all hover:shadow-sm"
+                        >
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            {[palette.colors.primary, palette.colors.secondary, palette.colors.accent, palette.colors.background, palette.colors.text].map((c, i) => (
+                              <div key={i} className="w-5 h-5 rounded-full border border-border" style={{ backgroundColor: c }} />
+                            ))}
+                          </div>
+                          <p className="text-xs font-medium text-foreground">{palette.name}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* SECTION 3: Typographies */}
           <section className="rounded-2xl border border-border bg-card p-5">
