@@ -264,8 +264,10 @@ RÈGLES :
 - Utilise les MOTS de l'utilisatrice, pas du jargon marketing
 - Ne pas commencer par un emoji
 
+Pour chaque proposition, estime un score /100 basé sur les critères suivants : clarté (le message est-il immédiatement compris ?), proposition de valeur (le bénéfice est-il évident ?), personnalité (sent-on la personne derrière ?), CTA (l'action est-elle claire ?), technique (respect des 150 car., 4 lignes max). Sois honnête : une bio peut avoir 75 si le CTA est faible.
+
 Réponds UNIQUEMENT en JSON :
-{"bios":[{"label":"🎯 La Directe — Focus promesse","bio_text":"ligne1\\nligne2\\nligne3\\nligne4","character_count":142,"pourquoi":"Cette version met en avant le bénéfice pour ta cible.","structure":"directe"}]}`;
+{"bios":[{"label":"🎯 La Directe — Focus promesse","bio_text":"ligne1\\nligne2\\nligne3\\nligne4","character_count":142,"pourquoi":"Cette version met en avant le bénéfice pour ta cible.","structure":"directe","score":82}]}`;
         userPrompt = "Génère 5 versions de bio Instagram pour moi.";
 
       } else if (type === "bio") {
