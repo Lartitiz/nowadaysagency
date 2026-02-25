@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,7 @@ export default function PersonaRecapPage() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { isDemoMode } = useDemoContext();
+  const { column, value } = useWorkspaceFilter();
   const [data, setData] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [portrait, setPortrait] = useState<Portrait | null>(null);
@@ -83,9 +85,9 @@ export default function PersonaRecapPage() {
     }
     if (!user) return;
     Promise.all([
-      supabase.from("persona").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("profiles").select("activite, prenom").eq("user_id", user.id).single(),
-      supabase.from("brand_profile").select("mission, offer, target_description, tone_register, voice_description, target_verbatims, combat_cause").eq("user_id", user.id).maybeSingle(),
+      (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle(),
+      (supabase.from("profiles") as any).select("activite, prenom").eq(column, value).single(),
+      (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register, voice_description, target_verbatims, combat_cause").eq(column, value).maybeSingle(),
     ]).then(([pRes, profRes, bpRes]) => {
       const personaData = pRes.data;
       setData(personaData);
@@ -96,7 +98,7 @@ export default function PersonaRecapPage() {
       }
       setLoading(false);
     });
-  }, [user?.id, isDemoMode]);
+  }, [user?.id, isDemoMode, column, value]);
 
   const canGenerate = data?.step_1_frustrations && data?.step_2_transformation;
 
@@ -157,7 +159,7 @@ export default function PersonaRecapPage() {
     setCoachingOpen(false);
     // Reload data to reflect coaching changes
     if (user) {
-      supabase.from("persona").select("*").eq("user_id", user.id).maybeSingle().then(({ data: pRes }) => {
+      (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle().then(({ data: pRes }: any) => {
         if (pRes) {
           setData(pRes);
           if (pRes.portrait) {
