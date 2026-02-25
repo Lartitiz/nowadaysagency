@@ -165,7 +165,7 @@ export default function CoachingSessionManager({ program, sessions: initialSessi
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="font-display text-2xl font-bold text-foreground">Programme de {program.client_name}</h1>
-            <p className="text-sm text-muted-foreground">Now Pilot · 6 mois · 250€/mois</p>
+            <p className="text-sm text-muted-foreground">Binôme de com · 6 mois · 250€/mois</p>
           </div>
           {isPaused && <Badge variant="secondary" className="text-sm">⏸️ En pause</Badge>}
         </div>

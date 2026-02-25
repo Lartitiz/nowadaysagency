@@ -132,7 +132,7 @@ export const GUARANTEE_TYPES = [
 ];
 
 export const OFFER_TYPES = [
-  { value: "formation", label: "🎓 Formation/Now Studio" },
+  { value: "formation", label: "🎓 Formation/Accompagnement" },
   { value: "services", label: "🏛️ Services/Agency" },
   { value: "leadmagnet", label: "🎁 Lead magnet" },
   { value: "autre", label: "Autre" },

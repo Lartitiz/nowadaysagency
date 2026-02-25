@@ -67,15 +67,13 @@ const SECTIONS = [
     ],
   },
   {
-    title: "Ta binôme de com",
+    title: "Accompagnement Binôme exclusif",
     rows: [
-      { label: "Coachings individuels", free: false, outil: false, studio: "6 × 1h" },
-      { label: "Validation par Laetitia", free: false, outil: false, studio: true },
-      { label: "Espace privé Studio", free: false, outil: false, studio: true },
-      { label: "Lives exclusifs Studio", free: false, outil: false, studio: true },
+      { label: "Sessions visio individuelles", free: false, outil: false, studio: "6 × 2h" },
+      { label: "Support WhatsApp jours ouvrés", free: false, outil: false, studio: true },
+      { label: "Validation livrables par Laetitia", free: false, outil: false, studio: true },
+      { label: "Espace accompagnement dédié", free: false, outil: false, studio: true },
       { label: "Canal direct Laetitia", free: false, outil: false, studio: true },
-      { label: "Binôme attitrée", free: false, outil: false, studio: true },
-      { label: "Weekend Bourgogne", free: false, outil: false, studio: "Inclus" },
     ],
   },
 ];
@@ -276,7 +274,7 @@ export default function PricingPage() {
 
           {/* Now Studio */}
           <div className="rounded-2xl bg-card border border-border p-6 flex flex-col" style={{ background: "linear-gradient(180deg, hsl(48 100% 95%) 0%, hsl(0 0% 100%) 40%)" }}>
-            <span className="text-2xl mb-2">🌟</span>
+            <span className="text-2xl mb-2">🤝</span>
             <h3 className="font-display text-xl font-bold">Ta binôme de com</h3>
             <p className="text-3xl font-bold mt-2 text-primary">
               250€
@@ -285,15 +283,15 @@ export default function PricingPage() {
               </span>
             </p>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              L'outil + Laetitia à tes côtés
+              L'outil + Laetitia à tes côtés. On fait ensemble.
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Tout le plan Outil</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 6 coachings individuels (1h)</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Validation par Laetitia</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Espace privé Studio</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Canal direct Laetitia</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Weekend Bourgogne inclus</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 6 sessions visio de 2h avec Laetitia</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Support WhatsApp jours ouvrés</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Validation livrables par Laetitia</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Espace accompagnement dédié dans l'outil</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> L'Assistant Com' Premium inclus</li>
             </ul>
             {isCurrentPlan("studio") ? (
               <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">
@@ -334,7 +332,7 @@ export default function PricingPage() {
                     💎 Outil
                   </th>
                   <th className="text-center text-sm font-bold text-foreground py-3 w-[18%]">
-                    🌟 Studio
+                    🤝 Binôme
                   </th>
                 </tr>
               </thead>

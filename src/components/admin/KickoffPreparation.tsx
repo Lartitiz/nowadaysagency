@@ -154,7 +154,7 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>🤝 Créer un accompagnement Now Pilot</DialogTitle><DialogDescription className="sr-only">Formulaire de création d'un accompagnement coaching</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>🤝 Créer un accompagnement Binôme</DialogTitle><DialogDescription className="sr-only">Formulaire de création d'un accompagnement coaching</DialogDescription></DialogHeader>
         <div className="space-y-5 pt-2">
           <section>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">La cliente</p>
@@ -217,7 +217,7 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
             </div>
           </section>
           <div className="rounded-xl bg-rose-pale/50 border border-primary/20 p-4 text-sm space-y-1">
-            <p className="font-semibold text-foreground">🤝 Now Pilot · 6 mois · 250€/mois</p>
+            <p className="font-semibold text-foreground">🤝 Binôme de com · 6 mois · 250€/mois</p>
             <p className="text-muted-foreground">{totalSessions} sessions · ~{totalHours}h</p>
             {startDate && endDate && <p className="text-muted-foreground">{format(new Date(startDate), "d MMM yyyy", { locale: fr })} → {format(endDate, "d MMM yyyy", { locale: fr })}</p>}
           </div>

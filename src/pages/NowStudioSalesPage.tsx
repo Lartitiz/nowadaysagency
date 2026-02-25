@@ -39,14 +39,14 @@ const BEFORE_AFTER = {
 };
 
 const INCLUDES = [
-  { emoji: "🛠️", title: "L'outil complet", desc: "Valeur 39€/mois — inclus dans l'accompagnement" },
-  { emoji: "🎯", title: "6 coachings individuels d'1h", desc: "Avec Laetitia, en visio, sur-mesure" },
-  { emoji: "👥", title: "Communauté premium + binôme", desc: "Une binôme attitrée pour avancer ensemble" },
-  { emoji: "🎥", title: "Lives et masterclass exclusifs", desc: "Hot seats, exercices, Q&A réservés Studio" },
-  { emoji: "✅", title: "Validation de chaque livrable", desc: "Laetitia valide ta bio, ton branding, ton calendrier…" },
-  { emoji: "💬", title: "Canal direct avec Laetitia", desc: "Pose tes questions entre les coachings" },
-  { emoji: "🏡", title: "Weekend en Bourgogne", desc: "3 jours à La Prochaine Aire : travail, yoga, co-dév" },
-  { emoji: "📚", title: "Accès à vie au contenu", desc: "Replays, exercices, templates — pour toujours" },
+  { emoji: "🛠️", title: "L'Assistant Com' Premium inclus", desc: "Valeur 39€/mois : 300 crédits IA, audits illimités, tout débloqué" },
+  { emoji: "🎯", title: "6 sessions visio de 2h avec Laetitia", desc: "Sur-mesure, en visio. On fait ensemble." },
+  { emoji: "💬", title: "Support WhatsApp jours ouvrés", desc: "Tu poses tes questions entre les sessions. Réponse sous 24-48h." },
+  { emoji: "✅", title: "Validation de tes livrables", desc: "Laetitia valide ta bio, ton branding, ton calendrier, tes contenus." },
+  { emoji: "📋", title: "Espace accompagnement dans l'outil", desc: "Sessions, livrables, journal de bord : tout au même endroit." },
+  { emoji: "🧭", title: "Stratégie sur mesure (mois 1-2)", desc: "Branding, positionnement, persona, plan d'action 6 mois." },
+  { emoji: "🚀", title: "Application accompagnée (mois 3-6)", desc: "On met en œuvre ensemble. Contenus, calendrier, profils optimisés." },
+  { emoji: "📚", title: "Accès à vie au contenu", desc: "Replays, exercices, templates : tout reste accessible après les 6 mois." },
 ];
 
 const COMPARISONS = [
@@ -66,7 +66,7 @@ const TESTIMONIALS = [
   {
     name: "Amina",
     activity: "Mazeh Paris · Cosmétiques naturels",
-    quote: "Laetitia m'a aidée à trouver MA voix. L'accompagnement binôme c'est le meilleur investissement que j'ai fait.",
+    quote: "Laetitia m'a aidée à trouver MA voix. L'accompagnement avec elle, c'est le meilleur investissement que j'ai fait.",
     result: "3× plus de DM qualifiés",
   },
   {
@@ -90,13 +90,13 @@ const NOT_FOR_YOU = [
 ];
 
 const OBJECTIONS = [
-  { q: "250€/mois c'est trop cher pour moi", a: "C'est moins qu'un community manager (800-2000€/mois). Et tu acquiers des compétences à vie. L'accompagnement binôme est un investissement, pas une dépense." },
-  { q: "Je n'ai pas le temps", a: "L'accompagnement binôme est conçu pour les entrepreneures débordées. 2-3h par semaine suffisent. L'outil automatise le reste." },
-  { q: "Je suis débutante, c'est pour moi ?", a: "C'est même idéal ! Tu poses les bonnes bases dès le départ au lieu de perdre des mois à tâtonner." },
-  { q: "Et si ça ne marche pas ?", a: "L'accompagnement binôme est satisfait ou remboursé. Si tu appliques tout et que tu n'as pas de résultats, on te rembourse." },
-  { q: "Je peux juste prendre l'outil à 39€ ?", a: "Bien sûr ! L'outil seul est déjà très complet. L'accompagnement binôme ajoute l'humain pour aller plus vite et plus loin." },
+  { q: "250€/mois c'est trop cher pour moi", a: "C'est moins qu'un·e community manager freelance (800-2000€/mois). Et tu acquiers des compétences à vie. C'est un investissement, pas une dépense." },
+  { q: "Je n'ai pas le temps", a: "L'accompagnement est conçu pour les entrepreneur·es débordé·es. 2-3h par semaine suffisent. L'outil automatise le reste." },
+  { q: "Je suis débutant·e, c'est pour moi ?", a: "C'est même idéal ! Tu poses les bonnes bases dès le départ au lieu de perdre des mois à tâtonner." },
+  { q: "Et si ça ne marche pas ?", a: "L'accompagnement est satisfait ou remboursé. Si tu appliques tout et que tu n'as pas de résultats, on te rembourse." },
+  { q: "Je peux juste prendre l'outil à 39€ ?", a: "Bien sûr ! L'outil seul est déjà très complet. L'accompagnement Binôme ajoute l'humain pour aller plus vite et plus loin." },
   { q: "6 mois c'est un engagement long", a: "C'est le temps qu'il faut pour poser des fondations solides. Pas de raccourci, mais des résultats durables." },
-  { q: "Qu'est-ce qui te différencie des autres ?", a: "10 ans d'expérience, enseignante en école de com', spécialisée solopreneuses engagées. Et un outil IA sur-mesure — pas un Google Doc." },
+  { q: "Qu'est-ce qui te différencie des autres ?", a: "10 ans d'expérience, enseignante en école de com', spécialisée solopreneur·es engagé·es. Et un outil IA sur-mesure : pas un Google Doc." },
 ];
 
 export default function NowStudioSalesPage() {
@@ -107,7 +107,7 @@ export default function NowStudioSalesPage() {
         <div className="absolute inset-0 bg-secondary/40" style={{ clipPath: "polygon(0 0, 100% 0, 100% 85%, 0 100%)" }} />
         <div className="relative mx-auto max-w-4xl px-4 pt-20 pb-28 sm:pt-28 sm:pb-36 text-center">
           <span className="inline-block mb-4 text-sm font-semibold text-primary bg-primary/10 px-4 py-1.5 rounded-pill">
-            🌟 Ta binôme de com
+            🤝 Ta binôme de com
           </span>
           <h1 className="font-display text-[32px] sm:text-[48px] font-bold text-foreground leading-[1.15] mb-5">
             6 mois pour poser
@@ -202,7 +202,7 @@ export default function NowStudioSalesPage() {
       <section className="bg-secondary/30 py-16 sm:py-20">
         <div className="mx-auto max-w-3xl px-4">
           <h2 className="font-display text-2xl sm:text-3xl font-bold text-center mb-10">
-            Ce qui te différencie
+            Pourquoi pas juste une formation en ligne ?
           </h2>
           <div className="space-y-4">
             {COMPARISONS.map((c) => (

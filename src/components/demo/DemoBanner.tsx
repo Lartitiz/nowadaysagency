@@ -30,7 +30,7 @@ export default function DemoBanner() {
             onClick={() => setDemoPlan("free")}
           />
           <PlanTab
-            label="Now Pilot"
+            label="Binôme"
             active={demoPlan === "now_pilot"}
             onClick={() => setDemoPlan("now_pilot")}
           />

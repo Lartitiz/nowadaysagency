@@ -24,12 +24,12 @@ const UPGRADE_MESSAGES: Partial<Record<Feature, string>> = {
   routine_engagement: "La routine d'engagement fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
   editorial_line: "La ligne éditoriale fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
   calendar: "Le calendrier éditorial fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
-  coaching: "Les coachings individuels font partie de l'accompagnement binôme.",
-  studio_space: "L'espace privé fait partie de l'accompagnement binôme.",
-  laetitia_validation: "La validation par Laetitia fait partie de l'accompagnement binôme.",
-  studio_lives: "Les lives exclusifs font partie de l'accompagnement binôme.",
-  direct_channel: "Le canal direct fait partie de l'accompagnement binôme.",
-  binome: "Le binôme fait partie de l'accompagnement binôme.",
+  coaching: "Les sessions visio individuelles font partie de l'accompagnement Binôme.",
+  studio_space: "L'espace accompagnement fait partie de l'accompagnement Binôme.",
+  laetitia_validation: "La validation par Laetitia fait partie de l'accompagnement Binôme.",
+  studio_lives: "Les lives exclusifs font partie de l'accompagnement Binôme.",
+  direct_channel: "Le canal direct fait partie de l'accompagnement Binôme.",
+  binome: "Le binôme fait partie de l'accompagnement Binôme.",
 };
 
 interface UpgradeGateProps {
@@ -58,7 +58,7 @@ export default function UpgradeGate({ feature, children, fallback }: UpgradeGate
         <Sparkles className="h-5 w-5 text-muted-foreground" />
       </div>
       <h3 className="font-display text-lg font-bold text-foreground mb-2">
-        {isStudioFeature ? "Disponible avec l'accompagnement" : "Disponible avec le plan Outil"}
+        {isStudioFeature ? "Disponible avec l'accompagnement Binôme" : "Disponible avec le plan Outil"}
       </h3>
       <p className="text-sm text-muted-foreground mb-5 max-w-sm mx-auto">
         {message}

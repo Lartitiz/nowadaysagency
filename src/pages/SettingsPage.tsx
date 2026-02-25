@@ -198,7 +198,7 @@ export default function SettingsPage() {
                       💎 Passer au plan Outil (39€/mois)
                     </Button>
                     <Button size="sm" variant="outline" className="rounded-full" asChild>
-                      <Link to="/studio/discover">🌟 Découvrir l'accompagnement</Link>
+                      <Link to="/studio/discover">🤝 Découvrir l'accompagnement</Link>
                     </Button>
                   </>
                 )}
@@ -209,7 +209,7 @@ export default function SettingsPage() {
                       Gérer mon abonnement
                     </Button>
                     <Button size="sm" variant="outline" className="rounded-full" asChild>
-                      <Link to="/studio/discover">🌟 Upgrader vers l'accompagnement</Link>
+                      <Link to="/studio/discover">🤝 Découvrir l'accompagnement</Link>
                     </Button>
                   </>
                 )}
@@ -372,7 +372,7 @@ const QUOTA_CATEGORIES = [
 
 function AiQuotaDisplay() {
   const { plan, usage, isPaid } = useUserPlan();
-  const planLabel = plan === "now_pilot" ? "Binôme de com" : plan === "studio" ? "Binôme de com (250€/mois)" : plan === "outil" ? "Outil (39€/mois)" : "Gratuit";
+  const planLabel = plan === "now_pilot" ? "Binôme de com (250€/mois)" : plan === "studio" ? "Binôme de com (250€/mois)" : plan === "outil" ? "Outil (39€/mois)" : "Gratuit";
   const total = usage.total;
   const nextMonth = new Date();
   nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
