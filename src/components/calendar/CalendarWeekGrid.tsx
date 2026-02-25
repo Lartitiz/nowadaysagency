@@ -25,15 +25,19 @@ interface Props {
   onQuickDuplicate?: (post: CalendarPost) => void;
   onQuickDelete?: (postId: string) => void;
   onQuickGenerate?: (post: CalendarPost) => void;
+  ownerUsername?: string;
+  ownerDisplayName?: string;
 }
 
 /* ── Draggable content card ── */
-function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate }: {
+function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, ownerUsername, ownerDisplayName }: {
   post: CalendarPost; onClick: () => void;
   onQuickStatusChange?: (postId: string, newStatus: string) => void;
   onQuickDuplicate?: (post: CalendarPost) => void;
   onQuickDelete?: (postId: string) => void;
   onQuickGenerate?: (post: CalendarPost) => void;
+  ownerUsername?: string;
+  ownerDisplayName?: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id });
   const style: React.CSSProperties = {
@@ -51,6 +55,8 @@ function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicat
         onQuickDuplicate={onQuickDuplicate}
         onQuickDelete={onQuickDelete}
         onQuickGenerate={onQuickGenerate}
+        ownerUsername={ownerUsername}
+        ownerDisplayName={ownerDisplayName}
       />
     </div>
   );
@@ -60,6 +66,7 @@ function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicat
 function DroppableWeekDay({
   date, dateStr, isToday, posts, onCreatePost, onEditPost, onAddIdea, onQuickCreate,
   onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, todayRef,
+  ownerUsername, ownerDisplayName,
 }: {
   date: Date; dateStr: string; isToday: boolean;
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
@@ -69,6 +76,8 @@ function DroppableWeekDay({
   onQuickDelete?: (postId: string) => void;
   onQuickGenerate?: (post: CalendarPost) => void;
   todayRef?: React.RefObject<HTMLDivElement>;
+  ownerUsername?: string;
+  ownerDisplayName?: string;
 }) {
   const [inlineInput, setInlineInput] = useState(false);
   const [inlineValue, setInlineValue] = useState("");
@@ -136,6 +145,8 @@ function DroppableWeekDay({
             onQuickDuplicate={onQuickDuplicate}
             onQuickDelete={onQuickDelete}
             onQuickGenerate={onQuickGenerate}
+            ownerUsername={ownerUsername}
+            ownerDisplayName={ownerDisplayName}
           />
         ))}
       </div>
@@ -265,7 +276,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
 }
 
 /* ── Main (no DndContext — parent provides it) ── */
-export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onQuickCreate, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate }: Props) {
+export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onQuickCreate, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, ownerUsername, ownerDisplayName }: Props) {
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
   const todayRef = useRef<HTMLDivElement>(null);
@@ -362,6 +373,8 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
                 onQuickDelete={onQuickDelete}
                 onQuickGenerate={onQuickGenerate}
                 todayRef={dateStr === todayStr ? todayRef : undefined}
+                ownerUsername={ownerUsername}
+                ownerDisplayName={ownerDisplayName}
               />
             );
           })}

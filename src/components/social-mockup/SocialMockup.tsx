@@ -32,6 +32,7 @@ interface SocialMockupProps {
   onAddComment?: (content: string) => void;
   readonly?: boolean;
   compact?: boolean;
+  hideFollowButton?: boolean;
 }
 
 const FORMAT_EMOJI: Record<string, string> = {
@@ -49,7 +50,7 @@ export function SocialMockup(props: SocialMockupProps) {
 
 function InstagramMockup({
   format, username, displayName, avatarUrl, caption, slides, hashtags,
-  showComments, comments = [], onAddComment, readonly, compact,
+  showComments, comments = [], onAddComment, readonly, compact, hideFollowButton,
 }: SocialMockupProps) {
   const [expanded, setExpanded] = useState(false);
   const [commentText, setCommentText] = useState("");
@@ -77,7 +78,7 @@ function InstagramMockup({
         <div className="flex-1 min-w-0">
           <span className="text-[13px] font-semibold text-gray-900">{username}</span>
         </div>
-        <span className="text-xs font-semibold text-blue-500">Suivre</span>
+        {!hideFollowButton && <span className="text-xs font-semibold text-blue-500">Suivre</span>}
       </div>
 
       {/* Media area */}

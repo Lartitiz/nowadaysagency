@@ -22,6 +22,8 @@ interface Props {
   onQuickDuplicate?: (post: CalendarPost) => void;
   onQuickDelete?: (postId: string) => void;
   onQuickGenerate?: (post: CalendarPost) => void;
+  ownerUsername?: string;
+  ownerDisplayName?: string;
 }
 
 function isStoriesPost(post: CalendarPost): boolean {
@@ -58,7 +60,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 /** Compact category-colored content card for calendar cells */
-export function CalendarContentCard({ post, onClick, variant = "compact", commentCount, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate }: Props) {
+export function CalendarContentCard({ post, onClick, variant = "compact", commentCount, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, ownerUsername, ownerDisplayName }: Props) {
   const isMobile = useIsMobile();
   const isStories = isStoriesPost(post);
   const isReel = isReelPost(post);
@@ -234,12 +236,13 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
             <SocialMockup
               canal={mockupCanal}
               format={mockupFormat}
-              username={post.canal === "linkedin" ? "Profil" : "username"}
-              displayName="Profil"
+              username={ownerUsername || (post.canal === "linkedin" ? ownerDisplayName || "Mon profil" : "mon_compte")}
+              displayName={ownerDisplayName || "Mon profil"}
               caption={post.content_draft || post.theme}
               showComments={false}
               readonly
               compact
+              hideFollowButton
             />
           </div>
         </div>
