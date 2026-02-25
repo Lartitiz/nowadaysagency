@@ -113,3 +113,6 @@ verify_jwt = false
 
 [functions.carousel-visual]
 verify_jwt = false
+
+[functions.instagram-profile-coaching]
+verify_jwt = false
