@@ -81,7 +81,7 @@ export default function SiteCapturePage() {
               <p className="font-mono-ui text-[11px] font-semibold text-primary mb-1">🎯 TITRE</p>
               <p className="text-xl font-bold text-foreground">{result.title}</p>
               {result.subtitle && <p className="text-sm text-muted-foreground mt-1">{result.subtitle}</p>}
-              <RedFlagsChecker content={result.title} onFix={() => {}} />
+              <RedFlagsChecker content={result.title} onFix={(fixed) => setResult({ ...result, title: fixed })} />
             </div>
 
             {/* Bullets */}
