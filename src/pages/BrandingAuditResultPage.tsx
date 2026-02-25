@@ -63,7 +63,7 @@ const MODULE_ROUTES: Record<string, string> = {
   instagram: "/instagram", highlights: "/instagram",
   linkedin: "/linkedin", calendar: "/calendrier", calendrier: "/calendrier",
   contacts: "/contacts", engagement: "/contacts",
-  seo: "https://referencement-seo.lovable.app/",
+  seo: "/seo",
 };
 
 function getRouteForAction(action: { module?: string; action?: string }): string {
@@ -79,7 +79,7 @@ function getRouteForAction(action: { module?: string; action?: string }): string
   if (title.includes("ligne") || title.includes("éditorial") || title.includes("editorial")) return "/branding";
   if (title.includes("contenu") || title.includes("content")) return "/instagram/creer";
   if (title.includes("calendrier") || title.includes("calendar")) return "/calendrier";
-  if (title.includes("seo")) return "https://referencement-seo.lovable.app/";
+  if (title.includes("seo")) return "/seo";
   if (title.includes("engagement")) return "/contacts";
   return "/branding";
 }

@@ -79,9 +79,9 @@ export default function AuditRecommendationsSection() {
   };
 
   const navigateToModule = (rec: Recommendation) => {
-    // SEO → external link
-    if (rec.module === "seo" || rec.route.startsWith("http")) {
-      window.open("https://referencement-seo.lovable.app/", "_blank", "noopener,noreferrer");
+    // SEO → internal route
+    if (rec.module === "seo" || rec.route === "/seo") {
+      navigate("/seo");
       return;
     }
     const conseil = rec.conseil_contextuel || rec.conseil || rec.detail || "";
