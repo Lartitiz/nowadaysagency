@@ -55,7 +55,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
     supabase.from("offers").select("*").eq(col, val).order("created_at", { ascending: true }),
     supabase.from("instagram_audit").select("score_global, score_bio, score_feed, score_edito, score_stories, score_epingles, resume, combo_gagnant").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("voice_profile").select("voice_summary, signature_expressions, banned_expressions, tone_patterns, structure_patterns, formatting_habits, sample_texts").eq("user_id", userId).maybeSingle(),
-    supabase.from("brand_charter").select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, font_accent, photo_style, mood_keywords, visual_donts, icon_style, border_radius, ai_generated_brief").eq(col, val).maybeSingle(),
+    supabase.from("brand_charter").select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, font_accent, photo_style, mood_keywords, visual_donts, icon_style, border_radius, ai_generated_brief, moodboard_description").eq(col, val).maybeSingle(),
     supabase.from("branding_mirror_results").select("coherence_score, summary, alignments, gaps, quick_wins").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
@@ -221,6 +221,7 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
     if (ch.photo_style) chLines.push(`- Style photo : ${ch.photo_style}`);
     if (ch.visual_donts) chLines.push(`- Interdits visuels : ${ch.visual_donts}`);
     if (ch.ai_generated_brief) chLines.push(`- Brief IA : ${ch.ai_generated_brief}`);
+    if (ch.moodboard_description) chLines.push(`- Ambiance moodboard : ${ch.moodboard_description}`);
     if (chLines.length) sections.push(`CHARTE GRAPHIQUE :\n${chLines.join("\n")}`);
   }
 
