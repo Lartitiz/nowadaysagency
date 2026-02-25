@@ -20,7 +20,7 @@ const PAGE_OPTIONS = [
   { id: "produits", label: "Page Produits" },
 ];
 
-// ── Global audit questionnaire ──
+// ── Shared types ──
 type AnswerValue = "oui" | "non" | "pas_sure" | null;
 
 interface AuditQuestion {
@@ -36,6 +36,7 @@ interface AuditSection {
   questions: AuditQuestion[];
 }
 
+// ── Global audit questionnaire ──
 const GLOBAL_SECTIONS: AuditSection[] = [
   {
     id: "clarte", emoji: "🎯", title: "Clarté du message",
@@ -89,6 +90,59 @@ const GLOBAL_SECTIONS: AuditSection[] = [
   },
 ];
 
+// ── Page-by-page questionnaire data ──
+const PAGE_QUESTIONS: Record<string, AuditQuestion[]> = {
+  accueil: [
+    { id: "acc_q1", text: "Ton titre principal décrit un bénéfice concret pour ta cliente idéale ?", tooltip: "Un bon titre dit ce que ta cliente va obtenir, pas ce que tu fais. 'Communique sans te trahir' > 'Agence de communication'." },
+    { id: "acc_q2", text: "On comprend ce que tu fais + pour qui en moins de 10 secondes ?", tooltip: "Demande à une amie de regarder ta page 10 secondes et de te dire ce qu'elle a retenu." },
+    { id: "acc_q3", text: "Ta page explique en quoi tu es différente des autres ?", tooltip: "Ce qui te rend unique n'est pas ton CV mais ta façon de faire et ta vision." },
+    { id: "acc_q4", text: "Ton visuel et tes textes racontent la même histoire ?", tooltip: "Si ton texte est chaleureux mais tes visuels sont froids et corporate, il y a un décalage." },
+    { id: "acc_q5", text: "Tes titres parlent de ce que ta cliente va obtenir (pas de ce que tu fais) ?", tooltip: "'Reprends confiance dans ta com' fonctionne mieux que 'Coaching en communication digitale'." },
+    { id: "acc_q6", text: "Tu as un bouton d'action visible sans scroller ?", tooltip: "Si ta visiteuse doit scroller pour trouver le bouton, tu perds 40% de conversions." },
+    { id: "acc_q7", text: "Le ton de tes textes correspond à ta cible ?", tooltip: "Parle comme ta cliente parle. Si elle dit 'j'en ai marre', ne dis pas 'lassitude professionnelle'." },
+    { id: "acc_q8", text: "Tu as du micro-texte rassurant sous tes boutons (genre 'Sans engagement', 'Réponse en 24h') ?", tooltip: "Un petit texte sous le bouton réduit l'anxiété et augmente le taux de clic de 10 à 20%." },
+    { id: "acc_q9", text: "Tu as une section qui présente tes offres ou services ?", tooltip: "Ta visiteuse doit voir ce que tu proposes sans avoir à chercher dans le menu." },
+    { id: "acc_q10", text: "Tu as un deuxième CTA plus bas dans la page (pas juste en haut) ?", tooltip: "Ta visiteuse qui scrolle a besoin d'un rappel à l'action en bas de page aussi." },
+    { id: "acc_q11", text: "Ta page fait moins de 10 scrolls sur mobile ?", tooltip: "Une page trop longue fatigue. Garde l'essentiel, coupe le superflu." },
+  ],
+  "a-propos": [
+    { id: "ap_q1", text: "Ta page commence par ta cliente (pas par toi) ?", tooltip: "Commence par le problème de ta cliente, pas par 'Je m'appelle…'. Elle veut savoir que tu la comprends." },
+    { id: "ap_q2", text: "Tu racontes ton histoire en moins de 300 mots ?", tooltip: "Ton histoire doit être percutante, pas exhaustive. Garde les moments clés." },
+    { id: "ap_q3", text: "Tu mentionnes tes valeurs de façon concrète (pas juste 'authenticité, bienveillance') ?", tooltip: "Au lieu de 'bienveillance', montre comment elle se traduit : 'Je ne te donnerai jamais de conseil que je n'appliquerais pas moi-même'." },
+    { id: "ap_q4", text: "Tu as un CTA en fin de page (prendre contact, découvrir les offres) ?", tooltip: "Ta visiteuse vient de lire ton histoire, elle est connectée. Ne la laisse pas partir sans direction." },
+    { id: "ap_q5", text: "Tu as ta photo sur cette page ?", tooltip: "Les gens achètent à des humains. Pas besoin d'une photo pro, une photo authentique suffit." },
+  ],
+  offres: [
+    { id: "off_q1", text: "Chaque offre a une page dédiée (pas tout mélangé) ?", tooltip: "Une page = une offre = une décision. Mélanger crée de la confusion." },
+    { id: "off_q2", text: "Tu montres les bénéfices AVANT les caractéristiques ?", tooltip: "Ta cliente veut savoir ce qu'elle va obtenir, pas le nombre de modules ou d'heures." },
+    { id: "off_q3", text: "Le prix est visible (ou au moins le processus pour l'obtenir) ?", tooltip: "L'opacité sur le prix est le frein n°1. Si tu ne veux pas afficher le prix, explique le processus." },
+    { id: "off_q4", text: "Tu as des témoignages sur cette page ?", tooltip: "Un témoignage spécifique à l'offre est 3x plus convaincant qu'un témoignage générique." },
+    { id: "off_q5", text: "Le CTA est clair et visible ?", tooltip: "Un seul bouton d'action par offre, bien visible, avec un texte d'action concret." },
+    { id: "off_q6", text: "Tu as une section FAQ sur cette page ?", tooltip: "La FAQ lève les dernières objections. 3-5 questions suffisent." },
+  ],
+  contact: [
+    { id: "ct_q1", text: "Le formulaire a 4 champs max ?", tooltip: "Chaque champ supplémentaire réduit le taux de complétion de 10%. Nom, email, message suffisent." },
+    { id: "ct_q2", text: "Tu proposes au moins 2 façons de te contacter ?", tooltip: "Formulaire + email, ou formulaire + DM Instagram. Certaines préfèrent un canal à l'autre." },
+    { id: "ct_q3", text: "Tu indiques un délai de réponse ?", tooltip: "'Je te réponds sous 48h' réduit l'anxiété et montre ton professionnalisme." },
+    { id: "ct_q4", text: "Tu as un texte rassurant avant le formulaire ?", tooltip: "Un petit paragraphe du genre 'Pas de spam, juste une conversation pour voir si on est faites pour travailler ensemble'." },
+  ],
+  produits: [
+    { id: "pr_q1", text: "Chaque produit a une photo de qualité ?", tooltip: "Une bonne photo vaut mille mots. Lumière naturelle, fond neutre, produit en situation." },
+    { id: "pr_q2", text: "Les descriptions parlent du bénéfice client (pas juste les caractéristiques) ?", tooltip: "'Te permet de…' plutôt que 'Contient…'. Le bénéfice d'abord, la technique ensuite." },
+    { id: "pr_q3", text: "Le bouton d'achat est visible sans scroller ?", tooltip: "Le bouton d'achat doit être visible dès l'arrivée sur la fiche produit." },
+    { id: "pr_q4", text: "Tu montres des avis clients sur les produits ?", tooltip: "Les avis augmentent la conversion de 20 à 30%. Même 2-3 avis font la différence." },
+    { id: "pr_q5", text: "Tu proposes des produits complémentaires ?", tooltip: "'Les clientes qui ont acheté ceci ont aussi aimé…' augmente le panier moyen." },
+  ],
+};
+
+const PAGE_LABELS: Record<string, { emoji: string; title: string }> = {
+  accueil: { emoji: "🏠", title: "Page d'accueil" },
+  "a-propos": { emoji: "👋", title: "Page À propos" },
+  offres: { emoji: "🎁", title: "Page Offres / Services" },
+  contact: { emoji: "💬", title: "Page Contact" },
+  produits: { emoji: "🛍️", title: "Page Produits" },
+};
+
 const ANSWER_OPTIONS: { value: AnswerValue; label: string }[] = [
   { value: "oui", label: "Oui ✅" },
   { value: "non", label: "Non ❌" },
@@ -99,7 +153,7 @@ const ANSWER_OPTIONS: { value: AnswerValue; label: string }[] = [
 type AuditData = {
   id: string;
   audit_mode: string | null;
-  answers: Record<string, string>;
+  answers: Record<string, unknown>;
   completed: boolean;
   score_global: number;
   scores: Record<string, unknown>;
@@ -122,9 +176,14 @@ const SiteAuditPage = () => {
   const [includeOther, setIncludeOther] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Questionnaire state
+  // Global questionnaire state
   const [currentSection, setCurrentSection] = useState(0);
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
+
+  // Page-by-page state
+  const [pbpPages, setPbpPages] = useState<string[]>([]);
+  const [currentPageIdx, setCurrentPageIdx] = useState(0);
+  const [pbpAnswers, setPbpAnswers] = useState<Record<string, Record<string, AnswerValue>>>({});
 
   const loadAudit = async () => {
     if (!user) return;
@@ -137,8 +196,14 @@ const SiteAuditPage = () => {
       .maybeSingle();
     if (data) {
       setExisting(data);
-      if (data.answers && typeof data.answers === "object") {
+      if (data.audit_mode === "global" && data.answers && typeof data.answers === "object" && !data.answers.accueil) {
         setAnswers(data.answers as Record<string, AnswerValue>);
+      }
+      if (data.audit_mode === "page_by_page" && data.answers && typeof data.answers === "object") {
+        setPbpAnswers(data.answers as Record<string, Record<string, AnswerValue>>);
+        // Reconstruct selected pages from answers keys or current_page
+        const storedPages = Object.keys(data.answers).filter(k => typeof data.answers[k] === "object");
+        if (storedPages.length > 0) setPbpPages(storedPages);
       }
     } else {
       setExisting(null);
@@ -154,7 +219,15 @@ const SiteAuditPage = () => {
     existing.audit_mode
   );
 
-  const saveAnswersToDb = useCallback(async (newAnswers: Record<string, AnswerValue>) => {
+  // ── Save helpers ──
+  const saveGlobalAnswersToDb = useCallback(async (newAnswers: Record<string, AnswerValue>) => {
+    if (!existing?.id) return;
+    await (supabase.from("website_audit") as any)
+      .update({ answers: newAnswers })
+      .eq("id", existing.id);
+  }, [existing?.id]);
+
+  const savePbpAnswersToDb = useCallback(async (newAnswers: Record<string, Record<string, AnswerValue>>) => {
     if (!existing?.id) return;
     await (supabase.from("website_audit") as any)
       .update({ answers: newAnswers })
@@ -177,17 +250,17 @@ const SiteAuditPage = () => {
       current_page: mode === "page_by_page" && pages?.length ? pages[0] : null,
     };
 
-    let newId: string | null = null;
     if (existing?.id) {
       await (supabase.from("website_audit") as any).update(payload).eq("id", existing.id);
-      newId = existing.id;
     } else {
-      const { data } = await (supabase.from("website_audit") as any).insert(payload).select("id").single();
-      newId = data?.id ?? null;
+      await (supabase.from("website_audit") as any).insert(payload).select("id").single();
     }
 
     setAnswers({});
+    setPbpAnswers({});
     setCurrentSection(0);
+    setCurrentPageIdx(0);
+    if (mode === "page_by_page" && pages) setPbpPages(pages);
     await loadAudit();
     setSaving(false);
     setStep("questionnaire");
@@ -208,7 +281,9 @@ const SiteAuditPage = () => {
     await (supabase.from("website_audit") as any).delete().eq("id", existing.id);
     setExisting(null);
     setAnswers({});
+    setPbpAnswers({});
     setCurrentSection(0);
+    setCurrentPageIdx(0);
     setStep("choose");
     setSaving(false);
     toast.success("Audit réinitialisé");
@@ -218,30 +293,106 @@ const SiteAuditPage = () => {
     setSelectedPages(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
   };
 
-  // ── Questionnaire navigation ──
+  // ── Global questionnaire navigation ──
   const section = GLOBAL_SECTIONS[currentSection];
   const totalSections = GLOBAL_SECTIONS.length;
-
   const sectionComplete = section?.questions.every(q => answers[q.id] != null) ?? false;
 
-  const handleAnswer = (qId: string, val: AnswerValue) => {
+  const handleGlobalAnswer = (qId: string, val: AnswerValue) => {
     setAnswers(prev => ({ ...prev, [qId]: val }));
   };
 
-  const goNextSection = async () => {
-    await saveAnswersToDb(answers);
+  const goNextGlobalSection = async () => {
+    await saveGlobalAnswersToDb(answers);
     if (currentSection < totalSections - 1) {
       setCurrentSection(prev => prev + 1);
     } else {
-      // Last section → results
       setStep("results");
     }
   };
 
-  const goPrevSection = () => {
+  const goPrevGlobalSection = () => {
     if (currentSection > 0) setCurrentSection(prev => prev - 1);
     else setStep("choose");
   };
+
+  // ── Page-by-page navigation ──
+  const currentPbpPageId = pbpPages[currentPageIdx] ?? "";
+  const currentPbpQuestions = PAGE_QUESTIONS[currentPbpPageId] ?? [];
+  const currentPbpLabel = PAGE_LABELS[currentPbpPageId] ?? { emoji: "📄", title: currentPbpPageId };
+  const currentPbpPageAnswers = pbpAnswers[currentPbpPageId] ?? {};
+  const pbpPageComplete = currentPbpQuestions.length > 0 && currentPbpQuestions.every(q => currentPbpPageAnswers[q.id] != null);
+
+  const handlePbpAnswer = (qId: string, val: AnswerValue) => {
+    setPbpAnswers(prev => ({
+      ...prev,
+      [currentPbpPageId]: { ...(prev[currentPbpPageId] ?? {}), [qId]: val },
+    }));
+  };
+
+  const goNextPbpPage = async () => {
+    await savePbpAnswersToDb(pbpAnswers);
+    if (currentPageIdx < pbpPages.length - 1) {
+      setCurrentPageIdx(prev => prev + 1);
+    } else {
+      setStep("results");
+    }
+  };
+
+  const goPrevPbpPage = () => {
+    if (currentPageIdx > 0) setCurrentPageIdx(prev => prev - 1);
+    else setStep("choose");
+  };
+
+  const goToPbpPage = async (idx: number) => {
+    await savePbpAnswersToDb(pbpAnswers);
+    setCurrentPageIdx(idx);
+  };
+
+  // ── Shared question renderer ──
+  const renderQuestions = (
+    questions: AuditQuestion[],
+    currentAnswers: Record<string, AnswerValue>,
+    onAnswer: (qId: string, val: AnswerValue) => void,
+  ) => (
+    <div className="space-y-5">
+      {questions.map((q) => (
+        <div key={q.id} className="space-y-2.5">
+          <div className="flex items-start gap-2">
+            <p className="text-sm font-medium text-foreground leading-snug flex-1">{q.text}</p>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="shrink-0 mt-0.5 text-muted-foreground hover:text-primary transition-colors">
+                  <HelpCircle className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-xs">
+                {q.tooltip}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {ANSWER_OPTIONS.map(opt => {
+              const isSelected = currentAnswers[q.id] === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => onAnswer(q.id, opt.value)}
+                  className={`font-mono-ui text-[12px] font-semibold px-4 py-2 rounded-pill border-2 transition-colors ${
+                    isSelected
+                      ? "border-primary bg-rose-pale text-primary"
+                      : "border-border bg-card text-muted-foreground hover:border-primary/50"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   // ── Render ──
   if (loading) {
@@ -280,7 +431,7 @@ const SiteAuditPage = () => {
                 : "Tu peux reprendre là où tu en étais ou recommencer de zéro."}
             </p>
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => { setStep(existing?.completed ? "results" : "questionnaire"); }} className="gap-2 rounded-pill">
+              <Button onClick={() => setStep(existing?.completed ? "results" : "questionnaire")} className="gap-2 rounded-pill">
                 <Eye className="h-4 w-4" />
                 {existing?.completed ? "Voir mon dernier audit" : "Reprendre l'audit"}
               </Button>
@@ -345,72 +496,25 @@ const SiteAuditPage = () => {
         {step === "questionnaire" && existing?.audit_mode === "global" && section && (
           <TooltipProvider delayDuration={200}>
             <div className="space-y-6">
-              {/* Progress bar */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span className="font-mono-ui font-semibold">Section {currentSection + 1}/{totalSections}</span>
                   <span>{section.emoji} {section.title}</span>
                 </div>
                 <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
-                    style={{ width: `${((currentSection + 1) / totalSections) * 100}%` }}
-                  />
+                  <div className="h-full rounded-full bg-primary transition-all duration-500 ease-out" style={{ width: `${((currentSection + 1) / totalSections) * 100}%` }} />
                 </div>
               </div>
-
-              {/* Section card */}
               <div className="rounded-2xl border bg-card p-6 space-y-6">
-                <h3 className="font-display text-lg font-bold text-foreground">
-                  {section.emoji} {section.title}
-                </h3>
-
-                <div className="space-y-5">
-                  {section.questions.map((q) => (
-                    <div key={q.id} className="space-y-2.5">
-                      <div className="flex items-start gap-2">
-                        <p className="text-sm font-medium text-foreground leading-snug flex-1">{q.text}</p>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button className="shrink-0 mt-0.5 text-muted-foreground hover:text-primary transition-colors">
-                              <HelpCircle className="h-4 w-4" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs text-xs">
-                            {q.tooltip}
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {ANSWER_OPTIONS.map(opt => {
-                          const isSelected = answers[q.id] === opt.value;
-                          return (
-                            <button
-                              key={opt.value}
-                              onClick={() => handleAnswer(q.id, opt.value)}
-                              className={`font-mono-ui text-[12px] font-semibold px-4 py-2 rounded-pill border-2 transition-colors ${
-                                isSelected
-                                  ? "border-primary bg-rose-pale text-primary"
-                                  : "border-border bg-card text-muted-foreground hover:border-primary/50"
-                              }`}
-                            >
-                              {opt.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <h3 className="font-display text-lg font-bold text-foreground">{section.emoji} {section.title}</h3>
+                {renderQuestions(section.questions, answers, handleGlobalAnswer)}
               </div>
-
-              {/* Navigation */}
               <div className="flex justify-between">
-                <Button variant="outline" onClick={goPrevSection} className="gap-2 rounded-pill">
+                <Button variant="outline" onClick={goPrevGlobalSection} className="gap-2 rounded-pill">
                   <ArrowLeft className="h-4 w-4" />
                   {currentSection === 0 ? "Retour" : "Précédent"}
                 </Button>
-                <Button onClick={goNextSection} disabled={!sectionComplete} className="gap-2 rounded-pill">
+                <Button onClick={goNextGlobalSection} disabled={!sectionComplete} className="gap-2 rounded-pill">
                   {currentSection === totalSections - 1 ? "Voir mon diagnostic" : "Suivant"}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -419,13 +523,80 @@ const SiteAuditPage = () => {
           </TooltipProvider>
         )}
 
-        {/* ── Page-by-page placeholder ── */}
-        {step === "questionnaire" && existing?.audit_mode === "page_by_page" && (
-          <div className="rounded-2xl border bg-card p-6 text-center space-y-3">
-            <p className="text-lg font-display font-bold text-foreground">📄 Audit page par page</p>
-            <p className="text-sm text-muted-foreground">Le questionnaire détaillé par page sera disponible très bientôt.</p>
-            <Button variant="outline" onClick={() => setStep("choose")} className="rounded-pill">Retour au choix</Button>
-          </div>
+        {/* ── Page-by-page questionnaire ── */}
+        {step === "questionnaire" && existing?.audit_mode === "page_by_page" && pbpPages.length > 0 && (
+          <TooltipProvider delayDuration={200}>
+            <div className="space-y-6">
+              {/* Page tabs */}
+              <div className="flex flex-wrap gap-2">
+                {pbpPages.map((pageId, idx) => {
+                  const label = PAGE_LABELS[pageId] ?? { emoji: "📄", title: pageId };
+                  const pageAnswers = pbpAnswers[pageId] ?? {};
+                  const pageQuestions = PAGE_QUESTIONS[pageId] ?? [];
+                  const isDone = pageQuestions.length > 0 && pageQuestions.every(q => pageAnswers[q.id] != null);
+                  const isCurrent = idx === currentPageIdx;
+                  return (
+                    <button
+                      key={pageId}
+                      onClick={() => goToPbpPage(idx)}
+                      className={`font-mono-ui text-[12px] font-semibold px-4 py-2 rounded-pill border-2 transition-colors ${
+                        isCurrent
+                          ? "border-primary bg-rose-pale text-primary"
+                          : isDone
+                            ? "border-primary/30 bg-rose-pale/50 text-primary/70"
+                            : "border-border bg-card text-muted-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      {label.emoji} {label.title} {isDone && !isCurrent ? "✓" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Progress */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="font-mono-ui font-semibold">Page {currentPageIdx + 1}/{pbpPages.length}</span>
+                  <span>{currentPbpLabel.emoji} {currentPbpLabel.title}</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
+                  <div className="h-full rounded-full bg-primary transition-all duration-500 ease-out" style={{ width: `${((currentPageIdx + 1) / pbpPages.length) * 100}%` }} />
+                </div>
+              </div>
+
+              {/* Questions */}
+              {currentPbpQuestions.length > 0 ? (
+                <div className="rounded-2xl border bg-card p-6 space-y-6">
+                  <h3 className="font-display text-lg font-bold text-foreground">
+                    {currentPbpLabel.emoji} {currentPbpLabel.title}
+                  </h3>
+                  {renderQuestions(currentPbpQuestions, currentPbpPageAnswers, handlePbpAnswer)}
+                </div>
+              ) : (
+                <div className="rounded-2xl border bg-card p-6 text-center space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Pas de questionnaire spécifique pour "{currentPbpPageId}". Tu peux passer à la page suivante.
+                  </p>
+                </div>
+              )}
+
+              {/* Navigation */}
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={goPrevPbpPage} className="gap-2 rounded-pill">
+                  <ArrowLeft className="h-4 w-4" />
+                  {currentPageIdx === 0 ? "Retour" : "Précédent"}
+                </Button>
+                <Button
+                  onClick={goNextPbpPage}
+                  disabled={currentPbpQuestions.length > 0 && !pbpPageComplete}
+                  className="gap-2 rounded-pill"
+                >
+                  {currentPageIdx === pbpPages.length - 1 ? "Voir mon diagnostic complet" : "Page suivante"}
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </TooltipProvider>
         )}
 
         {/* ── Results placeholder ── */}
