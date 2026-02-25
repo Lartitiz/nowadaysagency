@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useProfileUserId } from "@/hooks/use-workspace-query";
 
 export type ChannelId = "instagram" | "linkedin" | "newsletter" | "pinterest" | "site" | "seo";
 
@@ -31,6 +31,7 @@ export function useActiveChannels(): ActiveChannels {
   const { user } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
+  const profileUserId = useProfileUserId();
   const [channels, setChannelsState] = useState<ChannelId[]>(["instagram"]);
   const [loading, setLoading] = useState(true);
 
@@ -73,10 +74,10 @@ export function useActiveChannels(): ActiveChannels {
 
     // Sync both tables in parallel
     await Promise.all([
-      supabase.from("profiles").update({ canaux: newChannels }).eq("user_id", user.id),
-      supabase.from("user_plan_config").update({ channels: newChannels }).eq("user_id", user.id),
+      supabase.from("profiles").update({ canaux: newChannels }).eq("user_id", profileUserId),
+      supabase.from("user_plan_config").update({ channels: newChannels }).eq("user_id", profileUserId),
     ]);
-  }, [user?.id]);
+  }, [user?.id, profileUserId]);
 
   return {
     channels,
