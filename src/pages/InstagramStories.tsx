@@ -5,6 +5,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
+import BaseReminder from "@/components/BaseReminder";
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Sparkles, Mic, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -423,6 +424,8 @@ export default function InstagramStories() {
             sourceModule="stories_generator"
             contentData={sequenceResult}
           />
+
+          <BaseReminder variant="atelier" />
         </main>
       </div>
     );
