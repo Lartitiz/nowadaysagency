@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -36,6 +36,7 @@ import { checkBadges } from "@/lib/badges";
 import { trackError } from "@/lib/error-tracker";
 import OnboardingMissions from "@/components/dashboard/OnboardingMissions";
 import SessionFocusWidget from "@/components/dashboard/SessionFocusWidget";
+import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 
 /* ── Types ── */
 export interface UserProfile {
@@ -99,6 +100,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
 
   const isClientWorkspace = !!activeWorkspace && activeRole === "manager";
+  const [contentCoachingOpen, setContentCoachingOpen] = useState(false);
 
   const { startSession, isActive: sessionActive } = useSession();
 
@@ -380,6 +382,12 @@ export default function Dashboard() {
                     </button>
                   ))}
                 </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setContentCoachingOpen(true); }}
+                  className="text-xs text-muted-foreground hover:text-primary mt-3 transition-colors"
+                >
+                  🤔 Je sais pas quoi poster...
+                </button>
               </BentoCard>
             </FirstTimeTooltip>
           </div>
@@ -519,6 +527,7 @@ export default function Dashboard() {
           </Link>
         </div>
       </main>
+      <ContentCoachingDialog open={contentCoachingOpen} onOpenChange={setContentCoachingOpen} />
     </div>
   );
 }
