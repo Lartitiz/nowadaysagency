@@ -32,6 +32,7 @@ interface PostResult {
   hashtags: string[];
   template_used: string;
   hook_type_used?: string;
+  hook_alternatives?: string[];
   checklist: { item: string; ok: boolean }[];
 }
 
@@ -138,6 +139,11 @@ export default function LinkedInPostGenerator() {
     navigator.clipboard.writeText(result.full_text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+    toast({
+      title: "Post copié ✅",
+      description: "Reste 15-30 min après publication pour répondre aux premiers commentaires. C'est pendant la Golden Hour que la visibilité se joue.",
+      duration: 8000,
+    });
   };
 
   const copyImproveText = (text: string, key: string) => {
@@ -166,9 +172,24 @@ export default function LinkedInPostGenerator() {
     setImproveResult({ ...improveResult, improved_version: newVersion, character_count: newVersion.length });
   };
 
+  const getNextOptimalDate = () => {
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun
+    // Find next Tue(2), Wed(3), or Thu(4)
+    let daysAhead = 0;
+    for (let i = 1; i <= 7; i++) {
+      const d = (day + i) % 7;
+      if (d >= 2 && d <= 4) { daysAhead = i; break; }
+    }
+    const target = new Date(now);
+    target.setDate(target.getDate() + daysAhead);
+    target.setHours(8, 30, 0, 0);
+    return target.toISOString().split("T")[0];
+  };
+
   const handleCalendar = async (text: string) => {
     if (!user) return;
-    const dateStr = new Date().toISOString().split("T")[0];
+    const dateStr = getNextOptimalDate();
     await supabase.from("calendar_posts").insert({
       user_id: user.id,
       workspace_id: workspaceId !== user.id ? workspaceId : undefined,
@@ -343,7 +364,31 @@ export default function LinkedInPostGenerator() {
                   </div>
                 </div>
 
+                {/* Hook alternatives */}
+                {result.hook_alternatives && result.hook_alternatives.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">🔄 Autres accroches possibles</h4>
+                    {result.hook_alternatives.map((hook, i) => (
+                      <div key={i} className="rounded-xl border border-border bg-card p-4 flex items-start gap-3">
+                        <p className="flex-1 text-sm text-foreground italic">"{hook}"</p>
+                        <Button variant="ghost" size="sm" className="text-xs shrink-0" onClick={() => {
+                          const currentHook = result.hook;
+                          const newFullText = hook + result.full_text.slice(currentHook.length);
+                          setResult({ ...result, full_text: newFullText, hook: hook, character_count: newFullText.length });
+                        }}>
+                          Utiliser
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <LinkedInPreview text={result.full_text} cutoff={210} label="Post" />
+
+                {/* Timing suggestion */}
+                <div className="rounded-lg bg-primary/5 border border-primary/20 px-4 py-2.5 text-sm text-foreground">
+                  📅 <strong>Meilleur moment pour publier ce post :</strong> mardi à jeudi, entre 8h-9h ou 14h-15h.
+                </div>
 
                 {result.checklist && (
                   <div className="rounded-xl bg-muted/50 p-4">
