@@ -20,6 +20,7 @@ import StoryFicheCards from "@/components/branding/StoryFicheCards";
 import BrandingCoachingHistory from "@/components/branding/BrandingCoachingHistory";
 import BrandingSuggestionsCard from "@/components/branding/BrandingSuggestionsCard";
 import BrandingSpark from "@/components/branding/BrandingSpark";
+import BrandingActionCTA from "@/components/branding/BrandingActionCTA";
 import { useBrandingSuggestions } from "@/hooks/use-branding-suggestions";
 import { DEMO_DATA } from "@/lib/demo-data";
 import { format } from "date-fns";
@@ -479,6 +480,10 @@ export default function BrandingSectionPage() {
             />
           </TabsContent>
         </Tabs>
+
+        {completionPct >= 80 && (
+          <BrandingActionCTA section={section} />
+        )}
       </main>
     </div>
   );
