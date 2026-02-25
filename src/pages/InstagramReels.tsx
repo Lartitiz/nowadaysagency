@@ -736,7 +736,7 @@ export default function InstagramReels() {
         {step >= 2 && (
           <div className="mb-8">
             <h2 className="font-display text-lg font-bold text-foreground mb-3">2. Tu veux être face cam ?</h2>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {FACECAM_OPTIONS.map((o) => (
                 <button
                   key={o.id}
@@ -793,7 +793,7 @@ export default function InstagramReels() {
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {TIME_OPTIONS.map((o) => (
                 <button
                   key={o.id}
