@@ -11,20 +11,40 @@ export default function LegalAiPage() {
           <ArrowLeft className="h-4 w-4" /> Retour aux paramètres
         </Link>
 
-        <h1 className="font-display text-2xl font-bold text-foreground mb-6">À propos de l'utilisation de l'IA</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground mb-6">Nos engagements</h1>
 
-        <div className="rounded-2xl bg-card border border-border p-6 space-y-4 text-sm text-foreground leading-relaxed">
-          <p>
-            L'assistant de com' utilise l'intelligence artificielle pour aider à la génération de contenus : posts, scripts, pages web, audits.
+        <div className="rounded-2xl bg-card border border-border p-6 space-y-5 text-sm leading-relaxed">
+          <p className="italic text-muted-foreground">
+            Cet outil a été conçu par une personne qui croit que la communication peut être puissante sans être manipulatrice. Concrètement, ça veut dire :
           </p>
-          <p>
-            Les contenus générés sont des propositions de travail destinées à être relues, personnalisées et validées par l'utilisateur·ice avant publication.
-          </p>
-          <p>
-            Nowadays Agency ne garantit pas l'exactitude ou la pertinence de chaque suggestion générée par l'IA. L'utilisateur·ice reste seul·e responsable du contenu qu'iel publie.
-          </p>
-          <p>
-            Tes données sont utilisées uniquement pour personnaliser les générations dans l'app. Elles ne sont pas partagées avec des tiers.
+
+          <div>
+            <p className="font-semibold text-foreground">Pas de dark patterns</p>
+            <p className="text-muted-foreground">Pas de bouton "Annuler" minuscule planqué en gris pendant que "Acheter maintenant" clignote. Si tu veux fermer une fenêtre, tu la fermes. Point.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground">Pas de faux compteurs</p>
+            <p className="text-muted-foreground">Tu ne verras jamais "Plus que 2 places !" ou "17 personnes regardent cette offre". Parce que c'est faux. Et parce que tu mérites mieux que du stress artificiel.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground">Pas de FOMO fabriqué</p>
+            <p className="text-muted-foreground">On ne va pas t'envoyer 3 mails de "dernière chance" pour te faire craquer. Si une offre t'intéresse, elle sera encore là demain.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground">Pas de culpabilisation</p>
+            <p className="text-muted-foreground">Si tu ne te connectes pas pendant 3 semaines, personne ne t'envoie un message passif-agressif du type "Tu nous manques 😢". Ta com' avance à ton rythme. Pas au nôtre.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground">L'IA propose, toi tu décides</p>
+            <p className="text-muted-foreground">Chaque contenu généré est une base de travail. Pas un produit fini. Ton expertise et ta voix restent au centre.</p>
+          </div>
+
+          <p className="italic text-muted-foreground text-xs">
+            Ça paraît évident ? Ça devrait l'être. Sauf que la majorité des outils SaaS font exactement l'inverse.
           </p>
         </div>
       </main>
