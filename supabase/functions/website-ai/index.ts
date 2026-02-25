@@ -137,6 +137,50 @@ serve(async (req) => {
       systemPrompt = `${WEBSITE_PRINCIPLES}\n\n${context}\n\nTu generes le contenu d'une PAGE DE CAPTURE (lead magnet).\n\nOBJECTIF : recolter un email en echange d'un freebie.\nLONGUEUR : tres courte. 200-400 mots max.\nTON : direct, promesse claire, pas de blabla.\n\nLEAD MAGNET : ${lead_magnet_name || "voir contexte"}\nDESCRIPTION : ${lead_magnet_description || ""}\n\nSTRUCTURE :\n1. Titre benefice du lead magnet (6-12 mots)\n2. 3-4 bullet points de ce qu'il contient\n3. CTA clair\n4. Micro-copy reassurance ("Tes donnees restent privees")\n\nREGLE : chaque champ supplementaire = -4% de conversion. 2 champs suffisent (prenom + email).\n\nReponds UNIQUEMENT en JSON sans backticks :\n{"title": "...", "subtitle": "...", "bullets": ["...", "...", "..."], "cta_text": "...", "micro_copy": "..."}`;
       userPrompt = "Genere ma page de capture.";
 
+    } else if (action === "audit-diagnostic") {
+      const { answers: auditAnswers, scores, score_global, audit_mode, weak_categories } = params;
+      // Use websiteAudit preset for this action
+      const auditCtx = await getUserContext(supabase, user.id, params.workspace_id);
+      const auditContext = formatContextForAI(auditCtx, CONTEXT_PRESETS.websiteAudit);
+
+      const weakCats = weak_categories || Object.entries(scores || {})
+        .filter(([, cat]: any) => cat.max > 0 && (cat.score / cat.max) < 0.75)
+        .map(([, cat]: any) => cat.label);
+
+      systemPrompt = `${WEBSITE_PRINCIPLES}\n\n${auditContext}\n\nTu es coach en conversion web pour des créatrices et solopreneur·ses. Tu analyses les résultats d'un audit de site web.\n\nRÉSULTATS DE L'AUDIT :\n- Score global : ${score_global}/100\n- Mode : ${audit_mode}\n- Scores détaillés : ${JSON.stringify(scores)}\n- Catégories faibles (< 75%) : ${(weakCats || []).join(", ")}\n- Réponses détaillées : ${JSON.stringify(auditAnswers)}\n\nGénère un diagnostic personnalisé en 3 parties :\n\n1. CE QUI VA BIEN (2-3 points, encourage ce qui est déjà en place)\n2. LES 3 PRIORITÉS (les 3 changements qui auront le plus d'impact, classés par impact)\n3. TON PREMIER PAS (une action concrète à faire dans les 24h)\n\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—), utilise : ou ;\n- Ton direct, chaleureux, comme une pote experte\n- Donne des exemples concrets adaptés au branding de l'utilisatrice\n- Si le branding/contexte est disponible, personnalise les exemples\n- Pas de jargon technique : dis "bouton d'action" pas "CTA", dis "visiteuse" pas "utilisateur"\n- Sois honnête : si le score est bas, dis-le avec bienveillance mais sans minimiser\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"positif": ["...", "..."], "priorites": [{"titre": "...", "detail": "...", "impact": "fort|moyen", "module": "/site/accueil ou null"}], "premier_pas": "..."}`;
+      userPrompt = "Génère mon diagnostic personnalisé basé sur l'audit.";
+
+      // Generate, save, and return
+      systemPrompt = VOICE_PRIORITY + systemPrompt;
+      const diagnosticRaw = await callAnthropicSimple(getModelForAction("website"), systemPrompt, userPrompt, 0.8);
+
+      // Save diagnostic + recommendations to website_audit
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
+
+      // Try to find the user's latest audit
+      const { data: auditRow } = await serviceClient
+        .from("website_audit")
+        .select("id")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (auditRow) {
+        await serviceClient
+          .from("website_audit")
+          .update({
+            diagnostic: diagnosticRaw,
+            recommendations: diagnosticRaw,
+          })
+          .eq("id", auditRow.id);
+      }
+
+      return new Response(JSON.stringify({ diagnostic: diagnosticRaw }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
     } else {
       return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

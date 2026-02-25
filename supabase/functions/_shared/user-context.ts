@@ -384,4 +384,7 @@ export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
 
   // Score content: branding ✅, profile ✅
   score: { includeStory: false, includePersona: false, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: false, includeCharter: false },
+
+  // Website audit diagnostic: persona ✅, offers ✅, profile ✅, voice ✅, charter ✅
+  websiteAudit: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true },
 };
