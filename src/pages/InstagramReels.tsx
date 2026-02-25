@@ -100,14 +100,14 @@ const DURATION_GUIDE = [
 ];
 
 const REELS_TIPS = [
-  { text: "1,7 seconde. C'est le temps que les gens mettent pour décider de rester ou scroller. Ton hook est tout.", source: "Données rétention 2025" },
-  { text: "Les partages en DM comptent 3 à 5 fois plus que les likes pour toucher de nouvelles personnes. Crée du contenu 'envoyable'.", source: "Mosseri, janvier 2025" },
+  { text: "1,7 seconde. C'est le temps que les gens mettent pour décider de rester ou scroller. Ton hook est tout.", source: "Données rétention Instagram" },
+  { text: "Les partages en DM comptent 3 à 5 fois plus que les likes pour toucher de nouvelles personnes. Crée du contenu 'envoyable'.", source: "Adam Mosseri, Head of Instagram" },
   { text: "Un Reel de 10 sec avec 80% de rétention bat toujours un Reel de 60 sec avec 30%. C'est pas la durée, c'est 'garder les gens'.", source: "OpusClip" },
   { text: "Repartage ton Reel en story dans l'heure qui suit. C'est un signal croisé qui booste les deux algorithmes.", source: "Best practice Instagram" },
-  { text: "Les petits comptes (<50K) sont dans le sweet spot : Instagram booste les créateur·ices émergent·es en Reels.", source: "Benchmarks 2025" },
-  { text: "Les Reels éducatifs convertissent mieux que les trends dansantes. Le divertissement attire des vues, l'éducation attire des client·es.", source: "Tendances 2025" },
+  { text: "Les petits comptes (<50K) sont dans le sweet spot : Instagram booste les créateur·ices émergent·es en Reels.", source: "Benchmarks créateur·ices Instagram" },
+  { text: "Les Reels éducatifs convertissent mieux que les trends dansantes. Le divertissement attire des vues, l'éducation attire des client·es.", source: "Tendances Instagram" },
   { text: "60-80% des gens regardent sans le son. Pas de sous-titres = message invisible.", source: "Sprout Social" },
-  { text: "Les Reels 'face cam brut' surperforment les Reels ultra-produits en 2025.", source: "Tendances 2025" },
+  { text: "Les Reels 'face cam brut' surperforment les Reels ultra-produits.", source: "Tendances Instagram" },
   { text: "La caption ne doit pas répéter le Reel. C'est un second hook + des mots-clés SEO + un CTA.", source: "Best practice" },
   { text: "Les comptes qui postent 3-5 Reels/semaine doublent leur croissance vs 1/semaine.", source: "Buffer" },
 ];
