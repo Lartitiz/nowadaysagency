@@ -522,7 +522,7 @@ export default function CalendarPage() {
           </Button>
         </div>
 
-        <BrandingPrompt section="strategie" />
+        
 
         {/* Mobile tabs */}
         {isMobile && (
