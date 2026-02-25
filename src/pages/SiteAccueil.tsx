@@ -82,7 +82,7 @@ export default function SiteAccueil() {
     if (!user) return;
     setAiLoading(action);
     try {
-      const body: any = { action, ...extraParams, workspace_id: workspaceId };
+      const body: any = { action, ...extraParams, workspace_id: workspaceId !== user?.id ? workspaceId : undefined };
       if (coachingBrief?.summary) {
         body.pre_gen_brief = coachingBrief.summary;
       }

@@ -111,7 +111,7 @@ export default function SiteAPropos() {
     setGenerating(true);
     setSelectedAngle(angle);
     try {
-      const body: any = { action: "about-page", angle, workspace_id: workspaceId };
+      const body: any = { action: "about-page", angle, workspace_id: workspaceId !== user?.id ? workspaceId : undefined };
       if (coachingBrief?.summary) {
         body.pre_gen_brief = coachingBrief.summary;
       }
@@ -190,7 +190,7 @@ export default function SiteAPropos() {
           url,
           current_text: text,
           focus: optimizeFocus.trim() || undefined,
-          workspace_id: workspaceId,
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
       });
       if (error) throw error;
