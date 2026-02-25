@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -6,11 +6,15 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { RotateCcw, ArrowRight, ArrowLeft, Eye, HelpCircle } from "lucide-react";
+import { RotateCcw, ArrowRight, ArrowLeft, Eye, HelpCircle, Upload, Camera, Loader2, Link as LinkIcon, Palette } from "lucide-react";
+import { Link } from "react-router-dom";
 import SiteAuditResult from "@/components/site/SiteAuditResult";
+import { friendlyError } from "@/lib/error-messages";
 
 // ── Page options for page-by-page mode ──
 const PAGE_OPTIONS = [
@@ -171,11 +175,21 @@ const SiteAuditPage = () => {
 
   const [loading, setLoading] = useState(true);
   const [existing, setExisting] = useState<AuditData | null>(null);
-  const [step, setStep] = useState<"choose" | "pick-pages" | "questionnaire" | "results">("choose");
+  const [step, setStep] = useState<"choose" | "pick-pages" | "questionnaire" | "results" | "screenshot">("choose");
   const [selectedPages, setSelectedPages] = useState<string[]>(["accueil"]);
   const [otherPage, setOtherPage] = useState("");
   const [includeOther, setIncludeOther] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Screenshot audit state
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [screenshotUrl, setScreenshotUrl] = useState("");
+  const [screenshotPageType, setScreenshotPageType] = useState("accueil");
+  const [screenshotLoading, setScreenshotLoading] = useState(false);
+  const [screenshotResult, setScreenshotResult] = useState<any>(null);
+  const [expandedProblem, setExpandedProblem] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Global questionnaire state
   const [currentSection, setCurrentSection] = useState(0);
@@ -292,6 +306,74 @@ const SiteAuditPage = () => {
 
   const togglePage = (id: string) => {
     setSelectedPages(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
+  };
+
+  // ── Screenshot audit ──
+  const handleScreenshotFile = (file: File) => {
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("L'image doit faire moins de 5 Mo");
+      return;
+    }
+    if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {
+      toast.error("Format accepté : PNG ou JPG");
+      return;
+    }
+    setScreenshotFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => setScreenshotPreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+    setScreenshotResult(null);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) handleScreenshotFile(file);
+  };
+
+  const analyzeScreenshot = async () => {
+    if (!screenshotFile) return;
+    setScreenshotLoading(true);
+    setScreenshotResult(null);
+    try {
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1]); // Remove data:image/...;base64, prefix
+        };
+        reader.readAsDataURL(screenshotFile);
+      });
+
+      const imageType = screenshotFile.type === "image/png" ? "png" : "jpg";
+
+      const { data, error } = await supabase.functions.invoke("website-ai", {
+        body: {
+          action: "audit-screenshot",
+          image_base64: base64,
+          image_type: imageType,
+          site_url: screenshotUrl || undefined,
+          page_type: screenshotPageType,
+          workspace_id: workspaceId,
+        },
+      });
+      if (error) throw error;
+
+      const raw = data?.content || data;
+      let parsed;
+      try {
+        const str = typeof raw === "string" ? raw : JSON.stringify(raw);
+        const cleaned = str.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+        parsed = typeof raw === "object" && raw.first_impression ? raw : JSON.parse(cleaned);
+      } catch {
+        throw new Error("Format de réponse inattendu");
+      }
+      setScreenshotResult(parsed);
+    } catch (err) {
+      toast.error(friendlyError(err));
+    } finally {
+      setScreenshotLoading(false);
+    }
   };
 
   // ── Global questionnaire navigation ──
@@ -446,18 +528,24 @@ const SiteAuditPage = () => {
 
         {/* ── Mode selection ── */}
         {!hasStarted && step === "choose" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <button onClick={handleGlobal} disabled={saving} className="group relative rounded-2xl border bg-card p-6 text-left transition-all hover:border-primary hover:shadow-md cursor-pointer">
               <span className="text-2xl mb-3 block">🌐</span>
               <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">Audit global</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Un diagnostic rapide de tout ton site en 5 minutes. Idéal pour un premier état des lieux.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Un diagnostic rapide de tout ton site en 5 minutes.</p>
               <span className="mt-3 inline-block font-mono-ui text-[10px] font-semibold px-2.5 py-0.5 rounded-pill text-primary bg-rose-pale">~5 min</span>
             </button>
             <button onClick={() => setStep("pick-pages")} disabled={saving} className="group relative rounded-2xl border bg-card p-6 text-left transition-all hover:border-primary hover:shadow-md cursor-pointer">
               <span className="text-2xl mb-3 block">📄</span>
               <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">Audit page par page</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Un diagnostic détaillé, page par page. Plus long mais plus précis.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Un diagnostic détaillé, page par page. Plus précis.</p>
               <span className="mt-3 inline-block font-mono-ui text-[10px] font-semibold px-2.5 py-0.5 rounded-pill text-primary bg-rose-pale">~15 min</span>
+            </button>
+            <button onClick={() => setStep("screenshot")} disabled={saving} className="group relative rounded-2xl border bg-card p-6 text-left transition-all hover:border-primary hover:shadow-md cursor-pointer">
+              <span className="text-2xl mb-3 block">📸</span>
+              <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">Audit visuel (screenshot)</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Upload un screenshot et reçois un diagnostic visuel IA.</p>
+              <span className="mt-3 inline-block font-mono-ui text-[10px] font-semibold px-2.5 py-0.5 rounded-pill bg-primary/10 text-primary">IA Vision</span>
             </button>
           </div>
         )}
@@ -598,6 +686,221 @@ const SiteAuditPage = () => {
               </div>
             </div>
           </TooltipProvider>
+        )}
+
+        {/* ── Screenshot audit ── */}
+        {step === "screenshot" && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" onClick={() => { setStep("choose"); setScreenshotResult(null); setScreenshotFile(null); setScreenshotPreview(null); }} className="gap-2 rounded-pill">
+                <ArrowLeft className="h-4 w-4" /> Retour
+              </Button>
+              <h2 className="font-display text-lg font-bold text-foreground">📸 Audit visuel par screenshot</h2>
+            </div>
+
+            {/* Upload zone + options */}
+            {!screenshotResult && (
+              <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
+                {/* Drag & drop */}
+                <div
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 transition-colors space-y-3"
+                >
+                  {screenshotPreview ? (
+                    <img src={screenshotPreview} alt="Preview" className="max-h-64 mx-auto rounded-lg object-contain" />
+                  ) : (
+                    <>
+                      <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Glisse ton screenshot ici ou clique pour sélectionner</p>
+                      <p className="text-xs text-muted-foreground">PNG ou JPG, max 5 Mo</p>
+                    </>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    className="hidden"
+                    onChange={(e) => { if (e.target.files?.[0]) handleScreenshotFile(e.target.files[0]); }}
+                  />
+                </div>
+
+                {/* URL context */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium flex items-center gap-1.5">
+                    <LinkIcon className="h-3.5 w-3.5" /> URL du site (optionnel, pour le contexte)
+                  </Label>
+                  <Input
+                    placeholder="https://monsite.com"
+                    value={screenshotUrl}
+                    onChange={(e) => setScreenshotUrl(e.target.value)}
+                  />
+                </div>
+
+                {/* Page type */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Type de page</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: "accueil", label: "🏠 Accueil" },
+                      { id: "a-propos", label: "👋 À propos" },
+                      { id: "offres", label: "🎁 Offres" },
+                      { id: "autre", label: "📄 Autre" },
+                    ].map((pt) => (
+                      <button
+                        key={pt.id}
+                        onClick={() => setScreenshotPageType(pt.id)}
+                        className={`text-xs font-semibold px-4 py-2 rounded-pill border-2 transition-colors ${
+                          screenshotPageType === pt.id
+                            ? "border-primary bg-rose-pale text-primary"
+                            : "border-border bg-card text-muted-foreground hover:border-primary/50"
+                        }`}
+                      >
+                        {pt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <Button
+                  onClick={analyzeScreenshot}
+                  disabled={!screenshotFile || screenshotLoading}
+                  className="gap-2 rounded-pill w-full sm:w-auto"
+                >
+                  {screenshotLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                  {screenshotLoading ? "Analyse en cours..." : "Analyser mon screenshot"}
+                </Button>
+              </div>
+            )}
+
+            {/* Loading */}
+            {screenshotLoading && (
+              <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  L'IA analyse ton screenshot...
+                </div>
+                <Skeleton className="h-6 w-48" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Skeleton className="h-24 w-full rounded-xl" />
+                  <Skeleton className="h-24 w-full rounded-xl" />
+                </div>
+              </div>
+            )}
+
+            {/* Results */}
+            {screenshotResult && !screenshotLoading && (
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                {/* Screenshot preview */}
+                <div className="lg:col-span-2">
+                  {screenshotPreview && (
+                    <div className="rounded-2xl border border-border overflow-hidden sticky top-4">
+                      <img src={screenshotPreview} alt="Screenshot analysé" className="w-full object-contain" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Diagnostic */}
+                <div className="lg:col-span-3 space-y-5">
+                  {/* Score */}
+                  <div className="rounded-2xl border border-border bg-card p-5 flex items-center gap-4">
+                    <div className={`text-3xl font-display font-bold ${
+                      screenshotResult.score_estime >= 75 ? "text-emerald-600" :
+                      screenshotResult.score_estime >= 50 ? "text-amber-500" : "text-red-500"
+                    }`}>
+                      {screenshotResult.score_estime}/100
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-foreground">Score estimé</p>
+                      <p className="text-xs text-muted-foreground">{screenshotResult.first_impression}</p>
+                    </div>
+                  </div>
+
+                  {/* Points forts */}
+                  <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                    <h3 className="font-display text-sm font-bold text-foreground">✅ Points forts</h3>
+                    <ul className="space-y-2">
+                      {screenshotResult.points_forts?.map((p: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                          <span className="shrink-0 mt-0.5 text-emerald-500">●</span>
+                          <span>{p}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Problèmes */}
+                  <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                    <h3 className="font-display text-sm font-bold text-foreground">⚠️ Problèmes identifiés</h3>
+                    <div className="space-y-2">
+                      {screenshotResult.problemes?.map((prob: any, i: number) => {
+                        const impactColors: Record<string, string> = {
+                          fort: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400",
+                          moyen: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
+                          faible: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
+                        };
+                        const catEmojis: Record<string, string> = {
+                          visuel: "🎨", copy: "✍️", cta: "👆", confiance: "🛡️", navigation: "🗺️",
+                        };
+                        const isExpanded = expandedProblem === i;
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => setExpandedProblem(isExpanded ? null : i)}
+                            className="w-full text-left rounded-xl border border-border p-4 hover:border-primary/40 transition-all space-y-2"
+                          >
+                            <div className="flex items-start gap-2">
+                              <span className="shrink-0">{catEmojis[prob.categorie] || "📌"}</span>
+                              <p className="text-sm text-foreground flex-1">{prob.description}</p>
+                              <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-pill ${impactColors[prob.impact] || impactColors.moyen}`}>
+                                {prob.impact}
+                              </span>
+                            </div>
+                            {isExpanded && (
+                              <div className="ml-6 mt-2 p-3 rounded-lg bg-muted/50 border border-border">
+                                <p className="text-xs font-bold text-foreground mb-1">💡 Suggestion</p>
+                                <p className="text-xs text-muted-foreground">{prob.suggestion}</p>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Suggestions layout */}
+                  {screenshotResult.suggestions_layout?.length > 0 && (
+                    <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                      <h3 className="font-display text-sm font-bold text-foreground">📐 Suggestions de mise en page</h3>
+                      <ul className="space-y-2">
+                        {screenshotResult.suggestions_layout.map((s: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                            <span className="shrink-0 mt-0.5 text-primary">→</span>
+                            <span>{s}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex flex-wrap gap-3">
+                    <Button variant="outline" size="sm" className="gap-2 rounded-pill" onClick={() => { setScreenshotResult(null); }}>
+                      <RotateCcw className="h-4 w-4" /> Refaire avec un autre screenshot
+                    </Button>
+                    <Button variant="ghost" size="sm" className="gap-2 rounded-pill" asChild>
+                      <Link to="/site/inspirations">
+                        <Palette className="h-4 w-4" /> 🎨 Voir des inspirations pour améliorer
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* ── Results ── */}
