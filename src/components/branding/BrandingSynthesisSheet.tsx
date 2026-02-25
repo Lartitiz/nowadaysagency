@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Download, Copy, RefreshCw, ExternalLink, Loader2, Pencil, Sparkles } from "lucide-react";
+import { ArrowLeft, Download, Copy, RefreshCw, ExternalLink, Loader2, Pencil, Sparkles, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import html2canvas from "html2canvas";
@@ -180,6 +180,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
   const [data, setData] = useState<SynthesisData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [summaries, setSummaries] = useState<any>(null);
   const [summariesLoading, setSummariesLoading] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -383,6 +384,50 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
           <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={exporting} className="gap-1.5 text-xs">
             {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
             PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={sharing}
+            className="gap-1.5 text-xs"
+            onClick={async () => {
+              if (!user) return;
+              setSharing(true);
+              try {
+                // Check for existing active link
+                const { data: existing } = await supabase
+                  .from("shared_branding_links")
+                  .select("token")
+                  .eq("user_id", user.id)
+                  .eq("is_active", true)
+                  .gte("expires_at", new Date().toISOString())
+                  .limit(1) as any;
+                
+                let token: string;
+                if (existing && existing.length > 0) {
+                  token = existing[0].token;
+                } else {
+                  const { data: newLink, error } = await supabase
+                    .from("shared_branding_links")
+                    .insert({ user_id: user.id } as any)
+                    .select("token")
+                    .single() as any;
+                  if (error) throw error;
+                  token = newLink.token;
+                }
+                const url = `${window.location.origin}/share/branding/${token}`;
+                await navigator.clipboard.writeText(url);
+                toast.success("Lien copié ! Valide 30 jours.");
+              } catch (e) {
+                console.error("Share error:", e);
+                toast.error("Erreur lors de la création du lien");
+              } finally {
+                setSharing(false);
+              }
+            }}
+          >
+            {sharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+            Partager
           </Button>
           <Button variant="outline" size="sm" onClick={loadData} className="gap-1.5 text-xs">
             <RefreshCw className="h-3.5 w-3.5" />
