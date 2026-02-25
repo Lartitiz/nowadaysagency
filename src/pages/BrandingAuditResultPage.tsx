@@ -122,6 +122,8 @@ export default function BrandingAuditResultPage() {
 
   // Recommendation completion tracking — keyed by rec ID
   const [auditRecs, setAuditRecs] = useState<AuditRec[]>([]);
+  // Instagram audit scores for pillar action plan
+  const [igScores, setIgScores] = useState<Record<string, number> | null>(null);
 
   const loadAuditData = useCallback(async () => {
     if (!user || !id) return;
@@ -166,10 +168,22 @@ export default function BrandingAuditResultPage() {
   const completedRecs: Record<string, AuditRec> = {};
   auditRecs.forEach(r => { if (r.completed) completedRecs[r.module] = r; });
 
+  const loadIgScores = useCallback(async () => {
+    if (!user) return;
+    const { data } = await (supabase.from("instagram_audit") as any)
+      .select("score_bio, score_feed, score_edito, score_stories, score_epingles")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data) setIgScores(data);
+  }, [user]);
+
   useEffect(() => {
     loadAuditData();
     loadAuditRecs();
-  }, [loadAuditData, loadAuditRecs]);
+    loadIgScores();
+  }, [loadAuditData, loadAuditRecs, loadIgScores]);
 
   const handleNavigate = (route: string) => {
     if (route.startsWith("http")) {
@@ -553,6 +567,67 @@ export default function BrandingAuditResultPage() {
               </div>
             </div>
           )}
+
+          {/* ─── Instagram Pillar Action Plan ─── */}
+          {igScores && (() => {
+            const PILLAR_ACTIONS: Record<string, { label: string; coaching_module: string; route: string; emoji: string }> = {
+              score_bio: { label: "Optimiser ma bio", coaching_module: "bio", route: "/espaces/instagram/bio", emoji: "✍️" },
+              score_feed: { label: "Harmoniser mon feed", coaching_module: "feed", route: "/instagram/creer", emoji: "📸" },
+              score_edito: { label: "Structurer ma ligne éditoriale", coaching_module: "editorial", route: "/branding/section?section=content_strategy", emoji: "🍒" },
+              score_stories: { label: "Structurer mes stories à la une", coaching_module: "alaune", route: "/espaces/instagram/highlights", emoji: "⭐" },
+              score_epingles: { label: "Choisir mes posts épinglés", coaching_module: "epingles", route: "/espaces/instagram/epingles", emoji: "📌" },
+            };
+            const sorted = Object.entries(PILLAR_ACTIONS)
+              .map(([key, action]) => ({ key, ...action, score: (igScores as any)[key] ?? 20 }))
+              .sort((a, b) => a.score - b.score)
+              .slice(0, 3);
+
+            return (
+              <div>
+                <h3 className="font-display font-bold text-sm mb-3">📋 Ton plan d'action Instagram (par priorité)</h3>
+                <div className="space-y-2">
+                  {sorted.map((item, i) => (
+                    <div key={item.key} className={`rounded-xl border p-4 flex items-center gap-3 ${i === 0 ? "border-primary/30 bg-[hsl(var(--rose-pale))]" : "border-border bg-card"}`}>
+                      <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-foreground">{item.emoji} {item.label}</p>
+                          {i === 0 && <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-pill font-semibold">Priorité #1</span>}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{item.score}/20</p>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs px-2 gap-1"
+                          onClick={() => {
+                            setCoachingModule(item.coaching_module);
+                            setCoachingPillarKey(item.key);
+                            setCoachingPillarLabel(item.label);
+                            setCoachingPillarEmoji(item.emoji);
+                            setCoachingRecId(undefined);
+                            setCoachingConseil(undefined);
+                            setCoachingOpen(true);
+                          }}
+                        >
+                          <MessageCircle className="h-3 w-3" /> Coaching IA
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs px-2 gap-1"
+                          onClick={() => handleNavigate(item.route)}
+                        >
+                          Faire <ArrowRight className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Actions */}
           <div className="space-y-3 pt-2">

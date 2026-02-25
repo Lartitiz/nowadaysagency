@@ -583,6 +583,48 @@ export default function LinkedInAudit() {
           })}
         </Accordion>
 
+        {/* ─── LinkedIn Pillar Action Plan ─── */}
+        {(() => {
+          const LINKEDIN_PILLAR_ACTIONS: Record<string, { label: string; route: string; emoji: string }> = {
+            profil: { label: "Optimiser mon profil LinkedIn", route: "/linkedin/profil", emoji: "👤" },
+            contenu: { label: "Améliorer ma stratégie de contenu", route: "/linkedin/post", emoji: "📝" },
+            strategie: { label: "Structurer ma stratégie LinkedIn", route: "/linkedin/recommandations", emoji: "🎯" },
+            reseau: { label: "Développer mon réseau", route: "/linkedin/engagement", emoji: "🤝" },
+          };
+          const sorted = (["profil", "contenu", "strategie", "reseau"] as const)
+            .map(key => ({ key, ...LINKEDIN_PILLAR_ACTIONS[key], score: result.sections[key]?.score ?? 0 }))
+            .sort((a, b) => a.score - b.score)
+            .slice(0, 3);
+
+          return (
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui">
+                📋 Ton plan d'action (par priorité)
+              </h3>
+              {sorted.map((item, i) => (
+                <div key={item.key} className={`rounded-xl border p-4 flex items-center gap-3 ${i === 0 ? "border-primary/30 bg-[hsl(var(--rose-pale))]" : "border-border bg-card"}`}>
+                  <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-foreground">{item.emoji} {item.label}</p>
+                      {i === 0 && <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-pill font-semibold">Priorité #1</span>}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{item.score}/100</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="shrink-0 text-xs gap-1"
+                    onClick={() => navigate(item.route)}
+                  >
+                    {item.emoji} Y aller <ChevronRight className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
         {/* ─── Actions ─── */}
         <div className="flex flex-col sm:flex-row gap-3">
           <Button onClick={() => { setPreviousScore(result?.score_global ?? null); setStep(0); setResult(null); setAuditDate(null); }} variant="outline" className="gap-2 rounded-pill">
