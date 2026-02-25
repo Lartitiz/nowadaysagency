@@ -23,8 +23,8 @@ export default function AiDisclaimerBanner() {
     <div className="mx-4 mt-4 rounded-xl bg-[hsl(260,60%,97%)] border-l-[3px] border-[hsl(263,70%,58%)] px-5 py-4 flex items-start gap-3 animate-fade-in">
       <span className="text-lg mt-0.5">🤖</span>
       <div className="flex-1 text-sm text-foreground leading-relaxed">
-        Cet outil utilise l'intelligence artificielle pour t'aider à structurer ta communication.{" "}
-        <strong>L'IA propose, toi tu décides.</strong> Chaque contenu généré est une base de travail à personnaliser avec ta voix et ton expérience.
+        Cet outil utilise l'IA pour t'aider à structurer ta communication.{" "}
+        <strong>L'IA propose, toi tu décides.</strong> Pas de dark patterns, pas de manipulation : ici on fait de la com' éthique, jusque dans l'outil.
       </div>
       <button
         onClick={dismiss}
