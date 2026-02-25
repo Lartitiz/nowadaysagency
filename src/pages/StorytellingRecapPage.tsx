@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useParams } from "react-router-dom";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ interface RecapSummary {
 
 export default function StorytellingRecapPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const { id } = useParams();
   const { toast } = useToast();
   const [data, setData] = useState<any>(null);
@@ -32,8 +34,8 @@ export default function StorytellingRecapPage() {
   useEffect(() => {
     if (!user) return;
     const query = id
-      ? supabase.from("storytelling").select("*").eq("id", id).eq("user_id", user.id).single()
-      : supabase.from("storytelling").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      ? (supabase.from("storytelling") as any).select("*").eq("id", id).eq(column, value).single()
+      : (supabase.from("storytelling") as any).select("*").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle();
     query.then(({ data: d }) => {
       setData(d);
       setLoading(false);
@@ -42,7 +44,7 @@ export default function StorytellingRecapPage() {
         if (storyText) autoGenerateRef.current = true;
       }
     });
-  }, [user, id]);
+  }, [user, id, column, value]);
 
   const autoGenerateRef = useRef(false);
   useEffect(() => {
@@ -83,8 +85,8 @@ export default function StorytellingRecapPage() {
     if (!story) return;
     setGenerating(true);
     try {
-      const { data: profData } = await supabase.from("profiles").select("activite, prenom").eq("user_id", user!.id).single();
-      const { data: bpData } = await supabase.from("brand_profile").select("mission, offer, target_description, tone_register, key_expressions, things_to_avoid").eq("user_id", user!.id).maybeSingle();
+      const { data: profData } = await (supabase.from("profiles") as any).select("activite, prenom").eq(column, value).single();
+      const { data: bpData } = await (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register, key_expressions, things_to_avoid").eq(column, value).maybeSingle();
       const profile = { ...(profData || {}), ...(bpData || {}) };
       const { data: fnData, error } = await supabase.functions.invoke("storytelling-ai", {
         body: { type: "generate-recap", storytelling: story, profile },
