@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { GripVertical, CalendarIcon } from "lucide-react";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
 import { type CalendarPost } from "@/lib/calendar-constants";
@@ -59,7 +59,7 @@ function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicat
 /* ── Droppable day column ── */
 function DroppableWeekDay({
   date, dateStr, isToday, posts, onCreatePost, onEditPost, onAddIdea, onQuickCreate,
-  onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate,
+  onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, todayRef,
 }: {
   date: Date; dateStr: string; isToday: boolean;
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
@@ -68,6 +68,7 @@ function DroppableWeekDay({
   onQuickDuplicate?: (post: CalendarPost) => void;
   onQuickDelete?: (postId: string) => void;
   onQuickGenerate?: (post: CalendarPost) => void;
+  todayRef?: React.RefObject<HTMLDivElement>;
 }) {
   const [inlineInput, setInlineInput] = useState(false);
   const [inlineValue, setInlineValue] = useState("");
@@ -76,19 +77,58 @@ function DroppableWeekDay({
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => {
+        setNodeRef(node);
+        if (isToday && todayRef) (todayRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      }}
       className={cn(
         "flex-1 min-w-0 border-r last:border-r-0 border-border p-2 group relative transition-colors min-h-[200px]",
-        isToday && "bg-rose-pale",
+        isToday && "bg-rose-pale ring-2 ring-primary/20 ring-inset",
         isOver && "bg-primary/10 ring-2 ring-primary/30 ring-inset",
       )}
     >
       <div className="flex items-center justify-between mb-2">
-        <span className={cn("text-xs font-semibold capitalize", isToday ? "text-primary font-bold" : "text-foreground")}>
-          {dayLabel}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className={cn("text-xs font-semibold capitalize", isToday ? "text-primary font-bold" : "text-foreground")}>
+            {dayLabel}
+          </span>
+          {isToday && (
+            <span className="text-[9px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
+              Aujourd'hui
+            </span>
+          )}
+        </div>
         <AddPostMenu dateStr={dateStr} onAddIdea={onAddIdea} />
       </div>
+
+      {/* Today summary */}
+      {isToday && posts.length > 0 && (
+        <div className="mb-2 p-1.5 rounded-lg bg-primary/5 border border-primary/10">
+          {(() => {
+            const toPublish = posts.filter(p => p.status === "ready" || p.status === "draft_ready");
+            const toDraft = posts.filter(p => p.status === "idea" || p.status === "a_rediger");
+            const pubCount = posts.filter(p => p.status === "published").length;
+            if (pubCount === posts.length) {
+              return <p className="text-[10px] text-[hsl(160_60%_45%)] font-medium">✅ Tout est publié !</p>;
+            }
+            return (
+              <div className="space-y-0.5">
+                {toPublish.length > 0 && (
+                  <p className="text-[10px] text-primary font-medium">
+                    🚀 {toPublish.length} post{toPublish.length > 1 ? "s" : ""} prêt{toPublish.length > 1 ? "s" : ""} à publier
+                  </p>
+                )}
+                {toDraft.length > 0 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    ✏️ {toDraft.length} à rédiger
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
       <div className="space-y-1">
         {posts.map((p) => (
           <DraggableWeekCard key={p.id} post={p} onClick={() => onEditPost(p)}
@@ -162,13 +202,52 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
   };
 
   return (
-    <div className={`rounded-xl border p-3 ${isToday ? "bg-rose-pale border-primary/30" : "border-border"}`}>
+    <div
+      id={isToday ? "today-mobile" : undefined}
+      className={`rounded-xl border p-3 ${isToday ? "bg-rose-pale border-primary/30 ring-2 ring-primary/20" : "border-border"}`}
+    >
       <div className="flex items-center justify-between mb-2">
-        <span className={`text-sm font-bold capitalize ${isToday ? "text-primary" : "text-foreground"}`}>
-          {dayLabel}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className={`text-sm font-bold capitalize ${isToday ? "text-primary" : "text-foreground"}`}>
+            {dayLabel}
+          </span>
+          {isToday && (
+            <span className="text-[9px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
+              Aujourd'hui
+            </span>
+          )}
+        </div>
         <AddPostMenu dateStr={dateStr} onAddIdea={onAddIdea} />
       </div>
+
+      {/* Today summary mobile */}
+      {isToday && posts.length > 0 && (
+        <div className="mb-2 p-1.5 rounded-lg bg-primary/5 border border-primary/10">
+          {(() => {
+            const toPublish = posts.filter(p => p.status === "ready" || p.status === "draft_ready");
+            const toDraft = posts.filter(p => p.status === "idea" || p.status === "a_rediger");
+            const pubCount = posts.filter(p => p.status === "published").length;
+            if (pubCount === posts.length) {
+              return <p className="text-[10px] text-[hsl(160_60%_45%)] font-medium">✅ Tout est publié !</p>;
+            }
+            return (
+              <div className="space-y-0.5">
+                {toPublish.length > 0 && (
+                  <p className="text-[10px] text-primary font-medium">
+                    🚀 {toPublish.length} post{toPublish.length > 1 ? "s" : ""} prêt{toPublish.length > 1 ? "s" : ""} à publier
+                  </p>
+                )}
+                {toDraft.length > 0 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    ✏️ {toDraft.length} à rédiger
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
       <div className="space-y-1">
         {posts.map((p) => (
           <div
@@ -189,6 +268,17 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
 export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onQuickCreate, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate }: Props) {
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
+  const todayRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to today on mount
+  useEffect(() => {
+    if (isMobile) {
+      const el = document.getElementById("today-mobile");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else if (todayRef.current) {
+      todayRef.current.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
+  }, [todayStr, isMobile]);
 
   const weekAllPosts = weekDays.flatMap((d) => postsByDate[toLocalDateStr(d)] || []);
 
@@ -271,6 +361,7 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
                 onQuickDuplicate={onQuickDuplicate}
                 onQuickDelete={onQuickDelete}
                 onQuickGenerate={onQuickGenerate}
+                todayRef={dateStr === todayStr ? todayRef : undefined}
               />
             );
           })}
