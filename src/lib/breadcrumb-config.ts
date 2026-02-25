@@ -350,6 +350,27 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
     { label: "Site web", path: "/site" },
     { label: "Témoignages" },
   ]],
+  ["/site/inspirations/", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "Mon Site Web", path: "/site" },
+    { label: "Inspirations visuelles", path: "/site/inspirations" },
+    { label: "Générateur" },
+  ]],
+  ["/site/inspirations", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "Mon Site Web", path: "/site" },
+    { label: "Inspirations visuelles" },
+  ]],
+  ["/site/audit", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "Mon Site Web", path: "/site" },
+    { label: "Audit de conversion" },
+  ]],
+  ["/site/capture", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "Mon Site Web", path: "/site" },
+    { label: "Page de capture" },
+  ]],
   ["/site", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Site web" },

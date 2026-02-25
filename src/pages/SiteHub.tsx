@@ -34,16 +34,19 @@ export default function SiteHub() {
   const [cms, setCms] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [homepageStep, setHomepageStep] = useState(0);
+  const [lastAuditScore, setLastAuditScore] = useState<number | null>(null);
 
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const [wpRes, hpRes] = await Promise.all([
+      const [wpRes, hpRes, auditRes] = await Promise.all([
         (supabase.from("website_profile") as any).select("cms").eq(column, value).maybeSingle(),
         (supabase.from("website_homepage") as any).select("current_step, completed").eq(column, value).maybeSingle(),
+        (supabase.from("website_audit" as any).select("score_global").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle()),
       ]);
       if (wpRes.data) setCms(wpRes.data.cms);
       if (hpRes.data) setHomepageStep(hpRes.data.completed ? 10 : (hpRes.data.current_step || 1));
+      if ((auditRes as any).data?.score_global != null) setLastAuditScore((auditRes as any).data.score_global);
       setLoading(false);
     };
     load();
@@ -92,6 +95,18 @@ export default function SiteHub() {
           <div className="text-xs text-muted-foreground mb-6 flex items-center gap-2">
             <span>🔧 Outil : <strong>{CMS_OPTIONS.find(o => o.value === cms)?.label}</strong></span>
             <button onClick={() => setCms(null)} className="underline text-primary text-xs">Changer</button>
+          </div>
+        )}
+        {lastAuditScore !== null && lastAuditScore < 60 && (
+          <div className="rounded-2xl border border-primary bg-rose-pale p-5 mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">
+                Ton dernier audit montre un score de <strong>{lastAuditScore}/100</strong>. Quelques ajustements peuvent faire une vraie différence.
+              </p>
+            </div>
+            <Link to="/site/audit" className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+              Voir mes recommandations →
+            </Link>
           </div>
         )}
 
