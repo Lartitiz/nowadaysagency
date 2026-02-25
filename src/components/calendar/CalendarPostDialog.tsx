@@ -219,9 +219,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       objective: editingPost?.objective,
     };
 
-    // Determine route based on format
+    // Determine route based on format and canal
     const fmt = format || "post_carrousel";
-    if (fmt === "post_carrousel" || fmt === "carousel") {
+    if (postCanal === "linkedin") {
+      // LinkedIn posts go to the dedicated LinkedIn generator
+      navigate(`/linkedin/post-generator?${params.toString()}`, { state: { ...state, sujet: theme } });
+    } else if (fmt === "post_carrousel" || fmt === "carousel") {
       // Also pass carousel type hint from angle
       if (angle && ANGLE_TO_CAROUSEL[angle]) {
         params.set("carousel_type", ANGLE_TO_CAROUSEL[angle]);
