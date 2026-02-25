@@ -38,11 +38,14 @@ export default function StorytellingRecapPage() {
       : (supabase.from("storytelling") as any).select("*").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle();
     query.then(({ data: d }) => {
       setData(d);
-      setLoading(false);
       if (d && !d.recap_summary) {
         const storyText = d.step_7_polished || d.imported_text || d.step_6_full_story || "";
         if (storyText) autoGenerateRef.current = true;
       }
+    }).catch((e) => {
+      console.error(e);
+    }).finally(() => {
+      setLoading(false);
     });
   }, [user, id, column, value]);
 

@@ -229,8 +229,9 @@ export default function InstagramStories() {
     } catch (e) {
       console.error(e);
       toast.error("Erreur lors de la génération.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleAddToCalendar = async (dateStr: string) => {

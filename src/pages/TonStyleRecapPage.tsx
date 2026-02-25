@@ -37,7 +37,6 @@ export default function TonStyleRecapPage() {
     if (!user) return;
     (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle().then(async ({ data: d }: any) => {
       setData(d);
-      setLoading(false);
       if (d && !d.recap_summary) {
         setGenerating(true);
         try {
@@ -68,6 +67,10 @@ export default function TonStyleRecapPage() {
         }
         setGenerating(false);
       }
+    }).catch((e: any) => {
+      console.error(e);
+    }).finally(() => {
+      setLoading(false);
     });
   }, [user?.id, column, value]);
 
