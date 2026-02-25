@@ -116,6 +116,7 @@ const LinkedInCrosspost = lazy(() => import("./pages/LinkedInCrosspost"));
 const InstagramInspiration = lazy(() => import("./pages/InstagramInspiration"));
 const InvitePage = lazy(() => import("./pages/InvitePage"));
 const SharedBrandingPage = lazy(() => import("./pages/SharedBrandingPage"));
+const VoiceGuidePage = lazy(() => import("./pages/VoiceGuidePage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -193,6 +194,7 @@ function AnimatedRoutes() {
               <Route path="/branding/offres/:id" element={<ProtectedRoute><OfferWorkshopPage /></ProtectedRoute>} />
               <Route path="/branding/coaching" element={<ProtectedRoute><BrandingCoachingPage /></ProtectedRoute>} />
               <Route path="/branding/section" element={<ProtectedRoute><BrandingSectionPage /></ProtectedRoute>} />
+              <Route path="/branding/voice-guide" element={<ProtectedRoute><VoiceGuidePage /></ProtectedRoute>} />
               <Route path="/intake" element={<IntakePage />} />
               <Route path="/plan" element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />
               <Route path="/mon-plan" element={<ProtectedRoute><CommPlanPage /></ProtectedRoute>} />
