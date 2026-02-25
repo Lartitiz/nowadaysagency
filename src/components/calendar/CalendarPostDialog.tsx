@@ -798,46 +798,6 @@ function PreviewTab({ canal, format, caption, theme, username, displayName, onNa
   hasAngle: boolean;
   hasTheme: boolean;
 }) {
-  const mockupCanal = (canal === "instagram" || canal === "linkedin") ? canal : "instagram";
-  const mockupFormat = (() => {
-    if (format === "post_carrousel") return "carousel" as const;
-    if (format === "reel") return "reel" as const;
-    if (format === "story_serie") return "story" as const;
-    return "post" as const;
-  })();
-
-  // Extract hashtags from caption
-  const hashtags = useMemo(() => {
-    if (!caption) return [];
-    return (caption.match(/#\w+/g) || []);
-  }, [caption]);
-
-  // Try to parse carousel slides from content_draft
-  const slides = useMemo(() => {
-    if (mockupFormat !== "carousel" || !caption) return undefined;
-    // Try JSON parse first
-    try {
-      const parsed = JSON.parse(caption);
-      if (Array.isArray(parsed)) {
-        return parsed.map((s: any, i: number) => ({
-          title: s.title || s.titre || `Slide ${i + 1}`,
-          body: s.body || s.texte || s.content || "",
-          slideNumber: i + 1,
-        }));
-      }
-    } catch { /* not JSON */ }
-    // Split by slide markers
-    const parts = caption.split(/(?:slide\s*\d+|---+|\n{3,})/i).filter(Boolean);
-    if (parts.length > 1) {
-      return parts.map((p, i) => ({
-        title: p.split("\n")[0]?.trim() || `Slide ${i + 1}`,
-        body: p.split("\n").slice(1).join("\n").trim(),
-        slideNumber: i + 1,
-      }));
-    }
-    return undefined;
-  }, [caption, mockupFormat]);
-
   if (!caption) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -858,6 +818,68 @@ function PreviewTab({ canal, format, caption, theme, username, displayName, onNa
       </div>
     );
   }
+
+  // Try to parse JSON
+  let parsed: any = null;
+  try { parsed = JSON.parse(caption); } catch { /* plain text */ }
+
+  // Structured object (reel script, stories sequence) → ContentPreview
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    return (
+      <div className="py-2 overflow-y-auto">
+        <ContentPreview contentData={parsed} />
+      </div>
+    );
+  }
+
+  // Array → carousel slides → SocialMockup
+  if (parsed && Array.isArray(parsed)) {
+    const slides = parsed.map((s: any, i: number) => ({
+      title: s.title || s.titre || `Slide ${i + 1}`,
+      body: s.body || s.texte || s.content || "",
+      slideNumber: i + 1,
+    }));
+    const mockupCanal = (canal === "instagram" || canal === "linkedin") ? canal : "instagram";
+    return (
+      <div className="flex justify-center py-2 overflow-y-auto">
+        <SocialMockup
+          canal={mockupCanal}
+          format="carousel"
+          username={username}
+          displayName={displayName}
+          caption={theme}
+          slides={slides}
+          showComments={false}
+          readonly
+        />
+      </div>
+    );
+  }
+
+  // Plain text → SocialMockup
+  const mockupCanal = (canal === "instagram" || canal === "linkedin") ? canal : "instagram";
+  const mockupFormat = (() => {
+    if (format === "post_carrousel") return "carousel" as const;
+    if (format === "reel") return "reel" as const;
+    if (format === "story_serie") return "story" as const;
+    return "post" as const;
+  })();
+
+  const hashtags = (caption.match(/#\w+/g) || []);
+
+  // For carousel with plain text, try splitting by markers
+  const slides = (() => {
+    if (mockupFormat !== "carousel") return undefined;
+    const parts = caption.split(/(?:slide\s*\d+|---+|\n{3,})/i).filter(Boolean);
+    if (parts.length > 1) {
+      return parts.map((p, i) => ({
+        title: p.split("\n")[0]?.trim() || `Slide ${i + 1}`,
+        body: p.split("\n").slice(1).join("\n").trim(),
+        slideNumber: i + 1,
+      }));
+    }
+    return undefined;
+  })();
 
   return (
     <div className="flex justify-center py-2 overflow-y-auto">
