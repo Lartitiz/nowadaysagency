@@ -207,6 +207,11 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
               {formatEmoji && formatLabel ? `${formatEmoji} ${formatLabel}` : ""}
               {catInfo ? ` · ${catInfo.emoji} ${catInfo.label}` : ""}
             </p>
+            {post.content_draft && !post.angle_suggestion && (
+              <p className="text-muted-foreground truncate text-[10px] mt-0.5 line-clamp-2" style={{ WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden', whiteSpace: 'normal' }}>
+                {post.content_draft.split("\n").slice(0, 2).join(" ")}
+              </p>
+            )}
             {post.angle_suggestion && (
               <p className="text-muted-foreground italic truncate text-[10px] mt-0.5">"{post.angle_suggestion}"</p>
             )}

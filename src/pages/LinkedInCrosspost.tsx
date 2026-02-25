@@ -161,7 +161,7 @@ export default function LinkedInCrosspost() {
       theme: `Crosspost ${label} : ${sourceType}`,
       canal: getActiveChannelCanal(),
       format: getActiveFormat(),
-      content_draft: text.slice(0, 500),
+      content_draft: text,
       accroche: text.split("\n")[0]?.slice(0, 200) || "",
       status: "ready",
       story_sequence_detail: {
