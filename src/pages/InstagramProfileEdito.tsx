@@ -375,7 +375,7 @@ export default function InstagramProfileEdito() {
             posts_frequency: editorial.posts_frequency,
             pillars: editorial.pillars.map((p) => p.name).filter(Boolean),
           },
-          workspace_id: workspaceId,
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
       });
       if (res.error) throw new Error(res.error.message);
@@ -408,7 +408,7 @@ export default function InstagramProfileEdito() {
             pillars: editorial.pillars.map((p) => p.name).filter(Boolean),
             posts_frequency: editorial.posts_frequency,
           },
-          workspace_id: workspaceId,
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
       });
       if (res.error) throw new Error(res.error.message);
@@ -445,7 +445,7 @@ export default function InstagramProfileEdito() {
             preferred_formats: editorial.preferred_formats,
             estimated_minutes: estimatedMinutes,
           },
-          workspace_id: workspaceId,
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
       });
       if (res.error) throw new Error(res.error.message);
