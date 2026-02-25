@@ -5,7 +5,8 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw, Loader2, LayoutGrid, ListOrdered, CheckCircle2, AlertTriangle, Zap } from "lucide-react";
+import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw, Loader2, LayoutGrid, ListOrdered, CheckCircle2, AlertTriangle, Zap, Download } from "lucide-react";
+import { exportMirrorPDF } from "@/lib/mirror-pdf-export";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
@@ -849,16 +850,27 @@ export default function BrandingPage() {
                 </div>
               )}
 
-              {/* Regenerate */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full gap-2 text-xs"
-                onClick={() => { setMirrorData(null); runMirror(); }}
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Refaire l'analyse
-              </Button>
+              {/* Actions */}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-2 text-xs"
+                  onClick={() => { setMirrorData(null); runMirror(); }}
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Refaire l'analyse
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-2 text-xs"
+                  onClick={() => exportMirrorPDF(mirrorData)}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Exporter PDF
+                </Button>
+              </div>
             </div>
           ) : null}
         </SheetContent>
