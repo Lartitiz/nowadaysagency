@@ -35,6 +35,7 @@ serve(async (req) => {
     // Determine category based on action
     const categoryMap: Record<string, string> = {
       "generate-post": "content",
+      "improve-post": "content",
       "adapt-instagram": "adaptation",
       "crosspost": "adaptation",
       "title": "bio_profile",
@@ -119,6 +120,11 @@ serve(async (req) => {
       const { existing_resume } = params;
       systemPrompt = `${LINKEDIN_PRINCIPLES}\n\n${context}\n\n${qualityBlocks}\n\nRÉSUMÉ LINKEDIN ACTUEL :\n"""\n${existing_resume}\n"""\n\nANALYSE le résumé selon 5 éléments :\n1. HOOK (3 premières lignes)\n2. PASSION\n3. PARCOURS\n4. PROPOSITION\n5. CTA\n\nRETOURNE UNIQUEMENT un JSON valide :\n{\n  "score": 55,\n  "summary": { "positives": ["max 2"], "improvements": ["max 2"] },\n  "recommendations": [\n    { "number": 1, "title": "max 8 mots", "status": "good|partial|missing", "explanation": "max 2 phrases", "example": "optionnel" }\n  ],\n  "proposed_version": "Version améliorée complète, 1500-2000 caractères."\n}`;
       userPrompt = "Analyse et améliore mon résumé LinkedIn existant.";
+
+    } else if (action === "improve-post") {
+      const { postContent } = params;
+      systemPrompt = `${LINKEDIN_PRINCIPLES}\n\n${context}\n\n${qualityBlocks}\n\nANALYSE ce post LinkedIn et propose une version améliorée.\n\nPOST ORIGINAL :\n"""\n${postContent}\n"""\n\nCRITÈRES D'ANALYSE :\n1. ACCROCHE (210 premiers car.) : intrigue-t-elle ? Donne-t-elle envie de cliquer "voir plus" ?\n2. STRUCTURE : paragraphes courts ? Espacement ? Lisibilité ?\n3. LONGUEUR : dans le sweet spot 1300-1900 car. ?\n4. OPINION : le point de vue de l'auteur·ice est-il visible ?\n5. CONCRET : y a-t-il des exemples, des preuves, du vécu ?\n6. CTA : y a-t-il un appel à l'action ou une question ?\n7. TON : est-ce incarné ou ça pourrait être écrit par n'importe qui ?\n8. HASHTAGS : 0-2 max ? Pertinents ?\n9. EMOJIS : 0-2 max ? Pas excessifs ?\n10. ÉCRITURE INCLUSIVE : point médian utilisé ?\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks :\n{\n  "score": 65,\n  "points_forts": ["...", "..."],\n  "points_faibles": ["...", "..."],\n  "accroche_analysis": "Les 210 premiers caractères sont... parce que...",\n  "improved_version": "Le post complet amélioré",\n  "hook_alternatives": ["Variante 1 d'accroche", "Variante 2 d'accroche"],\n  "character_count": 1450,\n  "checklist": [\n    { "item": "Accroche efficace", "ok": true },\n    { "item": "Structure aérée", "ok": true },\n    { "item": "Longueur sweet spot", "ok": true },\n    { "item": "Opinion visible", "ok": true },\n    { "item": "Exemples concrets", "ok": true },\n    { "item": "CTA présent", "ok": true },\n    { "item": "Ton incarné", "ok": true },\n    { "item": "Hashtags ok", "ok": true },\n    { "item": "Emojis ok", "ok": true },\n    { "item": "Écriture inclusive", "ok": true }\n  ]\n}`;
+      userPrompt = "Analyse et améliore ce post LinkedIn.";
 
     } else {
       return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
