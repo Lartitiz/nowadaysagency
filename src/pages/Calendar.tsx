@@ -23,12 +23,11 @@ import { CalendarWeekGrid } from "@/components/calendar/CalendarWeekGrid";
 import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
 import { CalendarCategoryFilters } from "@/components/calendar/CalendarCategoryFilters";
 
-import { BalanceGauge } from "@/components/calendar/BalanceGauge";
 import { CalendarKanbanView } from "@/components/calendar/CalendarKanbanView";
 import { CalendarListView } from "@/components/calendar/CalendarListView";
 import { CalendarIdeasSidebar, type SavedIdea } from "@/components/calendar/CalendarIdeasSidebar";
 import { IdeaDetailSheet } from "@/components/calendar/IdeaDetailSheet";
-import { CalendarWeekHeader } from "@/components/calendar/CalendarWeekHeader";
+import { WeekDashboard } from "@/components/calendar/WeekDashboard";
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from "@dnd-kit/core";
 
 /** Map a calendar post format to the correct generator route */
@@ -634,10 +633,6 @@ export default function CalendarPage() {
         ) : <div />}
       </div>
 
-      {/* Week header stats */}
-      {viewMode === "week" && (
-        <CalendarWeekHeader weekLabel={weekLabel} weekPosts={weekPosts} postsPerWeekTarget={postsPerWeek} />
-      )}
 
       {viewMode === "kanban" ? (
         <CalendarKanbanView
@@ -665,8 +660,7 @@ export default function CalendarPage() {
         />
       ) : (
         <>
-          
-          <BalanceGauge posts={weekPosts} />
+          <WeekDashboard weekPosts={weekPosts} weekLabel={weekLabel} postsPerWeekTarget={postsPerWeek} onObjectifFilter={(obj) => setCategoryFilter(obj || "all")} />
           <CalendarWeekGrid
             weekDays={weekDays} postsByDate={postsByDate} todayStr={todayStr} isMobile={isMobile}
             onCreatePost={openCreateDialog} onEditPost={handlePostClick} onMovePost={handleMovePost}
