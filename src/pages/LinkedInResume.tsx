@@ -15,6 +15,8 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import LinkedInPreview from "@/components/linkedin/LinkedInPreview";
+import CharacterCounter from "@/components/linkedin/CharacterCounter";
 
 /* ─── Types ─── */
 interface AnalysisReco {
@@ -364,6 +366,8 @@ export default function LinkedInResume() {
                 </TabsList>
                 <TabsContent value="storytelling" className="space-y-3">
                   <Textarea value={summaryStory} onChange={(e) => setSummaryStory(e.target.value)} className="min-h-[250px]" />
+                  <CharacterCounter count={summaryStory.length} max={2600} />
+                  <LinkedInPreview text={summaryStory} cutoff={265} label="Résumé" />
                   <div className="flex gap-2">
                     <Button onClick={() => save(summaryStory)} className="rounded-pill gap-2">💾 Enregistrer</Button>
                     <Button variant="outline" onClick={() => copyText(summaryStory, "story")} className="rounded-pill gap-2">
@@ -373,6 +377,8 @@ export default function LinkedInResume() {
                 </TabsContent>
                 <TabsContent value="pro" className="space-y-3">
                   <Textarea value={summaryPro} onChange={(e) => setSummaryPro(e.target.value)} className="min-h-[250px]" />
+                  <CharacterCounter count={summaryPro.length} max={2600} />
+                  <LinkedInPreview text={summaryPro} cutoff={265} label="Résumé" />
                   <div className="flex gap-2">
                     <Button onClick={() => save(summaryPro)} className="rounded-pill gap-2">💾 Enregistrer</Button>
                     <Button variant="outline" onClick={() => copyText(summaryPro, "pro")} className="rounded-pill gap-2">
