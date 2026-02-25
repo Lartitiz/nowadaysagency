@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Loader2, Copy, Replace, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -83,7 +84,7 @@ export default function SelectionMenu({ selectedText, position, isVisible, onAct
 
   // Mobile: bottom sheet
   if (isMobile) {
-    return (
+    return createPortal(
       <AnimatePresence>
         {isVisible && (
           <>
@@ -91,7 +92,8 @@ export default function SelectionMenu({ selectedText, position, isVisible, onAct
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.3 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-foreground"
+              className="fixed inset-0 bg-foreground"
+              style={{ zIndex: 9999 }}
               onClick={handleDismiss}
             />
             <motion.div
@@ -100,19 +102,21 @@ export default function SelectionMenu({ selectedText, position, isVisible, onAct
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-2xl border-t border-border max-h-[50vh] overflow-y-auto"
+              className="fixed bottom-0 left-0 right-0 bg-card rounded-t-2xl border-t border-border max-h-[50vh] overflow-y-auto"
+              style={{ zIndex: 9999 }}
             >
               <div className="w-12 h-1 bg-muted-foreground/20 rounded-full mx-auto mt-3 mb-2" />
               {renderContent()}
             </motion.div>
           </>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
     );
   }
 
   // Desktop: floating menu
-  return (
+  return createPortal(
     <AnimatePresence>
       {isVisible && (
         <motion.div
@@ -121,8 +125,9 @@ export default function SelectionMenu({ selectedText, position, isVisible, onAct
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 8 }}
           transition={{ duration: 0.15 }}
-          className="fixed z-50"
+          className="fixed"
           style={{
+            zIndex: 9999,
             top: `${position.top - 8}px`,
             left: `${position.left}px`,
             transform: "translate(-50%, -100%)",
@@ -137,7 +142,8 @@ export default function SelectionMenu({ selectedText, position, isVisible, onAct
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 
   function renderContent() {
