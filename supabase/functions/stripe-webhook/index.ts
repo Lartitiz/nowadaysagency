@@ -48,12 +48,22 @@ serve(async (req) => {
         if (!userId) { log("No user_id in metadata"); break; }
 
         if (session.mode === "subscription") {
-          const sub = await stripe.subscriptions.retrieve(session.subscription as string);
+          let sub = await stripe.subscriptions.retrieve(session.subscription as string);
           const priceId = sub.items.data[0]?.price.id;
 
           // Determine plan from price
           let plan = "outil";
           if (priceId === "price_1T3ipcI0YZbTj9ITlKOQN5Tm") plan = "studio";
+
+          // Set cancel_at for studio plan (6 months engagement)
+          if (plan === "studio" && !sub.cancel_at) {
+            const cancelAt = new Date();
+            cancelAt.setMonth(cancelAt.getMonth() + 6);
+            sub = await stripe.subscriptions.update(sub.id, {
+              cancel_at: Math.floor(cancelAt.getTime() / 1000),
+            });
+            log("Studio plan: cancel_at set", { cancelAt: cancelAt.toISOString() });
+          }
 
           await supabase.from("subscriptions").upsert({
             user_id: userId,
@@ -66,6 +76,7 @@ serve(async (req) => {
             current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
             studio_start_date: plan === "studio" ? new Date().toISOString() : null,
             studio_end_date: plan === "studio" ? new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString() : null,
+            cancel_at: sub.cancel_at ? new Date(sub.cancel_at * 1000).toISOString() : null,
             updated_at: new Date().toISOString(),
           }, { onConflict: "user_id" });
 

@@ -81,15 +81,13 @@ serve(async (req) => {
 
     if (mode === "subscription") {
       sessionParams.subscription_data = {
-        metadata: { user_id: user.id },
+        metadata: {
+          user_id: user.id,
+          auto_cancel_6m: priceId === STUDIO_MONTHLY_PRICE_ID ? "true" : "false",
+        },
       };
-
-      // Limiter à 6 mois uniquement pour le plan Binôme de com
       if (priceId === STUDIO_MONTHLY_PRICE_ID) {
-        const cancelAt = new Date();
-        cancelAt.setMonth(cancelAt.getMonth() + 6);
-        sessionParams.subscription_data.cancel_at = Math.floor(cancelAt.getTime() / 1000);
-        log("Studio plan: auto-cancel set", { cancelAt: cancelAt.toISOString() });
+        log("Studio plan: will set cancel_at after subscription creation via webhook");
       }
     } else {
       sessionParams.payment_intent_data = {
