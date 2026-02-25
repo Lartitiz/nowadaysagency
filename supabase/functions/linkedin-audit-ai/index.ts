@@ -121,6 +121,24 @@ ${contextStr}
 
 TON : direct, bienveillant, actionnable. Pas de jargon LinkedIn.
 
+GRILLE DE SCORING GRANULAIRE :
+
+HEADLINE (score /25) :
+- Impact des 80 premiers caractères (/8) : les 80 premiers caractères sont visibles dans les commentaires. Ils doivent être percutants.
+- Présence de mots-clés recherchables (/5) : l'algorithme LinkedIn indexe le headline. Y a-t-il des termes que sa cible rechercherait ?
+- Structure claire (/5) : utilisation de séparateurs (│ ou ·), lisibilité, pas de liste de buzzwords
+- Zéro buzzwords vides (/4) : pas de "passionnée", "innovante", "experte en", "spécialiste de"
+- Proposition de valeur visible (/3) : en 1 seconde, on comprend ce qu'elle fait et pour qui
+
+ABOUT / RÉSUMÉ (score /25) :
+- Hook des 3 premières lignes (/8) : avant le clic "voir plus", ça accroche ou c'est plat ?
+- Storytelling ou structure narrative (/5) : il y a un fil conducteur, pas juste une liste
+- CTA clair (/4) : le résumé dit quoi faire ensuite (contacter, visiter, suivre)
+- Preuve sociale ou crédibilité (/4) : chiffres, témoignages, expérience, enseignement
+- Ton cohérent avec le branding (/4) : le ton LinkedIn correspond au branding déclaré
+
+Intègre ces scores granulaires dans le JSON de retour sous la clé "granular_scores".
+
 Réponds UNIQUEMENT en JSON sans backticks :
 {
   "score_global": 45,
@@ -149,6 +167,24 @@ Réponds UNIQUEMENT en JSON sans backticks :
     "reseau": {
       "score": 49,
       "elements": [...]
+    }
+  },
+  "granular_scores": {
+    "headline": {
+      "impact_80_chars": { "score": 6, "max": 8, "feedback": "..." },
+      "keywords": { "score": 3, "max": 5, "feedback": "..." },
+      "structure": { "score": 4, "max": 5, "feedback": "..." },
+      "no_buzzwords": { "score": 2, "max": 4, "feedback": "..." },
+      "value_prop": { "score": 2, "max": 3, "feedback": "..." },
+      "total": 17
+    },
+    "about": {
+      "hook_3_lines": { "score": 5, "max": 8, "feedback": "..." },
+      "storytelling": { "score": 3, "max": 5, "feedback": "..." },
+      "cta": { "score": 2, "max": 4, "feedback": "..." },
+      "social_proof": { "score": 3, "max": 4, "feedback": "..." },
+      "tone_coherence": { "score": 3, "max": 4, "feedback": "..." },
+      "total": 16
     }
   },
   "top_5_priorities": [
