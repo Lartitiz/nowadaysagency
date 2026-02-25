@@ -306,7 +306,7 @@ export async function computePlan(filter: { column: string; value: string }, con
       label: "Stratégie SEO",
       description: "Référencement naturel — ouvre le SEO Toolkit",
       duration: 45,
-      route: "https://referencement-seo.lovable.app/",
+      route: "/seo",
       status: "todo",
       comingSoon: false,
     });
