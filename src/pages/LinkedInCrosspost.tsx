@@ -7,7 +7,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
+
 import { friendlyError } from "@/lib/error-messages";
 import { RefreshCw, Copy, Check, Sparkles, Loader2, CalendarDays, Lightbulb } from "lucide-react";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
@@ -39,7 +39,7 @@ interface CrosspostResult {
 
 export default function LinkedInCrosspost() {
   const { user } = useAuth();
-  const { toast: toastHook } = useToast();
+  
   const workspaceId = useWorkspaceId();
   const [sourceType, setSourceType] = useState("libre");
   const [sourceContent, setSourceContent] = useState("");
@@ -110,7 +110,7 @@ export default function LinkedInCrosspost() {
       setActiveVersionKey(Object.keys(parsed.versions || {})[0] || "");
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toastHook({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error(friendlyError(e));
     } finally {
       setGenerating(false);
       if (fileUrls.length > 0) {
