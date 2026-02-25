@@ -16,22 +16,24 @@ import { posthog } from "@/lib/posthog";
 function getStepName(step: number): string {
   const names: Record<number, string> = {
     0: "welcome",
-    1: "prenom",
-    2: "activite",
-    3: "activity_type",
-    4: "canaux",
-    5: "blocage",
-    6: "objectif",
-    7: "temps",
-    8: "instagram_website",
-    9: "import_documents",
-    10: "positioning",
-    11: "mission",
-    12: "target_description",
-    13: "tone_keywords",
-    14: "offers",
-    15: "values",
-    16: "building_diagnostic",
+    1: "promise",
+    2: "prenom",
+    3: "activite",
+    4: "activity_type",
+    5: "canaux",
+    6: "blocage",
+    7: "objectif",
+    8: "temps",
+    9: "instagram_website",
+    10: "transition_branding",
+    11: "positioning",
+    12: "mission",
+    13: "target_description",
+    14: "tone_keywords",
+    15: "offers",
+    16: "values",
+    17: "import_documents",
+    18: "building_diagnostic",
   };
   return names[step] || "unknown_" + step;
 }
@@ -170,7 +172,7 @@ export function useOnboarding() {
 
   // Check if onboarding already completed
   useEffect(() => {
-    if (isDemoMode || !user || step >= 16) return;
+    if (isDemoMode || !user || step >= 18) return;
     const check = async () => {
       const { data: config } = await (supabase
         .from("user_plan_config") as any)
@@ -211,8 +213,8 @@ export function useOnboarding() {
     const stepsLeft = TOTAL_STEPS - currentStep;
     if (stepsLeft <= 1) return "Presque fini !";
     if (stepsLeft <= 3) return "Dernière ligne droite · ~1 min";
-    if (stepsLeft <= 5) return "Plus que ~2 min";
-    if (stepsLeft <= 8) return "Encore ~3 min";
+    if (stepsLeft <= 6) return "Plus que ~2 min";
+    if (stepsLeft <= 10) return "Encore ~3 min";
     return "~4 min";
   };
 
@@ -229,7 +231,7 @@ export function useOnboarding() {
   const auditsLaunched = useRef(false);
   useEffect(() => {
     if (isDemoMode || !user || auditsLaunched.current) return;
-    if (step < 10) return;
+    if (step < 11) return;
     auditsLaunched.current = true;
     setAuditResults(prev => ({ ...prev, isLoading: true }));
 
