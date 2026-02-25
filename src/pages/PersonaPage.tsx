@@ -85,7 +85,7 @@ export default function PersonaPage() {
     const load = async () => {
       const [pRes, profRes, bpRes] = await Promise.all([
         (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle(),
-        supabase.from("profiles").select("activite, prenom, tons").eq("user_id", user.id).single(),
+        (supabase.from("profiles") as any).select("activite, prenom, tons").eq(column, value).single(),
         (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register").eq(column, value).maybeSingle(),
       ]);
       if (pRes.data) {
