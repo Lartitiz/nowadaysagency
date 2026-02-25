@@ -1096,39 +1096,51 @@ export type Database = {
           canal_filter: string | null
           created_at: string | null
           expires_at: string | null
+          guest_can_edit_status: boolean
+          guest_can_edit_wording: boolean
           guest_name: string | null
           id: string
           is_active: boolean | null
           label: string | null
           share_token: string
+          show_columns: Json
           show_content_draft: boolean | null
           user_id: string
+          view_mode: string
           workspace_id: string | null
         }
         Insert: {
           canal_filter?: string | null
           created_at?: string | null
           expires_at?: string | null
+          guest_can_edit_status?: boolean
+          guest_can_edit_wording?: boolean
           guest_name?: string | null
           id?: string
           is_active?: boolean | null
           label?: string | null
           share_token?: string
+          show_columns?: Json
           show_content_draft?: boolean | null
           user_id: string
+          view_mode?: string
           workspace_id?: string | null
         }
         Update: {
           canal_filter?: string | null
           created_at?: string | null
           expires_at?: string | null
+          guest_can_edit_status?: boolean
+          guest_can_edit_wording?: boolean
           guest_name?: string | null
           id?: string
           is_active?: boolean | null
           label?: string | null
           share_token?: string
+          show_columns?: Json
           show_content_draft?: boolean | null
           user_id?: string
+          view_mode?: string
           workspace_id?: string | null
         }
         Relationships: [
