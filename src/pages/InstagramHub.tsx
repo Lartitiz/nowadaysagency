@@ -102,7 +102,7 @@ export default function InstagramHub() {
         </div>
 
         {/* ─── ZONE 1 : ANALYSER ─── */}
-        <ZoneSection emoji="📊" title="Analyser">
+        <ZoneSection emoji="📊" title={<><span className="text-primary font-bold">1.</span> 📊 Analyser</>}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FirstTimeTooltip id="instagram-profil" text="Analyse ton profil : bio, feed, cohérence visuelle.">
               <HubCard to="/instagram/profil" emoji="👤" title="Mon profil" desc="Audit complet : bio, feed, stories à la une, posts épinglés, nom." />
@@ -114,7 +114,7 @@ export default function InstagramHub() {
         </ZoneSection>
 
         {/* ─── ZONE 2 : CRÉER ─── */}
-        <ZoneSection emoji="✨" title="Créer">
+        <ZoneSection emoji="✨" title={<><span className="text-primary font-bold">2.</span> ✨ Créer</>}>
           <Link
             to="/instagram/creer"
             className="group block rounded-2xl border-2 border-primary bg-primary/5 p-6 sm:p-8 hover:bg-primary/10 hover:shadow-md transition-all text-center"
@@ -137,17 +137,25 @@ export default function InstagramHub() {
         </ZoneSection>
 
         {/* ─── ZONE 3 : ENGAGER ─── */}
-        <ZoneSection emoji="💬" title="Engager">
-          <HubCard
-            to="/instagram/routine"
-            emoji="💬"
-            title="Routine d'engagement"
-            desc="Tes actions hebdo pour créer du lien avec ta communauté."
-          />
+        <ZoneSection emoji="💬" title={<><span className="text-primary font-bold">3.</span> 💬 Engager</>}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <HubCard
+              to="/instagram/routine"
+              emoji="💬"
+              title="Routine d'engagement"
+              desc="Tes actions hebdo pour créer du lien avec ta communauté."
+            />
+            <HubCard
+              to="/calendrier?canal=instagram"
+              emoji="📅"
+              title="Mon calendrier Instagram"
+              desc="Planifie tes posts et visualise ton mois."
+            />
+          </div>
         </ZoneSection>
 
         {/* ─── ZONE 4 : PLANIFIER ─── */}
-        <ZoneSection emoji="📅" title="Planifier">
+        <ZoneSection emoji="📅" title={<><span className="text-primary font-bold">4.</span> 📅 Planifier</>}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <HubCard
               to="/calendrier?canal=instagram"
