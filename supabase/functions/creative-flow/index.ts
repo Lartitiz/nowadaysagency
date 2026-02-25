@@ -444,26 +444,51 @@ Réponds UNIQUEMENT en JSON :
     // ── Call Anthropic ──
     let rawContent: string;
 
-    if (step === "recycle" && body.fileBase64) {
-      // Multimodal: text + file
+    // Build files array (backward compatible)
+    const filesArray: any[] = body.files || (body.fileBase64 ? [{ base64: body.fileBase64, mimeType: body.fileMimeType, name: "fichier" }] : []);
+
+    if (step === "recycle" && filesArray.length > 0) {
+      // Validate total size (~20 Mo max in base64)
+      let totalSize = 0;
+      for (const f of filesArray) {
+        totalSize += (f.base64?.length || 0);
+      }
+      if (totalSize > 27_000_000) { // ~20 Mo in base64
+        return new Response(
+          JSON.stringify({ error: "La taille totale des fichiers dépasse 20 Mo. Réduis le nombre ou la taille des fichiers." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Anthropic limit: max 5 PDFs
+      let pdfCount = 0;
+      let pdfWarning = "";
       const content: any[] = [];
 
-      if (body.fileMimeType === "application/pdf") {
-        content.push({
-          type: "document",
-          source: { type: "base64", media_type: "application/pdf", data: body.fileBase64 },
-        });
-      } else if (body.fileMimeType?.startsWith("image/")) {
-        content.push({
-          type: "image",
-          source: { type: "base64", media_type: body.fileMimeType, data: body.fileBase64 },
-        });
+      for (const f of filesArray.slice(0, 10)) {
+        if (f.mimeType === "application/pdf") {
+          pdfCount++;
+          if (pdfCount > 5) {
+            pdfWarning = "\n⚠️ Note : seuls les 5 premiers PDFs ont été analysés (limite technique).";
+            continue;
+          }
+          content.push({
+            type: "document",
+            source: { type: "base64", media_type: "application/pdf", data: f.base64 },
+          });
+        } else if (f.mimeType?.startsWith("image/")) {
+          content.push({
+            type: "image",
+            source: { type: "base64", media_type: f.mimeType, data: f.base64 },
+          });
+        }
       }
 
       const requestedFormats = (formats || []).map((f: string) => formatLabels[f] || f);
+      const fileNames = filesArray.map((f: any) => f.name || "fichier").join(", ");
       const textInstruction = sourceText
-        ? `Voici aussi du contexte texte :\n${sourceText}\n\nRecycle le contenu du fichier (et du texte si fourni) en ${requestedFormats.join(", ")}.`
-        : `Analyse ce fichier et recycle son contenu en ${requestedFormats.join(", ")}.`;
+        ? `Voici aussi du contexte texte :\n${sourceText}\n\nRecycle le contenu de ces ${filesArray.length} fichier(s) (${fileNames}) et du texte en ${requestedFormats.join(", ")}. Synthétise les informations clés de tous les fichiers, ne traite pas chaque fichier isolément.${pdfWarning}`
+        : `Analyse ces ${filesArray.length} fichier(s) (${fileNames}) et recycle leur contenu en ${requestedFormats.join(", ")}. Synthétise les informations clés de tous les fichiers.${pdfWarning}`;
 
       content.push({ type: "text", text: textInstruction });
 
