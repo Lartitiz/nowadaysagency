@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +13,8 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 import CalendarCoachingDialog from "@/components/calendar/CalendarCoachingDialog";
 import { CANAL_FILTERS, type CalendarPost } from "@/lib/calendar-constants";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
@@ -48,6 +49,105 @@ function getGeneratorRoute(post: CalendarPost): string | null {
   if (gct === "linkedin") return "/linkedin";
 
   return null; // fallback to dialog
+}
+
+const STATUSES_MAP: Record<string, string> = { idea: "Idée", a_rediger: "À rédiger", drafting: "En rédaction", ready: "Prêt à publier", published: "Publié" };
+
+function postToRow(p: CalendarPost) {
+  return {
+    Date: p.date, Thème: p.theme, Canal: p.canal, Format: p.format || "",
+    Objectif: p.objectif || p.category || "", Statut: STATUSES_MAP[p.status] || p.status,
+    Notes: p.notes || "", Brouillon: (p.content_draft || "").slice(0, 200),
+  };
+}
+
+function fileDate() { return new Date().toISOString().slice(0, 10); }
+
+function autoWidth(ws: XLSX.WorkSheet, rows: Record<string, any>[]) {
+  if (rows.length === 0) return;
+  const keys = Object.keys(rows[0]);
+  ws["!cols"] = keys.map(k => ({ wch: Math.min(40, Math.max(k.length, ...rows.map(r => String(r[k] || "").length))) }));
+}
+
+function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen }: {
+  filteredPosts: CalendarPost[];
+  canalFilter: string;
+  toast: ReturnType<typeof useToast>["toast"];
+  onCoachingOpen: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => { if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const exportCSV = () => {
+    setOpen(false);
+    if (filteredPosts.length === 0) { toast({ title: "Aucun contenu à exporter pour cette période." }); return; }
+    const rows = filteredPosts.map(postToRow);
+    const headers = Object.keys(rows[0]);
+    const lines = [headers.join(";"), ...rows.map(r => headers.map(h => `"${String((r as any)[h]).replace(/"/g, '""')}"`).join(";"))];
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `calendrier-nowadays-${fileDate()}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportXLSX = () => {
+    setOpen(false);
+    if (filteredPosts.length === 0) { toast({ title: "Aucun contenu à exporter pour cette période." }); return; }
+    const wb = XLSX.utils.book_new();
+    if (canalFilter === "all") {
+      const canals = [...new Set(filteredPosts.map(p => p.canal))];
+      canals.forEach(canal => {
+        const rows = filteredPosts.filter(p => p.canal === canal).map(postToRow);
+        const ws = XLSX.utils.json_to_sheet(rows);
+        autoWidth(ws, rows);
+        XLSX.utils.book_append_sheet(wb, ws, canal.slice(0, 31));
+      });
+    } else {
+      const rows = filteredPosts.map(postToRow);
+      const ws = XLSX.utils.json_to_sheet(rows);
+      autoWidth(ws, rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Posts");
+    }
+    XLSX.writeFile(wb, `calendrier-nowadays-${fileDate()}.xlsx`);
+  };
+
+  return (
+    <div className="mb-6 flex items-start justify-between gap-4">
+      <div>
+        <h1 className="font-display text-[22px] sm:text-3xl md:text-4xl font-bold text-foreground">
+          📅 Mon calendrier éditorial
+        </h1>
+        <p className="mt-1 text-[15px] text-muted-foreground">Planifie tes contenus, visualise ta semaine, ne te demande plus jamais « je poste quoi aujourd'hui ».</p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="relative" ref={dropdownRef}>
+          <Button variant="outline" size="sm" className="rounded-full gap-1.5" onClick={() => setOpen(!open)}>
+            <Download className="h-3.5 w-3.5" /> Exporter
+          </Button>
+          {open && (
+            <div className="absolute right-0 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg py-1 w-44">
+              <button onClick={exportXLSX} className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">
+                📊 Excel (.xlsx)
+              </button>
+              <button onClick={exportCSV} className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">
+                📄 CSV
+              </button>
+            </div>
+          )}
+        </div>
+        <Button onClick={onCoachingOpen} className="shrink-0 gap-1.5 rounded-full" size="sm">
+          <Sparkles className="h-3.5 w-3.5" /> Planifier ma semaine
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export default function CalendarPage() {
@@ -563,19 +663,8 @@ export default function CalendarPage() {
           <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Calendrier éditorial" useFromParam />
         )}
         <AuditRecommendationBanner />
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="font-display text-[22px] sm:text-3xl md:text-4xl font-bold text-foreground">
-              📅 Mon calendrier éditorial
-            </h1>
-            <p className="mt-1 text-[15px] text-muted-foreground">Planifie tes contenus, visualise ta semaine, ne te demande plus jamais « je poste quoi aujourd'hui ».</p>
-          </div>
-          <Button onClick={() => setCoachingOpen(true)} className="shrink-0 gap-1.5 rounded-full" size="sm">
-            <Sparkles className="h-3.5 w-3.5" /> Planifier ma semaine
-          </Button>
-        </div>
+        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} />
 
-        
 
         {/* Mobile tabs */}
         {isMobile && (
