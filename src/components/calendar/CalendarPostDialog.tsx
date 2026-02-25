@@ -21,13 +21,25 @@ import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
 
-const FORMAT_OPTIONS = [
-  { id: "post_carrousel", emoji: "📑", label: "Carrousel" },
-  { id: "reel", emoji: "🎬", label: "Reel" },
-  { id: "post_photo", emoji: "🖼️", label: "Post" },
-  { id: "story_serie", emoji: "📱", label: "Stories" },
-  { id: "live", emoji: "🎤", label: "Live" },
-];
+const FORMAT_OPTIONS_BY_CANAL: Record<string, { id: string; emoji: string; label: string }[]> = {
+  instagram: [
+    { id: "post_carrousel", emoji: "📑", label: "Carrousel" },
+    { id: "reel", emoji: "🎬", label: "Reel" },
+    { id: "post_photo", emoji: "🖼️", label: "Post" },
+    { id: "story_serie", emoji: "📱", label: "Stories" },
+    { id: "live", emoji: "🎤", label: "Live" },
+  ],
+  linkedin: [
+    { id: "post_texte", emoji: "📝", label: "Post texte" },
+    { id: "post_carrousel", emoji: "📑", label: "Carrousel PDF" },
+    { id: "article", emoji: "📰", label: "Article" },
+    { id: "sondage", emoji: "📊", label: "Sondage" },
+  ],
+  pinterest: [
+    { id: "epingle", emoji: "📌", label: "Épingle" },
+    { id: "epingle_idee", emoji: "💡", label: "Épingle idée" },
+  ],
+};
 
 interface Props {
   open: boolean;
@@ -497,7 +509,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           <div>
             <label className="text-sm font-medium mb-1.5 block">Format</label>
             <div className="flex flex-wrap gap-1.5">
-              {FORMAT_OPTIONS.map((f) => (
+              {(FORMAT_OPTIONS_BY_CANAL[postCanal] || FORMAT_OPTIONS_BY_CANAL.instagram).map((f) => (
                 <button key={f.id} onClick={() => setFormat(format === f.id ? null : f.id)}
                   className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${format === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
                   {f.emoji} {f.label}
