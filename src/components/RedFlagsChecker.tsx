@@ -43,6 +43,14 @@ interface RedFlagsCheckerProps {
 export default function RedFlagsChecker({ content, onFix }: RedFlagsCheckerProps) {
   const [flags, setFlags] = useState<DetectedFlag[]>([]);
   const [dismissed, setDismissed] = useState(false);
+  const [fixApplied, setFixApplied] = useState(false);
+  const [fixCount, setFixCount] = useState(0);
+
+  useEffect(() => {
+    if (!fixApplied) return;
+    const t = setTimeout(() => setFixApplied(false), 3000);
+    return () => clearTimeout(t);
+  }, [fixApplied]);
 
   useEffect(() => {
     if (!content) return;
@@ -69,16 +77,28 @@ export default function RedFlagsChecker({ content, onFix }: RedFlagsCheckerProps
     setDismissed(false);
   }, [content]);
 
+  if (fixApplied) {
+    return (
+      <div className="rounded-xl border border-green-300/50 bg-green-50/50 dark:bg-green-900/10 px-4 py-3 animate-fade-in">
+        <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
+          ✅ {fixCount} expression{fixCount > 1 ? "s" : ""} corrigée{fixCount > 1 ? "s" : ""}
+        </p>
+      </div>
+    );
+  }
+
   if (flags.length === 0 || dismissed) return null;
 
   const handleAutoFix = () => {
+    const count = flags.length;
     let fixed = content;
     for (const flag of AI_RED_FLAGS) {
       flag.pattern.lastIndex = 0;
       fixed = fixed.replace(flag.pattern, flag.fix);
     }
-    // Clean up double spaces and empty lines from removed text
     fixed = fixed.replace(/  +/g, " ").replace(/\n\s*\n\s*\n/g, "\n\n");
+    setFixCount(count);
+    setFixApplied(true);
     onFix(fixed);
   };
 
