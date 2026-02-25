@@ -814,6 +814,7 @@ export default function InstagramBio() {
                 {v.pourquoi && <p className="text-xs text-muted-foreground italic">{v.pourquoi}</p>}
                 {!v.pourquoi && v.style_note && <p className="text-xs text-muted-foreground italic">{v.style_note}</p>}
                 <BioPreviewCard bio={v.bio_text} />
+                <CharacterCounter text={v.bio_text} maxLength={150} />
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" size="sm" className="rounded-pill gap-1.5" onClick={() => copyBio(v.bio_text, `v${i}`)}>
                     {copiedField === `v${i}` ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
