@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -51,6 +52,16 @@ export default function LinkedInPostGenerator() {
   const { user } = useAuth();
   const { toast } = useToast();
   const workspaceId = useWorkspaceId();
+  const location = useLocation();
+  const calendarState = location.state as {
+    fromCalendar?: boolean;
+    calendarPostId?: string;
+    theme?: string;
+    sujet?: string;
+    objectif?: string;
+    angle?: string;
+    notes?: string;
+  } | null;
 
   // Mode
   const [mode, setMode] = useState<"create" | "improve">("create");
@@ -58,8 +69,8 @@ export default function LinkedInPostGenerator() {
   // Create mode state
   const [template, setTemplate] = useState<string | null>(null);
   const [audience, setAudience] = useState("tu");
-  const [sujet, setSujet] = useState("");
-  const [anecdote, setAnecdote] = useState("");
+  const [sujet, setSujet] = useState(calendarState?.sujet || calendarState?.theme || "");
+  const [anecdote, setAnecdote] = useState(calendarState?.notes || "");
   const [emotion, setEmotion] = useState("");
   const [conviction, setConviction] = useState("");
   const [hookType, setHookType] = useState<string | null>(null);
@@ -189,6 +200,17 @@ export default function LinkedInPostGenerator() {
 
   const handleCalendar = async (text: string) => {
     if (!user) return;
+
+    if (calendarState?.fromCalendar && calendarState?.calendarPostId) {
+      await supabase.from("calendar_posts").update({
+        content_draft: text,
+        accroche: text.split(/[.\n]/)[0]?.trim()?.slice(0, 200) || "",
+        status: "drafting",
+      }).eq("id", calendarState.calendarPostId);
+      toast({ title: "✅ Post LinkedIn mis à jour dans ton calendrier !" });
+      return;
+    }
+
     const dateStr = getNextOptimalDate();
     await supabase.from("calendar_posts").insert({
       user_id: user.id,
