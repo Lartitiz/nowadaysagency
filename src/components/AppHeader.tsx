@@ -58,7 +58,7 @@ export default function AppHeader() {
 }
 
 function AppHeaderInner() {
-  const { activeWorkspace, workspaces, isMultiWorkspace, switchWorkspace } = useWorkspace();
+  const { activeWorkspace, workspaces, isMultiWorkspace, switchWorkspace, activeRole } = useWorkspace();
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -269,6 +269,29 @@ function AppHeaderInner() {
           })}
         </div>
       </nav>
+
+      {/* ─── Client workspace banner ─── */}
+      {activeRole === "manager" && activeWorkspace && (
+        <div className="sticky top-12 md:top-14 z-30 border-b border-primary/30 bg-rose-pale">
+          <div className="mx-auto max-w-[1100px] flex items-center justify-between px-4 sm:px-6 py-2">
+            <span className="text-sm font-bold text-foreground">
+              👁️ Tu es dans l'espace de {activeWorkspace.name}
+            </span>
+            <button
+              onClick={() => {
+                const ownerWs = workspaces[0];
+                if (ownerWs) {
+                  switchWorkspace(ownerWs.id);
+                  navigate("/dashboard");
+                }
+              }}
+              className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+            >
+              Revenir à mon espace
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ─── Breadcrumb bar (below header, above content) ─── */}
       <div className="mx-auto max-w-[1100px] px-6 pt-3 max-md:px-4">
