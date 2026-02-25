@@ -72,6 +72,48 @@ const CARDS: BrandingCard[] = [
   },
 ];
 
+const RECOMMENDATIONS: Record<string, { low: string; mid: string; high: string; done: string }> = {
+  storytelling: {
+    low: "Commence par raconter ton moment déclic. 5 minutes suffisent.",
+    mid: "Ton histoire prend forme ! Il te manque le texte final poli.",
+    high: "Presque terminé. Laisse l'IA t'aider à peaufiner ton récit.",
+    done: "Ton histoire est prête. Tu peux en faire un post ou un carousel.",
+  },
+  persona: {
+    low: "Décris les frustrations de ta cliente idéale pour démarrer.",
+    mid: "Bon début ! Creuse sa transformation rêvée pour compléter.",
+    high: "Il te manque les détails esthétiques et ses premières actions.",
+    done: "Ta cliente idéale est définie. Utilise-la dans tes contenus.",
+  },
+  proposition: {
+    low: "Commence par répondre : qu'est-ce que tu fais, pour qui, et pourquoi ?",
+    mid: "Tu as les bases. Il te manque ta phrase de positionnement finale.",
+    high: "Presque ! Finalise ta version courte et ton one-liner.",
+    done: "Ta proposition de valeur est claire. Parfait pour ta bio et tes pitchs.",
+  },
+  tone: {
+    low: "Définis comment tu parles : plutôt tutoiement ou vouvoiement ? Direct ou doux ?",
+    mid: "Ton registre est posé. Ajoute tes combats et ce que tu refuses.",
+    high: "Il te manque tes expressions clés et ce qu'on évite.",
+    done: "Ta voix est définie. L'IA l'utilisera dans tous tes contenus.",
+  },
+  strategy: {
+    low: "Choisis tes 3 grands sujets de contenu pour commencer.",
+    mid: "Tes piliers sont là. Ajoute ton concept créatif.",
+    high: "Presque ! Affine tes facettes cachées pour te démarquer.",
+    done: "Ta stratégie est solide. Lance-toi dans la création !",
+  },
+};
+
+function getRecommendation(scoreKey: string, pValue: number): string {
+  const rec = RECOMMENDATIONS[scoreKey];
+  if (!rec) return "";
+  if (pValue === 100) return rec.done;
+  if (pValue >= 50) return rec.high;
+  if (pValue > 0) return rec.mid;
+  return rec.low;
+}
+
 export default function BrandingPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -386,8 +428,9 @@ export default function BrandingPage() {
                           <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">{card.description}</p>
                           <div className="flex items-center gap-2 mb-4">
                             <Progress value={100} className="h-1.5 flex-1" />
-                            <span className="font-mono-ui text-[10px] font-semibold shrink-0 text-[#2E7D32]">✅ Complet</span>
+                             <span className="font-mono-ui text-[10px] font-semibold shrink-0 text-[#2E7D32]">✅ Complet</span>
                           </div>
+                          <p className="text-[11px] text-muted-foreground/80 mt-1 leading-snug line-clamp-1 mb-3">{getRecommendation("proposition", 100)}</p>
                           <div className="flex items-center gap-2">
                             <Button size="sm" className="rounded-pill text-xs flex-1" onClick={() => navigate("/branding/proposition/recap")}>
                               <Eye className="h-3.5 w-3.5 mr-1" /> Voir ma fiche
@@ -405,8 +448,10 @@ export default function BrandingPage() {
                           </p>
                           <div className="flex items-center gap-2 mb-4">
                             <Progress value={pValue} className="h-1.5 flex-1" />
-                            <span className="font-mono-ui text-[10px] font-semibold shrink-0 text-muted-foreground">{pLabel}</span>
+                             <span className="font-mono-ui text-[10px] font-semibold shrink-0 text-muted-foreground">{pLabel}</span>
                           </div>
+                          <p className="text-[11px] text-muted-foreground/80 mt-1 leading-snug line-clamp-1 mb-3">{getRecommendation("proposition", pValue)}</p>
+                          <p className="text-[11px] text-muted-foreground/80 mt-1 leading-snug line-clamp-1 mb-3">{getRecommendation("proposition", pValue)}</p>
                           <Button
                             size="sm"
                             className="rounded-pill text-xs w-full mb-2"
@@ -460,8 +505,9 @@ export default function BrandingPage() {
                     <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">{card.description}</p>
                     <div className="flex items-center gap-2 mb-4">
                       <Progress value={pValue} className="h-1.5 flex-1" />
-                      <span className={`font-mono-ui text-[10px] font-semibold shrink-0 ${isCompleted ? "text-[#2E7D32]" : "text-muted-foreground"}`}>{pLabel}</span>
+                       <span className={`font-mono-ui text-[10px] font-semibold shrink-0 ${isCompleted ? "text-[#2E7D32]" : "text-muted-foreground"}`}>{pLabel}</span>
                     </div>
+                    <p className="text-[11px] text-muted-foreground/80 mt-1 leading-snug line-clamp-1 mb-3">{getRecommendation(card.scoreKey, pValue)}</p>
 
                     {isCompleted ? (
                       <div className="flex items-center gap-2">
