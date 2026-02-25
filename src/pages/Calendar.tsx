@@ -21,9 +21,7 @@ import { CANAL_FILTERS, type CalendarPost } from "@/lib/calendar-constants";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { CalendarWeekGrid } from "@/components/calendar/CalendarWeekGrid";
 import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
-import { CalendarLegend } from "@/components/calendar/CalendarLegend";
 import { CalendarCategoryFilters } from "@/components/calendar/CalendarCategoryFilters";
-import { StoriesMixBanner } from "@/components/calendar/StoriesMixBanner";
 
 import { BalanceGauge } from "@/components/calendar/BalanceGauge";
 import { CalendarKanbanView } from "@/components/calendar/CalendarKanbanView";
@@ -583,7 +581,6 @@ export default function CalendarPage() {
       </div>
 
       <CalendarCategoryFilters value={categoryFilter} onChange={setCategoryFilter} />
-      <CalendarLegend />
 
       {/* View toggle + Navigation */}
       <div className="flex items-center justify-between mb-4">
@@ -668,7 +665,7 @@ export default function CalendarPage() {
         />
       ) : (
         <>
-          <StoriesMixBanner weekDays={weekDays} />
+          
           <BalanceGauge posts={weekPosts} />
           <CalendarWeekGrid
             weekDays={weekDays} postsByDate={postsByDate} todayStr={todayStr} isMobile={isMobile}
