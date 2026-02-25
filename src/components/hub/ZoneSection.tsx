@@ -1,8 +1,10 @@
-export default function ZoneSection({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
+import { ReactNode } from "react";
+
+export default function ZoneSection({ emoji, title, children }: { emoji?: string; title: ReactNode; children: ReactNode }) {
   return (
     <section className="mb-6">
       <h2 className="font-display text-lg font-bold text-foreground mb-3 flex items-center gap-2">
-        <span>{emoji}</span> {title}
+        {typeof title === "string" ? <><span>{emoji}</span> {title}</> : title}
       </h2>
       <div className="rounded-2xl border border-border bg-card/50 p-4">
         {children}
