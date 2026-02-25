@@ -62,6 +62,31 @@ function findKeyPageLinks(html: string, baseUrl: string): string[] {
   return Array.from(found).slice(0, 5);
 }
 
+// ── Fetch social profile text ──
+async function fetchSocialProfile(type: string, url: string): Promise<{ type: string; text: string }> {
+  try {
+    // Normalize URL
+    let fetchUrl = url.trim();
+    if (type === "instagram" && !fetchUrl.startsWith("http")) {
+      fetchUrl = `https://www.instagram.com/${fetchUrl.replace("@", "")}/`;
+    }
+    if (!fetchUrl.startsWith("http")) {
+      fetchUrl = `https://${fetchUrl}`;
+    }
+
+    const resp = await fetch(fetchUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandingImporter/1.0)" },
+      redirect: "follow",
+    });
+    if (!resp.ok) return { type, text: "" };
+    const html = await resp.text();
+    const text = htmlToText(html);
+    return { type, text: text.length > 50 ? text : "" };
+  } catch {
+    return { type, text: "" };
+  }
+}
+
 // ── Main handler ──
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -69,9 +94,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { text, url } = await req.json();
+    const { text, url, social_links } = await req.json();
 
     let documentText = "";
+    const sourcesAnalyzed: string[] = [];
 
     if (url) {
       // Fetch homepage
@@ -81,35 +107,57 @@ Deno.serve(async (req) => {
       });
 
       if (!homepageResp.ok) {
-        return new Response(
-          JSON.stringify({ error: "On n'arrive pas à accéder à ce site. Essaie de coller le texte directement." }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        // Don't fail if we have other sources
+        if (!text && (!social_links || social_links.length === 0)) {
+          return new Response(
+            JSON.stringify({ error: "On n'arrive pas à accéder à ce site. Essaie de coller le texte directement." }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } else {
+        const homepageHtml = await homepageResp.text();
+        documentText = htmlToText(homepageHtml);
+
+        // Find and fetch key pages
+        const keyLinks = findKeyPageLinks(homepageHtml, url);
+        console.log("Key pages found:", keyLinks);
+
+        const subTexts = await Promise.all(keyLinks.map(fetchPageText));
+        for (const st of subTexts) {
+          if (st.length > 50) documentText += "\n\n---\n\n" + st;
+        }
+
+        sourcesAnalyzed.push("website");
       }
+    }
 
-      const homepageHtml = await homepageResp.text();
-      documentText = htmlToText(homepageHtml);
-
-      // Find and fetch key pages
-      const keyLinks = findKeyPageLinks(homepageHtml, url);
-      console.log("Key pages found:", keyLinks);
-
-      const subTexts = await Promise.all(keyLinks.map(fetchPageText));
-      for (const st of subTexts) {
-        if (st.length > 50) documentText += "\n\n---\n\n" + st;
+    if (text) {
+      if (documentText.length > 0) {
+        documentText += "\n\n--- DOCUMENT SUIVANT ---\n\n" + text;
+      } else {
+        documentText = text;
       }
+      sourcesAnalyzed.push("document");
+    }
 
-      if (documentText.length < 200) {
-        return new Response(
-          JSON.stringify({ error: "Ton site n'a pas assez de texte pour qu'on puisse extraire des infos. Essaie avec un document ou du texte collé." }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+    // Fetch social profiles
+    if (social_links && Array.isArray(social_links) && social_links.length > 0) {
+      const results = await Promise.all(
+        social_links.map((link: { type: string; url: string }) => fetchSocialProfile(link.type, link.url))
+      );
+
+      for (const result of results) {
+        if (result.text) {
+          const typeLabel = result.type.toUpperCase();
+          documentText += `\n\n--- PROFIL ${typeLabel} ---\n${result.text}`;
+          sourcesAnalyzed.push(result.type);
+        }
       }
-    } else if (text) {
-      documentText = text;
-    } else {
+    }
+
+    if (documentText.length < 50) {
       return new Response(
-        JSON.stringify({ error: "Fournis un texte ou une URL à analyser." }),
+        JSON.stringify({ error: "Pas assez de contenu pour analyser. Essaie avec un document ou du texte collé." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -164,7 +212,6 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après. Pas de mark
     // Parse JSON from response
     let extraction: Record<string, any>;
     try {
-      // Try to find JSON in the response
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error("No JSON found");
       extraction = JSON.parse(jsonMatch[0]);
@@ -187,7 +234,7 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après. Pas de mark
     }
 
     return new Response(
-      JSON.stringify({ extraction }),
+      JSON.stringify({ extraction, sources_analyzed: sourcesAnalyzed }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {

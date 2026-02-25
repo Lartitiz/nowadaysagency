@@ -1,9 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import BrandingImportBlock from "@/components/branding/BrandingImportBlock";
 import BrandingImportReview from "@/components/branding/BrandingImportReview";
+import { supabase } from "@/integrations/supabase/client";
 import type { BrandingExtraction } from "@/lib/branding-import-types";
+
+interface PrefillLinks {
+  website?: string;
+  instagram?: string;
+  linkedin?: string;
+  extra?: { type: string; url: string }[];
+}
 
 interface Props {
   workspaceName: string;
@@ -15,6 +23,30 @@ interface Props {
 export default function ClientOnboarding({ workspaceName, workspaceId, onComplete, onSkip }: Props) {
   const [extraction, setExtraction] = useState<BrandingExtraction | null>(null);
   const [phase, setPhase] = useState<"import" | "review">("import");
+  const [prefillLinks, setPrefillLinks] = useState<PrefillLinks | undefined>(undefined);
+
+  useEffect(() => {
+    async function fetchLinks() {
+      const { data } = await supabase
+        .from("workspaces" as any)
+        .select("website_url, instagram_url, linkedin_url, extra_links")
+        .eq("id", workspaceId)
+        .single();
+
+      if (data) {
+        const d = data as any;
+        const links: PrefillLinks = {};
+        if (d.website_url) links.website = d.website_url;
+        if (d.instagram_url) links.instagram = d.instagram_url;
+        if (d.linkedin_url) links.linkedin = d.linkedin_url;
+        if (d.extra_links && Array.isArray(d.extra_links) && d.extra_links.length > 0) {
+          links.extra = d.extra_links;
+        }
+        if (Object.keys(links).length > 0) setPrefillLinks(links);
+      }
+    }
+    fetchLinks();
+  }, [workspaceId]);
 
   if (phase === "review" && extraction) {
     return (
@@ -49,6 +81,7 @@ export default function ClientOnboarding({ workspaceName, workspaceId, onComplet
           setExtraction(ext);
           setPhase("review");
         }}
+        prefillLinks={prefillLinks}
       />
 
       <div className="text-center mt-6 space-y-2">

@@ -6811,31 +6811,43 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           created_by: string
+          extra_links: Json | null
           id: string
+          instagram_url: string | null
+          linkedin_url: string | null
           name: string
           plan: string
           slug: string | null
           updated_at: string
+          website_url: string | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
           created_by: string
+          extra_links?: Json | null
           id?: string
+          instagram_url?: string | null
+          linkedin_url?: string | null
           name?: string
           plan?: string
           slug?: string | null
           updated_at?: string
+          website_url?: string | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
           created_by?: string
+          extra_links?: Json | null
           id?: string
+          instagram_url?: string | null
+          linkedin_url?: string | null
           name?: string
           plan?: string
           slug?: string | null
           updated_at?: string
+          website_url?: string | null
         }
         Relationships: []
       }
