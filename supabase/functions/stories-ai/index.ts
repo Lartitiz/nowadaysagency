@@ -287,21 +287,29 @@ function buildMainPrompt(p: MainPromptParams): string {
   if (p.pre_gen_answers && (p.pre_gen_answers.vecu || p.pre_gen_answers.energy || p.pre_gen_answers.message_cle)) {
     preGenBlock = `
 
-L'UTILISATRICE A PARTAGÉ :
-${p.pre_gen_answers.vecu ? `- Vécu récent : "${p.pre_gen_answers.vecu}"` : ""}
-${p.pre_gen_answers.energy ? `- Énergie souhaitée : ${p.pre_gen_answers.energy}` : ""}
-${p.pre_gen_answers.message_cle ? `- Message clé : "${p.pre_gen_answers.message_cle}"` : ""}
+═══════════════════════════════════════════════════
+ÉLÉMENTS PERSONNELS DE L'UTILISATRICE (PRIORITÉ HAUTE)
+═══════════════════════════════════════════════════
 
-INTÈGRE dans la séquence stories :
-- Le vécu récent est PARFAIT pour la story 1 (hook) ou la story 2 (identification). C'est du contenu ultra-authentique.
-- L'énergie guide le ton de TOUTE la séquence :
-  🔥 Punchy = phrases courtes, affirmations, rythme rapide
-  🫶 Intime = face cam, ton doux, confidence
-  📚 Pédago = structure claire, tips concrets
-  😄 Drôle = auto-dérision, observations du quotidien
-  😤 Coup de gueule doux = position affirmée mais bienveillante
-- Le message clé doit apparaître dans la story 4 ou 5 (le climax ou la conclusion), formulé dans ses mots à elle
-- NE CHANGE PAS le sens de ses mots, juste la structure si nécessaire
+${p.pre_gen_answers.vecu ? `VÉCU RÉCENT : "${p.pre_gen_answers.vecu}"
+→ C'est du contenu authentique. UTILISE ses mots exacts, ses formulations, ses images.
+→ Intègre-le dans la story 1 (hook) ou story 2 (identification).
+→ Ne reformule PAS son vécu en langage corporate. Garde le côté brut.` : ""}
+
+${p.pre_gen_answers.energy ? `ÉNERGIE CHOISIE : ${p.pre_gen_answers.energy}
+→ L'énergie guide le ton de TOUTE la séquence, pas juste une story :
+  🔥 Punchy = phrases courtes, affirmations, rythme rapide, pas de détour
+  🫶 Intime = face cam, ton doux, confidence, proximité
+  📚 Pédago = structure claire, tips concrets, progression logique
+  😄 Drôle = auto-dérision, observations du quotidien, décalage
+  😤 Coup de gueule doux = position affirmée mais bienveillante, pas de jugement` : ""}
+
+${p.pre_gen_answers.message_cle ? `MESSAGE CLÉ : "${p.pre_gen_answers.message_cle}"
+→ Ce message doit apparaître TEXTUELLEMENT (ou très proche) dans la story 4 ou 5, au moment du climax ou de la conclusion.
+→ NE CHANGE PAS le sens de ses mots. Tu peux ajuster la structure mais les mots restent les siens.
+→ C'est la phrase que les gens doivent retenir.` : ""}
+
+RÈGLE D'OR : Si l'utilisatrice a fourni ces éléments, ils sont plus importants que n'importe quel template. La séquence doit sonner comme ELLE, pas comme un framework appliqué mécaniquement.
 `;
   } else {
     preGenBlock = `
