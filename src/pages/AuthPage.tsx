@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { lovable } from "@/integrations/lovable/index";
 import { friendlyError } from "@/lib/error-messages";
+import PasswordStrengthIndicator from "@/components/ui/PasswordStrengthIndicator";
 
 export default function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -128,6 +129,7 @@ export default function AuthPage() {
                 minLength={8}
                 className="rounded-[10px] border-border bg-background h-12"
               />
+              {isSignUp && <PasswordStrengthIndicator password={password} />}
             </div>
             <Button
               type="submit"
