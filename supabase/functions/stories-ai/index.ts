@@ -51,21 +51,22 @@ serve(async (req) => {
     const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
     const branding_context = formatContextForAI(ctx, CONTEXT_PRESETS.stories);
 
-    // Clarify subject (fuzzy path)
-    if (type === "clarify_subject") {
-      const systemPrompt = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
+    // Préfixe commun pour maximiser le cache Anthropic entre les appels d'un même flow
+    const STORIES_PREFIX = BASE_SYSTEM_RULES + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
 - Reproduis fidèlement le style décrit
 - Réutilise les expressions signature naturellement dans le texte
 - RESPECTE les expressions interdites : ne les utilise JAMAIS
 - Imite les patterns de ton et de structure
 - Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
 
-Tu es experte en stories Instagram pour solopreneuses créatives.
-L'utilisatrice a une idée floue pour ses stories. Aide-la à préciser.
+Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées.
 
 ${ANTI_SLOP}
 
-${branding_context || ""}
+${branding_context || ""}`;
+    // Clarify subject (fuzzy path)
+    if (type === "clarify_subject") {
+      const systemPrompt = STORIES_PREFIX + `\n\nL'utilisatrice a une idée floue pour ses stories. Aide-la à préciser.
 
 L'utilisatrice a partagé une idée brute :
 "${body.raw_idea}"
@@ -92,7 +93,25 @@ RETOURNE un JSON strict :
   ]
 }
 Réponds UNIQUEMENT avec le JSON.`;
-      const response = await callAnthropicSimple(getModelForAction("stories"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, `Idée brute : "${body.raw_idea}"`);
+      const response = await callAnthropicSimple(getModelForAction("stories"), systemPrompt, `Idée brute : "${body.raw_idea}"`);
+      return new Response(JSON.stringify({ content: response }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Suggest subjects (no idea path)
+    if (type === "suggest_subjects") {
+      const systemPrompt = STORIES_PREFIX + `\n\nPropose 5 sujets de séquences stories pertinents pour cette utilisatrice, basés sur son contexte de marque.
+
+Chaque sujet doit être :
+- Spécifique (pas "parle de ton offre" mais "les 3 erreurs que tes clientes font avant de te contacter")
+- Formulé de façon engageante et concrète
+- Varié : mélange connexion, éducation, engagement
+
+RETOURNE un JSON strict :
+{ "suggestions": ["sujet 1", "sujet 2", "sujet 3", "sujet 4", "sujet 5"] }
+Réponds UNIQUEMENT avec le JSON.`;
+      const response = await callAnthropicSimple(getModelForAction("stories"), systemPrompt, "Propose-moi 5 sujets de stories.");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -150,8 +169,8 @@ Réponds UNIQUEMENT avec le JSON.`;
 
     // Quick daily stories
     if (type === "daily") {
-      const systemPrompt = buildDailyPrompt(branding_context);
-      const response = await callAnthropicSimple(getModelForAction("stories"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Génère mes 5 stories du quotidien.");
+      const systemPrompt = buildDailyPrompt(STORIES_PREFIX);
+      const response = await callAnthropicSimple(getModelForAction("stories"), systemPrompt, "Génère mes 5 stories du quotidien.");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -173,8 +192,8 @@ Réponds UNIQUEMENT avec le JSON.`;
     // Main generation
     const hasRichContent = !!(pre_gen_answers?.vecu && pre_gen_answers.vecu.length > 50) || !!(pre_gen_answers?.message_cle && pre_gen_answers.message_cle.length > 30);
     const model = getModelForRichContent("stories", hasRichContent);
-    const systemPrompt = buildMainPrompt({ objective, price_range, time_available, face_cam, subject: enrichedSubject, is_launch, branding_context, gardeFouAlerte, pre_gen_answers });
-    const response = await callAnthropicSimple(model, BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Génère ma séquence stories.");
+    const systemPrompt = buildMainPrompt({ objective, price_range, time_available, face_cam, subject: enrichedSubject, is_launch, gardeFouAlerte, pre_gen_answers }, STORIES_PREFIX);
+    const response = await callAnthropicSimple(model, systemPrompt, "Génère ma séquence stories.");
     return new Response(JSON.stringify({ content: response }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -203,19 +222,8 @@ Réponds UNIQUEMENT avec le JSON.`;
 // PROMPTS
 // ───────────────────────────────────────────────
 
-function buildDailyPrompt(brandingContext: string): string {
-  return `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
-- Reproduis fidèlement le style décrit
-- Réutilise les expressions signature naturellement dans le texte
-- RESPECTE les expressions interdites : ne les utilise JAMAIS
-- Imite les patterns de ton et de structure
-- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
-
-Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées.
-
-${ANTI_SLOP}
-
-${brandingContext || ""}
+function buildDailyPrompt(prefix: string): string {
+  return prefix + `
 
 Génère 5 stories du quotidien personnalisées. Aujourd'hui on est ${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}.
 
@@ -275,12 +283,11 @@ interface MainPromptParams {
   face_cam: string;
   subject?: string;
   is_launch: boolean;
-  branding_context?: string;
   gardeFouAlerte: string | null;
   pre_gen_answers?: { vecu?: string; energy?: string; message_cle?: string };
 }
 
-function buildMainPrompt(p: MainPromptParams): string {
+function buildMainPrompt(p: MainPromptParams, prefix: string): string {
   const priceBlock = p.objective === "vente" && p.price_range ? `\n- Gamme de prix : ${p.price_range}` : "";
   const launchBlock = p.is_launch ? "\n- Phase : LANCEMENT (orienter vers vente + preuve sociale)" : "\n- Phase : croisière";
 
@@ -325,16 +332,7 @@ Génère normalement. Ajoute un champ "personal_tip" dans le JSON :
   // Tiering : adapter la densité du prompt au temps dispo
   const isQuick = p.time_available === "5min";
 
-  return `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
-- Reproduis fidèlement le style décrit
-- Réutilise les expressions signature naturellement dans le texte
-- RESPECTE les expressions interdites : ne les utilise JAMAIS
-- Imite les patterns de ton et de structure
-- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
-
-Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées (mode, artisanat, bien-être, design, coaching).
-
-${ANTI_SLOP}
+  return prefix + `
 
 AVANT DE RÉDIGER, RÉFLÉCHIS EN INTERNE (ne montre PAS) : Quel est le problème ? Quelle émotion ? Quelle accroche est la MEILLEURE ? Mon output a-t-il du slop ?
 
@@ -342,7 +340,6 @@ ANALOGIES VISUELLES — DOSAGE :
 1 analogie max dans la séquence. Parfois 0. Si l'idée est claire sans, n'en mets pas.
 L'analogie doit être du QUOTIDIEN et VISUELLE. Jamais forcée.
 
-${p.branding_context || ""}
 ${preGenBlock}
 
 DEMANDE :
