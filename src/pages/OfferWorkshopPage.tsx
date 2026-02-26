@@ -12,6 +12,7 @@ import { ArrowLeft, Sparkles, Check, Pencil, Loader2, Trash2 } from "lucide-reac
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAutoSave, SaveIndicator } from "@/hooks/use-auto-save";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 
 const STEPS = [
   { num: 1, label: "Bases" },
@@ -298,6 +299,7 @@ export default function OfferWorkshopPage() {
         {step === 5 && <Step5 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(5, formData.target_ideal)} saved={saved} autoSaving={autoSaving} />}
         {step === 6 && <Step6 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(6, formData.objections_text)} saved={saved} autoSaving={autoSaving} />}
         {step === 7 && <Step7 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} offer={offer} onAskAI={() => askAI(7, "")} />}
+        {aiResponse && <AiGeneratedMention />}
 
         {/* Navigation */}
         <div className="flex items-center justify-between mt-8 pt-4 border-t border-border">

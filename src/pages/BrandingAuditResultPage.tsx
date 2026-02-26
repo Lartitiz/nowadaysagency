@@ -11,6 +11,7 @@ import { Loader2, ChevronDown, ChevronUp, ArrowRight, RefreshCw, ExternalLink, C
 import AuditCoachingPanel from "@/components/audit/AuditCoachingPanel";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 
 /* ─── Types ─── */
 interface PillarDetail {
@@ -300,6 +301,7 @@ export default function BrandingAuditResultPage() {
             </div>
             <p className="text-sm text-muted-foreground mt-4 leading-relaxed">{result.synthese}</p>
           </div>
+          <AiGeneratedMention />
 
           {/* Progress bar global */}
           {totalActions > 0 && (

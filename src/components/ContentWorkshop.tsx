@@ -13,6 +13,7 @@ import { useSearchParams } from "react-router-dom";
 import { getInstagramFormatReco } from "@/lib/production-guides";
 import type { UserProfile } from "@/pages/Dashboard";
 import RedactionFlow from "@/components/RedactionFlow";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 
 const OBJECTIVES = [
   { id: "visibilite", label: "🔍 Visibilité", desc: "Faire découvrir", color: "bg-violet-100 text-violet-700 border-violet-300" },
@@ -420,6 +421,7 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
             <RefreshCw className="h-4 w-4" />
             Encore 5 idées
           </Button>
+          <AiGeneratedMention />
         </div>
       )}
 

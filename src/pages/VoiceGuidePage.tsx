@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Sparkles, RefreshCw, Copy, Download, Loader2, Check, X } from "lucide-react";
 import { toast } from "sonner";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 
 interface VoiceGuide {
   brand_name: string;
@@ -190,101 +191,104 @@ export default function VoiceGuidePage() {
             </Button>
           </div>
         ) : (
-          <div ref={guideRef} className="space-y-6">
-            {/* Header */}
-            <div className="rounded-2xl border border-border bg-card p-6 text-center">
-              <h2 className="font-display text-2xl font-bold text-foreground mb-1">Guide de voix</h2>
-              <p className="text-lg text-primary font-semibold">{guide.brand_name}</p>
+          <>
+            <div ref={guideRef} className="space-y-6">
+              {/* Header */}
+              <div className="rounded-2xl border border-border bg-card p-6 text-center">
+                <h2 className="font-display text-2xl font-bold text-foreground mb-1">Guide de voix</h2>
+                <p className="text-lg text-primary font-semibold">{guide.brand_name}</p>
+              </div>
+
+              {/* Voice summary */}
+              <Section emoji="💬" title="Ma voix en résumé">
+                <p className="text-[15px] text-foreground/80 leading-relaxed">{guide.voice_summary}</p>
+              </Section>
+
+              {/* Tone keywords */}
+              <Section emoji="🎨" title="Mon ton">
+                <div className="flex flex-wrap gap-2">
+                  {guide.tone_keywords.map((kw, i) => (
+                    <span key={i} className="px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">{kw}</span>
+                  ))}
+                </div>
+              </Section>
+
+              {/* Do / Don't */}
+              <Section emoji="✍️" title="Ce que je dis / Ce que je ne dis pas">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">✅ Ce que je dis</p>
+                    {guide.do_say.map((s, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm text-foreground/80">
+                        <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                        <span>{s}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">❌ Ce que je ne dis pas</p>
+                    {guide.dont_say.map((s, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm text-foreground/80">
+                        <X className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                        <span>{s}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </Section>
+
+              {/* Vocabulary */}
+              <Section emoji="📖" title="Mon vocabulaire">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">À utiliser</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {guide.words_to_use.map((w, i) => (
+                        <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-green-50 text-green-800 border border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800">{w}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">À éviter</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {guide.words_to_avoid.map((w, i) => (
+                        <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-red-50 text-red-800 border border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800">{w}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </Section>
+
+              {/* Rhythm */}
+              <Section emoji="🎵" title="Mon rythme">
+                <p className="text-[15px] text-foreground/80 leading-relaxed">{guide.rhythm}</p>
+              </Section>
+
+              {/* Emotions */}
+              <Section emoji="💫" title="Les émotions que je crée">
+                <div className="flex flex-wrap gap-2">
+                  {guide.emotions_to_create.map((e, i) => (
+                    <span key={i} className="px-4 py-2 rounded-full bg-accent text-accent-foreground text-sm font-medium">{e}</span>
+                  ))}
+                </div>
+              </Section>
+
+              {/* Post template */}
+              <Section emoji="📝" title="Template de post">
+                <div className="rounded-xl bg-muted/50 border border-border p-5">
+                  <pre className="text-sm text-foreground/80 whitespace-pre-wrap font-sans leading-relaxed">{guide.post_template}</pre>
+                </div>
+              </Section>
+
+              {/* Bio example */}
+              <Section emoji="📱" title="Exemple de bio">
+                <div className="rounded-xl bg-muted/50 border border-border p-5">
+                  <p className="text-sm text-foreground/80 whitespace-pre-line leading-relaxed">{guide.bio_example}</p>
+                </div>
+              </Section>
             </div>
-
-            {/* Voice summary */}
-            <Section emoji="💬" title="Ma voix en résumé">
-              <p className="text-[15px] text-foreground/80 leading-relaxed">{guide.voice_summary}</p>
-            </Section>
-
-            {/* Tone keywords */}
-            <Section emoji="🎨" title="Mon ton">
-              <div className="flex flex-wrap gap-2">
-                {guide.tone_keywords.map((kw, i) => (
-                  <span key={i} className="px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">{kw}</span>
-                ))}
-              </div>
-            </Section>
-
-            {/* Do / Don't */}
-            <Section emoji="✍️" title="Ce que je dis / Ce que je ne dis pas">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">✅ Ce que je dis</p>
-                  {guide.do_say.map((s, i) => (
-                    <div key={i} className="flex items-start gap-2 text-sm text-foreground/80">
-                      <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                      <span>{s}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">❌ Ce que je ne dis pas</p>
-                  {guide.dont_say.map((s, i) => (
-                    <div key={i} className="flex items-start gap-2 text-sm text-foreground/80">
-                      <X className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                      <span>{s}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Section>
-
-            {/* Vocabulary */}
-            <Section emoji="📖" title="Mon vocabulaire">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">À utiliser</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {guide.words_to_use.map((w, i) => (
-                      <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-green-50 text-green-800 border border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800">{w}</span>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">À éviter</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {guide.words_to_avoid.map((w, i) => (
-                      <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-red-50 text-red-800 border border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800">{w}</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </Section>
-
-            {/* Rhythm */}
-            <Section emoji="🎵" title="Mon rythme">
-              <p className="text-[15px] text-foreground/80 leading-relaxed">{guide.rhythm}</p>
-            </Section>
-
-            {/* Emotions */}
-            <Section emoji="💫" title="Les émotions que je crée">
-              <div className="flex flex-wrap gap-2">
-                {guide.emotions_to_create.map((e, i) => (
-                  <span key={i} className="px-4 py-2 rounded-full bg-accent text-accent-foreground text-sm font-medium">{e}</span>
-                ))}
-              </div>
-            </Section>
-
-            {/* Post template */}
-            <Section emoji="📝" title="Template de post">
-              <div className="rounded-xl bg-muted/50 border border-border p-5">
-                <pre className="text-sm text-foreground/80 whitespace-pre-wrap font-sans leading-relaxed">{guide.post_template}</pre>
-              </div>
-            </Section>
-
-            {/* Bio example */}
-            <Section emoji="📱" title="Exemple de bio">
-              <div className="rounded-xl bg-muted/50 border border-border p-5">
-                <p className="text-sm text-foreground/80 whitespace-pre-line leading-relaxed">{guide.bio_example}</p>
-              </div>
-            </Section>
-          </div>
+            <AiGeneratedMention />
+          </>
         )}
       </main>
     </div>

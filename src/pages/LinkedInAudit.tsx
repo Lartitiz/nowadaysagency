@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Sparkles, Upload, X, Loader2, ArrowRight, ArrowLeft, ChevronRight, Download, RotateCcw } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { Link, useNavigate } from "react-router-dom";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 
@@ -640,6 +641,7 @@ export default function LinkedInAudit() {
           content={Object.values(result.sections).map((s: any) => `${s.feedback || ""}\n${s.recommendation || ""}`).join("\n\n")}
           onFix={() => {}}
         />
+        <AiGeneratedMention />
 
         {/* ─── Actions ─── */}
         <div className="flex flex-col sm:flex-row gap-3">

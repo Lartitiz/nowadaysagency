@@ -4,6 +4,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import { useBrandProfile } from "@/hooks/use-profile";
 import { useBrandProposition, useBrandStrategy, useEditorialLine } from "@/hooks/use-branding";
 import BaseReminder from "@/components/BaseReminder";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 import ContentScoring from "@/components/ContentScoring";
 import FeedbackLoop from "@/components/FeedbackLoop";
 import PreGenQuestions, { PreGenAnswers } from "@/components/PreGenQuestions";
@@ -561,6 +562,7 @@ export default function InstagramReels() {
             />
           </div>
 
+          <AiGeneratedMention />
           <BaseReminder variant="reels" />
         </main>
       </div>

@@ -9,6 +9,7 @@ import { friendlyError } from "@/lib/error-messages";
 import { RefreshCw, Copy, Check, Sparkles, Loader2, CalendarDays, Lightbulb } from "lucide-react";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import BaseReminder from "@/components/BaseReminder";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 import CrosspostFileUploader, { type UploadedFile } from "@/components/crosspost/CrosspostFileUploader";
 import { cn } from "@/lib/utils";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
@@ -313,6 +314,7 @@ export default function CrosspostFlow() {
               );
             })}
           </Tabs>
+          <AiGeneratedMention />
           <BaseReminder variant="atelier" />
 
           <AddToCalendarDialog

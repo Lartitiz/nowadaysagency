@@ -6,6 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Sparkles, MessageCircle, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";

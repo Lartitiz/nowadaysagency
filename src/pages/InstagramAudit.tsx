@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { Loader2, Sparkles, BarChart3, RotateCcw } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import AuditVisualResult, { type AuditVisualData, type AuditEvolution } from "@/components/audit/AuditVisualResult";
 import AuditBioBeforeAfter from "@/components/audit/AuditBioBeforeAfter";
@@ -417,7 +418,10 @@ export default function InstagramAudit() {
           )}
 
           {visualData && (
-            <AuditVisualResult data={visualData} evolution={evolution} onRegenerate={() => setView("form")} />
+            <>
+              <AuditVisualResult data={visualData} evolution={evolution} onRegenerate={() => setView("form")} />
+              <AiGeneratedMention />
+            </>
           )}
 
           {bioElement && bioElement.lignes && (

@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Mic, Loader2, Check, Copy, Star, RefreshCw } from "lucide-react";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 
 interface PropositionData {
   id?: string;
@@ -363,6 +364,7 @@ export default function PropositionPage() {
                 {aiDiffPoints.map((pt, i) => (
                   <p key={i} className="text-[14px] text-foreground leading-relaxed">✦ {pt}</p>
                 ))}
+                <AiGeneratedMention />
               </div>
             )}
           </div>
@@ -407,6 +409,7 @@ export default function PropositionPage() {
               <div className="rounded-xl bg-rose-pale border border-border p-4 mb-4">
                 <p className="font-mono-ui text-[11px] font-semibold text-muted-foreground mb-2">PROPOSITION FORMULÉE :</p>
                 <p className="text-[15px] text-foreground leading-relaxed">{aiBenefit}</p>
+                <AiGeneratedMention />
               </div>
             )}
           </div>
