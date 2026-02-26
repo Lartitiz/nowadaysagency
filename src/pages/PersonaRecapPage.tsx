@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
+import { usePersona } from "@/hooks/use-branding";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useQueryClient } from "@tanstack/react-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -56,6 +58,8 @@ export default function PersonaRecapPage() {
   const { toast } = useToast();
   const { isDemoMode } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
+  const queryClient = useQueryClient();
+  const { data: personaHookData, isLoading: personaHookLoading } = usePersona();
   const [data, setData] = useState<any>(null);
   const { data: profileData } = useProfile();
   const { data: brandProfileData } = useBrandProfile();
@@ -82,22 +86,16 @@ export default function PersonaRecapPage() {
       setLoading(false);
       return;
     }
-    if (!user) return;
-    (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle()
-      .then(({ data: personaData }: any) => {
-        setData(personaData);
-        if (personaData?.portrait) {
-          setPortrait(personaData.portrait as unknown as Portrait);
-          setCustomName(personaData.portrait_prenom || (personaData.portrait as unknown as Portrait).prenom || "");
-        }
-      })
-      .catch((e: any) => {
-        console.error(e);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [user?.id, isDemoMode, column, value]);
+    if (personaHookLoading) return;
+    if (personaHookData) {
+      setData(personaHookData);
+      if (personaHookData.portrait) {
+        setPortrait(personaHookData.portrait as unknown as Portrait);
+        setCustomName(personaHookData.portrait_prenom || (personaHookData.portrait as unknown as Portrait).prenom || "");
+      }
+    }
+    setLoading(false);
+  }, [isDemoMode, personaHookLoading, personaHookData]);
 
   const canGenerate = data?.step_1_frustrations && data?.step_2_transformation;
 
@@ -109,6 +107,7 @@ export default function PersonaRecapPage() {
     obj[path[path.length - 1]] = value;
     await supabase.from("persona").update({ portrait: updated as any }).eq("id", data.id);
     setPortrait(updated);
+    queryClient.invalidateQueries({ queryKey: ["persona"] });
   };
 
   const savePortraitArrayItem = async (arrayKey: string, index: number, value: string) => {
@@ -117,6 +116,7 @@ export default function PersonaRecapPage() {
     updated[arrayKey][index] = value;
     await supabase.from("persona").update({ portrait: updated as any }).eq("id", data.id);
     setPortrait(updated);
+    queryClient.invalidateQueries({ queryKey: ["persona"] });
   };
 
   const saveFuirItem = async (index: number, value: string) => {
@@ -125,6 +125,7 @@ export default function PersonaRecapPage() {
     updated.comment_parler.fuir[index] = value;
     await supabase.from("persona").update({ portrait: updated as any }).eq("id", data.id);
     setPortrait(updated);
+    queryClient.invalidateQueries({ queryKey: ["persona"] });
   };
 
   const generatePortrait = async () => {
@@ -141,6 +142,7 @@ export default function PersonaRecapPage() {
       setPortrait(parsed);
       setCustomName(parsed.prenom);
       setData({ ...data, portrait: parsed, portrait_prenom: parsed.prenom });
+      queryClient.invalidateQueries({ queryKey: ["persona"] });
     } catch (e: any) {
       console.error("Erreur technique:", e);
       toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
@@ -150,24 +152,17 @@ export default function PersonaRecapPage() {
 
   const saveName = async (name: string) => {
     setCustomName(name);
-    if (data?.id) await supabase.from("persona").update({ portrait_prenom: name }).eq("id", data.id);
+    if (data?.id) {
+      await supabase.from("persona").update({ portrait_prenom: name }).eq("id", data.id);
+      queryClient.invalidateQueries({ queryKey: ["persona"] });
+    }
     setEditingName(false);
   };
 
   const handleCoachingComplete = () => {
     setCoachingOpen(false);
-    // Reload data to reflect coaching changes
-    if (user) {
-      (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle().then(({ data: pRes }: any) => {
-        if (pRes) {
-          setData(pRes);
-          if (pRes.portrait) {
-            setPortrait(pRes.portrait as unknown as Portrait);
-            setCustomName(pRes.portrait_prenom || (pRes.portrait as unknown as Portrait).prenom || "");
-          }
-        }
-      });
-    }
+    // Invalidate cache to reload data with coaching changes
+    queryClient.invalidateQueries({ queryKey: ["persona"] });
   };
 
   const displayName = customName || portrait?.prenom || "";
@@ -381,6 +376,7 @@ export default function PersonaRecapPage() {
                   const updated = { ...portrait, ses_mots: items };
                   await supabase.from("persona").update({ portrait: updated as any }).eq("id", data.id);
                   setPortrait(updated);
+                  queryClient.invalidateQueries({ queryKey: ["persona"] });
                 }}
                 type="input"
                 placeholder="Mots qui résonnent avec elle..."
@@ -400,6 +396,7 @@ export default function PersonaRecapPage() {
                   updated.comment_parler.fuir = items;
                   await supabase.from("persona").update({ portrait: updated as any }).eq("id", data.id);
                   setPortrait(updated);
+                  queryClient.invalidateQueries({ queryKey: ["persona"] });
                 }}
                 type="input"
                 placeholder="Mots à éviter..."
