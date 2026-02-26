@@ -312,7 +312,7 @@ export default function Dashboard() {
       <WelcomeOverlay prenom={profile.prenom} />
       <AppHeader />
       
-      <main id="main-content" className="mx-auto max-w-[1100px] px-4 sm:px-6 py-6 sm:py-8">
+      <main id="main-content" role="main" className="mx-auto max-w-[1100px] px-4 sm:px-6 py-6 sm:py-8">
 
         {/* ─── Greeting ─── */}
         <div className="mb-6 sm:mb-8">
