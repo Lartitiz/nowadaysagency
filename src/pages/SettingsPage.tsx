@@ -120,27 +120,23 @@ export default function SettingsPage() {
 
   const handleDeleteAccount = async () => {
     setDeleting(true);
-    if (user) {
-      await Promise.all([
-        supabase.from("profiles").delete().eq("user_id", user.id),
-        supabase.from("brand_profile").delete().eq("user_id", user.id),
-        supabase.from("storytelling").delete().eq("user_id", user.id),
-        supabase.from("saved_ideas").delete().eq("user_id", user.id),
-        supabase.from("calendar_posts").delete().eq("user_id", user.id),
-        supabase.from("content_drafts").delete().eq("user_id", user.id),
-        supabase.from("tasks").delete().eq("user_id", user.id),
-        supabase.from("routine_completions").delete().eq("user_id", user.id),
-        supabase.from("plan_tasks").delete().eq("user_id", user.id),
-        supabase.from("generated_posts").delete().eq("user_id", user.id),
-        supabase.from("highlight_categories").delete().eq("user_id", user.id),
-        supabase.from("inspiration_accounts").delete().eq("user_id", user.id),
-        supabase.from("inspiration_notes").delete().eq("user_id", user.id),
-        supabase.from("launches").delete().eq("user_id", user.id),
-      ]);
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-account");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await signOut();
+      toast({ title: "Compte supprimé. À bientôt peut-être 💛" });
+      window.location.href = "/";
+    } catch (e) {
+      console.error("Delete account error:", e);
+      toast({
+        title: "Erreur lors de la suppression",
+        description: "La suppression a rencontré un problème. Contacte laetitia@nowadaysagency.com pour qu'on règle ça.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
     }
-    await signOut();
-    setDeleting(false);
-    toast({ title: "Compte supprimé. À bientôt peut-être 💛" });
   };
 
   const planLabel = subInfo?.plan === "now_pilot" ? "Binôme de com" : subInfo?.plan === "studio" ? "Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
@@ -323,7 +319,7 @@ export default function SettingsPage() {
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Tu es sûre ?</AlertDialogTitle>
-                <AlertDialogDescription>Toutes tes données (profil, branding, storytelling, idées, calendrier, routines) seront supprimées définitivement. Cette action est irréversible.</AlertDialogDescription>
+                <AlertDialogDescription>Toutes tes données seront définitivement supprimées : profil, branding, contenus, calendrier, audits, statistiques, coaching... Cette action est irréversible.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel className="rounded-full">Annuler</AlertDialogCancel>
