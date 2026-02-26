@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -36,6 +37,7 @@ export default function StrategieRecapPage() {
   const { toast } = useToast();
   const { data: profileData } = useProfile();
   const { data: brandProfileData } = useBrandProfile();
+  const queryClient = useQueryClient();
   const [data, setData] = useState<any>(null);
   const [summary, setSummary] = useState<RecapSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,6 +63,7 @@ export default function StrategieRecapPage() {
     obj[path[path.length - 1]] = value;
     await supabase.from("brand_strategy").update({ recap_summary: updated as any }).eq("id", data.id);
     setSummary(updated);
+    queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
   };
 
   const saveRecapArrayItem = async (arrayKey: string, index: number, value: string) => {
@@ -69,6 +72,7 @@ export default function StrategieRecapPage() {
     updated[arrayKey][index] = value;
     await supabase.from("brand_strategy").update({ recap_summary: updated as any }).eq("id", data.id);
     setSummary(updated);
+    queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
   };
 
   const savePillarField = async (pillarIdx: number, field: string, value: string) => {
@@ -77,6 +81,7 @@ export default function StrategieRecapPage() {
     updated.pillars[pillarIdx][field] = value;
     await supabase.from("brand_strategy").update({ recap_summary: updated as any }).eq("id", data.id);
     setSummary(updated);
+    queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
   };
 
   const savePillarIdea = async (pillarIdx: number, ideaIdx: number, value: string) => {
@@ -85,6 +90,7 @@ export default function StrategieRecapPage() {
     updated.pillars[pillarIdx].content_ideas[ideaIdx] = value;
     await supabase.from("brand_strategy").update({ recap_summary: updated as any }).eq("id", data.id);
     setSummary(updated);
+    queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
   };
 
   const generateSummary = async () => {
@@ -104,6 +110,7 @@ export default function StrategieRecapPage() {
       const parsed: RecapSummary = JSON.parse(raw);
       await supabase.from("brand_strategy").update({ recap_summary: parsed as any }).eq("id", data.id);
       setSummary(parsed);
+      queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
       toast({ title: "Synthèse générée !" });
     } catch (e: any) {
       console.error("Erreur technique:", e);

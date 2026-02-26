@@ -12,6 +12,7 @@ import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
 import GuidedTimeline from "@/components/branding/GuidedTimeline";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
@@ -141,6 +142,7 @@ export default function BrandingPage() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { profile: hookProfile, brandProfile: hookBrandProfile } = useMergedProfile();
+  const queryClient = useQueryClient();
   const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, charter: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [primaryStoryId, setPrimaryStoryId] = useState<string | null>(null);
@@ -314,8 +316,10 @@ export default function BrandingPage() {
         .select("id").eq(column, value).maybeSingle();
       if (existing) {
         await supabase.from("brand_proposition").update(payload as any).eq("id", existing.id);
+        queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
       } else {
         await supabase.from("brand_proposition").insert(payload as any);
+        queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
       }
 
       toast.success("✨ Tes 6 propositions de valeur sont prêtes !");

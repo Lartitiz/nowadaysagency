@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -61,6 +62,7 @@ export default function StrategiePage() {
   const [proposition, setProposition] = useState<any>(null);
   const [activeField, setActiveField] = useState("step_1_hidden_facets");
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!user || !loading) return;
@@ -90,9 +92,13 @@ export default function StrategiePage() {
     delete (payload as any).id;
     if (existingId) {
       await supabase.from("brand_strategy").update(payload as any).eq("id", existingId);
+      queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
     } else {
       const { data: inserted } = await supabase.from("brand_strategy").insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined } as any).select("id").single();
-      if (inserted) setExistingId(inserted.id);
+      if (inserted) {
+        setExistingId(inserted.id);
+        queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
+      }
     }
   }, [user, existingId]);
 
