@@ -20,6 +20,7 @@ import BioBeforeAfter from "@/components/bio/BioBeforeAfter";
 import CharacterCounter from "@/components/bio/CharacterCounter";
 import BioHistoryDrawer from "@/components/bio/BioHistoryDrawer";
 import BioGeneratorView from "@/components/bio/BioGeneratorView";
+import RedFlagsChecker from "@/components/RedFlagsChecker";
 
 /* ═══════════════════════════════════════════════
    TYPES
@@ -653,6 +654,12 @@ export default function InstagramBio() {
                 </div>
               </div>
             ))}
+
+            {/* Red flags checker on all versions */}
+            <RedFlagsChecker
+              content={versions.map(v => v.bio_text).join("\n\n")}
+              onFix={() => {}}
+            />
 
             <div className="flex flex-wrap gap-3">
               <Button variant="outline" className="rounded-pill gap-2" onClick={handleGenerate} disabled={generating}>
