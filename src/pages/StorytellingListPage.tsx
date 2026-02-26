@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import EmptyState from "@/components/EmptyState";
+import { MESSAGES } from "@/lib/messages";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
@@ -139,21 +141,7 @@ export default function StorytellingListPage() {
 
         {/* List */}
         {items.length === 0 ? (
-          <div className="text-center py-16">
-            <span className="text-6xl block mb-4">👑</span>
-            <p className="text-lg font-display font-bold text-foreground mb-2">Tu n'as pas encore de storytelling.</p>
-            <p className="text-sm text-muted-foreground mb-6">
-              Crée-en un avec notre parcours guidé ou importe un texte que tu as déjà écrit.
-            </p>
-            <div className="flex justify-center gap-3">
-              <Button onClick={() => navigate("/branding/storytelling/new")} className="rounded-pill">
-                ✨ Créer
-              </Button>
-              <Button variant="outline" onClick={() => navigate("/branding/storytelling/import")} className="rounded-pill">
-                📥 Importer
-              </Button>
-            </div>
-          </div>
+          <EmptyState {...MESSAGES.empty.storytelling} onAction={() => navigate("/branding/storytelling/new")} />
         ) : (
           <div className="space-y-4">
             {items.map((item) => {

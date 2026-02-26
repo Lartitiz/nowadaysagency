@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import EmptyState from "@/components/EmptyState";
+import { MESSAGES } from "@/lib/messages";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -204,7 +206,7 @@ const CommunautePage = () => {
             {loading ? (
               <div className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
             ) : filtered.length === 0 ? (
-              <p className="text-center text-muted-foreground py-12">Aucun post pour le moment. Sois le·la premier·e ! 🚀</p>
+              <EmptyState {...MESSAGES.empty.community} />
             ) : (
               filtered.map((post) => {
                 const liked = post.reactions.some((r) => r.user_id === user?.id);

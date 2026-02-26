@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import EmptyState from "@/components/EmptyState";
+import { MESSAGES } from "@/lib/messages";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -234,7 +236,7 @@ export default function LivesPage() {
               </div>
 
               {filteredReplays.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Aucun replay disponible.</p>
+                <EmptyState {...MESSAGES.empty.lives} />
               ) : (
                 <div className="space-y-3">
                   {filteredReplays.map((live) => {
