@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
+import { usePersona, useBrandProposition, useStorytelling } from "@/hooks/use-branding";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -98,6 +99,9 @@ export default function TonStylePage() {
   const workspaceId = useWorkspaceId();
   const { data: hookProfile } = useProfile();
   const { data: hookBrandProfile } = useBrandProfile();
+  const { data: personaHook } = usePersona();
+  const { data: propositionHook } = useBrandProposition();
+  const { data: storytellingHook } = useStorytelling();
   const queryClient = useQueryClient();
   const [profile, setProfile] = useState<Omit<ToneProfile, "user_id">>(EMPTY);
   const [savedProfile, setSavedProfile] = useState<Omit<ToneProfile, "user_id">>(EMPTY);
@@ -163,8 +167,8 @@ export default function TonStylePage() {
     if (!user) return;
     setAiLoading("voice");
     try {
-      const stRes = await (supabase.from("storytelling") as any).select("step_7_polished, imported_text").eq(column, value).maybeSingle();
-      const storyText = stRes.data?.step_7_polished || stRes.data?.imported_text || "";
+      const stData = storytellingHook as any;
+      const storyText = stData?.step_7_polished || stData?.imported_text || "";
       const activite = (hookProfile as any)?.activite || "";
 
       const promptParts = ["PROFIL :"];
@@ -215,7 +219,7 @@ Réponds avec le texte seul, 3-4 phrases.`);
     setAiLoading("combats");
     try {
       const profRes = { data: hookProfile ? { activite: (hookProfile as any).activite, mission: (hookProfile as any).mission } : null };
-      const propRes = await (supabase.from("brand_proposition") as any).select("version_final").eq(column, value).maybeSingle();
+      const propRes = { data: propositionHook ? { version_final: (propositionHook as any).version_final } : null };
       const res = await supabase.functions.invoke("niche-ai", {
         body: {
           type: "combats",
@@ -266,8 +270,8 @@ Réponds avec le texte seul, 3-4 phrases.`);
     if (!user) return;
     setAiLoading("expressions");
     try {
-      const stRes = await (supabase.from("storytelling") as any).select("step_7_polished, step_1_raw").eq(column, value).maybeSingle();
-      const text = stRes.data?.step_7_polished || stRes.data?.step_1_raw || "";
+      const stData2 = storytellingHook as any;
+      const text = stData2?.step_7_polished || stData2?.step_1_raw || "";
       if (!text) {
         toast({ title: "Remplis d'abord ton storytelling", description: "L'IA a besoin de ton histoire pour identifier tes expressions.", variant: "destructive" });
         setAiLoading(null);
@@ -289,15 +293,14 @@ Réponds avec le texte seul, 3-4 phrases.`);
     if (!user) return;
     setAiLoading("verbatims");
     try {
-      const perRes = await (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation, step_3a_objections").eq(column, value).maybeSingle();
-      const data = perRes.data;
-      if (!data || (!data.step_1_frustrations && !data.step_3a_objections)) {
+      const perData = personaHook as any;
+      if (!perData || (!perData.step_1_frustrations && !perData.step_3a_objections)) {
         toast({ title: "Remplis d'abord ton persona", variant: "destructive" });
         setAiLoading(null);
         return;
       }
       const res = await supabase.functions.invoke("generate-content", {
-        body: { type: "raw", prompt: `À partir de ces textes sur la cliente idéale, extrais les mots et phrases clés qu'elle utiliserait. Liste-les entre guillemets, séparés par des retours à la ligne.\n\nFrustrations : "${data.step_1_frustrations || ""}"\nTransformation : "${data.step_2_transformation || ""}"\nObjections : "${data.step_3a_objections || ""}"` },
+        body: { type: "raw", prompt: `À partir de ces textes sur la cliente idéale, extrais les mots et phrases clés qu'elle utiliserait. Liste-les entre guillemets, séparés par des retours à la ligne.\n\nFrustrations : "${perData.step_1_frustrations || ""}"\nTransformation : "${perData.step_2_transformation || ""}"\nObjections : "${perData.step_3a_objections || ""}"` },
       });
       if (res.data?.content) {
         updateField("target_verbatims", (profile.target_verbatims ? profile.target_verbatims + "\n" : "") + res.data.content);

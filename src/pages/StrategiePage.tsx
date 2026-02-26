@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
+import { usePersona, useBrandProposition, useBrandStrategy } from "@/hooks/use-branding";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -58,32 +59,27 @@ export default function StrategiePage() {
   const [aiLoading, setAiLoading] = useState(false);
   const { data: profile } = useProfile();
   const { data: tone } = useBrandProfile();
-  const [persona, setPersona] = useState<any>(null);
-  const [proposition, setProposition] = useState<any>(null);
+  const { data: personaHook } = usePersona();
+  const { data: propositionHook } = useBrandProposition();
+  const { data: strategyHook, isLoading: strategyLoading } = useBrandStrategy();
+  const persona = personaHook as any;
+  const proposition = propositionHook as any;
   const [activeField, setActiveField] = useState("step_1_hidden_facets");
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!user || !loading) return;
-    Promise.all([
-      (supabase.from("brand_strategy") as any).select("*").eq(column, value).maybeSingle(),
-      (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle(),
-      (supabase.from("brand_proposition") as any).select("step_1_what, version_final").eq(column, value).maybeSingle(),
-    ]).then(([stratRes, perRes, propRes]) => {
-      if (stratRes.data) {
-        const { id, user_id, created_at, updated_at, ...rest } = stratRes.data as any;
-        setData({ ...EMPTY, ...rest } as StrategyData);
-        setExistingId(id);
-        const savedStep = rest.current_step || 1;
-        const mappedStep = savedStep <= 1 ? 1 : savedStep === 2 ? 2 : savedStep === 3 ? 2 : 3;
-        setCurrentStep(Math.min(mappedStep, 3));
-      }
-      setPersona(perRes.data || null);
-      setProposition(propRes.data || null);
-      setLoading(false);
-    });
-  }, [user?.id]);
+    if (!user || !loading || strategyLoading) return;
+    if (strategyHook) {
+      const { id, user_id, created_at, updated_at, ...rest } = strategyHook as any;
+      setData({ ...EMPTY, ...rest } as StrategyData);
+      setExistingId(id);
+      const savedStep = rest.current_step || 1;
+      const mappedStep = savedStep <= 1 ? 1 : savedStep === 2 ? 2 : savedStep === 3 ? 2 : 3;
+      setCurrentStep(Math.min(mappedStep, 3));
+    }
+    setLoading(false);
+  }, [user?.id, strategyLoading, strategyHook]);
 
   const saveNow = useCallback(async (updated: StrategyData) => {
     if (!user) return;

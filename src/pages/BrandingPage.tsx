@@ -12,6 +12,7 @@ import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { supabase } from "@/integrations/supabase/client";
+import { usePersona, useBrandProposition, useStorytelling } from "@/hooks/use-branding";
 import { useQueryClient } from "@tanstack/react-query";
 import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
 import GuidedTimeline from "@/components/branding/GuidedTimeline";
@@ -142,6 +143,9 @@ export default function BrandingPage() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { profile: hookProfile, brandProfile: hookBrandProfile } = useMergedProfile();
+  const { data: personaHook } = usePersona();
+  const { data: propositionHook } = useBrandProposition();
+  const { data: storytellingHook } = useStorytelling();
   const queryClient = useQueryClient();
   const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, charter: 0, total: 0 });
   const [loading, setLoading] = useState(true);
@@ -259,10 +263,8 @@ export default function BrandingPage() {
     if (!user) return;
     setGeneratingProp(true);
     try {
-      const [storyRes, personaRes] = await Promise.all([
-        (supabase.from("storytelling") as any).select("*").eq(column, value).eq("is_primary", true).maybeSingle(),
-        (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle(),
-      ]);
+      const storyRes = { data: storytellingHook || null };
+      const personaRes = { data: personaHook || null };
       const profileRes = { data: hookBrandProfile || null };
       const profiles = { data: hookProfile || null };
 
