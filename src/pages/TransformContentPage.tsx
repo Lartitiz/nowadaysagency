@@ -2,6 +2,7 @@ import { useState } from "react";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import ContentRecycling from "@/components/ContentRecycling";
+import CrosspostFlow from "@/components/CrosspostFlow";
 
 type TransformMode = "recycle" | "crosspost" | "inspire" | null;
 
@@ -82,6 +83,18 @@ export default function TransformContentPage() {
               </p>
             </div>
             <ContentRecycling />
+          </div>
+        )}
+
+        {mode === "crosspost" && (
+          <div className="space-y-4">
+            <div className="mb-4">
+              <h2 className="font-display text-lg font-bold text-foreground">🔄 Adapter pour un canal</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Un contenu source → adapté pour chaque canal. Pas du copier-coller : chaque version apporte un angle spécifique.
+              </p>
+            </div>
+            <CrosspostFlow />
           </div>
         )}
       </main>
