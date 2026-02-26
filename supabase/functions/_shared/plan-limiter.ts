@@ -50,17 +50,6 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     adaptation: 30,
     deep_research: 30,
   },
-  pro: {
-    total: 500,
-    content: 250,
-    audit: 25,
-    dm_comment: 100,
-    bio_profile: 25,
-    suggestion: 50,
-    import: 15,
-    adaptation: 50,
-    deep_research: 30,
-  },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {

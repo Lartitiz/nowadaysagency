@@ -92,7 +92,7 @@ export default function CoachChat() {
 
   // Quota logic
   const contentUsage = usage?.content;
-  const dailyLimit = plan === "free" ? 10 : plan === "outil" ? 50 : plan === "pro" ? 50 : 999;
+  const dailyLimit = plan === "free" ? 10 : plan === "outil" ? 50 : 999;
   const used = contentUsage?.used ?? 0;
   const remaining = Math.max(0, dailyLimit - used);
   const quotaReached = remaining <= 0 && plan !== "now_pilot" && plan !== "studio";
