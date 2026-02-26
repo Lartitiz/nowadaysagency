@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import PasswordStrengthIndicator from "@/components/ui/PasswordStrengthIndicator";
 import {
   Accordion,
   AccordionContent,
@@ -65,7 +66,7 @@ function SignupForm({ compact = false }: { compact?: boolean }) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<SignupValues>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: { prenom: "", email: "", password: "", activite: "" },
   });
@@ -139,6 +140,7 @@ function SignupForm({ compact = false }: { compact?: boolean }) {
           <label htmlFor="signup-password" className="sr-only">Mot de passe</label>
           <Input id="signup-password" type="password" {...register("password")} placeholder="Mot de passe (8 car. min.)" aria-required="true" className="rounded-xl h-12 bg-card border-border" />
           {errors.password && <p className="text-destructive text-xs mt-1" role="alert">{errors.password.message}</p>}
+          <PasswordStrengthIndicator password={watch("password") || ""} />
         </div>
       </div>
       <Button type="submit" disabled={loading} className="w-full sm:w-auto h-12 rounded-pill px-10 text-base font-medium">

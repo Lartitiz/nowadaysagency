@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
+import PasswordStrengthIndicator from "@/components/ui/PasswordStrengthIndicator";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -62,6 +63,7 @@ export default function ResetPassword() {
                 minLength={8}
                 className="rounded-[10px] border-border bg-background h-12"
               />
+              <PasswordStrengthIndicator password={password} />
               <Button
                 type="submit"
                 disabled={loading}
