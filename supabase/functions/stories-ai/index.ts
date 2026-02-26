@@ -4,6 +4,8 @@ import { callAnthropicSimple, AnthropicError, getModelForAction, getModelForRich
 import { corsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -46,6 +48,16 @@ serve(async (req) => {
     const { getUserContext, formatContextForAI, CONTEXT_PRESETS } = await import("../_shared/user-context.ts");
 
     const body = await req.json();
+    validateInput(body, z.object({
+      type: z.string().max(50).optional(),
+      objective: z.string().max(100).optional().nullable(),
+      subject: z.string().max(500).optional().nullable(),
+      subject_details: z.string().max(5000).optional().nullable(),
+      raw_idea: z.string().max(5000).optional().nullable(),
+      clarify_context: z.string().max(5000).optional().nullable(),
+      direction: z.string().max(500).optional().nullable(),
+      workspace_id: z.string().uuid().optional().nullable(),
+    }).passthrough());
     const { objective, price_range, time_available, face_cam, subject, subject_details, raw_idea, clarify_context, direction, is_launch, type, pre_gen_answers, workspace_id } = body;
 
     const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
@@ -199,6 +211,11 @@ Réponds UNIQUEMENT avec le JSON.`;
     });
 
   } catch (e: any) {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error(JSON.stringify({
       type: "edge_function_error",
       function_name: "stories-ai",

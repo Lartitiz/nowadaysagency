@@ -3,6 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic } from "../_shared/anthropic.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 serve(async (req) => {
   const cors = getCorsHeaders(req);
@@ -43,9 +45,14 @@ serve(async (req) => {
       });
     }
 
-    const { slides, template_style, charter: bodyCharter, custom_overrides } = await req.json();
-
-    if (!slides?.length) throw new Error("Aucune slide fournie");
+    const reqBody = await req.json();
+    validateInput(reqBody, z.object({
+      slides: z.array(z.record(z.unknown())).min(1, "Aucune slide fournie").max(20),
+      template_style: z.string().max(100).optional().nullable(),
+      charter: z.record(z.unknown()).optional().nullable(),
+      custom_overrides: z.record(z.unknown()).optional().nullable(),
+    }).passthrough());
+    const { slides, template_style, charter: bodyCharter, custom_overrides } = reqBody;
 
     // Resolve charter: use body or fetch from DB
     let charter = bodyCharter;

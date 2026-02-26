@@ -3,6 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 serve(async (req) => {
   const cors = getCorsHeaders(req);
@@ -46,8 +48,11 @@ serve(async (req) => {
       });
     }
 
-    const { template_urls } = await req.json();
-    if (!template_urls || !Array.isArray(template_urls) || template_urls.length === 0) {
+    const reqBody = await req.json();
+    const { template_urls } = validateInput(reqBody, z.object({
+      template_urls: z.array(z.string().url().max(2048)).min(1, "Au moins 1 URL requise").max(10),
+    }));
+    if (false) {
       throw new Error("Aucun template fourni");
     }
 

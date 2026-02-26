@@ -5,6 +5,8 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 serve(async (req) => {
   const cors = getCorsHeaders(req);
@@ -30,6 +32,10 @@ serve(async (req) => {
     // Anthropic API key checked in shared helper
 
     const body = await req.json();
+    validateInput(body, z.object({
+      type: z.enum(["facets", "pillars", "concepts", "generate-recap"]),
+      workspace_id: z.string().uuid().optional().nullable(),
+    }).passthrough());
     const { type } = body;
 
     let systemPrompt = "";
@@ -216,6 +222,11 @@ RÈGLES :
 
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

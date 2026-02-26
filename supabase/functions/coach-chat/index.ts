@@ -5,6 +5,8 @@ import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { buildSystemPrompt, CONTENT_VOICE_RULES, ANTI_PATTERNS } from "../_shared/base-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 serve(async (req) => {
   const cors = getCorsHeaders(req);
@@ -37,14 +39,17 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub as string;
 
-    const { messages, page_context, workspace_id, mode, generation_type } = await req.json();
-
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return new Response(JSON.stringify({ error: "Messages requis" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const reqBody = await req.json();
+    const { messages, page_context, workspace_id, mode, generation_type } = validateInput(reqBody, z.object({
+      messages: z.array(z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().max(10000),
+      })).min(1, "Messages requis").max(50),
+      page_context: z.string().max(500).optional().nullable(),
+      workspace_id: z.string().uuid().optional().nullable(),
+      mode: z.string().max(50).optional().nullable(),
+      generation_type: z.string().max(50).optional().nullable(),
+    }).passthrough());
 
     // Quota check
     const quota = await checkQuota(userId, "content", workspace_id);

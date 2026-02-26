@@ -6,6 +6,8 @@ import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts"
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 serve(async (req) => {
   const cors = getCorsHeaders(req);
@@ -40,7 +42,13 @@ serve(async (req) => {
       );
     }
 
-    const { step, answer, offerData, workspace_id } = await req.json();
+    const reqBody = await req.json();
+    validateInput(reqBody, z.object({
+      step: z.number().min(1).max(20),
+      answer: z.string().max(5000).optional().nullable(),
+      workspace_id: z.string().uuid().optional().nullable(),
+    }).passthrough());
+    const { step, answer, offerData, workspace_id } = reqBody;
 
     // Fetch full user context server-side for richer coaching
     const ctx = await getUserContext(supabase, user.id, workspace_id);

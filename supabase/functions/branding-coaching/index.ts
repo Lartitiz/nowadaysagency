@@ -4,6 +4,8 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 const SECTION_CHECKLISTS: Record<string, string[]> = {
   story: ["story_origin", "story_turning_point", "story_struggles", "story_unique", "story_vision"],
@@ -149,7 +151,19 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-
+    if (!body.ping) {
+      validateInput(body, z.object({
+        section: z.string().max(100).min(1, "section requis"),
+        messages: z.array(z.object({
+          role: z.enum(["user", "assistant"]),
+          content: z.string().max(10000),
+        })).max(50).optional(),
+        context: z.record(z.unknown()).optional().nullable(),
+        covered_topics: z.array(z.string().max(100)).max(30).optional(),
+        workspace_id: z.string().uuid().optional().nullable(),
+      }).passthrough());
+    }
+    const origBody = body;
     // Health check / ping (no auth needed)
     if (body.ping) {
       return new Response(JSON.stringify({ ok: true }), {
@@ -307,6 +321,12 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
+    if (error instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     if (error instanceof AuthError) {
       return new Response(JSON.stringify({ error: error.message }), {
         status: error.status,

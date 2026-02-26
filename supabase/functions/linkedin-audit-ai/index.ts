@@ -6,6 +6,8 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 // Branding data now fetched via getUserContext
 
@@ -42,6 +44,12 @@ serve(async (req) => {
     }
 
     const body = await req.json();
+    validateInput(body, z.object({
+      workspace_id: z.string().uuid().optional().nullable(),
+      profileUrl: z.string().max(500).optional().nullable(),
+      objective: z.string().max(200).optional().nullable(),
+      screenshots: z.array(z.object({ url: z.string().url().max(2048) }).passthrough()).max(20).optional(),
+    }).passthrough());
     const { workspace_id } = body;
     const ctx = await getUserContext(supabase, user.id, workspace_id, "linkedin");
     const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.linkedinAudit);
@@ -224,6 +232,11 @@ Réponds UNIQUEMENT en JSON sans backticks :
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
+    if (error instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("linkedin-audit-ai error:", error);
     return new Response(JSON.stringify({ error: error.message || "Erreur inconnue" }), {
       status: 500,

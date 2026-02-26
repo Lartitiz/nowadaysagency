@@ -4,6 +4,8 @@ import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts"
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -31,13 +33,10 @@ serve(async (req) => {
 
     // Anthropic API key checked in shared helper
 
-    const { texts } = await req.json();
-
-    if (!texts || !Array.isArray(texts) || texts.length === 0) {
-      return new Response(JSON.stringify({ error: "Fournis au moins 1 texte." }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const body = await req.json();
+    const { texts } = validateInput(body, z.object({
+      texts: z.array(z.string().max(5000)).min(1, "Fournis au moins 1 texte.").max(10),
+    }));
 
     const textsBlock = texts.map((t: string, i: number) => `TEXTE ${i + 1} :\n"""${t.slice(0, 3000)}"""`).join("\n\n");
 
@@ -98,6 +97,11 @@ RÈGLES :
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("voice-analysis error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },

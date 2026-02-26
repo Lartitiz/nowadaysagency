@@ -6,6 +6,8 @@ import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -32,6 +34,14 @@ serve(async (req) => {
     }
 
     const body = await req.json();
+    validateInput(body, z.object({
+      type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles"]),
+      carousel_type: z.string().max(100).optional().nullable(),
+      subject: z.string().max(500).optional().nullable(),
+      objective: z.string().max(100).optional().nullable(),
+      slide_count: z.number().min(1).max(20).optional(),
+      workspace_id: z.string().uuid().optional().nullable(),
+    }).passthrough());
     const { type, workspace_id } = body;
 
     const category = (type === "suggest_topics" || type === "suggest_angles") ? "suggestion" : "content";
@@ -76,6 +86,11 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("carousel-ai error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },

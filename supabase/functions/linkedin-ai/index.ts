@@ -6,6 +6,8 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 // Voice profile is fetched by getUserContext now
 
@@ -31,7 +33,16 @@ serve(async (req) => {
 
     // Anthropic API key checked in shared helper
 
-    const { action, workspace_id, ...params } = await req.json();
+    const reqBody = await req.json();
+    validateInput(reqBody, z.object({
+      action: z.string().max(50).min(1),
+      workspace_id: z.string().uuid().optional().nullable(),
+      sujet: z.string().max(500).optional().nullable(),
+      postContent: z.string().max(10000).optional().nullable(),
+      sourceContent: z.string().max(10000).optional().nullable(),
+      existing_resume: z.string().max(5000).optional().nullable(),
+    }).passthrough());
+    const { action, workspace_id, ...params } = reqBody;
 
     // Determine category based on action
     const categoryMap: Record<string, string> = {

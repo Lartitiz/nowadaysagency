@@ -5,6 +5,8 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 const PINTEREST_PRINCIPLES = `
 Tu es expert·e en SEO Pinterest pour des solopreneuses créatives et éthiques.
@@ -52,7 +54,14 @@ serve(async (req) => {
       );
     }
 
-    const { action, workspace_id, ...params } = await req.json();
+    const reqBody = await req.json();
+    validateInput(reqBody, z.object({
+      action: z.enum(["name", "bio", "board-description", "pin", "keywords"]),
+      workspace_id: z.string().uuid().optional().nullable(),
+      board_name: z.string().max(200).optional().nullable(),
+      subject: z.string().max(500).optional().nullable(),
+    }).passthrough());
+    const { action, workspace_id, ...params } = reqBody;
 
     // Fetch full user context server-side
     const ctx = await getUserContext(supabase, user.id, workspace_id);
@@ -96,6 +105,11 @@ serve(async (req) => {
     const content = await callAnthropicSimple(getModelForAction("pinterest"), systemPrompt, userPrompt, 0.8);
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {
+    if (error instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("pinterest-ai error:", error);
     return new Response(JSON.stringify({ error: error.message || "Erreur inconnue" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }

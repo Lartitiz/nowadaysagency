@@ -5,6 +5,8 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 Deno.serve(async (req) => {
   const cors = getCorsHeaders(req);
@@ -32,6 +34,18 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
+    validateInput(body, z.object({
+      prospect: z.object({
+        instagram_username: z.string().max(200),
+        display_name: z.string().max(200).optional().nullable(),
+        activity: z.string().max(500).optional().nullable(),
+        decision_phase: z.string().max(50).optional().nullable(),
+        last_dm_context: z.string().max(2000).optional().nullable(),
+      }).passthrough(),
+      approach_type: z.enum(["reconnect", "resource", "personalized", "offer"]),
+      interactions_summary: z.string().max(5000).optional().nullable(),
+      conversation_history: z.string().max(10000).optional().nullable(),
+    }).passthrough());
     const { prospect, approach_type, interactions_summary, conversation_history, selected_offer } = body;
 
     // Fetch full user context server-side
@@ -172,6 +186,11 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
+    if (error instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

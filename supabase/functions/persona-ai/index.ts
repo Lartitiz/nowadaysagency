@@ -5,6 +5,8 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 function buildProfileBlock(p: any) {
   return [
@@ -114,7 +116,11 @@ serve(async (req) => {
 
     // Anthropic API key checked in shared helper
 
-    const { type, profile, persona } = await req.json();
+    const reqBody = await req.json();
+    validateInput(reqBody, z.object({
+      type: z.enum(["portrait", "frustrations", "benefits", "barriers", "visual", "actions", "pitch"]),
+    }).passthrough());
+    const { type, profile, persona } = reqBody;
     const p = profile || {};
     const d = persona || {};
 
@@ -324,6 +330,11 @@ Réponds en JSON :
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("persona-ai error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }),

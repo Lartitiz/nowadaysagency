@@ -6,6 +6,8 @@ import { callAnthropic, AnthropicError, getModelForAction, getModelForRichConten
 import { corsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -42,7 +44,17 @@ serve(async (req) => {
       );
     }
 
-    const { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context, workspace_id } = await req.json();
+    const body = await req.json();
+    validateInput(body, z.object({
+      type: z.enum(["analyze_inspiration", "hooks", "script"]),
+      objective: z.string().max(100).optional().nullable(),
+      face_cam: z.string().max(50).optional().nullable(),
+      subject: z.string().max(500).optional().nullable(),
+      time_available: z.string().max(50).optional().nullable(),
+      image_urls: z.array(z.string().url().max(2048)).max(10).optional(),
+      workspace_id: z.string().uuid().optional().nullable(),
+    }).passthrough());
+    const { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context, workspace_id } = body;
 
     // Fetch full context server-side
     const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
@@ -99,6 +111,11 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error(JSON.stringify({
       type: "edge_function_error",
       function_name: "reels-ai",

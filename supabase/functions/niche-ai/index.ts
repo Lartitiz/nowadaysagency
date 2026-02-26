@@ -4,6 +4,8 @@ import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 // Subset of writing rules relevant to niche/branding formulations (not full content)
 const NICHE_WRITING_RULES = `
@@ -47,6 +49,16 @@ serve(async (req) => {
     // Anthropic API key checked in shared helper
 
     const body = await req.json();
+    validateInput(body, z.object({
+      type: z.enum(["combats", "limits", "generate-niche", "generate-tone-recap"]),
+      step_1a: z.string().max(5000).optional().nullable(),
+      step_1b: z.string().max(5000).optional().nullable(),
+      step_1c: z.string().max(5000).optional().nullable(),
+      step_2: z.string().max(5000).optional().nullable(),
+      market: z.string().max(500).optional().nullable(),
+      niche_specific: z.string().max(500).optional().nullable(),
+      workspace_id: z.string().uuid().optional().nullable(),
+    }).passthrough());
     const { type } = body;
 
     const p = body.profile || {};
@@ -281,6 +293,11 @@ RÈGLES :
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("niche-ai error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }),
