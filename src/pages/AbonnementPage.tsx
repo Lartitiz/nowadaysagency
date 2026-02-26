@@ -205,6 +205,9 @@ export default function AbonnementPage() {
               </span>
             </div>
           )}
+          <p className="mt-2 text-xs text-muted-foreground">
+            💡 Astuce : invite une amie à rejoindre ton workspace et gagne 5 crédits bonus.
+          </p>
 
           {/* Category detail toggle */}
           <button
