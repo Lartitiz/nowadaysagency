@@ -8,12 +8,12 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, Outlet } from "rea
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { DemoProvider } from "@/contexts/DemoContext";
-import DemoBanner from "@/components/demo/DemoBanner";
+const DemoBanner = lazy(() => import("@/components/demo/DemoBanner"));
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import SelectionMenuProvider from "@/components/SelectionMenuProvider";
 import { SessionProvider } from "@/contexts/SessionContext";
-import SessionOverlay from "@/components/session/SessionOverlay";
-import AiDebugShortcut from "@/components/admin/AiDebugShortcut";
+const SessionOverlay = lazy(() => import("@/components/session/SessionOverlay"));
+const AiDebugShortcut = lazy(() => import("@/components/admin/AiDebugShortcut"));
 const AssistantButton = lazy(() => import("./components/assistant/AssistantButton"));
 const CoachChat = lazy(() => import("./components/coach/CoachChat"));
 const BetaFeedbackWidget = lazy(() => import("./components/feedback/BetaFeedbackWidget"));
@@ -163,9 +163,9 @@ function AnimatedRoutes() {
 
   return (
     <>
-      {showAppWidgets && <DemoBanner />}
-      <SessionOverlay />
-      <AiDebugShortcut />
+      {showAppWidgets && <Suspense fallback={null}><DemoBanner /></Suspense>}
+      <Suspense fallback={null}><SessionOverlay /></Suspense>
+      <Suspense fallback={null}><AiDebugShortcut /></Suspense>
       {showAppWidgets && <Suspense fallback={null}><AssistantButton /></Suspense>}
       {/* BETA_MODE: replace CoachChat with BetaFeedbackWidget during beta */}
       {showCoach && <Suspense fallback={null}><BetaFeedbackWidget /></Suspense>}
