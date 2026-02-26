@@ -121,7 +121,7 @@ export default function InstagramCreer() {
 
         <div className="mb-8">
           <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground">✨ Créer un contenu</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Chaque format a son propre générateur optimisé.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Choisis ton canal et ton format, l'IA s'occupe du reste.</p>
           <button
             onClick={() => setContentCoachingOpen(true)}
             className="text-xs text-muted-foreground hover:text-primary mt-2 transition-colors"
@@ -130,30 +130,50 @@ export default function InstagramCreer() {
           </button>
         </div>
 
-        {/* ─── Format grid ─── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-          {FORMAT_OPTIONS.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => handleFormatClick(f)}
-              disabled={f.comingSoon}
-              className={`relative rounded-2xl border-2 p-4 text-center transition-all ${
-                f.comingSoon
-                  ? "border-border bg-muted/50 opacity-60 cursor-not-allowed"
-                  : "border-border bg-card hover:border-primary hover:shadow-md group"
-              }`}
-            >
-              {f.comingSoon && (
-                <span className="absolute top-2 right-2 text-[9px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
-                  🔜
-                </span>
-              )}
-              <span className="text-2xl block mb-2">{f.emoji}</span>
-              <p className="font-display font-bold text-sm text-foreground group-hover:text-primary transition-colors">{f.label}</p>
-              <p className="text-[11px] text-muted-foreground mt-1 leading-tight">{f.desc}</p>
-            </button>
-          ))}
-        </div>
+        {/* ─── Format grid grouped by channel ─── */}
+        {(() => {
+          const channelLabels: Record<string, string> = {
+            instagram: "📱 Instagram",
+            linkedin: "💼 LinkedIn",
+            pinterest: "📌 Pinterest",
+            newsletter: "📧 Newsletter",
+          };
+          const channelOrder = ["instagram", "linkedin", "pinterest", "newsletter"];
+          const grouped = channelOrder
+            .map(ch => ({ channel: ch, formats: FORMAT_OPTIONS.filter(f => f.channel === ch) }))
+            .filter(g => g.formats.length > 0);
+
+          return grouped.map(g => (
+            <div key={g.channel} className="mb-5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                {channelLabels[g.channel] || g.channel}
+              </p>
+              <div className={`grid gap-2 ${g.channel === "instagram" ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2"}`}>
+                {g.formats.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => handleFormatClick(f)}
+                    disabled={f.comingSoon}
+                    className={`relative rounded-2xl border-2 p-4 text-center transition-all ${
+                      f.comingSoon
+                        ? "border-border bg-muted/50 opacity-60 cursor-not-allowed"
+                        : "border-border bg-card hover:border-primary hover:shadow-md group"
+                    }`}
+                  >
+                    {f.comingSoon && (
+                      <span className="absolute top-2 right-2 text-[9px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                        🔜
+                      </span>
+                    )}
+                    <span className="text-2xl block mb-2">{f.emoji}</span>
+                    <p className="font-display font-bold text-sm text-foreground group-hover:text-primary transition-colors">{f.label}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 leading-tight">{f.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ));
+        })()}
 
         {/* ─── "J'ai une idée" block ─── */}
         <div className="rounded-2xl border border-border bg-card p-5 mb-6">
