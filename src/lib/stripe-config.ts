@@ -98,12 +98,3 @@ export const CREDIT_PACKS = {
   pack_30: { credits: 30, price: 8.90, priceId: "price_1T4lcOI0YZbTj9ITvP6M4k95", mode: "payment" as const, label: "30 crédits", emoji: "⚡" },
   pack_60: { credits: 60, price: 14.90, priceId: "price_1T4lcOI0YZbTj9ITwB7OJBoD", mode: "payment" as const, label: "60 crédits", emoji: "🔥" },
 } as const;
-
-// AI usage limits per plan
-export const AI_LIMITS = {
-  free: { generations: 25, audits: 3 },
-  outil: { generations: Infinity, audits: Infinity },
-  pro: { generations: Infinity, audits: Infinity },
-  studio: { generations: Infinity, audits: Infinity },
-  now_pilot: { generations: Infinity, audits: Infinity },
-} as const;
