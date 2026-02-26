@@ -12,7 +12,7 @@ import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Save, PenLine, ArrowLeft, CalendarDays, RefreshCw, Mic } from "lucide-react";
 import { Link } from "react-router-dom";
 import CreativeFlow from "@/components/CreativeFlow";
-import ContentRecycling from "@/components/ContentRecycling";
+
 import DictationInput from "@/components/DictationInput";
 import {
   OBJECTIFS, FORMATS, CANAUX,
@@ -346,7 +346,22 @@ export default function AtelierPage() {
 
         {/* Recycle mode */}
         {!fromCalendar && atelierMode === "recycle" && (
-          <ContentRecycling />
+          <div className="text-center py-8">
+            <Link
+              to="/transformer"
+              className="inline-flex items-center gap-3 rounded-2xl border border-border bg-card px-6 py-4 hover:border-primary hover:shadow-md transition-all group"
+            >
+              <span className="text-2xl">🔄</span>
+              <div className="text-left">
+                <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                  Transformer un contenu existant
+                </h3>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Recycler, adapter, s'inspirer : tout est au même endroit.
+                </p>
+              </div>
+            </Link>
+          </div>
         )}
 
         {/* Dictate mode */}
