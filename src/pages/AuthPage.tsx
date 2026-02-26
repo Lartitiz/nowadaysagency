@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { lovable } from "@/integrations/lovable/index";
+import { friendlyError } from "@/lib/error-messages";
 
 export default function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -40,13 +41,21 @@ export default function AuthPage() {
         await signIn(email, password);
       }
     } catch (error: any) {
+      const msg = error.message;
       toast({
         title: "Oups !",
-        description: error.message === "Invalid login credentials"
-          ? "Email ou mot de passe incorrect."
-          : error.message === "Email not confirmed"
-          ? "Confirme ton email d'abord !"
-          : error.message,
+        description:
+          msg === "Invalid login credentials"
+            ? "Email ou mot de passe incorrect."
+            : msg === "Email not confirmed"
+            ? "Confirme ton email d'abord !"
+            : msg === "User already registered"
+            ? "Un compte existe déjà avec cet email. Connecte-toi plutôt !"
+            : msg === "Password should be at least 8 characters"
+            ? "Ton mot de passe doit faire au moins 8 caractères."
+            : msg === "Unable to validate email address: invalid format"
+            ? "Vérifie le format de ton adresse email."
+            : friendlyError(error),
         variant: "destructive",
       });
     } finally {
