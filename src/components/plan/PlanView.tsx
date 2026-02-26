@@ -9,9 +9,10 @@ import AuditRecommendationsSection from "./AuditRecommendationsSection";
 interface PlanViewProps {
   plan: PlanData;
   onEditConfig: () => void;
+  onToggleStep?: (stepId: string, newStatus: 'done' | 'undone') => void;
 }
 
-export default function PlanView({ plan, onEditConfig }: PlanViewProps) {
+export default function PlanView({ plan, onEditConfig, onToggleStep }: PlanViewProps) {
   const navigate = useNavigate();
 
   const channelLabels: Record<string, string> = {
@@ -71,13 +72,13 @@ export default function PlanView({ plan, onEditConfig }: PlanViewProps) {
 
       {/* Phases */}
       {plan.phases.map(phase => (
-        <PhaseSection key={phase.id} phase={phase} navigate={navigate} />
+        <PhaseSection key={phase.id} phase={phase} navigate={navigate} onToggleStep={onToggleStep} />
       ))}
     </div>
   );
 }
 
-function PhaseSection({ phase, navigate }: { phase: PlanPhase; navigate: (path: string) => void }) {
+function PhaseSection({ phase, navigate, onToggleStep }: { phase: PlanPhase; navigate: (path: string) => void; onToggleStep?: (stepId: string, newStatus: 'done' | 'undone') => void }) {
   const doneCount = phase.steps.filter(s => s.status === "done").length;
   const allDone = doneCount === phase.steps.length;
 
@@ -107,14 +108,14 @@ function PhaseSection({ phase, navigate }: { phase: PlanPhase; navigate: (path: 
       </div>
       <div className="space-y-2">
         {phase.steps.map(step => (
-          <StepCard key={step.id} step={step} navigate={navigate} />
+          <StepCard key={step.id} step={step} navigate={navigate} onToggleStep={onToggleStep} />
         ))}
       </div>
     </div>
   );
 }
 
-function StepCard({ step, navigate }: { step: PlanStep; navigate: (path: string) => void }) {
+function StepCard({ step, navigate, onToggleStep }: { step: PlanStep; navigate: (path: string) => void; onToggleStep?: (stepId: string, newStatus: 'done' | 'undone') => void }) {
   const statusConfig: Record<StepStatus, { icon: React.ReactNode; label: string; color: string }> = {
     done: { icon: <Check className="h-4 w-4 text-green-600" />, label: "Fait", color: "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/30" },
     in_progress: { icon: <div className="h-4 w-4 rounded-full border-2 border-amber-500 bg-amber-100 dark:bg-amber-900/40" />, label: "En cours", color: "border-amber-200 bg-amber-50/30 dark:border-amber-900 dark:bg-amber-950/20" },
@@ -123,8 +124,9 @@ function StepCard({ step, navigate }: { step: PlanStep; navigate: (path: string)
   };
 
   const cfg = statusConfig[step.status];
+  const canToggle = step.status !== "locked" && !step.comingSoon && !!onToggleStep;
 
-  const handleClick = () => {
+  const handleNavigate = () => {
     if (step.status === "locked" || step.comingSoon) return;
     if (step.route.startsWith("http")) {
       window.open(step.route, "_blank", "noopener,noreferrer");
@@ -133,19 +135,40 @@ function StepCard({ step, navigate }: { step: PlanStep; navigate: (path: string)
     navigate(step.route);
   };
 
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canToggle) return;
+    const newStatus = step.status === "done" ? "undone" : "done";
+    onToggleStep!(step.id, newStatus);
+  };
+
   const actionLabel = step.status === "done" ? "Voir / Modifier" : step.status === "in_progress" ? "Continuer" : "Commencer";
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={step.status === "locked" || step.comingSoon}
+    <div
       className={`w-full text-left p-4 rounded-xl border transition-all group ${cfg.color} ${
-        step.status !== "locked" && !step.comingSoon ? "hover:shadow-sm hover:border-primary/30 cursor-pointer" : "cursor-not-allowed"
+        step.status !== "locked" && !step.comingSoon ? "hover:shadow-sm hover:border-primary/30" : "opacity-60"
       }`}
     >
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex-shrink-0">{cfg.icon}</div>
-        <div className="flex-1 min-w-0">
+        {/* Toggleable status icon */}
+        <button
+          type="button"
+          onClick={handleToggle}
+          disabled={!canToggle}
+          className={`mt-0.5 flex-shrink-0 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-md transition-all ${
+            canToggle ? "cursor-pointer hover:bg-muted hover:scale-110" : "cursor-default"
+          }`}
+          title={canToggle ? (step.status === "done" ? "Marquer comme à faire" : "Marquer comme fait") : undefined}
+        >
+          {cfg.icon}
+        </button>
+
+        {/* Clickable content area for navigation */}
+        <div
+          className={`flex-1 min-w-0 ${step.status !== "locked" && !step.comingSoon ? "cursor-pointer" : "cursor-not-allowed"}`}
+          onClick={handleNavigate}
+        >
           <div className="flex items-center gap-2">
             <span className="font-medium text-sm text-foreground">{step.label}</span>
             {step.comingSoon && (
@@ -169,17 +192,17 @@ function StepCard({ step, navigate }: { step: PlanStep; navigate: (path: string)
             </p>
           )}
         </div>
-        <div className="flex-shrink-0 flex items-center gap-3">
+        <div className="flex-shrink-0 flex items-center gap-3" onClick={handleNavigate}>
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             <Clock className="h-3 w-3" /> {step.duration} min
           </span>
           {step.status !== "locked" && !step.comingSoon && (
-            <span className="text-xs text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+            <span className="text-xs text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 cursor-pointer">
               {actionLabel} <ArrowRight className="h-3 w-3" />
             </span>
           )}
         </div>
       </div>
-    </button>
+    </div>
   );
 }

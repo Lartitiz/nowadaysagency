@@ -13,6 +13,7 @@ export interface PlanStep {
   recommendation?: string;
   comingSoon?: boolean;
   debugInfo?: string;
+  manualOverride?: boolean;
 }
 
 export interface PlanPhase {
@@ -410,7 +411,14 @@ export async function computePlan(filter: { column: string; value: string }, con
     for (const phase of phases) {
       for (const step of phase.steps) {
         if (step.status !== "locked" && overrideMap.has(step.id)) {
-          step.status = overrideMap.get(step.id) as StepStatus;
+          const ovStatus = overrideMap.get(step.id)!;
+          if (ovStatus === "done") {
+            step.status = "done";
+            step.manualOverride = true;
+          } else if (ovStatus === "undone") {
+            step.status = "todo";
+            step.manualOverride = true;
+          }
         }
       }
     }
