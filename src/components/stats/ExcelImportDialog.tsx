@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Upload, Check, AlertTriangle, Loader2, FileSpreadsheet, X } from "lucide-react";
-import * as XLSX from "xlsx";
+
 
 const METRIC_LABELS: Record<string, { label: string; emoji: string }> = {
   objective: { label: "Objectif du mois", emoji: "🎯" },
@@ -73,7 +73,7 @@ function monthLabel(dateStr: string) {
   return `${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-function parseMonthDate(value: any, rowIndex: number, prevDate: Date | null): Date | null {
+async function parseMonthDate(value: any, rowIndex: number, prevDate: Date | null): Promise<Date | null> {
   if (!value && value !== 0) return null;
 
   if (value instanceof Date && !isNaN(value.getTime())) {
@@ -86,6 +86,7 @@ function parseMonthDate(value: any, rowIndex: number, prevDate: Date | null): Da
       if (!isNaN(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), 1);
     }
     try {
+      const XLSX = await import("xlsx");
       const parsed = XLSX.SSF.parse_date_code(value) as any;
       if (parsed) return new Date(parsed.y, parsed.m - 1, 1);
     } catch { /* */ }
@@ -178,7 +179,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
 
   const [step, setStep] = useState<ImportStep>("upload");
   const [fileName, setFileName] = useState("");
-  const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
+  const [workbook, setWorkbook] = useState<any>(null);
   const [sheetsInfo, setSheetsInfo] = useState<any[]>([]);
   const [aiMapping, setAiMapping] = useState<MappingResult | null>(null);
   const [editedMapping, setEditedMapping] = useState<Record<string, number | null>>({});
@@ -215,6 +216,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
 
     try {
       const ab = await file.arrayBuffer();
+      const XLSX = await import("xlsx");
       const wb = XLSX.read(ab, { type: "array", cellDates: true, dateNF: "dd/mm/yyyy" });
       setWorkbook(wb);
 
@@ -289,8 +291,9 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
     if (e.target) e.target.value = "";
   };
 
-  const runImport = (mapping: Record<string, number | null>, dateCol: number, sheetName: string) => {
+  const runImport = async (mapping: Record<string, number | null>, dateCol: number, sheetName: string) => {
     if (!workbook) return;
+    const XLSX = await import("xlsx");
     const ws = workbook.Sheets[sheetName];
     const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false, dateNF: "yyyy-mm-dd" });
 
@@ -304,7 +307,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
       if (!r || r.every((c: any) => c == null || c === "")) continue;
 
       const dateVal = r[dateCol];
-      const md = parseMonthDate(dateVal, i, prevDate);
+      const md = await parseMonthDate(dateVal, i, prevDate);
       if (!md) {
         if (dateVal != null && String(dateVal).trim() !== "") {
           skipped.push({ row: i + 1, value: dateVal, reason: "Date non reconnue" });
@@ -325,7 +328,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
         }
       }
 
-      imported.push({ monthDate: monthKey(md), payload });
+      imported.push({ monthDate: monthKey(md!), payload });
     }
 
     // Fix year sequence gaps
