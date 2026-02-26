@@ -5,6 +5,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
+import { useQueryClient } from "@tanstack/react-query";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
@@ -116,6 +117,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
   const { data: brandProfileData } = useBrandProfile();
   const { isDemoMode } = useDemoContext();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [phase, setPhase] = useState<"intro" | "coaching" | "complete">("intro");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -684,6 +686,8 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
           ...insights,
           updated_at: new Date().toISOString(),
         } as any, { onConflict: "user_id" });
+        queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
       }
     } catch (e) {
       console.error("[BrandingCoaching] Error saving insights:", e);

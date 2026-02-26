@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useProfile } from "@/hooks/use-profile";
+import { useProfile, useBrandProfile } from "@/hooks/use-profile";
+import { useQueryClient } from "@tanstack/react-query";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -84,6 +85,8 @@ export default function InstagramBio() {
 
   // Profile data
   const { data: profileHookData } = useProfile();
+  const { data: brandProfileData } = useBrandProfile();
+  const queryClient = useQueryClient();
   const [profile, setProfile] = useState<any>(null);
 
   // Views
@@ -142,14 +145,15 @@ export default function InstagramBio() {
     }
     if (!user || brandingLoaded) return;
     const load = async () => {
-      const [{ data: val }, { data: bp }, { data: persona }, { data: prop }, { data: strat }, { data: story }] = await Promise.all([
+      const [{ data: val }, { data: persona }, { data: prop }, { data: strat }, { data: story }] = await Promise.all([
         (supabase.from("audit_validations") as any).select("*").eq(column, value).eq("section", "bio").maybeSingle(),
-        (supabase.from("brand_profile") as any).select("voice_description, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, combat_cause, combat_fights, combat_alternative, combat_refusals, mission, offer").eq(column, value).maybeSingle(),
         (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle(),
         (supabase.from("brand_proposition") as any).select("version_final, version_bio, version_pitch_naturel").eq(column, value).maybeSingle(),
         (supabase.from("brand_strategy") as any).select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq(column, value).maybeSingle(),
         (supabase.from("storytelling") as any).select("step_7_polished").eq(column, value).maybeSingle(),
       ]);
+
+      const bp = brandProfileData as any;
 
       const prof = profileHookData;
       if (prof) {
@@ -231,6 +235,7 @@ export default function InstagramBio() {
         bio_cta_type: ctaType || null,
         bio_cta_text: ctaText || null,
       } as any).eq(column, value);
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
 
       const res = await supabase.functions.invoke("generate-content", {
         body: {
@@ -286,6 +291,7 @@ export default function InstagramBio() {
         validated_bio: bioText,
         validated_bio_at: new Date().toISOString(),
       } as any).eq(column, value);
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
       setValidatedBio(bioText);
       setValidatedAt(new Date().toISOString());
       setView("validated");

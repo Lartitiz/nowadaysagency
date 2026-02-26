@@ -173,7 +173,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Non connectée");
 
-      const { data: profile } = await (supabase.from("profiles") as any).select("*").eq(column, value).maybeSingle();
+      const profile = profileData || {};
 
       const res = await supabase.functions.invoke("generate-content", {
         body: {

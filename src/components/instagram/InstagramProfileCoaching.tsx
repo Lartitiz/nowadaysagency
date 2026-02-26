@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/use-profile";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -57,6 +58,8 @@ interface Props {
 
 export default function InstagramProfileCoaching({ open, onOpenChange, initialModule, auditScores }: Props) {
   const { user } = useAuth();
+  const { data: profileData } = useProfile();
+  const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [activeModule, setActiveModule] = useState<ModuleKey>(initialModule || "bio");
@@ -151,10 +154,9 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
   const handleApplyBio = async (bioText: string) => {
     if (!user) return;
     try {
-      const { data: existing } = await (supabase.from("profiles") as any)
-        .select("id").eq("user_id", user.id).maybeSingle();
-      if (existing) {
+      if (profileData) {
         await (supabase.from("profiles") as any).update({ validated_bio: bioText }).eq("user_id", user.id);
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
       }
       toast.success("Bio sauvegardée ! Retrouve-la dans ton espace Bio.");
       onOpenChange(false);

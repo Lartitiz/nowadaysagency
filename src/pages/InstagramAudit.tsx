@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/use-profile";
+import { useQueryClient } from "@tanstack/react-query";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -35,6 +36,7 @@ export default function InstagramAudit() {
   const [loadingExisting, setLoadingExisting] = useState(true);
   const [previousAudit, setPreviousAudit] = useState<any>(null);
   const { data: profileData } = useProfile();
+  const queryClient = useQueryClient();
   const [liveScore, setLiveScore] = useState<number | null>(null);
   const [hasExistingAudit, setHasExistingAudit] = useState(false);
 
@@ -125,6 +127,7 @@ export default function InstagramAudit() {
         instagram_frequency: form.frequency || null,
         instagram_pillars: pillarsArray.length ? pillarsArray : null,
       } as any).eq(column, value);
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
 
       // 2. Upload screenshots
       const screenshotUrls: string[] = [];
@@ -235,6 +238,7 @@ export default function InstagramAudit() {
         validated_bio: bio,
         validated_bio_at: new Date().toISOString(),
       } as any).eq(column, value);
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
 
       await supabase.from("audit_validations").upsert({
         user_id: user.id,
