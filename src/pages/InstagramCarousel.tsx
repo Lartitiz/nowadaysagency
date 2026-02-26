@@ -16,6 +16,7 @@ import { useFormPersist } from "@/hooks/use-form-persist";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import CarouselPreview from "@/components/carousel/CarouselPreview";
+import RedFlagsChecker from "@/components/RedFlagsChecker";
 import {
   CarouselTypeStep, CarouselContextStep, CarouselQuestionsStep,
   CarouselAnglesStep, CarouselHooksStep,
@@ -606,6 +607,24 @@ export default function InstagramCarousel() {
             onRegenerate={() => { setStep(5); setSlides([]); setCaption(null); }}
             onNew={() => { setStep(1); setSlides([]); setHooks([]); setCaption(null); setAngles([]); setChosenAngle(null); setDeepeningAnswers({}); setCurrentQuestion(0); setVisualSlides([]); setTemplateStyle(""); }}
           />
+
+          {/* Red flags checker on caption */}
+          {caption && (
+            <div className="mt-6">
+              <RedFlagsChecker
+                content={`${caption.hook}\n\n${caption.body}\n\n${caption.cta}`}
+                onFix={(fixed) => {
+                  const parts = fixed.split("\n\n");
+                  setCaption({
+                    ...caption,
+                    hook: parts[0] || "",
+                    body: parts.slice(1, -1).join("\n\n") || "",
+                    cta: parts[parts.length - 1] || "",
+                  });
+                }}
+              />
+            </div>
+          )}
 
           {/* Generate visual button */}
           <div className="mt-6 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-5 text-center">
