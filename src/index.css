@@ -260,3 +260,11 @@
   transform: translateY(0px) !important;
   box-shadow: 0 2px 8px hsla(0, 0%, 0%, 0.04) !important;
 }
+
+@keyframes pageFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-page-fade {
+  animation: pageFade 0.1s ease-in-out;
+}
