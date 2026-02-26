@@ -121,7 +121,7 @@ Retourne UNIQUEMENT un JSON :
 Sois directe et concrète. Tutoiement. Pas de jargon.`;
 
     const raw = await callAnthropicSimple(
-      getModelForAction("coaching"),
+      getModelForAction("coaching_light"),
       systemPrompt + "\n\n" + ANTI_SLOP,
       "Génère le plan d'action contenu.",
       0.5,

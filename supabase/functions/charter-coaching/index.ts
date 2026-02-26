@@ -196,7 +196,7 @@ serve(async (req) => {
     const prompt = buildPrompt(step, answer, charterData || {}, profileRes.data, brandRes.data);
 
     const rawResponse = await callAnthropic({
-      model: getModelForAction("coaching"),
+      model: getModelForAction("coaching_light"),
       system: BASE_SYSTEM_RULES + "\n\n" + prompt + "\n\n" + ANTI_SLOP,
       messages: [{ role: "user", content: answer }],
       temperature: 0.7,
@@ -204,7 +204,7 @@ serve(async (req) => {
     });
 
     // Log usage
-    await logUsage(userId, "coaching", "charter_coaching", undefined, getModelForAction("coaching"));
+    await logUsage(userId, "coaching", "charter_coaching", undefined, getModelForAction("coaching_light"));
 
     // Parse response
     let parsed;
