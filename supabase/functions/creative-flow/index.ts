@@ -113,8 +113,6 @@ serve(async (req) => {
 
 ${ANTI_SLOP}
 
-${ANTI_BIAS}
-
 ${ETHICAL_GUARDRAILS}
 
 ${FRAMEWORK_SELECTION}
@@ -264,6 +262,18 @@ Réponds UNIQUEMENT en JSON :
     } else if (step === "adjust") {
       systemPrompt = `${CORE_PRINCIPLES}
 
+${ANTI_SLOP}
+
+${ANTI_BIAS}
+
+${ETHICAL_GUARDRAILS}
+
+${CHAIN_OF_THOUGHT}
+
+${FORMAT_STRUCTURES}
+
+${WRITING_RESOURCES}
+
 CONTENU ACTUEL :
 """
 ${currentContent}
@@ -293,7 +303,6 @@ ${ANTI_BIAS}
 
 ${ETHICAL_GUARDRAILS}
 
-${CHAIN_OF_THOUGHT}
 
 ${FORMAT_STRUCTURES}
 
