@@ -1,43 +1,43 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { user_id, workspace_id, selected_text, action_prompt } = await req.json();
+    const { userId } = await authenticateRequest(req);
+
+    const { workspace_id, selected_text, action_prompt } = await req.json();
     if (!selected_text || !action_prompt) {
       return new Response(JSON.stringify({ error: "Missing selected_text or action_prompt" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Fetch lightweight branding context
+    // Fetch lightweight branding context using authenticated userId
     let brandContext = "";
-    if (user_id) {
-      const supabase = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      );
-      const filterCol = workspace_id ? "workspace_id" : "user_id";
-      const filterVal = workspace_id || user_id;
-      const { data: bp } = await supabase
-        .from("brand_profile")
-        .select("positioning, tone_keywords, tone_description, tone_do, tone_dont")
-        .eq(filterCol, filterVal)
-        .maybeSingle();
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const filterCol = workspace_id ? "workspace_id" : "user_id";
+    const filterVal = workspace_id || userId;
+    const { data: bp } = await supabase
+      .from("brand_profile")
+      .select("positioning, tone_keywords, tone_description, tone_do, tone_dont")
+      .eq(filterCol, filterVal)
+      .maybeSingle();
 
-      if (bp) {
-        const parts: string[] = [];
-        if (bp.positioning) parts.push(`Positionnement : ${bp.positioning}`);
-        if (bp.tone_description) parts.push(`Ton : ${bp.tone_description}`);
-        if (bp.tone_keywords) parts.push(`Mots-clés de ton : ${JSON.stringify(bp.tone_keywords)}`);
-        if (bp.tone_do) parts.push(`À faire : ${bp.tone_do}`);
-        if (bp.tone_dont) parts.push(`À éviter : ${bp.tone_dont}`);
-        if (parts.length > 0) brandContext = `\n\nCONTEXTE MARQUE :\n${parts.join("\n")}`;
-      }
+    if (bp) {
+      const parts: string[] = [];
+      if (bp.positioning) parts.push(`Positionnement : ${bp.positioning}`);
+      if (bp.tone_description) parts.push(`Ton : ${bp.tone_description}`);
+      if (bp.tone_keywords) parts.push(`Mots-clés de ton : ${JSON.stringify(bp.tone_keywords)}`);
+      if (bp.tone_do) parts.push(`À faire : ${bp.tone_do}`);
+      if (bp.tone_dont) parts.push(`À éviter : ${bp.tone_dont}`);
+      if (parts.length > 0) brandContext = `\n\nCONTEXTE MARQUE :\n${parts.join("\n")}`;
     }
 
     const systemPrompt = `Tu es l'assistante communication de Nowadays. Tu aides une créatrice à améliorer son contenu.${brandContext}
@@ -66,6 +66,11 @@ RÈGLES :
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof AuthError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: e.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("ai-text-action error:", e);
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
