@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useEditorialLine } from "@/hooks/use-branding";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +27,7 @@ export default function InstagramLaunchRecommendation() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
+  const { data: editorialLineData } = useEditorialLine();
 
   const [launch, setLaunch] = useState<any>(null);
   const [loaded, setLoaded] = useState(false);
@@ -51,17 +53,14 @@ export default function InstagramLaunchRecommendation() {
       if (!launchesData?.length) { navigate("/instagram/lancement"); return; }
       setLaunch(launchesData[0]);
 
-      const { data: edito } = await (supabase.from("instagram_editorial_line") as any)
-        .select("estimated_weekly_minutes")
-        .eq(column, value)
-        .maybeSingle();
-      if (edito?.estimated_weekly_minutes) {
-        setEditorialTime(Math.round(edito.estimated_weekly_minutes / 60));
+      // Use editorial line from hook
+      if (editorialLineData?.estimated_weekly_minutes) {
+        setEditorialTime(Math.round((editorialLineData as any).estimated_weekly_minutes / 60));
         setHasEditorialLine(true);
       }
       setLoaded(true);
     })();
-  }, [user?.id]);
+  }, [user?.id, editorialLineData]);
 
   const canShowReco = offerType && priceRange && audienceSize && recurrence && extraTime;
 

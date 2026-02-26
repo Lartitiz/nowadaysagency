@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/use-profile";
+import { useEditorialLine } from "@/hooks/use-branding";
 import { useQueryClient } from "@tanstack/react-query";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -37,6 +38,7 @@ export default function InstagramAudit() {
   const [previousAudit, setPreviousAudit] = useState<any>(null);
   const { data: profileData } = useProfile();
   const queryClient = useQueryClient();
+  const { data: editorialLineData } = useEditorialLine();
   const [liveScore, setLiveScore] = useState<number | null>(null);
   const [hasExistingAudit, setHasExistingAudit] = useState(false);
 
@@ -267,12 +269,13 @@ export default function InstagramAudit() {
         combo_gagnant: auditResult.combo_gagnant,
         analyzed_at: new Date().toISOString(),
       };
-      const { data: existing } = await (supabase.from("instagram_editorial_line") as any).select("id").eq(column, value).maybeSingle();
+      const existing = editorialLineData;
       if (existing) {
-        await (supabase.from("instagram_editorial_line") as any).update({ content_insights: insights }).eq(column, value);
+        await (supabase.from("instagram_editorial_line") as any).update({ content_insights: insights }).eq("id", existing.id);
       } else {
         await supabase.from("instagram_editorial_line").insert({ user_id: user.id, content_insights: insights, workspace_id: workspaceId !== user.id ? workspaceId : undefined } as any);
       }
+      queryClient.invalidateQueries({ queryKey: ["editorial-line"] });
       toast({ title: "Insights sauvegardés dans ta ligne éditoriale !" });
     } catch (e: any) {
       console.error("Erreur technique:", e);

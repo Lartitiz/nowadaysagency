@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useEditorialLine } from "@/hooks/use-branding";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,6 +42,7 @@ export default function InstagramLaunchPlan() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
+  const { data: editorialLineData } = useEditorialLine();
 
   // Step management
   const [currentStep, setCurrentStep] = useState(0); // 0=template, 1=temps, 2=generate, 3=preview
@@ -80,13 +82,9 @@ export default function InstagramLaunchPlan() {
       const l = launches[0];
       setLaunch(l);
 
-      // Check editorial line
-      const { data: edito } = await (supabase.from("instagram_editorial_line") as any)
-        .select("estimated_weekly_minutes")
-        .eq(column, value)
-        .maybeSingle();
-      if (edito?.estimated_weekly_minutes) {
-        setEditorialTime(Math.round(edito.estimated_weekly_minutes / 60));
+      // Check editorial line from hook
+      if (editorialLineData?.estimated_weekly_minutes) {
+        setEditorialTime(Math.round((editorialLineData as any).estimated_weekly_minutes / 60));
         setHasEditorialLine(true);
       }
 
@@ -170,10 +168,7 @@ export default function InstagramLaunchPlan() {
     if (!user || !launch) return;
     setGenerating(true);
     try {
-      const { data: editoData } = await (supabase.from("instagram_editorial_line") as any)
-        .select("preferred_formats, posts_frequency")
-        .eq(column, value)
-        .maybeSingle();
+      const editoData = editorialLineData as any;
 
       const extraHours = extraTime ? (TIME_OPTIONS.find((t) => t.id === extraTime)?.hours ?? FALLBACK_TIME_OPTIONS.find((t) => t.id === extraTime)?.hours ?? 0) : 0;
 
