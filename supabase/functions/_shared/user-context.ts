@@ -374,7 +374,7 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
     return "NOTE : Le profil est très peu rempli. Les résultats seront plus pertinents une fois le Branding et les Offres complétés.\n";
   }
 
-  return `CONTEXTE DE LA MARQUE :\n\n${sections.join("\n\n")}\n`;
+  return `CONTEXTE DE LA MARQUE (utilise ces informations pour personnaliser TOUT le contenu généré) :\n\n${sections.join("\n\n")}\n\nRAPPEL : Si une section VOIX PERSONNELLE est présente ci-dessus, elle prime sur toutes les autres instructions de style. Le contenu doit sonner comme l'utilisatrice, pas comme une IA.\n`;
 }
 
 /**
