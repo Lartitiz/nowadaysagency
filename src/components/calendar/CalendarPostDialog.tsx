@@ -4,6 +4,7 @@ import { PostCommentsSection } from "@/components/calendar/PostCommentsSection";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { friendlyError } from "@/lib/error-messages";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useProfile } from "@/hooks/use-profile";
 import { format as formatDate } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -60,16 +61,16 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const navigate = useNavigate();
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
+  const { data: profileData } = useProfile();
   const [ownerName, setOwnerName] = useState("Moi");
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    (supabase.from("profiles") as any).select("prenom, instagram_username").eq(column, value).maybeSingle().then(({ data }: any) => {
-      if (data?.prenom) setOwnerName(data.prenom);
-      if (data?.instagram_username) setIgUsername(data.instagram_username);
-    });
-  }, [column, value]);
+    if (!profileData) return;
+    if ((profileData as any).prenom) setOwnerName((profileData as any).prenom);
+    if ((profileData as any).instagram_username) setIgUsername((profileData as any).instagram_username);
+  }, [profileData]);
   const [theme, setTheme] = useState("");
   const [angle, setAngle] = useState<string | null>(null);
   const [status, setStatus] = useState("idea");

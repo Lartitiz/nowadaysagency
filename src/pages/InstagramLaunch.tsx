@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/use-profile";
 import { Copy, Sparkles } from "lucide-react";
 import { friendlyError } from "@/lib/error-messages";
 import AppHeader from "@/components/AppHeader";
@@ -126,7 +127,7 @@ export default function InstagramLaunch() {
   const [generatingIdeas, setGeneratingIdeas] = useState(false);
   const [launchIdeas, setLaunchIdeas] = useState<LaunchIdea[]>([]);
   const [copiedIdeaIdx, setCopiedIdeaIdx] = useState<number | null>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const { data: profile } = useProfile();
 
   useEffect(() => {
     if (!user) return;
@@ -156,13 +157,6 @@ export default function InstagramLaunch() {
       });
   }, [user?.id]);
 
-  // Fetch profile for AI prompts
-  useEffect(() => {
-    if (!user) return;
-    (supabase.from("profiles") as any).select("*").eq(column, value).single().then(({ data }: any) => {
-      if (data) setProfile(data);
-    });
-  }, [user?.id]);
 
   const update = (field: keyof LaunchData, value: any) => setLaunch((prev) => ({ ...prev, [field]: value }));
 

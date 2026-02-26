@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/use-profile";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -33,7 +34,7 @@ export default function InstagramAudit() {
   const [auditDate, setAuditDate] = useState<string | null>(null);
   const [loadingExisting, setLoadingExisting] = useState(true);
   const [previousAudit, setPreviousAudit] = useState<any>(null);
-  const [profileData, setProfileData] = useState<any>(null);
+  const { data: profileData } = useProfile();
   const [liveScore, setLiveScore] = useState<number | null>(null);
   const [hasExistingAudit, setHasExistingAudit] = useState(false);
 
@@ -41,12 +42,26 @@ export default function InstagramAudit() {
   const paramView = searchParams.get("view") as ViewMode | null;
   const [view, setView] = useState<ViewMode>(paramView || "hub");
 
+  // Compute live score from profile hook data
+  useEffect(() => {
+    if (!profileData) return;
+    const pfs: ProfileForScore = {
+      instagram_display_name: (profileData as any).instagram_display_name,
+      instagram_bio: (profileData as any).instagram_bio,
+      instagram_bio_link: (profileData as any).instagram_bio_link,
+      instagram_photo_description: (profileData as any).instagram_photo_description,
+      instagram_photo_url: (profileData as any).instagram_photo_url,
+      instagram_highlights: (profileData as any).instagram_highlights as string[] | null,
+      instagram_highlights_count: (profileData as any).instagram_highlights_count,
+      instagram_pinned_posts: (profileData as any).instagram_pinned_posts as any,
+      instagram_pillars: (profileData as any).instagram_pillars as string[] | null,
+    };
+    setLiveScore(calculateAuditScore(pfs));
+  }, [profileData]);
+
   useEffect(() => {
     if (!user) return;
-    Promise.all([
-      (supabase.from("instagram_audit") as any).select("*").eq(column, value).order("created_at", { ascending: false }).limit(2),
-      (supabase.from("profiles") as any).select("instagram_display_name, instagram_username, instagram_bio, instagram_bio_link, instagram_photo_description, instagram_photo_url, instagram_highlights, instagram_highlights_count, instagram_pinned_posts, instagram_feed_description, instagram_followers, instagram_posts_per_month, instagram_frequency, instagram_pillars").eq(column, value).maybeSingle(),
-    ]).then(([{ data: rows }, { data: profile }]) => {
+    (supabase.from("instagram_audit") as any).select("*").eq(column, value).order("created_at", { ascending: false }).limit(2).then(({ data: rows }) => {
       if (rows && rows.length > 0) {
         const latest = rows[0];
         setHasExistingAudit(true);
@@ -56,21 +71,6 @@ export default function InstagramAudit() {
           setAuditDate(latest.created_at);
         }
         if (rows.length > 1) setPreviousAudit(rows[1]);
-      }
-      if (profile) {
-        setProfileData(profile);
-        const pfs: ProfileForScore = {
-          instagram_display_name: profile.instagram_display_name,
-          instagram_bio: profile.instagram_bio,
-          instagram_bio_link: profile.instagram_bio_link,
-          instagram_photo_description: profile.instagram_photo_description,
-          instagram_photo_url: profile.instagram_photo_url,
-          instagram_highlights: profile.instagram_highlights as string[] | null,
-          instagram_highlights_count: profile.instagram_highlights_count,
-          instagram_pinned_posts: profile.instagram_pinned_posts as any,
-          instagram_pillars: profile.instagram_pillars as string[] | null,
-        };
-        setLiveScore(calculateAuditScore(pfs));
       }
 
       // Auto-navigate based on params or state

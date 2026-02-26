@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { useProfile } from "@/hooks/use-profile";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useNavigate } from "react-router-dom";
@@ -105,27 +106,22 @@ export default function Dashboard() {
 
   const welcomeMessage = useMemo(() => getWelcomeMessage(), []);
   // ── Profile query ──
-  const { data: profile } = useQuery<UserProfile | null>({
-    queryKey: ["profile", user?.id, column, value, isDemoMode],
-    queryFn: async () => {
-      if (isDemoMode && demoData) {
-        return {
-          prenom: demoData.profile.first_name,
-          activite: demoData.profile.activity,
-          type_activite: demoData.profile.activity_type,
-          cible: demoData.persona.metier,
-          probleme_principal: demoData.persona.frustrations,
-          piliers: demoData.branding.editorial.pillars.map(p => p.name),
-          tons: demoData.branding.tone.keywords as unknown as string[],
-          plan_start_date: null,
-        };
-      }
-      if (!user) return null;
-      const { data } = await (supabase.from("profiles") as any).select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, plan_start_date").eq(column, value).single();
-      return data as UserProfile | null;
-    },
-    enabled: !!user || isDemoMode,
-  });
+  const { data: profileRaw } = useProfile();
+  const profile = useMemo<UserProfile | null>(() => {
+    if (isDemoMode && demoData) {
+      return {
+        prenom: demoData.profile.first_name,
+        activite: demoData.profile.activity,
+        type_activite: demoData.profile.activity_type,
+        cible: demoData.persona.metier,
+        probleme_principal: demoData.persona.frustrations,
+        piliers: demoData.branding.editorial.pillars.map(p => p.name),
+        tons: demoData.branding.tone.keywords as unknown as string[],
+        plan_start_date: null,
+      };
+    }
+    return (profileRaw as UserProfile | null) ?? null;
+  }, [profileRaw, isDemoMode, demoData]);
 
   const defaultDashData: DashboardData = {
     brandingCompletion: { storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, charter: 0, total: 0 },

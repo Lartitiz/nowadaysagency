@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
 import { Loader2, ArrowRight, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/use-profile";
 
 import DictationInput from "@/components/DictationInput";
 import { useAuth } from "@/contexts/AuthContext";
@@ -66,14 +67,7 @@ export default function InstagramCreer() {
   const FORMAT_OPTIONS = getFormatOptions(suggestion).filter(f => activeChannels.includes(f.channel as any));
   const [secondaryMode, setSecondaryMode] = useState<"none" | "dictate">("none");
   const [contentCoachingOpen, setContentCoachingOpen] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
-
-  // Load profile for dictate mode
-  const loadProfile = async () => {
-    if (!user || profile) return;
-    const { data } = await (supabase.from("profiles") as any).select("*").eq(column, value).single();
-    if (data) setProfile(data);
-  };
+  const { data: profile } = useProfile();
 
   const handleFormatClick = (format: FormatOption) => {
     if (format.comingSoon) return;
@@ -285,7 +279,6 @@ export default function InstagramCreer() {
               size="sm"
               onClick={() => {
                 setSecondaryMode(secondaryMode === "dictate" ? "none" : "dictate");
-                loadProfile();
               }}
               className="rounded-full gap-1.5 text-xs"
             >
