@@ -7,7 +7,7 @@ import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import FirstTimeTooltip from "@/components/FirstTimeTooltip";
-import { ZoneSection, HubCard, FormatPill } from "@/components/hub";
+import { ZoneSection, HubCard } from "@/components/hub";
 import { useDemoContext } from "@/contexts/DemoContext";
 import LinkedInCoaching from "@/components/linkedin/LinkedInCoaching";
 
@@ -133,25 +133,32 @@ export default function LinkedInHub() {
 
         {/* ─── ZONE 2 : CRÉER ─── */}
         <ZoneSection emoji="✨" title="Créer">
-          <FirstTimeTooltip id="linkedin-create" text="L'IA génère un post LinkedIn calibré sur ton branding.">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Link
-              to="/linkedin/post"
-              className="group block rounded-2xl border-2 border-primary bg-primary/5 p-6 sm:p-8 hover:bg-primary/10 hover:shadow-md transition-all text-center"
+              to="/creer?canal=linkedin"
+              className="group flex items-center justify-between rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
             >
-              <span className="text-3xl mb-3 block">✨</span>
-              <h3 className="font-display text-xl sm:text-2xl font-bold text-primary group-hover:text-foreground transition-colors">
-                Créer un contenu LinkedIn
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
-                Post, recyclage ou idées : choisis ton format.
-              </p>
-              <div className="flex justify-center gap-3 mt-5 flex-wrap">
-                <FormatPill emoji="📝" label="Créer un post" to="/linkedin/post" />
-                <FormatPill emoji="♻️" label="Recycler un contenu" to="/linkedin/crosspost" />
-                <FormatPill emoji="💡" label="Trouver des idées" to="/atelier?canal=linkedin" />
+              <div>
+                <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                  Créer un post LinkedIn
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">L'IA génère un post calibré sur ton branding.</p>
               </div>
+              <span className="text-primary text-sm font-semibold">Créer →</span>
             </Link>
-          </FirstTimeTooltip>
+            <Link
+              to="/linkedin/crosspost"
+              className="group flex items-center justify-between rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
+            >
+              <div>
+                <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                  Recycler un contenu
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">Adapte un contenu existant pour LinkedIn.</p>
+              </div>
+              <span className="text-primary text-sm font-semibold">Recycler →</span>
+            </Link>
+          </div>
         </ZoneSection>
 
         {/* ─── ZONE 3 : ENGAGER & PLANIFIER ─── */}
