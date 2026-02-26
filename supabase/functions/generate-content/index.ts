@@ -93,10 +93,8 @@ serve(async (req) => {
       userPrompt = playground_prompt || rawPrompt || "";
     } else {
       const canalLabel = canal === "linkedin" ? "LinkedIn" : canal === "blog" ? "un article de blog" : canal === "pinterest" ? "Pinterest" : "Instagram";
-      const profileBlock = buildProfileBlock(profile || {});
       const ctx = await getUserContext(supabase, user.id, workspace_id);
-      const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
-      const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "");
+      const fullContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
 
       if (type === "suggest") {
         const objectifInstruction = objectif
