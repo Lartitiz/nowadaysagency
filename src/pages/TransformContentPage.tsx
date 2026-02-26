@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import ContentRecycling from "@/components/ContentRecycling";
@@ -8,7 +9,9 @@ import InspireFlow from "@/components/InspireFlow";
 type TransformMode = "recycle" | "crosspost" | "inspire" | null;
 
 export default function TransformContentPage() {
-  const [mode, setMode] = useState<TransformMode>(null);
+  const [searchParams] = useSearchParams();
+  const modeParam = searchParams.get("mode") as TransformMode | null;
+  const [mode, setMode] = useState<TransformMode>(modeParam || null);
 
   return (
     <div className="min-h-screen bg-background">
