@@ -238,6 +238,7 @@ export default function SiteAuditResult({
             {scoreLabel.emoji} {scoreLabel.label}
           </p>
           <p className="text-sm text-muted-foreground max-w-md">{scoreLabel.message}</p>
+          <p className="text-[11px] italic text-muted-foreground mt-1">Score de site : bonnes pratiques et conversion</p>
         </div>
       </div>
 

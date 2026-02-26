@@ -491,7 +491,8 @@ export default function LinkedInAudit() {
               </span>
             </div>
           </div>
-          <Progress value={result.score_global} className="h-2.5 mb-3" />
+          <Progress value={result.score_global} className="h-2.5 mb-1" />
+          <p className="text-[11px] italic text-muted-foreground text-center mb-3">Score LinkedIn : présence et stratégie</p>
           {previousScore !== null && previousScore !== result.score_global && (
             <p className="text-sm text-muted-foreground">
               Audit précédent : {previousScore}/100 → {result.score_global > previousScore ? `+${result.score_global - previousScore} points 🎉` : `${result.score_global - previousScore} points`}
