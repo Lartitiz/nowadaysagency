@@ -829,11 +829,10 @@ function PreviewTab({ canal, format, caption, theme, username, displayName, onNa
     );
   }
 
-  // Try to parse JSON
   let parsed: any = null;
   try { parsed = JSON.parse(caption); } catch { /* plain text */ }
 
-  // Structured object (reel script, stories sequence) → ContentPreview
+  // Structured JSON (reel script, stories sequence) → ContentPreview
   if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
     return (
       <div className="py-2 overflow-y-auto">
@@ -842,7 +841,7 @@ function PreviewTab({ canal, format, caption, theme, username, displayName, onNa
     );
   }
 
-  // Array → carousel slides → SocialMockup
+  // Array JSON (carousel slides) → SocialMockup
   if (parsed && Array.isArray(parsed)) {
     const slides = parsed.map((s: any, i: number) => ({
       title: s.title || s.titre || `Slide ${i + 1}`,
@@ -855,8 +854,8 @@ function PreviewTab({ canal, format, caption, theme, username, displayName, onNa
         <SocialMockup
           canal={mockupCanal}
           format="carousel"
-          username={username}
-          displayName={displayName}
+          username={username || "mon_compte"}
+          displayName={displayName || ""}
           caption={theme}
           slides={slides}
           showComments={false}
@@ -875,32 +874,14 @@ function PreviewTab({ canal, format, caption, theme, username, displayName, onNa
     return "post" as const;
   })();
 
-  const hashtags = (caption.match(/#\w+/g) || []);
-
-  // For carousel with plain text, try splitting by markers
-  const slides = (() => {
-    if (mockupFormat !== "carousel") return undefined;
-    const parts = caption.split(/(?:slide\s*\d+|---+|\n{3,})/i).filter(Boolean);
-    if (parts.length > 1) {
-      return parts.map((p, i) => ({
-        title: p.split("\n")[0]?.trim() || `Slide ${i + 1}`,
-        body: p.split("\n").slice(1).join("\n").trim(),
-        slideNumber: i + 1,
-      }));
-    }
-    return undefined;
-  })();
-
   return (
     <div className="flex justify-center py-2 overflow-y-auto">
       <SocialMockup
         canal={mockupCanal}
         format={mockupFormat}
-        username={username}
-        displayName={displayName}
+        username={username || "mon_compte"}
+        displayName={displayName || ""}
         caption={caption}
-        slides={slides}
-        hashtags={hashtags}
         showComments={false}
         readonly
       />
