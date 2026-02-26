@@ -8,29 +8,25 @@ type Feature =
   | "generation_unlimited" | "import_stats" | "prospection" | "comments_generator"
   | "dm_generator" | "audit_unlimited" | "offer_workshop" | "lives" | "community_write"
   | "contacts_strategiques" | "routine_engagement" | "editorial_line" | "calendar"
-  | "coaching" | "studio_space" | "laetitia_validation" | "studio_lives" | "direct_channel" | "binome";
+  | "coaching" | "studio_space" | "laetitia_validation" | "studio_lives" | "direct_channel" | "binome"
+  | "whatsapp" | "assistant_chat";
 
 const UPGRADE_MESSAGES: Partial<Record<Feature, string>> = {
-  prospection: "Le mini-CRM de prospection fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
-  dm_generator: "Le générateur de DM personnalisés fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
-  comments_generator: "Le générateur de commentaires stratégiques fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
-  import_stats: "L'import de tes stats fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
-  generation_unlimited: "Tu as utilisé tes 3 générations gratuites du mois. Elles reviennent le 1er du mois.",
-  audit_unlimited: "Tu as déjà fait ton audit gratuit du mois. Il revient le 1er du mois.",
-  lives: "Les lives mensuels font partie de l'abonnement.",
-  community_write: "Poster dans la communauté fait partie de l'abonnement.",
-  offer_workshop: "L'atelier positionnement offre fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
-  contacts_strategiques: "Les contacts stratégiques font partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
-  routine_engagement: "La routine d'engagement fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
-  editorial_line: "La ligne éditoriale fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
-  calendar: "Le calendrier éditorial fait partie du plan Outil. Tu peux jeter un œil à ce que ça inclut.",
+  generation_unlimited: "Tu as utilisé tes crédits IA ce mois-ci. Ils se renouvellent le 1er du mois, ou tu peux passer au Premium pour 300 crédits/mois.",
+  audit_unlimited: "Tu as utilisé tes audits IA ce mois-ci. Ils se renouvellent le 1er du mois, ou tu peux passer au Premium pour des audits illimités.",
+  community_write: "Tu peux lire les échanges de la communauté. Pour poster et commenter, passe au Premium.",
+  lives: "Les lives mensuels et replays sont accessibles avec le plan Premium.",
   coaching: "Les sessions visio individuelles font partie de l'accompagnement Binôme.",
   studio_space: "L'espace accompagnement fait partie de l'accompagnement Binôme.",
   laetitia_validation: "La validation par Laetitia fait partie de l'accompagnement Binôme.",
   studio_lives: "Les lives exclusifs font partie de l'accompagnement Binôme.",
   direct_channel: "Le canal direct fait partie de l'accompagnement Binôme.",
   binome: "Le binôme fait partie de l'accompagnement Binôme.",
+  whatsapp: "Le support WhatsApp fait partie de l'accompagnement Binôme.",
+  assistant_chat: "L'assistant chat fait partie de l'accompagnement Binôme.",
 };
+
+const STUDIO_FEATURES = ["coaching", "studio_space", "laetitia_validation", "studio_lives", "direct_channel", "binome", "whatsapp", "assistant_chat"];
 
 interface UpgradeGateProps {
   feature: Feature;
@@ -49,8 +45,8 @@ export default function UpgradeGate({ feature, children, fallback }: UpgradeGate
 
   if (fallback) return <>{fallback}</>;
 
-  const message = UPGRADE_MESSAGES[feature] || "Cette fonctionnalité fait partie d'un plan supérieur. Tu peux voir ce que chaque plan inclut.";
-  const isStudioFeature = ["coaching", "studio_space", "laetitia_validation", "studio_lives", "direct_channel", "binome"].includes(feature);
+  const message = UPGRADE_MESSAGES[feature] || "Tu as atteint ta limite de crédits IA ce mois. Passe au Premium pour 300 crédits/mois.";
+  const isStudioFeature = STUDIO_FEATURES.includes(feature);
 
   return (
     <div className="rounded-2xl border border-border bg-card p-8 text-center">
@@ -58,14 +54,14 @@ export default function UpgradeGate({ feature, children, fallback }: UpgradeGate
         <Sparkles className="h-5 w-5 text-muted-foreground" />
       </div>
       <h3 className="font-display text-lg font-bold text-foreground mb-2">
-        {isStudioFeature ? "Disponible avec l'accompagnement Binôme" : "Disponible avec le plan Outil"}
+        {isStudioFeature ? "Disponible avec l'accompagnement Binôme" : "Crédits IA épuisés"}
       </h3>
       <p className="text-sm text-muted-foreground mb-5 max-w-sm mx-auto">
         {message}
       </p>
       <Button asChild className="rounded-full">
         <Link to="/parametres">
-          {isStudioFeature ? "Découvrir l'accompagnement →" : "Voir ce que ça inclut →"}
+          {isStudioFeature ? "Découvrir l'accompagnement →" : "Voir les options →"}
         </Link>
       </Button>
     </div>
