@@ -9,8 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, RefreshCw, Download, Copy, Sparkles, AlertTriangle, FileText } from "lucide-react";
 import { toast } from "sonner";
 import EditableText from "@/components/EditableText";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import { parseToArray, safeParseJson } from "@/lib/branding-utils";
 
 type Section = "story" | "persona" | "value_proposition" | "tone_style" | "content_strategy";
@@ -825,6 +823,8 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
     if (!synthRef.current) return;
     setExporting(true);
     try {
+      const html2canvas = (await import("html2canvas")).default;
+      const jsPDF = (await import("jspdf")).default;
       const canvas = await html2canvas(synthRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
       const pdf = new jsPDF("p", "mm", "a4");
       const pageWidth = pdf.internal.pageSize.getWidth();

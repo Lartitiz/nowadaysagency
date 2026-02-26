@@ -15,8 +15,6 @@ import { Loader2, Copy, RefreshCw, FileText, Pencil, Check, ArrowRight, Sparkles
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 
 interface ValueBlock { title: string; description: string }
 
@@ -240,6 +238,8 @@ export default function SiteAPropos() {
     if (!recapRef.current) return;
     setExporting(true);
     try {
+      const html2canvas = (await import("html2canvas")).default;
+      const jsPDF = (await import("jspdf")).default;
       const canvas = await html2canvas(recapRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");

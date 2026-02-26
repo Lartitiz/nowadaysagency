@@ -12,8 +12,6 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { Copy, FileText, RefreshCw, Loader2 } from "lucide-react";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import EditableText from "@/components/EditableText";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 
@@ -122,6 +120,8 @@ export default function StrategieRecapPage() {
     if (!recapRef.current) return;
     setExporting(true);
     try {
+      const html2canvas = (await import("html2canvas")).default;
+      const jsPDF = (await import("jspdf")).default;
       const canvas = await html2canvas(recapRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");

@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Sparkles, RefreshCw, Copy, Download, Loader2, Check, X } from "lucide-react";
 import { toast } from "sonner";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 
 interface VoiceGuide {
   brand_name: string;
@@ -109,6 +107,8 @@ export default function VoiceGuidePage() {
     if (!guideRef.current) return;
     setExporting(true);
     try {
+      const html2canvas = (await import("html2canvas")).default;
+      const jsPDF = (await import("jspdf")).default;
       const canvas = await html2canvas(guideRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pageW = pdf.internal.pageSize.getWidth();
