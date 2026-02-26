@@ -27,6 +27,7 @@ interface SocialMockupProps {
   caption: string;
   slides?: Slide[];
   hashtags?: string[];
+  mediaUrls?: string[];
   showComments?: boolean;
   comments?: Comment[];
   onAddComment?: (content: string) => void;
@@ -49,7 +50,7 @@ export function SocialMockup(props: SocialMockupProps) {
 // ═══════════════════════════════════════
 
 function InstagramMockup({
-  format, username, displayName, avatarUrl, caption, slides, hashtags,
+  format, username, displayName, avatarUrl, caption, slides, hashtags, mediaUrls,
   showComments, comments = [], onAddComment, readonly, compact, hideFollowButton,
 }: SocialMockupProps) {
   const [expanded, setExpanded] = useState(false);
@@ -88,8 +89,10 @@ function InstagramMockup({
             <span className="text-2xl">{FORMAT_EMOJI.carousel}</span>
           </div>
         ) : (
-          <CarouselSlider slides={slides} />
+          <CarouselSlider slides={slides} mediaUrls={mediaUrls} />
         )
+      ) : mediaUrls && mediaUrls.length > 0 ? (
+        <img src={mediaUrls[0]} alt="" className={`w-full object-cover ${format === "reel" ? "aspect-[4/5]" : "aspect-square"}`} />
       ) : (
         <div
           className={`w-full flex items-center justify-center ${format === "reel" ? "aspect-[4/5]" : "aspect-square"}`}
