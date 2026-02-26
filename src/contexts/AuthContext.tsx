@@ -34,6 +34,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, [isDemoMode]);
 
+  async function resolvePostAuthRoute(userId: string): Promise<string> {
+    const [{ data: profile }, { data: config }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("onboarding_completed")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      supabase
+        .from("user_plan_config")
+        .select("onboarding_completed, welcome_seen")
+        .eq("user_id", userId)
+        .maybeSingle(),
+    ]);
+    const onboardingDone = profile?.onboarding_completed && config?.onboarding_completed;
+    if (!onboardingDone) return "/onboarding";
+    if (!config?.welcome_seen) return "/welcome";
+    return "/dashboard";
+  }
+
   useEffect(() => {
     if (isDemoMode) return; // Skip Supabase auth entirely in demo mode
     let mounted = true;
@@ -87,28 +106,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (path === "/" || path === "/login" || path === "/connexion") {
             setTimeout(async () => {
               if (!mounted) return;
-              const [{ data: profile }, { data: config }] = await Promise.all([
-                supabase
-                  .from("profiles")
-                  .select("onboarding_completed")
-                  .eq("user_id", currentSession.user.id)
-                  .maybeSingle(),
-                supabase
-                  .from("user_plan_config")
-                  .select("onboarding_completed, welcome_seen")
-                  .eq("user_id", currentSession.user.id)
-                  .maybeSingle(),
-              ]);
-
+              const route = await resolvePostAuthRoute(currentSession.user.id);
               if (!mounted) return;
-              const onboardingDone = profile?.onboarding_completed && config?.onboarding_completed;
-              if (!onboardingDone) {
-                navigate("/onboarding");
-              } else if (!config?.welcome_seen) {
-                navigate("/welcome");
-              } else {
-                navigate("/dashboard");
-              }
+              navigate(route);
             }, 0);
           }
         }
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     // 2. Get initial session
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: initialSession } }) => {
       if (!mounted) return;
 
       setSession(initialSession);
@@ -136,32 +136,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (redirectTo && redirectTo.startsWith("/invite/") && (path === "/login" || path === "/connexion")) {
           navigate(redirectTo);
+          initialSessionHandled = true;
           return;
         }
 
         if (path === "/" || path === "/login" || path === "/connexion") {
-          Promise.all([
-            supabase
-              .from("profiles")
-              .select("onboarding_completed")
-              .eq("user_id", initialSession.user.id)
-              .maybeSingle(),
-            supabase
-              .from("user_plan_config")
-              .select("onboarding_completed, welcome_seen")
-              .eq("user_id", initialSession.user.id)
-              .maybeSingle(),
-          ]).then(([{ data: profile }, { data: config }]) => {
-            if (!mounted) return;
-            const onboardingDone = profile?.onboarding_completed && config?.onboarding_completed;
-            if (!onboardingDone) {
-              navigate("/onboarding");
-            } else if (!config?.welcome_seen) {
-              navigate("/welcome");
-            } else {
-              navigate("/dashboard");
-            }
-          });
+          const route = await resolvePostAuthRoute(initialSession.user.id);
+          if (!mounted) return;
+          navigate(route);
         }
       }
 
