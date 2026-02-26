@@ -206,6 +206,7 @@ export default function BioGeneratorView({
                   onChange={e => setDiffText(e.target.value)}
                   placeholder="Ex: J'enseigne la com' en écoles de mode, j'ai cofondé un éco-lieu, et je refuse le marketing manipulatoire"
                   className="min-h-[100px]"
+                  aria-label="Ce qui te différencie"
                 />
               </div>
             )}
@@ -264,6 +265,7 @@ export default function BioGeneratorView({
                   onChange={e => setCtaText(e.target.value)}
                   placeholder={ctaType === "freebie" ? "Ex: Mini-formation gratuite" : "Ex: La Lettre du Lundi"}
                   className="min-h-[60px]"
+                  aria-label="Nom de ta ressource ou newsletter"
                 />
               </div>
             )}
