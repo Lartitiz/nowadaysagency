@@ -77,7 +77,7 @@ export function SaveToIdeasDialog({
       type: "draft",
       status: "to_explore",
       notes: note || null,
-      content_draft: typeof contentData === "string" ? contentData : JSON.stringify(contentData).slice(0, 500),
+      content_draft: typeof contentData === "string" ? contentData : JSON.stringify(contentData),
       content_data: contentData,
       source_module: sourceModule,
       personal_elements: personalElements || null,
