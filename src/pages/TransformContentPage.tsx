@@ -3,6 +3,7 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import ContentRecycling from "@/components/ContentRecycling";
 import CrosspostFlow from "@/components/CrosspostFlow";
+import InspireFlow from "@/components/InspireFlow";
 
 type TransformMode = "recycle" | "crosspost" | "inspire" | null;
 
@@ -95,6 +96,18 @@ export default function TransformContentPage() {
               </p>
             </div>
             <CrosspostFlow />
+          </div>
+        )}
+
+        {mode === "inspire" && (
+          <div className="space-y-4">
+            <div className="mb-4">
+              <h2 className="font-display text-lg font-bold text-foreground">✨ M'inspirer d'un contenu</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Colle un contenu qui t'a plu. L'IA décrypte pourquoi ça marche et t'en crée une version à toi.
+              </p>
+            </div>
+            <InspireFlow />
           </div>
         )}
       </main>
