@@ -55,11 +55,11 @@ export default function ResetPassword() {
             <form onSubmit={handleReset} className="space-y-4">
               <Input
                 type="password"
-                placeholder="Nouveau mot de passe (6 caractères min.)"
+                placeholder="Nouveau mot de passe (8 car. min.)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
                 className="rounded-[10px] border-border bg-background h-12"
               />
               <Button
