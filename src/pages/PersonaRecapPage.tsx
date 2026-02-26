@@ -11,7 +11,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
-import { Loader2, Pencil, RefreshCw, Sparkles } from "lucide-react";
+import { Loader2, Pencil, RefreshCw, Sparkles, Download } from "lucide-react";
 import EditableText from "@/components/EditableText";
 import CoachingFlow from "@/components/CoachingFlow";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -168,6 +168,138 @@ export default function PersonaRecapPage() {
   const displayName = customName || portrait?.prenom || "";
   const initials = displayName ? displayName.slice(0, 1).toUpperCase() : "?";
 
+  const handleExportPdf = async () => {
+    if (!portrait) return;
+    const { default: jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const marginL = 20;
+    const marginR = 20;
+    const maxW = pageW - marginL - marginR;
+    let y = 25;
+
+    const checkPage = (needed: number) => {
+      if (y + needed > pageH - 25) {
+        doc.addPage();
+        y = 20;
+      }
+    };
+
+    const addSection = (icon: string, title: string) => {
+      checkPage(14);
+      y += 6;
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(233, 30, 140);
+      doc.text(`${icon}  ${title}`, marginL, y);
+      y += 8;
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("Helvetica", "normal");
+      doc.setFontSize(10);
+    };
+
+    const addBullets = (items: string[]) => {
+      items.forEach((item) => {
+        checkPage(8);
+        const lines = doc.splitTextToSize(`•  ${item}`, maxW - 6);
+        doc.text(lines, marginL + 4, y);
+        y += lines.length * 5;
+      });
+    };
+
+    const addKeyValue = (key: string, val: string) => {
+      checkPage(8);
+      doc.setFont("Helvetica", "bold");
+      doc.text(`${key} : `, marginL + 4, y);
+      const keyW = doc.getTextWidth(`${key} : `);
+      doc.setFont("Helvetica", "normal");
+      const lines = doc.splitTextToSize(val, maxW - 6 - keyW);
+      doc.text(lines, marginL + 4 + keyW, y);
+      y += lines.length * 5;
+    };
+
+    // Title
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(233, 30, 140);
+    doc.text(`Fiche Persona${displayName ? ` — ${displayName}` : ""}`, marginL, y);
+    y += 10;
+
+    if (portrait.phrase_signature) {
+      doc.setFont("Helvetica", "italic");
+      doc.setFontSize(10);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`"${portrait.phrase_signature}"`, marginL, y);
+      y += 8;
+    }
+
+    // Qui elle est
+    addSection("👤", "Qui elle est");
+    (Object.keys(QUI_LABELS) as (keyof QuiElleEst)[]).forEach((key) => {
+      if (portrait.qui_elle_est?.[key]) addKeyValue(QUI_LABELS[key], portrait.qui_elle_est[key]);
+    });
+
+    // Frustrations
+    if (portrait.frustrations?.length) {
+      addSection("😤", "Ses frustrations");
+      addBullets(portrait.frustrations);
+    }
+
+    // Objectifs
+    if (portrait.objectifs?.length) {
+      addSection("✨", "Ce qu'elle veut vraiment");
+      addBullets(portrait.objectifs);
+    }
+
+    // Blocages
+    if (portrait.blocages?.length) {
+      addSection("🚫", "Ce qui la bloque");
+      addBullets(portrait.blocages);
+    }
+
+    // Ce qu'elle dit
+    if (portrait.ses_mots?.length) {
+      addSection("💬", "Ce qu'elle dit");
+      portrait.ses_mots.forEach((m) => {
+        checkPage(8);
+        const lines = doc.splitTextToSize(`"${m}"`, maxW - 6);
+        doc.setFont("Helvetica", "italic");
+        doc.text(lines, marginL + 4, y);
+        doc.setFont("Helvetica", "normal");
+        y += lines.length * 5;
+      });
+    }
+
+    // Comment lui parler
+    addSection("🗣️", "Comment lui parler");
+    if (portrait.comment_parler?.ton) addKeyValue("Ton", portrait.comment_parler.ton);
+    if (portrait.comment_parler?.canal) addKeyValue("Canal préféré", portrait.comment_parler.canal);
+    if (portrait.comment_parler?.convainc) addKeyValue("Ce qui la convainc", portrait.comment_parler.convainc);
+    if (portrait.comment_parler?.fuir?.length) {
+      checkPage(8);
+      doc.setFont("Helvetica", "bold");
+      doc.text("À éviter : ", marginL + 4, y);
+      const kw = doc.getTextWidth("À éviter : ");
+      doc.setFont("Helvetica", "normal");
+      doc.text(portrait.comment_parler.fuir.join(", "), marginL + 4 + kw, y);
+      y += 6;
+    }
+
+    // Footer
+    const footerY = pageH - 12;
+    const totalPages = doc.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      doc.setFontSize(8);
+      doc.setTextColor(160, 160, 160);
+      doc.text(`Généré avec L'Assistant Com' · nowadays.agency — ${new Date().toLocaleDateString("fr-FR")}`, marginL, footerY);
+      doc.text(`${p}/${totalPages}`, pageW - marginR, footerY, { align: "right" });
+    }
+
+    doc.save(`persona-${displayName || "fiche"}.pdf`);
+  };
+
   if (loading) return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -222,14 +354,24 @@ export default function PersonaRecapPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="font-display text-[22px] font-bold text-foreground">Le portrait de ta cliente idéale</h1>
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-pill gap-1.5 text-xs"
-            onClick={() => setCoachingOpen(true)}
-          >
-            <Sparkles className="h-3.5 w-3.5" /> Optimiser
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-pill gap-1.5 text-xs"
+              onClick={handleExportPdf}
+            >
+              <Download className="h-3.5 w-3.5" /> PDF
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-pill gap-1.5 text-xs"
+              onClick={() => setCoachingOpen(true)}
+            >
+              <Sparkles className="h-3.5 w-3.5" /> Optimiser
+            </Button>
+          </div>
         </div>
 
         {/* Card */}
