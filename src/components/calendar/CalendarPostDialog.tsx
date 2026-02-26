@@ -14,7 +14,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn, toLocalDateStr } from "@/lib/utils";
-import { Trash2, ChevronDown, Sparkles, Zap, Copy, RefreshCw, Loader2, Undo2, CalendarIcon } from "lucide-react";
+import { Trash2, ChevronDown, Sparkles, Zap, Copy, RefreshCw, Loader2, Undo2, CalendarIcon, Upload } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
 import { ANGLES, STATUSES, OBJECTIFS, type CalendarPost } from "@/lib/calendar-constants";
 import { FORMAT_EMOJIS, FORMAT_LABELS } from "@/lib/calendar-helpers";
@@ -49,7 +49,7 @@ interface Props {
   editingPost: CalendarPost | null;
   selectedDate: string | null;
   defaultCanal: string;
-  onSave: (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format: string | null; content_draft: string | null; accroche: string | null }) => void;
+  onSave: (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format: string | null; content_draft: string | null; accroche: string | null; media_urls: string[] | null }) => void;
   onDelete: () => void;
   onUnplan?: () => void;
   onDateChange?: (postId: string, newDate: string) => void;
@@ -61,6 +61,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const [ownerName, setOwnerName] = useState("Moi");
+  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     (supabase.from("profiles") as any).select("prenom, instagram_username").eq(column, value).maybeSingle().then(({ data }: any) => {
@@ -98,7 +100,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       const draft = (editingPost as any).content_draft || (editingPost.story_sequence_detail as any)?.full_content || null;
       setContentDraft(draft);
       setAccroche((editingPost as any).accroche || null);
-    } else if (prefillData) {
+      setMediaUrls((editingPost as any).media_urls || []);
       setTheme(prefillData.theme || "");
       setAngle(null);
       setStatus("idea");
@@ -108,6 +110,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       setFormat(null);
       setContentDraft(null);
       setAccroche(null);
+      setMediaUrls([]);
     } else {
       setTheme("");
       setAngle(null);
@@ -118,6 +121,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       setFormat(null);
       setContentDraft(null);
       setAccroche(null);
+      setMediaUrls([]);
     }
     setIsEditing(false);
     setShowFullContent(false);
@@ -127,9 +131,38 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
   const guide = angle ? getGuide(angle) : null;
 
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    setUploading(true);
+    try {
+      const newUrls: string[] = [];
+      for (const file of Array.from(files)) {
+        if (file.size > 10 * 1024 * 1024) { toast({ title: "Fichier trop lourd (max 10 Mo)", variant: "destructive" }); continue; }
+        const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+        const path = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await supabase.storage.from("calendar-media").upload(path, file, { contentType: file.type });
+        if (error) throw error;
+        const { data } = supabase.storage.from("calendar-media").getPublicUrl(path);
+        if (data?.publicUrl) newUrls.push(data.publicUrl);
+      }
+      setMediaUrls(prev => [...prev, ...newUrls]);
+    } catch (err: any) {
+      toast({ title: "Erreur upload", description: err.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveMedia = (index: number) => {
+    setMediaUrls(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSave = () => {
     if (!theme.trim()) return;
-    onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche });
+    onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null });
   };
 
   const handleQuickGenerate = async () => {
@@ -349,7 +382,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button onClick={() => onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche })} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux">
+              <Button onClick={() => onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null })} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux">
                 Enregistrer
               </Button>
               {onUnplan && editingPost && (
@@ -421,7 +454,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button onClick={() => onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche })} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux">
+              <Button onClick={() => onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null })} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux">
                 Enregistrer
               </Button>
               {onUnplan && editingPost && (
@@ -593,9 +626,40 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                 <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Idées, brouillon, remarques..." className="rounded-[10px] min-h-[60px]" />
               </div>
             </CollapsibleContent>
-          </Collapsible>
+           </Collapsible>
 
-          {/* Generate button — main CTA */}
+          {/* Visuels */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-foreground">🖼️ Visuels</label>
+            
+            {mediaUrls.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {mediaUrls.map((url, i) => (
+                  <div key={i} className="relative group w-16 h-16 rounded-lg overflow-hidden border border-border">
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => handleRemoveMedia(i)}
+                      className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                    >x</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+              <Upload className="h-3.5 w-3.5" />
+              {uploading ? "Upload en cours..." : "Ajouter des visuels"}
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleMediaUpload}
+                disabled={uploading}
+              />
+            </label>
+          </div>
+
           {editingPost && theme.trim() && (
             <div>
               <label className="text-xs font-semibold mb-2 block text-foreground">✨ Générer</label>
