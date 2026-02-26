@@ -97,11 +97,11 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       setObjectif(editingPost.objectif || null);
       setPostCanal(editingPost.canal || "instagram");
       setFormat((editingPost as any).format || null);
-      // Use content_draft, fallback to story_sequence_detail.full_content
       const draft = (editingPost as any).content_draft || (editingPost.story_sequence_detail as any)?.full_content || null;
       setContentDraft(draft);
       setAccroche((editingPost as any).accroche || null);
       setMediaUrls((editingPost as any).media_urls || []);
+    } else if (prefillData) {
       setTheme(prefillData.theme || "");
       setAngle(null);
       setStatus("idea");
