@@ -13,4 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://nowadaysagency.lovable.app/sitemap.xml
+Sitemap: https://nowadays-assistant.fr/sitemap.xml
