@@ -143,7 +143,7 @@ export default function SettingsPage() {
     toast({ title: "Compte supprimé. À bientôt peut-être 💛" });
   };
 
-  const planLabel = subInfo?.plan === "now_pilot" ? "Binôme de com" : subInfo?.plan === "studio" ? "Binôme de com" : subInfo?.plan === "outil" ? "Outil" : "Gratuit";
+  const planLabel = subInfo?.plan === "now_pilot" ? "Binôme de com" : subInfo?.plan === "studio" ? "Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
 
   return (
     <div className="min-h-screen bg-background">
@@ -198,7 +198,7 @@ export default function SettingsPage() {
                   <>
                     <Button size="sm" className="rounded-full" onClick={handleCheckoutOutil} disabled={portalLoading}>
                       {portalLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                      💎 Passer au plan Outil (39€/mois)
+                      💎 Passer au plan Premium (39€/mois)
                     </Button>
                     <Button size="sm" variant="outline" className="rounded-full" asChild>
                       <Link to="/studio/discover">🤝 Découvrir l'accompagnement</Link>
@@ -375,7 +375,7 @@ const QUOTA_CATEGORIES = [
 
 function AiQuotaDisplay() {
   const { plan, usage, isPaid } = useUserPlan();
-  const planLabel = plan === "now_pilot" ? "Binôme de com (250€/mois)" : plan === "studio" ? "Binôme de com (250€/mois)" : plan === "outil" ? "Outil (39€/mois)" : "Gratuit";
+  const planLabel = plan === "now_pilot" ? "Binôme de com (250€/mois)" : plan === "studio" ? "Binôme de com (250€/mois)" : plan === "outil" ? "Premium (39€/mois)" : "Gratuit";
   const total = usage.total;
   const nextMonth = new Date();
   nextMonth.setMonth(nextMonth.getMonth() + 1, 1);

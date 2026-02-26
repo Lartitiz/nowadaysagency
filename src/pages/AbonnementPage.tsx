@@ -102,7 +102,7 @@ export default function AbonnementPage() {
   };
 
 
-  const planLabel = subInfo?.plan === "now_pilot" ? "🤝 Binôme de com" : subInfo?.plan === "studio" ? "Binôme de com" : subInfo?.plan === "outil" ? "Outil" : "Gratuit";
+  const planLabel = subInfo?.plan === "now_pilot" ? "🤝 Binôme de com" : subInfo?.plan === "studio" ? "Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
 
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;
@@ -284,7 +284,7 @@ export default function AbonnementPage() {
                 </p>
               ) : (
                 <Link to="/pricing" className="inline-block mt-2 text-xs text-primary font-medium hover:underline">
-                  Passer au plan Outil pour plus de crédits →
+                  Passer au plan Premium pour plus de crédits →
                 </Link>
               )}
             </div>
@@ -292,9 +292,9 @@ export default function AbonnementPage() {
 
           {!isExhausted && plan === "free" && !packsAvailable && (
             <div className="mt-5 pt-4 border-t border-border">
-              <p className="text-sm font-semibold text-foreground mb-1">Envie de crédits illimités ?</p>
+              <p className="text-sm font-semibold text-foreground mb-1">Envie de plus de crédits ?</p>
               <p className="text-xs text-muted-foreground mb-3">
-                Le plan Outil te donne des crédits illimités sur toutes les catégories.
+                Le plan Premium te donne 300 crédits IA/mois + la communauté active.
               </p>
               <Link to="/pricing">
                 <Button size="sm" variant="outline" className="rounded-full text-xs">
@@ -312,15 +312,15 @@ export default function AbonnementPage() {
             <PlanCard
               name="Gratuit"
               price="0€"
-              credits="10 crédits"
+              credits="25 crédits IA/mois"
               active={plan === "free"}
               onSelect={() => {}}
               disabled
             />
             <PlanCard
-              name="Outil"
+              name="Premium"
               price="39€/mois"
-              credits="100 crédits"
+              credits="300 crédits IA/mois"
               active={plan === "outil"}
               onSelect={() => handleCheckout(STRIPE_PLANS.outil.priceId)}
               disabled={plan === "outil" || portalLoading}
