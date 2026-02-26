@@ -31,9 +31,9 @@ Deno.serve(async (req) => {
       return json({ error: "workspace_id et email sont requis" }, 400);
     }
 
-    const inviteRole = role || "editor";
-    if (!["editor", "viewer"].includes(inviteRole)) {
-      return json({ error: "Rôle invalide. Valeurs acceptées : editor, viewer" }, 400);
+    const inviteRole = role || "manager";
+    if (!["manager"].includes(inviteRole)) {
+      return json({ error: "Rôle invalide. Seul le rôle 'manager' est disponible pour le moment." }, 400);
     }
 
     // 3. Service client for privileged checks
