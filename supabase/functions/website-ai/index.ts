@@ -6,6 +6,8 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 // Branding data now fetched via getUserContext
 
@@ -45,7 +47,15 @@ serve(async (req) => {
       );
     }
 
-    const { action, workspace_id, ...params } = await req.json();
+    const reqBody = await req.json();
+    validateInput(reqBody, z.object({
+      action: z.string().max(50).min(1),
+      workspace_id: z.string().uuid().optional().nullable(),
+      section_type: z.string().max(100).optional().nullable(),
+      page_content: z.string().max(10000).optional().nullable(),
+      page_url: z.string().url().max(2048).optional().nullable().or(z.literal("")),
+    }).passthrough());
+    const { action, workspace_id, ...params } = reqBody;
     const ctx = await getUserContext(supabase, user.id, workspace_id);
     const context = formatContextForAI(ctx, CONTEXT_PRESETS.website) + "\nPRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.\n";
 

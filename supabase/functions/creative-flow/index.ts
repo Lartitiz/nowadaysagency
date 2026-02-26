@@ -3,6 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock } from "../_shared/user-context.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -36,6 +38,15 @@ serve(async (req) => {
     }
 
     const body = await req.json();
+    validateInput(body, z.object({
+      step: z.string().max(50),
+      contentType: z.string().max(100).optional().nullable(),
+      context: z.string().max(5000).optional().nullable(),
+      adjustment: z.string().max(2000).optional().nullable(),
+      sourceText: z.string().max(10000).optional().nullable(),
+      targetFormat: z.string().max(100).optional().nullable(),
+      workspace_id: z.string().uuid().optional().nullable(),
+    }).passthrough());
     const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch } = body;
 
     // Determine channel from contentType for persona selection

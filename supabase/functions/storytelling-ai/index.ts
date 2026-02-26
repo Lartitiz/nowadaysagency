@@ -5,6 +5,8 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 serve(async (req) => {
   const cors = getCorsHeaders(req);
@@ -35,7 +37,14 @@ serve(async (req) => {
 
     // Anthropic API key checked in shared helper
 
-    const { type, text, step_context, steps, storytelling, profile } = await req.json();
+    const reqBody = await req.json();
+    validateInput(reqBody, z.object({
+      type: z.enum(["improve", "generate-story", "generate-pitch", "generate-recap"]),
+      text: z.string().max(10000).optional().nullable(),
+      storytelling: z.string().max(10000).optional().nullable(),
+      workspace_id: z.string().uuid().optional().nullable(),
+    }).passthrough());
+    const { type, text, step_context, steps, storytelling, profile } = reqBody;
 
     // Build profile block
     const p = profile || {};
@@ -217,6 +226,11 @@ RÈGLES :
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("storytelling-ai error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }),

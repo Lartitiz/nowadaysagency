@@ -3,6 +3,8 @@ import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts"
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 const MODULE_QUESTIONS: Record<string, string[]> = {
   profil: [
@@ -57,13 +59,12 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { phase, module, answers, workspace_id } = body;
-
-    if (!module || !phase) {
-      return new Response(JSON.stringify({ error: "module et phase requis" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const { phase, module, answers, workspace_id } = validateInput(body, z.object({
+      phase: z.enum(["questions", "diagnostic"]),
+      module: z.string().max(50).min(1, "module requis"),
+      answers: z.array(z.object({ question: z.string().max(1000), answer: z.string().max(5000) })).max(20).optional(),
+      workspace_id: z.string().uuid().optional().nullable(),
+    }).passthrough());
 
     const quota = await checkQuota(user.id, "suggestion");
     if (!quota.allowed) {
@@ -223,6 +224,11 @@ Sois directe, bienveillante, et concrète. Pas de jargon. Tutoiement.`;
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("linkedin-coaching error:", e);
     const msg = e instanceof Error ? e.message : "Erreur inconnue";
     return new Response(JSON.stringify({ error: msg }), {

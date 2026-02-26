@@ -5,6 +5,8 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 serve(async (req) => {
   const cors = getCorsHeaders(req);
@@ -33,7 +35,17 @@ serve(async (req) => {
 
     // Anthropic API key checked in shared helper
 
-    const { type, step_2a, step_2b, step_2c, step_2d, step_1_what, step_3_text, persona, profile, storytelling, tone, proposition_data } = await req.json();
+    const reqBody = await req.json();
+    validateInput(reqBody, z.object({
+      type: z.enum(["differentiation", "benefit", "generate-versions", "generate-recap"]),
+      step_2a: z.string().max(5000).optional().nullable(),
+      step_2b: z.string().max(5000).optional().nullable(),
+      step_2c: z.string().max(5000).optional().nullable(),
+      step_2d: z.string().max(5000).optional().nullable(),
+      step_3_text: z.string().max(5000).optional().nullable(),
+      workspace_id: z.string().uuid().optional().nullable(),
+    }).passthrough());
+    const { type, step_2a, step_2b, step_2c, step_2d, step_1_what, step_3_text, persona, profile, storytelling, tone, proposition_data } = reqBody;
 
     const p = profile || {};
     const profileBlock = [
@@ -277,6 +289,11 @@ RÈGLES :
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("proposition-ai error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }),
