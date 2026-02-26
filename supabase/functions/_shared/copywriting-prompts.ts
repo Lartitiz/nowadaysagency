@@ -298,6 +298,15 @@ MOTS/EXPRESSIONS BANNIS (si tu les écris, c'est un échec) :
 - "Force est de constater" → SUPPRIMER
 - "Il convient de" → SUPPRIMER
 - "En définitive" → SUPPRIMER
+- "Vous l'aurez compris" → SUPPRIMER
+- "En somme" / "Pour résumer" → SUPPRIMER, la conclusion doit ouvrir pas fermer
+- "Comme son nom l'indique" → SUPPRIMER
+- "Petit retour d'expérience" → "Voilà ce qui s'est passé"
+- "Je vais vous partager" / "Je vais te partager" → dire la chose directement
+- "C'est tout simplement" → SUPPRIMER
+- "En toute transparence" / "En toute honnêteté" → être transparent sans l'annoncer
+- "Cher·e ami·e entrepreneur·se" → tutoyer directement, pas de formule d'adresse
+- Tout emoji en début de phrase comme structure (🔑, 💡, ✅ suivi de texte) → prose fluide, les emojis ne remplacent pas la structure
 
 PATTERNS STRUCTURELS BANNIS :
 - Toutes les phrases de la même longueur → VARIER le rythme
