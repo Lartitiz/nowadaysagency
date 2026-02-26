@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, Outlet } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { DemoProvider } from "@/contexts/DemoContext";
@@ -170,14 +170,7 @@ function AnimatedRoutes() {
       {/* BETA_MODE: replace CoachChat with BetaFeedbackWidget during beta */}
       {showCoach && <BetaFeedbackWidget />}
       {/* {showCoach && <CoachChat />} */}
-      <AnimatePresence mode="popLayout">
-        <motion.div
-          key={location.pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.1, ease: "easeInOut" }}
-        >
+      <div key={location.pathname} className="animate-page-fade">
           <Suspense fallback={<SuspenseFallback />}>
             <Routes location={location}>
               <Route path="/" element={<LandingPage />} />
@@ -317,8 +310,7 @@ function AnimatedRoutes() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
-        </motion.div>
-      </AnimatePresence>
+      </div>
     </>
   );
 }
