@@ -1,17 +1,12 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // Anthropic API key checked in shared helper
+    const { userId } = await authenticateRequest(req);
 
     const { content, format, objective, persona, action } = await req.json();
 
@@ -129,6 +124,11 @@ Réponds UNIQUEMENT en JSON :
 
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
+    if (e instanceof AuthError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: e.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("score-content error:", e);
     return new Response(JSON.stringify({ error: e.message || "Erreur" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }

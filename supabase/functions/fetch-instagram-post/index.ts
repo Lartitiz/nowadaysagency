@@ -1,4 +1,5 @@
 import { corsHeaders } from "../_shared/cors.ts";
+import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -6,6 +7,8 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const { userId } = await authenticateRequest(req);
+
     const { url } = await req.json();
 
     if (!url || !url.includes("instagram.com")) {
@@ -72,6 +75,11 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   } catch (error) {
+    if (error instanceof AuthError) {
+      return new Response(JSON.stringify({ error: true, message: error.message }), {
+        status: error.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("Fetch error:", error);
     return new Response(
       JSON.stringify({
