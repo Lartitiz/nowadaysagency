@@ -96,5 +96,52 @@ export const MESSAGES = {
       body: "Ajoute ton Instagram ou ton site web pour lancer une analyse.",
       cta: "Lancer mon audit →",
     },
+    storytelling: {
+      icon: "📖",
+      title: "Ton storytelling t'attend",
+      body: "Raconte ton histoire pour connecter avec ta communauté. C'est ce qui fait la différence.",
+      cta: "Créer mon storytelling →",
+    },
+    contacts: {
+      icon: "👥",
+      title: "Ton carnet est vide",
+      body: "Ajoute tes premiers contacts ou prospects pour commencer à construire ta communauté.",
+      cta: "Ajouter un contact →",
+    },
+    stats: {
+      icon: "📊",
+      title: "Pas encore de données",
+      body: "Ajoute tes stats mensuelles pour suivre ta progression. Même si c'est petit, ça compte.",
+      cta: "Ajouter mes stats →",
+    },
+    ideas: {
+      icon: "💡",
+      title: "Ta boîte à idées est vide",
+      body: "Commence par générer des idées dans l'atelier. Elles atterriront ici automatiquement.",
+      cta: "Aller à l'atelier →",
+    },
+    lives: {
+      icon: "🎬",
+      title: "Pas encore de replay",
+      body: "Les replays de tes lives apparaîtront ici. En attendant, prépare ton prochain live !",
+    },
+    community: {
+      icon: "🌱",
+      title: "La communauté démarre ici",
+      body: "Sois le·la premier·e à poster ! Partage une victoire, une galère, ou juste un bonjour.",
+      cta: "Écrire un message →",
+    },
+    calendar_empty: {
+      icon: "📅",
+      title: "Rien de prévu ici",
+      body: "Aucun post pour cette période. Ajoute un contenu ou change de période.",
+      cta: "Ajouter un contenu →",
+    },
+    prospects: {
+      icon: "🌱",
+      title: "Aucun prospect pour l'instant",
+      body: "Ajoute ton premier prospect pour commencer à suivre tes opportunités.",
+      cta: "Ajouter un prospect →",
+    },
   },
 } as const;
