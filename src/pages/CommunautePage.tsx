@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import AppHeader from "@/components/AppHeader";
@@ -9,7 +10,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Heart, MessageCircle, Send, Trash2, Users, Crown, Loader2 } from "lucide-react";
+import { Heart, MessageCircle, Send, Trash2, Users, Crown, Loader2, Sparkles } from "lucide-react";
 
 interface Post {
   id: string;
@@ -33,8 +34,8 @@ const CATEGORIES = [
 const CommunautePage = () => {
   const { user } = useAuth();
   const { plan } = useUserPlan();
-  const isStudio = plan === "studio";
-
+  const isStudio = plan === "studio" || plan === "now_pilot";
+  const canWrite = plan !== "free";
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [newContent, setNewContent] = useState("");
@@ -145,39 +146,48 @@ const CommunautePage = () => {
         </div>
 
         {/* Composer */}
-        <Card className="p-4 space-y-3">
-          <Textarea
-            placeholder="Partage une victoire, pose une question, inspire la communauté…"
-            value={newContent}
-            onChange={(e) => setNewContent(e.target.value)}
-            rows={3}
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            {CATEGORIES.map((c) => (
-              <Badge
-                key={c.value}
-                variant={newCategory === c.value ? "default" : "outline"}
-                className="cursor-pointer"
-                onClick={() => setNewCategory(c.value)}
-              >
-                {c.label}
-              </Badge>
-            ))}
-            {isStudio && (
-              <Badge
-                variant={studioOnly ? "default" : "outline"}
-                className="cursor-pointer ml-auto"
-                onClick={() => setStudioOnly(!studioOnly)}
-              >
-                <Crown className="h-3 w-3 mr-1" /> Studio only
-              </Badge>
-            )}
-          </div>
-          <Button onClick={handlePost} disabled={posting || !newContent.trim()} className="w-full">
-            {posting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-            Publier
-          </Button>
-        </Card>
+        {canWrite ? (
+          <Card className="p-4 space-y-3">
+            <Textarea
+              placeholder="Partage une victoire, pose une question, inspire la communauté…"
+              value={newContent}
+              onChange={(e) => setNewContent(e.target.value)}
+              rows={3}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              {CATEGORIES.map((c) => (
+                <Badge
+                  key={c.value}
+                  variant={newCategory === c.value ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => setNewCategory(c.value)}
+                >
+                  {c.label}
+                </Badge>
+              ))}
+              {isStudio && (
+                <Badge
+                  variant={studioOnly ? "default" : "outline"}
+                  className="cursor-pointer ml-auto"
+                  onClick={() => setStudioOnly(!studioOnly)}
+                >
+                  <Crown className="h-3 w-3 mr-1" /> Studio only
+                </Badge>
+              )}
+            </div>
+            <Button onClick={handlePost} disabled={posting || !newContent.trim()} className="w-full">
+              {posting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+              Publier
+            </Button>
+          </Card>
+        ) : (
+          <Card className="p-4 flex items-center gap-3">
+            <Sparkles className="h-5 w-5 text-primary shrink-0" />
+            <p className="text-sm text-muted-foreground flex-1">
+              Envie de participer ? <Link to="/mon-plan" className="text-primary font-semibold hover:underline">Passe au Premium</Link> pour poster et commenter.
+            </p>
+          </Card>
+        )}
 
         {/* Tabs */}
         <Tabs value={tab} onValueChange={setTab}>
@@ -243,18 +253,20 @@ const CommunautePage = () => {
                     )}
 
                     {/* Add comment */}
-                    <div className="flex gap-2">
-                      <input
-                        className="flex-1 text-sm bg-muted/50 rounded-md px-3 py-1.5 border-0 focus:outline-none focus:ring-1 focus:ring-primary"
-                        placeholder="Commenter…"
-                        value={commentTexts[post.id] || ""}
-                        onChange={(e) => setCommentTexts((prev) => ({ ...prev, [post.id]: e.target.value }))}
-                        onKeyDown={(e) => e.key === "Enter" && addComment(post.id)}
-                      />
-                      <Button size="sm" variant="ghost" onClick={() => addComment(post.id)} disabled={!commentTexts[post.id]?.trim()}>
-                        <Send className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                    {canWrite && (
+                      <div className="flex gap-2">
+                        <input
+                          className="flex-1 text-sm bg-muted/50 rounded-md px-3 py-1.5 border-0 focus:outline-none focus:ring-1 focus:ring-primary"
+                          placeholder="Commenter…"
+                          value={commentTexts[post.id] || ""}
+                          onChange={(e) => setCommentTexts((prev) => ({ ...prev, [post.id]: e.target.value }))}
+                          onKeyDown={(e) => e.key === "Enter" && addComment(post.id)}
+                        />
+                        <Button size="sm" variant="ghost" onClick={() => addComment(post.id)} disabled={!commentTexts[post.id]?.trim()}>
+                          <Send className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
                   </Card>
                 );
               })
