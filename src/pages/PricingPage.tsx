@@ -25,36 +25,36 @@ const SECTIONS = [
       { label: "Branding guidé", free: true, outil: true, studio: true },
       { label: "Définir sa cible", free: true, outil: true, studio: true },
       { label: "Mon histoire", free: true, outil: true, studio: true },
-      { label: "Positionnement offre", free: false, outil: true, studio: true },
+      { label: "Positionnement offre", free: true, outil: true, studio: true },
     ],
   },
   {
     title: "Création de contenu",
     rows: [
-      { label: "Générations IA", free: "3/mois", outil: "♾️", studio: "♾️" },
+      { label: "Crédits IA", free: "25/mois", outil: "300/mois", studio: "300/mois" },
       { label: "Posts Instagram", free: true, outil: true, studio: true },
       { label: "Reels", free: true, outil: true, studio: true },
       { label: "Stories", free: true, outil: true, studio: true },
       { label: "Bio Instagram", free: true, outil: true, studio: true },
-      { label: "Commentaires stratégiques", free: false, outil: true, studio: true },
-      { label: "DM personnalisés", free: false, outil: true, studio: true },
+      { label: "Commentaires stratégiques", free: true, outil: true, studio: true },
+      { label: "DM personnalisés", free: true, outil: true, studio: true },
     ],
   },
   {
     title: "Analyse & suivi",
     rows: [
-      { label: "Audit Instagram", free: "1/mois", outil: "♾️", studio: "♾️" },
-      { label: "Audit LinkedIn", free: false, outil: true, studio: true },
-      { label: "Import stats (Excel/CSV)", free: false, outil: true, studio: true },
-      { label: "Dashboard KPI", free: false, outil: true, studio: true },
+      { label: "Audits IA", free: "3/mois", outil: "♾️", studio: "♾️" },
+      { label: "Audit LinkedIn", free: true, outil: true, studio: true },
+      { label: "Import stats (Excel/CSV)", free: true, outil: true, studio: true },
+      { label: "Dashboard KPI", free: true, outil: true, studio: true },
     ],
   },
   {
     title: "Engagement & prospection",
     rows: [
-      { label: "Contacts stratégiques", free: false, outil: true, studio: true },
-      { label: "Routine d'engagement", free: false, outil: true, studio: true },
-      { label: "Mini-CRM prospection", free: false, outil: true, studio: true },
+      { label: "Contacts stratégiques", free: true, outil: true, studio: true },
+      { label: "Routine d'engagement", free: true, outil: true, studio: true },
+      { label: "Mini-CRM prospection", free: true, outil: true, studio: true },
     ],
   },
   {
@@ -62,8 +62,7 @@ const SECTIONS = [
     rows: [
       { label: "Lire le feed", free: true, outil: true, studio: true },
       { label: "Poster et commenter", free: false, outil: true, studio: true },
-      { label: "Lives mensuels (×2)", free: false, outil: true, studio: true },
-      { label: "Replays", free: false, outil: true, studio: true },
+      { label: "Lives mensuels + replays", free: false, outil: true, studio: true },
     ],
   },
   {
@@ -71,37 +70,37 @@ const SECTIONS = [
     rows: [
       { label: "Sessions visio individuelles", free: false, outil: false, studio: "6 × 2h" },
       { label: "Support WhatsApp jours ouvrés", free: false, outil: false, studio: true },
+      { label: "Plan de com' sur mesure (mois 1-2)", free: false, outil: false, studio: true },
       { label: "Validation livrables par Laetitia", free: false, outil: false, studio: true },
       { label: "Espace accompagnement dédié", free: false, outil: false, studio: true },
-      { label: "Canal direct Laetitia", free: false, outil: false, studio: true },
     ],
   },
 ];
 
 const FAQ = [
   {
+    q: "Pourquoi tout l'outil est gratuit ?",
+    a: "Parce qu'on veut que tu puisses explorer, structurer ta com', et voir la valeur de la méthode Nowadays avant de t'engager. L'IA limitée à 25 crédits/mois te donne un avant-goût. Quand tu voudras produire régulièrement, le Premium sera là.",
+  },
+  {
     q: "Je peux annuler quand je veux ?",
-    a: "Oui, le plan Outil est sans engagement. Tu annules en 1 clic depuis ton espace. L'accompagnement binôme est un engagement de 6 mois.",
+    a: "Oui, le plan Premium est sans engagement. Tu annules en 1 clic depuis ton espace. L'accompagnement binôme est un engagement de 6 mois.",
   },
   {
     q: "Je peux upgrader en cours de route ?",
-    a: "Oui ! Tu peux passer du gratuit à l'outil, ou de l'outil à l'accompagnement binôme à tout moment.",
+    a: "Oui ! Tu peux passer du gratuit au Premium, ou du Premium à l'accompagnement binôme à tout moment.",
   },
   {
     q: "Il y a une garantie ?",
     a: "L'accompagnement binôme est satisfait ou remboursé si tu appliques tout et que tu n'as pas de résultats.",
   },
   {
-    q: "C'est quoi la différence entre l'outil et l'accompagnement binôme ?",
-    a: "L'outil, c'est l'IA qui t'aide au quotidien. L'accompagnement binôme, c'est l'outil + Laetitia qui te coache, te débloque, et valide chaque étape.",
+    q: "C'est quoi la différence entre le Premium et l'accompagnement binôme ?",
+    a: "Le Premium, c'est l'IA qui t'aide au quotidien avec 300 crédits/mois. L'accompagnement binôme, c'est le Premium + Laetitia qui te coache, te débloque, et valide chaque étape.",
   },
   {
     q: "Mes données sont sécurisées ?",
     a: "Oui, hébergées en Europe, chiffrées, jamais revendues.",
-  },
-  {
-    q: "39€/mois c'est pas cher pour un outil IA ?",
-    a: "C'est 10× moins cher qu'un community manager. Et l'outil est spécialisé com' éthique, pas générique.",
   },
 ];
 
@@ -201,17 +200,21 @@ export default function PricingPage() {
           <div className="rounded-2xl bg-card border border-border p-6 flex flex-col">
             <span className="text-2xl mb-2">🆓</span>
             <h3 className="font-display text-xl font-bold">Gratuit</h3>
+            <p className="text-xs text-muted-foreground font-medium mt-1">Tout l'outil. Pour de vrai.</p>
             <p className="text-3xl font-bold mt-2">
               0€
             </p>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              L'essentiel pour tester
+              Tout l'écosystème Nowadays : branding, calendrier, audits, espaces canaux, CRM, stats. 25 crédits IA/mois pour goûter à la magie.
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Branding guidé</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 3 générations IA / mois</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 1 audit / mois</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Recommandations</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Tout l'outil débloqué</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 25 crédits IA / mois</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 3 audits IA / mois</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Calendrier éditorial complet</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Mini-CRM + contacts stratégiques</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Import stats + dashboard KPI</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Communauté en lecture</li>
             </ul>
             {isCurrentPlan("free") ? (
               <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">
@@ -227,13 +230,14 @@ export default function PricingPage() {
             ) : null}
           </div>
 
-          {/* Outil */}
+          {/* Premium */}
           <div className="rounded-2xl bg-card border-2 border-primary p-6 flex flex-col relative shadow-card-hover">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-semibold px-4 py-1 rounded-pill">
               Populaire
             </div>
             <span className="text-2xl mb-2">💎</span>
-            <h3 className="font-display text-xl font-bold">Outil</h3>
+            <h3 className="font-display text-xl font-bold">Premium</h3>
+            <p className="text-xs text-muted-foreground font-medium mt-1">L'IA qui connaît ta voix. Sans limite (ou presque).</p>
             <p className="text-3xl font-bold mt-2 text-primary">
               {annual ? "31€" : "39€"}
               <span className="text-base font-normal text-muted-foreground">
@@ -246,16 +250,14 @@ export default function PricingPage() {
               </p>
             )}
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              Tout l'outil débloqué, sans engagement
+              300 crédits IA/mois + communauté active. Pour celleux qui veulent produire du contenu régulier en autonomie.
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Générations IA illimitées</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Audits illimités</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Mini-CRM prospection</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Générateur commentaires + DM</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Dashboard stats complet</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Calendrier éditorial</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Contacts stratégiques + routine</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 300 crédits IA / mois</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Audits IA illimités</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Communauté active (poster, commenter)</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Lives mensuels + replays</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Tout le plan gratuit inclus</li>
             </ul>
             {isCurrentPlan("outil") ? (
               <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">
@@ -272,10 +274,11 @@ export default function PricingPage() {
             )}
           </div>
 
-          {/* Now Studio */}
+          {/* Binôme */}
           <div className="rounded-2xl bg-card border border-border p-6 flex flex-col" style={{ background: "linear-gradient(180deg, hsl(48 100% 95%) 0%, hsl(0 0% 100%) 40%)" }}>
             <span className="text-2xl mb-2">🤝</span>
             <h3 className="font-display text-xl font-bold">Ta binôme de com</h3>
+            <p className="text-xs text-muted-foreground font-medium mt-1">On fait ensemble. Tu n'es plus seul·e face à ta com'.</p>
             <p className="text-3xl font-bold mt-2 text-primary">
               250€
               <span className="text-base font-normal text-muted-foreground">
@@ -283,15 +286,15 @@ export default function PricingPage() {
               </span>
             </p>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              L'outil + Laetitia à tes côtés. On fait ensemble.
+              L'outil Premium inclus + Laetitia à tes côtés. Stratégie sur mesure + sessions visio + support WhatsApp + validation de tes livrables.
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Tout le plan Outil</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Tout le plan Premium inclus</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 6 sessions visio de 2h avec Laetitia</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Support WhatsApp jours ouvrés</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Plan de com' sur mesure (mois 1-2)</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Validation livrables par Laetitia</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Espace accompagnement dédié dans l'outil</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> L'Assistant Com' Premium inclus</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Espace accompagnement dédié</li>
             </ul>
             {isCurrentPlan("studio") ? (
               <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">
@@ -329,7 +332,7 @@ export default function PricingPage() {
                     🆓 Gratuit
                   </th>
                   <th className="text-center text-sm font-bold text-primary py-3 w-[18%]">
-                    💎 Outil
+                    💎 Premium
                   </th>
                   <th className="text-center text-sm font-bold text-foreground py-3 w-[18%]">
                     🤝 Binôme
