@@ -126,7 +126,7 @@ Retourne UNIQUEMENT un JSON :
   "intro": "Message d'intro court et personnalisé (2 phrases max)"
 }`;
 
-      const raw = await callAnthropicSimple(getModelForAction("coaching"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, "Génère les questions personnalisées.", 0.4, 2000);
+      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, "Génère les questions personnalisées.", 0.4, 2000);
 
       let result;
       try {
@@ -193,7 +193,7 @@ Retourne un JSON :
 
 Sois directe, bienveillante, et concrète. Pas de jargon. Tutoiement.`;
 
-      const raw = await callAnthropicSimple(getModelForAction("coaching"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, "Génère ton diagnostic et tes propositions.", 0.5, 4000);
+      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, "Génère ton diagnostic et tes propositions.", 0.5, 4000);
 
       let result;
       try {

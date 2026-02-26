@@ -24,6 +24,7 @@ const MODEL_MAP: Record<string, AnthropicModel> = {
   // Opus : tâches complexes qui nécessitent un raisonnement profond
   "audit": "claude-opus-4-6",
   "coaching": "claude-opus-4-6",
+  "coaching_light": "claude-sonnet-4-5-20250929",
   "strategy": "claude-opus-4-6",
   "branding_audit": "claude-opus-4-6",
   "assistant_chat": "claude-opus-4-6",

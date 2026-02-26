@@ -104,7 +104,7 @@ Retourne UNIQUEMENT un JSON valide :
 }`;
 
     const raw = await callAnthropicSimple(
-      getModelForAction("coaching"),
+      getModelForAction("coaching_light"),
       systemPrompt + "\n\n" + ANTI_SLOP,
       `Planifie ${posts_per_week} posts pour ma semaine. Contexte : ${context_week || "semaine normale"}. Approche : ${mix_or_focus}.`,
       0.8,
