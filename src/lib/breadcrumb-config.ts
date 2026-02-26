@@ -491,6 +491,11 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
     { label: "Accueil", path: "/dashboard" },
     { label: "Mentions légales IA" },
   ]],
+  ["/transformer", [
+    { label: "Accueil", path: "/dashboard" },
+    { label: "Créer", path: "/creer" },
+    { label: "Transformer un contenu" },
+  ]],
 ];
 
 /**
