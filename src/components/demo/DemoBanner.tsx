@@ -11,7 +11,7 @@ export default function DemoBanner() {
 
   const handleQuit = () => {
     deactivateDemo();
-    navigate("/");
+    navigate("/login");
   };
 
   return (
