@@ -1035,6 +1035,7 @@ export type Database = {
           generated_content_type: string | null
           id: string
           launch_id: string | null
+          media_urls: string[] | null
           notes: string | null
           objectif: string | null
           objective: string | null
@@ -1070,6 +1071,7 @@ export type Database = {
           generated_content_type?: string | null
           id?: string
           launch_id?: string | null
+          media_urls?: string[] | null
           notes?: string | null
           objectif?: string | null
           objective?: string | null
@@ -1105,6 +1107,7 @@ export type Database = {
           generated_content_type?: string | null
           id?: string
           launch_id?: string | null
+          media_urls?: string[] | null
           notes?: string | null
           objectif?: string | null
           objective?: string | null

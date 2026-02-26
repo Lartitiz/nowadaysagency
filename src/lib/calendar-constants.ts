@@ -70,4 +70,5 @@ export interface CalendarPost {
   stories_timing?: Record<string, string> | null;
   story_sequence_detail?: any;
   amplification_stories?: any;
+  media_urls?: string[] | null;
 }
