@@ -14,7 +14,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Check, X, Sparkles, ArrowRight, Infinity } from "lucide-react";
+import { Check, X, Sparkles, ArrowRight } from "lucide-react";
 import PromoCodeInput from "@/components/PromoCodeInput";
 
 /* ─── Feature comparison data ─── */
@@ -43,7 +43,7 @@ const SECTIONS = [
   {
     title: "Analyse & suivi",
     rows: [
-      { label: "Audits IA", free: "3/mois", outil: "♾️", studio: "♾️" },
+      { label: "Audits IA", free: "3/mois", outil: "15/mois", studio: "15/mois" },
       { label: "Audit LinkedIn", free: true, outil: true, studio: true },
       { label: "Import stats (Excel/CSV)", free: true, outil: true, studio: true },
       { label: "Dashboard KPI", free: true, outil: true, studio: true },
@@ -80,7 +80,7 @@ const SECTIONS = [
 const FAQ = [
   {
     q: "Pourquoi tout l'outil est gratuit ?",
-    a: "Parce qu'on veut que tu puisses explorer, structurer ta com', et voir la valeur de la méthode Nowadays avant de t'engager. L'IA limitée à 25 crédits/mois te donne un avant-goût. Quand tu voudras produire régulièrement, le Premium sera là.",
+    a: "L'outil est entièrement accessible en gratuit avec 25 crédits IA/mois. Quand tu voudras produire régulièrement et accéder à toutes les fonctionnalités avancées (calendrier, communauté, lives...), le Premium sera là.",
   },
   {
     q: "Je peux annuler quand je veux ?",
@@ -117,7 +117,7 @@ export default function PricingPage() {
   const { plan, loading: planLoading } = useUserPlan();
   const { toast } = useToast();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [annual, setAnnual] = useState(false);
+  
 
   const handleCheckout = async () => {
     if (!user) {
@@ -172,26 +172,6 @@ export default function PricingPage() {
             Commence gratuitement. Upgrade quand tu es prête.
           </p>
 
-          {/* Annual toggle */}
-          <div className="mt-6 inline-flex items-center gap-3 bg-secondary rounded-pill px-4 py-2">
-            <button
-              onClick={() => setAnnual(false)}
-              className={`text-sm font-medium px-3 py-1 rounded-pill transition-colors ${
-                !annual ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
-              }`}
-            >
-              Mensuel
-            </button>
-            <button
-              onClick={() => setAnnual(true)}
-              className={`text-sm font-medium px-3 py-1 rounded-pill transition-colors ${
-                annual ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
-              }`}
-            >
-              Annuel{" "}
-              <span className="text-primary text-xs font-semibold">-20%</span>
-            </button>
-          </div>
         </div>
 
         {/* ── 3 Plan Cards ── */}
@@ -239,16 +219,11 @@ export default function PricingPage() {
             <h3 className="font-display text-xl font-bold">Premium</h3>
             <p className="text-xs text-muted-foreground font-medium mt-1">L'IA qui connaît ta voix. Sans limite (ou presque).</p>
             <p className="text-3xl font-bold mt-2 text-primary">
-              {annual ? "31€" : "39€"}
+              39€
               <span className="text-base font-normal text-muted-foreground">
                 /mois
               </span>
             </p>
-            {annual && (
-              <p className="text-xs text-muted-foreground">
-                374€/an au lieu de 468€
-              </p>
-            )}
             <p className="text-sm text-muted-foreground mt-1 mb-5">
               300 crédits IA/mois + communauté active. Pour celleux qui veulent produire du contenu régulier en autonomie.
             </p>
