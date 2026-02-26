@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     let postsQuery = supabase
       .from("calendar_posts")
       .select(
-        "id, date, theme, canal, format, objectif, status, notes, content_draft, category, audience_phase, accroche, angle, updated_at"
+        "id, date, theme, canal, format, objectif, status, notes, content_draft, category, audience_phase, accroche, angle, updated_at, media_urls"
       )
       .eq("user_id", share.user_id)
       .order("date");

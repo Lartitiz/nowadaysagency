@@ -247,8 +247,11 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
                 <span className="text-[9px] px-1.5 py-px rounded-full text-muted-foreground" style={{ background: "rgba(0,0,0,0.04)" }}>
                   {formatEmoji} {formatLabel}
                 </span>
-              )}
+               )}
               {objEmoji && <span className="text-[10px]">{objEmoji}</span>}
+              {(post as any).media_urls?.length > 0 && (
+                <span className="text-[10px] opacity-60" title={`${(post as any).media_urls.length} visuel(s)`}>📸</span>
+              )}
             </div>
             {post.content_draft && !post.angle_suggestion && (
               <p className="text-muted-foreground truncate text-[10px] mt-0.5 line-clamp-2" style={{ WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden', whiteSpace: 'normal' }}>
