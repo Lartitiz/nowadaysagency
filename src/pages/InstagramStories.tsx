@@ -127,7 +127,7 @@ export default function InstagramStories() {
   const [subjectDirection, setSubjectDirection] = useState("");
   const [isLaunch, setIsLaunch] = useState(false);
   const [subjectDone, setSubjectDone] = useState(false);
-  const [brandingCtx, setBrandingCtx] = useState("");
+  
   const [showStickerGuide, setShowStickerGuide] = useState(false);
 
   // Pre-gen questions
@@ -198,13 +198,6 @@ export default function InstagramStories() {
     }
   );
 
-  // Fetch branding context
-  useEffect(() => {
-    if (hookBrandProfile) {
-      const data = hookBrandProfile as any;
-      setBrandingCtx(`Ton: ${data.tone_register || "Authentique"}\nCible: ${data.target_description || "Entrepreneures"}\nMission: ${data.mission || ""}`);
-    }
-  }, [hookBrandProfile]);
 
 
   const handleGenerate = async (quickMode = false) => {
@@ -221,7 +214,7 @@ export default function InstagramStories() {
           subject: quickMode ? "Ma journée (quick gen)" : subject,
           subject_details: subjectDetails,
           direction: subjectDirection,
-          branding_context: brandingCtx,
+          
           is_launch: isLaunch,
           pre_gen_answers: quickMode ? undefined : {
             vecu: preGenVecu,
@@ -614,7 +607,7 @@ export default function InstagramStories() {
                 setSubjectDirection(result.direction || "");
                 setSubjectDone(true);
               }}
-              brandingContext={brandingCtx}
+              brandingContext=""
               initialSubject={subject}
             />
           </div>
