@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import BaseReminder from "@/components/BaseReminder";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Mic, MicOff, Sparkles, Loader2, Copy, RefreshCw, Upload, X, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -173,7 +174,9 @@ export default function ContentRecycling() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {Object.keys(results).length === 0 ? (
+      {loading ? (
+        <AiLoadingIndicator context="recycle" isLoading={loading} />
+      ) : Object.keys(results).length === 0 ? (
         <>
           <div>
             <p className="text-sm text-muted-foreground mb-3">
