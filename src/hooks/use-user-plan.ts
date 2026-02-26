@@ -185,14 +185,14 @@ export function useUserPlan(): UserPlanState {
 function getDemoUsage(demoPlan: string, demoData: any): Record<string, CategoryUsage> {
   if (demoPlan === "free") {
     return {
-      content: { used: 8, limit: 10 },
-      audit: { used: 1, limit: 1 },
-      dm_comment: { used: 0, limit: 0 },
+      content: { used: 18, limit: 25 },
+      audit: { used: 2, limit: 3 },
+      dm_comment: { used: 3, limit: 5 },
       bio_profile: { used: 1, limit: 3 },
-      suggestion: { used: 0, limit: 0 },
-      import: { used: 0, limit: 0 },
-      adaptation: { used: 0, limit: 0 },
-      total: { used: 8, limit: 10 },
+      suggestion: { used: 1, limit: 2 },
+      import: { used: 0, limit: 1 },
+      adaptation: { used: 1, limit: 2 },
+      total: { used: 23, limit: 25 },
     };
   }
   return {
