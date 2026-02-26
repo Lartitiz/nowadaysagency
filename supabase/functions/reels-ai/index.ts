@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic, AnthropicError, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, AnthropicError, getModelForAction, getModelForRichContent } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -87,8 +87,10 @@ serve(async (req) => {
     // Extract system prompt from messages if present
     const sysMsg = messages.find((m: any) => m.role === "system");
     const userMsgs = messages.filter((m: any) => m.role !== "system");
+    const hasRichContent = !!(pre_gen_answers?.anecdote && pre_gen_answers.anecdote.length > 50) || !!(pre_gen_answers?.conviction && pre_gen_answers.conviction.length > 30);
+    const model = getModelForRichContent("reels", hasRichContent);
     const content = await callAnthropic({
-      model: getModelForAction("reels"),
+      model,
       system: sysMsg?.content,
       messages: userMsgs,
     });

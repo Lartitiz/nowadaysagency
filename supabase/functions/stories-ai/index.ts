@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAnthropicSimple, AnthropicError, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, AnthropicError, getModelForAction, getModelForRichContent } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -171,8 +171,10 @@ Réponds UNIQUEMENT avec le JSON.`;
     }
 
     // Main generation
+    const hasRichContent = !!(pre_gen_answers?.vecu && pre_gen_answers.vecu.length > 50) || !!(pre_gen_answers?.message_cle && pre_gen_answers.message_cle.length > 30);
+    const model = getModelForRichContent("stories", hasRichContent);
     const systemPrompt = buildMainPrompt({ objective, price_range, time_available, face_cam, subject: enrichedSubject, is_launch, branding_context, gardeFouAlerte, pre_gen_answers });
-    const response = await callAnthropicSimple(getModelForAction("stories"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Génère ma séquence stories.");
+    const response = await callAnthropicSimple(model, BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Génère ma séquence stories.");
     return new Response(JSON.stringify({ content: response }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -59,6 +59,21 @@ export function getModelForAction(action: string): AnthropicModel {
   return MODEL_MAP[action] || getDefaultModel();
 }
 
+/**
+ * Sélectionne Opus si l'utilisatrice a fourni du contenu personnel riche,
+ * Sonnet sinon. Le contenu personnel nécessite un meilleur raisonnement
+ * pour être intégré naturellement dans le contenu généré.
+ */
+export function getModelForRichContent(
+  action: string,
+  hasRichPersonalContent: boolean
+): AnthropicModel {
+  if (hasRichPersonalContent) {
+    return "claude-opus-4-6";
+  }
+  return getModelForAction(action);
+}
+
 const MAX_RETRIES = 2;
 const RETRY_DELAYS = [3000, 6000]; // ms
 
