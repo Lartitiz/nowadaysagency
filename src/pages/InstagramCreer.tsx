@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
 import { Loader2, ArrowRight, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import ContentRecycling from "@/components/ContentRecycling";
+
 import DictationInput from "@/components/DictationInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -55,7 +55,7 @@ export default function InstagramCreer() {
   const [ideaText, setIdeaText] = useState("");
   const [suggesting, setSuggesting] = useState(false);
   const [suggestion, setSuggestion] = useState<FormatSuggestion | null>(null);
-  const [secondaryMode, setSecondaryMode] = useState<"none" | "recycle" | "dictate">("none");
+  const [secondaryMode, setSecondaryMode] = useState<"none" | "dictate">("none");
   const [contentCoachingOpen, setContentCoachingOpen] = useState(false);
   const [profile, setProfile] = useState<any>(null);
 
@@ -246,17 +246,23 @@ export default function InstagramCreer() {
         </div>
 
         {/* ─── Secondary options ─── */}
-        <div className="rounded-2xl border border-border bg-muted/30 p-4">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Autres options</p>
+        <div className="space-y-3">
+          <Link
+            to="/transformer"
+            className="group flex items-center justify-between rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🔄</span>
+              <div>
+                <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                  Transformer un contenu existant
+                </h3>
+                <p className="mt-0.5 text-sm text-muted-foreground">Recycler, adapter pour un autre canal, ou t'inspirer d'un contenu.</p>
+              </div>
+            </div>
+            <span className="text-primary text-sm font-semibold shrink-0">Transformer →</span>
+          </Link>
           <div className="flex gap-2">
-            <Button
-              variant={secondaryMode === "recycle" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSecondaryMode(secondaryMode === "recycle" ? "none" : "recycle")}
-              className="rounded-full gap-1.5 text-xs"
-            >
-              ♻️ Recycler un contenu
-            </Button>
             <Button
               variant={secondaryMode === "dictate" ? "default" : "outline"}
               size="sm"
@@ -269,12 +275,6 @@ export default function InstagramCreer() {
               🎤 Dicter mon contenu
             </Button>
           </div>
-
-          {secondaryMode === "recycle" && (
-            <div className="mt-4 animate-fade-in">
-              <ContentRecycling />
-            </div>
-          )}
           {secondaryMode === "dictate" && (
             <div className="mt-4 animate-fade-in">
               <DictationInput onTranscribed={(text) => {
