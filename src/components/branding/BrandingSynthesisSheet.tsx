@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Download, Copy, RefreshCw, ExternalLink, Loader2, Pencil, Sparkles, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import jsPDF from "jspdf";
+
 import { calculateBrandingCompletion, fetchBrandingData } from "@/lib/branding-completion";
 import { parseStringList, safeParseJson } from "@/lib/branding-utils";
 
@@ -250,6 +250,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
     if (!data) return;
     setExporting(true);
     try {
+      const jsPDF = (await import("jspdf")).default;
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();

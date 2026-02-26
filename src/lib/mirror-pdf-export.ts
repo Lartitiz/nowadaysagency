@@ -1,4 +1,4 @@
-import jsPDF from "jspdf";
+
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -20,7 +20,7 @@ function scoreColor(score: number): readonly [number, number, number] {
   return [200, 30, 30];
 }
 
-function drawSectionHeader(doc: jsPDF, y: number, title: string, bgColor: readonly [number, number, number]): number {
+function drawSectionHeader(doc: any, y: number, title: string, bgColor: readonly [number, number, number]): number {
   doc.setFillColor(...bgColor);
   doc.roundedRect(MARGIN, y, CONTENT_W, 12, 3, 3, "F");
   doc.setFont("Helvetica", "bold");
@@ -30,7 +30,7 @@ function drawSectionHeader(doc: jsPDF, y: number, title: string, bgColor: readon
   return y + 18;
 }
 
-function addWrappedText(doc: jsPDF, text: string, x: number, y: number, maxW: number, lineH: number): number {
+function addWrappedText(doc: any, text: string, x: number, y: number, maxW: number, lineH: number): number {
   const lines = doc.splitTextToSize(text, maxW);
   for (const line of lines) {
     if (y > 270) {
@@ -43,14 +43,15 @@ function addWrappedText(doc: jsPDF, text: string, x: number, y: number, maxW: nu
   return y;
 }
 
-function drawSeparator(doc: jsPDF, y: number): number {
+function drawSeparator(doc: any, y: number): number {
   doc.setDrawColor(220, 220, 230);
   doc.setLineWidth(0.3);
   doc.line(MARGIN, y, PAGE_W - MARGIN, y);
   return y + 4;
 }
 
-export function exportMirrorPDF(mirrorData: any) {
+export async function exportMirrorPDF(mirrorData: any) {
+  const jsPDF = (await import("jspdf")).default;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const dateStr = format(new Date(), "d MMMM yyyy", { locale: fr });
 
