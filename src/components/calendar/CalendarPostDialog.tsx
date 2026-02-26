@@ -493,6 +493,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               theme={theme}
               username={igUsername || ownerName}
               displayName={ownerName}
+              mediaUrls={mediaUrls}
               onNavigateToGenerator={() => handleNavigateToGenerator("generate")}
               hasAngle={!!angle}
               hasTheme={!!theme.trim()}
@@ -861,13 +862,14 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
 // ── Preview Tab ──
 
-function PreviewTab({ canal, format, caption, theme, username, displayName, onNavigateToGenerator, hasAngle, hasTheme }: {
+function PreviewTab({ canal, format, caption, theme, username, displayName, mediaUrls, onNavigateToGenerator, hasAngle, hasTheme }: {
   canal: string;
   format: string | null;
   caption: string | null;
   theme: string;
   username: string;
   displayName: string;
+  mediaUrls?: string[];
   onNavigateToGenerator: () => void;
   hasAngle: boolean;
   hasTheme: boolean;
@@ -922,6 +924,7 @@ function PreviewTab({ canal, format, caption, theme, username, displayName, onNa
           displayName={displayName || ""}
           caption={theme}
           slides={slides}
+          mediaUrls={mediaUrls}
           showComments={false}
           readonly
           hideFollowButton
@@ -947,6 +950,7 @@ function PreviewTab({ canal, format, caption, theme, username, displayName, onNa
         username={username || "mon_compte"}
         displayName={displayName || ""}
         caption={caption}
+        mediaUrls={mediaUrls}
         showComments={false}
         readonly
         hideFollowButton
