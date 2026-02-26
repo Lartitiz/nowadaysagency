@@ -225,12 +225,31 @@ serve(async (req) => {
         const subId = invoice.subscription as string;
         if (!subId) break;
 
+        // Look up user_id from subscription
+        const { data: failedSub } = await supabase
+          .from("subscriptions")
+          .select("user_id")
+          .eq("stripe_subscription_id", subId)
+          .maybeSingle();
+
         await supabase.from("subscriptions").update({
           status: "past_due",
           updated_at: new Date().toISOString(),
         }).eq("stripe_subscription_id", subId);
 
-        log("Payment failed", { subId });
+        // Notify user
+        if (failedSub?.user_id) {
+          await supabase.from("notifications").insert({
+            user_id: failedSub.user_id,
+            type: "warning",
+            title: "Paiement échoué",
+            message: "Ton dernier paiement n'a pas pu être traité. Mets à jour tes informations de paiement pour garder ton accès.",
+            link: "/parametres",
+            read: false,
+          });
+        }
+
+        log("Payment failed", { subId, userId: failedSub?.user_id });
         break;
       }
 
