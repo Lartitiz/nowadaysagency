@@ -4,7 +4,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
-import SubPageHeader from "@/components/SubPageHeader";
+import ContentProgressBar from "@/components/ContentProgressBar";
+import ContentActions from "@/components/ContentActions";
+import ReturnToOrigin from "@/components/ReturnToOrigin";
 import BaseReminder from "@/components/BaseReminder";
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Sparkles, Mic, Lightbulb } from "lucide-react";
@@ -107,6 +109,8 @@ export default function InstagramStories() {
   const [searchParams] = useSearchParams();
   const calendarId = searchParams.get("calendar_id");
   const calendarState = location.state as any;
+  const fromObjectif = searchParams.get("objectif");
+  const fromSujet = searchParams.get("sujet") ? decodeURIComponent(searchParams.get("sujet")!) : "";
 
   // Form state
   const [step, setStep] = useState(1);
@@ -153,7 +157,23 @@ export default function InstagramStories() {
     }
   }, [calendarId, user, calendarState]);
 
-  // Persist form state
+  // Pre-fill from URL params
+  useEffect(() => {
+    if (fromObjectif && !objective) {
+      const objMap: Record<string, string> = { visibilite: "connexion", confiance: "education", vente: "vente", credibilite: "engagement" };
+      const mapped = objMap[fromObjectif] || fromObjectif;
+      if (OBJECTIVES.some(o => o.id === mapped)) setObjective(mapped);
+    }
+    if (fromSujet && !subject) setSubject(fromSujet);
+  }, [fromObjectif, fromSujet]);
+
+  const STORIES_STEPS = [
+    { key: "setup", label: "Paramètres" },
+    { key: "generate", label: "Séquence" },
+    { key: "edit", label: "Édition" },
+  ];
+  const currentStepKey = step === 5 ? "edit" : "setup";
+
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "stories-form",
     { step, objective, priceRange, timeAvailable, faceCam, subject, subjectDetails, rawIdea, clarifyContext, subjectDirection, isLaunch, subjectDone },
@@ -307,9 +327,8 @@ export default function InstagramStories() {
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-          <button onClick={() => { setStep(1); setSequenceResult(null); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
-            <ArrowLeft className="h-4 w-4" /> Nouvelle séquence
-          </button>
+          <ReturnToOrigin />
+          <ContentProgressBar steps={STORIES_STEPS} currentStep={currentStepKey} />
 
           <div className="mb-6">
             <h1 className="font-display text-2xl font-bold text-foreground">📱 Ta séquence Stories</h1>
@@ -412,11 +431,17 @@ export default function InstagramStories() {
           </div>
 
           {/* Actions */}
-          <div className="mt-6 flex flex-wrap gap-3 pb-12">
-            <Button variant="outline" size="sm" onClick={handleCopySequence}><Copy className="h-4 w-4" /> Copier tout</Button>
-            <Button size="sm" onClick={() => setShowCalendarDialog(true)}><CalendarDays className="h-4 w-4" /> Ajouter au calendrier</Button>
-            <Button variant="outline" size="sm" onClick={() => setShowIdeasDialog(true)}><Lightbulb className="h-4 w-4" /> Sauvegarder</Button>
-          </div>
+          <ContentActions
+            content={sequenceResult.stories.map(s => `STORY ${s.number} (${s.timing})\n${s.format_label}\n\n"${s.text}"\n\n🎯 Sticker: ${s.sticker ? s.sticker.label : "Aucun"}\n💡 Tip: ${s.tip}`).join("\n\n───────────────\n\n")}
+            canal="instagram"
+            format="story_serie"
+            theme={subject || sequenceResult.structure_label}
+            objectif={objective}
+            calendarPostId={calendarId || undefined}
+            onRegenerate={() => { setSequenceResult(null); setStep(1); }}
+            regenerateLabel="Nouvelle séquence"
+            className="mt-6 pb-12"
+          />
 
           <AddToCalendarDialog
             open={showCalendarDialog}
@@ -448,7 +473,8 @@ export default function InstagramStories() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <div className="mb-8">
-          <SubPageHeader parentLabel="Créer" parentTo="/instagram/creer" currentLabel="Stories" />
+          <ReturnToOrigin />
+          <ContentProgressBar steps={STORIES_STEPS} currentStep={currentStepKey} />
           <h1 className="font-display text-3xl font-bold text-foreground">Créer une séquence de Stories</h1>
           <p className="text-muted-foreground mt-2">
             L'IA structure tes stories pour engager ta communauté sans y passer des heures.
