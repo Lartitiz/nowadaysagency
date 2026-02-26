@@ -6,9 +6,10 @@ export const STRIPE_PLANS = {
     priceId: null,
     mode: null,
     features: [
-      "3 générations IA / mois",
-      "1 audit / mois",
-      "Accès au branding de base",
+      "Tout l'outil débloqué",
+      "25 crédits IA / mois",
+      "3 audits IA / mois",
+      "Communauté en lecture",
     ],
   },
   outil: {
@@ -100,7 +101,7 @@ export const CREDIT_PACKS = {
 
 // AI usage limits per plan
 export const AI_LIMITS = {
-  free: { generations: 3, audits: 1 },
+  free: { generations: 25, audits: 3 },
   outil: { generations: Infinity, audits: Infinity },
   pro: { generations: Infinity, audits: Infinity },
   studio: { generations: Infinity, audits: Infinity },
