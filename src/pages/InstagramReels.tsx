@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useBrandProfile } from "@/hooks/use-profile";
 import BaseReminder from "@/components/BaseReminder";
 import ContentScoring from "@/components/ContentScoring";
 import FeedbackLoop from "@/components/FeedbackLoop";
@@ -129,6 +130,7 @@ export default function InstagramReels() {
   const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const { data: hookBrandProfile } = useBrandProfile();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const calendarId = searchParams.get("calendar_id");
@@ -205,13 +207,12 @@ export default function InstagramReels() {
   const fetchBrandingContext = async (): Promise<string> => {
     if (!user) return "";
     const lines: string[] = [];
-    const [profRes, propRes, stratRes, editoRes] = await Promise.all([
-      (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register, key_expressions, things_to_avoid, voice_description, combat_cause").eq(column, value).maybeSingle(),
+    const [propRes, stratRes, editoRes] = await Promise.all([
       (supabase.from("brand_proposition") as any).select("version_final").eq(column, value).maybeSingle(),
       (supabase.from("brand_strategy") as any).select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq(column, value).maybeSingle(),
       (supabase.from("instagram_editorial_line") as any).select("main_objective, pillars, preferred_formats, content_insights").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
-    const p = profRes.data;
+    const p = hookBrandProfile as any;
     if (p) {
       if (p.mission) lines.push(`Mission : ${p.mission}`);
       if (p.offer) lines.push(`Offre : ${p.offer}`);

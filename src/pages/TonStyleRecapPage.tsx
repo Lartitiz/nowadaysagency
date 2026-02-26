@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useBrandProfile } from "@/hooks/use-profile";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -27,6 +29,8 @@ export default function TonStyleRecapPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
+  const { data: hookBrandProfile } = useBrandProfile();
+  const queryClient = useQueryClient();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -35,10 +39,12 @@ export default function TonStyleRecapPage() {
 
   useEffect(() => {
     if (!user) return;
-    (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle().then(async ({ data: d }: any) => {
-      setData(d);
-      if (d && !d.recap_summary) {
-        setGenerating(true);
+    if (hookBrandProfile === undefined) return; // still loading
+    const d = hookBrandProfile as any;
+    setData(d);
+    if (d && !d.recap_summary) {
+      setGenerating(true);
+      (async () => {
         try {
           const stratRes = await (supabase.from("brand_strategy") as any).select("creative_concept").eq(column, value).maybeSingle();
           const { data: fnData, error } = await supabase.functions.invoke("niche-ai", {
@@ -60,19 +66,17 @@ export default function TonStyleRecapPage() {
             const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
             const parsed = JSON.parse(raw);
             await supabase.from("brand_profile").update({ recap_summary: parsed } as any).eq("id", d.id);
+            queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
             setData({ ...d, recap_summary: parsed });
           }
         } catch (e) {
           console.error("Auto-generate recap failed:", e);
         }
         setGenerating(false);
-      }
-    }).catch((e: any) => {
-      console.error(e);
-    }).finally(() => {
-      setLoading(false);
-    });
-  }, [user?.id, column, value]);
+      })();
+    }
+    setLoading(false);
+  }, [user?.id, hookBrandProfile]);
 
   const summary: RecapSummary | null = data?.recap_summary as any;
 
@@ -84,6 +88,7 @@ export default function TonStyleRecapPage() {
     for (let i = 0; i < path.length - 1; i++) obj = obj[path[i]];
     obj[path[path.length - 1]] = value;
     await supabase.from("brand_profile").update({ recap_summary: updated } as any).eq("id", data.id);
+    queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
     setData({ ...data, recap_summary: updated });
   };
 
@@ -92,12 +97,14 @@ export default function TonStyleRecapPage() {
     const updated = JSON.parse(JSON.stringify(summary));
     updated[arrayKey][index] = value;
     await supabase.from("brand_profile").update({ recap_summary: updated } as any).eq("id", data.id);
+    queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
     setData({ ...data, recap_summary: updated });
   };
 
   const saveRawField = async (field: string, value: string) => {
     if (!data) return;
     await supabase.from("brand_profile").update({ [field]: value } as any).eq("id", data.id);
+    queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
     setData({ ...data, [field]: value });
   };
 
@@ -125,6 +132,7 @@ export default function TonStyleRecapPage() {
       const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(raw);
       await supabase.from("brand_profile").update({ recap_summary: parsed } as any).eq("id", data.id);
+      queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
       setData({ ...data, recap_summary: parsed });
       toast({ title: "Synthèse générée !" });
     } catch (e: any) {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/use-profile";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -33,7 +34,7 @@ export default function LinkedInRecommandations() {
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
-  const [prenom, setPrenom] = useState("");
+  const { data: profileData } = useProfile();
   const [recos, setRecos] = useState<Reco[]>(
     Array.from({ length: 5 }, () => ({ person_name: "", person_type: "client", request_sent: false, reco_received: false }))
   );
@@ -48,14 +49,12 @@ export default function LinkedInRecommandations() {
   const [draftResult, setDraftResult] = useState("");
   const [generatingDraft, setGeneratingDraft] = useState(false);
 
+  const prenom = (profileData as any)?.prenom || "";
+
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const [profRes, recoRes] = await Promise.all([
-        (supabase.from("profiles") as any).select("prenom").eq(column, value).maybeSingle(),
-        (supabase.from("linkedin_recommendations") as any).select("*").eq(column, value).order("created_at"),
-      ]);
-      if (profRes.data?.prenom) setPrenom(profRes.data.prenom);
+      const recoRes = await (supabase.from("linkedin_recommendations") as any).select("*").eq(column, value).order("created_at");
       if (recoRes.data && recoRes.data.length > 0) {
         const loaded: Reco[] = recoRes.data.map((r: any) => ({ id: r.id, person_name: r.person_name || "", person_type: r.person_type || "client", request_sent: r.request_sent || false, reco_received: r.reco_received || false }));
         while (loaded.length < 5) loaded.push({ person_name: "", person_type: "client", request_sent: false, reco_received: false });
