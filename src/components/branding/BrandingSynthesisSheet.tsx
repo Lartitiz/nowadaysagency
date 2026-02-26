@@ -175,14 +175,14 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
     const uid = user.id;
 
     const [personaRes, storyRes, propRes, stratRes, offersRes, configRes, auditRes, brandingRaw] = await Promise.all([
-      supabase.from("persona").select("*").eq("user_id", uid).maybeSingle(),
-      supabase.from("storytelling").select("*").eq("user_id", uid).eq("is_primary", true).maybeSingle(),
-      supabase.from("brand_proposition").select("*").eq("user_id", uid).maybeSingle(),
-      supabase.from("brand_strategy").select("*").eq("user_id", uid).maybeSingle(),
-      supabase.from("offers").select("*").eq("user_id", uid).order("created_at"),
-      supabase.from("user_plan_config").select("*").eq("user_id", uid).maybeSingle(),
-      supabase.from("branding_audits").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      fetchBrandingData({ column: "user_id", value: uid }),
+      (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle(),
+      (supabase.from("storytelling") as any).select("*").eq(column, value).eq("is_primary", true).maybeSingle(),
+      (supabase.from("brand_proposition") as any).select("*").eq(column, value).maybeSingle(),
+      (supabase.from("brand_strategy") as any).select("*").eq(column, value).maybeSingle(),
+      (supabase.from("offers") as any).select("*").eq(column, value).order("created_at"),
+      (supabase.from("user_plan_config") as any).select("*").eq(column, value).maybeSingle(),
+      (supabase.from("branding_audits") as any).select("*").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      fetchBrandingData({ column, value }),
     ]);
 
     const completion = calculateBrandingCompletion(brandingRaw);
