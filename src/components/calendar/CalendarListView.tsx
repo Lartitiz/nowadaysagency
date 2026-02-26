@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import EmptyState from "@/components/EmptyState";
+import { MESSAGES } from "@/lib/messages";
 import { STATUSES, CANAL_COLORS, type CalendarPost } from "@/lib/calendar-constants";
 import { FORMAT_EMOJIS, FORMAT_LABELS, OBJECTIVE_CARD_COLORS, CATEGORY_LABELS } from "@/lib/calendar-helpers";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -144,7 +146,7 @@ export function CalendarListView({ posts, onEditPost, onStatusChange, onDeletePo
   if (isMobile) {
     return (
       <div className="space-y-2">
-        {sorted.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Aucun post pour cette période</p>}
+        {sorted.length === 0 && <EmptyState {...MESSAGES.empty.calendar_empty} />}
         {sorted.map((post) => (
           <MobileCard key={post.id} post={post} onEditPost={onEditPost} onStatusChange={onStatusChange} onDeletePost={onDeletePost} onDuplicate={onDuplicate} />
         ))}
@@ -175,7 +177,7 @@ export function CalendarListView({ posts, onEditPost, onStatusChange, onDeletePo
 
       {/* Rows */}
       {sorted.length === 0 && (
-        <div className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun post pour cette période</div>
+        <EmptyState {...MESSAGES.empty.calendar_empty} />
       )}
       {sorted.map((post, i) => {
         const formatKey = (post as any).format_technique || post.format || "";

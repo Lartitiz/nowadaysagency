@@ -281,7 +281,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
         <div className="space-y-2 border-t pt-3">
           <h4 className="text-xs font-bold text-foreground">HISTORIQUE</h4>
           {interactions.length === 0 && (
-            <p className="text-xs text-muted-foreground italic">Aucune interaction pour l'instant.</p>
+            <p className="text-xs text-muted-foreground italic">Pas encore d'interaction. La première viendra vite 🌱</p>
           )}
           {interactions.map(i => (
             <div key={i.id} className="text-[11px] flex gap-2">

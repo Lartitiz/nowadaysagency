@@ -1,4 +1,6 @@
 import type { Prospect } from "./ProspectionSection";
+import EmptyState from "@/components/EmptyState";
+import { MESSAGES } from "@/lib/messages";
 import InstagramLink, { cleanPseudo } from "@/components/InstagramLink";
 import { ExternalLink, MessageCircle } from "lucide-react";
 
@@ -91,9 +93,7 @@ export default function ProspectPipeline({ prospects, stages, onSelect, onStageC
         );
       })}
       {prospects.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center py-6 italic">
-          Aucun prospect pour l'instant. Ajoute ton premier prospect pour commencer 🌱
-        </p>
+        <EmptyState {...MESSAGES.empty.prospects} />
       )}
     </div>
   );

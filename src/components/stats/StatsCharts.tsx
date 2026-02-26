@@ -2,6 +2,8 @@ import {
   BarChart, Bar, XAxis, YAxis,
   Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from "recharts";
+import EmptyState from "@/components/EmptyState";
+import { MESSAGES } from "@/lib/messages";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import FollowersChart from "./FollowersChart";
 import EngagementChart from "./EngagementChart";
@@ -34,11 +36,7 @@ export default function StatsCharts({
   }
 
   if (chartData.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        Aucune donnée pour cette période.
-      </p>
-    );
+    return <EmptyState {...MESSAGES.empty.stats} />;
   }
 
   return (
@@ -103,7 +101,7 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
 }
 
 function FunnelChart({ data, businessType }: { data: StatsRow | undefined; businessType?: string | null }) {
-  if (!data) return <p className="text-sm text-muted-foreground text-center py-4">Aucune donnée disponible.</p>;
+  if (!data) return <EmptyState {...MESSAGES.empty.stats} />;
 
   const totalPageViews = (data.page_views_plan || 0) + (data.page_views_academy || 0) + (data.page_views_agency || 0);
 
