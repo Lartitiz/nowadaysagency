@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import EmptyState from "@/components/EmptyState";
+import { MESSAGES } from "@/lib/messages";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
 import { STATUSES, type CalendarPost } from "@/lib/calendar-constants";
@@ -80,7 +82,7 @@ function KanbanColumn({
       <ScrollArea className="flex-1 max-h-[60vh]">
         <div className="p-2 space-y-1.5 min-h-[60px]">
           {posts.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-4">Aucun post</p>
+            <EmptyState {...MESSAGES.empty.calendar_empty} />
           )}
           {posts.map((post) => (
             <DraggableCard key={post.id} post={post} onEditPost={onEditPost} />
@@ -158,7 +160,7 @@ export function CalendarKanbanView({ posts, onEditPost, onStatusChange, canalFil
         </div>
         <div className="space-y-1.5">
           {currentPosts.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-8">Aucun post avec ce statut</p>
+            <EmptyState {...MESSAGES.empty.calendar_empty} />
           )}
           {currentPosts.map((post) => (
             <CalendarContentCard key={post.id} post={post} onClick={() => onEditPost(post)} variant="detailed" />
