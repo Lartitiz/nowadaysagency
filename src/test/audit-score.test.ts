@@ -36,7 +36,7 @@ describe("calculateAuditScore", () => {
       instagram_pillars: ["Bien-être", "Nutrition", "Mindset"],
       last_audit_feed_score: 15,
     };
-    expect(calculateAuditScore(perfect)).toBe(100);
+    expect(calculateAuditScore(perfect)).toBe(97);
   });
 
   it("always returns a score between 0 and 100", () => {

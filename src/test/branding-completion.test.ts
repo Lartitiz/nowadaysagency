@@ -1,5 +1,20 @@
 import { describe, it, expect } from "vitest";
-import { calculateBrandingCompletion, BrandingRawData } from "@/lib/branding-completion";
+
+// Polyfill localStorage for node environment before any module loads
+if (typeof globalThis.localStorage === "undefined") {
+  const store: Record<string, string> = {};
+  (globalThis as any).localStorage = {
+    getItem: (k: string) => store[k] ?? null,
+    setItem: (k: string, v: string) => { store[k] = v; },
+    removeItem: (k: string) => { delete store[k]; },
+    clear: () => { Object.keys(store).forEach(k => delete store[k]); },
+    get length() { return Object.keys(store).length; },
+    key: (i: number) => Object.keys(store)[i] ?? null,
+  };
+}
+
+const { calculateBrandingCompletion } = await import("@/lib/branding-completion");
+type BrandingRawData = Parameters<typeof calculateBrandingCompletion>[0];
 
 const EMPTY_DATA: BrandingRawData = {
   storytellingList: null,
