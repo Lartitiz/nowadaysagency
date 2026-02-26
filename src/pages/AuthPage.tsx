@@ -112,11 +112,11 @@ export default function AuthPage() {
             <div>
               <Input
                 type="password"
-                placeholder="Mot de passe"
+                placeholder="Mot de passe (8 car. min.)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
                 className="rounded-[10px] border-border bg-background h-12"
               />
             </div>
