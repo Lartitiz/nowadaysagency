@@ -5,6 +5,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock } from "../_shared/user-context.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -40,6 +41,7 @@ const ACCROCHE_BANK: Record<string, string[]> = {
 };
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
