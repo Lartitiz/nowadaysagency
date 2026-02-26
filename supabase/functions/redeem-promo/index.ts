@@ -37,7 +37,7 @@ serve(async (req) => {
 
     if (promoErr || !promo) {
       return new Response(JSON.stringify({ error: "Code invalide ou expiré." }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
         status: 400,
       });
     }
@@ -45,7 +45,7 @@ serve(async (req) => {
     // Check expiration
     if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
       return new Response(JSON.stringify({ error: "Ce code a expiré." }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
         status: 400,
       });
     }
@@ -53,7 +53,7 @@ serve(async (req) => {
     // Check max uses
     if (promo.max_uses !== null && promo.current_uses >= promo.max_uses) {
       return new Response(JSON.stringify({ error: "Ce code a atteint son nombre maximum d'utilisations." }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
         status: 400,
       });
     }
@@ -68,7 +68,7 @@ serve(async (req) => {
 
     if (existing) {
       return new Response(JSON.stringify({ error: "Tu as déjà utilisé ce code." }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
         status: 400,
       });
     }
@@ -88,11 +88,8 @@ serve(async (req) => {
       expires_at: expiresAt,
     });
 
-    // Increment uses
-    await supabase
-      .from("promo_codes")
-      .update({ current_uses: promo.current_uses + 1 })
-      .eq("id", promo.id);
+    // Atomic increment uses
+    await supabase.rpc("increment_promo_uses", { promo_id: promo.id });
 
     // Update profile plan
     await supabase
@@ -208,13 +205,13 @@ serve(async (req) => {
       expires_at: expiresAt,
       code: upperCode,
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     return new Response(JSON.stringify({ error: msg }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
       status: 500,
     });
   }

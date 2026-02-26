@@ -7243,6 +7243,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_bonus_credits: {
+        Args: { amount: number; user_uuid: string }
+        Returns: undefined
+      }
+      increment_promo_uses: { Args: { promo_id: string }; Returns: undefined }
       user_has_workspace_access: { Args: { ws_id: string }; Returns: boolean }
       user_workspace_role: { Args: { ws_id: string }; Returns: string }
     }

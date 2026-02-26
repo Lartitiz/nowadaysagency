@@ -136,29 +136,34 @@ serve(async (req) => {
             productType = `credit_pack_${packCredits}`;
           }
 
-          await supabase.from("purchases").insert({
-            user_id: userId,
-            product_type: productType,
-            stripe_payment_intent_id: session.payment_intent as string,
-            stripe_checkout_session_id: session.id,
-            amount: (session.amount_total || 0) / 100,
-            currency: session.currency || "eur",
-            status: "paid",
-          });
+          // Check for duplicate purchase by checkout session ID
+          const { data: existingPurchase } = await supabase
+            .from("purchases")
+            .select("id")
+            .eq("stripe_checkout_session_id", session.id)
+            .maybeSingle();
 
-          // Credit pack: increment bonus_credits
-          if (isCreditPack && packCredits > 0) {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("bonus_credits")
-              .eq("user_id", userId)
-              .single();
-            const currentBonus = profile?.bonus_credits || 0;
-            await supabase
-              .from("profiles")
-              .update({ bonus_credits: currentBonus + packCredits })
-              .eq("user_id", userId);
-            log("Bonus credits added", { userId, packCredits, newTotal: currentBonus + packCredits });
+          if (!existingPurchase) {
+            await supabase.from("purchases").insert({
+              user_id: userId,
+              product_type: productType,
+              stripe_payment_intent_id: session.payment_intent as string,
+              stripe_checkout_session_id: session.id,
+              amount: (session.amount_total || 0) / 100,
+              currency: session.currency || "eur",
+              status: "paid",
+            });
+          } else {
+            log("Duplicate purchase skipped", { sessionId: session.id });
+          }
+
+          // Credit pack: atomic increment bonus_credits
+          if (isCreditPack && packCredits > 0 && !existingPurchase) {
+            await supabase.rpc("increment_bonus_credits", {
+              user_uuid: userId,
+              amount: packCredits,
+            });
+            log("Bonus credits added (atomic)", { userId, packCredits });
           }
 
           // If studio one-time, activate studio plan
