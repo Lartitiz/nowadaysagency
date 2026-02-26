@@ -430,6 +430,10 @@ export function useOnboarding() {
 
       localStorage.removeItem("lac_prenom");
       localStorage.removeItem("lac_activite");
+      localStorage.removeItem("lac_onboarding_step");
+      localStorage.removeItem("lac_onboarding_answers");
+      localStorage.removeItem("lac_onboarding_branding");
+      localStorage.removeItem("lac_onboarding_ts");
     } catch (error: any) {
       console.error("Erreur technique:", error);
       toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
