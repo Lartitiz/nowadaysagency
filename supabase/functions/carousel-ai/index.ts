@@ -5,6 +5,7 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -83,7 +84,9 @@ serve(async (req) => {
 });
 
 function buildSystemPrompt(brandingContext: string): string {
-  return `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
+  return `${BASE_SYSTEM_RULES}
+
+Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
 - Reproduis fidèlement le style décrit
 - Réutilise les expressions signature naturellement dans le texte
 - RESPECTE les expressions interdites : ne les utilise JAMAIS

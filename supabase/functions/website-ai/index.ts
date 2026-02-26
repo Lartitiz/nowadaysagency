@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { WEBSITE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
+import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
@@ -170,7 +171,7 @@ serve(async (req) => {
       userPrompt = "Génère mon diagnostic personnalisé basé sur l'audit.";
 
       // Generate, save, and return
-      systemPrompt = VOICE_PRIORITY + systemPrompt;
+      systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + systemPrompt;
       const diagnosticRaw = await callAnthropicSimple(getModelForAction("website"), systemPrompt, userPrompt, 0.8);
 
       // Save diagnostic + recommendations to website_audit
@@ -242,7 +243,7 @@ serve(async (req) => {
 
       const visionResult = await callAnthropic({
         model: getModelForAction("audit"),
-        system: VOICE_PRIORITY + screenshotSystemPrompt,
+        system: BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + screenshotSystemPrompt,
         messages: visionMessages,
         temperature: 0.7,
         max_tokens: 4096,
@@ -353,7 +354,7 @@ Réponds UNIQUEMENT en JSON sans backticks :
       return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    systemPrompt = VOICE_PRIORITY + systemPrompt;
+    systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + systemPrompt;
     const content = await callAnthropicSimple(getModelForAction("website"), systemPrompt, userPrompt, 0.8);
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 
 const SECTION_CHECKLISTS: Record<string, string[]> = {
   story: ["story_origin", "story_turning_point", "story_struggles", "story_unique", "story_vision"],
@@ -158,7 +159,7 @@ serve(async (req) => {
     // Special section: generate full story text (no JSON, just prose)
     if (section === "story_generate") {
       const prenom = context?.profile?.prenom || context?.profile?.first_name || "toi";
-      const storySystemPrompt = `Tu es une rédactrice de storytelling. Écris l'histoire fondatrice de ${prenom} en un texte fluide, engageant, à la première personne. Utilise un ton oral, chaleureux, authentique. Pas de jargon, pas de phrases corporate. Le texte doit faire entre 300 et 500 mots. Retourne UNIQUEMENT le texte de l'histoire, sans JSON, sans balises.`;
+      const storySystemPrompt = BASE_SYSTEM_RULES + `\n\nTu es une rédactrice de storytelling. Écris l'histoire fondatrice de ${prenom} en un texte fluide, engageant, à la première personne. Utilise un ton oral, chaleureux, authentique. Pas de jargon, pas de phrases corporate. Le texte doit faire entre 300 et 500 mots. Retourne UNIQUEMENT le texte de l'histoire, sans JSON, sans balises.`;
 
       let storyMessages = (messages || []).map((m: any) => ({
         role: m.role === "user" ? "user" as const : "assistant" as const,
@@ -199,7 +200,7 @@ serve(async (req) => {
       });
     }
 
-    const systemPrompt = buildSystemPrompt(section, context || {}, covered_topics || []) + "\n\n" + ANTI_SLOP;
+    const systemPrompt = BASE_SYSTEM_RULES + "\n\n" + buildSystemPrompt(section, context || {}, covered_topics || []) + "\n\n" + ANTI_SLOP;
 
     // Build anthropic messages — send ALL messages, no pruning
     let anthropicMessages = (messages || []).map((m: any) => ({

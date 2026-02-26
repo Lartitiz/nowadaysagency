@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LINKEDIN_PRINCIPLES, LINKEDIN_TEMPLATES, LINKEDIN_HOOK_TYPES_PROMPTS, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS } from "../_shared/copywriting-prompts.ts";
+import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
@@ -128,7 +129,7 @@ serve(async (req) => {
           text: `\n\nTu as reçu ${uploadedFiles.length} fichier(s). Extrais TOUT le contenu textuel visible. Si ce sont des captures de posts Instagram ou LinkedIn, extrais le texte du post, les hashtags, et note le format visuel. Puis adapte pour les canaux : ${JSON.stringify(targetChannels)}`
         });
 
-        systemPrompt = VOICE_PRIORITY + crosspostSystemPrompt;
+        systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + crosspostSystemPrompt;
         const content = await callAnthropic({
           model: getModelForAction("linkedin_post"),
           system: systemPrompt,
@@ -180,7 +181,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    systemPrompt = VOICE_PRIORITY + systemPrompt;
+    systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + systemPrompt;
     const content = await callAnthropicSimple(getModelForAction("linkedin_post"), systemPrompt, userPrompt, 0.8);
 
     await logUsage(user.id, category, `linkedin_${action}`);

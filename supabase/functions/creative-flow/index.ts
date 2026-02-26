@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS } from "../_shared/copywriting-prompts.ts";
+import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
@@ -386,7 +387,7 @@ Réponds UNIQUEMENT en JSON :
     }
 
     // Prepend voice priority instruction
-    systemPrompt = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + systemPrompt;
+    systemPrompt = BASE_SYSTEM_RULES + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + systemPrompt;
 
     // ── Deep Research (web search via Anthropic) ──
     if (deepResearch && step === "generate") {

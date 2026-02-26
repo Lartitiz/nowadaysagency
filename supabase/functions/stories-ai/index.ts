@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, AnthropicError, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -91,7 +92,7 @@ RETOURNE un JSON strict :
   ]
 }
 Réponds UNIQUEMENT avec le JSON.`;
-      const response = await callAnthropicSimple(getModelForAction("stories"), systemPrompt, `Idée brute : "${body.raw_idea}"`);
+      const response = await callAnthropicSimple(getModelForAction("stories"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, `Idée brute : "${body.raw_idea}"`);
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -122,7 +123,7 @@ Chaque sujet doit être :
 RETOURNE un JSON strict :
 { "suggestions": ["sujet 1", "sujet 2", "sujet 3", "sujet 4", "sujet 5"] }
 Réponds UNIQUEMENT avec le JSON.`;
-      const response = await callAnthropicSimple(getModelForAction("stories"), systemPrompt, "Propose-moi 5 sujets de stories.");
+      const response = await callAnthropicSimple(getModelForAction("stories"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Propose-moi 5 sujets de stories.");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -150,7 +151,7 @@ Réponds UNIQUEMENT avec le JSON.`;
     // Quick daily stories
     if (type === "daily") {
       const systemPrompt = buildDailyPrompt(branding_context);
-      const response = await callAnthropicSimple(getModelForAction("stories"), systemPrompt, "Génère mes 5 stories du quotidien.");
+      const response = await callAnthropicSimple(getModelForAction("stories"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Génère mes 5 stories du quotidien.");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -171,7 +172,7 @@ Réponds UNIQUEMENT avec le JSON.`;
 
     // Main generation
     const systemPrompt = buildMainPrompt({ objective, price_range, time_available, face_cam, subject: enrichedSubject, is_launch, branding_context, gardeFouAlerte, pre_gen_answers });
-    const response = await callAnthropicSimple(getModelForAction("stories"), systemPrompt, "Génère ma séquence stories.");
+    const response = await callAnthropicSimple(getModelForAction("stories"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Génère ma séquence stories.");
     return new Response(JSON.stringify({ content: response }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
