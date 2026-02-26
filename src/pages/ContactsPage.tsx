@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import EmptyState from "@/components/EmptyState";
+import { MESSAGES } from "@/lib/messages";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -425,9 +427,7 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
           );
         })}
         {filtered.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-6 italic">
-            Aucun contact. Ajoute ton premier contact pour commencer 🌱
-          </p>
+          <EmptyState {...MESSAGES.empty.contacts} onAction={() => setAdding(true)} />
         )}
       </div>
 
@@ -595,9 +595,7 @@ function ProspectsTab({ contacts, onAdd, onSelect, onUpdateStage, onWriteDm, pip
           );
         })}
         {contacts.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-6 italic">
-            Aucun prospect. Ajoute ton premier prospect 🌱
-          </p>
+          <EmptyState {...MESSAGES.empty.prospects} onAction={() => setAdding(true)} />
         )}
       </div>
 
