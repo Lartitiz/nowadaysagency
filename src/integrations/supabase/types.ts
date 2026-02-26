@@ -6374,6 +6374,33 @@ export type Database = {
           },
         ]
       }
+      user_plan_overrides: {
+        Row: {
+          id: string
+          manual_status: string
+          step_id: string
+          updated_at: string | null
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          id?: string
+          manual_status: string
+          step_id: string
+          updated_at?: string | null
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          id?: string
+          manual_status?: string
+          step_id?: string
+          updated_at?: string | null
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       user_rhythm: {
         Row: {
           created_at: string | null

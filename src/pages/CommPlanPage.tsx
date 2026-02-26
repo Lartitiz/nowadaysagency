@@ -6,10 +6,11 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import PlanSetup from "@/components/plan/PlanSetup";
 import PlanView from "@/components/plan/PlanView";
-import { computePlan, type PlanData, type PlanConfig } from "@/lib/plan-engine";
+import { computePlan, type PlanData, type PlanConfig, type PlanStepOverride } from "@/lib/plan-engine";
 import { Loader2, ClipboardList, BarChart3, Construction } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useDemoContext } from "@/contexts/DemoContext";
+import { toast } from "@/hooks/use-toast";
 
 export default function CommPlanPage() {
   const { user } = useAuth();
@@ -21,6 +22,7 @@ export default function CommPlanPage() {
   const [config, setConfig] = useState<PlanConfig | null>(null);
   const [plan, setPlan] = useState<PlanData | null>(null);
   const [showSetup, setShowSetup] = useState(false);
+  const [overrides, setOverrides] = useState<PlanStepOverride[]>([]);
 
   useEffect(() => {
     if (isDemoMode) {
@@ -69,20 +71,26 @@ export default function CommPlanPage() {
     }
     if (!user?.id) return;
     (async () => {
-      const { data } = await (supabase
-        .from("user_plan_config" as any)
-        .select("*")
-        .eq(column, value)
-        .maybeSingle() as any);
+      // Fetch config and overrides in parallel
+      const [configRes, overridesRes] = await Promise.all([
+        (supabase.from("user_plan_config" as any).select("*").eq(column, value).maybeSingle() as any),
+        (supabase.from("user_plan_overrides" as any).select("step_id, manual_status").eq(column, value) as any),
+      ]);
 
-      if (data) {
+      const fetchedOverrides: PlanStepOverride[] = (overridesRes.data || []).map((o: any) => ({
+        step_id: o.step_id,
+        status: o.manual_status,
+      }));
+      setOverrides(fetchedOverrides);
+
+      if (configRes.data) {
         const cfg: PlanConfig = {
-          weekly_time: data.weekly_time,
-          channels: (data.channels as string[]) || ["instagram"],
-          main_goal: data.main_goal,
+          weekly_time: configRes.data.weekly_time,
+          channels: (configRes.data.channels as string[]) || ["instagram"],
+          main_goal: configRes.data.main_goal,
         };
         setConfig(cfg);
-        const planData = await computePlan({ column, value }, cfg);
+        const planData = await computePlan({ column, value }, cfg, fetchedOverrides);
         setPlan(planData);
       } else {
         setShowSetup(true);
@@ -110,13 +118,38 @@ export default function CommPlanPage() {
       }
 
       setConfig(cfg);
-      const planData = await computePlan({ column, value }, cfg);
+      const planData = await computePlan({ column, value }, cfg, overrides);
       setPlan(planData);
       setShowSetup(false);
     } finally {
       setSaving(false);
     }
-  }, [user, config]);
+  }, [user, config, overrides]);
+
+  const handleToggleStep = useCallback(async (stepId: string, newStatus: 'done' | 'undone') => {
+    if (!user || !plan || !config) return;
+    const wsId = workspaceId !== user.id ? workspaceId : null;
+
+    // Optimistic local update
+    const newOverrides = [...overrides.filter(o => o.step_id !== stepId), { step_id: stepId, status: newStatus }];
+    setOverrides(newOverrides);
+    const newPlan = await computePlan({ column, value }, config, newOverrides);
+    setPlan(newPlan);
+
+    toast({
+      title: newStatus === "done" ? "✅ Étape cochée !" : "Étape décochée",
+      duration: 2000,
+    });
+
+    // Persist
+    await (supabase.from("user_plan_overrides" as any).upsert({
+      user_id: user.id,
+      workspace_id: wsId,
+      step_id: stepId,
+      manual_status: newStatus,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id,workspace_id,step_id" }) as any);
+  }, [user, plan, config, overrides, column, value, workspaceId]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -155,6 +188,7 @@ export default function CommPlanPage() {
               <PlanView
                 plan={plan}
                 onEditConfig={() => setShowSetup(true)}
+                onToggleStep={handleToggleStep}
               />
             </TabsContent>
 
