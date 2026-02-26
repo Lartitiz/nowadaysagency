@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import ReelInspirationUpload from "@/components/ReelInspirationUpload";
+import RedFlagsChecker from "@/components/RedFlagsChecker";
 
 // ── Types ──
 interface Hook {
@@ -477,6 +478,24 @@ export default function InstagramReels() {
                 )}
               </div>
             ))}
+          </div>
+
+          {/* Red flags checker on script */}
+          <div className="mt-4">
+            <RedFlagsChecker
+              content={scriptResult.script.map(s => s.texte_parle).join("\n")}
+              onFix={(fixed) => {
+                const parts = fixed.split("\n");
+                setScriptResult(prev => {
+                  if (!prev) return prev;
+                  const updatedScript = prev.script.map((s, i) => ({
+                    ...s,
+                    texte_parle: parts[i] !== undefined ? parts[i] : s.texte_parle,
+                  }));
+                  return { ...prev, script: updatedScript };
+                });
+              }}
+            />
           </div>
 
           {/* Caption */}
