@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import EditableText from "@/components/EditableText";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { parseToArray, safeParseJson } from "@/lib/branding-utils";
 
 type Section = "story" | "persona" | "value_proposition" | "tone_style" | "content_strategy";
 
@@ -20,22 +21,6 @@ interface SynthesisRendererProps {
   table: string;
   onSynthesisGenerated?: () => void;
   lastCoachingUpdate?: string | null;
-}
-
-/* ── Helpers ── */
-function parseToArray(val: any): string[] {
-  if (!val) return [];
-  if (Array.isArray(val)) return val.filter(Boolean).map(String);
-  if (typeof val === "string") {
-    return val.split(/[\n•\-]/).map(s => s.replace(/^\d+[\.\)]\s*/, "").trim()).filter(Boolean);
-  }
-  return [];
-}
-
-function safeJson(val: any): any {
-  if (!val) return null;
-  if (typeof val === "object") return val;
-  try { return JSON.parse(val); } catch { return null; }
 }
 
 /* ── Sub-components ── */
@@ -135,7 +120,7 @@ function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText }: {
   data: any; onSaveRecap: (path: string[], value: string) => Promise<void>;
   onSaveDirect: (field: string, value: string) => Promise<void>; copyText: (t: string) => void;
 }) {
-  const summary = safeJson(data.recap_summary);
+  const summary = safeParseJson(data.recap_summary);
   if (!summary) return null;
 
   return (
@@ -228,7 +213,7 @@ function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText }: {
 function PersonaSynthesis({ data, onSavePortrait }: {
   data: any; onSavePortrait: (path: string[], value: string) => Promise<void>;
 }) {
-  const portrait = safeJson(data.portrait);
+  const portrait = safeParseJson(data.portrait);
   if (!portrait) return null;
 
   const displayName = data.portrait_prenom || portrait.prenom || "Ma cliente idéale";
@@ -416,7 +401,7 @@ function ToneStyleSynthesis({ data, onSaveDirect }: {
   const toneTags = [data.tone_register, data.tone_style, data.tone_level, data.tone_humor, data.tone_engagement].filter(Boolean);
   const doList = parseToArray(data.key_expressions);
   const dontList = parseToArray(data.things_to_avoid);
-  const recap = safeJson(data.recap_summary);
+  const recap = safeParseJson(data.recap_summary);
   const fightsList = parseToArray(data.combat_fights);
   const refusalsList = parseToArray(data.combat_refusals);
 
@@ -551,7 +536,7 @@ function ExpandableText({ text, lines = 3 }: { text: string; lines?: number }) {
 function StrategySynthesis({ data, onSaveRecap }: {
   data: any; onSaveRecap: (path: string[], value: string) => Promise<void>;
 }) {
-  const summary = safeJson(data.recap_summary);
+  const summary = safeParseJson(data.recap_summary);
   const facets = [data.facet_1, data.facet_2, data.facet_3].filter(Boolean);
   const directPillars = [
     { name: data.pillar_major, type: "major" },
@@ -749,9 +734,9 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
     }
   }, [lastCoachingUpdate, localData]);
 
-  const hasRecap = section === "story" ? !!safeJson(localData?.recap_summary) :
-    section === "persona" ? !!safeJson(localData?.portrait) :
-    section === "content_strategy" ? !!(safeJson(localData?.recap_summary) || localData?.pillar_major) :
+  const hasRecap = section === "story" ? !!safeParseJson(localData?.recap_summary) :
+    section === "persona" ? !!safeParseJson(localData?.portrait) :
+    section === "content_strategy" ? !!(safeParseJson(localData?.recap_summary) || localData?.pillar_major) :
     section === "value_proposition" ? !!(localData?.version_final || localData?.version_one_liner || localData?.step_1_what) :
     section === "tone_style" ? !!(localData?.tone_register || localData?.voice_description || localData?.combat_cause) :
     false;
@@ -812,7 +797,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
   const saveRecapField = async (path: string[], value: string) => {
     if (!localData?.id) return;
     const recapKey = section === "persona" ? "portrait" : "recap_summary";
-    const recap = JSON.parse(JSON.stringify(safeJson(localData[recapKey]) || {}));
+    const recap = JSON.parse(JSON.stringify(safeParseJson(localData[recapKey]) || {}));
     let obj = recap;
     for (let i = 0; i < path.length - 1; i++) {
       if (Array.isArray(obj) && !isNaN(Number(path[i]))) obj = obj[Number(path[i])];
