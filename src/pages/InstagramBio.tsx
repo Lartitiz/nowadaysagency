@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/use-profile";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -82,6 +83,7 @@ export default function InstagramBio() {
   const workspaceId = useWorkspaceId();
 
   // Profile data
+  const { data: profileHookData } = useProfile();
   const [profile, setProfile] = useState<any>(null);
 
   // Views
@@ -140,8 +142,7 @@ export default function InstagramBio() {
     }
     if (!user || brandingLoaded) return;
     const load = async () => {
-      const [{ data: prof }, { data: val }, { data: bp }, { data: persona }, { data: prop }, { data: strat }, { data: story }] = await Promise.all([
-        (supabase.from("profiles") as any).select("*").eq(column, value).single(),
+      const [{ data: val }, { data: bp }, { data: persona }, { data: prop }, { data: strat }, { data: story }] = await Promise.all([
         (supabase.from("audit_validations") as any).select("*").eq(column, value).eq("section", "bio").maybeSingle(),
         (supabase.from("brand_profile") as any).select("voice_description, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, combat_cause, combat_fights, combat_alternative, combat_refusals, mission, offer").eq(column, value).maybeSingle(),
         (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle(),
@@ -150,6 +151,7 @@ export default function InstagramBio() {
         (supabase.from("storytelling") as any).select("step_7_polished").eq(column, value).maybeSingle(),
       ]);
 
+      const prof = profileHookData;
       if (prof) {
         setProfile(prof);
         if ((prof as any).differentiation_type) setDiffAngle((prof as any).differentiation_type);
@@ -163,7 +165,7 @@ export default function InstagramBio() {
       const pillars = [strat?.pillar_major, strat?.pillar_minor_1, strat?.pillar_minor_2, strat?.pillar_minor_3].filter(Boolean);
 
       setBrandingCtx({
-        positioning: (prof as any)?.activite || bp?.mission || "",
+        positioning: (profileHookData as any)?.activite || bp?.mission || "",
         valueProposition: prop?.version_final || prop?.version_bio || prop?.version_pitch_naturel || "",
         target: (prof as any)?.cible || (persona?.step_2_transformation ? `Cible qui veut : ${persona.step_2_transformation}` : ""),
         tone: bp?.voice_description || toneArr.join(", ") || "",

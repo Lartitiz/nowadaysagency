@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/use-profile";
 import { useOnboardingMissions } from "@/hooks/use-onboarding-missions";
 import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,25 +17,18 @@ interface WelcomeOverlayProps {
 
 export default function WelcomeOverlay({ prenom }: WelcomeOverlayProps) {
   const { user } = useAuth();
-  const { column, value } = useWorkspaceFilter();
+  const { data: profileData } = useProfile();
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !profileData) return;
     if (localStorage.getItem(LS_KEY) === "true") return;
-
-    (async () => {
-      const { data } = await (supabase.from("profiles") as any)
-        .select("onboarding_completed_at")
-        .eq(column, value)
-        .single();
-      if (!data?.onboarding_completed_at) return;
-      const completedAt = new Date(data.onboarding_completed_at).getTime();
-      if (Date.now() - completedAt > MAX_AGE_MS) return;
-      setVisible(true);
-    })();
-  }, [user, column, value]);
+    const completedAt = (profileData as any)?.onboarding_completed_at;
+    if (!completedAt) return;
+    if (Date.now() - new Date(completedAt).getTime() > MAX_AGE_MS) return;
+    setVisible(true);
+  }, [user, profileData]);
 
   const close = () => {
     localStorage.setItem(LS_KEY, "true");

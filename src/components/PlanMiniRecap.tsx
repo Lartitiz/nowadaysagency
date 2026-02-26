@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/use-profile";
 import { Link } from "react-router-dom";
 import { ClipboardList, ArrowRight } from "lucide-react";
 import { PLAN_WEEKS } from "@/lib/plan-content";
@@ -10,7 +11,8 @@ import { Progress } from "@/components/ui/progress";
 export default function PlanMiniRecap() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
-  const [planStartDate, setPlanStartDate] = useState<string | null>(null);
+  const { data: profileData } = useProfile();
+  const planStartDate = (profileData as any)?.plan_start_date || null;
   const [completedThisWeek, setCompletedThisWeek] = useState(0);
   const [totalThisWeek, setTotalThisWeek] = useState(0);
   const [completedWeeks, setCompletedWeeks] = useState(0);
@@ -24,22 +26,14 @@ export default function PlanMiniRecap() {
   }, [planStartDate]);
 
   useEffect(() => {
-    if (!user) return;
-    const fetch = async () => {
-      const { data: profile } = await (supabase.from("profiles") as any)
-        .select("plan_start_date")
-        .eq(column, value)
-        .single();
-      if (profile?.plan_start_date) {
-        setPlanStartDate(profile.plan_start_date);
-      }
-
+    if (!user || !planStartDate) return;
+    const fetchTasks = async () => {
       const { data: tasks } = await (supabase.from("plan_tasks") as any)
         .select("week_number, task_index, is_completed")
         .eq(column, value);
 
-      if (tasks && profile?.plan_start_date) {
-        const start = new Date(profile.plan_start_date);
+      if (tasks) {
+        const start = new Date(planStartDate);
         const now = new Date();
         const diffDays = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
         const cw = Math.min(Math.floor(diffDays / 7) + 1, 12);
@@ -50,7 +44,6 @@ export default function PlanMiniRecap() {
           tasks.filter((t) => t.week_number === cw && t.is_completed).length
         );
 
-        // Count completed weeks
         let done = 0;
         for (let w = 1; w <= 12; w++) {
           const weekTasks = PLAN_WEEKS.find((pw) => pw.weekNumber === w);
@@ -61,8 +54,8 @@ export default function PlanMiniRecap() {
         setCompletedWeeks(done);
       }
     };
-    fetch();
-  }, [user?.id]);
+    fetchTasks();
+  }, [user?.id, planStartDate]);
 
   const weekTitle = PLAN_WEEKS.find((w) => w.weekNumber === currentWeek)?.title || "";
 
