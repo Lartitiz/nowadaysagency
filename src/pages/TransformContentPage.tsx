@@ -20,11 +20,56 @@ export default function TransformContentPage() {
           </p>
         </div>
 
-        {/* Mode selector - will be filled in next prompt */}
         {!mode && (
-          <div className="rounded-2xl border border-border bg-card p-6 text-center">
-            <p className="text-sm text-muted-foreground">Sélecteur de mode à venir</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            {([
+              {
+                id: "recycle" as TransformMode,
+                emoji: "♻️",
+                title: "Recycler",
+                desc: "Transforme un contenu en plusieurs formats (carrousel, reel, stories, LinkedIn, newsletter).",
+                tag: "Multi-format",
+              },
+              {
+                id: "crosspost" as TransformMode,
+                emoji: "🔄",
+                title: "Adapter pour un canal",
+                desc: "Adapte un contenu d'un canal à un autre avec un angle spécifique.",
+                tag: "Cross-canal",
+              },
+              {
+                id: "inspire" as TransformMode,
+                emoji: "✨",
+                title: "M'inspirer",
+                desc: "Analyse un contenu qui t'a plu et crée une version à toi, adaptée à ton branding.",
+                tag: "Inspiration",
+              },
+            ]).map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setMode(m.id)}
+                className="group text-left rounded-2xl border-2 border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
+              >
+                <span className="text-2xl mb-3 block">{m.emoji}</span>
+                <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                  {m.title}
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{m.desc}</p>
+                <span className="mt-3 inline-block font-mono-ui text-[10px] font-semibold text-primary bg-rose-pale px-2.5 py-0.5 rounded-pill">
+                  {m.tag}
+                </span>
+              </button>
+            ))}
           </div>
+        )}
+
+        {mode && (
+          <button
+            onClick={() => setMode(null)}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6"
+          >
+            ← Changer de mode
+          </button>
         )}
       </main>
     </div>
