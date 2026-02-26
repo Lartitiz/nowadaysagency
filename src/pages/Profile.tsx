@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/use-profile";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
@@ -156,6 +158,8 @@ export default function Profile() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
+  const { data: hookProfileData } = useProfile();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [openHelp, setOpenHelp] = useState<HelpKey>(null);
@@ -176,10 +180,8 @@ export default function Profile() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const [{ data }, { data: config }] = await Promise.all([
-        (supabase.from("profiles") as any).select("*").eq(column, value).single(),
-        (supabase.from("user_plan_config") as any).select("main_goal, level, weekly_time").eq(column, value).maybeSingle(),
-      ]);
+      const data = hookProfileData as any;
+      const { data: config } = await (supabase.from("user_plan_config") as any).select("main_goal, level, weekly_time").eq(column, value).maybeSingle();
       if (data) {
         const loaded: ProfileData = {
           prenom: data.prenom || "",
@@ -205,7 +207,7 @@ export default function Profile() {
       setLoading(false);
     };
     load();
-  }, [user?.id]);
+  }, [user?.id, hookProfileData]);
 
   const update = (field: keyof ProfileData, value: any) => {
     setCurrent((prev) => ({ ...prev, [field]: value }));
@@ -242,6 +244,7 @@ export default function Profile() {
         })
         .eq(column, value);
       if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
 
       // Sync to user_plan_config
       if (current.mainGoal || current.level || current.weeklyTime) {

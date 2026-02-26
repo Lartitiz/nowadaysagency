@@ -3,6 +3,7 @@ import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useProfile } from "@/hooks/use-profile";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import BrandingPrompt from "@/components/BrandingPrompt";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -190,19 +191,10 @@ export default function CalendarPage() {
   const [selectedIdea, setSelectedIdea] = useState<SavedIdea | null>(null);
   const [ideaDetailOpen, setIdeaDetailOpen] = useState(false);
   const [coachingOpen, setCoachingOpen] = useState(false);
-  const [ownerName, setOwnerName] = useState("");
-  const [igUsername, setIgUsername] = useState("");
 
-  // Load profile info for hover previews
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("profiles").select("prenom, instagram_username").eq("user_id", user.id).maybeSingle().then(({ data }) => {
-      if (data) {
-        setOwnerName(data.prenom || "");
-        setIgUsername(data.instagram_username || "");
-      }
-    });
-  }, [user?.id]);
+  const { data: profileData } = useProfile();
+  const ownerName = (profileData as any)?.prenom || "";
+  const igUsername = (profileData as any)?.instagram_username || "";
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );

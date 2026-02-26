@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useProfile } from "@/hooks/use-profile";
 
 const GOAL_LABELS: Record<string, string> = {
   start: "🌱 Poser les bases",
@@ -60,27 +61,22 @@ export default function WelcomePage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
-  const [prenom, setPrenom] = useState("");
+  const { data: profileData } = useProfile();
   const [goal, setGoal] = useState("");
   const [time, setTime] = useState("");
-  const [channels, setChannels] = useState<string[]>([]);
+
+  const prenom = (profileData as any)?.prenom || "";
+  const channels: string[] = (profileData as any)?.canaux || [];
 
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const [{ data: profile }, { data: config }] = await Promise.all([
-        (supabase.from("profiles") as any).select("prenom, canaux").eq(column, value).maybeSingle(),
-        (supabase.from("user_plan_config") as any).select("main_goal, weekly_time, welcome_seen, onboarding_completed").eq(column, value).maybeSingle(),
-      ]);
+      const { data: config } = await (supabase.from("user_plan_config") as any).select("main_goal, weekly_time, welcome_seen, onboarding_completed").eq(column, value).maybeSingle();
       // Don't redirect if user explicitly navigated here (e.g., "Revoir la page de bienvenue")
       // Only redirect if they land here accidentally without completing onboarding
       if (!config?.onboarding_completed) {
         navigate("/onboarding", { replace: true });
         return;
-      }
-      if (profile) {
-        setPrenom(profile.prenom || "");
-        setChannels(profile.canaux || []);
       }
       if (config) {
         setGoal(config.main_goal || "");

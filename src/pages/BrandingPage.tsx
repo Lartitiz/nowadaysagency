@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useMergedProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -139,6 +140,7 @@ export default function BrandingPage() {
   const { isDemoMode } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const { profile: hookProfile, brandProfile: hookBrandProfile } = useMergedProfile();
   const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, charter: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [primaryStoryId, setPrimaryStoryId] = useState<string | null>(null);
@@ -255,12 +257,12 @@ export default function BrandingPage() {
     if (!user) return;
     setGeneratingProp(true);
     try {
-      const [storyRes, personaRes, profileRes] = await Promise.all([
+      const [storyRes, personaRes] = await Promise.all([
         (supabase.from("storytelling") as any).select("*").eq(column, value).eq("is_primary", true).maybeSingle(),
         (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle(),
-        (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle(),
       ]);
-      const profiles = await (supabase.from("profiles") as any).select("activite, prenom, mission").eq(column, value).maybeSingle();
+      const profileRes = { data: hookBrandProfile || null };
+      const profiles = { data: hookProfile || null };
 
       if (!profiles.data) {
         toast.error("Complète ton profil d'abord — va dans Onboarding pour renseigner tes infos.");
