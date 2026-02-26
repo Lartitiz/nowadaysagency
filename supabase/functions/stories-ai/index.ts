@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, AnthropicError, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -61,6 +62,8 @@ serve(async (req) => {
 Tu es experte en stories Instagram pour solopreneuses créatives.
 L'utilisatrice a une idée floue pour ses stories. Aide-la à préciser.
 
+${ANTI_SLOP}
+
 ${branding_context || ""}
 
 L'utilisatrice a partagé une idée brute :
@@ -104,6 +107,8 @@ Réponds UNIQUEMENT avec le JSON.`;
 - Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
 
 Tu es experte en stories Instagram pour solopreneuses créatives.
+
+${ANTI_SLOP}
 
 ${branding_context || ""}
 
@@ -205,7 +210,7 @@ function buildDailyPrompt(brandingContext: string): string {
 
 Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées.
 
-ANTI-SLOP : JAMAIS de "Dans un monde où", "N'hésitez pas", "Plongeons dans", "En outre", "Cela étant dit", "Force est de constater", "Il convient de", tirets cadratins. SI DÉTECTÉ, RÉÉCRIRE.
+${ANTI_SLOP}
 
 ${brandingContext || ""}
 
@@ -315,7 +320,7 @@ Génère normalement. Ajoute un champ "personal_tip" dans le JSON :
 
 Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées (mode, artisanat, bien-être, design, coaching).
 
-ANTI-SLOP : JAMAIS de "Dans un monde où", "N'hésitez pas", "Plongeons dans", "En outre", "Cela étant dit", "Force est de constater", "Il convient de", tirets cadratins (—). SI DÉTECTÉ, RÉÉCRIRE.
+${ANTI_SLOP}
 
 AVANT DE RÉDIGER, RÉFLÉCHIS EN INTERNE (ne montre PAS) : Quel est le problème ? Quelle émotion ? Quelle accroche est la MEILLEURE ? Mon output a-t-il du slop ?
 
