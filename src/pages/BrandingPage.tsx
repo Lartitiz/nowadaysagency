@@ -26,6 +26,7 @@ import { fr } from "date-fns/locale";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
 import { toast } from "sonner";
+import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 interface BrandingCard {
   emoji: string;
@@ -365,12 +366,18 @@ export default function BrandingPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex gap-1">
-          <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" />
-          <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} />
-          <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
-        </div>
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <SkeletonCard variant="medium" />
+            <SkeletonCard variant="medium" />
+            <SkeletonCard variant="medium" />
+            <SkeletonCard variant="medium" />
+            <SkeletonCard variant="medium" />
+            <SkeletonCard variant="medium" />
+          </div>
+        </main>
       </div>
     );
   }
