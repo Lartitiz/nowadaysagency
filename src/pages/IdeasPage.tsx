@@ -15,6 +15,7 @@ import { format as fnsFormat } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
+import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 /* ─── Types ─── */
 interface SavedIdea {
@@ -246,7 +247,14 @@ export default function IdeasPage() {
 
         {/* Ideas list */}
         {loading ? (
-          <div className="flex justify-center py-16"><p className="text-muted-foreground">Chargement...</p></div>
+          <div className="space-y-3">
+            <SkeletonCard variant="small" />
+            <SkeletonCard variant="small" />
+            <SkeletonCard variant="small" />
+            <SkeletonCard variant="small" />
+            <SkeletonCard variant="small" />
+            <SkeletonCard variant="small" />
+          </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
             <Lightbulb className="h-12 w-12 text-muted-foreground/30 mb-4" />
