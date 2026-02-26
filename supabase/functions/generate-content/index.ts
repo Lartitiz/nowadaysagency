@@ -2,31 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple, AnthropicError, getModelForAction } from "../_shared/anthropic.ts";
-import { corsHeaders } from "../_shared/cors.ts";
-import { validateInput, ValidationError, GenerateContentSchema } from "../_shared/input-validators.ts";
-
-function buildProfileBlock(profile: any): string {
-  const lines = [
-    `- Prénom : ${profile.prenom || "?"}`,
-    `- Activité : ${profile.activite || "?"}`,
-    `- Type : ${profile.type_activite || "?"}`,
-    `- Cible : ${profile.cible || "?"}`,
-    `- Problème qu'elle résout : ${profile.probleme_principal || "?"}`,
-    `- Thématiques : ${(profile.piliers || []).join(", ") || "?"}`,
-    `- Ton souhaité : ${(profile.tons || []).join(", ") || "?"}`,
-  ];
-  if (profile.mission) lines.push(`- Mission : ${profile.mission}`);
-  if (profile.offre) lines.push(`- Offre (ce qu'elle vend) : ${profile.offre}`);
-  if (profile.croyances_limitantes) lines.push(`- Croyances limitantes de sa cible : ${profile.croyances_limitantes}`);
-  if (profile.verbatims) lines.push(`- Verbatims (les mots de ses clientes) : ${profile.verbatims}`);
-  if (profile.expressions_cles) lines.push(`- Expressions clés à utiliser : ${profile.expressions_cles}`);
-  if (profile.ce_quon_evite) lines.push(`- Ce qu'on évite dans sa com : ${profile.ce_quon_evite}`);
-  if (profile.style_communication?.length) lines.push(`- Style de communication : ${profile.style_communication.join(", ")}`);
-  return lines.join("\n");
-}
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock } from "../_shared/user-context.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 

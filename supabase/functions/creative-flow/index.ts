@@ -2,29 +2,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock } from "../_shared/user-context.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
-
-function buildProfileBlock(profile: any): string {
-  const lines = [
-    `- Prénom : ${profile.prenom || "?"}`,
-    `- Activité : ${profile.activite || "?"}`,
-    `- Type : ${profile.type_activite || "?"}`,
-    `- Cible : ${profile.cible || "?"}`,
-    `- Problème qu'elle résout : ${profile.probleme_principal || "?"}`,
-    `- Thématiques : ${(profile.piliers || []).join(", ") || "?"}`,
-    `- Ton souhaité : ${(profile.tons || []).join(", ") || "?"}`,
-  ];
-  if (profile.mission) lines.push(`- Mission : ${profile.mission}`);
-  if (profile.offre) lines.push(`- Offre : ${profile.offre}`);
-  if (profile.expressions_cles) lines.push(`- Expressions clés : ${profile.expressions_cles}`);
-  if (profile.ce_quon_evite) lines.push(`- Ce qu'on évite : ${profile.ce_quon_evite}`);
-  return lines.join("\n");
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
