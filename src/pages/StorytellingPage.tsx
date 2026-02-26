@@ -13,6 +13,7 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, Mic, Loader2, Check, Copy } from "lucide-react";
 import { STORYTELLING_STEPS, STEP_DB_FIELDS } from "@/lib/storytelling-steps";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 
 interface StorytellingData {
   id?: string;
@@ -463,6 +464,7 @@ export default function StorytellingPage() {
             <div className="rounded-xl bg-rose-pale border-l-4 border-primary p-4 mb-4 animate-fade-in">
               <p className="font-mono-ui text-[12px] text-muted-foreground mb-2">Version améliorée :</p>
               <p className="text-[14px] text-foreground leading-relaxed whitespace-pre-line mb-3">{aiResult}</p>
+              <AiGeneratedMention />
               <div className="flex gap-2">
                 <Button size="sm" onClick={acceptAi} className="rounded-pill text-xs bg-primary text-primary-foreground">
                   ✅ Utiliser cette version

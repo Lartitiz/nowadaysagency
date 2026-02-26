@@ -9,6 +9,7 @@ import ContentProgressBar from "@/components/ContentProgressBar";
 import ContentActions from "@/components/ContentActions";
 import ReturnToOrigin from "@/components/ReturnToOrigin";
 import BaseReminder from "@/components/BaseReminder";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -647,6 +648,7 @@ export default function InstagramCarousel() {
             </Button>
           </div>
 
+          <AiGeneratedMention />
           <BaseReminder variant="atelier" />
         </main>
       </div>

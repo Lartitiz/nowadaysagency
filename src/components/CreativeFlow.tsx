@@ -7,6 +7,7 @@ import FeedbackLoop from "@/components/FeedbackLoop";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import ABTestAccroches from "@/components/ABTestAccroches";
 import PersonaBadge from "@/components/branding/PersonaBadge";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Button } from "@/components/ui/button";
@@ -652,6 +653,8 @@ export default function CreativeFlow({
               </span>
             )}
           </div>
+
+          <AiGeneratedMention />
 
           {/* Tone adjustment chips */}
           <div className="flex flex-wrap gap-1.5">

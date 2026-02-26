@@ -18,6 +18,7 @@ import CharterColorsSection from "@/components/branding/charter/CharterColorsSec
 import CharterTypographySection from "@/components/branding/charter/CharterTypographySection";
 import CharterTemplatesSection from "@/components/branding/charter/CharterTemplatesSection";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -576,6 +577,7 @@ export default function BrandCharterPage() {
             sectorPalettesOpen={sectorPalettesOpen}
             setSectorPalettesOpen={setSectorPalettesOpen}
           />
+          {generatedPalettes.length > 0 && <AiGeneratedMention />}
 
           {/* SECTION 3: Typographies */}
           <CharterTypographySection

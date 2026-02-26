@@ -5,6 +5,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import { useBrandProposition } from "@/hooks/use-branding";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
@@ -295,6 +296,7 @@ export default function LinkedInResume() {
                 <Lightbulb className="h-4 w-4" /> Sauvegarder en idée
               </Button>
             </div>
+            <AiGeneratedMention />
             <SaveToIdeasDialog
               open={showIdeasDialog}
               onOpenChange={setShowIdeasDialog}

@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Sparkles, Copy, Save, RefreshCw, ChevronDown, Eye, Trash2, Link2, Upload, X, Mic, MicOff } from "lucide-react";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 
 interface Analysis {
   accroche: string;
@@ -390,6 +391,7 @@ export default function InspireFlow() {
                   <RefreshCw className="h-4 w-4 mr-1" /> Regénérer
                 </Button>
               </div>
+              <AiGeneratedMention />
             </CardContent>
           </Card>
         </div>

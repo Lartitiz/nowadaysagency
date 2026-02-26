@@ -5,6 +5,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import { useBrandProposition } from "@/hooks/use-branding";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -153,17 +154,20 @@ export default function LinkedInProfil() {
                 {generating ? "Génération..." : "✨ Générer mon titre LinkedIn"}
               </Button>
               {titleSuggestions.length > 0 && (
-                <div className="space-y-2">
-                  {titleSuggestions.map((s, i) => (
-                    <div key={i} className="flex items-center gap-2 rounded-lg bg-muted/50 p-3">
-                      <p className="flex-1 text-sm">{s}</p>
-                      <button onClick={() => { setTitle(s); copyText(s, i); }} className="text-xs text-primary hover:underline flex items-center gap-1">
-                        {copied === i ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                        {copied === i ? "Copié" : "Utiliser"}
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                <>
+                  <div className="space-y-2">
+                    {titleSuggestions.map((s, i) => (
+                      <div key={i} className="flex items-center gap-2 rounded-lg bg-muted/50 p-3">
+                        <p className="flex-1 text-sm">{s}</p>
+                        <button onClick={() => { setTitle(s); copyText(s, i); }} className="text-xs text-primary hover:underline flex items-center gap-1">
+                          {copied === i ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                          {copied === i ? "Copié" : "Utiliser"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <AiGeneratedMention />
+                </>
               )}
               <div>
                 <Textarea value={title} onChange={e => setTitle(e.target.value)} placeholder="Mon titre LinkedIn..." className="min-h-[60px]" />

@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { Sparkles } from "lucide-react";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 
 export default function PinterestMotsCles() {
   const { user } = useAuth();
@@ -85,12 +86,15 @@ export default function PinterestMotsCles() {
           <Textarea value={raw} onChange={e => setRaw(e.target.value)} placeholder="sweat brodé, broderies tendances, vêtements uniques, personnalisation t-shirt..." className="min-h-[150px]" />
           <Button variant="outline" onClick={generateKeywords} disabled={generating} className="gap-2 rounded-pill"><Sparkles className="h-4 w-4" />{generating ? "Recherche..." : "✨ Trouver mes mots-clés"}</Button>
           {generated && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {renderCategory("Mots-clés produit", "🏷️", generated.produit)}
-              {renderCategory("Mots-clés besoin", "🔍", generated.besoin)}
-              {renderCategory("Mots-clés inspiration", "✨", generated.inspiration)}
-              {renderCategory("Mots-clés en anglais", "🌍", generated.anglais)}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {renderCategory("Mots-clés produit", "🏷️", generated.produit)}
+                {renderCategory("Mots-clés besoin", "🔍", generated.besoin)}
+                {renderCategory("Mots-clés inspiration", "✨", generated.inspiration)}
+                {renderCategory("Mots-clés en anglais", "🌍", generated.anglais)}
+              </div>
+              <AiGeneratedMention />
+            </>
           )}
         </section>
 

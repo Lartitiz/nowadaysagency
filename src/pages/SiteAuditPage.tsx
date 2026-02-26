@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { RotateCcw, ArrowRight, ArrowLeft, Eye, HelpCircle, Upload, Camera, Loader2, Link as LinkIcon, Palette, ChevronDown, Sparkles } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import SiteAuditResult from "@/components/site/SiteAuditResult";
@@ -495,6 +496,7 @@ const SiteAuditPage = () => {
                 onFix={() => {}}
               />
             </div>
+            <AiGeneratedMention />
           </>
         )}
 

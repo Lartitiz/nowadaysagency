@@ -14,6 +14,7 @@ import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Copy, Check, RefreshCw, CalendarDays, Loader2, Search, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import BaseReminder from "@/components/BaseReminder";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import LinkedInPreview from "@/components/linkedin/LinkedInPreview";
 import CharacterCounter from "@/components/linkedin/CharacterCounter";
@@ -440,6 +441,7 @@ export default function LinkedInPostGenerator() {
                    </Button>
                 </div>
 
+                <AiGeneratedMention />
                 <BaseReminder variant="atelier" />
               </div>
             )}

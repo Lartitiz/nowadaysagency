@@ -9,6 +9,7 @@ import ContentProgressBar from "@/components/ContentProgressBar";
 import ContentActions from "@/components/ContentActions";
 import ReturnToOrigin from "@/components/ReturnToOrigin";
 import BaseReminder from "@/components/BaseReminder";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Sparkles, Mic, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -386,6 +387,7 @@ export default function InstagramStories() {
             className="mt-6 pb-12"
           />
 
+          <AiGeneratedMention />
           <BaseReminder variant="atelier" />
         </main>
       </div>

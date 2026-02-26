@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Check, ChevronLeft, ChevronRight, Copy, RefreshCw, Sparkles, X, BookOpen } from "lucide-react";
 import type { UserProfile } from "@/pages/Dashboard";
 import { getGuide } from "@/lib/production-guides";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 
 interface RedactionIdea {
   titre: string;
@@ -339,6 +340,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
               ) : draft ? (
                 <>
                   <div className="bg-rose-pale rounded-xl p-4 text-sm leading-relaxed whitespace-pre-wrap">{draft}</div>
+                  <AiGeneratedMention />
                   <Button variant="outline" size="sm" onClick={generateDraft} className="rounded-full gap-1.5 mt-3">
                     <RefreshCw className="h-3.5 w-3.5" />
                     Régénérer

@@ -15,6 +15,7 @@ import { Loader2, Copy, RefreshCw, FileText, Pencil, Check, ArrowRight, Sparkles
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 
 interface ValueBlock { title: string; description: string }
 
@@ -503,6 +504,7 @@ export default function SiteAPropos() {
               onFix={() => {}}
             />
           </div>
+          <AiGeneratedMention />
         </main>
       </div>
     );
