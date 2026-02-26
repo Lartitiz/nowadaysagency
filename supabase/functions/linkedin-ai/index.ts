@@ -158,16 +158,16 @@ serve(async (req) => {
       userPrompt = `Intitulé : ${job_title}\nEntreprise : ${company}\nDescription : ${description}`;
 
     } else if (action === "suggest-skills") {
-      systemPrompt = `${LINKEDIN_PRINCIPLES}\n\n${context}\n\nSuggère 10 compétences LinkedIn pertinentes :\n- 5 compétences techniques\n- 5 compétences comportementales\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"techniques": ["...", ...], "comportementales": ["...", ...]}`;
+      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${context}\n\nSuggère 10 compétences LinkedIn pertinentes :\n- 5 compétences techniques\n- 5 compétences comportementales\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"techniques": ["...", ...], "comportementales": ["...", ...]}`;
       userPrompt = "Suggère des compétences LinkedIn.";
 
     } else if (action === "personalize-message") {
-      systemPrompt = `${LINKEDIN_PRINCIPLES}\n\n${context}\n\n${qualityBlocks}\n\nPersonnalise ce message de demande de recommandation en 3 variantes adaptées au ton de l'utilisatrice.\n\nChaque variante : sincère, chaleureuse, 3-4 phrases.\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["variante 1", "variante 2", "variante 3"]`;
+      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${context}\n\n${qualityBlocks}\n\nPersonnalise ce message de demande de recommandation en 3 variantes adaptées au ton de l'utilisatrice.\n\nChaque variante : sincère, chaleureuse, 3-4 phrases.\n\nRéponds UNIQUEMENT en JSON sans backticks :\n["variante 1", "variante 2", "variante 3"]`;
       userPrompt = "Personnalise mon message de demande de recommandation LinkedIn.";
 
     } else if (action === "draft-recommendation") {
       const { person_name, collab_type, highlights } = params;
-      systemPrompt = `${LINKEDIN_PRINCIPLES}\n\nPour : ${person_name}\nType de collaboration : ${collab_type}\nCe qu'on veut mettre en avant : ${highlights}\n\nRédige un brouillon (150-200 mots) du point de vue de la personne qui recommande.\nSincère, concret, facilement personnalisable.\n\nRéponds avec le brouillon uniquement.`;
+      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\nPour : ${person_name}\nType de collaboration : ${collab_type}\nCe qu'on veut mettre en avant : ${highlights}\n\nRédige un brouillon (150-200 mots) du point de vue de la personne qui recommande.\nSincère, concret, facilement personnalisable.\n\nRéponds avec le brouillon uniquement.`;
       userPrompt = "Rédige un brouillon de recommandation.";
 
     } else if (action === "analyze-resume") {
