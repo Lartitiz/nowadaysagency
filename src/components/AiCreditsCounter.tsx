@@ -89,7 +89,7 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
             to="/mon-plan"
             className="block mt-3 text-xs font-semibold text-primary hover:underline"
           >
-            Passer à Outil →
+            Débloquer 300 crédits/mois →
           </Link>
         )}
       </PopoverContent>
