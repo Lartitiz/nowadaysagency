@@ -294,7 +294,7 @@ export default function AtelierPage() {
           <SubPageHeader
             breadcrumbs={[
               { label: "Dashboard", to: "/dashboard" },
-              { label: "Créer", to: "/instagram/creer" },
+              { label: "Créer", to: "/creer" },
             ]}
             currentLabel="Atelier d'idées"
             useFromParam

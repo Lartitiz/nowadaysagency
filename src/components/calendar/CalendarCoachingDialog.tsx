@@ -39,7 +39,7 @@ const FORMAT_ICONS: Record<string, string> = {
 };
 
 const FORMAT_ROUTES: Record<string, string> = {
-  post: "/instagram/creer",
+  post: "/creer",
   carousel: "/instagram/carousel",
   reel: "/instagram/reels",
   story: "/instagram/stories",
@@ -131,7 +131,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
   };
 
   const handleCreateContent = (item: PlanningItem) => {
-    const route = FORMAT_ROUTES[item.format] || "/instagram/creer";
+    const route = FORMAT_ROUTES[item.format] || "/creer";
     onOpenChange(false);
     navigate(`${route}?subject=${encodeURIComponent(item.subject)}&objective=${encodeURIComponent(item.objective)}`);
   };

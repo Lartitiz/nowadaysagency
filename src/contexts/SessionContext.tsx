@@ -138,7 +138,7 @@ async function buildTasks(
     title: "Crée un contenu",
     emoji: "✨",
     duration: 600,
-    route: "/instagram/creer",
+    route: "/creer",
     description: "Génère un post avec l'IA. Choisis le format qui t'inspire.",
     completed: false,
   });

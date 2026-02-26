@@ -119,7 +119,7 @@ export function CalendarWeekHeader({ weekLabel, weekPosts, postsPerWeekTarget = 
                 ? `💪 Encore ${missing} post${missing > 1 ? "s" : ""} et ta semaine prend forme.`
                 : `🔥 Plus que ${missing} post${missing > 1 ? "s" : ""} — tu y es presque !`}
           </span>
-          <button onClick={() => navigate("/instagram/creer")}
+          <button onClick={() => navigate("/creer")}
             className="text-xs font-medium text-primary hover:underline shrink-0">
             ✨ Suggérer →
           </button>

@@ -45,7 +45,7 @@ const MISSIONS_META = [
     title: "Crée ton premier contenu",
     emoji: "✨",
     time: "10 min",
-    route: "/instagram/creer",
+    route: "/creer",
     description: "Génère un post avec l'IA qui connaît ta marque. Tu vas voir, c'est bluffant.",
   },
   {

@@ -719,7 +719,7 @@ export default function InstagramReels() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Créer" parentTo="/instagram/creer" currentLabel="Script Reel" />
+        <SubPageHeader parentLabel="Créer" parentTo="/creer" currentLabel="Script Reel" />
 
         <h1 className="font-display text-2xl font-bold text-foreground mb-2">🎬 Générateur de Scripts Reels</h1>
         <p className="text-sm text-muted-foreground mb-6">Flow guidé → 3 hooks au choix → script complet prêt à filmer.</p>

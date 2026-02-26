@@ -32,14 +32,14 @@ const OBJ_OPTIONS = [
 ];
 
 const FORMAT_ROUTES: Record<string, string> = {
-  post: "/instagram/creer",
+  post: "/creer",
   carousel: "/instagram/carousel",
   post_carrousel: "/instagram/carousel",
   reel: "/instagram/reels",
   story: "/instagram/stories",
   story_serie: "/instagram/stories",
   linkedin: "/linkedin",
-  post_photo: "/instagram/creer",
+  post_photo: "/creer",
 };
 
 interface Props {
@@ -129,7 +129,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
     if (!idea) return;
     // Save changes first
     handleSave();
-    const route = FORMAT_ROUTES[ideaFormat] || "/instagram/creer";
+    const route = FORMAT_ROUTES[ideaFormat] || "/creer";
     navigate(route, {
       state: {
         fromIdeas: true,
@@ -145,7 +145,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
 
   const handleTransform = (targetFormat: string) => {
     if (!idea) return;
-    const route = FORMAT_ROUTES[targetFormat] || "/instagram/creer";
+    const route = FORMAT_ROUTES[targetFormat] || "/creer";
     navigate(route, {
       state: {
         fromIdeas: true,

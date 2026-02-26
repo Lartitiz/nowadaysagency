@@ -10,7 +10,7 @@ interface Props {
 }
 
 const FORMATS = [
-  { id: "post", emoji: "📝", label: "Post", route: "/instagram/creer" },
+  { id: "post", emoji: "📝", label: "Post", route: "/creer" },
   { id: "carousel", emoji: "🎠", label: "Carrousel", route: "/instagram/carousel" },
   { id: "reel", emoji: "🎬", label: "Reel", route: "/instagram/reels" },
   { id: "story", emoji: "📱", label: "Story", route: "/instagram/stories" },
