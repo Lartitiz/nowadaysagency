@@ -6,40 +6,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { toast } from "sonner";
 import { Pencil, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-/* ── helpers ────────────────────────────────────── */
-
-export function parseToArray(value: any): string[] {
-  if (!value) return [];
-  if (Array.isArray(value)) return value.map(String).filter(Boolean);
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
-    } catch {}
-    return value
-      .split(/[\n•\-●]/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-  }
-  return [];
-}
-
-export function parseToTags(value: any): string[] {
-  if (!value) return [];
-  if (Array.isArray(value)) return value.map(String).filter(Boolean);
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
-    } catch {}
-    return value
-      .split(/[,;/\n]/)
-      .map((s: string) => s.replace(/^["'\-•●\s]+|["'\s]+$/g, "").trim())
-      .filter((s: string) => s.length > 0);
-  }
-  return [];
-}
+import { parseToArray, parseToTags } from "@/lib/branding-utils";
 
 /* ── inline edit logic ──────────────────────────── */
 
