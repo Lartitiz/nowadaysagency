@@ -60,6 +60,13 @@ export default function InvitePage() {
 
   const handleAccept = async () => {
     if (!user || !invitation) return;
+
+    // Verify the logged-in user's email matches the invitation
+    if (user.email?.toLowerCase() !== invitation.email.toLowerCase()) {
+      toast.error("Cette invitation est destinée à une autre adresse email.");
+      return;
+    }
+
     setStatus("accepting");
 
     try {
