@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
+import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
@@ -111,6 +112,8 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const profileUserId = useProfileUserId();
+  const { data: profileData } = useProfile();
+  const { data: brandProfileData } = useBrandProfile();
   const { isDemoMode } = useDemoContext();
   const navigate = useNavigate();
 
@@ -192,20 +195,21 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
   const fetchContext = useCallback(async () => {
     if (contextRef.current) return contextRef.current;
     if (!user) return {};
-    const [profileRes, brandRes, auditRes] = await Promise.all([
-      (supabase.from("profiles") as any).select("*").eq(column, value).maybeSingle(),
-      (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle(),
-      (supabase.from("branding_audits") as any).select("score_global, points_forts, points_faibles").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    ]);
+    const { data: auditData } = await (supabase.from("branding_audits") as any)
+      .select("score_global, points_forts, points_faibles")
+      .eq(column, value)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
     const ctx = {
-      profile: profileRes.data,
-      branding: brandRes.data,
-      audit: auditRes.data,
-      existing_data: brandRes.data || {},
+      profile: profileData,
+      branding: brandProfileData,
+      audit: auditData,
+      existing_data: brandProfileData || {},
     };
     contextRef.current = ctx;
     return ctx;
-  }, [user?.id]);
+  }, [user?.id, profileData, brandProfileData]);
 
   // Charter coaching state
   const charterStepRef = useRef(0);

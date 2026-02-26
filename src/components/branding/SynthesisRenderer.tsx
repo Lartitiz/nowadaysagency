@@ -3,6 +3,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, RefreshCw, Download, Copy, Sparkles, AlertTriangle, FileText } from "lucide-react";
@@ -729,6 +730,8 @@ function StrategySynthesis({ data, onSaveRecap }: {
 export default function SynthesisRenderer({ section, data, table, onSynthesisGenerated, lastCoachingUpdate }: SynthesisRendererProps) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const { data: profileData } = useProfile();
+  const { data: brandProfileData } = useBrandProfile();
   const [generating, setGenerating] = useState(false);
   const [localData, setLocalData] = useState(data);
   const [isStale, setIsStale] = useState(false);
@@ -764,9 +767,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
     try {
       if (section === "story") {
         const story = localData.step_7_polished || localData.imported_text || localData.step_6_full_story || "";
-        const { data: profData } = await (supabase.from("profiles") as any).select("activite, prenom").eq(column, value).single();
-        const { data: bpData } = await (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register, key_expressions, things_to_avoid").eq(column, value).maybeSingle();
-        const profile = { ...(profData || {}), ...(bpData || {}) };
+        const profile = { ...(profileData || {}), ...(brandProfileData || {}) };
         const { data: fnData, error } = await supabase.functions.invoke("storytelling-ai", {
           body: { type: "generate-recap", storytelling: story, profile },
         });
@@ -776,9 +777,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         await supabase.from("storytelling").update({ recap_summary: parsed } as any).eq("id", localData.id);
         setLocalData({ ...localData, recap_summary: parsed });
       } else if (section === "persona") {
-        const { data: profData } = await (supabase.from("profiles") as any).select("activite, prenom").eq(column, value).single();
-        const { data: bpData } = await (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register, voice_description, target_verbatims, combat_cause").eq(column, value).maybeSingle();
-        const profile = { ...(profData || {}), ...(bpData || {}) };
+        const profile = { ...(profileData || {}), ...(brandProfileData || {}) };
         const { data: fnData, error } = await supabase.functions.invoke("persona-ai", {
           body: { type: "portrait", profile, persona: localData },
         });
@@ -788,15 +787,12 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         await supabase.from("persona").update({ portrait: parsed as any, portrait_prenom: parsed.prenom }).eq("id", localData.id);
         setLocalData({ ...localData, portrait: parsed, portrait_prenom: parsed.prenom });
       } else if (section === "content_strategy") {
-        const { data: profData } = await (supabase.from("profiles") as any).select("activite, prenom").eq(column, value).single();
-        const { data: bpData } = await (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register").eq(column, value).maybeSingle();
-        const profile = { ...(profData || {}), ...(bpData || {}) };
+        const profile = { ...(profileData || {}), ...(brandProfileData || {}) };
         const { data: personaData } = await (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle();
         const { data: propositionData } = await (supabase.from("brand_proposition") as any).select("version_final, version_bio").eq(column, value).maybeSingle();
-        const { data: toneData } = await (supabase.from("brand_profile") as any).select("combat_cause, combat_fights, voice_description, key_expressions, tone_register, tone_humor").eq(column, value).maybeSingle();
         const { data: editorialData } = await (supabase.from("instagram_editorial_line") as any).select("*").eq(column, value).maybeSingle();
         const { data: fnData, error } = await supabase.functions.invoke("strategy-ai", {
-          body: { type: "generate-recap", strategy_data: localData, profile, persona: personaData, proposition: propositionData, tone: toneData, editorial_line: editorialData },
+          body: { type: "generate-recap", strategy_data: localData, profile, persona: personaData, proposition: propositionData, tone: brandProfileData, editorial_line: editorialData },
         });
         if (error) throw error;
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
