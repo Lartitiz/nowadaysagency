@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, EngagementInsightSchema } from "../_shared/input-validators.ts";
 
@@ -42,11 +41,33 @@ Génère 1-2 phrases d'insight :
 - Max 2 phrases courtes
 - Ne commence PAS par "Tes" systématiquement, varie les tournures`;
 
-    const insight = (await callAnthropicSimple(
-      getModelForAction("content"),
-      "Tu réponds en français. Tu es directe et concrète. Max 2 phrases.",
-      prompt
-    )).trim();
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "Tu réponds en français. Tu es directe et concrète. Max 2 phrases." },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const status = aiResponse.status;
+      if (status === 429) throw new Error("Trop de requêtes, réessaie dans un moment.");
+      if (status === 402) throw new Error("Crédits IA insuffisants.");
+      throw new Error(`AI gateway error: ${status}`);
+    }
+
+    const aiData = await aiResponse.json();
+    const insight = (aiData.choices?.[0]?.message?.content || "").trim();
 
     return new Response(JSON.stringify({ insight }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
