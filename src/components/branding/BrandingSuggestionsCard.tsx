@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter, useProfileUserId } from "@/hooks/use-workspace-query";
 import { toast } from "sonner";
 
 export interface Suggestion {
@@ -37,6 +38,8 @@ export default function BrandingSuggestionsCard({
 }: BrandingSuggestionsCardProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { column: wsColumn, value: wsValue } = useWorkspaceFilter();
+  const profileUserId = useProfileUserId();
   const [showPreview, setShowPreview] = useState(false);
   const [editableSuggestions, setEditableSuggestions] = useState(suggestions);
   const [isApplying, setIsApplying] = useState(false);
@@ -50,22 +53,57 @@ export default function BrandingSuggestionsCard({
     onDismiss();
   };
 
+  const SECTION_MAP: Record<string, { table: string; field: string; filterBy: "workspace" | "profile" }> = {
+    instagram_bio: { table: "profiles", field: "instagram_bio", filterBy: "profile" },
+    value_proposition: { table: "brand_proposition", field: "version_final", filterBy: "workspace" },
+    value_proposition_short: { table: "brand_proposition", field: "version_one_liner", filterBy: "workspace" },
+    content_pillars: { table: "brand_strategy", field: "pillar_major", filterBy: "workspace" },
+    voice_description: { table: "brand_profile", field: "voice_description", filterBy: "workspace" },
+    positioning: { table: "brand_profile", field: "positioning", filterBy: "workspace" },
+    mission: { table: "brand_profile", field: "mission", filterBy: "workspace" },
+  };
+
   const handleApplyAll = async () => {
     setIsApplying(true);
+    let hasError = false;
+
+    // 1. Apply each suggestion to its real table
+    for (const s of editableSuggestions) {
+      const mapping = SECTION_MAP[s.section];
+      if (!mapping) continue;
+
+      const filterCol = mapping.filterBy === "profile" ? "user_id" : wsColumn;
+      const filterVal = mapping.filterBy === "profile" ? profileUserId : wsValue;
+
+      const { error } = await (supabase.from(mapping.table as any) as any)
+        .update({ [mapping.field]: s.suggested_value })
+        .eq(filterCol, filterVal);
+
+      if (error) {
+        console.error(`Failed to update ${s.section}:`, error);
+        toast.error(`Erreur sur "${s.title}" — modification non appliquée.`);
+        hasError = true;
+      }
+    }
+
+    // 2. Mark suggestion set as applied
     try {
-      // Apply logic would go here — for now we mark as applied and navigate
       if (suggestionId && user) {
         await (supabase.from("branding_suggestions" as any) as any)
           .update({ status: "applied", resolved_at: new Date().toISOString() })
           .eq("id", suggestionId);
       }
-      toast.success("Suggestions appliquées ! 🌸");
-      onApplied?.();
-      setShowPreview(false);
-      onDismiss();
     } catch {
-      toast.error("Erreur lors de l'application");
+      // non-blocking
     }
+
+    if (!hasError) {
+      toast.success("Suggestions appliquées ! 🌸");
+    }
+
+    onApplied?.();
+    setShowPreview(false);
+    onDismiss();
     setIsApplying(false);
   };
 
