@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useBrandProposition } from "@/hooks/use-branding";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ export default function LinkedInProfil() {
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const { data: propositionData } = useBrandProposition();
   const [profileId, setProfileId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [titleDone, setTitleDone] = useState(false);
@@ -40,27 +42,25 @@ export default function LinkedInProfil() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const [lpRes, propRes] = await Promise.all([
-        (supabase.from("linkedin_profile") as any).select("*").eq(column, value).maybeSingle(),
-        (supabase.from("brand_proposition") as any).select("version_final, version_short").eq(column, value).maybeSingle(),
-      ]);
-      if (lpRes.data) {
-        setProfileId(lpRes.data.id);
-        setTitle(lpRes.data.title || "");
-        setTitleDone(lpRes.data.title_done || false);
-        setCustomUrl(lpRes.data.custom_url || "");
-        setUrlDone(lpRes.data.url_done || false);
-        setPhotoDone(lpRes.data.photo_done || false);
-        setBannerDone(lpRes.data.banner_done || false);
-        setFeaturedDone(lpRes.data.featured_done || false);
-        setCreatorModeDone(lpRes.data.creator_mode_done || false);
+      const { data: lpData } = await (supabase.from("linkedin_profile") as any).select("*").eq(column, value).maybeSingle();
+      if (lpData) {
+        setProfileId(lpData.id);
+        setTitle(lpData.title || "");
+        setTitleDone(lpData.title_done || false);
+        setCustomUrl(lpData.custom_url || "");
+        setUrlDone(lpData.url_done || false);
+        setPhotoDone(lpData.photo_done || false);
+        setBannerDone(lpData.banner_done || false);
+        setFeaturedDone(lpData.featured_done || false);
+        setCreatorModeDone(lpData.creator_mode_done || false);
       }
-      if (propRes.data) {
-        setPropValue(propRes.data.version_short || propRes.data.version_final || null);
+      const prop = propositionData as any;
+      if (prop) {
+        setPropValue(prop.version_short || prop.version_final || null);
       }
     };
     load();
-  }, [user?.id]);
+  }, [user?.id, propositionData]);
 
   const save = async () => {
     if (!user) return;

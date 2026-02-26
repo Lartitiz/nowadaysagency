@@ -3,6 +3,7 @@ import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useBrandCharter } from "@/hooks/use-branding";
 import AppHeader from "@/components/AppHeader";
 import ContentProgressBar from "@/components/ContentProgressBar";
 import ContentActions from "@/components/ContentActions";
@@ -125,6 +126,7 @@ export default function InstagramCarousel() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const activityExamples = useActivityExamples();
+  const { data: charterHookData } = useBrandCharter();
   const fromObjectif = searchParams.get("objectif");
   const fromSujet = searchParams.get("sujet") ? decodeURIComponent(searchParams.get("sujet")!) : "";
 
@@ -416,17 +418,14 @@ export default function InstagramCarousel() {
 
   // Load charter data for visual step
   useEffect(() => {
-    if (!user || charterLoaded) return;
-    const loadCharter = async () => {
-      const { data: ch } = await (supabase.from("brand_charter") as any)
-        .select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, border_radius")
-        .eq(column, value)
-        .maybeSingle();
-      setCharterData(ch);
+    if (charterLoaded) return;
+    if (charterHookData) {
+      setCharterData(charterHookData);
       setCharterLoaded(true);
-    };
-    loadCharter();
-  }, [user?.id, charterLoaded]);
+    } else if (charterHookData === null) {
+      setCharterLoaded(true);
+    }
+  }, [charterHookData, charterLoaded]);
 
   // Visual generation handler
   const handleGenerateVisual = async (style: string) => {

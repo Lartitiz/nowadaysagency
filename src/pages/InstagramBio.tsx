@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
+import { usePersona, useBrandProposition, useBrandStrategy, useStorytelling } from "@/hooks/use-branding";
 import { useQueryClient } from "@tanstack/react-query";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -86,6 +87,10 @@ export default function InstagramBio() {
   // Profile data
   const { data: profileHookData } = useProfile();
   const { data: brandProfileData } = useBrandProfile();
+  const { data: personaData } = usePersona();
+  const { data: propositionData } = useBrandProposition();
+  const { data: strategyData } = useBrandStrategy();
+  const { data: storytellingData } = useStorytelling();
   const queryClient = useQueryClient();
   const [profile, setProfile] = useState<any>(null);
 
@@ -145,15 +150,13 @@ export default function InstagramBio() {
     }
     if (!user || brandingLoaded) return;
     const load = async () => {
-      const [{ data: val }, { data: persona }, { data: prop }, { data: strat }, { data: story }] = await Promise.all([
-        (supabase.from("audit_validations") as any).select("*").eq(column, value).eq("section", "bio").maybeSingle(),
-        (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle(),
-        (supabase.from("brand_proposition") as any).select("version_final, version_bio, version_pitch_naturel").eq(column, value).maybeSingle(),
-        (supabase.from("brand_strategy") as any).select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq(column, value).maybeSingle(),
-        (supabase.from("storytelling") as any).select("step_7_polished").eq(column, value).maybeSingle(),
-      ]);
+      const { data: val } = await (supabase.from("audit_validations") as any).select("*").eq(column, value).eq("section", "bio").maybeSingle();
 
       const bp = brandProfileData as any;
+      const persona = personaData as any;
+      const prop = propositionData as any;
+      const strat = strategyData as any;
+      const story = storytellingData as any;
 
       const prof = profileHookData;
       if (prof) {
@@ -191,7 +194,7 @@ export default function InstagramBio() {
       }
     };
     load();
-  }, [user?.id, isDemoMode]);
+  }, [user?.id, isDemoMode, personaData, propositionData, strategyData, storytellingData]);
 
   const brandingFilled = brandingCtx
     ? [brandingCtx.positioning, brandingCtx.valueProposition, brandingCtx.target, brandingCtx.tone].filter(Boolean).length

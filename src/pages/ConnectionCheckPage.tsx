@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useMergedProfile } from "@/hooks/use-profile";
+import { useBrandProposition } from "@/hooks/use-branding";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -74,6 +75,7 @@ export default function ConnectionCheckPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const { profile: hookProfile, brandProfile: hookBrandProfile } = useMergedProfile();
+  const { data: propositionHookData } = useBrandProposition();
   const { isDemoMode } = useDemoContext();
   const navigate = useNavigate();
   const [checks, setChecks] = useState<Check[]>([]);
@@ -115,8 +117,8 @@ export default function ConnectionCheckPage() {
     }
 
     // Persona
-    const { data: persona } = await (supabase.from("brand_proposition") as any).select("id").eq(column, value);
-    results.push({ category: "Cible", name: "Proposition définie", status: (persona?.length ?? 0) > 0 ? "ok" : "warning", detail: (persona?.length ?? 0) > 0 ? `${persona!.length} proposition(s)` : "Aucune proposition" });
+    const propositionExists = !!propositionHookData;
+    results.push({ category: "Cible", name: "Proposition définie", status: propositionExists ? "ok" : "warning", detail: propositionExists ? "1 proposition" : "Aucune proposition" });
 
     // Calendar
     const { data: posts, error: postErr } = await (supabase.from("calendar_posts") as any).select("id, status, date, format").eq(column, value);
@@ -162,7 +164,7 @@ export default function ConnectionCheckPage() {
     if (profile?.instagram_username && !audit) {
       sugs.push({ title: "Instagram renseigné mais pas d'audit", action: "Lancer un audit Instagram", route: "/instagram/audit" });
     }
-    if (brand?.positioning && !persona?.length) {
+    if (brand?.positioning && !propositionHookData) {
       sugs.push({ title: "Positionnement défini mais pas de proposition", action: "Le branding est incomplet sans proposition de valeur", route: "/branding/proposition" });
     }
     if (audit && posts && !posts.some(p => p.status === "published")) {
