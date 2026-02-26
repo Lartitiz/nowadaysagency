@@ -6,6 +6,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const SECTION_CHECKLISTS: Record<string, string[]> = {
   story: ["story_origin", "story_turning_point", "story_struggles", "story_unique", "story_vision"],
@@ -173,6 +174,10 @@ serve(async (req) => {
 
     // Authenticate via JWT
     const { userId } = await authenticateRequest(req);
+
+    // Rate limit check
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const { section, messages, context, covered_topics, workspace_id } = body;
 

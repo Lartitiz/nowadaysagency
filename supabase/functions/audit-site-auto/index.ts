@@ -5,6 +5,7 @@ import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts"
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 /* ─── Constants ─── */
 const GLOBAL_TIMEOUT_MS = 60_000;
@@ -236,6 +237,10 @@ serve(async (req) => {
       });
     }
     const userId = userData.user.id;
+
+    // Rate limit check
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     // Parse body
     const body = await req.json();

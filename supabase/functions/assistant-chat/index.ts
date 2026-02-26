@@ -4,6 +4,7 @@ import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, AssistantChatSchema } from "../_shared/input-validators.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 function getServiceClient() {
   return createClient(
@@ -317,6 +318,10 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Rate limit check
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const { message, conversation_history, confirmed_actions, undo, workspace_id } = validateInput(await req.json(), AssistantChatSchema);
     const sb = getServiceClient();

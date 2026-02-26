@@ -8,6 +8,7 @@ import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts"
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 // Branding data now fetched via getUserContext
 
@@ -37,6 +38,10 @@ serve(async (req) => {
     if (authError || !user) return new Response(JSON.stringify({ error: "Auth invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     // Anthropic API key checked in shared helper
+
+    // Rate limit check
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     // Check plan limits
     const usageCheck = await checkAndIncrementUsage(supabase, user.id, "generation");
