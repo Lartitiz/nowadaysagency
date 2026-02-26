@@ -9,19 +9,21 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
-import SubPageHeader from "@/components/SubPageHeader";
+import ContentProgressBar from "@/components/ContentProgressBar";
+import ContentActions from "@/components/ContentActions";
+import ReturnToOrigin from "@/components/ReturnToOrigin";
 import { Sparkles, Copy, Check, CalendarDays, Save } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getGuide, getInstagramFormatReco } from "@/lib/production-guides";
 import { formatIdToGuideKey, QUALITY_CHECKLIST, OBJECTIFS } from "@/lib/atelier-data";
 import BrandingPrompt from "@/components/BrandingPrompt";
 
-const STEPS = [
-  { num: 1, label: "Structure" },
-  { num: 2, label: "Accroches" },
-  { num: 3, label: "Premier jet" },
-  { num: 4, label: "Édition" },
-  { num: 5, label: "Checklist" },
+const REDACTION_STEPS = [
+  { key: "1", label: "Structure" },
+  { key: "2", label: "Accroches" },
+  { key: "3", label: "Premier jet" },
+  { key: "4", label: "Édition" },
+  { key: "5", label: "Checklist" },
 ];
 
 export default function RedactionPage() {
@@ -218,7 +220,7 @@ export default function RedactionPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Dashboard" parentTo="/dashboard" currentLabel="Rédaction" />
+        <ReturnToOrigin fallbackTo={`/atelier?canal=${canal}`} fallbackLabel="Atelier" />
 
         <h1 className="font-display text-[26px] font-bold text-foreground mb-1">✏️ Rédiger un contenu</h1>
         <BrandingPrompt section="tone" />
@@ -232,24 +234,11 @@ export default function RedactionPage() {
         )}
 
         {/* ── Stepper ── */}
-        <div className="flex items-center gap-1.5 mb-8 overflow-x-auto pb-2">
-          {STEPS.map((s) => (
-            <button
-              key={s.num}
-              onClick={() => setStep(s.num)}
-              className={`flex items-center gap-1 rounded-pill px-3 py-1.5 text-xs font-medium border transition-all whitespace-nowrap ${
-                step === s.num
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : s.num < step
-                    ? "bg-secondary text-foreground border-secondary"
-                    : "bg-card text-muted-foreground border-border"
-              }`}
-            >
-              {s.num < step && <Check className="h-3 w-3" />}
-              {s.num}. {s.label}
-            </button>
-          ))}
-        </div>
+        <ContentProgressBar
+          steps={REDACTION_STEPS}
+          currentStep={String(step)}
+          onStepClick={(key) => setStep(Number(key))}
+        />
 
         {/* ── Step 1: Structure ── */}
         {step === 1 && (
@@ -472,22 +461,16 @@ export default function RedactionPage() {
             </div>
 
             {/* Actions */}
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={copyContent} variant="outline" className="rounded-pill gap-1.5">
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                {copied ? "Copié !" : "Copier le texte"}
-              </Button>
-              <Button onClick={saveDraft} variant="outline" disabled={saving} className="rounded-pill gap-1.5">
-                <Save className="h-4 w-4" />
-                {saving ? "Enregistré !" : "Enregistrer le brouillon"}
-              </Button>
-              <Button onClick={planInCalendar} variant="ghost" className="rounded-pill gap-1.5">
-                <CalendarDays className="h-4 w-4" />
-                Planifier dans le calendrier
-              </Button>
-            </div>
+            <ContentActions
+              content={editedContent}
+              canal={canal}
+              format={format}
+              theme={theme}
+              objectif={objectif || ""}
+              accroche={selectedAccroche || customAccroche}
+            />
 
-            <Button variant="outline" onClick={() => setStep(4)} className="rounded-pill">Retour</Button>
+            <Button variant="outline" onClick={() => setStep(4)} className="rounded-pill mt-2">Retour</Button>
           </div>
         )}
       </main>
