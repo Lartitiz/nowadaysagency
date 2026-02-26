@@ -135,7 +135,7 @@ serve(async (req) => {
           system: systemPrompt,
           messages: [{ role: "user", content: userContent }],
           temperature: 0.8,
-          max_tokens: 8192,
+          max_tokens: 4096,
         });
 
         await logUsage(user.id, category, `linkedin_crosspost_files`);
