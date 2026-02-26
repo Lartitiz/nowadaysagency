@@ -413,7 +413,7 @@ Réponds UNIQUEMENT en JSON :
           "anthropic-version": "2025-01-01",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5-20250929",
+          model: getModelForAction("content"),
           max_tokens: 2048,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
           messages: [{
