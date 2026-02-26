@@ -77,10 +77,11 @@ Deno.serve(async (req) => {
     // 6. Check if invitation already exists (pending)
     const { data: existingInvite } = await sb
       .from("workspace_invitations")
-      .select("id, status")
+      .select("id")
       .eq("workspace_id", workspace_id)
       .eq("email", email.toLowerCase())
-      .eq("status", "pending")
+      .is("accepted_at", null)
+      .gt("expires_at", new Date().toISOString())
       .maybeSingle();
 
     if (existingInvite) {
