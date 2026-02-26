@@ -728,7 +728,7 @@ export default function LandingPage() {
             <div>
               <h4 className="font-semibold text-sm mb-3">Légal</h4>
               <nav className="flex flex-col gap-2 text-sm text-background/60">
-                <Link to="/legal-ia" className="hover:text-background transition-colors">Mentions légales</Link>
+                <Link to="/mentions-legales" className="hover:text-background transition-colors">Mentions légales</Link>
                 <Link to="/legal-ia" className="hover:text-background transition-colors">CGV</Link>
                 <Link to="/legal-ia" className="hover:text-background transition-colors">Confidentialité</Link>
               </nav>
