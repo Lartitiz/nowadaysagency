@@ -8,7 +8,9 @@ import PreGenQuestions, { PreGenAnswers } from "@/components/PreGenQuestions";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
-import SubPageHeader from "@/components/SubPageHeader";
+import ContentProgressBar from "@/components/ContentProgressBar";
+import ContentActions from "@/components/ContentActions";
+import ReturnToOrigin from "@/components/ReturnToOrigin";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { ArrowLeft, Loader2, Copy, RefreshCw, CalendarDays, Info, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -131,6 +133,8 @@ export default function InstagramReels() {
   const location = useLocation();
   const calendarId = searchParams.get("calendar_id");
   const calendarState = location.state as any;
+  const fromObjectif = searchParams.get("objectif");
+  const fromSujet = searchParams.get("sujet") ? decodeURIComponent(searchParams.get("sujet")!) : "";
 
   // Pre-fill from calendar
   useEffect(() => {
@@ -161,6 +165,25 @@ export default function InstagramReels() {
   const [subject, setSubject] = useState("");
   const [timeAvailable, setTimeAvailable] = useState("");
   const [isLaunch, setIsLaunch] = useState<boolean | null>(null);
+
+  // Pre-fill from URL params
+  useEffect(() => {
+    if (fromObjectif && !objective) {
+      const objMap: Record<string, string> = { visibilite: "reach", confiance: "saves", vente: "conversion", credibilite: "engagement" };
+      const mapped = objMap[fromObjectif] || fromObjectif;
+      if (OBJECTIVES.some(o => o.id === mapped)) setObjective(mapped);
+    }
+    if (fromSujet && !subject) setSubject(fromSujet);
+  }, [fromObjectif, fromSujet]);
+
+  const REEL_STEPS = [
+    { key: "setup", label: "Paramètres" },
+    { key: "hooks", label: "Hooks" },
+    { key: "questions", label: "Questions" },
+    { key: "script", label: "Script" },
+  ];
+  const stepKeyMap: Record<number, string> = { 1: "setup", 2: "setup", 3: "setup", 4: "setup", 5: "setup" };
+  const currentStepKey = step === 7 ? "script" : step === 6.5 ? "questions" : step === 6 ? "hooks" : stepKeyMap[step] || "setup";
 
   // Results
   const [hooks, setHooks] = useState<Hook[]>([]);
@@ -421,9 +444,8 @@ export default function InstagramReels() {
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-          <button onClick={() => { setStep(1); setScriptResult(null); setHooks([]); setSelectedHook(null); setPreGenAnswers(null); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
-            <ArrowLeft className="h-4 w-4" /> Nouveau script
-          </button>
+          <ReturnToOrigin />
+          <ContentProgressBar steps={REEL_STEPS} currentStep={currentStepKey} />
 
           <div className="mb-6">
             <h1 className="font-display text-2xl font-bold text-foreground">🎬 Ton script Reel</h1>
@@ -552,13 +574,17 @@ export default function InstagramReels() {
           </div>
 
           {/* Actions */}
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button variant="outline" size="sm" onClick={handleCopyScript}><Copy className="h-4 w-4" /> Copier le script</Button>
-            <Button variant="outline" size="sm" onClick={handleCopyCaption}><Copy className="h-4 w-4" /> Copier la caption</Button>
-            <Button variant="outline" size="sm" onClick={() => { setScriptResult(null); setStep(6); }}><RefreshCw className="h-4 w-4" /> Rechoisir le hook</Button>
-            <Button size="sm" onClick={() => setShowCalendarDialog(true)}><CalendarDays className="h-4 w-4" /> Ajouter au calendrier</Button>
-            <Button variant="outline" size="sm" onClick={() => setShowIdeasDialog(true)}><Lightbulb className="h-4 w-4" /> Sauvegarder dans mes idées</Button>
-          </div>
+          <ContentActions
+            content={scriptResult.script.map(s => `[${s.timing}] ${s.section.toUpperCase()}\n🎥 ${s.format_visuel}\n\n"${s.texte_parle}"${s.texte_overlay ? `\n\n📝 Texte overlay : ${s.texte_overlay}` : ""}${s.cut ? `\n\n✂️ CUT → ${s.cut}` : ""}`).join("\n\n───────────────\n\n") + `\n\n--- CAPTION ---\n${scriptResult.caption.text}\n\n${scriptResult.caption.cta}\n\n${scriptResult.hashtags.join(" ")}`}
+            canal="instagram"
+            format="reel"
+            theme={subject || scriptResult.format_label}
+            objectif={objective}
+            calendarPostId={calendarId || undefined}
+            onRegenerate={() => { setScriptResult(null); setStep(6); }}
+            regenerateLabel="Rechoisir le hook"
+            className="mt-6"
+          />
 
           <AddToCalendarDialog
             open={showCalendarDialog}
@@ -719,7 +745,8 @@ export default function InstagramReels() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Créer" parentTo="/creer" currentLabel="Script Reel" />
+        <ReturnToOrigin />
+        <ContentProgressBar steps={REEL_STEPS} currentStep={currentStepKey} />
 
         <h1 className="font-display text-2xl font-bold text-foreground mb-2">🎬 Générateur de Scripts Reels</h1>
         <p className="text-sm text-muted-foreground mb-6">Flow guidé → 3 hooks au choix → script complet prêt à filmer.</p>
