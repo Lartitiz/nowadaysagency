@@ -236,6 +236,7 @@ export default function InstagramStories() {
           stories_structure: sequenceResult.structure_label,
           stories_objective: objective,
           status: "ready",
+          content_draft: sequenceResult.stories.map((s: any, i: number) => `Story ${i + 1}: ${s.texte || s.text || s.description || ""}`).join("\n\n"),
           story_sequence_detail: {
             stories: sequenceResult.stories,
             stickers_used: sequenceResult.stickers_used,
@@ -263,6 +264,7 @@ export default function InstagramStories() {
       format: "story_serie",
       objectif: objective,
       status: "ready",
+      content_draft: sequenceResult.stories.map((s: any, i: number) => `Story ${i + 1}: ${s.texte || s.text || s.description || ""}`).join("\n\n"),
       stories_count: sequenceResult.total_stories,
       stories_structure: sequenceResult.structure_label,
       stories_objective: objective,
