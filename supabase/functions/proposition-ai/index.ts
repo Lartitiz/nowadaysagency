@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -266,7 +267,7 @@ RÈGLES :
       });
     }
 
-    const content = await callAnthropicSimple(getModelForAction("proposition"), systemPrompt, userPrompt);
+    const content = await callAnthropicSimple(getModelForAction("proposition"), systemPrompt + "\n\n" + ANTI_SLOP, userPrompt);
 
     await logUsage(user.id, "content", "proposition");
 

@@ -4,6 +4,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -172,7 +173,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
 
     const userPrompt = stepPrompts[step] || `L'utilisatrice a répondu "${answer}" à l'étape ${step}. Analyse sa réponse et donne un feedback personnalisé. Retourne un JSON avec "reaction" (string).`;
 
-    const content = await callAnthropicSimple(getModelForAction("offer"), systemPrompt, userPrompt, 0.7, 2000) || "{}";
+    const content = await callAnthropicSimple(getModelForAction("offer"), systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, 0.7, 2000) || "{}";
     
     let parsed;
     try {

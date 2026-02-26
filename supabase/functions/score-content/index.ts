@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -86,7 +87,7 @@ Réponds UNIQUEMENT en JSON :
       return new Response(JSON.stringify({ error: "Action non reconnue" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const rawContent = await callAnthropicSimple(getModelForAction("scoring"), systemPrompt, userPrompt, 0.6);
+    const rawContent = await callAnthropicSimple(getModelForAction("scoring"), systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, 0.6);
 
     let parsed;
     try {

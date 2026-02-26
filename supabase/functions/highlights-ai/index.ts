@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { CORE_PRINCIPLES, FORMAT_STRUCTURES } from "../_shared/copywriting-prompts.ts";
+import { CORE_PRINCIPLES, FORMAT_STRUCTURES, ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
@@ -119,7 +119,7 @@ Même format JSON que précédemment. Réponds UNIQUEMENT en JSON valide, sans t
       return new Response(JSON.stringify({ error: "Type inconnu" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    systemPrompt = VOICE_PRIORITY + systemPrompt;
+    systemPrompt = VOICE_PRIORITY + systemPrompt + "\n\n" + ANTI_SLOP;
     const content = await callAnthropicSimple(getModelForAction("highlights"), systemPrompt, userPrompt, 0.8);
 
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

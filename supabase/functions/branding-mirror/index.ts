@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -115,7 +116,7 @@ Sois bienveillante et constructive. L'objectif n'est pas de culpabiliser mais de
     const userPrompt = `TON DÉCLARÉ :\n${declaredLines.join("\n")}\n\nCE QU'ELLE FAIT :\n${actualLines.join("\n")}`;
 
     const model = getModelForAction("content"); // Sonnet
-    const raw = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.7, 4096);
+    const raw = await callAnthropicSimple(model, systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, 0.7, 4096);
 
     // Parse JSON
     const jsonMatch = raw.match(/\{[\s\S]*\}/);

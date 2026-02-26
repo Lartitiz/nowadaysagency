@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -61,7 +62,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
   "reason": "Une phrase expliquant pourquoi ce format est adapté."
 }`;
 
-    const text = await callAnthropicSimple(getModelForAction("suggestion"), "", prompt, 0.7, 400);
+    const text = await callAnthropicSimple(getModelForAction("suggestion"), ANTI_SLOP, prompt, 0.7, 400);
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("Invalid AI response");

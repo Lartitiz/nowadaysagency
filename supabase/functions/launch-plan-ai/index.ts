@@ -4,6 +4,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -144,7 +145,7 @@ Réponds UNIQUEMENT en JSON :
   ]
 }`;
 
-    const content = await callAnthropicSimple(getModelForAction("launch"), systemPrompt, "Génère mon plan de slots de lancement.", 0.7);
+    const content = await callAnthropicSimple(getModelForAction("launch"), systemPrompt + "\n\n" + ANTI_SLOP, "Génère mon plan de slots de lancement.", 0.7);
 
     let parsed: any;
     try {

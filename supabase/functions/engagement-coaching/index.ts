@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { validateRequiredFields } from "../_shared/ai-validators.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 
@@ -78,7 +79,7 @@ Génère 3 commentaires DIFFÉRENTS en JSON :
 
     const raw = await callAnthropic({
       model: getModelForAction("dm_comment"),
-      system: systemPrompt,
+      system: systemPrompt + "\n\n" + ANTI_SLOP,
       messages: [{ role: "user", content: userPrompt }],
       temperature: 0.8,
       max_tokens: 2048,
