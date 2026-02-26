@@ -314,7 +314,7 @@ export default function LandingPage() {
 
       {/* ═══ HERO ═══ */}
       <main id="main-content" role="main">
-      <section className="relative py-16 sm:py-24 lg:py-32 px-4 overflow-hidden">
+      <section aria-label="Présentation de L'Assistant Com'" className="relative py-16 sm:py-24 lg:py-32 px-4 overflow-hidden">
         {/* Background shapes — NO circles */}
         <div className="absolute -top-20 -right-32 w-[500px] h-[320px] bg-rose-soft/40 blur-[80px] pointer-events-none animate-float" style={{ clipPath: "polygon(20% 0%, 80% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%)" }} />
         <div className="absolute bottom-0 -left-24 w-[400px] h-[250px] bg-accent/20 blur-[80px] pointer-events-none animate-float" style={{ animationDelay: "2s", clipPath: "polygon(25% 0%, 75% 0%, 100% 40%, 85% 100%, 15% 100%, 0% 40%)" }} />
@@ -381,7 +381,7 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ MINI DIAGNOSTIC ═══ */}
-      <section className="py-12 sm:py-16 px-4">
+      <section aria-label="Mini diagnostic communication" className="py-12 sm:py-16 px-4">
         <div className="mx-auto max-w-5xl">
           <Reveal>
             <MiniDiagnostic />
@@ -390,7 +390,7 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ SI TU TE RECONNAIS ═══ */}
-      <section className="bg-rose-pale py-16 sm:py-24 px-4">
+      <section aria-label="Problèmes courants en communication" className="bg-rose-pale py-16 sm:py-24 px-4">
         <div className="mx-auto max-w-5xl">
           <Reveal>
             <h2 className="font-display text-2xl sm:text-[32px] font-bold text-center mb-12">Si tu te reconnais là-dedans…</h2>
@@ -418,7 +418,7 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ FEATURES GRID ═══ */}
-      <section id="features" className="py-16 sm:py-24 px-4">
+      <section id="features" aria-label="Fonctionnalités de l'outil" className="py-16 sm:py-24 px-4">
         <div className="mx-auto max-w-6xl">
           <Reveal>
             <div className="text-center mb-14">
@@ -447,7 +447,7 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ UNE VRAIE MÉTHODE ═══ */}
-      <section className="bg-rose-pale py-16 sm:py-24 px-4">
+      <section aria-label="La méthode Nowadays" className="bg-rose-pale py-16 sm:py-24 px-4">
         <div className="mx-auto max-w-5xl">
           <Reveal>
             <div className="text-center mb-14">
@@ -474,7 +474,7 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ QUI SUIS-JE ═══ */}
-      <section className="py-16 sm:py-24 px-4">
+      <section aria-label="À propos de Laetitia" className="py-16 sm:py-24 px-4">
         <div className="mx-auto max-w-5xl">
           <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-10 md:gap-14 items-center">
             <Reveal>
@@ -506,7 +506,7 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ SOCIAL PROOF ═══ */}
-      <section className="bg-rose-pale py-16 sm:py-20 px-4">
+      <section aria-label="Témoignages et références" className="bg-rose-pale py-16 sm:py-20 px-4">
         <div className="mx-auto max-w-5xl text-center">
           <Reveal>
             <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-10">Elles ont fait confiance à Nowadays</h2>
@@ -524,7 +524,7 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ C'EST POUR TOI SI ═══ */}
-      <section className="py-16 sm:py-24 px-4">
+      <section aria-label="À qui s'adresse l'outil" className="py-16 sm:py-24 px-4">
         <div className="mx-auto max-w-3xl">
           <Reveal>
             <h2 className="font-display text-2xl sm:text-[32px] font-bold text-center mb-10">C'est pour toi si…</h2>
@@ -543,7 +543,7 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ ROADMAP ═══ */}
-      <section className="bg-rose-pale py-16 sm:py-24 px-4">
+      <section aria-label="Feuille de route" className="bg-rose-pale py-16 sm:py-24 px-4">
         <div className="mx-auto max-w-4xl">
           <Reveal>
             <div className="text-center mb-12">
@@ -602,7 +602,7 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ PRICING ═══ */}
-      <section className="py-16 sm:py-24 px-4">
+      <section aria-label="Tarifs" className="py-16 sm:py-24 px-4">
         <div className="mx-auto max-w-5xl text-center">
           <Reveal>
             <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">Commence gratuitement. Upgrade quand tu es prête.</h2>
@@ -657,7 +657,7 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ FAQ ═══ */}
-      <section className="bg-rose-pale py-16 sm:py-24 px-4">
+      <section aria-label="Questions fréquentes" className="bg-rose-pale py-16 sm:py-24 px-4">
         <div className="mx-auto max-w-2xl">
           <Reveal>
             <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-10 text-center">Questions fréquentes</h2>
@@ -676,7 +676,7 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ CTA FINAL + SIGNUP ═══ */}
-      <section id="signup-section" className="relative py-16 sm:py-24 px-4 overflow-hidden" style={{ background: "linear-gradient(180deg, hsl(340 100% 97%) 0%, hsl(var(--background)) 100%)" }}>
+      <section id="signup-section" aria-label="Inscription gratuite" className="relative py-16 sm:py-24 px-4 overflow-hidden" style={{ background: "linear-gradient(180deg, hsl(340 100% 97%) 0%, hsl(var(--background)) 100%)" }}>
         <Reveal>
           <div className="mx-auto max-w-2xl text-center relative">
             <h2 className="font-display text-2xl sm:text-[36px] font-bold mb-4">
