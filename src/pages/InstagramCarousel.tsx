@@ -4,7 +4,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
-import SubPageHeader from "@/components/SubPageHeader";
+import ContentProgressBar from "@/components/ContentProgressBar";
+import ContentActions from "@/components/ContentActions";
+import ReturnToOrigin from "@/components/ReturnToOrigin";
 import BaseReminder from "@/components/BaseReminder";
 import { Loader2, RefreshCw, Copy, CalendarDays, Sparkles, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -123,6 +125,8 @@ export default function InstagramCarousel() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const activityExamples = useActivityExamples();
+  const fromObjectif = searchParams.get("objectif");
+  const fromSujet = searchParams.get("sujet") ? decodeURIComponent(searchParams.get("sujet")!) : "";
 
   // Flow: 1=type, 2=context, 3=deepening questions, 4=angles, 5=hooks+structure, 6=slides+caption
   const [step, setStep] = useState(1);
@@ -232,6 +236,27 @@ export default function InstagramCarousel() {
 
   const typeObj = CAROUSEL_TYPES.find(t => t.id === carouselType);
   const questions = DEEPENING_QUESTIONS[carouselType] || DEFAULT_QUESTIONS;
+
+  // Pre-fill from URL params
+  useEffect(() => {
+    if (fromObjectif && !objective) {
+      const objMap: Record<string, string> = { visibilite: "shares", confiance: "community", vente: "conversion", credibilite: "saves" };
+      if (objMap[fromObjectif]) setObjective(objMap[fromObjectif]);
+    }
+    if (fromSujet && !subject) setSubject(fromSujet);
+  }, [fromObjectif, fromSujet]);
+
+  const CAROUSEL_STEPS = [
+    { key: "type", label: "Type" },
+    { key: "context", label: "Contexte" },
+    { key: "questions", label: "Questions" },
+    { key: "angle", label: "Angle" },
+    { key: "hooks", label: "Accroche" },
+    { key: "result", label: "Texte" },
+    { key: "visual", label: "Visuel" },
+  ];
+  const stepKeyMap: Record<number, string> = { 1: "type", 2: "context", 3: "questions", 4: "angle", 5: "hooks", 6: "result", 7: "visual" };
+  const currentStepKey = stepKeyMap[step] || "type";
 
   // ── API calls ──
   const handleGenerateAngles = async () => {
@@ -388,7 +413,6 @@ export default function InstagramCarousel() {
   };
 
   const totalSteps = 7;
-  const stepLabels = ["Type", "Contexte", "Questions", "Angle", "Accroche", "Texte", "Visuel"];
 
   // Load charter data for visual step
   useEffect(() => {
@@ -465,8 +489,8 @@ export default function InstagramCarousel() {
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 animate-fade-in">
-          <SubPageHeader parentLabel="Créer" parentTo="/creer" currentLabel="Carrousel" useFromParam breadcrumbs={[{ label: "Dashboard", to: "/dashboard" }, { label: "Créer", to: "/creer" }]} />
-          <ProgressBar step={step} total={totalSteps} labels={stepLabels} />
+          <ReturnToOrigin />
+          <ContentProgressBar steps={CAROUSEL_STEPS} currentStep={currentStepKey} />
 
           <h1 className="font-display text-2xl font-bold text-foreground mb-2">✨ Visuel du carrousel</h1>
           <p className="text-sm text-muted-foreground mb-6">Choisis un style de template pour générer les visuels de tes slides.</p>
@@ -548,23 +572,20 @@ export default function InstagramCarousel() {
               </div>
 
               {/* Actions */}
-              <div className="rounded-2xl border border-border bg-muted/30 p-5 space-y-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => { setStep(6); setVisualSlides([]); }} className="rounded-full gap-1.5 text-xs">
-                    ← Modifier le texte
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={handleCopyAll} className="rounded-full gap-1.5 text-xs">
-                    <Copy className="h-3.5 w-3.5" /> Copier le texte
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setShowCalendarDialog(true)} className="rounded-full gap-1.5 text-xs">
-                    <CalendarDays className="h-3.5 w-3.5" /> Planifier
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setShowIdeasDialog(true)} className="rounded-full gap-1.5 text-xs">
-                    <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
-                  </Button>
-                </div>
-              </div>
+              <ContentActions
+                content={slides.map(s => `--- SLIDE ${s.slide_number} (${s.role}) ---\n${s.title}${s.body ? `\n${s.body}` : ""}`).join("\n\n") + (caption ? `\n\n--- CAPTION ---\n${caption.hook}\n\n${caption.body}\n\n${caption.cta}\n\n${caption.hashtags.map(h => `#${h}`).join(" ")}` : "")}
+                canal="instagram"
+                format="carousel"
+                theme={subject || typeObj?.label || "Carrousel"}
+                objectif={objective}
+                calendarPostId={calendarPostId || undefined}
+                onRegenerate={() => handleGenerateVisual(templateStyle)}
+                regenerateLabel="Régénérer le visuel"
+                className="mt-4"
+              />
+              <Button size="sm" variant="outline" onClick={() => { setStep(6); setVisualSlides([]); }} className="rounded-full gap-1.5 text-xs mt-2">
+                ← Modifier le texte
+              </Button>
             </div>
           )}
 
@@ -588,7 +609,7 @@ export default function InstagramCarousel() {
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 animate-fade-in">
-          <SubPageHeader parentLabel="Créer" parentTo="/creer" currentLabel="Carrousel" useFromParam breadcrumbs={[{ label: "Dashboard", to: "/dashboard" }, { label: "Créer", to: "/creer" }]} />
+          <ReturnToOrigin />
 
           <CarouselPreview
             slides={slides}
@@ -648,8 +669,8 @@ export default function InstagramCarousel() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 animate-fade-in">
-        <SubPageHeader parentLabel="Créer" parentTo="/creer" currentLabel="Carrousel" useFromParam breadcrumbs={[{ label: "Dashboard", to: "/dashboard" }, { label: "Créer", to: "/creer" }]} />
-        <ProgressBar step={step} total={totalSteps} labels={stepLabels} />
+        <ReturnToOrigin />
+        <ContentProgressBar steps={CAROUSEL_STEPS} currentStep={currentStepKey} />
 
         {step === 1 && (
           <CarouselTypeStep
@@ -719,20 +740,6 @@ export default function InstagramCarousel() {
           />
         )}
       </main>
-    </div>
-  );
-}
-
-// ── Sub-component ──
-function ProgressBar({ step, total, labels }: { step: number; total: number; labels: string[] }) {
-  return (
-    <div className="flex items-center gap-1 mb-6">
-      {labels.map((s, i) => (
-        <div key={s} className="flex items-center gap-1 flex-1">
-          <div className={`h-1.5 rounded-full flex-1 transition-colors ${i + 1 <= step ? "bg-primary" : "bg-muted"}`} />
-        </div>
-      ))}
-      <span className="text-xs text-muted-foreground ml-2 shrink-0">{step}/{total}</span>
     </div>
   );
 }
