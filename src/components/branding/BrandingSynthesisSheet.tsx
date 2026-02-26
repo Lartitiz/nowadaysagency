@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Download, Copy, RefreshCw, ExternalLink, Loader2, Pencil, Sparkles, Link2 } from "lucide-react";
@@ -177,6 +178,8 @@ function VoiceLayersSummary({ layers }: { layers?: Array<{name: string; summary:
 export default function BrandingSynthesisSheet({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const { data: profileHookData } = useProfile();
+  const { data: brandProfileHookData } = useBrandProfile();
   const navigate = useNavigate();
   const [data, setData] = useState<SynthesisData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -191,8 +194,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
     setLoading(true);
     const uid = user.id;
 
-    const [brandRes, personaRes, storyRes, propRes, stratRes, offersRes, configRes, auditRes, brandingRaw, profileRes] = await Promise.all([
-      supabase.from("brand_profile").select("*").eq("user_id", uid).maybeSingle(),
+    const [personaRes, storyRes, propRes, stratRes, offersRes, configRes, auditRes, brandingRaw] = await Promise.all([
       supabase.from("persona").select("*").eq("user_id", uid).maybeSingle(),
       supabase.from("storytelling").select("*").eq("user_id", uid).eq("is_primary", true).maybeSingle(),
       supabase.from("brand_proposition").select("*").eq("user_id", uid).maybeSingle(),
@@ -201,13 +203,12 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
       supabase.from("user_plan_config").select("*").eq("user_id", uid).maybeSingle(),
       supabase.from("branding_audits").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       fetchBrandingData({ column: "user_id", value: uid }),
-      supabase.from("profiles").select("first_name, activity").eq("id", uid).maybeSingle(),
     ]);
 
     const completion = calculateBrandingCompletion(brandingRaw);
 
     setData({
-      brand: brandRes.data,
+      brand: brandProfileHookData,
       persona: personaRes.data,
       storytelling: storyRes.data,
       proposition: propRes.data,
@@ -218,8 +219,8 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
       brandingAudit: auditRes.data,
       completion: completion.total,
       completionDetail: completion,
-      userName: (profileRes.data as any)?.first_name || null,
-      userActivity: (profileRes.data as any)?.activity || null,
+      userName: (profileHookData as any)?.first_name || (profileHookData as any)?.prenom || null,
+      userActivity: (profileHookData as any)?.activity || (profileHookData as any)?.activite || null,
     });
     setLoading(false);
   };
