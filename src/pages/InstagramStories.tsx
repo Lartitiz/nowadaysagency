@@ -18,6 +18,7 @@ import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { useFormPersist } from "@/hooks/use-form-persist";
 import { DraftRestoredBanner } from "@/components/DraftRestoredBanner";
+import RedFlagsChecker from "@/components/RedFlagsChecker";
 
 // Types
 interface StorySticker {
@@ -396,6 +397,14 @@ export default function InstagramStories() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Red flags checker */}
+          <div className="mt-6">
+            <RedFlagsChecker
+              content={sequenceResult.stories.map((s: any) => s.texte || s.text || s.description || "").join("\n")}
+              onFix={() => {}}
+            />
           </div>
 
           <div className="mt-8 rounded-2xl border border-border bg-card p-5">
