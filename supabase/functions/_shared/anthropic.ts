@@ -3,7 +3,7 @@
 export type AnthropicModel = "claude-opus-4-6" | "claude-sonnet-4-5-20250929";
 
 export function getDefaultModel(): AnthropicModel {
-  return (Deno.env.get("AI_MODEL_DEFAULT") as AnthropicModel) || "claude-opus-4-6";
+  return (Deno.env.get("AI_MODEL_DEFAULT") as AnthropicModel) || "claude-sonnet-4-5-20250929";
 }
 
 export interface AnthropicMessage {
