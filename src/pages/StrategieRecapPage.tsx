@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { Link } from "react-router-dom";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -33,6 +34,8 @@ export default function StrategieRecapPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
+  const { data: profileData } = useProfile();
+  const { data: brandProfileData } = useBrandProfile();
   const [data, setData] = useState<any>(null);
   const [summary, setSummary] = useState<RecapSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,15 +91,13 @@ export default function StrategieRecapPage() {
     if (!user || !data) return;
     setGenerating(true);
     try {
-      const [profileRes, personaRes, propositionRes, toneRes, editorialRes] = await Promise.all([
-        (supabase.from("profiles") as any).select("*").eq(column, value).maybeSingle(),
+      const [personaRes, propositionRes, editorialRes] = await Promise.all([
         (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle(),
         (supabase.from("brand_proposition") as any).select("*").eq(column, value).maybeSingle(),
-        (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle(),
         (supabase.from("instagram_editorial_line") as any).select("*").eq(column, value).maybeSingle(),
       ]);
       const { data: fnData, error } = await supabase.functions.invoke("strategy-ai", {
-        body: { type: "generate-recap", strategy_data: data, profile: profileRes.data, persona: personaRes.data, proposition: propositionRes.data, tone: toneRes.data, editorial_line: editorialRes.data },
+        body: { type: "generate-recap", strategy_data: data, profile: profileData, persona: personaRes.data, proposition: propositionRes.data, tone: brandProfileData, editorial_line: editorialRes.data },
       });
       if (error) throw error;
       const raw = fnData.content.replace(/```json|```/g, "").trim();

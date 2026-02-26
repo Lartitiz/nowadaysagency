@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { Link, useNavigate } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -54,10 +55,10 @@ export default function StrategiePage() {
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [aiLoading, setAiLoading] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
+  const { data: profile } = useProfile();
+  const { data: tone } = useBrandProfile();
   const [persona, setPersona] = useState<any>(null);
   const [proposition, setProposition] = useState<any>(null);
-  const [tone, setTone] = useState<any>(null);
   const [activeField, setActiveField] = useState("step_1_hidden_facets");
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -65,24 +66,19 @@ export default function StrategiePage() {
     if (!user || !loading) return;
     Promise.all([
       (supabase.from("brand_strategy") as any).select("*").eq(column, value).maybeSingle(),
-      (supabase.from("profiles") as any).select("activite, prenom, mission").eq(column, value).single(),
       (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle(),
       (supabase.from("brand_proposition") as any).select("step_1_what, version_final").eq(column, value).maybeSingle(),
-      (supabase.from("brand_profile") as any).select("voice_description, combat_cause, combat_fights, tone_register, tone_humor, key_expressions, things_to_avoid, target_verbatims").eq(column, value).maybeSingle(),
-    ]).then(([stratRes, profRes, perRes, propRes, toneRes]) => {
+    ]).then(([stratRes, perRes, propRes]) => {
       if (stratRes.data) {
         const { id, user_id, created_at, updated_at, ...rest } = stratRes.data as any;
         setData({ ...EMPTY, ...rest } as StrategyData);
         setExistingId(id);
-        // Map old step numbers: if user was on step 3 (old pillars) → now step 2, step 4 → step 3
         const savedStep = rest.current_step || 1;
         const mappedStep = savedStep <= 1 ? 1 : savedStep === 2 ? 2 : savedStep === 3 ? 2 : 3;
         setCurrentStep(Math.min(mappedStep, 3));
       }
-      setProfile(profRes.data || {});
       setPersona(perRes.data || null);
       setProposition(propRes.data || null);
-      setTone(toneRes.data || null);
       setLoading(false);
     });
   }, [user?.id]);

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useNavigate } from "react-router-dom";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -31,31 +32,20 @@ export default function StorytellingImportPage() {
   const [step, setStep] = useState<"form" | "improve" | "saving">("form");
   const [aiLoading, setAiLoading] = useState(false);
   const [improvedText, setImprovedText] = useState("");
-  const [profile, setProfile] = useState<any>(null);
+
+  const { data: profileData } = useProfile();
+  const { data: brandProfileData } = useBrandProfile();
+  const profile = profileData ? { ...profileData, ...(brandProfileData || {}) } : null;
 
   const { isListening, isSupported, toggle: toggleMic } = useSpeechRecognition((transcript) => {
     setText((prev) => prev + (prev ? " " : "") + transcript);
   });
 
-  // Fetch profile for AI context
-  const ensureProfile = async () => {
-    if (profile) return profile;
-    if (!user) return null;
-    const [profRes, bpRes] = await Promise.all([
-      (supabase.from("profiles") as any).select("activite, prenom, tons").eq(column, value).single(),
-      (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register, key_expressions, things_to_avoid").eq(column, value).maybeSingle(),
-    ]);
-    const merged = { ...(profRes.data || {}), ...(bpRes.data || {}) };
-    setProfile(merged);
-    return merged;
-  };
-
   const handleImprove = async () => {
     setAiLoading(true);
     try {
-      const prof = await ensureProfile();
       const { data: fnData, error } = await supabase.functions.invoke("storytelling-ai", {
-        body: { type: "improve", text, step_context: "Texte complet de storytelling importé. Améliore le style, la fluidité et l'impact émotionnel tout en gardant le sens intact.", profile: prof },
+        body: { type: "improve", text, step_context: "Texte complet de storytelling importé. Améliore le style, la fluidité et l'impact émotionnel tout en gardant le sens intact.", profile },
       });
       if (error) throw error;
       setImprovedText(fnData.content);
@@ -73,10 +63,9 @@ export default function StorytellingImportPage() {
     setAiLoading(true);
 
     try {
-      const prof = await ensureProfile();
       // Generate pitches
       const { data: fnData, error } = await supabase.functions.invoke("storytelling-ai", {
-        body: { type: "generate-pitch", storytelling: finalText, profile: prof },
+        body: { type: "generate-pitch", storytelling: finalText, profile },
       });
       if (error) throw error;
 

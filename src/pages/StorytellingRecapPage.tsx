@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { Link, useParams } from "react-router-dom";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -29,6 +30,8 @@ export default function StorytellingRecapPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const { data: profileData } = useProfile();
+  const { data: brandProfileData } = useBrandProfile();
   const recapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -88,9 +91,7 @@ export default function StorytellingRecapPage() {
     if (!story) return;
     setGenerating(true);
     try {
-      const { data: profData } = await (supabase.from("profiles") as any).select("activite, prenom").eq(column, value).single();
-      const { data: bpData } = await (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register, key_expressions, things_to_avoid").eq(column, value).maybeSingle();
-      const profile = { ...(profData || {}), ...(bpData || {}) };
+      const profile = { ...(profileData || {}), ...(brandProfileData || {}) };
       const { data: fnData, error } = await supabase.functions.invoke("storytelling-ai", {
         body: { type: "generate-recap", storytelling: story, profile },
       });

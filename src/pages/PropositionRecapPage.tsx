@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { Link } from "react-router-dom";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -24,6 +25,8 @@ export default function PropositionRecapPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
+  const { data: profileData } = useProfile();
+  const { data: brandProfileData } = useBrandProfile();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -71,18 +74,15 @@ export default function PropositionRecapPage() {
     if (!data) return;
     setGenerating(true);
     try {
-      const [profRes, bpRes, perRes] = await Promise.all([
-        (supabase.from("profiles") as any).select("activite, prenom").eq(column, value).single(),
-        (supabase.from("brand_profile") as any).select("mission, offer, combat_cause, combat_fights, combat_refusals").eq(column, value).maybeSingle(),
-        (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle(),
-      ]);
+      const { data: perRes } = await (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle();
+      const mergedProfile = { ...(profileData || {}), ...(brandProfileData || {}) };
       const { data: fnData, error } = await supabase.functions.invoke("proposition-ai", {
         body: {
           type: "generate-recap",
           proposition_data: data,
-          profile: { ...(profRes.data || {}), ...(bpRes.data || {}) },
-          persona: perRes.data || {},
-          tone: bpRes.data || {},
+          profile: mergedProfile,
+          persona: perRes || {},
+          tone: brandProfileData || {},
         },
       });
       if (error) throw error;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useNavigate } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -69,10 +70,10 @@ export default function PropositionPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiDiffPoints, setAiDiffPoints] = useState<string[] | null>(null);
   const [aiBenefit, setAiBenefit] = useState<string | null>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const { data: profile } = useProfile();
+  const { data: tone } = useBrandProfile();
   const [persona, setPersona] = useState<any>(null);
   const [storytelling, setStorytelling] = useState<any>(null);
-  const [tone, setTone] = useState<any>(null);
   const [favorite, setFavorite] = useState<string | null>(null);
   const [writeManually, setWriteManually] = useState(false);
   const [activeField, setActiveField] = useState<string>("step_2a_process");
@@ -82,27 +83,27 @@ export default function PropositionPage() {
     if (!user || !loading) return;
     Promise.all([
       (supabase.from("brand_proposition") as any).select("*").eq(column, value).maybeSingle(),
-      (supabase.from("profiles") as any).select("activite, prenom, mission").eq(column, value).single(),
       (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle(),
       (supabase.from("storytelling") as any).select("pitch_short").eq(column, value).maybeSingle(),
-      (supabase.from("brand_profile") as any).select("tone_register, key_expressions, things_to_avoid, mission").eq(column, value).maybeSingle(),
-    ]).then(([propRes, profRes, perRes, stRes, toneRes]) => {
+    ]).then(([propRes, perRes, stRes]) => {
       if (propRes.data) {
         const { id, user_id, created_at, updated_at, ...rest } = propRes.data as any;
         setData(rest as PropositionData);
         setExistingId(id);
         setCurrentStep(rest.current_step || 1);
       }
-      setProfile(profRes.data || {});
       setPersona(perRes.data || null);
       setStorytelling(stRes.data || null);
-      setTone(toneRes.data || null);
-      if (!propRes.data?.step_1_what && profRes.data?.activite) {
-        setData(prev => ({ ...prev, step_1_what: profRes.data.activite }));
-      }
       setLoading(false);
     });
   }, [user?.id]);
+
+  // Auto-fill step_1_what from profile activity
+  useEffect(() => {
+    if (profile?.activite && !data.step_1_what && !existingId) {
+      setData(prev => ({ ...prev, step_1_what: profile.activite }));
+    }
+  }, [profile]);
 
   const saveNow = useCallback(async (updated: PropositionData) => {
     if (!user) return;
