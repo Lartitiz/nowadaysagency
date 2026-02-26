@@ -259,7 +259,8 @@ function AnimatedRoutes() {
               <Route path="/instagram/engagement" element={<Navigate to="/instagram/routine" replace />} />
               <Route path="/instagram/stories" element={<ProtectedRoute><InstagramStories /></ProtectedRoute>} />
               <Route path="/instagram/reels" element={<ProtectedRoute><InstagramReels /></ProtectedRoute>} />
-              <Route path="/instagram/creer" element={<ProtectedRoute><InstagramCreer /></ProtectedRoute>} />
+              <Route path="/creer" element={<ProtectedRoute><InstagramCreer /></ProtectedRoute>} />
+              <Route path="/instagram/creer" element={<Navigate to="/creer" replace />} />
               <Route path="/instagram/carousel" element={<ProtectedRoute><InstagramCarousel /></ProtectedRoute>} />
               {/* Redirects from old routes */}
               <Route path="/instagram/bio" element={<Navigate to="/instagram/profil/bio" replace />} />
