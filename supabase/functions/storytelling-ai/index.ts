@@ -4,6 +4,7 @@ import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts"
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -207,7 +208,7 @@ RÈGLES :
       });
     }
 
-    const content = await callAnthropicSimple(getModelForAction("storytelling"), systemPrompt + "\n\n" + ANTI_SLOP, userPrompt);
+    const content = await callAnthropicSimple(getModelForAction("storytelling"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, userPrompt);
 
     await logUsage(userId, "content", "storytelling");
 

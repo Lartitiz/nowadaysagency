@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LINKEDIN_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
+import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
@@ -53,7 +54,9 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = `${LINKEDIN_PRINCIPLES}
+    const systemPrompt = `${BASE_SYSTEM_RULES}
+
+${LINKEDIN_PRINCIPLES}
 
 Tu es experte en optimisation de profils LinkedIn pour des solopreneuses créatives et engagées (mode, artisanat, bien-être, design, coaching).
 

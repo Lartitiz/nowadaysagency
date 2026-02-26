@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 
@@ -347,7 +348,7 @@ Réponds UNIQUEMENT en JSON (sans backticks) avec cette structure :
 
     const rawResponse = await callAnthropicSimple(
       getModelForAction("generation"),
-      systemPrompt + "\n\n" + ANTI_SLOP,
+      BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP,
       "Analyse cette page de vente et produis les recommandations en JSON.",
       0.5,
       8192
