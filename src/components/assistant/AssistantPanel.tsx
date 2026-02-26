@@ -61,6 +61,26 @@ const WELCOME_DEFAULT = `Hey ! Je suis ton GPS com'. Je connais ton branding, te
 
 const WELCOME_PILOT = `Hey ! Accompagnement Binôme 🤝\nPose-moi une question ou dis-moi ce que tu veux changer.\n\nPour les questions stratégiques, écris à Laetitia sur WhatsApp.\n\nExemples :\n· "Reformule ma bio"\n· "Planifie 3 posts pour la semaine"\n· "Analyse mes stats de la semaine"`;
 
+function renderAssistantMessage(content: string, navigate: ReturnType<typeof useNavigate>) {
+  const parts = content.split(/(\[[^\]]+\]\([^)]+\))/g);
+  return parts.map((part, i) => {
+    const linkMatch = part.match(/\[([^\]]+)\]\(([^)]+)\)/);
+    if (linkMatch) {
+      const [, text, route] = linkMatch;
+      return (
+        <button
+          key={i}
+          onClick={() => navigate(route)}
+          className="inline-flex items-center gap-1 text-primary font-medium hover:underline"
+        >
+          {text} →
+        </button>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
 function isConfirmation(msg: string): boolean {
   const lower = msg.toLowerCase().trim();
   return ["oui", "yes", "ok", "go", "vas-y", "confirme", "c'est bon", "fais-le", "supprime", "valide", "d'accord", "ouais"]
@@ -227,7 +247,9 @@ export default function AssistantPanel({ onClose }: { onClose: () => void }) {
                   : "bg-muted text-foreground"
               )}
             >
-              {msg.content}
+              {msg.role === "assistant"
+                ? renderAssistantMessage(msg.content, navigate)
+                : msg.content}
 
               {/* Action results */}
               {msg.actions && msg.actions.length > 0 && (
