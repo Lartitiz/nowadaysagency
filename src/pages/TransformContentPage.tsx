@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
+import ContentRecycling from "@/components/ContentRecycling";
 
 type TransformMode = "recycle" | "crosspost" | "inspire" | null;
 
@@ -70,6 +71,18 @@ export default function TransformContentPage() {
           >
             ← Changer de mode
           </button>
+        )}
+
+        {mode === "recycle" && (
+          <div className="space-y-4">
+            <div className="mb-4">
+              <h2 className="font-display text-lg font-bold text-foreground">♻️ Recycler un contenu</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Colle un contenu existant ou importe des fichiers : newsletter, post, article, PDF... L'IA le transforme en plusieurs formats.
+              </p>
+            </div>
+            <ContentRecycling />
+          </div>
         )}
       </main>
     </div>
