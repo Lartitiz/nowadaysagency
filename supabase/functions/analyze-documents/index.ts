@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { authenticateRequest, getServiceClient, AuthError } from "../_shared/auth.ts";
 import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -8,24 +8,25 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { user_id, workspace_id, document_ids } = await req.json();
-    if (!user_id || !document_ids?.length) {
-      return new Response(JSON.stringify({ error: "Missing user_id or document_ids" }), {
+    // Authenticate via JWT - no more trusting user_id from body
+    const { userId } = await authenticateRequest(req);
+
+    const { workspace_id, document_ids } = await req.json();
+    if (!document_ids?.length) {
+      return new Response(JSON.stringify({ error: "Missing document_ids" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey);
+    const supabase = getServiceClient();
 
-    // Fetch document records
+    // Fetch document records using authenticated userId
     const { data: docs, error: docsError } = await supabase
       .from("user_documents")
       .select("id, file_name, file_url, file_type")
       .in("id", document_ids)
-      .eq("user_id", user_id);
+      .eq("user_id", userId);
 
     if (docsError || !docs?.length) {
       return new Response(JSON.stringify({ error: "No documents found" }), {
@@ -131,6 +132,12 @@ Retourne UNIQUEMENT un JSON valide, sans texte avant ni après :
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: error.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("analyze-documents error:", error);
     return new Response(
       JSON.stringify({ error: error.message || "Internal error" }),
