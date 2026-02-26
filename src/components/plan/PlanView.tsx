@@ -1,7 +1,9 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Settings, Check, Clock, Lock, Lightbulb, ArrowRight, Construction } from "lucide-react";
+import { Settings, Check, Clock, Lock, Lightbulb, ArrowRight, Construction, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { PlanData, PlanPhase, PlanStep, StepStatus } from "@/lib/plan-engine";
 import { GOAL_LABELS, TIME_LABELS } from "@/lib/plan-engine";
 import AuditRecommendationsSection from "./AuditRecommendationsSection";
@@ -81,6 +83,12 @@ export default function PlanView({ plan, onEditConfig, onToggleStep }: PlanViewP
 function PhaseSection({ phase, navigate, onToggleStep }: { phase: PlanPhase; navigate: (path: string) => void; onToggleStep?: (stepId: string, newStatus: 'done' | 'undone') => void }) {
   const doneCount = phase.steps.filter(s => s.status === "done").length;
   const allDone = doneCount === phase.steps.length;
+  const [expanded, setExpanded] = useState(!allDone);
+
+  // Re-expand if a step gets unchecked
+  useEffect(() => {
+    if (!allDone) setExpanded(true);
+  }, [allDone]);
 
   let statusLabel: string;
   let statusColor: string;
@@ -99,19 +107,32 @@ function PhaseSection({ phase, navigate, onToggleStep }: { phase: PlanPhase; nav
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="font-display font-bold text-foreground flex items-center gap-2">
-          <span>{phase.emoji}</span> {phase.title}
-        </h3>
-        <span className={`text-xs font-medium ${statusColor}`}>{statusLabel}</span>
-      </div>
-      <div className="space-y-2">
+    <Collapsible open={expanded} onOpenChange={setExpanded}>
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className={`w-full flex items-center justify-between rounded-lg px-1 py-1.5 cursor-pointer transition-colors hover:bg-muted/50 group ${
+            !expanded ? "opacity-80" : ""
+          }`}
+        >
+          <h3 className="font-display font-bold text-foreground flex items-center gap-2">
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${!expanded ? "-rotate-90" : ""}`} />
+            <span>{phase.emoji}</span> {phase.title}
+          </h3>
+          <div className="flex items-center gap-3">
+            {!expanded && (
+              <span className="text-xs text-muted-foreground">{doneCount}/{phase.steps.length} étapes</span>
+            )}
+            <span className={`text-xs font-medium ${statusColor}`}>{statusLabel}</span>
+          </div>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-2 mt-2 data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
         {phase.steps.map(step => (
           <StepCard key={step.id} step={step} navigate={navigate} onToggleStep={onToggleStep} />
         ))}
-      </div>
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
