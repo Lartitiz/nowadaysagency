@@ -77,6 +77,9 @@ serve(async (req) => {
 
     const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "") + voiceBlock;
 
+    // COMMON_PREFIX: identical for ALL steps → maximizes Anthropic prompt caching
+    const COMMON_PREFIX = BASE_SYSTEM_RULES + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + CORE_PRINCIPLES + "\n\n" + ANTI_SLOP + "\n\n" + ETHICAL_GUARDRAILS + "\n\n" + fullContext;
+
     // Build calendar context block
     let calendarBlock = "";
     if (calendarContext) {
@@ -109,19 +112,12 @@ serve(async (req) => {
     };
 
     if (step === "angles") {
-      systemPrompt = `${CORE_PRINCIPLES}
-
-${ANTI_SLOP}
-
-${ETHICAL_GUARDRAILS}
+      systemPrompt = `${COMMON_PREFIX}
 
 ${FRAMEWORK_SELECTION}
 
 TYPE DE CONTENU : ${contentType}
 CONTEXTE : ${context}
-
-PROFIL DE L'UTILISATRICE :
-${fullContext}
 ${calendarBlock}
 
 Propose exactement 3 angles éditoriaux DIFFÉRENTS.
@@ -154,16 +150,13 @@ Réponds UNIQUEMENT en JSON :
       userPrompt = `Propose-moi 3 angles éditoriaux pour : ${context}`;
 
     } else if (step === "questions") {
-      systemPrompt = `${CORE_PRINCIPLES}
+      systemPrompt = `${COMMON_PREFIX}
 
 L'utilisatrice a choisi cet angle pour son contenu :
 - Type : ${contentType}
 - Angle : ${angle.title}
 - Structure : ${(angle.structure || []).join(" → ")}
 - Ton : ${angle.tone}
-
-PROFIL DE L'UTILISATRICE :
-${fullContext}
 ${calendarBlock}
 
 Pose exactement 3 questions pour récupérer SA matière première. Ces questions doivent extraire des anecdotes, des réflexions, des émotions PERSONNELLES qui rendront le contenu unique et impossible à reproduire par une IA seule.
@@ -189,7 +182,7 @@ Réponds UNIQUEMENT en JSON :
 
     } else if (step === "follow-up") {
       const answersBlock = answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n");
-      systemPrompt = `${CORE_PRINCIPLES}
+      systemPrompt = `${COMMON_PREFIX}
 
 L'utilisatrice a répondu à ces questions :
 ${answersBlock}
@@ -216,13 +209,9 @@ Réponds UNIQUEMENT en JSON :
         ? "\n\nQUESTIONS D'APPROFONDISSEMENT :\n" + followUpAnswers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
         : "";
 
-      systemPrompt = `${CORE_PRINCIPLES}
-
-${ANTI_SLOP}
+      systemPrompt = `${COMMON_PREFIX}
 
 ${ANTI_BIAS}
-
-${ETHICAL_GUARDRAILS}
 
 ${CHAIN_OF_THOUGHT}
 
@@ -238,9 +227,6 @@ ANGLE CHOISI :
 RÉPONSES DE L'UTILISATRICE :
 ${answersBlock}
 ${followUpBlock}
-
-PROFIL DE L'UTILISATRICE :
-${fullContext}
 ${calendarBlock}
 ${preGenBlock}
 
@@ -260,13 +246,9 @@ Réponds UNIQUEMENT en JSON :
       userPrompt = "Rédige mon contenu à partir de mes réponses et de l'angle choisi.";
 
     } else if (step === "adjust") {
-      systemPrompt = `${CORE_PRINCIPLES}
-
-${ANTI_SLOP}
+      systemPrompt = `${COMMON_PREFIX}
 
 ${ANTI_BIAS}
-
-${ETHICAL_GUARDRAILS}
 
 ${CHAIN_OF_THOUGHT}
 
@@ -281,9 +263,6 @@ ${currentContent}
 
 AJUSTEMENT DEMANDÉ : ${adjustment}
 
-PROFIL DE L'UTILISATRICE :
-${fullContext}
-
 Réécris le contenu avec l'ajustement demandé. Garde la structure, les anecdotes et les mots de l'utilisatrice. Change UNIQUEMENT ce qui est lié à l'ajustement.
 
 Réponds UNIQUEMENT en JSON :
@@ -295,22 +274,13 @@ Réponds UNIQUEMENT en JSON :
     } else if (step === "recycle") {
       const requestedFormats = (formats || []).map((f: string) => formatLabels[f] || f);
 
-      systemPrompt = `${CORE_PRINCIPLES}
-
-${ANTI_SLOP}
+      systemPrompt = `${COMMON_PREFIX}
 
 ${ANTI_BIAS}
-
-${ETHICAL_GUARDRAILS}
-
 
 ${FORMAT_STRUCTURES}
 
 ${WRITING_RESOURCES}
-
-PROFIL DE L'UTILISATRICE :
-${fullContext}
-${voiceBlock}
 
 ${sourceText ? `Voici un contenu existant de l'utilisatrice :\n"""\n${sourceText}\n"""` : ""}
 
@@ -333,19 +303,11 @@ Réponds UNIQUEMENT en JSON :
       userPrompt = `Recycle ce contenu en ${requestedFormats.join(", ")}.`;
 
     } else if (step === "dictation") {
-      systemPrompt = `${CORE_PRINCIPLES}
-
-${ANTI_SLOP}
+      systemPrompt = `${COMMON_PREFIX}
 
 ${ANTI_BIAS}
 
-${ETHICAL_GUARDRAILS}
-
 ${WRITING_RESOURCES}
-
-PROFIL DE L'UTILISATRICE :
-${fullContext}
-${voiceBlock}
 
 L'utilisatrice a dicté ceci en mode vocal :
 """
@@ -375,8 +337,7 @@ Réponds UNIQUEMENT en JSON :
       return new Response(JSON.stringify({ error: "Step non reconnu" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Prepend voice priority instruction
-    systemPrompt = BASE_SYSTEM_RULES + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + systemPrompt;
+    // COMMON_PREFIX already includes BASE_SYSTEM_RULES + voice priority + CORE_PRINCIPLES + ANTI_SLOP + ETHICAL_GUARDRAILS + fullContext
 
     // ── Deep Research (web search via Anthropic) ──
     if (deepResearch && step === "generate") {
