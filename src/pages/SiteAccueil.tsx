@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import PreGenCoaching, { type PreGenBrief } from "@/components/coach/PreGenCoaching";
+import RedFlagsChecker from "@/components/RedFlagsChecker";
 import {
   HomepageData, EMPTY, STEPS, FRAMEWORKS, PAGE_TYPES,
 } from "@/components/site/SiteShared";
@@ -327,6 +328,16 @@ export default function SiteAccueil() {
           {step === 9 && <Step9FaqCta {...stepProps} />}
           {step === 10 && <Step10SeoLayout {...stepProps} />}
         </div>
+
+        {/* Red flags checker on generated content */}
+        {(data.hook_title || data.problem_block || data.offer_block) && (
+          <div className="mt-4">
+            <RedFlagsChecker
+              content={[data.hook_title, data.problem_block, data.benefits_block, data.offer_block, data.presentation_block, data.guarantee_text].filter(Boolean).join("\n\n")}
+              onFix={() => {}}
+            />
+          </div>
+        )}
 
         {/* Navigation */}
         <div className="flex justify-between mt-8">

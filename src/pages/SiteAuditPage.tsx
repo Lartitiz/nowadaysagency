@@ -17,6 +17,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import SiteAuditResult from "@/components/site/SiteAuditResult";
 import SiteAuditAutoResult, { type AutoAuditResult } from "@/components/site/SiteAuditAutoResult";
 import { friendlyError } from "@/lib/error-messages";
+import RedFlagsChecker from "@/components/RedFlagsChecker";
 
 // ── Loading messages ──
 const LOADING_MESSAGES = [
@@ -479,14 +480,22 @@ const SiteAuditPage = () => {
 
         {/* ── STEP: Auto Results ── */}
         {step === "auto-results" && autoResult && (
-          <SiteAuditAutoResult
-            result={autoResult}
-            onReset={handleReset}
-            onRerun={handleRerun}
-            siteUrl={siteUrl}
-            userId={user?.id}
-            workspaceFilter={{ column, value }}
-          />
+          <>
+            <SiteAuditAutoResult
+              result={autoResult}
+              onReset={handleReset}
+              onRerun={handleRerun}
+              siteUrl={siteUrl}
+              userId={user?.id}
+              workspaceFilter={{ column, value }}
+            />
+            <div className="mt-6">
+              <RedFlagsChecker
+                content={[autoResult.synthese, ...autoResult.priorites?.map((p: any) => p.action || p.detail || "") || []].filter(Boolean).join("\n\n")}
+                onFix={() => {}}
+              />
+            </div>
+          </>
         )}
 
         {/* ── STEP: Old Results (backward compat) ── */}

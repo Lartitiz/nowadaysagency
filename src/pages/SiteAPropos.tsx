@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Copy, RefreshCw, FileText, Pencil, Check, ArrowRight, Sparkles, Wrench, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
+import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -496,6 +497,12 @@ export default function SiteAPropos() {
           <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
           <h1 className="font-display text-[22px] font-bold text-foreground mb-6">🔧 Résultats de l'optimisation</h1>
           <AboutOptimizeResult result={optimizeResult} originalText={originalText} onRetry={() => setMode("optimize-input")} userId={user!.id} />
+          <div className="mt-6">
+            <RedFlagsChecker
+              content={optimizeResult?.sections?.map((s: any) => s.improved || s.original || "").join("\n\n") || optimizeResult?.summary || ""}
+              onFix={() => {}}
+            />
+          </div>
         </main>
       </div>
     );

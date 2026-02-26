@@ -5,6 +5,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
+import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -396,6 +397,12 @@ export default function SalesPageOptimizer() {
                 ))}
               </div>
             )}
+
+            {/* Red flags checker */}
+            <RedFlagsChecker
+              content={displayResult.sections?.map((s: any) => s.improved_text || s.feedback || "").join("\n\n") || displayResult.synthese || ""}
+              onFix={() => {}}
+            />
 
             {/* E) Actions globales */}
             <div className="flex flex-wrap gap-3 pt-2">
