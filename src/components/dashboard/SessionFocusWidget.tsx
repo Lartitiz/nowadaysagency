@@ -171,7 +171,7 @@ function getSmartFocus(
     {
       emoji: "🔄", title: "Recycle un contenu",
       description: "Transforme un post Instagram en post LinkedIn (ou l'inverse).",
-      cta: "Recycler", route: "/linkedin/crosspost",
+      cta: "Recycler", route: "/transformer",
       duration: "10 min", type: "other",
     },
     {
