@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Copy, RefreshCw, CalendarDays, Check, AlertTriangle } from "lucide-react";
+import { RefreshCw, Check, AlertTriangle } from "lucide-react";
 import CarouselSlideEditor from "./CarouselSlideEditor";
 
 interface Slide {
@@ -26,9 +26,6 @@ interface CarouselPreviewProps {
   chosenAngle: { emoji: string; title: string } | null;
   onUpdateSlide: (index: number, field: "title" | "body", value: string) => void;
   onUpdateCaption: (field: keyof Caption, value: any) => void;
-  onCopyAll: () => void;
-  onPlanifier: () => void;
-  onSave: () => void;
   onRegenerate: () => void;
   onNew: () => void;
 }
@@ -40,7 +37,7 @@ function countWords(text: string) {
 export default function CarouselPreview({
   slides, caption, qualityCheck, publishingTip,
   typeLabel, typeEmoji, objectiveLabel, chosenAngle,
-  onUpdateSlide, onUpdateCaption, onCopyAll, onPlanifier, onSave, onRegenerate, onNew,
+  onUpdateSlide, onUpdateCaption, onRegenerate, onNew,
 }: CarouselPreviewProps) {
   const fullCaptionText = caption ? `${caption.hook}\n\n${caption.body}\n\n${caption.cta}` : "";
   const captionWords = countWords(fullCaptionText);
@@ -122,15 +119,6 @@ export default function CarouselPreview({
       <div className="rounded-2xl border border-border bg-muted/30 p-5 space-y-3">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</p>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={onCopyAll} className="rounded-full gap-1.5 text-xs">
-            <Copy className="h-3.5 w-3.5" /> Copier tout le texte
-          </Button>
-          <Button size="sm" variant="outline" onClick={onPlanifier} className="rounded-full gap-1.5 text-xs">
-            <CalendarDays className="h-3.5 w-3.5" /> Planifier
-          </Button>
-          <Button size="sm" variant="outline" onClick={onSave} className="rounded-full gap-1.5 text-xs">
-            💾 Sauvegarder
-          </Button>
           <Button size="sm" variant="outline" onClick={onRegenerate} className="rounded-full gap-1.5 text-xs">
             <RefreshCw className="h-3.5 w-3.5" /> Régénérer
           </Button>
