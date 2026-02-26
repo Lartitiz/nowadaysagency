@@ -192,7 +192,7 @@ function BrandMarquee() {
 }
 
 /* ─── Founder photo ─── */
-import laetitiaPhoto from "@/assets/laetitia-photo.jpg";
+import laetitiaPhoto from "@/assets/laetitia-photo.webp";
 import MiniDiagnostic from "@/components/landing/MiniDiagnostic";
 
 function FounderPhoto() {
