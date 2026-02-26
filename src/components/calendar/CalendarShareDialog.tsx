@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Copy, Trash2, Loader2, Link2, Plus, AlertTriangle, FileSpreadsheet, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
-import * as XLSX from "xlsx";
+
 
 interface Share {
   id: string;
@@ -285,6 +285,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
         "Notes": p.notes || "",
       });
 
+      const XLSX = await import("xlsx");
       const wb = XLSX.utils.book_new();
 
       // Social media sheet

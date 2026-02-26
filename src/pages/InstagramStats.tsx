@@ -17,7 +17,7 @@ import StatsPeriodSelector from "@/components/stats/StatsPeriodSelector";
 import StatsOverview from "@/components/stats/StatsOverview";
 import StatsCharts from "@/components/stats/StatsCharts";
 import StatsForm from "@/components/stats/StatsForm";
-import * as XLSX from "xlsx";
+
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 import {

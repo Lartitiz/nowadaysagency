@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ChevronLeft, ChevronRight, Sparkles, Download, Link2 } from "lucide-react";
 import { CalendarShareDialog } from "@/components/calendar/CalendarShareDialog";
-import * as XLSX from "xlsx";
+
 import CalendarCoachingDialog from "@/components/calendar/CalendarCoachingDialog";
 import { CANAL_FILTERS, type CalendarPost } from "@/lib/calendar-constants";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
@@ -65,7 +65,7 @@ function postToRow(p: CalendarPost) {
 
 function fileDate() { return new Date().toISOString().slice(0, 10); }
 
-function autoWidth(ws: XLSX.WorkSheet, rows: Record<string, any>[]) {
+function autoWidth(ws: any, rows: Record<string, any>[]) {
   if (rows.length === 0) return;
   const keys = Object.keys(rows[0]);
   ws["!cols"] = keys.map(k => ({ wch: Math.min(40, Math.max(k.length, ...rows.map(r => String(r[k] || "").length))) }));
@@ -111,9 +111,10 @@ function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen }: {
     URL.revokeObjectURL(url);
   };
 
-  const exportXLSX = () => {
+  const exportXLSX = async () => {
     setOpen(false);
     if (filteredPosts.length === 0) { toast({ title: "Aucun contenu à exporter pour cette période." }); return; }
+    const XLSX = await import("xlsx");
     const wb = XLSX.utils.book_new();
     if (canalFilter === "all") {
       const canals = [...new Set(filteredPosts.map(p => p.canal))];
