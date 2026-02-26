@@ -13,11 +13,27 @@ export function initSentry() {
       replaysSessionSampleRate: 0,
       replaysOnErrorSampleRate: 1.0,
       beforeSend(event) {
-        // Ne pas envoyer en dev
         if (import.meta.env.DEV) return null;
         return event;
       },
     });
+  }
+}
+
+export function enableSentryReplays() {
+  const client = Sentry.getClient();
+  if (client) {
+    Sentry.addIntegration(Sentry.replayIntegration({ maskAllText: true, blockAllMedia: true }));
+  }
+}
+
+export function disableSentryReplays() {
+  const client = Sentry.getClient();
+  if (client) {
+    const replay = client.getIntegrationByName("Replay");
+    if (replay && typeof (replay as any).stop === "function") {
+      (replay as any).stop();
+    }
   }
 }
 

@@ -13,4 +13,12 @@ export function initPostHog() {
   }
 }
 
+export function enablePostHog() {
+  posthog.opt_in_capturing();
+}
+
+export function disablePostHog() {
+  posthog.opt_out_capturing();
+}
+
 export { posthog };
