@@ -12,7 +12,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Plus, ExternalLink, MessageCircle, SkipForward, Trash2, ArrowRight } from "lucide-react";
 import InstagramLink, { cleanPseudo } from "@/components/InstagramLink";
 import Confetti from "@/components/Confetti";
-import UpgradeGate from "@/components/UpgradeGate";
+
 import ProspectDetailDialog from "@/components/prospection/ProspectDetailDialog";
 import DmGenerator from "@/components/prospection/DmGenerator";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -214,7 +214,6 @@ export default function ContactsPage() {
           </TabsContent>
 
           <TabsContent value="prospects" className="mt-4">
-            <UpgradeGate feature="prospection">
               <ProspectsTab
                 contacts={prospectContacts}
                 onAdd={async (c) => {
@@ -241,7 +240,6 @@ export default function ContactsPage() {
                 onWriteDm={openDm}
                 pipelineValue={pipelineValue}
               />
-            </UpgradeGate>
           </TabsContent>
         </Tabs>
       </main>

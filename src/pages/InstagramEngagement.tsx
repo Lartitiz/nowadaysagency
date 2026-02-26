@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import EngagementCoachingDialog from "@/components/engagement/EngagementCoachingDialog";
 import { toLocalDateStr } from "@/lib/utils";
-import UpgradeGate from "@/components/UpgradeGate";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -304,7 +304,6 @@ export default function InstagramEngagement() {
           </TabsContent>
 
           <TabsContent value="contacts" className="mt-4">
-            <UpgradeGate feature="contacts_strategiques">
               <ContactsSection
                 contacts={contacts}
                 filter={contactFilter}
@@ -314,13 +313,10 @@ export default function InstagramEngagement() {
                 onAdd={addContact}
                 onUpdateNotes={updateContactNotes}
               />
-            </UpgradeGate>
           </TabsContent>
 
           <TabsContent value="prospection" className="mt-4">
-            <UpgradeGate feature="prospection">
               <ProspectionSection />
-            </UpgradeGate>
           </TabsContent>
         </Tabs>
       </main>
