@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useParams, useNavigate } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -59,22 +60,15 @@ export default function StorytellingPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [pitchTab, setPitchTab] = useState<"short" | "medium" | "long">("short");
-  const [profile, setProfile] = useState<any>(null);
+  const { data: profileData } = useProfile();
+  const { data: brandProfileData } = useBrandProfile();
+  const profile = profileData ? { ...profileData, ...(brandProfileData || {}) } : null;
   const [writeManually, setWriteManually] = useState(false);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch data
   useEffect(() => {
     if (!user) return;
     const fetch = async () => {
-      // Load profile data
-      const [profRes, bpRes] = await Promise.all([
-        (supabase.from("profiles") as any).select("activite, prenom, tons").eq(column, value).single(),
-        (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register, key_expressions, things_to_avoid").eq(column, value).maybeSingle(),
-      ]);
-      const merged = { ...(profRes.data || {}), ...(bpRes.data || {}) };
-      setProfile(merged);
-
       if (!isNew && paramId) {
         // Load existing storytelling by ID
         const { data: stData } = await (supabase.from("storytelling") as any).select("*").eq("id", paramId).eq(column, value).single();

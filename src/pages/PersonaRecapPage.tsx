@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -56,7 +57,9 @@ export default function PersonaRecapPage() {
   const { isDemoMode } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const [data, setData] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const { data: profileData } = useProfile();
+  const { data: brandProfileData } = useBrandProfile();
+  const profile = profileData ? { ...profileData, ...(brandProfileData || {}) } : null;
   const [portrait, setPortrait] = useState<Portrait | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -75,32 +78,25 @@ export default function PersonaRecapPage() {
       setPortrait(dp as unknown as Portrait);
       setCustomName(dp.prenom);
       setData({ id: "demo", portrait: dp, portrait_prenom: dp.prenom });
-      setProfile({
-        activite: DEMO_DATA.profile.activity,
-        prenom: DEMO_DATA.profile.first_name,
-        mission: DEMO_DATA.branding.mission,
-      });
+      // profile is now derived from hooks — no need to set it in demo mode
       setLoading(false);
       return;
     }
     if (!user) return;
-    Promise.all([
-      (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle(),
-      (supabase.from("profiles") as any).select("activite, prenom").eq(column, value).single(),
-      (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register, voice_description, target_verbatims, combat_cause").eq(column, value).maybeSingle(),
-    ]).then(([pRes, profRes, bpRes]) => {
-      const personaData = pRes.data;
-      setData(personaData);
-      setProfile({ ...(profRes.data || {}), ...(bpRes.data || {}) });
-      if (personaData?.portrait) {
-        setPortrait(personaData.portrait as unknown as Portrait);
-        setCustomName(personaData.portrait_prenom || (personaData.portrait as unknown as Portrait).prenom || "");
-      }
-    }).catch((e) => {
-      console.error(e);
-    }).finally(() => {
-      setLoading(false);
-    });
+    (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle()
+      .then(({ data: personaData }: any) => {
+        setData(personaData);
+        if (personaData?.portrait) {
+          setPortrait(personaData.portrait as unknown as Portrait);
+          setCustomName(personaData.portrait_prenom || (personaData.portrait as unknown as Portrait).prenom || "");
+        }
+      })
+      .catch((e: any) => {
+        console.error(e);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [user?.id, isDemoMode, column, value]);
 
   const canGenerate = data?.step_1_frustrations && data?.step_2_transformation;

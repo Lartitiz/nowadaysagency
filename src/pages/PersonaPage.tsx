@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -67,7 +68,9 @@ export default function PersonaPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<string | null>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const { data: profileData } = useProfile();
+  const { data: brandProfileData } = useBrandProfile();
+  const profile = profileData ? { ...profileData, ...(brandProfileData || {}) } : null;
   const [activeTextarea, setActiveTextarea] = useState<keyof PersonaData | null>(null);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -84,11 +87,6 @@ export default function PersonaPage() {
   useEffect(() => {
     if (!user || !loading) return;
     const load = async () => {
-      const [profRes, bpRes] = await Promise.all([
-        (supabase.from("profiles") as any).select("activite, prenom, tons").eq(column, value).single(),
-        (supabase.from("brand_profile") as any).select("mission, offer, target_description, tone_register").eq(column, value).maybeSingle(),
-      ]);
-
       // If new=true, don't load an existing persona — start fresh
       if (!isNewPersona) {
         const pRes = await (supabase.from("persona") as any).select("*").eq(column, value).eq("is_primary", true).maybeSingle();
@@ -100,7 +98,6 @@ export default function PersonaPage() {
           if (rest.starting_point) setStarted(true);
         }
       }
-      setProfile({ ...(profRes.data || {}), ...(bpRes.data || {}) });
       setLoading(false);
     };
     load();

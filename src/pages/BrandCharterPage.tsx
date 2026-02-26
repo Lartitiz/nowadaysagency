@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { supabase } from "@/integrations/supabase/client";
 import { useAutoSave, SaveIndicator } from "@/hooks/use-auto-save";
 import AppHeader from "@/components/AppHeader";
@@ -272,29 +273,25 @@ export default function BrandCharterPage() {
   const [selectedUniverse, setSelectedUniverse] = useState<Universe | null>(null);
   const [styleAxes, setStyleAxes] = useState<StyleAxis>({ softBold: 50, classicModern: 50 });
   const [generatedPalettes, setGeneratedPalettes] = useState<GeneratedPalette[]>([]);
-  // Load user sector + tone from profile/brand_profile
+  // Load user sector + tone from profile/brand_profile (cached via hooks)
+  const { data: profileData } = useProfile();
+  const { data: brandProfileData } = useBrandProfile();
+
   useEffect(() => {
-    if (!user) return;
-    const loadMeta = async () => {
-      const [{ data: profile }, { data: bp }] = await Promise.all([
-        (supabase.from("profiles") as any).select("type_activite").eq(column, value).maybeSingle(),
-        (supabase.from("brand_profile") as any).select("tone_register, tone_style, tone_humor, tone_keywords").eq(column, value).maybeSingle(),
-      ]);
-      if (profile?.type_activite) {
-        setUserSector(ACTIVITY_TO_SECTOR[profile.type_activite] || DEFAULT_SECTOR);
-      }
-      // Collect tone words for font matching
+    if (profileData?.type_activite) {
+      setUserSector(ACTIVITY_TO_SECTOR[profileData.type_activite] || DEFAULT_SECTOR);
+    }
+    if (brandProfileData) {
       const words: string[] = [];
-      if (bp?.tone_register) words.push(bp.tone_register.toLowerCase());
-      if (bp?.tone_style) words.push(bp.tone_style.toLowerCase());
-      if (bp?.tone_humor) words.push(bp.tone_humor.toLowerCase());
-      if (Array.isArray(bp?.tone_keywords)) {
-        words.push(...bp.tone_keywords.map((k: string) => k.toLowerCase()));
+      if (brandProfileData.tone_register) words.push(brandProfileData.tone_register.toLowerCase());
+      if (brandProfileData.tone_style) words.push(brandProfileData.tone_style.toLowerCase());
+      if (brandProfileData.tone_humor) words.push(brandProfileData.tone_humor.toLowerCase());
+      if (Array.isArray(brandProfileData.tone_keywords)) {
+        words.push(...brandProfileData.tone_keywords.map((k: string) => k.toLowerCase()));
       }
       setToneKeywords(words);
-    };
-    loadMeta();
-  }, [user?.id]);
+    }
+  }, [profileData, brandProfileData]);
 
   // Load fonts on data change
   useEffect(() => {
