@@ -25,16 +25,25 @@ interface FormatOption {
   channel: string; // which channel this format belongs to
 }
 
-const ALL_FORMAT_OPTIONS: FormatOption[] = [
-  { id: "post", emoji: "📝", label: "Post", desc: "Carrousel, image ou texte", route: "/atelier?canal=instagram&from=/creer", channel: "instagram" },
-  { id: "carousel", emoji: "🎠", label: "Carrousel", desc: "Slides visuelles", route: "/instagram/carousel?from=/creer", channel: "instagram" },
-  { id: "reel", emoji: "🎬", label: "Reel", desc: "Script complet avec hook", route: "/instagram/reels?from=/creer", channel: "instagram" },
-  { id: "story", emoji: "📱", label: "Story", desc: "Séquence avec stickers", route: "/instagram/stories?from=/creer", channel: "instagram" },
-  { id: "linkedin", emoji: "💼", label: "LinkedIn", desc: "Post LinkedIn", route: "/linkedin/post?from=/creer", channel: "linkedin" },
-  { id: "crosspost", emoji: "🔄", label: "Crosspost", desc: "Adapter un contenu existant", route: "/linkedin/crosspost?from=/creer", channel: "instagram" },
-  { id: "pinterest", emoji: "📌", label: "Pinterest", desc: "Épingle optimisée", route: "", comingSoon: true, channel: "pinterest" },
-  { id: "newsletter", emoji: "📧", label: "Newsletter", desc: "Email engageant", route: "", comingSoon: true, channel: "newsletter" },
-];
+function getFormatOptions(suggestion: FormatSuggestion | null): FormatOption[] {
+  const params = new URLSearchParams();
+  params.set("from", "/creer");
+  if (suggestion) {
+    if (suggestion.objective) params.set("objectif", suggestion.objective);
+    if (suggestion.suggested_angle) params.set("sujet", encodeURIComponent(suggestion.suggested_angle));
+  }
+  const qs = params.toString();
+  return [
+    { id: "post", emoji: "📝", label: "Post", desc: "Carrousel, image ou texte", route: `/atelier?canal=instagram&${qs}`, channel: "instagram" },
+    { id: "carousel", emoji: "🎠", label: "Carrousel", desc: "Slides visuelles", route: `/instagram/carousel?${qs}`, channel: "instagram" },
+    { id: "reel", emoji: "🎬", label: "Reel", desc: "Script complet avec hook", route: `/instagram/reels?${qs}`, channel: "instagram" },
+    { id: "story", emoji: "📱", label: "Story", desc: "Séquence avec stickers", route: `/instagram/stories?${qs}`, channel: "instagram" },
+    { id: "linkedin", emoji: "💼", label: "LinkedIn", desc: "Post LinkedIn", route: `/linkedin/post?${qs}`, channel: "linkedin" },
+    { id: "crosspost", emoji: "🔄", label: "Crosspost", desc: "Adapter un contenu existant", route: `/transformer`, channel: "instagram" },
+    { id: "pinterest", emoji: "📌", label: "Pinterest", desc: "Épingle optimisée", route: "", comingSoon: true, channel: "pinterest" },
+    { id: "newsletter", emoji: "📧", label: "Newsletter", desc: "Email engageant", route: "", comingSoon: true, channel: "newsletter" },
+  ];
+}
 
 interface FormatSuggestion {
   format: string;
@@ -51,10 +60,10 @@ export default function InstagramCreer() {
   const { toast } = useToast();
   const { channels: activeChannels } = useActiveChannels();
   const { column, value } = useWorkspaceFilter();
-  const FORMAT_OPTIONS = ALL_FORMAT_OPTIONS.filter(f => activeChannels.includes(f.channel as any));
   const [ideaText, setIdeaText] = useState("");
   const [suggesting, setSuggesting] = useState(false);
   const [suggestion, setSuggestion] = useState<FormatSuggestion | null>(null);
+  const FORMAT_OPTIONS = getFormatOptions(suggestion).filter(f => activeChannels.includes(f.channel as any));
   const [secondaryMode, setSecondaryMode] = useState<"none" | "dictate">("none");
   const [contentCoachingOpen, setContentCoachingOpen] = useState(false);
   const [profile, setProfile] = useState<any>(null);
