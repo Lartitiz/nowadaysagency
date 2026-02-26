@@ -64,9 +64,9 @@ serve(async (req) => {
     let preGenBlock = "";
     if (preGenAnswers) {
       const pl: string[] = [];
-      if (preGenAnswers.anecdote) pl.push(`- Anecdote : "${preGenAnswers.anecdote}"`);
-      if (preGenAnswers.emotion) pl.push(`- Émotion visée : ${preGenAnswers.emotion}`);
-      if (preGenAnswers.conviction) pl.push(`- Conviction/phrase clé : "${preGenAnswers.conviction}"`);
+      if (preGenAnswers.anecdote) pl.push(`- Anecdote (UTILISE ses mots exacts, garde le côté brut et authentique) : "${preGenAnswers.anecdote}"`);
+      if (preGenAnswers.emotion) pl.push(`- Énergie/émotion visée (guide le ton de TOUT le contenu) : ${preGenAnswers.emotion}`);
+      if (preGenAnswers.conviction) pl.push(`- Conviction/phrase clé (doit apparaître TEXTUELLEMENT dans le contenu, c'est SA voix) : "${preGenAnswers.conviction}"`);
       if (pl.length) {
         preGenBlock = `\nL'UTILISATRICE A PARTAGÉ CES ÉLÉMENTS PERSONNELS :\n${pl.join("\n")}\n\nINTÈGRE CES ÉLÉMENTS dans le contenu généré :\n- L'anecdote doit apparaître naturellement (en accroche ou en illustration)\n- L'émotion visée guide le ton et la structure\n- La conviction doit être présente, formulée dans le style de l'utilisatrice\n- Ne change PAS le sens de ce qu'elle a dit, juste la structure\n`;
       }
