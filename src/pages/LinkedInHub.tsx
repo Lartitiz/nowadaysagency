@@ -147,7 +147,7 @@ export default function LinkedInHub() {
               <span className="text-primary text-sm font-semibold">Créer →</span>
             </Link>
             <Link
-              to="/linkedin/crosspost"
+              to="/transformer?mode=crosspost"
               className="group flex items-center justify-between rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
             >
               <div>
