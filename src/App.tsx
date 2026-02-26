@@ -14,9 +14,9 @@ import SelectionMenuProvider from "@/components/SelectionMenuProvider";
 import { SessionProvider } from "@/contexts/SessionContext";
 import SessionOverlay from "@/components/session/SessionOverlay";
 import AiDebugShortcut from "@/components/admin/AiDebugShortcut";
-import AssistantButton from "./components/assistant/AssistantButton";
-import CoachChat from "./components/coach/CoachChat";
-import BetaFeedbackWidget from "./components/feedback/BetaFeedbackWidget";
+const AssistantButton = lazy(() => import("./components/assistant/AssistantButton"));
+const CoachChat = lazy(() => import("./components/coach/CoachChat"));
+const BetaFeedbackWidget = lazy(() => import("./components/feedback/BetaFeedbackWidget"));
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
@@ -166,10 +166,10 @@ function AnimatedRoutes() {
       {showAppWidgets && <DemoBanner />}
       <SessionOverlay />
       <AiDebugShortcut />
-      {showAppWidgets && <AssistantButton />}
+      {showAppWidgets && <Suspense fallback={null}><AssistantButton /></Suspense>}
       {/* BETA_MODE: replace CoachChat with BetaFeedbackWidget during beta */}
-      {showCoach && <BetaFeedbackWidget />}
-      {/* {showCoach && <CoachChat />} */}
+      {showCoach && <Suspense fallback={null}><BetaFeedbackWidget /></Suspense>}
+      {/* {showCoach && <Suspense fallback={null}><CoachChat /></Suspense>} */}
       <div key={location.pathname} className="animate-page-fade">
           <Suspense fallback={<SuspenseFallback />}>
             <Routes location={location}>
