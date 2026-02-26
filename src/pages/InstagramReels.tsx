@@ -19,8 +19,6 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
-import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import ReelInspirationUpload from "@/components/ReelInspirationUpload";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 
@@ -199,8 +197,6 @@ export default function InstagramReels() {
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [showDurationGuide, setShowDurationGuide] = useState(false);
-  const [showCalendarDialog, setShowCalendarDialog] = useState(false);
-  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
   const [inspirationAnalysis, setInspirationAnalysis] = useState<any>(null);
   const [cachedBrandingCtx, setCachedBrandingCtx] = useState<string>("");
 
@@ -329,85 +325,6 @@ export default function InstagramReels() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCopyScript = () => {
-    if (!scriptResult) return;
-    const text = scriptResult.script.map(s => `[${s.timing}] ${s.section.toUpperCase()}\n🎥 ${s.format_visuel}\n\n"${s.texte_parle}"${s.texte_overlay ? `\n\n📝 Texte overlay : ${s.texte_overlay}` : ""}${s.cut ? `\n\n✂️ CUT → ${s.cut}` : ""}`).join("\n\n───────────────\n\n");
-    navigator.clipboard.writeText(text);
-    toast.success("Script copié !");
-  };
-
-  const handleCopyCaption = () => {
-    if (!scriptResult) return;
-    navigator.clipboard.writeText(`${scriptResult.caption.text}\n\n${scriptResult.caption.cta}\n\n${scriptResult.hashtags.join(" ")}`);
-    toast.success("Caption copiée !");
-  };
-
-  const handleAddToCalendar = async (dateStr: string) => {
-    if (!user || !scriptResult) return;
-
-    const contentData = {
-      type: "reel",
-      format_type: scriptResult.format_type,
-      format_label: scriptResult.format_label,
-      duree_cible: scriptResult.duree_cible,
-      script: scriptResult.script,
-      caption: scriptResult.caption,
-      hashtags: scriptResult.hashtags,
-      cover_text: scriptResult.cover_text,
-      alt_text: scriptResult.alt_text,
-      amplification_stories: scriptResult.amplification_stories,
-      hook: selectedHook ? {
-        text: selectedHook.text,
-        type: selectedHook.type,
-        type_label: selectedHook.type_label,
-        text_overlay: selectedHook.text_overlay,
-      } : null,
-      personal_elements: preGenAnswers ? {
-        vecu: preGenAnswers.anecdote || null,
-        punchline: preGenAnswers.conviction || null,
-      } : null,
-    };
-
-    // Update existing calendar post if we came from one
-    if (calendarId) {
-      const { error } = await supabase.from("calendar_posts")
-        .update({
-          story_sequence_detail: contentData as any,
-          status: "ready", // Mark as ready since content is generated
-          content_draft: scriptResult.script.map(s => `[${s.timing}] ${s.texte_parle}`).join("\n\n"),
-          accroche: selectedHook?.text || "",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", calendarId);
-      
-      if (error) {
-        toast.error("Erreur lors de la mise à jour");
-      } else {
-        toast.success("Post mis à jour dans le calendrier !");
-        setShowCalendarDialog(false);
-        // Optional: navigate back to calendar?
-      }
-      return;
-    }
-
-    // Create new post
-    const { error } = await supabase.from("calendar_posts").insert({
-      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-      date: dateStr,
-      theme: subject || `Reel : ${scriptResult.format_label}`,
-      canal: "instagram",
-      format: "reel",
-      objectif: objective,
-      content_draft: scriptResult.script.map(s => `[${s.timing}] ${s.texte_parle}`).join("\n\n"),
-      accroche: selectedHook?.text || "",
-      status: "ready",
-      story_sequence_detail: contentData as any,
-    });
-    setShowCalendarDialog(false);
-    if (error) toast.error("Erreur lors de l'ajout");
-    else toast.success("Reel ajouté au calendrier !");
   };
 
   const sectionBadgeColor = (section: string) => {
@@ -584,25 +501,32 @@ export default function InstagramReels() {
             calendarPostId={calendarId || undefined}
             onRegenerate={() => { setScriptResult(null); setStep(6); }}
             regenerateLabel="Rechoisir le hook"
-            className="mt-6"
-          />
-
-          <AddToCalendarDialog
-            open={showCalendarDialog}
-            onOpenChange={setShowCalendarDialog}
-            onConfirm={handleAddToCalendar}
-            contentLabel={`🎬 Reel · ${scriptResult.duree_cible} · ${subject || scriptResult.format_label}`}
-            contentEmoji="🎬"
-          />
-
-          <SaveToIdeasDialog
-            open={showIdeasDialog}
-            onOpenChange={setShowIdeasDialog}
-            contentType="reel"
-            subject={subject || scriptResult.format_label}
-            objectif={objective}
-            sourceModule="reels_generator"
-            contentData={{
+            calendarData={{
+              storySequenceDetail: {
+                type: "reel",
+                format_type: scriptResult.format_type,
+                format_label: scriptResult.format_label,
+                duree_cible: scriptResult.duree_cible,
+                script: scriptResult.script,
+                caption: scriptResult.caption,
+                hashtags: scriptResult.hashtags,
+                cover_text: scriptResult.cover_text,
+                alt_text: scriptResult.alt_text,
+                amplification_stories: scriptResult.amplification_stories,
+                hook: selectedHook ? {
+                  text: selectedHook.text,
+                  type: selectedHook.type,
+                  type_label: selectedHook.type_label,
+                  text_overlay: selectedHook.text_overlay,
+                } : null,
+                personal_elements: preGenAnswers ? {
+                  vecu: preGenAnswers.anecdote || null,
+                  punchline: preGenAnswers.conviction || null,
+                } : null,
+              },
+              accroche: selectedHook?.text || "",
+            }}
+            ideasData={{
               type: "reel",
               format_type: scriptResult.format_type,
               format_label: scriptResult.format_label,
@@ -612,18 +536,10 @@ export default function InstagramReels() {
               hashtags: scriptResult.hashtags,
               cover_text: scriptResult.cover_text,
               alt_text: scriptResult.alt_text,
-              amplification_stories: scriptResult.amplification_stories,
-              hook: selectedHook ? {
-                text: selectedHook.text,
-                type: selectedHook.type,
-                type_label: selectedHook.type_label,
-                text_overlay: selectedHook.text_overlay,
-              } : null,
+              hook: selectedHook ? { text: selectedHook.text, type: selectedHook.type } : null,
             }}
-            personalElements={preGenAnswers ? {
-              vecu: preGenAnswers.anecdote || null,
-              punchline: preGenAnswers.conviction || null,
-            } : null}
+            ideasContentType="reel"
+            className="mt-6"
           />
 
           {/* Feedback loop for script */}

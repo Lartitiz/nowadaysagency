@@ -17,8 +17,6 @@ import SubjectPicker, { type SubjectPickerResult } from "@/components/stories/Su
 import { toast } from "sonner";
 import StickerGuide from "@/components/engagement/StickerGuide";
 import StoryChecklist from "@/components/stories/StoryChecklist";
-import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
-import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { useFormPersist } from "@/hooks/use-form-persist";
 import { DraftRestoredBanner } from "@/components/DraftRestoredBanner";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
@@ -138,8 +136,6 @@ export default function InstagramStories() {
   // Results
   const [sequenceResult, setSequenceResult] = useState<SequenceResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showCalendarDialog, setShowCalendarDialog] = useState(false);
-  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
   // Pre-fill from calendar
   useEffect(() => {
@@ -236,68 +232,6 @@ export default function InstagramStories() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleAddToCalendar = async (dateStr: string) => {
-    if (!user || !sequenceResult) return;
-
-    if (calendarId) {
-      const { error } = await supabase.from("calendar_posts")
-        .update({
-          stories_count: sequenceResult.total_stories,
-          stories_structure: sequenceResult.structure_label,
-          stories_objective: objective,
-          status: "ready",
-          content_draft: sequenceResult.stories.map((s: any, i: number) => `Story ${i + 1}: ${s.texte || s.text || s.description || ""}`).join("\n\n"),
-          story_sequence_detail: {
-            stories: sequenceResult.stories,
-            stickers_used: sequenceResult.stickers_used,
-            garde_fou_alerte: sequenceResult.garde_fou_alerte,
-            personal_tip: sequenceResult.personal_tip,
-          } as any,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", calendarId);
-      
-      if (error) {
-        toast.error("Erreur lors de la mise à jour");
-      } else {
-        toast.success("Séquence mise à jour !");
-        setShowCalendarDialog(false);
-      }
-      return;
-    }
-
-    const { error } = await supabase.from("calendar_posts").insert({
-      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-      date: dateStr,
-      theme: subject || sequenceResult.structure_label,
-      canal: "instagram",
-      format: "story_serie",
-      objectif: objective,
-      status: "ready",
-      content_draft: sequenceResult.stories.map((s: any, i: number) => `Story ${i + 1}: ${s.texte || s.text || s.description || ""}`).join("\n\n"),
-      stories_count: sequenceResult.total_stories,
-      stories_structure: sequenceResult.structure_label,
-      stories_objective: objective,
-      stories_timing: {},
-      story_sequence_detail: {
-        stories: sequenceResult.stories,
-        stickers_used: sequenceResult.stickers_used,
-        garde_fou_alerte: sequenceResult.garde_fou_alerte,
-        personal_tip: sequenceResult.personal_tip,
-      } as any,
-    });
-    setShowCalendarDialog(false);
-    if (error) toast.error("Erreur lors de l'ajout");
-    else toast.success("Séquence ajoutée au calendrier !");
-  };
-
-  const handleCopySequence = () => {
-    if (!sequenceResult) return;
-    const text = sequenceResult.stories.map(s => `STORY ${s.number} (${s.timing})\n${s.format_label}\n\n"${s.text}"\n\n🎯 Sticker: ${s.sticker ? `${s.sticker.label}` : "Aucun"}\n💡 Tip: ${s.tip}`).join("\n\n───────────────\n\n");
-    navigator.clipboard.writeText(text);
-    toast.success("Séquence copiée !");
   };
 
   if (loading) {
@@ -431,25 +365,25 @@ export default function InstagramStories() {
             calendarPostId={calendarId || undefined}
             onRegenerate={() => { setSequenceResult(null); setStep(1); }}
             regenerateLabel="Nouvelle séquence"
+            calendarData={{
+              storySequenceDetail: {
+                stories: sequenceResult.stories,
+                stickers_used: sequenceResult.stickers_used,
+                garde_fou_alerte: sequenceResult.garde_fou_alerte,
+                personal_tip: sequenceResult.personal_tip,
+              },
+              storiesCount: sequenceResult.total_stories,
+              storiesStructure: sequenceResult.structure_label,
+              storiesObjective: objective,
+            }}
+            ideasData={{
+              stories: sequenceResult.stories,
+              total_stories: sequenceResult.total_stories,
+              structure_label: sequenceResult.structure_label,
+              stickers_used: sequenceResult.stickers_used,
+            }}
+            ideasContentType="story"
             className="mt-6 pb-12"
-          />
-
-          <AddToCalendarDialog
-            open={showCalendarDialog}
-            onOpenChange={setShowCalendarDialog}
-            onConfirm={handleAddToCalendar}
-            contentLabel={`📱 Séquence Stories · ${sequenceResult.structure_label}`}
-            contentEmoji="📱"
-          />
-
-          <SaveToIdeasDialog
-            open={showIdeasDialog}
-            onOpenChange={setShowIdeasDialog}
-            contentType="story"
-            subject={subject || sequenceResult.structure_label}
-            objectif={objective}
-            sourceModule="stories_generator"
-            contentData={sequenceResult}
           />
 
           <BaseReminder variant="atelier" />
