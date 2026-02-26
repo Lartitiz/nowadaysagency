@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 
 const SECTION_CHECKLISTS: Record<string, string[]> = {
   story: ["story_origin", "story_turning_point", "story_struggles", "story_unique", "story_vision"],
@@ -198,7 +199,7 @@ serve(async (req) => {
       });
     }
 
-    const systemPrompt = buildSystemPrompt(section, context || {}, covered_topics || []);
+    const systemPrompt = buildSystemPrompt(section, context || {}, covered_topics || []) + "\n\n" + ANTI_SLOP;
 
     // Build anthropic messages — send ALL messages, no pruning
     let anthropicMessages = (messages || []).map((m: any) => ({

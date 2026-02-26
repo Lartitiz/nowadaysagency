@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -207,7 +208,7 @@ RÈGLES :
       return new Response(JSON.stringify({ error: quotaCheck.message }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const content = await callAnthropicSimple(getModelForAction("strategy"), systemPrompt, userPrompt, 0.8);
+    const content = await callAnthropicSimple(getModelForAction("strategy"), systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, 0.8);
 
     await logUsage(user.id, "content", "strategy");
 

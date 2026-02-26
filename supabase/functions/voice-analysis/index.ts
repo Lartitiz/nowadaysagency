@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -77,7 +78,7 @@ RÈGLES :
 
     const rawContent = await callAnthropicSimple(
       getModelForAction("voice"),
-      systemPrompt,
+      systemPrompt + "\n\n" + ANTI_SLOP,
       "Analyse ces textes et retourne le profil de voix."
     );
 

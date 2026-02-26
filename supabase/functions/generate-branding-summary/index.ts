@@ -4,6 +4,7 @@ import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 
 function hashString(str: string): string {
   let hash = 0;
@@ -175,7 +176,7 @@ Si une section n'a pas de données, mets null pour cette clé. Pour les arrays v
 
     const raw = await callAnthropicSimple(
       getDefaultModel(),
-      systemPrompt,
+      systemPrompt + "\n\n" + ANTI_SLOP,
       `Voici les données complètes du branding :\n\n${brandingText}`,
       0.7,
       2048

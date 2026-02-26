@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 
 serve(async (req) => {
   const cors = getCorsHeaders(req);
@@ -104,7 +105,7 @@ Retourne UNIQUEMENT un JSON valide :
 
     const raw = await callAnthropicSimple(
       getModelForAction("coaching"),
-      systemPrompt,
+      systemPrompt + "\n\n" + ANTI_SLOP,
       `Planifie ${posts_per_week} posts pour ma semaine. Contexte : ${context_week || "semaine normale"}. Approche : ${mix_or_focus}.`,
       0.8,
       4096

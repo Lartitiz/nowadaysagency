@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 Deno.serve(async (req) => {
@@ -121,7 +122,7 @@ Sois directe et concrète. Tutoiement. Pas de jargon.`;
 
     const raw = await callAnthropicSimple(
       getModelForAction("coaching"),
-      systemPrompt,
+      systemPrompt + "\n\n" + ANTI_SLOP,
       "Génère le plan d'action contenu.",
       0.5,
       2000,

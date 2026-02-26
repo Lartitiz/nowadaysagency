@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 const MODULE_QUESTIONS: Record<string, string[]> = {
@@ -124,7 +125,7 @@ Retourne UNIQUEMENT un JSON :
   "intro": "Message d'intro court et personnalisé (2 phrases max)"
 }`;
 
-      const raw = await callAnthropicSimple(getModelForAction("coaching"), systemPrompt, "Génère les questions personnalisées.", 0.4, 2000);
+      const raw = await callAnthropicSimple(getModelForAction("coaching"), systemPrompt + "\n\n" + ANTI_SLOP, "Génère les questions personnalisées.", 0.4, 2000);
 
       let result;
       try {
@@ -191,7 +192,7 @@ Retourne un JSON :
 
 Sois directe, bienveillante, et concrète. Pas de jargon. Tutoiement.`;
 
-      const raw = await callAnthropicSimple(getModelForAction("coaching"), systemPrompt, "Génère ton diagnostic et tes propositions.", 0.5, 4000);
+      const raw = await callAnthropicSimple(getModelForAction("coaching"), systemPrompt + "\n\n" + ANTI_SLOP, "Génère ton diagnostic et tes propositions.", 0.5, 4000);
 
       let result;
       try {

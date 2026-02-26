@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { validateInput, ValidationError, AuditBrandingSchema } from "../_shared/input-validators.ts";
 
 function htmlToText(html: string): string {
@@ -274,7 +275,7 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
 
     const raw = await callAnthropicSimple(
       getDefaultModel(),
-      systemPrompt,
+      systemPrompt + "\n\n" + ANTI_SLOP,
       userPrompt,
       0.3,
       6000
