@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Loader2, ArrowLeft, ArrowRight, Rocket } from "lucide-react";
@@ -134,14 +134,13 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
   const isEducatif = objectif === "eduquer";
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-display text-lg">
-            {step === "result" ? "🚀 Ton brief est prêt !" : "🤔 Je sais pas quoi poster…"}
-          </DialogTitle>
-          <DialogDescription className="sr-only">Assistant de création de contenu</DialogDescription>
-        </DialogHeader>
+    <CoachingShell
+      open={open}
+      onOpenChange={handleOpenChange}
+      title="Coach contenu"
+      description="Je t'aide à trouver quoi poster et comment."
+      emoji="💡"
+    >
 
         <div className="py-2">
           {/* Step indicators */}
@@ -332,7 +331,6 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
             </div>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+    </CoachingShell>
   );
 }
