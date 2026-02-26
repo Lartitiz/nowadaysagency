@@ -130,6 +130,80 @@ export default function InstagramCreer() {
           </button>
         </div>
 
+        {/* ─── "L'IA me recommande" block ─── */}
+        <div className="rounded-2xl border border-border bg-card p-5 mb-6">
+          <h3 className="font-display font-bold text-sm text-foreground mb-1">
+            💡 Tu as une idée mais tu sais pas quel format choisir ?
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Décris ton idée, l'IA te recommande le meilleur format.
+          </p>
+          <TextareaWithVoice
+            value={ideaText}
+            onChange={(e) => {
+              setIdeaText(e.target.value);
+              setSuggestion(null);
+            }}
+            placeholder="Ex : ma pire erreur de communication en 2025..."
+            rows={2}
+            className="mb-3"
+          />
+          <Button
+            onClick={handleSuggestFormat}
+            disabled={!ideaText.trim() || suggesting}
+            className="rounded-full gap-1.5"
+            size="sm"
+          >
+            {suggesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+            Trouve-moi le bon format
+          </Button>
+
+          {suggestion && (
+            <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4 animate-fade-in">
+              <p className="text-xs text-muted-foreground mb-1">
+                💡 Pour ton idée "{ideaText.slice(0, 50)}{ideaText.length > 50 ? "…" : ""}"
+              </p>
+              <p className="text-sm font-bold text-foreground mb-1">
+                Je te recommande : {FORMAT_OPTIONS.find(f => f.id === suggestion.format)?.emoji} {suggestion.format_label}
+              </p>
+              <p className="text-xs text-muted-foreground mb-1">
+                Format : {suggestion.suggested_angle}
+              </p>
+              <p className="text-xs text-muted-foreground mb-2">
+                Objectif : {OBJ_EMOJI[suggestion.objective] || "🎯"} {suggestion.objective_label}
+              </p>
+              <p className="text-xs text-muted-foreground italic mb-3">
+                {suggestion.reason}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleGoToSuggested}
+                  size="sm"
+                  className="rounded-full gap-1.5"
+                >
+                  {FORMAT_OPTIONS.find(f => f.id === suggestion.format)?.emoji} Créer ce contenu →
+                </Button>
+                <Button
+                  onClick={() => {
+                    setSuggestion(null);
+                    handleSuggestFormat();
+                  }}
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full gap-1.5"
+                >
+                  <RefreshCw className="h-3 w-3" /> Autre suggestion
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ─── Label before format grid ─── */}
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+          Ou choisis directement un format
+        </p>
+
         {/* ─── Format grid grouped by channel ─── */}
         {(() => {
           const channelLabels: Record<string, string> = {
@@ -175,78 +249,8 @@ export default function InstagramCreer() {
           ));
         })()}
 
-        {/* ─── "J'ai une idée" block ─── */}
-        <div className="rounded-2xl border border-border bg-card p-5 mb-6">
-          <h3 className="font-display font-bold text-sm text-foreground mb-1">
-            💡 Tu as une idée mais tu sais pas quel format choisir ?
-          </h3>
-          <p className="text-xs text-muted-foreground mb-3">
-            Décris ton idée, l'IA te recommande le meilleur format.
-          </p>
-          <TextareaWithVoice
-            value={ideaText}
-            onChange={(e) => {
-              setIdeaText(e.target.value);
-              setSuggestion(null);
-            }}
-            placeholder="Ex : ma pire erreur de communication en 2025..."
-            rows={2}
-            className="mb-3"
-          />
-          <Button
-            onClick={handleSuggestFormat}
-            disabled={!ideaText.trim() || suggesting}
-            className="rounded-full gap-1.5"
-            size="sm"
-          >
-            {suggesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
-            Trouve-moi le bon format
-          </Button>
-
-          {/* Suggestion result */}
-          {suggestion && (
-            <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4 animate-fade-in">
-              <p className="text-xs text-muted-foreground mb-1">
-                💡 Pour ton idée "{ideaText.slice(0, 50)}{ideaText.length > 50 ? "…" : ""}"
-              </p>
-              <p className="text-sm font-bold text-foreground mb-1">
-                Je te recommande : {FORMAT_OPTIONS.find(f => f.id === suggestion.format)?.emoji} {suggestion.format_label}
-              </p>
-              <p className="text-xs text-muted-foreground mb-1">
-                Format : {suggestion.suggested_angle}
-              </p>
-              <p className="text-xs text-muted-foreground mb-2">
-                Objectif : {OBJ_EMOJI[suggestion.objective] || "🎯"} {suggestion.objective_label}
-              </p>
-              <p className="text-xs text-muted-foreground italic mb-3">
-                {suggestion.reason}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleGoToSuggested}
-                  size="sm"
-                  className="rounded-full gap-1.5"
-                >
-                  {FORMAT_OPTIONS.find(f => f.id === suggestion.format)?.emoji} Créer ce contenu →
-                </Button>
-                <Button
-                  onClick={() => {
-                    setSuggestion(null);
-                    handleSuggestFormat();
-                  }}
-                  size="sm"
-                  variant="outline"
-                  className="rounded-full gap-1.5"
-                >
-                  <RefreshCw className="h-3 w-3" /> Autre suggestion
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ─── Secondary options ─── */}
-        <div className="space-y-3">
+        {/* ─── Transformer link ─── */}
+        <div className="mb-4">
           <Link
             to="/transformer"
             className="group flex items-center justify-between rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
@@ -262,6 +266,10 @@ export default function InstagramCreer() {
             </div>
             <span className="text-primary text-sm font-semibold shrink-0">Transformer →</span>
           </Link>
+        </div>
+
+        {/* ─── Dicter ─── */}
+        <div className="space-y-3">
           <div className="flex gap-2">
             <Button
               variant={secondaryMode === "dictate" ? "default" : "outline"}
