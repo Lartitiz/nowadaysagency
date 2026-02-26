@@ -24,20 +24,40 @@ interface ActionResult {
 }
 
 const SUGGESTIONS: Record<string, string[]> = {
-  "/dashboard": ["💡 Idées de posts cette semaine", "📊 Comment améliorer ma com' ?"],
-  "/branding": ["✏️ Reformuler mon positionnement", "🎯 Affiner ma cible"],
-  "/calendrier": ["📅 Planifie ma semaine", "💡 Donne-moi 5 idées de posts"],
-  "/instagram": ["📝 Optimise ma bio", "🔍 Analyse mon profil"],
+  "/dashboard": [
+    "📊 Comment améliorer ma visibilité cette semaine ?",
+    "🎯 Quel type de contenu prioriser en ce moment ?",
+  ],
+  "/branding": [
+    "✏️ Reformuler mon positionnement",
+    "🎯 Est-ce que ma cible est bien définie ?",
+  ],
+  "/calendrier": [
+    "📅 Planifie 3 posts pour la semaine prochaine",
+    "⚖️ Mon calendrier est-il bien équilibré ?",
+  ],
+  "/instagram": [
+    "📝 Analyse ma bio et propose des améliorations",
+    "🔍 Qu'est-ce que je pourrais améliorer sur mon profil ?",
+  ],
+  "/creer": [
+    "🤔 Quel format choisir pour mon prochain contenu ?",
+    "💡 Aide-moi à trouver un angle original",
+  ],
+  "/linkedin": [
+    "💼 Comment optimiser ma présence LinkedIn ?",
+    "📊 Quel type de post fonctionne le mieux sur LinkedIn ?",
+  ],
 };
 
 function getSuggestions(pathname: string): string[] {
   for (const [prefix, items] of Object.entries(SUGGESTIONS)) {
     if (pathname.startsWith(prefix)) return items;
   }
-  return ["💡 Une idée de post pour cette semaine", "📊 Comment améliorer ma com' ?"];
+  return ["🤔 Par où commencer avec ma com' ?", "💡 Aide-moi à définir ma priorité"];
 }
 
-const WELCOME_DEFAULT = `Hey ! Je connais ton branding, tes offres, ta cible. Pose-moi une question ou dis-moi ce que tu veux changer.\n\nExemples :\n· "Supprime mon offre Academy"\n· "Ajoute un post lundi sur le SEO"\n· "C'est quoi un bon taux d'engagement ?"\n· "Planifie 3 posts pour la semaine prochaine"`;
+const WELCOME_DEFAULT = `Hey ! Je suis ton GPS com'. Je connais ton branding, tes offres et ta cible.\n\nJe peux t'aider à :\n· Répondre à tes questions stratégiques\n· Modifier ton branding ou tes offres\n· Planifier des posts dans ton calendrier\n· Analyser et améliorer ta com'\n\nPour créer du contenu, je te redirigerai vers les outils dédiés (c'est là que la magie opère ✨).`;
 
 const WELCOME_PILOT = `Hey ! Accompagnement Binôme 🤝\nPose-moi une question ou dis-moi ce que tu veux changer.\n\nPour les questions stratégiques, écris à Laetitia sur WhatsApp.\n\nExemples :\n· "Reformule ma bio"\n· "Planifie 3 posts pour la semaine"\n· "Analyse mes stats de la semaine"`;
 
