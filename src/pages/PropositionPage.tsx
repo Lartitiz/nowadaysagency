@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
+import { usePersona, useBrandProposition, useStorytelling } from "@/hooks/use-branding";
 import { useNavigate } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useQueryClient } from "@tanstack/react-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -72,31 +74,25 @@ export default function PropositionPage() {
   const [aiBenefit, setAiBenefit] = useState<string | null>(null);
   const { data: profile } = useProfile();
   const { data: tone } = useBrandProfile();
-  const [persona, setPersona] = useState<any>(null);
-  const [storytelling, setStorytelling] = useState<any>(null);
+  const queryClient = useQueryClient();
+  const { data: persona } = usePersona();
+  const { data: storytelling } = useStorytelling();
+  const { data: propositionHookData, isLoading: propositionHookLoading } = useBrandProposition();
   const [favorite, setFavorite] = useState<string | null>(null);
   const [writeManually, setWriteManually] = useState(false);
   const [activeField, setActiveField] = useState<string>("step_2a_process");
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!user || !loading) return;
-    Promise.all([
-      (supabase.from("brand_proposition") as any).select("*").eq(column, value).maybeSingle(),
-      (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle(),
-      (supabase.from("storytelling") as any).select("pitch_short").eq(column, value).maybeSingle(),
-    ]).then(([propRes, perRes, stRes]) => {
-      if (propRes.data) {
-        const { id, user_id, created_at, updated_at, ...rest } = propRes.data as any;
-        setData(rest as PropositionData);
-        setExistingId(id);
-        setCurrentStep(rest.current_step || 1);
-      }
-      setPersona(perRes.data || null);
-      setStorytelling(stRes.data || null);
-      setLoading(false);
-    });
-  }, [user?.id]);
+    if (propositionHookLoading) return;
+    if (propositionHookData) {
+      const { id, user_id, created_at, updated_at, ...rest } = propositionHookData as any;
+      setData(rest as PropositionData);
+      setExistingId(id);
+      setCurrentStep(rest.current_step || 1);
+    }
+    setLoading(false);
+  }, [propositionHookLoading, propositionHookData]);
 
   // Auto-fill step_1_what from profile activity
   useEffect(() => {
@@ -112,9 +108,13 @@ export default function PropositionPage() {
     delete (payload as any).id;
     if (existingId) {
       await supabase.from("brand_proposition").update(payload as any).eq("id", existingId);
+      queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
     } else {
       const { data: inserted } = await supabase.from("brand_proposition").insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined } as any).select("id").single();
-      if (inserted) setExistingId(inserted.id);
+      if (inserted) {
+        setExistingId(inserted.id);
+        queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
+      }
     }
   }, [user, existingId]);
 

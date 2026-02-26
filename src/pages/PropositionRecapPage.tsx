@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
+import { useBrandProposition, usePersona } from "@/hooks/use-branding";
 import { Link } from "react-router-dom";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useQueryClient } from "@tanstack/react-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -25,8 +27,11 @@ export default function PropositionRecapPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: profileData } = useProfile();
   const { data: brandProfileData } = useBrandProfile();
+  const { data: propositionHookData, isLoading: propositionHookLoading } = useBrandProposition();
+  const { data: personaHookData } = usePersona();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -34,15 +39,12 @@ export default function PropositionRecapPage() {
   const recapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!user) return;
-    (supabase.from("brand_proposition") as any).select("*").eq(column, value).maybeSingle().then(({ data: d }: any) => {
-      setData(d);
-    }).catch((e: any) => {
-      console.error(e);
-    }).finally(() => {
-      setLoading(false);
-    });
-  }, [user?.id, column, value]);
+    if (propositionHookLoading) return;
+    if (propositionHookData) {
+      setData(propositionHookData);
+    }
+    setLoading(false);
+  }, [propositionHookLoading, propositionHookData]);
 
   const summary: RecapSummary | null = data?.recap_summary as any;
 
@@ -54,6 +56,7 @@ export default function PropositionRecapPage() {
     obj[path[path.length - 1]] = value;
     await supabase.from("brand_proposition").update({ recap_summary: updated } as any).eq("id", data.id);
     setData({ ...data, recap_summary: updated });
+    queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
   };
 
   const saveRecapArrayItem = async (arrayKey: string, index: number, value: string) => {
@@ -62,26 +65,27 @@ export default function PropositionRecapPage() {
     updated[arrayKey][index] = value;
     await supabase.from("brand_proposition").update({ recap_summary: updated } as any).eq("id", data.id);
     setData({ ...data, recap_summary: updated });
+    queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
   };
 
   const saveVersionField = async (field: string, value: string) => {
     if (!data) return;
     await supabase.from("brand_proposition").update({ [field]: value } as any).eq("id", data.id);
     setData({ ...data, [field]: value });
+    queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
   };
 
   const generateRecap = async () => {
     if (!data) return;
     setGenerating(true);
     try {
-      const { data: perRes } = await (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle();
       const mergedProfile = { ...(profileData || {}), ...(brandProfileData || {}) };
       const { data: fnData, error } = await supabase.functions.invoke("proposition-ai", {
         body: {
           type: "generate-recap",
           proposition_data: data,
           profile: mergedProfile,
-          persona: perRes || {},
+          persona: personaHookData || {},
           tone: brandProfileData || {},
         },
       });
@@ -90,6 +94,7 @@ export default function PropositionRecapPage() {
       const parsed = JSON.parse(raw);
       await supabase.from("brand_proposition").update({ recap_summary: parsed } as any).eq("id", data.id);
       setData({ ...data, recap_summary: parsed });
+      queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
       toast({ title: "Synthèse générée !" });
     } catch (e: any) {
       console.error("Erreur technique:", e);

@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
+import { usePersona } from "@/hooks/use-branding";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useQueryClient } from "@tanstack/react-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
@@ -61,6 +63,8 @@ export default function PersonaPage() {
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const queryClient = useQueryClient();
+  const { data: personaHookData, isLoading: personaHookLoading } = usePersona();
   const [data, setData] = useState<PersonaData>(EMPTY);
   const [existingId, setExistingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,23 +89,16 @@ export default function PersonaPage() {
   }, [fromAudit, recId]);
 
   useEffect(() => {
-    if (!user || !loading) return;
-    const load = async () => {
-      // If new=true, don't load an existing persona — start fresh
-      if (!isNewPersona) {
-        const pRes = await (supabase.from("persona") as any).select("*").eq(column, value).eq("is_primary", true).maybeSingle();
-        if (pRes.data) {
-          const { id, user_id, created_at, updated_at, ...rest } = pRes.data;
-          setData(rest as PersonaData);
-          setExistingId(id);
-          setCurrentStep(rest.current_step || 1);
-          if (rest.starting_point) setStarted(true);
-        }
-      }
-      setLoading(false);
-    };
-    load();
-  }, [user?.id]);
+    if (personaHookLoading) return;
+    if (!isNewPersona && personaHookData) {
+      const { id, user_id, created_at, updated_at, ...rest } = personaHookData;
+      setData(rest as PersonaData);
+      setExistingId(id);
+      setCurrentStep(rest.current_step || 1);
+      if (rest.starting_point) setStarted(true);
+    }
+    setLoading(false);
+  }, [personaHookLoading, personaHookData]);
 
   const saveNow = useCallback(async (updated: PersonaData) => {
     if (!user) return;
@@ -110,6 +107,7 @@ export default function PersonaPage() {
     delete (payload as any).id;
     if (existingId) {
       await supabase.from("persona").update(payload as any).eq("id", existingId);
+      queryClient.invalidateQueries({ queryKey: ["persona"] });
     } else {
       // New persona: is_primary = false if other personas exist, true otherwise
       const { count } = await (supabase.from("persona") as any).select("id", { count: "exact", head: true }).eq(column, value);
@@ -120,7 +118,10 @@ export default function PersonaPage() {
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         is_primary: isPrimary,
       } as any).select("id").single();
-      if (inserted) setExistingId(inserted.id);
+      if (inserted) {
+        setExistingId(inserted.id);
+        queryClient.invalidateQueries({ queryKey: ["persona"] });
+      }
     }
   }, [user, existingId, column, value]);
 
