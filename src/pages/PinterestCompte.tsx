@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useBrandProposition } from "@/hooks/use-branding";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ export default function PinterestCompte() {
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const { data: propositionHookData } = useBrandProposition();
   const [profileId, setProfileId] = useState<string | null>(null);
   const [proAccountDone, setProAccountDone] = useState(false);
   const [photoDone, setPhotoDone] = useState(false);
@@ -40,10 +42,9 @@ export default function PinterestCompte() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const [ppRes, propRes] = await Promise.all([
-        (supabase.from("pinterest_profile") as any).select("*").eq(column, value).maybeSingle(),
-        (supabase.from("brand_proposition") as any).select("version_final, version_short").eq(column, value).maybeSingle(),
-      ]);
+      const { data: ppData, error: ppErr } = await (supabase.from("pinterest_profile") as any).select("*").eq(column, value).maybeSingle();
+      const ppRes = { data: ppData };
+      const prop = propositionHookData as any;
       if (ppRes.data) {
         const d = ppRes.data;
         setProfileId(d.id);
@@ -56,10 +57,10 @@ export default function PinterestCompte() {
         setWebsiteUrl(d.website_url || "");
         setUrlDone(d.url_done || false);
       }
-      if (propRes.data) setPropValue(propRes.data.version_short || propRes.data.version_final || null);
+      if (prop) setPropValue(prop.version_short || prop.version_final || null);
     };
     load();
-  }, [user?.id]);
+  }, [user?.id, propositionHookData]);
 
   const save = async () => {
     if (!user) return;

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandProfile } from "@/hooks/use-profile";
+import { useBrandProposition, useBrandStrategy, useEditorialLine } from "@/hooks/use-branding";
 import BaseReminder from "@/components/BaseReminder";
 import ContentScoring from "@/components/ContentScoring";
 import FeedbackLoop from "@/components/FeedbackLoop";
@@ -131,6 +132,9 @@ export default function InstagramReels() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { data: hookBrandProfile } = useBrandProfile();
+  const { data: propositionData } = useBrandProposition();
+  const { data: strategyData } = useBrandStrategy();
+  const { data: editorialLineData } = useEditorialLine();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const calendarId = searchParams.get("calendar_id");
@@ -204,14 +208,9 @@ export default function InstagramReels() {
   const [tipIndex] = useState(() => Math.floor(Math.random() * REELS_TIPS.length));
   const currentTip = REELS_TIPS[tipIndex];
 
-  const fetchBrandingContext = async (): Promise<string> => {
+  const fetchBrandingContext = (): string => {
     if (!user) return "";
     const lines: string[] = [];
-    const [propRes, stratRes, editoRes] = await Promise.all([
-      (supabase.from("brand_proposition") as any).select("version_final").eq(column, value).maybeSingle(),
-      (supabase.from("brand_strategy") as any).select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq(column, value).maybeSingle(),
-      (supabase.from("instagram_editorial_line") as any).select("main_objective, pillars, preferred_formats, content_insights").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    ]);
     const p = hookBrandProfile as any;
     if (p) {
       if (p.mission) lines.push(`Mission : ${p.mission}`);
@@ -223,10 +222,11 @@ export default function InstagramReels() {
       if (p.voice_description) lines.push(`Voix : ${p.voice_description}`);
       if (p.combat_cause) lines.push(`Cause : ${p.combat_cause}`);
     }
-    if (propRes.data?.version_final) lines.push(`Proposition : ${propRes.data.version_final}`);
-    const s = stratRes.data;
+    const prop = propositionData as any;
+    if (prop?.version_final) lines.push(`Proposition : ${prop.version_final}`);
+    const s = strategyData as any;
     if (s?.pillar_major) lines.push(`Pilier majeur : ${s.pillar_major}`);
-    const e = editoRes.data;
+    const e = editorialLineData as any;
     if (e) {
       if (e.main_objective) lines.push(`Objectif Instagram : ${e.main_objective}`);
       const insights = e.content_insights as any;
@@ -240,7 +240,7 @@ export default function InstagramReels() {
     if (!user) return;
     setLoading(true);
     try {
-      const brandingContext = await fetchBrandingContext();
+      const brandingContext = fetchBrandingContext();
       setCachedBrandingCtx(brandingContext);
       const inspCtx = inspirationAnalysis ? `Patterns : ${inspirationAnalysis.patterns_communs}\nRecommandation : ${inspirationAnalysis.recommandation}` : undefined;
       const { data, error } = await supabase.functions.invoke("reels-ai", {
@@ -277,7 +277,7 @@ export default function InstagramReels() {
     if (!user) return;
     setLoading(true);
     try {
-      const brandingContext = cachedBrandingCtx || await fetchBrandingContext();
+      const brandingContext = cachedBrandingCtx || fetchBrandingContext();
       const inspCtx = inspirationAnalysis ? `Patterns : ${inspirationAnalysis.patterns_communs}\nRecommandation : ${inspirationAnalysis.recommandation}` : undefined;
       const { data, error } = await supabase.functions.invoke("reels-ai", {
         body: {

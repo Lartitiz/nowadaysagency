@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useBrandProposition } from "@/hooks/use-branding";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,7 @@ export default function LinkedInResume() {
   const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const { data: propositionHookData } = useBrandProposition();
 
   type FlowMode = null | "existing" | "scratch" | "saved";
   const [mode, setMode] = useState<FlowMode>(null);
@@ -107,33 +109,30 @@ export default function LinkedInResume() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const [lpRes, propRes] = await Promise.all([
-        (supabase.from("linkedin_profile") as any).select("*").eq(column, value).maybeSingle(),
-        (supabase.from("brand_proposition") as any).select("version_final").eq(column, value).maybeSingle(),
-      ]);
-      if (lpRes.data) {
-        setProfileId(lpRes.data.id);
-        const final = lpRes.data.summary_final || "";
-        const story = lpRes.data.summary_storytelling || "";
-        const pro = lpRes.data.summary_pro || "";
+      const { data: lpData } = await (supabase.from("linkedin_profile") as any).select("*").eq(column, value).maybeSingle();
+      if (lpData) {
+        setProfileId(lpData.id);
+        const final = lpData.summary_final || "";
+        const story = lpData.summary_storytelling || "";
+        const pro = lpData.summary_pro || "";
         setSummaryStory(story);
         setSummaryPro(pro);
         if (final) {
           setSavedResume(final);
-          setSavedDate(lpRes.data.updated_at || lpRes.data.created_at || null);
+          setSavedDate(lpData.updated_at || lpData.created_at || null);
           setMode("saved");
         }
-        // Load analysis if exists
-        const rawAnalysis = (lpRes.data as any).resume_analysis;
+        const rawAnalysis = (lpData as any).resume_analysis;
         if (rawAnalysis) {
           setAnalysis(typeof rawAnalysis === "string" ? parseAnalysis(rawAnalysis) : rawAnalysis);
         }
       }
-      if (propRes.data?.version_final) setPropValue(propRes.data.version_final);
+      const prop = propositionHookData as any;
+      if (prop?.version_final) setPropValue(prop.version_final);
       setLoadingInit(false);
     };
     load();
-  }, [user?.id]);
+  }, [user?.id, propositionHookData]);
 
   // Analyze existing resume
   const analyzeResume = async () => {
