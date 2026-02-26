@@ -23,6 +23,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useDemoContext } from "@/contexts/DemoContext";
+import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 interface StorytellingRow {
   id: string;
@@ -108,13 +109,13 @@ export default function StorytellingListPage() {
   if (loading) return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <div className="flex justify-center py-20">
-        <div className="flex gap-1">
-          <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" />
-          <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} />
-          <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
+      <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
+        <div className="space-y-4">
+          <SkeletonCard variant="medium" />
+          <SkeletonCard variant="medium" />
+          <SkeletonCard variant="medium" />
         </div>
-      </div>
+      </main>
     </div>
   );
 

@@ -23,6 +23,7 @@ import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { CalendarWeekGrid } from "@/components/calendar/CalendarWeekGrid";
 import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
 import { CalendarCategoryFilters } from "@/components/calendar/CalendarCategoryFilters";
+import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 import { CalendarKanbanView } from "@/components/calendar/CalendarKanbanView";
 import { CalendarListView } from "@/components/calendar/CalendarListView";
@@ -179,6 +180,7 @@ export default function CalendarPage() {
   const [viewMode, setViewMode] = useState<"month" | "week" | "kanban" | "list">("week");
   const [kanbanPeriod, setKanbanPeriod] = useState<"week" | "month" | "all">("week");
   const [posts, setPosts] = useState<CalendarPost[]>([]);
+  const [postsLoading, setPostsLoading] = useState(true);
   const [canalFilter, setCanalFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -240,6 +242,7 @@ export default function CalendarPage() {
   }), [weekStart]);
 
   const fetchPosts = useCallback(async () => {
+    setPostsLoading(true);
     if (isDemoMode) {
       // Build demo posts from DEMO_DATA.calendar_posts
       const demoPosts: CalendarPost[] = DEMO_DATA.calendar_posts
@@ -259,6 +262,7 @@ export default function CalendarPage() {
           updated_at: new Date().toISOString(),
         } as unknown as CalendarPost));
       setPosts(demoPosts);
+      setPostsLoading(false);
       return;
     }
     if (!user) return;
@@ -283,6 +287,7 @@ export default function CalendarPage() {
 
     const { data } = await query.order("date");
     if (data) setPosts(data as CalendarPost[]);
+    setPostsLoading(false);
   }, [user, year, month, viewMode, weekStart, isDemoMode, kanbanPeriod]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
@@ -639,7 +644,14 @@ export default function CalendarPage() {
       </div>
 
 
-      {viewMode === "kanban" ? (
+      {postsLoading ? (
+        <div className="grid grid-cols-2 gap-4">
+          <SkeletonCard variant="medium" />
+          <SkeletonCard variant="medium" />
+          <SkeletonCard variant="medium" />
+          <SkeletonCard variant="medium" />
+        </div>
+      ) : viewMode === "kanban" ? (
         <CalendarKanbanView
           posts={posts}
           onEditPost={handlePostClick}
