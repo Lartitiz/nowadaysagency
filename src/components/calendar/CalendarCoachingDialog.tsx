@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Loader2, ArrowRight, CalendarPlus, Sparkles } from "lucide-react";
@@ -137,16 +137,13 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-display flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Planifier ma semaine
-          </DialogTitle>
-          <DialogDescription className="sr-only">Coaching IA pour planifier ta semaine de contenu</DialogDescription>
-        </DialogHeader>
-
+    <CoachingShell
+      open={open}
+      onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}
+      title="Planifier ma semaine"
+      description="Coaching IA pour planifier ta semaine de contenu"
+      emoji="📅"
+    >
         {/* Step 1: Posts per week */}
         {!loading && !result && step === 1 && (
           <div className="space-y-4 animate-fade-in">
@@ -283,7 +280,6 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
             </div>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </CoachingShell>
   );
 }
