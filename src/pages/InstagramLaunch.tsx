@@ -425,10 +425,34 @@ export default function InstagramLaunch() {
                           <p className="text-xs font-medium text-muted-foreground">CTA</p>
                           <p className="text-sm text-foreground italic">{idea.cta}</p>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => copyIdea(idea, i)} className="rounded-full gap-1.5 mt-1">
-                          <Copy className="h-3.5 w-3.5" />
-                          {copiedIdeaIdx === i ? "Copié !" : "Copier"}
-                        </Button>
+                        <div className="flex gap-2 mt-1">
+                          <Button variant="outline" size="sm" onClick={() => copyIdea(idea, i)} className="rounded-full gap-1.5">
+                            <Copy className="h-3.5 w-3.5" />
+                            {copiedIdeaIdx === i ? "Copié !" : "Copier"}
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => {
+                              const formatMap: Record<string, string> = {
+                                "Post": "/atelier?canal=instagram",
+                                "Carrousel": "/instagram/carousel",
+                                "Reel": "/instagram/reels",
+                                "Story": "/instagram/stories",
+                                "Stories": "/instagram/stories",
+                                "Live": "/atelier?canal=instagram",
+                              };
+                              const route = formatMap[idea.format] || "/creer";
+                              const params = new URLSearchParams();
+                              params.set("sujet", idea.hook);
+                              params.set("from", "/instagram/lancement");
+                              navigate(`${route}${route.includes("?") ? "&" : "?"}${params.toString()}`);
+                            }}
+                            className="rounded-full gap-1.5"
+                          >
+                            ✨ Créer ce contenu →
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
