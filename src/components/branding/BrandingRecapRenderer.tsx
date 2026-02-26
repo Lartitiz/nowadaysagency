@@ -1,4 +1,5 @@
-import { SectionCard, HighlightCard, parseToArray, parseToTags } from "./BrandingRecapCards";
+import { SectionCard, HighlightCard } from "./BrandingRecapCards";
+import { parseToArray, parseToTags } from "@/lib/branding-utils";
 import PersonaBoard from "./PersonaBoard";
 
 type UpdateFn = (field: string, value: string, oldValue?: string) => void;

@@ -6,7 +6,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { toast } from "sonner";
 import { Pencil, Check, X, Plus, Trash2 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
-import { parseToArray } from "./BrandingRecapCards";
+import { parseToArray } from "@/lib/branding-utils";
 
 /* ── Types ────────────────────────────────────── */
 
