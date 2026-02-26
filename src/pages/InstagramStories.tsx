@@ -226,7 +226,7 @@ export default function InstagramStories() {
           pre_gen_answers: quickMode ? undefined : {
             vecu: preGenVecu,
             energy: preGenEnergy,
-            message: preGenMessage,
+            message_cle: preGenMessage,
           }
         },
       });
