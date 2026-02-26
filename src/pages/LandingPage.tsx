@@ -178,9 +178,23 @@ const BRANDS = [
 ];
 
 function BrandMarquee() {
+  const [isVisible, setIsVisible] = useState(false);
+  const marqueeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = marqueeRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setIsVisible(true); observer.disconnect(); } },
+      { rootMargin: "100px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="overflow-hidden relative py-4">
-      <div className="flex animate-marquee whitespace-nowrap gap-8">
+    <div ref={marqueeRef} className="overflow-hidden relative py-4">
+      <div className={`flex whitespace-nowrap gap-8 ${isVisible ? "animate-marquee" : ""}`}>
         {[...BRANDS, ...BRANDS].map((b, i) => (
           <span key={i} className="inline-block px-6 py-2.5 rounded-xl bg-card border border-border text-sm font-semibold text-foreground shrink-0">
             {b}
@@ -202,6 +216,7 @@ function FounderPhoto() {
       alt="Laetitia, fondatrice de Nowadays"
       className="w-full max-w-xs rounded-2xl shadow-strong object-cover aspect-[3/4]"
       loading="lazy"
+      decoding="async"
     />
   );
 }
