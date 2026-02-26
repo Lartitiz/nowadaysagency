@@ -220,7 +220,7 @@ export default function InstagramStories() {
           face_cam: quickMode ? "mixte" : faceCam,
           subject: quickMode ? "Ma journée (quick gen)" : subject,
           subject_details: subjectDetails,
-          subject_direction: subjectDirection,
+          direction: subjectDirection,
           branding_context: brandingCtx,
           is_launch: isLaunch,
           pre_gen_answers: quickMode ? undefined : {
