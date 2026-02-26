@@ -284,6 +284,7 @@ export default function AuditVisualResult({ data, evolution, onRegenerate }: Aud
         <p className={`text-4xl font-display font-bold ${scoreColor}`}>
           {data.score_global}<span className="text-xl text-muted-foreground">/100</span>
         </p>
+        <p className="text-[11px] italic text-muted-foreground mt-1">Score de profil : complétude et optimisation</p>
         <Progress value={data.score_global} className="h-3 mt-4 mb-3 max-w-md mx-auto" />
         <div className="flex items-center justify-center gap-4 text-sm">
           <span className="text-green-600 font-medium">🟢 {data.resume.ok_count} OK</span>

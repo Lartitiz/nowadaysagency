@@ -263,6 +263,7 @@ export default function SiteAuditAutoResult({
       {/* ── Header : Score global ── */}
       <div className="rounded-2xl border border-border bg-card p-8 flex flex-col items-center text-center">
         <ScoreCircle score={displayResult.score_global || 0} />
+        <p className="text-[11px] italic text-muted-foreground mt-2">Score de site : bonnes pratiques et conversion</p>
         <p className="mt-4 text-sm text-muted-foreground max-w-lg">{displayResult.synthese}</p>
         <div className="mt-3 flex flex-wrap gap-2 justify-center">
           <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-pill bg-muted text-muted-foreground">
