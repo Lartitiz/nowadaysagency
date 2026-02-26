@@ -64,7 +64,13 @@ export default function LoginPage() {
             ? "Email ou mot de passe incorrect."
             : msg === "Email not confirmed"
             ? "Confirme ton email d'abord !"
-            : msg,
+            : msg === "User already registered"
+            ? "Un compte existe déjà avec cet email. Connecte-toi plutôt !"
+            : msg === "Password should be at least 8 characters"
+            ? "Ton mot de passe doit faire au moins 8 caractères."
+            : msg === "Unable to validate email address: invalid format"
+            ? "Vérifie le format de ton adresse email."
+            : friendlyError(error),
         variant: "destructive",
       });
     } finally {
