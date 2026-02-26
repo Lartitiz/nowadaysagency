@@ -241,7 +241,7 @@ export function useOnboarding() {
       promises.push(
         supabase.functions
           .invoke("analyze-documents", {
-            body: { user_id: user.id, document_ids: uploadedFiles.map(f => f.id) },
+            body: { document_ids: uploadedFiles.map(f => f.id) },
           })
           .then(res => {
             if (res.data?.extracted_data) {
