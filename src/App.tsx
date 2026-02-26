@@ -62,6 +62,7 @@ const InstagramStories = lazy(() => import("./pages/InstagramStories"));
 const InstagramReels = lazy(() => import("./pages/InstagramReels"));
 const InstagramCreer = lazy(() => import("./pages/InstagramCreer"));
 const InstagramCarousel = lazy(() => import("./pages/InstagramCarousel"));
+const TransformContentPage = lazy(() => import("./pages/TransformContentPage"));
 const AtelierPage = lazy(() => import("./pages/AtelierPage"));
 const RedactionPage = lazy(() => import("./pages/RedactionPage"));
 const PersonaPage = lazy(() => import("./pages/PersonaPage"));
@@ -259,6 +260,7 @@ function AnimatedRoutes() {
               <Route path="/instagram/engagement" element={<Navigate to="/instagram/routine" replace />} />
               <Route path="/instagram/stories" element={<ProtectedRoute><InstagramStories /></ProtectedRoute>} />
               <Route path="/instagram/reels" element={<ProtectedRoute><InstagramReels /></ProtectedRoute>} />
+              <Route path="/transformer" element={<ProtectedRoute><TransformContentPage /></ProtectedRoute>} />
               <Route path="/creer" element={<ProtectedRoute><InstagramCreer /></ProtectedRoute>} />
               <Route path="/instagram/creer" element={<Navigate to="/creer" replace />} />
               <Route path="/instagram/carousel" element={<ProtectedRoute><InstagramCarousel /></ProtectedRoute>} />
