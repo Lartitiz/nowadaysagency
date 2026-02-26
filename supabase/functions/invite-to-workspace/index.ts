@@ -55,11 +55,11 @@ Deno.serve(async (req) => {
     }
 
     // 5. Check if email is already a member
-    // First find user by email
-    const { data: existingUsers } = await sb.auth.admin.listUsers();
-    const targetUser = existingUsers?.users?.find(
-      (u) => u.email?.toLowerCase() === email.toLowerCase(),
-    );
+    const { data: targetUserData } = await sb.auth.admin.listUsers({
+      filter: `email.eq.${email.toLowerCase()}`,
+      perPage: 1,
+    });
+    const targetUser = targetUserData?.users?.[0] || null;
 
     if (targetUser) {
       const { data: alreadyMember } = await sb
