@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useBrandProfile } from "@/hooks/use-profile";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
+  const { data: hookBrandProfile } = useBrandProfile();
   const [caption, setCaption] = useState("");
   const [intent, setIntent] = useState("");
   const [angle, setAngle] = useState("all");
@@ -96,10 +98,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
     setComments([]);
 
     try {
-      const { data: brand } = await (supabase.from("brand_profile") as any)
-        .select("*")
-        .eq(column, value)
-        .maybeSingle();
+      const brand = hookBrandProfile as any;
 
       const brandingContext = brand
         ? `Nom/Activité: ${brand.mission || "?"}\nOffre: ${brand.offer || "?"}\nTon: ${brand.tone_style || "?"} / ${brand.tone_register || "?"}\nExpertise: ${brand.voice_description || "?"}`

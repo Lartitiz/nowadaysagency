@@ -3,6 +3,7 @@ import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useBrandProfile } from "@/hooks/use-profile";
 import AppHeader from "@/components/AppHeader";
 import ContentProgressBar from "@/components/ContentProgressBar";
 import ContentActions from "@/components/ContentActions";
@@ -104,6 +105,7 @@ export default function InstagramStories() {
   const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const { data: hookBrandProfile } = useBrandProfile();
   const location = useLocation();
   
   const [searchParams] = useSearchParams();
@@ -198,15 +200,11 @@ export default function InstagramStories() {
 
   // Fetch branding context
   useEffect(() => {
-    const fetchBranding = async () => {
-      if (!user) return;
-      const { data } = await (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle();
-      if (data) {
-        setBrandingCtx(`Ton: ${data.tone_register || "Authentique"}\nCible: ${data.target_description || "Entrepreneures"}\nMission: ${data.mission || ""}`);
-      }
-    };
-    fetchBranding();
-  }, [user]);
+    if (hookBrandProfile) {
+      const data = hookBrandProfile as any;
+      setBrandingCtx(`Ton: ${data.tone_register || "Authentique"}\nCible: ${data.target_description || "Entrepreneures"}\nMission: ${data.mission || ""}`);
+    }
+  }, [hookBrandProfile]);
 
 
   const handleGenerate = async (quickMode = false) => {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBrandProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -52,6 +53,7 @@ const FIELD_DB_MAP: Record<string, { table: string; column: string }> = {
 
 export default function BrandingImportReview({ extraction, onDone, onCancel, workspaceId }: Props) {
   const { user } = useAuth();
+  const { data: hookBrandProfile } = useBrandProfile();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [comparisons, setComparisons] = useState<FieldComparison[]>([]);
@@ -65,8 +67,8 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
     const filterCol = workspaceId ? "workspace_id" : "user_id";
     const filterVal = workspaceId || user.id;
     try {
-      const [brandRes, personaRes, propRes, stratRes, storyRes] = await Promise.all([
-        (supabase.from("brand_profile") as any).select("*").eq(filterCol, filterVal).maybeSingle(),
+      const brandRes = { data: hookBrandProfile || null };
+      const [personaRes, propRes, stratRes, storyRes] = await Promise.all([
         (supabase.from("persona") as any).select("*").eq(filterCol, filterVal).maybeSingle(),
         (supabase.from("brand_proposition") as any).select("*").eq(filterCol, filterVal).maybeSingle(),
         (supabase.from("brand_strategy") as any).select("*").eq(filterCol, filterVal).maybeSingle(),
