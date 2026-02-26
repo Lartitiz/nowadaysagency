@@ -38,8 +38,8 @@ serve(async (req) => {
     if (limitCheck) return new Response(JSON.stringify({ error: limitCheck }), { status: 403, headers: cors });
 
     // Get user context
-    const context = await getUserContext(supabase, userId, CONTEXT_PRESETS.comments);
-    const contextStr = formatContextForAI(context);
+    const context = await getUserContext(supabase, userId);
+    const contextStr = formatContextForAI(context, CONTEXT_PRESETS.comments);
 
     const systemPrompt = `Tu es une experte en engagement sur les réseaux sociaux. Tu aides des solopreneuses créatives à écrire des commentaires stratégiques qui attirent l'attention des bonnes personnes.
 
