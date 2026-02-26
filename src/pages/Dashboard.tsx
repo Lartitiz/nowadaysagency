@@ -7,6 +7,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
+import { useStorytellingList, usePersona } from "@/hooks/use-branding";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useNavigate } from "react-router-dom";
@@ -108,6 +109,8 @@ export default function Dashboard() {
   // ── Profile query ──
   const { data: profileRaw } = useProfile();
   const { data: brandProfileRaw } = useBrandProfile();
+  const { data: storytellingListHook } = useStorytellingList();
+  const { data: personaHook } = usePersona();
   const hasBrandProfile = !!brandProfileRaw;
   const profile = useMemo<UserProfile | null>(() => {
     if (isDemoMode && demoData) {
@@ -224,11 +227,9 @@ export default function Dashboard() {
     queryKey: ["client-has-data", activeWorkspace?.id],
     queryFn: async () => {
       if (!activeWorkspace?.id) return true;
-      const [story, persona] = await Promise.all([
-        (supabase.from("storytelling") as any).select("id", { count: "exact", head: true }).eq("workspace_id", activeWorkspace.id),
-        (supabase.from("persona") as any).select("id", { count: "exact", head: true }).eq("workspace_id", activeWorkspace.id),
-      ]);
-      return (story.count || 0) + (persona.count || 0) > 0 || hasBrandProfile;
+      const storyCount = Array.isArray(storytellingListHook) ? storytellingListHook.length : 0;
+      const personaCount = personaHook ? 1 : 0;
+      return storyCount + personaCount > 0 || hasBrandProfile;
     },
     enabled: !!activeWorkspace?.id && isClientWorkspace && !skippedOnboarding,
   });

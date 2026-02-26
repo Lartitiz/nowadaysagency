@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrandProfile } from "@/hooks/use-profile";
+import { useBrandStrategy } from "@/hooks/use-branding";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
@@ -30,6 +31,7 @@ export default function TonStyleRecapPage() {
   const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
   const { data: hookBrandProfile } = useBrandProfile();
+  const { data: strategyHook } = useBrandStrategy();
   const queryClient = useQueryClient();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -46,7 +48,7 @@ export default function TonStyleRecapPage() {
       setGenerating(true);
       (async () => {
         try {
-          const stratRes = await (supabase.from("brand_strategy") as any).select("creative_concept").eq(column, value).maybeSingle();
+          const stratRes = { data: strategyHook ? { creative_concept: (strategyHook as any).creative_concept } : null };
           const { data: fnData, error } = await supabase.functions.invoke("niche-ai", {
             body: {
               type: "generate-tone-recap",
@@ -112,7 +114,7 @@ export default function TonStyleRecapPage() {
     if (!data) return;
     setGenerating(true);
     try {
-      const stratRes = await (supabase.from("brand_strategy") as any).select("creative_concept").eq(column, value).maybeSingle();
+      const stratRes = { data: strategyHook ? { creative_concept: (strategyHook as any).creative_concept } : null };
       const { data: fnData, error } = await supabase.functions.invoke("niche-ai", {
         body: {
           type: "generate-tone-recap",
