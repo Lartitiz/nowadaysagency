@@ -345,12 +345,13 @@ export default function CalendarPage() {
     setDialogOpen(true);
   };
 
-  const handleSave = async (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format?: string | null; content_draft?: string | null; accroche?: string | null }) => {
+  const handleSave = async (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format?: string | null; content_draft?: string | null; accroche?: string | null; media_urls?: string[] | null }) => {
     if (!user || !selectedDate) return;
     const payload: any = {
       theme: data.theme, angle: data.angle, status: data.status, notes: data.notes || null,
       canal: data.canal, objectif: data.objectif || null,
       format: data.format || null, content_draft: data.content_draft || null, accroche: data.accroche || null,
+      media_urls: data.media_urls || null,
     };
     if (editingPost) {
       await supabase.from("calendar_posts").update(payload).eq("id", editingPost.id);
