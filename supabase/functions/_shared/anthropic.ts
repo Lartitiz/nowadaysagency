@@ -88,6 +88,15 @@ export async function callAnthropic(options: AnthropicOptions): Promise<string> 
 
   let lastError: Error | null = null;
 
+  console.log(JSON.stringify({
+    type: "ai_call_debug",
+    model: options.model,
+    system_length: options.system?.length || 0,
+    messages_count: options.messages.length,
+    user_content_length: typeof options.messages[0]?.content === "string" ? options.messages[0].content.length : 0,
+    timestamp: new Date().toISOString(),
+  }));
+
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     if (attempt > 0) {
       const delay = RETRY_DELAYS[attempt - 1] || 6000;
