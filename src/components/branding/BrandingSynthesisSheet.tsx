@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 import { calculateBrandingCompletion, fetchBrandingData } from "@/lib/branding-completion";
+import { parseStringList, safeParseJson } from "@/lib/branding-utils";
 
 interface SynthesisData {
   brand: any;
@@ -26,27 +27,6 @@ interface SynthesisData {
   userName: string | null;
   userActivity: string | null;
 }
-
-/* ── Helpers ── */
-
-function parseStringList(value: any): string[] {
-  if (!value) return [];
-  if (Array.isArray(value)) return value.filter(Boolean).map(String);
-  if (typeof value === "string") {
-    return value
-      .split(/[\n•\-–—]/)
-      .map((s: string) => s.replace(/^\d+[\.\)]\s*/, "").trim())
-      .filter(Boolean);
-  }
-  return [];
-}
-
-function safeParseJson(val: any): any {
-  if (!val) return null;
-  if (typeof val === "object") return val;
-  try { return JSON.parse(val); } catch { return null; }
-}
-
 
 
 function CollapsibleText({ text, label, maxChars = 150, isQuote }: { text: string; label?: string; maxChars?: number; isQuote?: boolean }) {
