@@ -16,6 +16,7 @@ import EditableText from "@/components/EditableText";
 import CoachingFlow from "@/components/CoachingFlow";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
+import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 interface QuiElleEst {
   age: string;
@@ -303,7 +304,10 @@ export default function PersonaRecapPage() {
   if (loading) return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <div className="flex justify-center py-20"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+      <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4 space-y-4">
+        <SkeletonCard variant="large" />
+        <SkeletonCard variant="large" />
+      </main>
     </div>
   );
 

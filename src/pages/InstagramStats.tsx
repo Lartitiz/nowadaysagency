@@ -18,6 +18,7 @@ import StatsOverview from "@/components/stats/StatsOverview";
 import StatsCharts from "@/components/stats/StatsCharts";
 import StatsForm from "@/components/stats/StatsForm";
 import * as XLSX from "xlsx";
+import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 import {
   MONTHS_FR, monthKey, monthLabel, monthLabelShort,
@@ -419,7 +420,14 @@ export default function InstagramStats() {
         />
 
         {/* ─── KPI cards ─── */}
-        {dashboardKPIs && <StatsOverview kpis={dashboardKPIs} isSingleMonth={isSingleMonth} />}
+        {!configLoaded ? (
+          <div className="grid grid-cols-2 gap-4">
+            <SkeletonCard variant="medium" />
+            <SkeletonCard variant="medium" />
+            <SkeletonCard variant="medium" />
+            <SkeletonCard variant="medium" />
+          </div>
+        ) : dashboardKPIs && <StatsOverview kpis={dashboardKPIs} isSingleMonth={isSingleMonth} />}
 
         {/* ─── API placeholder ─── */}
         <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground flex items-start gap-2">

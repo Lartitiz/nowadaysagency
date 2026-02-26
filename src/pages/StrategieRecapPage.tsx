@@ -15,6 +15,7 @@ import { Copy, FileText, RefreshCw, Loader2 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import EditableText from "@/components/EditableText";
+import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 interface PillarData {
   name: string;
@@ -135,7 +136,13 @@ export default function StrategieRecapPage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-background"><AppHeader /><div className="flex justify-center py-20"><p className="text-muted-foreground">Chargement...</p></div></div>
+    <div className="min-h-screen bg-background">
+      <AppHeader />
+      <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4 space-y-4">
+        <SkeletonCard variant="large" />
+        <SkeletonCard variant="large" />
+      </main>
+    </div>
   );
 
   if (!data) return (
