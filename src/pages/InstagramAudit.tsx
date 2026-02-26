@@ -15,6 +15,7 @@ import AuditBioBeforeAfter from "@/components/audit/AuditBioBeforeAfter";
 import AuditInputForm, { type AuditFormData } from "@/components/audit/AuditInputForm";
 import ContentAnalysisResults from "@/components/audit/ContentAnalysisResults";
 import { calculateAuditScore, type ProfileForScore } from "@/lib/audit-score";
+import RedFlagsChecker from "@/components/RedFlagsChecker";
 
 type ViewMode = "hub" | "form" | "results";
 
@@ -490,6 +491,17 @@ export default function InstagramAudit() {
               />
             </div>
           )}
+
+          {/* Red flags checker */}
+          <div className="mt-6">
+            <RedFlagsChecker
+              content={[
+                auditResult.visual_audit?.elements?.map((e: any) => e.proposition || e.feedback || "").join("\n"),
+                auditResult.posts_analysis?.recommendation,
+              ].filter(Boolean).join("\n\n")}
+              onFix={() => {}}
+            />
+          </div>
 
           <div className="flex flex-wrap gap-3 mt-8">
             <Button variant="outline" onClick={() => setView("form")} className="rounded-pill gap-2">

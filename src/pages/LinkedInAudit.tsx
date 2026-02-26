@@ -12,6 +12,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { Sparkles, Upload, X, Loader2, ArrowRight, ArrowLeft, ChevronRight, Download, RotateCcw } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Link, useNavigate } from "react-router-dom";
+import RedFlagsChecker from "@/components/RedFlagsChecker";
 
 // ── Types ──
 type ScreenshotType = "profile" | "about" | "feed" | "experience" | "other";
@@ -632,6 +633,12 @@ export default function LinkedInAudit() {
             </div>
           );
         })()}
+
+        {/* Red flags checker */}
+        <RedFlagsChecker
+          content={Object.values(result.sections).map((s: any) => `${s.feedback || ""}\n${s.recommendation || ""}`).join("\n\n")}
+          onFix={() => {}}
+        />
 
         {/* ─── Actions ─── */}
         <div className="flex flex-col sm:flex-row gap-3">

@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { extractTextFromFile, isAcceptedFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
 import { Search, Loader2, Upload, FileText, X, ChevronDown, ChevronUp, ArrowRight } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
+import RedFlagsChecker from "@/components/RedFlagsChecker";
 
 /* ─── Types ─── */
 interface PillarDetail {
@@ -515,6 +516,16 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
           <p className="text-xs text-muted-foreground text-center mt-2">💡 Ces actions correspondent aux modules de l'app.</p>
         </div>
       )}
+
+      {/* Red flags checker */}
+      <RedFlagsChecker
+        content={[
+          result.synthese,
+          ...(result.points_forts?.map((p: any) => p.detail) || []),
+          ...(result.points_faibles?.map((p: any) => p.detail) || []),
+        ].filter(Boolean).join("\n\n")}
+        onFix={() => {}}
+      />
 
       {/* Actions */}
       <div className="space-y-3 pt-2">

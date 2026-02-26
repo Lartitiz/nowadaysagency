@@ -14,6 +14,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { toast } from "sonner";
 import { Sparkles, Copy, Save, RefreshCw, ChevronDown, Eye, Trash2, Link2, Upload, X, Mic, MicOff } from "lucide-react";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import RedFlagsChecker from "@/components/RedFlagsChecker";
 
 interface Analysis {
   accroche: string;
@@ -485,6 +486,8 @@ export default function InstagramInspirer() {
                   {result.objective && <Badge variant="secondary">Objectif : {result.objective}</Badge>}
                   {result.pillar && <Badge variant="secondary">Pilier : {result.pillar}</Badge>}
                 </div>
+
+                <RedFlagsChecker content={editedContent} onFix={(fixed) => setEditedContent(fixed)} />
 
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" size="sm" onClick={copyContent}>
