@@ -349,16 +349,20 @@ function buildScriptPrompt(objective: string, face_cam: string, subject: string,
   let preGenBlock = "";
   if (preGenAnswers && (preGenAnswers.anecdote || preGenAnswers.emotion || preGenAnswers.conviction)) {
     preGenBlock = `
-L'UTILISATRICE A PARTAGÉ :
-${preGenAnswers.anecdote ? `- Moment perso : "${preGenAnswers.anecdote}"` : ""}
-${preGenAnswers.emotion ? `- Émotion visée : ${preGenAnswers.emotion}` : ""}
-${preGenAnswers.conviction ? `- Punchline : "${preGenAnswers.conviction}"` : ""}
+═══════════════════════════════════════════════════
+ÉLÉMENTS PERSONNELS (PRIORITÉ HAUTE)
+═══════════════════════════════════════════════════
 
-INTÈGRE dans le script :
-- Le moment perso peut devenir le hook OU une illustration dans le body
-- L'émotion guide le ton et le rythme du script
-- La punchline doit apparaître telle quelle (ou quasi), idéalement comme phrase de fin ou pivot central
-- NE CHANGE PAS le sens de ses mots, juste la structure si nécessaire
+${preGenAnswers.anecdote ? `MOMENT PERSO : "${preGenAnswers.anecdote}"
+→ Intègre dans les 3 premières secondes ou dans le développement. Utilise SES mots, pas une reformulation IA.` : ""}
+
+${preGenAnswers.emotion ? `ÉNERGIE : ${preGenAnswers.emotion}
+→ Guide le rythme, le ton, les coupes du script entier.` : ""}
+
+${preGenAnswers.conviction ? `PUNCHLINE : "${preGenAnswers.conviction}"
+→ Cette phrase doit apparaître quasi textuellement dans le script, au moment du twist ou de la conclusion.` : ""}
+
+RÈGLE : ces éléments sont plus importants que le template. Le script doit sonner comme l'utilisatrice, pas comme un framework.
 `;
   } else {
     preGenBlock = `
