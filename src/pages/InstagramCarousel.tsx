@@ -9,11 +9,9 @@ import ContentProgressBar from "@/components/ContentProgressBar";
 import ContentActions from "@/components/ContentActions";
 import ReturnToOrigin from "@/components/ReturnToOrigin";
 import BaseReminder from "@/components/BaseReminder";
-import { Loader2, RefreshCw, Copy, CalendarDays, Sparkles, Lightbulb } from "lucide-react";
+import { Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
-import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { useSearchParams } from "react-router-dom";
 import { useFormPersist } from "@/hooks/use-form-persist";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
@@ -159,8 +157,6 @@ export default function InstagramCarousel() {
   const [loadingTopics, setLoadingTopics] = useState(false);
   const [topics, setTopics] = useState<TopicSuggestion[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
-  const [showCalendarDialog, setShowCalendarDialog] = useState(false);
-  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
   const [calendarPostId, setCalendarPostId] = useState<string | null>(null);
 
   // Visual step state
@@ -381,27 +377,6 @@ export default function InstagramCarousel() {
     else handleGenerateAngles();
   };
 
-  const handleCopyAll = () => {
-    const slidesText = slides.map(s => `--- SLIDE ${s.slide_number} (${s.role}) ---\n${s.title}${s.body ? `\n${s.body}` : ""}`).join("\n\n");
-    const captionText = caption ? `--- CAPTION ---\n${caption.hook}\n\n${caption.body}\n\n${caption.cta}\n\n--- HASHTAGS ---\n${caption.hashtags.map(h => `#${h}`).join(" ")}` : "";
-    navigator.clipboard.writeText(`${slidesText}\n\n${captionText}`);
-    toast.success("Carrousel copié !");
-  };
-
-  const handleAddToCalendar = async (dateStr: string) => {
-    if (!user || slides.length === 0) return;
-    const hookText = customHook.trim() || selectedHook;
-    await supabase.from("calendar_posts").insert({
-      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: dateStr, theme: subject || `Carrousel : ${typeObj?.label}`,
-      canal: "instagram", format: "carousel", objectif: objective,
-      content_draft: slides.map(s => `Slide ${s.slide_number}: ${s.title}\n${s.body || ""}`).join("\n\n"),
-      accroche: hookText, status: "ready",
-      story_sequence_detail: { type: "carousel", carousel_type: carouselType, slides, caption, quality_check: qualityCheck } as any,
-    });
-    setShowCalendarDialog(false);
-    toast.success("Carrousel ajouté au calendrier !");
-  };
-
   const updateSlide = (index: number, field: "title" | "body", value: string) => {
     const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
     const updated = [...slides];
@@ -580,6 +555,12 @@ export default function InstagramCarousel() {
                 calendarPostId={calendarPostId || undefined}
                 onRegenerate={() => handleGenerateVisual(templateStyle)}
                 regenerateLabel="Régénérer le visuel"
+                calendarData={{
+                  storySequenceDetail: { type: "carousel", carousel_type: carouselType, slides, caption, quality_check: qualityCheck },
+                  accroche: customHook.trim() || selectedHook,
+                }}
+                ideasData={{ slides, caption, qualityCheck }}
+                ideasContentType="post_instagram"
                 className="mt-4"
               />
               <Button size="sm" variant="outline" onClick={() => { setStep(6); setVisualSlides([]); }} className="rounded-full gap-1.5 text-xs mt-2">
@@ -594,9 +575,6 @@ export default function InstagramCarousel() {
               ← Retour au texte
             </Button>
           )}
-
-          <AddToCalendarDialog open={showCalendarDialog} onOpenChange={setShowCalendarDialog} onConfirm={handleAddToCalendar} contentLabel={`Carrousel : ${subject || typeObj?.label}`} contentEmoji="🎠" />
-          <SaveToIdeasDialog open={showIdeasDialog} onOpenChange={setShowIdeasDialog} contentType="post_instagram" subject={subject || typeObj?.label || "Carrousel"} contentData={{ slides, caption, qualityCheck }} sourceModule="carousel" format="carousel" objectif={objective} />
         </main>
       </div>
     );
@@ -621,11 +599,26 @@ export default function InstagramCarousel() {
             chosenAngle={chosenAngle}
             onUpdateSlide={updateSlide}
             onUpdateCaption={updateCaption}
-            onCopyAll={handleCopyAll}
-            onPlanifier={() => setShowCalendarDialog(true)}
-            onSave={() => setShowIdeasDialog(true)}
             onRegenerate={() => { setStep(5); setSlides([]); setCaption(null); }}
             onNew={() => { setStep(1); setSlides([]); setHooks([]); setCaption(null); setAngles([]); setChosenAngle(null); setDeepeningAnswers({}); setCurrentQuestion(0); setVisualSlides([]); setTemplateStyle(""); }}
+          />
+
+          <ContentActions
+            content={slides.map(s => `--- SLIDE ${s.slide_number} (${s.role}) ---\n${s.title}${s.body ? `\n${s.body}` : ""}`).join("\n\n") + (caption ? `\n\n--- CAPTION ---\n${caption.hook}\n\n${caption.body}\n\n${caption.cta}\n\n${caption.hashtags.map(h => `#${h}`).join(" ")}` : "")}
+            canal="instagram"
+            format="carousel"
+            theme={subject || typeObj?.label || "Carrousel"}
+            objectif={objective}
+            calendarPostId={calendarPostId || undefined}
+            onRegenerate={() => { setStep(5); setSlides([]); setCaption(null); }}
+            regenerateLabel="Régénérer le texte"
+            calendarData={{
+              storySequenceDetail: { type: "carousel", carousel_type: carouselType, slides, caption, quality_check: qualityCheck },
+              accroche: customHook.trim() || selectedHook,
+            }}
+            ideasData={{ slides, caption, qualityCheck }}
+            ideasContentType="post_instagram"
+            className="mt-4"
           />
 
           {/* Red flags checker on caption */}
@@ -655,9 +648,6 @@ export default function InstagramCarousel() {
           </div>
 
           <BaseReminder variant="atelier" />
-
-          <AddToCalendarDialog open={showCalendarDialog} onOpenChange={setShowCalendarDialog} onConfirm={handleAddToCalendar} contentLabel={`Carrousel : ${subject || typeObj?.label}`} contentEmoji="🎠" />
-          <SaveToIdeasDialog open={showIdeasDialog} onOpenChange={setShowIdeasDialog} contentType="post_instagram" subject={subject || typeObj?.label || "Carrousel"} contentData={{ slides, caption, qualityCheck }} sourceModule="carousel" format="carousel" objectif={objective} />
         </main>
       </div>
     );
