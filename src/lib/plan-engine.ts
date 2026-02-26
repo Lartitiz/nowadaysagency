@@ -14,6 +14,8 @@ export interface PlanStep {
   comingSoon?: boolean;
   debugInfo?: string;
   manualOverride?: boolean;
+  isCoachExercise?: boolean;
+  deadline?: string; // ISO date for coach exercises
 }
 
 export interface PlanPhase {
@@ -61,7 +63,31 @@ export interface PlanStepOverride {
   status: string;
 }
 
-export async function computePlan(filter: { column: string; value: string }, config: PlanConfig, overrides?: PlanStepOverride[]): Promise<PlanData> {
+export interface CoachExercise {
+  id: string;
+  workspace_id: string;
+  created_by: string;
+  title: string;
+  description: string | null;
+  deadline: string | null;
+  app_route: string | null;
+  phase_id: string;
+  sort_order: number;
+  status: string;
+}
+
+export interface StepVisibility {
+  step_id: string;
+  hidden: boolean;
+}
+
+export async function computePlan(
+  filter: { column: string; value: string },
+  config: PlanConfig,
+  overrides?: PlanStepOverride[],
+  coachExercises?: CoachExercise[],
+  hiddenSteps?: StepVisibility[],
+): Promise<PlanData> {
   // Fetch all needed data in parallel — simple existence/count checks
   const [
     brandProfileRes,
@@ -405,6 +431,52 @@ export async function computePlan(filter: { column: string; value: string }, con
     phases.push({ id: "daily", title: "Ton quotidien", emoji: "⚡", steps: phase4Steps, locked: !brandingComplete });
   }
 
+  // Filter hidden steps
+  const hiddenSet = new Set(
+    (hiddenSteps || []).filter(v => v.hidden).map(v => v.step_id)
+  );
+  if (hiddenSet.size > 0) {
+    for (const phase of phases) {
+      phase.steps = phase.steps.filter(step => !hiddenSet.has(step.id));
+    }
+  }
+
+  // Add coach exercises into appropriate phases
+  if (coachExercises && coachExercises.length > 0) {
+    const coachPhaseSteps: PlanStep[] = [];
+    const phaseMap = new Map(phases.map(p => [p.id, p]));
+
+    for (const ex of coachExercises.sort((a, b) => a.sort_order - b.sort_order)) {
+      const step: PlanStep = {
+        id: `coach_${ex.id}`,
+        label: `👩‍🏫 ${ex.title}`,
+        description: ex.description || "",
+        duration: 0,
+        route: ex.app_route || "#",
+        status: (ex.status as StepStatus) || "todo",
+        isCoachExercise: true,
+        deadline: ex.deadline || undefined,
+        detail: ex.deadline ? `📅 Deadline : ${new Date(ex.deadline).toLocaleDateString("fr-FR")}` : undefined,
+      };
+
+      if (ex.phase_id !== "coach" && phaseMap.has(ex.phase_id)) {
+        phaseMap.get(ex.phase_id)!.steps.push(step);
+      } else {
+        coachPhaseSteps.push(step);
+      }
+    }
+
+    if (coachPhaseSteps.length > 0) {
+      phases.push({
+        id: "coach",
+        title: "Exercices de ta coach",
+        emoji: "👩‍🏫",
+        steps: coachPhaseSteps,
+        locked: false,
+      });
+    }
+  }
+
   // Apply manual overrides (don't override locked steps)
   if (overrides && overrides.length > 0) {
     const overrideMap = new Map(overrides.map(o => [o.step_id, o.status]));
@@ -424,15 +496,18 @@ export async function computePlan(filter: { column: string; value: string }, con
     }
   }
 
+  // Remove empty phases
+  const finalPhases = phases.filter(p => p.steps.length > 0);
+
   // Calculate progress
-  const allSteps = phases.flatMap(p => p.steps).filter(s => !s.comingSoon);
+  const allSteps = finalPhases.flatMap(p => p.steps).filter(s => !s.comingSoon);
   const completedCount = allSteps.filter(s => s.status === "done").length;
   const totalCount = allSteps.length;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   const totalMinutesRemaining = allSteps.filter(s => s.status !== "done").reduce((sum, s) => sum + s.duration, 0);
 
   return {
-    phases,
+    phases: finalPhases,
     config,
     progressPercent,
     totalMinutesRemaining,

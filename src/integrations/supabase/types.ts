@@ -1209,6 +1209,51 @@ export type Database = {
           },
         ]
       }
+      coach_exercises: {
+        Row: {
+          app_route: string | null
+          created_at: string | null
+          created_by: string
+          deadline: string | null
+          description: string | null
+          id: string
+          phase_id: string
+          sort_order: number | null
+          status: string | null
+          title: string
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          app_route?: string | null
+          created_at?: string | null
+          created_by: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          phase_id?: string
+          sort_order?: number | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          app_route?: string | null
+          created_at?: string | null
+          created_by?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          phase_id?: string
+          sort_order?: number | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       coaching_actions: {
         Row: {
           completed: boolean
@@ -4786,6 +4831,33 @@ export type Database = {
           status?: string
           step_id?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      plan_step_visibility: {
+        Row: {
+          hidden: boolean | null
+          hidden_by: string | null
+          id: string
+          step_id: string
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          hidden?: boolean | null
+          hidden_by?: string | null
+          id?: string
+          step_id: string
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          hidden?: boolean | null
+          hidden_by?: string | null
+          id?: string
+          step_id?: string
+          updated_at?: string | null
+          workspace_id?: string
         }
         Relationships: []
       }
