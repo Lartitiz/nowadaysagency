@@ -460,6 +460,7 @@ function PlanifierButton({ idea, userId, toast }: { idea: Idea; userId?: string;
       theme: idea.titre,
       angle: idea.format,
       status: "idea",
+      content_draft: idea.accroches?.join("\n\n") || null,
     });
     setOpen(false);
     if (error) {
