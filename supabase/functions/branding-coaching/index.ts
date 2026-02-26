@@ -3,6 +3,7 @@ import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
+import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 
 const SECTION_CHECKLISTS: Record<string, string[]> = {
   story: ["story_origin", "story_turning_point", "story_struggles", "story_unique", "story_vision"],
@@ -148,17 +149,21 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { user_id, section, messages, context, covered_topics, workspace_id } = body;
 
-    // Health check / ping
+    // Health check / ping (no auth needed)
     if (body.ping) {
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if (!user_id || !section) {
-      return new Response(JSON.stringify({ error: "user_id et section requis" }), {
+    // Authenticate via JWT
+    const { userId } = await authenticateRequest(req);
+
+    const { section, messages, context, covered_topics, workspace_id } = body;
+
+    if (!section) {
+      return new Response(JSON.stringify({ error: "section requis" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -302,6 +307,12 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: error.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("branding-coaching error:", error);
     const status = (error as any).status || 500;
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Erreur interne" }), {
