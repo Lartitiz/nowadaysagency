@@ -416,14 +416,15 @@ export function useOnboarding() {
       // 5. OFFERS (insert)
       const validOffers = brandingAnswers.offers.filter(o => o.name.trim());
       if (validOffers.length > 0) {
-        await supabase.from("user_offers").insert(
+        await supabase.from("offers").insert(
           validOffers.map((o, i) => ({
             user_id: user.id,
             name: o.name,
-            price: o.price || null,
-            description: o.description || null,
+            price_text: o.price || null,
+            promise: o.description || null,
+            offer_type: "paid",
             sort_order: i,
-          }))
+          })) as any
         );
       }
 
