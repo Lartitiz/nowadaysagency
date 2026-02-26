@@ -8,6 +8,7 @@ import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_share
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 // Voice profile is fetched by getUserContext now
 
@@ -32,6 +33,10 @@ serve(async (req) => {
     }
 
     // Anthropic API key checked in shared helper
+
+    // Rate limit check
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const reqBody = await req.json();
     validateInput(reqBody, z.object({

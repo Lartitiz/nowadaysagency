@@ -4,6 +4,7 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { validateInput, ValidationError, AuditBrandingSchema } from "../_shared/input-validators.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 function htmlToText(html: string): string {
   return html
@@ -97,6 +98,10 @@ Deno.serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Rate limit check
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     // Quota check
     const quota = await checkQuota(user.id, "audit");
