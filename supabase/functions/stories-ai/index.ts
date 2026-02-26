@@ -322,6 +322,9 @@ Génère normalement. Ajoute un champ "personal_tip" dans le JSON :
 `;
   }
 
+  // Tiering : adapter la densité du prompt au temps dispo
+  const isQuick = p.time_available === "5min";
+
   return `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
 - Reproduis fidèlement le style décrit
 - Réutilise les expressions signature naturellement dans le texte
@@ -348,7 +351,11 @@ DEMANDE :
 - Face cam : ${p.face_cam}
 - Sujet : ${p.subject || "au choix selon la ligne éditoriale"}${launchBlock}
 
-STRUCTURES DISPONIBLES (choisis la plus adaptée) :
+${isQuick ? `STRUCTURES DISPONIBLES (choisis la plus adaptée) :
+- journal_bord : Connexion, 2-3 stories
+- probleme_solution : Éducation, 2-3 stories
+- vente_douce : Vente, 3-4 stories (max)
+` : `STRUCTURES DISPONIBLES (choisis la plus adaptée) :
 - journal_bord : Connexion, 3-5 stories
 - probleme_solution : Éducation, 4-6 stories
 - storytime : Connexion, 5-8 stories
@@ -357,6 +364,7 @@ STRUCTURES DISPONIBLES (choisis la plus adaptée) :
 - build_in_public : Connexion, 3-5 stories
 - micro_masterclass : Éducation, 6-10 stories
 - teasing : Amplification, 3-5 stories
+`}
 
 CORRESPONDANCE objectif x temps :
 - Connexion + 5min → journal_bord | + 15min → build_in_public | + 30min → storytime
@@ -365,9 +373,29 @@ CORRESPONDANCE objectif x temps :
 - Engagement + 5min → sondage+question 2 stories | + 15min → quiz+question 3-5
 - Amplification + 5min → repartage+question 2 | + 15min → teasing 3-5
 
-${p.objective === "vente" ? getVenteInstructions(p.price_range) : ""}
+${isQuick && p.objective === "vente" ? getVenteInstructions("petit") : (p.objective === "vente" ? getVenteInstructions(p.price_range) : "")}
 
-HOOK STORY 1 — RÈGLES :
+${isQuick ? (p.face_cam === "oui" ? `HOOK STORY 1 — RÈGLES :
+
+La story 1 décide de TOUT. 24% de l'audience part après.
+Le hook doit arrêter le swipe en 1-2 secondes.
+
+FORMAT : face cam
+- Hook oral : 5-10 mots max
+- Dicible en 2 secondes sans reprendre sa respiration
+- Ton conversationnel : "Bon, faut qu'on parle de..."
+- Sous-titres OBLIGATOIRES (60-80% regardent sans le son)
+` : `HOOK STORY 1 — RÈGLES :
+
+La story 1 décide de TOUT. 24% de l'audience part après.
+Le hook doit arrêter le swipe en 1-2 secondes.
+
+FORMAT : texte sur fond
+- Hook principal : 8-15 mots max
+- 1 phrase. Pas 2.
+- Doit créer l'identification OU la curiosité immédiate
+- Le sondage/sticker complète le hook (pas l'inverse)
+`) : `HOOK STORY 1 — RÈGLES :
 
 La story 1 décide de TOUT. 24% de l'audience part après.
 Le hook doit arrêter le swipe en 1-2 secondes.
@@ -389,6 +417,7 @@ Si format = face cam :
 Si format = visuel/photo :
 - Text overlay : 3-8 mots en gros
 - L'image fait le travail visuel, le texte fait l'accroche
+`}
 
 POUR LA STORY 1, GÉNÈRE 2 OPTIONS DE HOOK dans le champ "hook_options" :
 - Option A : hook court (le plus percutant, 5-10 mots)
