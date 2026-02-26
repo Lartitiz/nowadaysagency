@@ -1,5 +1,6 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
+import { Sentry } from "@/lib/sentry";
 import { MESSAGES } from "@/lib/messages";
 import { Button } from "@/components/ui/button";
 
@@ -8,6 +9,7 @@ const NotFound = () => {
 
   useEffect(() => {
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);
+    Sentry.captureMessage(`404: ${location.pathname}`, { level: "warning" });
   }, [location.pathname]);
 
   const msg = MESSAGES.errors.not_found;
@@ -22,7 +24,7 @@ const NotFound = () => {
         {msg.body}
       </p>
       <Button asChild>
-        <a href="/dashboard">Retour à l'accueil →</a>
+        <Link to="/dashboard">Retour à l'accueil →</Link>
       </Button>
     </div>
   );
