@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/use-profile";
+import { useProfileUserId } from "@/hooks/use-workspace-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -59,6 +60,7 @@ interface Props {
 export default function InstagramProfileCoaching({ open, onOpenChange, initialModule, auditScores }: Props) {
   const { user } = useAuth();
   const { data: profileData } = useProfile();
+  const profileUserId = useProfileUserId();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -155,7 +157,7 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
     if (!user) return;
     try {
       if (profileData) {
-        await (supabase.from("profiles") as any).update({ validated_bio: bioText }).eq("user_id", user.id);
+        await (supabase.from("profiles") as any).update({ validated_bio: bioText }).eq("user_id", profileUserId);
         queryClient.invalidateQueries({ queryKey: ["profile"] });
       }
       toast.success("Bio sauvegardée ! Retrouve-la dans ton espace Bio.");
