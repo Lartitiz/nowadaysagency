@@ -491,6 +491,7 @@ export default function SharedCalendarPage() {
               caption={wording}
               slides={slides}
               hashtags={hashtags}
+              mediaUrls={(selectedPost as any).media_urls || []}
               showComments={false}
               readonly={true}
               compact={true}
