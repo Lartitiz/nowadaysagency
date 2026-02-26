@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Progress } from "@/components/ui/progress";
 
-type AiContext = "audit" | "generation" | "branding" | "default";
+type AiContext = "audit" | "generation" | "branding" | "recycle" | "default";
 
 interface AiLoadingIndicatorProps {
   context?: AiContext;
@@ -30,6 +30,13 @@ const MESSAGES: Record<AiContext, string[]> = {
     "Identification des écarts…",
     "Rédaction des recommandations…",
     "C'est bientôt prêt…",
+  ],
+  recycle: [
+    "Analyse de ton contenu source…",
+    "Décryptage des idées clés…",
+    "Adaptation en plusieurs formats…",
+    "Personnalisation du ton…",
+    "Derniers ajustements…",
   ],
   default: [
     "Analyse en cours…",
