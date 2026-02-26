@@ -7,15 +7,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export const PLAN_LIMITS: Record<string, Record<string, number>> = {
   free: {
-    total: 10,
-    content: 5,
-    audit: 1,
-    dm_comment: 3,
-    bio_profile: 1,
-    suggestion: 0,
-    import: 0,
-    adaptation: 0,
-    deep_research: 3,
+    total: 25,
+    content: 12,
+    audit: 3,
+    dm_comment: 5,
+    bio_profile: 3,
+    suggestion: 2,
+    import: 1,
+    adaptation: 2,
+    deep_research: 5,
   },
   outil: {
     total: 100,
