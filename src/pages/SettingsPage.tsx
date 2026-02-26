@@ -7,9 +7,12 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
-import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight } from "lucide-react";
+import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight, Cookie } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Link } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
+import { enablePostHog, disablePostHog } from "@/lib/posthog";
+import { enableSentryReplays, disableSentryReplays } from "@/lib/sentry";
 import { STRIPE_PLANS } from "@/lib/stripe-config";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import PurchaseHistory from "@/components/settings/PurchaseHistory";
@@ -42,6 +45,7 @@ export default function SettingsPage() {
   const [notifReminders, setNotifReminders] = useState(() => localStorage.getItem("pref_notif_reminders") !== "false");
 
   const [deleting, setDeleting] = useState(false);
+  const [cookieConsent, setCookieConsent] = useState(() => localStorage.getItem("cookie_consent"));
 
   // Subscription state
   const [subInfo, setSubInfo] = useState<{ plan: string; status: string; current_period_end?: string; cancel_at?: string; source?: string } | null>(null);
@@ -278,6 +282,56 @@ export default function SettingsPage() {
             <PrefRow icon={<Mail className="h-4 w-4 text-muted-foreground" />} label="Emails de suivi" description="Reçois un récap hebdomadaire de ta progression." checked={notifEmail} onCheckedChange={(v) => togglePref("pref_notif_email", v, setNotifEmail)} />
             <PrefRow icon={<Sparkles className="h-4 w-4 text-muted-foreground" />} label="Conseils & astuces" description="Reçois des conseils com' personnalisés par email." checked={notifTips} onCheckedChange={(v) => togglePref("pref_notif_tips", v, setNotifTips)} />
             <PrefRow icon={<Bell className="h-4 w-4 text-muted-foreground" />} label="Rappels de routines" description="Un petit rappel quand tu oublies tes routines." checked={notifReminders} onCheckedChange={(v) => togglePref("pref_notif_reminders", v, setNotifReminders)} />
+          </div>
+        </Section>
+
+        {/* ─── Cookies ─── */}
+        <Section icon={<Cookie className="h-4 w-4" />} title="Cookies et traceurs">
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              On utilise PostHog (hébergé en UE) pour comprendre comment l'outil est utilisé. Aucune donnée publicitaire. Tu peux modifier ton choix ici.
+            </p>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium">Statut :</span>
+              {cookieConsent === "accepted" ? (
+                <Badge variant="success">Accepté</Badge>
+              ) : (
+                <Badge variant="secondary">Refusé</Badge>
+              )}
+            </div>
+            {cookieConsent === "accepted" ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => {
+                  localStorage.setItem("cookie_consent", "refused");
+                  disablePostHog();
+                  disableSentryReplays();
+                  setCookieConsent("refused");
+                  toast({ title: "Consentement révoqué. Les cookies analytics sont désactivés." });
+                }}
+              >
+                Révoquer mon consentement
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                className="rounded-full"
+                onClick={() => {
+                  localStorage.setItem("cookie_consent", "accepted");
+                  enablePostHog();
+                  enableSentryReplays();
+                  setCookieConsent("accepted");
+                  toast({ title: "Cookies analytics activés. Merci !" });
+                }}
+              >
+                Accepter les cookies analytics
+              </Button>
+            )}
+            <Link to="/confidentialite" className="block text-primary text-sm font-medium hover:underline">
+              Lire notre politique de confidentialité →
+            </Link>
           </div>
         </Section>
 
