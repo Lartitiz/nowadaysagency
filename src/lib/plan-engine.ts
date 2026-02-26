@@ -384,7 +384,7 @@ export async function computePlan(filter: { column: string; value: string }, con
     label: "Créer ton premier contenu",
     description: "Utiliser l'atelier créatif pour ton 1er post",
     duration: 30,
-    route: "/instagram/creer",
+    route: "/creer",
     status: s(calendarDone),
     debugInfo: debugInfo.calendar,
   });

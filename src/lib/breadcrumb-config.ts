@@ -79,7 +79,7 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
     { label: "Instagram", path: "/instagram" },
     { label: "Mes stats" },
   ]],
-  ["/instagram/creer", [
+  ["/creer", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Instagram", path: "/instagram" },
     { label: "Créer" },
@@ -87,7 +87,7 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
   ["/instagram/carousel", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Instagram", path: "/instagram" },
-    { label: "Créer", path: "/instagram/creer" },
+    { label: "Créer", path: "/creer" },
     { label: "Carrousel" },
   ]],
   ["/instagram/reels", [

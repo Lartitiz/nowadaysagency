@@ -104,7 +104,7 @@ export const DEMO_DIAGNOSTIC: DiagnosticData = {
   priorities: [
     { title: "Optimise ta bio Instagram", channel: "instagram", impact: "high", time: "5 min", route: "/instagram/bio" },
     { title: "Crée un calendrier de publication régulier", channel: "instagram", impact: "high", time: "20 min", route: "/calendar" },
-    { title: "Ajoute des CTA dans tes légendes", channel: "instagram", impact: "medium", time: "2 min/post", route: "/instagram/creer" },
+    { title: "Ajoute des CTA dans tes légendes", channel: "instagram", impact: "medium", time: "2 min/post", route: "/creer" },
   ],
   channelScores: [
     { emoji: "📱", label: "Instagram", score: 58 },

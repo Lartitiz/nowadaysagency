@@ -152,7 +152,7 @@ export default function Dashboard() {
           recommendations: [
             { id: "demo-rec-1", titre: "Optimise ta bio Instagram", route: "/instagram/bio", completed: false },
             { id: "demo-rec-2", titre: "Crée un calendrier de publication régulier", route: "/calendrier", completed: false },
-            { id: "demo-rec-3", titre: "Ajoute des CTA dans tes légendes", route: "/instagram/creer", completed: false },
+            { id: "demo-rec-3", titre: "Ajoute des CTA dans tes légendes", route: "/creer", completed: false },
           ],
         };
       }
@@ -343,7 +343,7 @@ export default function Dashboard() {
                 colSpan={12}
                 rowSpan={2}
                 variant="highlight"
-                onClick={() => navigate("/instagram/creer")}
+                onClick={() => navigate("/creer")}
                 animationDelay={nextDelay()}
               >
                 <div className="flex items-center gap-2 mb-2">
@@ -355,7 +355,7 @@ export default function Dashboard() {
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { label: "Post Instagram", route: "/instagram/creer" },
+                    { label: "Post Instagram", route: "/creer" },
                     { label: "Carousel", route: "/instagram/carousel" },
                     { label: "Reel", route: "/instagram/reels" },
                     { label: "Post LinkedIn", route: "/linkedin/post" },

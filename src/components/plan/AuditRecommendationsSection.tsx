@@ -68,7 +68,7 @@ export default function AuditRecommendationsSection() {
       "/persona": "/branding/persona",
       "/instagram/bio": "/instagram/profil/bio",
       "/instagram/highlights": "/instagram/profil/stories",
-      "/creer": "/instagram/creer",
+      "/creer": "/creer",
       "/strategie": "/branding/strategie",
       "/storytelling": "/branding/storytelling",
       "/ton": "/branding/ton",

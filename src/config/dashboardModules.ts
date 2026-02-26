@@ -24,7 +24,7 @@ export const dashboardModules: DashboardModule[] = [
     colSpan: 12,
     rowSpan: 2,
     variant: "highlight",
-    route: "/instagram/creer",
+    route: "/creer",
     section: "actions",
     enabled: true,
     order: 1,

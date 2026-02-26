@@ -39,7 +39,7 @@ function getGeneratorRoute(post: CalendarPost): string | null {
   if (fmt === "reel") return "/instagram/reels";
   if (fmt === "carousel" || fmt === "post_carrousel") return "/instagram/carousel";
   if (fmt === "linkedin") return "/linkedin";
-  if (fmt === "post" || fmt === "post_photo") return "/instagram/creer";
+  if (fmt === "post" || fmt === "post_photo") return "/creer";
 
   // If generated_content_type is set, use that
   const gct = post.generated_content_type || "";

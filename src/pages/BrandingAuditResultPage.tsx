@@ -59,7 +59,7 @@ const MODULE_ROUTES: Record<string, string> = {
   story: "/branding", storytelling: "/branding", histoire: "/branding",
   tone: "/branding", ton: "/branding", voix: "/branding",
   editorial: "/branding", ligne_editoriale: "/branding",
-  content: "/instagram/creer", contenu: "/instagram/creer",
+  content: "/creer", contenu: "/creer",
   instagram: "/instagram", highlights: "/instagram",
   linkedin: "/linkedin", calendar: "/calendrier", calendrier: "/calendrier",
   contacts: "/contacts", engagement: "/contacts",
@@ -77,7 +77,7 @@ function getRouteForAction(action: { module?: string; action?: string }): string
   if (title.includes("ton") || title.includes("voix")) return "/branding";
   if (title.includes("highlight")) return "/instagram";
   if (title.includes("ligne") || title.includes("éditorial") || title.includes("editorial")) return "/branding";
-  if (title.includes("contenu") || title.includes("content")) return "/instagram/creer";
+  if (title.includes("contenu") || title.includes("content")) return "/creer";
   if (title.includes("calendrier") || title.includes("calendar")) return "/calendrier";
   if (title.includes("seo")) return "/seo";
   if (title.includes("engagement")) return "/contacts";
@@ -579,7 +579,7 @@ export default function BrandingAuditResultPage() {
           {igScores && (() => {
             const PILLAR_ACTIONS: Record<string, { label: string; coaching_module: string; route: string; emoji: string }> = {
               score_bio: { label: "Optimiser ma bio", coaching_module: "bio", route: "/instagram/profil/bio", emoji: "✍️" },
-              score_feed: { label: "Harmoniser mon feed", coaching_module: "feed", route: "/instagram/creer", emoji: "📸" },
+              score_feed: { label: "Harmoniser mon feed", coaching_module: "feed", route: "/creer", emoji: "📸" },
               score_edito: { label: "Structurer ma ligne éditoriale", coaching_module: "editorial", route: "/branding/section?section=content_strategy", emoji: "🍒" },
               score_stories: { label: "Structurer mes stories à la une", coaching_module: "alaune", route: "/instagram/profil/stories", emoji: "⭐" },
               score_epingles: { label: "Choisir mes posts épinglés", coaching_module: "epingles", route: "/instagram/profil/epingles", emoji: "📌" },
