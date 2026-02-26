@@ -130,66 +130,26 @@ export default function InstagramHub() {
         {/* ─── ZONE 2 : CRÉER ─── */}
         <ZoneSection emoji="✨" title={<><span className="text-primary font-bold">2.</span> ✨ Créer</>}>
           <Link
-            to="/instagram/creer"
-            className="group block rounded-2xl border-2 border-primary bg-primary/5 p-6 sm:p-8 hover:bg-primary/10 hover:shadow-md transition-all text-center"
+            to="/creer?canal=instagram"
+            className="group flex items-center justify-between rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
           >
-            <span className="text-3xl mb-3 block">✨</span>
-            <h3 className="font-display text-xl sm:text-2xl font-bold text-primary group-hover:text-bordeaux transition-colors">
-              Créer un contenu
-            </h3>
-            <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
-              Chaque format a son propre générateur optimisé.
-            </p>
-            <div className="flex justify-center gap-3 mt-5 flex-wrap">
-              <FormatPill emoji="📝" label="Post" />
-              <FormatPill emoji="🎠" label="Carrousel" soon />
-              <FormatPill emoji="🎬" label="Reel" />
-              <FormatPill emoji="📱" label="Story" />
-              <FormatPill emoji="💼" label="LinkedIn" />
-              <FormatPill emoji="🔄" label="Crosspost" to="/linkedin/crosspost" />
+            <div>
+              <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                Créer un contenu Instagram
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">Post, carrousel, reel, story : tous les formats.</p>
             </div>
+            <span className="text-primary text-sm font-semibold">Créer →</span>
           </Link>
         </ZoneSection>
 
-        {/* ─── ZONE 3 : ENGAGER ─── */}
-        <ZoneSection emoji="💬" title={<><span className="text-primary font-bold">3.</span> 💬 Engager</>}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <HubCard
-              to="/instagram/routine"
-              emoji="💬"
-              title="Routine d'engagement"
-              desc="Tes actions hebdo pour créer du lien avec ta communauté."
-            />
-            <HubCard
-              to="/calendrier?canal=instagram"
-              emoji="📅"
-              title="Mon calendrier Instagram"
-              desc="Planifie tes posts et visualise ton mois."
-            />
-          </div>
-        </ZoneSection>
-
-        {/* ─── ZONE 4 : PLANIFIER ─── */}
-        <ZoneSection emoji="📅" title={<><span className="text-primary font-bold">4.</span> 📅 Planifier</>}>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <HubCard
-              to="/calendrier?canal=instagram"
-              emoji="📅"
-              title="Calendrier"
-              desc="Planifie tes posts."
-            />
-            <HubCard
-              to="/idees?canal=instagram"
-              emoji="💡"
-              title="Mes idées"
-              desc="Ta banque d'idées sauvegardées."
-            />
-            <HubCard
-              to="/instagram/lancement"
-              emoji="🚀"
-              title="Mon lancement"
-              desc="Plan de lancement guidé."
-            />
+        {/* ─── ZONE 3 : ENGAGER & PLANIFIER ─── */}
+        <ZoneSection emoji="💬" title={<><span className="text-primary font-bold">3.</span> 💬 Engager & Planifier</>}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <HubCard to="/instagram/routine" emoji="💬" title="Routine d'engagement" desc="Tes actions hebdo pour créer du lien avec ta communauté." />
+            <HubCard to="/calendrier?canal=instagram" emoji="📅" title="Mon calendrier" desc="Planifie tes posts et visualise ton mois." />
+            <HubCard to="/idees?canal=instagram" emoji="💡" title="Mes idées" desc="Ta banque d'idées sauvegardées." />
+            <HubCard to="/instagram/lancement" emoji="🚀" title="Mon lancement" desc="Plan de lancement guidé." />
           </div>
         </ZoneSection>
 
