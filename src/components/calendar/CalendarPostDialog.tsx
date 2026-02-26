@@ -289,7 +289,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display">
             {isReelPost ? "🎬 Script Reel" : isStoriesPost ? "📱 Séquence Stories" : editingPost ? "Modifier le post" : "Ajouter un post"}
@@ -435,7 +435,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             </div>
           </div>
         ) : (
-        <div className="space-y-4 mt-2">
+        <div className="space-y-5 mt-2">
           {/* Tabs: Edit / Preview */}
           <div className="flex rounded-full border border-border overflow-hidden">
             <button
@@ -470,13 +470,13 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
           {/* Theme */}
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Thème / sujet</label>
+            <label className="text-xs font-semibold mb-1.5 block text-foreground">Thème / sujet</label>
             <Input autoFocus value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="De quoi parle ce post ?" className="rounded-[10px] h-11" />
           </div>
 
           {/* Canal */}
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Canal</label>
+            <label className="text-xs font-semibold mb-1.5 block text-foreground">Canal</label>
             <div className="flex flex-wrap gap-1.5">
               {[
                 { id: "instagram", emoji: "📸", label: "Instagram" },
@@ -484,7 +484,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                 { id: "pinterest", emoji: "📌", label: "Pinterest" },
               ].map((c) => (
                 <button key={c.id} onClick={() => setPostCanal(c.id)}
-                  className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${postCanal === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                  className={`rounded-pill px-3 py-1.5 text-xs font-medium border transition-all ${postCanal === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
                   {c.emoji} {c.label}
                 </button>
               ))}
@@ -493,11 +493,11 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
           {/* Status */}
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Statut</label>
+            <label className="text-xs font-semibold mb-1.5 block text-foreground">Statut</label>
             <div className="flex flex-wrap gap-1.5">
               {STATUSES.map((s) => (
                 <button key={s.id} onClick={() => setStatus(s.id)}
-                  className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${status === s.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                  className={`rounded-pill px-3 py-1.5 text-xs font-medium border transition-all ${status === s.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
                   {s.label}
                 </button>
               ))}
@@ -507,7 +507,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           {/* Date picker */}
           {editingPost && selectedDate && (
             <div>
-              <label className="text-sm font-medium mb-1.5 block">📅 Date</label>
+              <label className="text-xs font-semibold mb-1.5 block text-foreground">Date</label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className={cn("w-full justify-start text-left font-normal rounded-[10px] h-11")}>
@@ -539,16 +539,16 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               <span>⚙️ Plus d'options</span>
               <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")} />
             </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-4 pt-2">
+            <CollapsibleContent className="space-y-5 pt-2">
               {/* Objectif */}
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Objectif</label>
+                <label className="text-xs font-semibold mb-1.5 block text-foreground">🎯 Objectif</label>
                 <div className="flex flex-wrap gap-1.5">
                   {OBJECTIFS.map((o) => (
                     <button
                       key={o.id}
                       onClick={() => setObjectif(objectif === o.id ? null : o.id)}
-                      className="rounded-pill px-3 py-1 text-xs font-medium border transition-all"
+                      className="rounded-pill px-3 py-1.5 text-xs font-medium border transition-all"
                       style={
                         objectif === o.id
                           ? { backgroundColor: `hsl(var(--${o.cssVar}-bg))`, color: `hsl(var(--${o.cssVar}))`, borderColor: `hsl(var(--${o.cssVar}))` }
@@ -563,11 +563,11 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
               {/* Angle */}
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Angle</label>
+                <label className="text-xs font-semibold mb-1.5 block text-foreground">🧭 Angle</label>
                 <div className="flex flex-wrap gap-1.5">
                   {ANGLES.map((a) => (
                     <button key={a} onClick={() => setAngle(angle === a ? null : a)}
-                      className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${angle === a ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                      className={`rounded-pill px-3 py-1.5 text-xs font-medium border transition-all ${angle === a ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
                       {a}
                     </button>
                   ))}
@@ -576,11 +576,11 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
               {/* Format */}
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Format</label>
+                <label className="text-xs font-semibold mb-1.5 block text-foreground">📐 Format</label>
                 <div className="flex flex-wrap gap-1.5">
                   {(FORMAT_OPTIONS_BY_CANAL[postCanal] || FORMAT_OPTIONS_BY_CANAL.instagram).map((f) => (
                     <button key={f.id} onClick={() => setFormat(format === f.id ? null : f.id)}
-                      className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${format === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                      className={`rounded-pill px-3 py-1.5 text-xs font-medium border transition-all ${format === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
                       {f.emoji} {f.label}
                     </button>
                   ))}
@@ -589,7 +589,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
               {/* Notes */}
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Notes (optionnel)</label>
+                <label className="text-xs font-semibold mb-1.5 block text-foreground">📝 Notes (optionnel)</label>
                 <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Idées, brouillon, remarques..." className="rounded-[10px] min-h-[60px]" />
               </div>
             </CollapsibleContent>
@@ -598,7 +598,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           {/* Generate button — main CTA */}
           {editingPost && theme.trim() && (
             <div>
-              <label className="text-sm font-medium mb-2 block">✨ Générer</label>
+              <label className="text-xs font-semibold mb-2 block text-foreground">✨ Générer</label>
               {editingPost.generated_content_id ? (
                 <div className="flex gap-2">
                   <Button
@@ -633,7 +633,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
           {/* Rédaction section */}
           <div>
-            <label className="text-sm font-medium mb-2 block">✍️ Rédaction</label>
+            <label className="text-xs font-semibold mb-2 block text-foreground">✍️ Rédaction</label>
 
             {contentDraft && !isEditing ? (
               /* Content exists - show preview */
@@ -731,7 +731,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
           {/* Actions */}
           <div className="flex gap-2 pt-2">
-            <Button onClick={handleSave} disabled={!theme.trim()} variant="outline" className="flex-1 rounded-pill">
+            <Button onClick={handleSave} disabled={!theme.trim()} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">
               💾 Enregistrer
             </Button>
             {onUnplan && editingPost && (
