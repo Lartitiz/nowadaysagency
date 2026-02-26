@@ -417,6 +417,8 @@ GARDE-FOUS OBLIGATOIRES :
 14. PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature, imite les patterns de structure et de ton.
 15. Ne JAMAIS utiliser les expressions interdites du profil de voix.
 16. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.
+17. Si le temps dispo est "5min", MAXIMUM 3 stories. Ne génère JAMAIS 5+ stories pour quelqu'un qui a 5 minutes.
+18. La longueur du texte de chaque story doit être RÉALISTE : une story texte = 2-3 phrases max. Une story face cam = 15-30 secondes de parole (50-80 mots). Ne génère pas des pavés pour des stories.
 
 Réponds en JSON strict :
 {
