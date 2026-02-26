@@ -101,7 +101,7 @@ serve(async (req) => {
     log("Checkout session created", { sessionId: session.id, url: session.url?.substring(0, 50) });
 
     return new Response(JSON.stringify({ url: session.url }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
@@ -109,7 +109,7 @@ serve(async (req) => {
     const status = error instanceof ValidationError ? 400 : 500;
     log("ERROR", { message: msg });
     return new Response(JSON.stringify({ error: msg }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
       status,
     });
   }
