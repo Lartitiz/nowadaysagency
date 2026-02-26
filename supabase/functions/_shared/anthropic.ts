@@ -73,7 +73,13 @@ export async function callAnthropic(options: AnthropicOptions): Promise<string> 
   };
 
   if (options.system) {
-    body.system = options.system;
+    body.system = [
+      {
+        type: "text",
+        text: options.system,
+        cache_control: { type: "ephemeral" }
+      }
+    ];
   }
 
   if (options.temperature !== undefined) {
@@ -95,6 +101,7 @@ export async function callAnthropic(options: AnthropicOptions): Promise<string> 
         "Content-Type": "application/json",
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
+        "anthropic-beta": "prompt-caching-2024-07-31",
       },
       body: JSON.stringify(body),
     });
