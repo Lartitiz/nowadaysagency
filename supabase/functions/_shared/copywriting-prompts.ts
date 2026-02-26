@@ -83,8 +83,19 @@ LONGUEURS OPTIMALES
 - Carrousels : 8-10 slides, peu de texte par slide
 - Reels : 30-90 sec (storytelling), 7-30 sec (viral)
 - Stories séquencées : 5-7 stories par série
-`;
 
+═══════════════════════════════════════════════════
+PRIORITÉ VOIX (S'APPLIQUE À TOUT CE QUI PRÉCÈDE)
+═══════════════════════════════════════════════════
+
+Si le contexte contient une section VOIX PERSONNELLE :
+1. C'est LA priorité n°1. Tout le reste est secondaire.
+2. Reproduis le style décrit : longueur de phrases, niveau de langage, rythme.
+3. Réutilise les expressions signature naturellement (pas en les forçant toutes dans un seul texte).
+4. Ne JAMAIS utiliser les expressions interdites, même si elles semblent naturelles.
+5. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.
+6. En cas de doute entre "respecter le template" et "respecter la voix", choisis toujours la voix.
+`;
 // ═══════════════════════════════════════════════════
 // SECTION 2 : SÉLECTION DE FRAMEWORK PAR OBJECTIF
 // Injectée uniquement pour la génération d'ANGLES (étape 1 du flux créatif)
