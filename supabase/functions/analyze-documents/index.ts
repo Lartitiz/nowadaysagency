@@ -1,10 +1,11 @@
 import { authenticateRequest, getServiceClient, AuthError } from "../_shared/auth.ts";
 import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
+  const cors = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: cors });
   }
 
   try {

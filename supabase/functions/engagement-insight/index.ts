@@ -1,9 +1,10 @@
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, EngagementInsightSchema } from "../_shared/input-validators.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const cors = getCorsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   try {
     const { userId } = await authenticateRequest(req);
