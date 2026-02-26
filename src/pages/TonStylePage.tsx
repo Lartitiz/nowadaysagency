@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile, useBrandProfile } from "@/hooks/use-profile";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -94,6 +96,9 @@ export default function TonStylePage() {
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const { data: hookProfile } = useProfile();
+  const { data: hookBrandProfile } = useBrandProfile();
+  const queryClient = useQueryClient();
   const [profile, setProfile] = useState<Omit<ToneProfile, "user_id">>(EMPTY);
   const [savedProfile, setSavedProfile] = useState<Omit<ToneProfile, "user_id">>(EMPTY);
   const [existingId, setExistingId] = useState<string | null>(null);
@@ -115,17 +120,17 @@ export default function TonStylePage() {
 
   useEffect(() => {
     if (!user || !loading) return;
-    (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle().then(({ data }: any) => {
-      if (data) {
-        setExistingId(data.id);
-        const { id, user_id, created_at, updated_at, mission, offer, target_description, target_problem, target_beliefs, recap_summary, ...rest } = data as any;
+    if (hookBrandProfile !== undefined) {
+      if (hookBrandProfile) {
+        setExistingId(hookBrandProfile.id);
+        const { id, user_id, created_at, updated_at, mission, offer, target_description, target_problem, target_beliefs, recap_summary, ...rest } = hookBrandProfile as any;
         const loaded = { ...EMPTY, ...rest };
         setProfile(loaded);
         setSavedProfile(loaded);
       }
       setLoading(false);
-    });
-  }, [user?.id]);
+    }
+  }, [user?.id, hookBrandProfile]);
 
   const updateField = (field: string, value: string | string[]) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
@@ -143,6 +148,8 @@ export default function TonStylePage() {
         if (error) throw error;
         if (inserted) setExistingId(inserted.id);
       }
+      queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
       setSavedProfile({ ...profile });
       toast({ title: "✅ Modifications enregistrées" });
     } catch (e: any) {
@@ -156,12 +163,9 @@ export default function TonStylePage() {
     if (!user) return;
     setAiLoading("voice");
     try {
-      const [stRes, profRes] = await Promise.all([
-        (supabase.from("storytelling") as any).select("step_7_polished, imported_text").eq(column, value).maybeSingle(),
-        (supabase.from("profiles") as any).select("activite").eq(column, value).single(),
-      ]);
+      const stRes = await (supabase.from("storytelling") as any).select("step_7_polished, imported_text").eq(column, value).maybeSingle();
       const storyText = stRes.data?.step_7_polished || stRes.data?.imported_text || "";
-      const activite = profRes.data?.activite || "";
+      const activite = (hookProfile as any)?.activite || "";
 
       const promptParts = ["PROFIL :"];
       if (activite) promptParts.push(`- Activité : ${activite}`);
@@ -210,10 +214,8 @@ Réponds avec le texte seul, 3-4 phrases.`);
     }
     setAiLoading("combats");
     try {
-      const [profRes, propRes] = await Promise.all([
-        (supabase.from("profiles") as any).select("activite, mission").eq(column, value).single(),
-        (supabase.from("brand_proposition") as any).select("version_final").eq(column, value).maybeSingle(),
-      ]);
+      const profRes = { data: hookProfile ? { activite: (hookProfile as any).activite, mission: (hookProfile as any).mission } : null };
+      const propRes = await (supabase.from("brand_proposition") as any).select("version_final").eq(column, value).maybeSingle();
       const res = await supabase.functions.invoke("niche-ai", {
         body: {
           type: "combats",
@@ -242,7 +244,7 @@ Réponds avec le texte seul, 3-4 phrases.`);
     }
     setAiLoading("limits");
     try {
-      const profRes = await (supabase.from("profiles") as any).select("activite").eq(column, value).single();
+      const profRes = { data: hookProfile ? { activite: (hookProfile as any).activite } : null };
       const res = await supabase.functions.invoke("niche-ai", {
         body: {
           type: "limits",

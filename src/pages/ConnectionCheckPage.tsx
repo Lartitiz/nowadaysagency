@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useMergedProfile } from "@/hooks/use-profile";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -72,6 +73,7 @@ const DEMO_SUGGESTIONS: Suggestion[] = [
 export default function ConnectionCheckPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const { profile: hookProfile, brandProfile: hookBrandProfile } = useMergedProfile();
   const { isDemoMode } = useDemoContext();
   const navigate = useNavigate();
   const [checks, setChecks] = useState<Check[]>([]);
@@ -91,9 +93,10 @@ export default function ConnectionCheckPage() {
     const results: Check[] = [];
     const sugs: Suggestion[] = [];
 
-    // Profile
-    const { data: profile, error: profErr } = await (supabase.from("profiles") as any).select("prenom, activite, onboarding_completed, onboarding_completed_at, current_plan, instagram_username, website_url").eq(column, value).maybeSingle();
-    results.push({ category: "Profil", name: "Profil chargé", status: profErr || !profile ? "error" : "ok", detail: profErr?.message || "OK" });
+    // Profile (from hook)
+    const profile = hookProfile as any;
+    const profErr = !profile;
+    results.push({ category: "Profil", name: "Profil chargé", status: profErr ? "error" : "ok", detail: profErr ? "Profil non trouvé" : "OK" });
     if (profile) {
       results.push({ category: "Profil", name: "Prénom renseigné", status: profile.prenom ? "ok" : "warning", detail: profile.prenom || "Manquant" });
       results.push({ category: "Profil", name: "Onboarding complété", status: profile.onboarding_completed ? "ok" : "info", detail: profile.onboarding_completed ? "Complété" : "Pas encore complété" });
@@ -101,7 +104,7 @@ export default function ConnectionCheckPage() {
     }
 
     // Branding
-    const { data: brand } = await (supabase.from("brand_profile") as any).select("positioning, mission, values, tone_keywords").eq(column, value).maybeSingle();
+    const brand = hookBrandProfile as any;
     results.push({ category: "Branding", name: "Branding existe", status: brand ? "ok" : "warning", detail: brand ? "OK" : "Pas de branding en base" });
     if (brand) {
       for (const field of ["positioning", "mission", "values", "tone_keywords"] as const) {
