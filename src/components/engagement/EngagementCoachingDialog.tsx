@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -83,14 +83,13 @@ export default function EngagementCoachingDialog({ open, onOpenChange, platform 
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Coaching commentaires {platform === "linkedin" ? "LinkedIn" : "Instagram"}
-          </DialogTitle>
-        </DialogHeader>
+    <CoachingShell
+      open={open}
+      onOpenChange={handleClose}
+      title="Coach engagement"
+      description="Je t'aide à rédiger des commentaires qui créent de vraies conversations."
+      emoji="💬"
+    >
 
         {/* Step 1: Post text */}
         {step === 1 && !loading && !result && (
@@ -196,7 +195,6 @@ export default function EngagementCoachingDialog({ open, onOpenChange, platform 
             </div>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </CoachingShell>
   );
 }
