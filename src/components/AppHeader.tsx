@@ -20,7 +20,7 @@ import {
 
 const BASE_NAV_ITEMS = [
   { to: "/dashboard", label: "Accueil", icon: Home, matchExact: true },
-  { to: "/instagram/creer", label: "Créer", icon: Sparkles, matchExact: false },
+  { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
   { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
 ];
@@ -37,7 +37,7 @@ function getMobileNav(isPilot: boolean) {
   if (isPilot) {
     return [
       { to: "/dashboard", label: "Accueil", icon: Home, matchExact: true },
-      { to: "/instagram/creer", label: "Créer", icon: Sparkles, matchExact: false },
+      { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
       { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
       { to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false },
       { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
@@ -45,7 +45,7 @@ function getMobileNav(isPilot: boolean) {
   }
   return [
     { to: "/dashboard", label: "Accueil", icon: Home, matchExact: true },
-    { to: "/instagram/creer", label: "Créer", icon: Sparkles, matchExact: false },
+    { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
     { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
     { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
   ];
