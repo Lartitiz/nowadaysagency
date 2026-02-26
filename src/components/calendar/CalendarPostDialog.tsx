@@ -83,6 +83,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [showContentViewer, setShowContentViewer] = useState(false);
   const [dialogTab, setDialogTab] = useState<"edit" | "preview">("edit");
   const [igUsername, setIgUsername] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     if (editingPost) {
@@ -121,6 +122,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     setIsEditing(false);
     setShowFullContent(false);
     setDialogTab("edit");
+    setShowAdvanced(!!(editingPost?.angle || editingPost?.objectif || (editingPost as any)?.format || editingPost?.notes));
   }, [editingPost, open, defaultCanal, prefillData]);
 
   const guide = angle ? getGuide(angle) : null;
@@ -464,6 +466,44 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             />
           ) : (
           <>
+          {/* ── ZONE 1 : ESSENTIEL ── */}
+
+          {/* Theme */}
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">Thème / sujet</label>
+            <Input autoFocus value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="De quoi parle ce post ?" className="rounded-[10px] h-11" />
+          </div>
+
+          {/* Canal */}
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">Canal</label>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { id: "instagram", emoji: "📸", label: "Instagram" },
+                { id: "linkedin", emoji: "💼", label: "LinkedIn" },
+                { id: "pinterest", emoji: "📌", label: "Pinterest" },
+              ].map((c) => (
+                <button key={c.id} onClick={() => setPostCanal(c.id)}
+                  className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${postCanal === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                  {c.emoji} {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Status */}
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">Statut</label>
+            <div className="flex flex-wrap gap-1.5">
+              {STATUSES.map((s) => (
+                <button key={s.id} onClick={() => setStatus(s.id)}
+                  className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${status === s.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Date picker */}
           {editingPost && selectedDate && (
             <div>
@@ -493,97 +533,67 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             </div>
           )}
 
-          {/* Theme */}
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Thème / sujet</label>
-            <Input autoFocus value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="De quoi parle ce post ?" className="rounded-[10px] h-11" />
-          </div>
+          {/* ── ZONE 2 : AVANCÉ (Collapsible) ── */}
+          <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+            <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors py-2">
+              <span>⚙️ Plus d'options</span>
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")} />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-4 pt-2">
+              {/* Objectif */}
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Objectif</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {OBJECTIFS.map((o) => (
+                    <button
+                      key={o.id}
+                      onClick={() => setObjectif(objectif === o.id ? null : o.id)}
+                      className="rounded-pill px-3 py-1 text-xs font-medium border transition-all"
+                      style={
+                        objectif === o.id
+                          ? { backgroundColor: `hsl(var(--${o.cssVar}-bg))`, color: `hsl(var(--${o.cssVar}))`, borderColor: `hsl(var(--${o.cssVar}))` }
+                          : undefined
+                      }
+                    >
+                      {o.emoji} {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Objectif */}
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Objectif</label>
-            <div className="flex flex-wrap gap-1.5">
-              {OBJECTIFS.map((o) => (
-                <button
-                  key={o.id}
-                  onClick={() => setObjectif(objectif === o.id ? null : o.id)}
-                  className="rounded-pill px-3 py-1 text-xs font-medium border transition-all"
-                  style={
-                    objectif === o.id
-                      ? { backgroundColor: `hsl(var(--${o.cssVar}-bg))`, color: `hsl(var(--${o.cssVar}))`, borderColor: `hsl(var(--${o.cssVar}))` }
-                      : undefined
-                  }
-                >
-                  {o.emoji} {o.label}
-                </button>
-              ))}
-            </div>
-          </div>
+              {/* Angle */}
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Angle</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {ANGLES.map((a) => (
+                    <button key={a} onClick={() => setAngle(angle === a ? null : a)}
+                      className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${angle === a ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Canal */}
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Canal</label>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { id: "instagram", emoji: "📸", label: "Instagram" },
-                { id: "linkedin", emoji: "💼", label: "LinkedIn" },
-                { id: "pinterest", emoji: "📌", label: "Pinterest" },
-              ].map((c) => (
-                <button key={c.id} onClick={() => setPostCanal(c.id)}
-                  className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${postCanal === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-                  {c.emoji} {c.label}
-                </button>
-              ))}
-            </div>
-          </div>
+              {/* Format */}
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Format</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {(FORMAT_OPTIONS_BY_CANAL[postCanal] || FORMAT_OPTIONS_BY_CANAL.instagram).map((f) => (
+                    <button key={f.id} onClick={() => setFormat(format === f.id ? null : f.id)}
+                      className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${format === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                      {f.emoji} {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Angle */}
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Angle</label>
-            <div className="flex flex-wrap gap-1.5">
-              {ANGLES.map((a) => (
-                <button key={a} onClick={() => setAngle(angle === a ? null : a)}
-                  className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${angle === a ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-                  {a}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Format */}
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Format</label>
-            <div className="flex flex-wrap gap-1.5">
-              {(FORMAT_OPTIONS_BY_CANAL[postCanal] || FORMAT_OPTIONS_BY_CANAL.instagram).map((f) => (
-                <button key={f.id} onClick={() => setFormat(format === f.id ? null : f.id)}
-                  className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${format === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-                  {f.emoji} {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Status */}
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Statut</label>
-            <div className="flex flex-wrap gap-1.5">
-              {STATUSES.map((s) => (
-                <button key={s.id} onClick={() => setStatus(s.id)}
-                  className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${status === s.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Notes (optionnel)</label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Idées, brouillon, remarques..." className="rounded-[10px] min-h-[60px]" />
-          </div>
-
-          {/* Separator */}
-          <div className="border-t border-border" />
+              {/* Notes */}
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Notes (optionnel)</label>
+                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Idées, brouillon, remarques..." className="rounded-[10px] min-h-[60px]" />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
           {/* Generate button — main CTA */}
           {editingPost && theme.trim() && (
