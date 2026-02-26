@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
+import { useBrandCharter } from "@/hooks/use-branding";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAutoSave, SaveIndicator } from "@/hooks/use-auto-save";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -252,6 +254,8 @@ export default function BrandCharterPage() {
   const initialTab = searchParams.get("tab") === "coaching" ? "coaching" : "fiche";
   const [activeTab, setActiveTab] = useState(initialTab);
   const { column, value } = useWorkspaceFilter();
+  const queryClient = useQueryClient();
+  const { data: charterHookData, isLoading: charterHookLoading } = useBrandCharter();
   const [data, setData] = useState<CharterData>(INITIAL);
   const [loading, setLoading] = useState(true);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -300,31 +304,25 @@ export default function BrandCharterPage() {
     if (data.font_accent) loadGoogleFont(data.font_accent);
   }, [data.font_title, data.font_body, data.font_accent]);
 
-  // Load data
+  // Load data from hook
   useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const { data: row } = await (supabase.from("brand_charter") as any)
-        .select("*")
-        .eq(column, value)
-        .maybeSingle();
-      if (row) {
-        setData({
-          ...INITIAL,
-          ...row,
-          custom_colors: row.custom_colors || [],
-          mood_keywords: row.mood_keywords || [],
-          photo_keywords: row.photo_keywords || [],
-          mood_board_urls: row.mood_board_urls || [],
-          uploaded_templates: row.uploaded_templates || [],
-          moodboard_images: row.moodboard_images || [],
-          moodboard_description: row.moodboard_description || null,
-        });
-      }
-      setLoading(false);
-    };
-    load();
-  }, [user?.id]);
+    if (charterHookLoading) return;
+    if (charterHookData) {
+      const row = charterHookData as any;
+      setData({
+        ...INITIAL,
+        ...row,
+        custom_colors: row.custom_colors || [],
+        mood_keywords: row.mood_keywords || [],
+        photo_keywords: row.photo_keywords || [],
+        mood_board_urls: row.mood_board_urls || [],
+        uploaded_templates: row.uploaded_templates || [],
+        moodboard_images: row.moodboard_images || [],
+        moodboard_description: row.moodboard_description || null,
+      });
+    }
+    setLoading(false);
+  }, [charterHookLoading, charterHookData]);
 
   // Auto-save
   const saveFn = useCallback(async () => {
@@ -358,13 +356,17 @@ export default function BrandCharterPage() {
 
     if (d.id) {
       await supabase.from("brand_charter").update(payload).eq("id", d.id);
+      queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
     } else {
       payload.user_id = user.id;
       const { data: inserted } = await (supabase.from("brand_charter") as any)
         .insert(payload)
         .select("id")
         .single();
-      if (inserted) setData(prev => ({ ...prev, id: inserted.id }));
+      if (inserted) {
+        setData(prev => ({ ...prev, id: inserted.id }));
+        queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
+      }
     }
   }, [user]);
 

@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useBrandStrategy, useEditorialLine } from "@/hooks/use-branding";
+import { useQueryClient } from "@tanstack/react-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -213,6 +215,9 @@ export default function InstagramProfileEdito() {
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const queryClient = useQueryClient();
+  const { data: strategyData } = useBrandStrategy();
+  const { data: editorialLineData, isLoading: editorialLoading } = useEditorialLine();
   const [editorial, setEditorial] = useState<EditorialLine>({ ...EMPTY_LINE });
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -222,37 +227,35 @@ export default function InstagramProfileEdito() {
   const [rhythmSuggestion, setRhythmSuggestion] = useState<string | null>(null);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
-  // Load existing data + branding pillars
+  // Load existing data from hooks + audit from DB
   useEffect(() => {
-    if (!user) return;
+    if (!user || editorialLoading) return;
     const load = async () => {
-      const [editoRes, stratRes, auditRes] = await Promise.all([
-        (supabase.from("instagram_editorial_line") as any).select("*").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        (supabase.from("brand_strategy") as any).select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq(column, value).maybeSingle(),
+      const [auditRes] = await Promise.all([
         (supabase.from("instagram_audit") as any).select("details, successful_content_notes, unsuccessful_content_notes").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
 
-      if (editoRes.data) {
-        const d = editoRes.data;
+      if (editorialLineData) {
+        const d = editorialLineData as any;
         setEditorial({
           id: d.id,
           main_objective: d.main_objective || "",
-          objective_details: (d as any).objective_details || "",
-          posts_frequency: (d as any).posts_frequency || "",
-          stories_frequency: (d as any).stories_frequency || "",
-          time_available: (d as any).time_available || "",
-          pillars: Array.isArray((d as any).pillars) ? (d as any).pillars : [],
+          objective_details: d.objective_details || "",
+          posts_frequency: d.posts_frequency || "",
+          stories_frequency: d.stories_frequency || "",
+          time_available: d.time_available || "",
+          pillars: Array.isArray(d.pillars) ? d.pillars : [],
           preferred_formats: Array.isArray(d.preferred_formats) ? d.preferred_formats as string[] : [],
           do_more: d.do_more || "",
           stop_doing: d.stop_doing || "",
-          free_notes: (d as any).free_notes || "",
-          source: (d as any).source || "manual",
-          estimated_weekly_minutes: (d as any).estimated_weekly_minutes || undefined,
-          time_budget_minutes: (d as any).time_budget_minutes || undefined,
+          free_notes: d.free_notes || "",
+          source: d.source || "manual",
+          estimated_weekly_minutes: d.estimated_weekly_minutes || undefined,
+          time_budget_minutes: d.time_budget_minutes || undefined,
         });
       } else {
         // Pre-fill from branding strategy
-        const s = stratRes.data;
+        const s = strategyData as any;
         const pillars: Pillar[] = [];
         if (s?.pillar_major) pillars.push({ name: s.pillar_major, description: "", percentage: 40, is_major: true });
         if (s?.pillar_minor_1) pillars.push({ name: s.pillar_minor_1, description: "", percentage: 25, is_major: false });
@@ -275,7 +278,7 @@ export default function InstagramProfileEdito() {
       setLoaded(true);
     };
     load();
-  }, [user?.id]);
+  }, [user?.id, editorialLoading, editorialLineData, strategyData]);
 
   const totalPercent = useMemo(() => editorial.pillars.reduce((s, p) => s + p.percentage, 0), [editorial.pillars]);
 
@@ -354,6 +357,7 @@ export default function InstagramProfileEdito() {
         const { data } = await supabase.from("instagram_editorial_line").insert(payload).select("id").single();
         if (data) setEditorial((prev) => ({ ...prev, id: data.id }));
       }
+      queryClient.invalidateQueries({ queryKey: ["editorial-line"] });
       toast({ title: "Ligne éditoriale sauvegardée !" });
     } catch (e: any) {
       console.error("Erreur technique:", e);
