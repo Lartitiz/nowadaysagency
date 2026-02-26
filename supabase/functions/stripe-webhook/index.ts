@@ -106,10 +106,10 @@ serve(async (req) => {
         } else if (session.mode === "payment") {
           // One-time purchase
           const productTypeMap: Record<string, string> = {
-            "price_1T3irCI0YZbTj9ITc6u9ocSE": "coaching",
-            "price_1T3irpI0YZbTj9IT8EtRTNW0": "audit_perso",
-            "price_1T3is2I0YZbTj9ITseeo04eS": "weekend",
-            "price_1T3iq5I0YZbTj9ITnDSpkNWN": "studio_once",
+            "prod_U1mQHY2k0DJTA7": "coaching",
+            "prod_U1mQpx8mgn8Wk1": "audit_perso",
+            "prod_U1mQ2KwUHQeUFn": "weekend",
+            "prod_U1mO5DAp2VmRoR": "studio_once",
           };
 
           const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
@@ -131,7 +131,7 @@ serve(async (req) => {
             }
           }
 
-          let productType = productTypeMap[priceId] || "unknown";
+          let productType = (typeof product === "string" ? productTypeMap[product] : undefined) || "unknown";
           if (isCreditPack) {
             productType = `credit_pack_${packCredits}`;
           }
