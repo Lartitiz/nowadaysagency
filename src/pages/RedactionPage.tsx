@@ -62,7 +62,7 @@ export default function RedactionPage() {
 
   // Step 5: Checklist
   const [checkedItems, setCheckedItems] = useState<boolean[]>(QUALITY_CHECKLIST.map(() => false));
-  const [copied, setCopied] = useState(false);
+  
   const [saving, setSaving] = useState(false);
 
 
@@ -158,12 +158,7 @@ export default function RedactionPage() {
     }
   };
 
-  // ── Actions ──
-  const copyContent = async () => {
-    await navigator.clipboard.writeText(editedContent);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+
 
   const saveDraft = async () => {
     if (!user) return;
