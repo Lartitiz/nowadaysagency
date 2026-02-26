@@ -26,6 +26,7 @@ import { useBrandingSuggestions } from "@/hooks/use-branding-suggestions";
 import { DEMO_DATA } from "@/lib/demo-data";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { toast } from "sonner";
 import { usePersonas } from "@/hooks/use-personas";
 import PersonaList from "@/components/branding/PersonaList";
 
@@ -46,6 +47,13 @@ interface FieldDef {
   table?: string;
   multiline?: boolean;
 }
+
+const NEXT_SECTION: Record<string, { label: string; route: string }> = {
+  story: { label: "ton client·e idéal·e", route: "/branding/section?section=persona" },
+  persona: { label: "ta proposition de valeur", route: "/branding/section?section=value_proposition" },
+  tone_style: { label: "ta ligne éditoriale", route: "/branding/section?section=content_strategy" },
+  content_strategy: { label: "ta charte graphique", route: "/branding/charter" },
+};
 
 const SECTION_CONFIGS: Record<Section, SectionConfig> = {
   story: {
@@ -524,6 +532,19 @@ export default function BrandingSectionPage() {
                   section={section}
                   onComplete={() => {
                     setLastCoachingUpdate(new Date().toISOString());
+                    const next = NEXT_SECTION[section];
+                    if (next) {
+                      toast.success(`✨ Ta fiche ${config.title} a été mise à jour !`, {
+                        description: `Prochaine étape : ${next.label}`,
+                        action: {
+                          label: "Y aller →",
+                          onClick: () => navigate(next.route),
+                        },
+                        duration: 6000,
+                      });
+                    } else {
+                      toast.success(`✨ Ta fiche ${config.title} a été mise à jour !`);
+                    }
                     setActiveTab("fiche");
                     if (!isDemoMode && user) {
                       if (isPersonaSection && selectedPersonaId) {
