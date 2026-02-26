@@ -4,6 +4,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, AnthropicError, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -120,13 +121,7 @@ Tu es experte en création de Reels Instagram pour des solopreneuses créatives 
 
 ${brandingContext}
 
-ANTI-SLOP — TU NE GÉNÈRES JAMAIS :
-- "Dans un monde où…", "N'hésitez pas à…", "Il est important de noter que…"
-- "Plongeons dans…", "Sans plus attendre", "En outre", "Par conséquent"
-- "Cela étant dit", "Force est de constater", "Il convient de", "En définitive"
-- "Décortiquons", "Explorons", "Découvrons", "Passons à", "Abordons"
-- Tout tiret cadratin (—) → remplacer par : ou ;
-SI TU DÉTECTES CES PATTERNS DANS TON OUTPUT, RÉÉCRIS AVANT DE RETOURNER.
+${ANTI_SLOP}
 
 ANTI-BIAIS — TU NE REPRODUIS JAMAIS :
 - Ton paternaliste envers les femmes entrepreneures → Permission : "Tu as le droit de prendre de la place"
