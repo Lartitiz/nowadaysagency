@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useMergedProfile } from "@/hooks/use-profile";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -40,8 +41,7 @@ export default function RedactionPage() {
   const objectif = searchParams.get("objectif") || null;
 
   const [step, setStep] = useState(1);
-  const [profile, setProfile] = useState<any>(null);
-  const [brandProfile, setBrandProfile] = useState<any>(null);
+  const { profile, brandProfile, mergedProfile, isLoading: profileLoading } = useMergedProfile();
 
   // Step 1: Structure
   const [structure, setStructure] = useState<string>("");
@@ -65,31 +65,6 @@ export default function RedactionPage() {
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Load profile
-  useEffect(() => {
-    if (!user) return;
-    Promise.all([
-      (supabase.from("profiles") as any).select("*").eq(column, value).single(),
-      (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle(),
-    ]).then(([profRes, bpRes]) => {
-      if (profRes.data) setProfile(profRes.data);
-      if (bpRes.data) setBrandProfile(bpRes.data);
-    });
-  }, [user?.id]);
-
-  const mergedProfile = profile
-    ? {
-        ...profile,
-        mission: brandProfile?.mission || profile.mission,
-        offre: brandProfile?.offer || profile.offre,
-        cible: brandProfile?.target_description || profile.cible,
-        probleme_principal: brandProfile?.target_problem || profile.probleme_principal,
-        croyances_limitantes: brandProfile?.target_beliefs || profile.croyances_limitantes,
-        verbatims: brandProfile?.target_verbatims || profile.verbatims,
-        expressions_cles: brandProfile?.key_expressions || profile.expressions_cles,
-        ce_quon_evite: brandProfile?.things_to_avoid || profile.ce_quon_evite,
-      }
-    : null;
 
   // Get the guide for the format
   const guideKey = format;
@@ -123,8 +98,8 @@ export default function RedactionPage() {
   };
 
   useEffect(() => {
-    if (profile) loadStructure();
-  }, [profile]);
+    if (mergedProfile) loadStructure();
+  }, [mergedProfile]);
 
   // ── Step 2: Generate accroches ──
   const generateAccroches = async () => {

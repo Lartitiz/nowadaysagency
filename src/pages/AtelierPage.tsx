@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useMergedProfile } from "@/hooks/use-profile";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -56,8 +57,7 @@ export default function AtelierPage() {
   const [sujetLibre, setSujetLibre] = useState("");
   const [generating, setGenerating] = useState(false);
   const [ideas, setIdeas] = useState<IdeaResult[]>([]);
-  const [profile, setProfile] = useState<any>(null);
-  const [brandProfile, setBrandProfile] = useState<any>(null);
+  const { profile, brandProfile, mergedProfile, isLoading: profileLoading } = useMergedProfile();
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
   const [showRecapEdit, setShowRecapEdit] = useState(false);
   const [atelierMode, setAtelierMode] = useState<"create" | "recycle" | "dictate">("create");
@@ -82,31 +82,6 @@ export default function AtelierPage() {
     }
   }, []);
 
-  // Load profile + brand_profile
-  useEffect(() => {
-    if (!user) return;
-    Promise.all([
-      (supabase.from("profiles") as any).select("*").eq(column, value).single(),
-      (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle(),
-    ]).then(([profRes, bpRes]) => {
-      if (profRes.data) setProfile(profRes.data);
-      if (bpRes.data) setBrandProfile(bpRes.data);
-    });
-  }, [user?.id]);
-
-  const mergedProfile = profile
-    ? {
-        ...profile,
-        mission: brandProfile?.mission || profile.mission,
-        offre: brandProfile?.offer || profile.offre,
-        cible: brandProfile?.target_description || profile.cible,
-        probleme_principal: brandProfile?.target_problem || profile.probleme_principal,
-        croyances_limitantes: brandProfile?.target_beliefs || profile.croyances_limitantes,
-        verbatims: brandProfile?.target_verbatims || profile.verbatims,
-        expressions_cles: brandProfile?.key_expressions || profile.expressions_cles,
-        ce_quon_evite: brandProfile?.things_to_avoid || profile.ce_quon_evite,
-      }
-    : null;
 
   const { recommended, others } = getRecommendedFormats(objectif);
   const selectedFormatLabel = FORMATS.find((f) => f.id === selectedFormat)?.label || "";
