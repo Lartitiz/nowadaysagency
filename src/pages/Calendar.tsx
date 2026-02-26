@@ -418,7 +418,19 @@ export default function CalendarPage() {
   const handleQuickGenerate = (post: CalendarPost) => {
     const route = getGeneratorRoute(post);
     if (route) {
-      navigate(route, { state: { fromCalendar: true, postId: post.id, theme: post.theme } });
+      navigate(route, { state: {
+        fromCalendar: true,
+        postId: post.id,
+        calendarPostId: post.id,
+        theme: post.theme,
+        objectif: post.objectif || post.category || "",
+        angle: post.angle || "",
+        format: post.format || "",
+        notes: post.notes || "",
+        postDate: post.date,
+        existingContent: post.content_draft || "",
+        canal: post.canal || "instagram",
+      } });
     } else {
       setEditingPost(post);
       setDialogOpen(true);
