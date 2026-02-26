@@ -21,6 +21,15 @@ interface ContentActionsProps {
   regenerateLabel?: string;
   regenerateLoading?: boolean;
   className?: string;
+  calendarData?: {
+    storySequenceDetail?: any;
+    storiesCount?: number;
+    storiesStructure?: string;
+    storiesObjective?: string;
+    accroche?: string;
+  };
+  ideasData?: any;
+  ideasContentType?: string;
 }
 
 export default function ContentActions({
@@ -35,6 +44,9 @@ export default function ContentActions({
   regenerateLabel,
   regenerateLoading,
   className = "",
+  calendarData,
+  ideasData,
+  ideasContentType,
 }: ContentActionsProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -63,19 +75,30 @@ export default function ContentActions({
       status: "ready",
     };
     if (objectif) insertData.objectif = objectif;
+    if (calendarData?.storySequenceDetail) insertData.story_sequence_detail = calendarData.storySequenceDetail;
+    if (calendarData?.storiesCount) insertData.stories_count = calendarData.storiesCount;
+    if (calendarData?.storiesStructure) insertData.stories_structure = calendarData.storiesStructure;
+    if (calendarData?.storiesObjective) insertData.stories_objective = calendarData.storiesObjective;
+    if (calendarData?.accroche) insertData.accroche = calendarData.accroche;
     if (workspaceId && workspaceId !== user.id) {
       insertData.workspace_id = workspaceId;
     }
 
     if (calendarPostId) {
+      const updateData: any = {
+        content_draft: content,
+        accroche: accroche || content.split("\n")[0]?.slice(0, 200) || "",
+        status: "ready",
+        updated_at: new Date().toISOString(),
+      };
+      if (calendarData?.storySequenceDetail) updateData.story_sequence_detail = calendarData.storySequenceDetail;
+      if (calendarData?.storiesCount) updateData.stories_count = calendarData.storiesCount;
+      if (calendarData?.storiesStructure) updateData.stories_structure = calendarData.storiesStructure;
+      if (calendarData?.storiesObjective) updateData.stories_objective = calendarData.storiesObjective;
+      if (calendarData?.accroche) updateData.accroche = calendarData.accroche;
       const { error } = await supabase
         .from("calendar_posts")
-        .update({
-          content_draft: content,
-          accroche: accroche || content.split("\n")[0]?.slice(0, 200) || "",
-          status: "ready",
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", calendarPostId);
 
       if (error) {
@@ -139,9 +162,9 @@ export default function ContentActions({
       <SaveToIdeasDialog
         open={showIdeasDialog}
         onOpenChange={setShowIdeasDialog}
-        contentType={canal === "linkedin" ? "post_linkedin" : "post_instagram"}
+        contentType={(ideasContentType as any) || (canal === "linkedin" ? "post_linkedin" : "post_instagram")}
         subject={theme || content.split("\n")[0]?.slice(0, 60) || "Contenu"}
-        contentData={{ content, accroche }}
+        contentData={ideasData || { content, accroche }}
         sourceModule="content-actions"
         format={format}
         objectif={objectif}
