@@ -6,6 +6,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock 
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { isDemoUser } from "../_shared/guard-demo.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -27,6 +28,10 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Authentification invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (isDemoUser(user.id)) {
+      return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Rate limit check

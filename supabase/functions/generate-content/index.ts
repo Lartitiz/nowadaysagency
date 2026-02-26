@@ -4,6 +4,7 @@ import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOUR
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock } from "../_shared/user-context.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { isDemoUser } from "../_shared/guard-demo.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -62,6 +63,10 @@ serve(async (req) => {
         JSON.stringify({ error: "Authentification invalide" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    if (isDemoUser(user.id)) {
+      return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Rate limit check
