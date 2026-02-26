@@ -8,6 +8,11 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 
+const isValidRedirect = (path: string | null): path is string => {
+  if (!path) return false;
+  return path.startsWith("/invite/") || path.startsWith("/dashboard") || path.startsWith("/onboarding");
+};
+
 export default function LoginPage() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
@@ -32,7 +37,7 @@ export default function LoginPage() {
   }
 
   // If logged in and there's a redirect param, go there
-  if (user && redirectTo) {
+  if (user && isValidRedirect(redirectTo)) {
     return <Navigate to={redirectTo} replace />;
   }
 
