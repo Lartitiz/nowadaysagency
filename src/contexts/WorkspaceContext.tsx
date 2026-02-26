@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export interface Workspace {
   id: string;
@@ -92,19 +93,25 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const switchWorkspace = useCallback(
     async (workspaceId: string) => {
-      // D'abord chercher dans la liste locale
       let found = workspaces.find((w) => w.id === workspaceId);
 
-      // Si pas trouvé localement, fetch depuis Supabase
-      if (!found) {
-        const { data } = await supabase
-          .from("workspaces")
-          .select("id, name, slug, avatar_url, plan")
-          .eq("id", workspaceId)
-          .single();
+      if (!found && user?.id) {
+        const { data: memberCheck } = await supabase
+          .from("workspace_members")
+          .select("role, workspaces:workspace_id(id, name, slug, avatar_url, plan)")
+          .eq("workspace_id", workspaceId)
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-        if (data) {
-          found = data as Workspace;
+        if (!memberCheck) {
+          toast.error("Tu n'as pas accès à cet espace.");
+          return;
+        }
+
+        const ws = memberCheck.workspaces as any;
+        if (ws) {
+          found = ws as Workspace;
+          setActiveRole(memberCheck.role as any);
           setWorkspaces(prev => {
             if (prev.some(w => w.id === workspaceId)) return prev;
             return [...prev, found!];
@@ -112,22 +119,24 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      if (!found) return;
+      if (!found) {
+        toast.error("Espace introuvable.");
+        return;
+      }
+
       setActiveWorkspace(found);
       localStorage.setItem(LS_KEY, workspaceId);
-      // Invalider tout le cache React Query pour forcer le rechargement
       queryClient.invalidateQueries();
 
-      // Re-fetch role
-      if (!user?.id) return;
-      const { data: roleData } = await supabase
-        .from("workspace_members")
-        .select("role")
-        .eq("workspace_id", workspaceId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (roleData?.role) setActiveRole(roleData.role as any);
+      if (user?.id) {
+        const { data: roleData } = await supabase
+          .from("workspace_members")
+          .select("role")
+          .eq("workspace_id", workspaceId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (roleData?.role) setActiveRole(roleData.role as any);
+      }
     },
     [workspaces, user?.id, queryClient],
   );
