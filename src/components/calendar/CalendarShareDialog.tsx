@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Copy, Trash2, Loader2, Link2, Plus, AlertTriangle, FileSpreadsheet, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
@@ -88,6 +88,7 @@ const STATUS_LABELS: Record<string, string> = {
 export function CalendarShareDialog({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
+  const profileUserId = useProfileUserId();
   const { toast } = useToast();
   const [tab, setTab] = useState<"list" | "create">("list");
   const [shares, setShares] = useState<Share[]>([]);
@@ -121,7 +122,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
     setLoading(true);
     const { data } = await (supabase.from("calendar_shares") as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", profileUserId)
       .order("created_at", { ascending: false });
 
     if (data) {
@@ -166,7 +167,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
         // Get to_validate counts (posts with status "ready")
         let postsQuery = (supabase.from("calendar_posts") as any)
           .select("id, status")
-          .eq("user_id", user.id)
+          .eq("user_id", profileUserId)
           .eq("status", "ready");
         if (workspaceId) postsQuery = postsQuery.eq("workspace_id", workspaceId);
         const { data: readyPosts } = await postsQuery;
@@ -216,7 +217,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
 
     const { data, error } = await (supabase.from("calendar_shares") as any)
       .insert({
-        user_id: user.id,
+        user_id: profileUserId,
         workspace_id: workspaceId || null,
         label: label.trim() || null,
         canal_filter: canal,
@@ -249,7 +250,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
     try {
       let postsQuery = (supabase.from("calendar_posts") as any)
         .select("date, theme, status, content_draft, notes, canal, format, category, audience_phase, objectif")
-        .eq("user_id", user.id)
+        .eq("user_id", profileUserId)
         .order("date");
       if (workspaceId) postsQuery = postsQuery.eq("workspace_id", workspaceId);
 
@@ -263,7 +264,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
       const { data: profileData } = await supabase
         .from("profiles")
         .select("prenom")
-        .eq("user_id", user.id)
+        .eq("user_id", profileUserId)
         .maybeSingle();
 
       const prenom = (profileData as any)?.prenom || "calendrier";
