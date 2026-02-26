@@ -63,7 +63,7 @@ export const AI_ERROR_MESSAGES: Record<string, { title: string; description: str
   },
 };
 
-export function getAIErrorMessage(error: any): { title: string; description: string; action?: string } {
+export function getAIErrorMessage(error: { status?: number; message?: string } | null): { title: string; description: string; action?: string } {
   if (error?.status) {
     return AI_ERROR_MESSAGES[String(error.status)] || AI_ERROR_MESSAGES.unknown;
   }

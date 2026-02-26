@@ -125,7 +125,7 @@ export async function computePlan(
   const channels = config.channels || [];
 
   // Helper
-  const filled = (v: any) => v !== null && v !== undefined && (typeof v !== "string" || v.trim().length > 0);
+  const filled = (v: unknown) => v !== null && v !== undefined && (typeof v !== "string" || v.trim().length > 0);
 
   // ===== Simple existence-based status checks =====
   const bp = brandProfileRes.data;

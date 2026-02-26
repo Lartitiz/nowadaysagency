@@ -39,7 +39,7 @@ export async function fetchBrandingData(filter: { column: string; value: string 
   };
 }
 
-function filled(val: any): boolean {
+function filled(val: unknown): boolean {
   if (val === null || val === undefined) return false;
   if (typeof val === "string") return val.trim().length > 0;
   if (Array.isArray(val)) return val.length > 0;

@@ -20,7 +20,7 @@ function scoreColor(score: number): readonly [number, number, number] {
   return [200, 30, 30];
 }
 
-function drawSectionHeader(doc: any, y: number, title: string, bgColor: readonly [number, number, number]): number {
+function drawSectionHeader(doc: InstanceType<typeof import("jspdf").default>, y: number, title: string, bgColor: readonly [number, number, number]): number {
   doc.setFillColor(...bgColor);
   doc.roundedRect(MARGIN, y, CONTENT_W, 12, 3, 3, "F");
   doc.setFont("Helvetica", "bold");
@@ -50,6 +50,8 @@ function drawSeparator(doc: any, y: number): number {
   return y + 4;
 }
 
+// TODO: type mirrorData with a proper MirrorResult interface
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function exportMirrorPDF(mirrorData: any) {
   const jsPDF = (await import("jspdf")).default;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });

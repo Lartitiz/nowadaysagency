@@ -23,7 +23,7 @@ export function useActivityExamples(): ActivityProfile & { activityText: string 
       .select("activite, type_activite")
       .eq(column, value)
       .maybeSingle()
-      .then(({ data }: any) => {
+      .then(({ data }: { data: { type_activite?: string; activite?: string } | null }) => {
         setActivity(data?.type_activite || data?.activite || null);
       });
   }, [user?.id, isDemoMode, column, value]);
