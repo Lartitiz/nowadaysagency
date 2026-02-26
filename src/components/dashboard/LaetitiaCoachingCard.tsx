@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import laetitiaPhoto from "@/assets/laetitia-portrait.png";
+import laetitiaPhoto from "@/assets/laetitia-portrait.webp";
 
 interface CoachingCardData {
   message: string;
@@ -125,6 +125,7 @@ export default function LaetitiaCoachingCard({ animationDelay = 0 }: { animation
             src={laetitiaPhoto}
             alt="Laetitia Mattioli"
             className="w-[120px] h-auto object-contain drop-shadow-md"
+            loading="lazy"
           />
         </div>
 
@@ -257,6 +258,7 @@ export default function LaetitiaCoachingCard({ animationDelay = 0 }: { animation
             src={laetitiaPhoto}
             alt="Laetitia Mattioli"
             className="w-[140px] h-auto object-contain drop-shadow-md"
+            loading="lazy"
           />
         </div>
       </div>

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { X, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import laetitiaPhoto from "@/assets/laetitia-portrait.png";
+import laetitiaPhoto from "@/assets/laetitia-portrait.webp";
 
 const DISMISS_KEY = "coaching_card_dismissed_at";
 const DISCOVERY_URL = "https://calendly.com/laetitia-mattioli/appel-decouverte";
@@ -60,6 +60,7 @@ export default function DiscoveryCoachingCard({ animationDelay = 0 }: { animatio
             src={laetitiaPhoto}
             alt="Laetitia Mattioli"
             className="w-[80px] h-auto object-contain drop-shadow-md rounded-xl"
+            loading="lazy"
           />
         </div>
 
@@ -102,6 +103,7 @@ export default function DiscoveryCoachingCard({ animationDelay = 0 }: { animatio
             src={laetitiaPhoto}
             alt="Laetitia Mattioli"
             className="w-[100px] h-auto object-contain drop-shadow-md rounded-xl"
+            loading="lazy"
           />
         </div>
       </div>
