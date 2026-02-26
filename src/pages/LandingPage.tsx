@@ -345,6 +345,7 @@ export default function LandingPage() {
               Définis ta marque, trouve des idées de contenu, planifie ta communication, optimise tes réseaux. Tout au même endroit.
               <br className="hidden sm:block" />
               <strong className="text-foreground">Basé sur une vraie méthode, pas du bullshit marketing.</strong>
+              <span className="sr-only">Outil de communication tout-en-un pour solopreneuses, artisanes, coachs et freelances créatives.</span>
             </p>
             <div className="mt-8">
               <a href="#signup-section" onClick={scrollTo("signup-section")}
@@ -713,7 +714,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-8">
             <div className="sm:col-span-2">
               <span className="font-display text-xl font-bold">Nowadays</span>
-              <p className="text-sm text-background/60 mt-2 max-w-xs">L'outil de communication pour les solopreneuses et freelances qui veulent se rendre visibles sans trahir leurs valeurs.</p>
+              <p className="text-sm text-background/60 mt-2 max-w-xs">L'assistant de communication éthique pour solopreneuses, créatrices et freelances. Branding, réseaux sociaux, SEO : tout pour se rendre visible sans trahir ses valeurs.</p>
             </div>
             <div>
               <h4 className="font-semibold text-sm mb-3">Navigation</h4>
