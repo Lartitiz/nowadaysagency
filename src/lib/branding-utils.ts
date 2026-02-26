@@ -6,7 +6,7 @@
  * Parse a value (string, array, or JSON-stringified array) into a string[].
  * Splits on common bullet / list characters and strips leading numbering.
  */
-export function parseToArray(value: any): string[] {
+export function parseToArray(value: unknown): string[] {
   if (!value) return [];
 
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
@@ -33,7 +33,7 @@ export function parseToArray(value: any): string[] {
  * Parse a value into tag-style tokens split by comma, semicolon, slash, or newline.
  * Cleans surrounding quotes, dashes and bullets from each token.
  */
-export function parseToTags(value: any): string[] {
+export function parseToTags(value: unknown): string[] {
   if (!value) return [];
 
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
@@ -59,12 +59,13 @@ export function parseToTags(value: any): string[] {
  * Safely parse a JSON string or return the value as-is if already an object.
  * Returns null on failure or falsy input.
  */
-export function safeParseJson(val: any): any {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Returns dynamic JSON structures accessed with arbitrary keys downstream
+export function safeParseJson(val: unknown): any {
   if (!val) return null;
   if (typeof val === "object") return val;
 
   try {
-    return JSON.parse(val);
+    return JSON.parse(val as string);
   } catch {
     return null;
   }
@@ -73,7 +74,7 @@ export function safeParseJson(val: any): any {
 /**
  * Like parseToArray but also splits on long dashes (– and —).
  */
-export function parseStringList(value: any): string[] {
+export function parseStringList(value: unknown): string[] {
   if (!value) return [];
 
   if (Array.isArray(value)) return value.map(String).filter(Boolean);

@@ -410,6 +410,6 @@ export async function computeProgress(state: AppState, userId: string, wf?: { co
   return { global, branding, profilInsta, contenu, engagement, siteWeb };
 }
 
-function countFilledFields(obj: any, fields: string[]): number {
+function countFilledFields(obj: Record<string, unknown> | null | undefined, fields: string[]): number {
   return fields.filter((f) => obj?.[f] && String(obj[f]).trim().length > 0).length;
 }

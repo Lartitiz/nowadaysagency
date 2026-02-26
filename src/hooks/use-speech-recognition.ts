@@ -67,7 +67,7 @@ export function useSpeechRecognition(onResult: (text: string) => void): UseSpeec
     recognition.continuous = true;
     recognition.interimResults = true;
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
       // Reset silence timer on any result (including interim)
       startSilenceTimer();
 
@@ -83,7 +83,7 @@ export function useSpeechRecognition(onResult: (text: string) => void): UseSpeec
       }
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       clearSilenceTimer();
       setIsListening(false);
       if (event.error === "not-allowed") {

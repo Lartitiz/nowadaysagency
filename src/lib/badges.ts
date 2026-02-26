@@ -197,7 +197,7 @@ export async function checkBadges(filter: { column: string; value: string }, use
     .select("badge_id")
     .eq(filter.column, filter.value);
 
-  const existingIds = (existing || []).map((b: any) => b.badge_id);
+  const existingIds = (existing || []).map((b: { badge_id: string }) => b.badge_id);
 
   const newBadges = BADGES.filter(
     (badge) => !existingIds.includes(badge.id) && badge.condition(stats)

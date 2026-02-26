@@ -175,6 +175,8 @@ export function useUserPlan(): UserPlanState {
   };
 }
 
+// TODO: type demoData properly
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getDemoUsage(demoPlan: string, demoData: any): Record<string, CategoryUsage> {
   if (demoPlan === "free") {
     return {

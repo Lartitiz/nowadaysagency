@@ -69,6 +69,7 @@ export interface UploadedFile {
 }
 
 interface AuditResults {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   documents: any;
   isLoading: boolean;
 }
@@ -115,7 +116,7 @@ export function useOnboarding() {
     mission: isDemoMode ? (demoData?.branding.mission ?? "") : "",
     target_description: isDemoMode ? "Femme entrepreneure, 30-45 ans, qui a lancé son activité depuis 1-3 ans. Elle sait qu'elle a besoin de photos pro mais elle repousse parce qu'elle ne se trouve pas photogénique. Elle veut des images qui lui ressemblent, pas des photos corporate sans âme." : "",
     tone_keywords: isDemoMode ? ["chaleureux", "direct", "inspirant"] : [],
-    offers: isDemoMode ? (demoData?.offers?.map((o: any) => ({ name: o.name, price: o.price, description: o.description })) ?? []) : [{ name: "", price: "", description: "" }],
+    offers: isDemoMode ? (demoData?.offers?.map((o: { name: string; price: string; description: string }) => ({ name: o.name, price: o.price, description: o.description })) ?? []) : [{ name: "", price: "", description: "" }],
     values: isDemoMode ? ([...(demoData?.branding.values ?? [])]) : [],
   });
 
@@ -314,9 +315,9 @@ export function useOnboarding() {
           }]);
         }
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast({ title: "Erreur", description: friendlyError(e as Error), variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -434,9 +435,9 @@ export function useOnboarding() {
       localStorage.removeItem("lac_onboarding_answers");
       localStorage.removeItem("lac_onboarding_branding");
       localStorage.removeItem("lac_onboarding_ts");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erreur technique:", error);
-      toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
+      toast({ title: "Erreur", description: friendlyError(error as Error), variant: "destructive" });
     } finally {
       setSaving(false);
     }
