@@ -206,7 +206,7 @@ export function useOnboarding() {
   const prev = useCallback(() => setStep(s => Math.max(0, s - 1)), []);
 
   // Endowed progress
-  const progress = step === 0 ? 5 : step >= TOTAL_STEPS ? 100 : Math.max(5, ((step + 1) / TOTAL_STEPS) * 100);
+  const progress = step === 0 ? 15 : step >= TOTAL_STEPS ? 100 : Math.max(15, ((step + 1) / TOTAL_STEPS) * 100);
 
   // Time remaining estimate
   const getTimeRemaining = (currentStep: number): string => {
