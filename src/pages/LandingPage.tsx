@@ -730,7 +730,7 @@ export default function LandingPage() {
               <nav className="flex flex-col gap-2 text-sm text-background/60">
                 <Link to="/mentions-legales" className="hover:text-background transition-colors">Mentions légales</Link>
                 <Link to="/legal-ia" className="hover:text-background transition-colors">CGV</Link>
-                <Link to="/legal-ia" className="hover:text-background transition-colors">Confidentialité</Link>
+                <Link to="/confidentialite" className="hover:text-background transition-colors">Confidentialité</Link>
               </nav>
               <div className="flex items-center gap-3 mt-4">
                 <a href="https://instagram.com/nowadaysagency" target="_blank" rel="noopener noreferrer" className="text-background/60 hover:text-background transition-colors">
