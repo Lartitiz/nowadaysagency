@@ -1,11 +1,13 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, EngagementInsightSchema } from "../_shared/input-validators.ts";
+import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const { userId } = await authenticateRequest(req);
+
     const { currentWeek, history } = validateInput(await req.json(), EngagementInsightSchema);
 
     // Anthropic API key checked in shared helper
@@ -73,6 +75,11 @@ Génère 1-2 phrases d'insight :
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof AuthError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: e.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("engagement-insight error:", e);
     const status = e instanceof ValidationError ? 400 : 500;
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
