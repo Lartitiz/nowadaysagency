@@ -37,6 +37,7 @@ export default function DictationInput({ onTranscribed, placeholder }: Dictation
                 ? "bg-destructive text-destructive-foreground animate-pulse"
                 : "bg-primary text-primary-foreground hover:bg-primary/90"
             )}
+            aria-label={isListening ? "Arrêter la dictée" : "Dictée vocale"}
             title={isListening ? "Arrêter la dictée" : "Commencer la dictée"}
           >
             {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}

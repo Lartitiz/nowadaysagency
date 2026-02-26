@@ -74,6 +74,7 @@ export default function EditableField({
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             className="w-full border border-primary/30 rounded-lg p-3 text-foreground text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 min-h-[80px] bg-card resize-none"
+            aria-label={label}
             autoFocus
           />
         ) : (
@@ -82,6 +83,7 @@ export default function EditableField({
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             className="w-full border border-primary/30 rounded-lg p-3 text-foreground text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 bg-card"
+            aria-label={label}
             autoFocus
           />
         )}
@@ -104,6 +106,7 @@ export default function EditableField({
         <button
           onClick={() => { setEditValue(value || ""); setIsEditing(true); }}
           className="text-muted-foreground/40 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+          aria-label={`Modifier ${label}`}
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
