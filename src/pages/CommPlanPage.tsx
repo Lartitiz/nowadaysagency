@@ -6,9 +6,11 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import PlanSetup from "@/components/plan/PlanSetup";
 import PlanView from "@/components/plan/PlanView";
-import { computePlan, type PlanData, type PlanConfig, type PlanStepOverride } from "@/lib/plan-engine";
-import { Loader2, ClipboardList, BarChart3, Construction } from "lucide-react";
+import CoachPlanManager from "@/components/plan/CoachPlanManager";
+import { computePlan, type PlanData, type PlanConfig, type PlanStepOverride, type CoachExercise, type StepVisibility } from "@/lib/plan-engine";
+import { Loader2, ClipboardList, BarChart3, Construction, Settings2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { toast } from "@/hooks/use-toast";
 
@@ -23,12 +25,18 @@ export default function CommPlanPage() {
   const [plan, setPlan] = useState<PlanData | null>(null);
   const [showSetup, setShowSetup] = useState(false);
   const [overrides, setOverrides] = useState<PlanStepOverride[]>([]);
+  const [coachExercises, setCoachExercises] = useState<CoachExercise[]>([]);
+  const [hiddenSteps, setHiddenSteps] = useState<StepVisibility[]>([]);
+  const [showCoachManager, setShowCoachManager] = useState(false);
+  // For visibility tab we need a "full plan" (without hidden filtering) for CoachPlanManager
+  const [fullPlan, setFullPlan] = useState<PlanData | null>(null);
+
+  const isCoachMode = !!(user && workspaceId && workspaceId !== user.id);
 
   useEffect(() => {
     if (isDemoMode) {
       const demoCfg: PlanConfig = { weekly_time: "30min", channels: ["instagram", "site", "newsletter"], main_goal: "visibility" };
       setConfig(demoCfg);
-      // Build a demo plan with some steps done
       const demoPlan: PlanData = {
         config: demoCfg,
         progressPercent: 42,
@@ -66,15 +74,18 @@ export default function CommPlanPage() {
         ],
       };
       setPlan(demoPlan);
+      setFullPlan(demoPlan);
       setLoading(false);
       return;
     }
     if (!user?.id) return;
     (async () => {
-      // Fetch config and overrides in parallel
-      const [configRes, overridesRes] = await Promise.all([
+      // Fetch config, overrides, coach exercises, and visibility in parallel
+      const [configRes, overridesRes, exercisesRes, visibilityRes] = await Promise.all([
         (supabase.from("user_plan_config" as any).select("*").eq(column, value).maybeSingle() as any),
         (supabase.from("user_plan_overrides" as any).select("step_id, manual_status").eq(column, value) as any),
+        (supabase.from("coach_exercises" as any).select("*").eq("workspace_id", workspaceId).order("sort_order") as any),
+        (supabase.from("plan_step_visibility" as any).select("step_id, hidden").eq("workspace_id", workspaceId) as any),
       ]);
 
       const fetchedOverrides: PlanStepOverride[] = (overridesRes.data || []).map((o: any) => ({
@@ -83,6 +94,15 @@ export default function CommPlanPage() {
       }));
       setOverrides(fetchedOverrides);
 
+      const fetchedExercises: CoachExercise[] = exercisesRes.data || [];
+      setCoachExercises(fetchedExercises);
+
+      const fetchedVisibility: StepVisibility[] = (visibilityRes.data || []).map((v: any) => ({
+        step_id: v.step_id,
+        hidden: v.hidden,
+      }));
+      setHiddenSteps(fetchedVisibility);
+
       if (configRes.data) {
         const cfg: PlanConfig = {
           weekly_time: configRes.data.weekly_time,
@@ -90,7 +110,11 @@ export default function CommPlanPage() {
           main_goal: configRes.data.main_goal,
         };
         setConfig(cfg);
-        const planData = await computePlan({ column, value }, cfg, fetchedOverrides);
+        // Build full plan (no hidden filtering) for coach manager
+        const full = await computePlan({ column, value }, cfg, fetchedOverrides, fetchedExercises);
+        setFullPlan(full);
+        // Build filtered plan for display
+        const planData = await computePlan({ column, value }, cfg, fetchedOverrides, fetchedExercises, fetchedVisibility);
         setPlan(planData);
       } else {
         setShowSetup(true);
@@ -98,6 +122,19 @@ export default function CommPlanPage() {
       setLoading(false);
     })();
   }, [user?.id, isDemoMode]);
+
+  // Recompute plan when coach data changes
+  const recompute = useCallback(async (
+    ov: PlanStepOverride[] = overrides,
+    ex: CoachExercise[] = coachExercises,
+    vis: StepVisibility[] = hiddenSteps,
+  ) => {
+    if (!config) return;
+    const full = await computePlan({ column, value }, config, ov, ex);
+    setFullPlan(full);
+    const filtered = await computePlan({ column, value }, config, ov, ex, vis);
+    setPlan(filtered);
+  }, [config, column, value, overrides, coachExercises, hiddenSteps]);
 
   const handleSaveConfig = useCallback(async (cfg: PlanConfig) => {
     if (!user) return;
@@ -118,28 +155,37 @@ export default function CommPlanPage() {
       }
 
       setConfig(cfg);
-      const planData = await computePlan({ column, value }, cfg, overrides);
+      const full = await computePlan({ column, value }, cfg, overrides, coachExercises);
+      setFullPlan(full);
+      const planData = await computePlan({ column, value }, cfg, overrides, coachExercises, hiddenSteps);
       setPlan(planData);
       setShowSetup(false);
     } finally {
       setSaving(false);
     }
-  }, [user, config, overrides]);
+  }, [user, config, overrides, coachExercises, hiddenSteps]);
 
   const handleToggleStep = useCallback(async (stepId: string, newStatus: 'done' | 'undone') => {
     if (!user || !plan || !config) return;
     const wsId = workspaceId !== user.id ? workspaceId : null;
 
-    // Optimistic local update
+    // Check if it's a coach exercise toggle
+    if (stepId.startsWith("coach_")) {
+      const exerciseId = stepId.replace("coach_", "");
+      const dbStatus = newStatus === "done" ? "done" : "todo";
+      await (supabase.from("coach_exercises" as any).update({ status: dbStatus, updated_at: new Date().toISOString() }).eq("id", exerciseId) as any);
+      const newExercises = coachExercises.map(e => e.id === exerciseId ? { ...e, status: dbStatus } : e);
+      setCoachExercises(newExercises);
+      toast({ title: newStatus === "done" ? "✅ Étape cochée !" : "Étape décochée", duration: 2000 });
+      await recompute(overrides, newExercises, hiddenSteps);
+      return;
+    }
+
+    // Standard step override
     const newOverrides = [...overrides.filter(o => o.step_id !== stepId), { step_id: stepId, status: newStatus }];
     setOverrides(newOverrides);
-    const newPlan = await computePlan({ column, value }, config, newOverrides);
-    setPlan(newPlan);
-
-    toast({
-      title: newStatus === "done" ? "✅ Étape cochée !" : "Étape décochée",
-      duration: 2000,
-    });
+    toast({ title: newStatus === "done" ? "✅ Étape cochée !" : "Étape décochée", duration: 2000 });
+    await recompute(newOverrides, coachExercises, hiddenSteps);
 
     // Persist
     await (supabase.from("user_plan_overrides" as any).upsert({
@@ -149,7 +195,17 @@ export default function CommPlanPage() {
       manual_status: newStatus,
       updated_at: new Date().toISOString(),
     }, { onConflict: "user_id,workspace_id,step_id" }) as any);
-  }, [user, plan, config, overrides, column, value, workspaceId]);
+  }, [user, plan, config, overrides, coachExercises, hiddenSteps, column, value, workspaceId, recompute]);
+
+  const handleExercisesChange = useCallback(async (newExercises: CoachExercise[]) => {
+    setCoachExercises(newExercises);
+    await recompute(overrides, newExercises, hiddenSteps);
+  }, [overrides, hiddenSteps, recompute]);
+
+  const handleVisibilityChange = useCallback(async (newVis: StepVisibility[]) => {
+    setHiddenSteps(newVis);
+    await recompute(overrides, coachExercises, newVis);
+  }, [overrides, coachExercises, recompute]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -160,6 +216,19 @@ export default function CommPlanPage() {
           parentTo="/dashboard"
           currentLabel="Mon plan"
         />
+
+        {/* Coach mode banner */}
+        {isCoachMode && plan && (
+          <div className="flex items-center justify-between gap-3 mb-4 px-4 py-3 rounded-xl border border-primary/20 bg-primary/5">
+            <p className="text-sm text-foreground">
+              👩‍🏫 <span className="font-medium">Mode coach</span> — tu peux personnaliser ce plan
+            </p>
+            <Button variant="outline" size="sm" className="gap-1.5 flex-shrink-0" onClick={() => setShowCoachManager(true)}>
+              <Settings2 className="h-3.5 w-3.5" />
+              Personnaliser
+            </Button>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -202,6 +271,20 @@ export default function CommPlanPage() {
               </div>
             </TabsContent>
           </Tabs>
+        )}
+
+        {/* Coach Manager Dialog */}
+        {isCoachMode && fullPlan && (
+          <CoachPlanManager
+            open={showCoachManager}
+            onOpenChange={setShowCoachManager}
+            workspaceId={workspaceId}
+            plan={fullPlan}
+            exercises={coachExercises}
+            hiddenSteps={hiddenSteps}
+            onExercisesChange={handleExercisesChange}
+            onVisibilityChange={handleVisibilityChange}
+          />
         )}
       </main>
     </div>

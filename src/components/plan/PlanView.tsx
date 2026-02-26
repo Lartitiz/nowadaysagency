@@ -147,8 +147,12 @@ function StepCard({ step, navigate, onToggleStep }: { step: PlanStep; navigate: 
   const cfg = statusConfig[step.status];
   const canToggle = step.status !== "locked" && !step.comingSoon && !!onToggleStep;
 
+  // Coach exercise deadline overdue check
+  const isOverdue = step.isCoachExercise && step.deadline && step.status !== "done" && new Date(step.deadline) < new Date();
+
   const handleNavigate = () => {
     if (step.status === "locked" || step.comingSoon) return;
+    if (step.route === "#") return;
     if (step.route.startsWith("http")) {
       window.open(step.route, "_blank", "noopener,noreferrer");
       return;
@@ -168,6 +172,8 @@ function StepCard({ step, navigate, onToggleStep }: { step: PlanStep; navigate: 
   return (
     <div
       className={`w-full text-left p-4 rounded-xl border transition-all group ${cfg.color} ${
+        step.isCoachExercise ? "border-l-4 border-l-primary" : ""
+      } ${
         step.status !== "locked" && !step.comingSoon ? "hover:shadow-sm hover:border-primary/30" : "opacity-60"
       }`}
     >
@@ -187,14 +193,24 @@ function StepCard({ step, navigate, onToggleStep }: { step: PlanStep; navigate: 
 
         {/* Clickable content area for navigation */}
         <div
-          className={`flex-1 min-w-0 ${step.status !== "locked" && !step.comingSoon ? "cursor-pointer" : "cursor-not-allowed"}`}
+          className={`flex-1 min-w-0 ${step.status !== "locked" && !step.comingSoon && step.route !== "#" ? "cursor-pointer" : "cursor-default"}`}
           onClick={handleNavigate}
         >
           <div className="flex items-center gap-2">
             <span className="font-medium text-sm text-foreground">{step.label}</span>
+            {step.isCoachExercise && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary flex items-center gap-1">
+                👩‍🏫 Coach
+              </span>
+            )}
             {step.comingSoon && (
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground flex items-center gap-1">
                 <Construction className="h-3 w-3" /> Bientôt
+              </span>
+            )}
+            {isOverdue && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive flex items-center gap-1">
+                ⏰ En retard
               </span>
             )}
           </div>
@@ -214,10 +230,12 @@ function StepCard({ step, navigate, onToggleStep }: { step: PlanStep; navigate: 
           )}
         </div>
         <div className="flex-shrink-0 flex items-center gap-3" onClick={handleNavigate}>
-          <span className="text-xs text-muted-foreground flex items-center gap-1">
-            <Clock className="h-3 w-3" /> {step.duration} min
-          </span>
-          {step.status !== "locked" && !step.comingSoon && (
+          {step.duration > 0 && (
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <Clock className="h-3 w-3" /> {step.duration} min
+            </span>
+          )}
+          {step.status !== "locked" && !step.comingSoon && step.route !== "#" && (
             <span className="text-xs text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 cursor-pointer">
               {actionLabel} <ArrowRight className="h-3 w-3" />
             </span>
