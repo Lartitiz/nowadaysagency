@@ -23,7 +23,7 @@ export function AddPostMenu({ dateStr, onAddIdea, children }: Props) {
 
   const handleFormat = (route: string) => {
     setOpen(false);
-    navigate(`${route}?calendar_date=${dateStr}`);
+    navigate(`${route}${route.includes("?") ? "&" : "?"}calendar_date=${dateStr}&from=/calendrier`);
   };
 
   return (

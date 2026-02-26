@@ -263,6 +263,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     const calendarId = editingPost?.id;
     const params = new URLSearchParams();
     if (calendarId) params.set("calendar_id", calendarId);
+    if (theme) params.set("sujet", encodeURIComponent(theme));
+    if (objectif) params.set("objectif", objectif);
+    params.set("from", "/calendrier");
 
     // Pass rich context via state for all generators
     const state = {
