@@ -860,6 +860,7 @@ function PreviewTab({ canal, format, caption, theme, username, displayName, onNa
           slides={slides}
           showComments={false}
           readonly
+          hideFollowButton
         />
       </div>
     );
@@ -884,6 +885,7 @@ function PreviewTab({ canal, format, caption, theme, username, displayName, onNa
         caption={caption}
         showComments={false}
         readonly
+        hideFollowButton
       />
     </div>
   );

@@ -494,6 +494,7 @@ export default function SharedCalendarPage() {
               showComments={false}
               readonly={true}
               compact={true}
+              hideFollowButton
             />
           </div>
 
