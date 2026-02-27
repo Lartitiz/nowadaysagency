@@ -322,6 +322,7 @@ export type Database = {
           uploaded_templates: Json | null
           user_id: string
           visual_donts: string | null
+          workspace_id: string | null
         }
         Insert: {
           ai_generated_brief?: string | null
@@ -351,6 +352,7 @@ export type Database = {
           uploaded_templates?: Json | null
           user_id: string
           visual_donts?: string | null
+          workspace_id?: string | null
         }
         Update: {
           ai_generated_brief?: string | null
@@ -380,8 +382,17 @@ export type Database = {
           uploaded_templates?: Json | null
           user_id?: string
           visual_donts?: string | null
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "brand_charter_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       brand_profile: {
         Row: {
