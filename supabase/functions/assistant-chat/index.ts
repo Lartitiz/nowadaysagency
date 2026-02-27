@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, AssistantChatSchema } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
@@ -306,8 +306,9 @@ FORMAT DE RÉPONSE (JSON strict) :
 Retourne UNIQUEMENT du JSON valide, sans texte avant ou après.`;
 
 Deno.serve(async (req) => {
+  const cors = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: cors });
   }
 
   try {
@@ -315,13 +316,13 @@ Deno.serve(async (req) => {
     if (!userId) {
       return new Response(JSON.stringify({ error: "Non authentifié" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
     // Rate limit check
     const rateCheck = checkRateLimit(userId);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, cors);
 
     const { message, conversation_history, confirmed_actions, undo, workspace_id } = validateInput(await req.json(), AssistantChatSchema);
     const sb = getServiceClient();
@@ -330,7 +331,7 @@ Deno.serve(async (req) => {
     if (undo) {
       const result = await undoLastAction(sb, userId);
       return new Response(JSON.stringify({ message: result.message, results: null }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -343,7 +344,7 @@ Deno.serve(async (req) => {
           message: allSuccess ? "✅ C'est fait !" : "⚠️ Certaines actions ont échoué.",
           results,
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
 
@@ -352,7 +353,7 @@ Deno.serve(async (req) => {
     if (!quota.allowed) {
       return new Response(
         JSON.stringify({ message: quota.message, results: null }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
 
@@ -441,7 +442,7 @@ Deno.serve(async (req) => {
           results,
           remaining: quota.remaining,
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
 
@@ -453,7 +454,7 @@ Deno.serve(async (req) => {
           pending_actions: parsed.actions,
           remaining: quota.remaining,
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
 
@@ -464,7 +465,7 @@ Deno.serve(async (req) => {
         results: null,
         remaining: quota.remaining,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...cors, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
     console.error(JSON.stringify({
@@ -476,7 +477,7 @@ Deno.serve(async (req) => {
     }));
     return new Response(
       JSON.stringify({ error: err.message || "Erreur interne" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...cors, "Content-Type": "application/json" } }
     );
   }
 });

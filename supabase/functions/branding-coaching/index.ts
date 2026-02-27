@@ -148,8 +148,8 @@ Quand is_complete = true, ajoute :
 }
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const cors = getCorsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   try {
     const body = await req.json();
@@ -169,7 +169,7 @@ serve(async (req) => {
     // Health check / ping (no auth needed)
     if (body.ping) {
       return new Response(JSON.stringify({ ok: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -178,14 +178,14 @@ serve(async (req) => {
 
     // Rate limit check
     const rateCheck = checkRateLimit(userId);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, cors);
 
     const { section, messages, context, covered_topics, workspace_id } = body;
 
     if (!section) {
       return new Response(JSON.stringify({ error: "section requis" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -229,7 +229,7 @@ serve(async (req) => {
       });
 
       return new Response(JSON.stringify({ response: rawStory }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -324,26 +324,26 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ response: parsed }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (error) {
     if (error instanceof ValidationError) {
       return new Response(JSON.stringify({ error: error.message }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
     if (error instanceof AuthError) {
       return new Response(JSON.stringify({ error: error.message }), {
         status: error.status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
     console.error("branding-coaching error:", error);
     const status = (error as any).status || 500;
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Erreur interne" }), {
       status,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 });
