@@ -5,7 +5,7 @@ import { STATUSES, CANAL_COLORS, type CalendarPost } from "@/lib/calendar-consta
 import { FORMAT_EMOJIS, FORMAT_LABELS, OBJECTIVE_CARD_COLORS, CATEGORY_LABELS } from "@/lib/calendar-helpers";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { Pencil, Copy, Trash2, ArrowUpDown } from "lucide-react";
+import { Pencil, Copy, Trash2, ArrowUpDown, ChevronDown, ChevronRight } from "lucide-react";
 
 interface CalendarListViewProps {
   posts: CalendarPost[];
@@ -13,6 +13,7 @@ interface CalendarListViewProps {
   onStatusChange: (postId: string, newStatus: string) => void;
   onDeletePost: (postId: string) => void;
   onDuplicate?: (post: CalendarPost) => void;
+  onUpdateDraft?: (postId: string, draft: string) => void;
   canalFilter: string;
   categoryFilter: string;
 }
@@ -62,59 +63,122 @@ function InlineStatusSelect({ status, onChange }: { status: string; onChange: (s
   );
 }
 
+/** Expandable draft section */
+function DraftSection({ post, editDraft, setEditDraft, onUpdateDraft }: {
+  post: CalendarPost;
+  editDraft: string;
+  setEditDraft: (v: string) => void;
+  onUpdateDraft?: (postId: string, draft: string) => void;
+}) {
+  return (
+    <div className="px-4 py-3 bg-muted/20 border-b border-border">
+      <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+        ✏️ Rédaction
+      </label>
+      <textarea
+        value={editDraft}
+        onChange={(e) => setEditDraft(e.target.value)}
+        onBlur={() => onUpdateDraft?.(post.id, editDraft)}
+        placeholder="Écris ton texte ici..."
+        className="w-full min-h-[100px] text-sm bg-background border border-border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary/20 resize-y"
+      />
+      {post.notes && (
+        <div className="mt-2">
+          <span className="text-xs font-semibold text-muted-foreground">📝 Notes :</span>
+          <p className="text-xs text-muted-foreground mt-0.5">{post.notes}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Mobile card for a single post row */
-function MobileCard({ post, onEditPost, onStatusChange, onDeletePost, onDuplicate }: {
+function MobileCard({ post, onEditPost, onStatusChange, onDeletePost, onDuplicate, expandedId, setExpandedId, editDraft, setEditDraft, onUpdateDraft }: {
   post: CalendarPost;
   onEditPost: (p: CalendarPost) => void;
   onStatusChange: (id: string, s: string) => void;
   onDeletePost: (id: string) => void;
   onDuplicate?: (p: CalendarPost) => void;
+  expandedId: string | null;
+  setExpandedId: (id: string | null) => void;
+  editDraft: string;
+  setEditDraft: (v: string) => void;
+  onUpdateDraft?: (postId: string, draft: string) => void;
 }) {
   const formatKey = (post as any).format_technique || post.format || "";
   const formatEmoji = FORMAT_EMOJIS[formatKey] || "";
   const formatLabel = FORMAT_LABELS[formatKey] || "";
+  const isExpanded = expandedId === post.id;
+
+  const toggleExpand = () => {
+    if (isExpanded) {
+      setExpandedId(null);
+    } else {
+      setExpandedId(post.id);
+      setEditDraft((post as any).content_draft || "");
+    }
+  };
 
   return (
-    <div className="bg-card border border-border rounded-xl p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{formatDate(post.date)}</span>
-        <CanalBadge canal={post.canal} />
-      </div>
-      <button onClick={() => onEditPost(post)} className="text-sm font-medium text-foreground text-left w-full hover:text-primary transition-colors truncate">
-        {post.content_type_emoji || ""} {post.theme}
-      </button>
-      <div className="flex items-center gap-2 flex-wrap">
-        {formatEmoji && <span className="text-xs text-muted-foreground">{formatEmoji} {formatLabel}</span>}
-        <ObjectifBadge objectif={post.objectif || post.category || null} />
-      </div>
-      <div className="flex items-center justify-between pt-1 border-t border-border/50">
-        <InlineStatusSelect status={post.status} onChange={(s) => onStatusChange(post.id, s)} />
-        <div className="flex items-center gap-1">
-          <button onClick={() => onEditPost(post)} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-          {onDuplicate && (
-            <button onClick={() => onDuplicate(post)} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
-              <Copy className="h-3.5 w-3.5" />
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <div className="p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">{formatDate(post.date)}</span>
+          <CanalBadge canal={post.canal} />
+        </div>
+        <button onClick={() => onEditPost(post)} className="text-sm font-medium text-foreground text-left w-full hover:text-primary transition-colors truncate">
+          {post.content_type_emoji || ""} {post.theme}
+        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {formatEmoji && <span className="text-xs text-muted-foreground">{formatEmoji} {formatLabel}</span>}
+          <ObjectifBadge objectif={post.objectif || post.category || null} />
+        </div>
+        <div className="flex items-center justify-between pt-1 border-t border-border/50">
+          <InlineStatusSelect status={post.status} onChange={(s) => onStatusChange(post.id, s)} />
+          <div className="flex items-center gap-1">
+            <button onClick={toggleExpand} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors" title="Voir la rédaction">
+              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             </button>
-          )}
-          <button onClick={() => onDeletePost(post.id)} className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+            <button onClick={() => onEditPost(post)} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            {onDuplicate && (
+              <button onClick={() => onDuplicate(post)} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+                <Copy className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <button onClick={() => onDeletePost(post.id)} className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       </div>
+      {isExpanded && (
+        <DraftSection post={post} editDraft={editDraft} setEditDraft={setEditDraft} onUpdateDraft={onUpdateDraft} />
+      )}
     </div>
   );
 }
 
-export function CalendarListView({ posts, onEditPost, onStatusChange, onDeletePost, onDuplicate, canalFilter, categoryFilter }: CalendarListViewProps) {
+export function CalendarListView({ posts, onEditPost, onStatusChange, onDeletePost, onDuplicate, onUpdateDraft, canalFilter, categoryFilter }: CalendarListViewProps) {
   const isMobile = useIsMobile();
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortKey(key); setSortDir("asc"); }
+  };
+
+  const toggleExpand = (post: CalendarPost) => {
+    if (expandedId === post.id) {
+      setExpandedId(null);
+    } else {
+      setExpandedId(post.id);
+      setEditDraft((post as any).content_draft || "");
+    }
   };
 
   const filtered = useMemo(() => {
@@ -148,7 +212,19 @@ export function CalendarListView({ posts, onEditPost, onStatusChange, onDeletePo
       <div className="space-y-2">
         {sorted.length === 0 && <EmptyState {...MESSAGES.empty.calendar_empty} />}
         {sorted.map((post) => (
-          <MobileCard key={post.id} post={post} onEditPost={onEditPost} onStatusChange={onStatusChange} onDeletePost={onDeletePost} onDuplicate={onDuplicate} />
+          <MobileCard
+            key={post.id}
+            post={post}
+            onEditPost={onEditPost}
+            onStatusChange={onStatusChange}
+            onDeletePost={onDeletePost}
+            onDuplicate={onDuplicate}
+            expandedId={expandedId}
+            setExpandedId={setExpandedId}
+            editDraft={editDraft}
+            setEditDraft={setEditDraft}
+            onUpdateDraft={onUpdateDraft}
+          />
         ))}
       </div>
     );
@@ -165,7 +241,8 @@ export function CalendarListView({ posts, onEditPost, onStatusChange, onDeletePo
   return (
     <div className="border border-border rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="grid grid-cols-[100px_1fr_90px_120px_110px_120px_90px] gap-2 px-4 py-2.5 bg-muted/50 border-b border-border sticky top-0 z-10">
+      <div className="grid grid-cols-[28px_100px_1fr_90px_120px_110px_120px_90px] gap-2 px-4 py-2.5 bg-muted/50 border-b border-border sticky top-0 z-10">
+        <span />
         <SortHeader label="Date" k="date" />
         <span className="text-xs font-semibold text-muted-foreground">Thème</span>
         <SortHeader label="Canal" k="canal" />
@@ -183,36 +260,56 @@ export function CalendarListView({ posts, onEditPost, onStatusChange, onDeletePo
         const formatKey = (post as any).format_technique || post.format || "";
         const formatEmoji = FORMAT_EMOJIS[formatKey] || "";
         const formatLabel = FORMAT_LABELS[formatKey] || "";
+        const isExpanded = expandedId === post.id;
+        const hasDraft = !!(post as any).content_draft;
 
         return (
-          <div
-            key={post.id}
-            className={cn(
-              "grid grid-cols-[100px_1fr_90px_120px_110px_120px_90px] gap-2 px-4 py-2 items-center border-b border-border/50 group hover:bg-accent/30 transition-colors",
-              i % 2 === 1 && "bg-muted/5"
-            )}
-          >
-            <span className="text-xs text-muted-foreground">{formatDate(post.date)}</span>
-            <button onClick={() => onEditPost(post)} className="text-sm font-medium text-foreground text-left truncate hover:text-primary transition-colors">
-              {post.content_type_emoji || ""} {post.theme}
-            </button>
-            <div><CanalBadge canal={post.canal} /></div>
-            <span className="text-xs text-muted-foreground truncate">{formatEmoji} {formatLabel || "—"}</span>
-            <ObjectifBadge objectif={post.objectif || post.category || null} />
-            <InlineStatusSelect status={post.status} onChange={(s) => onStatusChange(post.id, s)} />
-            <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => onEditPost(post)} className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors" title="Modifier">
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-              {onDuplicate && (
-                <button onClick={() => onDuplicate(post)} className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors" title="Dupliquer">
-                  <Copy className="h-3.5 w-3.5" />
-                </button>
+          <div key={post.id}>
+            <div
+              className={cn(
+                "grid grid-cols-[28px_100px_1fr_90px_120px_110px_120px_90px] gap-2 px-4 py-2 items-center border-b border-border/50 group hover:bg-accent/30 transition-colors cursor-pointer",
+                i % 2 === 1 && "bg-muted/5",
+                isExpanded && "bg-accent/20"
               )}
-              <button onClick={() => onDeletePost(post.id)} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Supprimer">
-                <Trash2 className="h-3.5 w-3.5" />
+              onClick={(e) => {
+                // Don't toggle if clicking on interactive elements
+                if ((e.target as HTMLElement).closest("button, select, a")) return;
+                toggleExpand(post);
+              }}
+            >
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleExpand(post); }}
+                className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : (
+                  <ChevronRight className={cn("h-3.5 w-3.5", hasDraft && "text-primary")} />
+                )}
               </button>
+              <span className="text-xs text-muted-foreground">{formatDate(post.date)}</span>
+              <button onClick={() => onEditPost(post)} className="text-sm font-medium text-foreground text-left truncate hover:text-primary transition-colors">
+                {post.content_type_emoji || ""} {post.theme}
+              </button>
+              <div><CanalBadge canal={post.canal} /></div>
+              <span className="text-xs text-muted-foreground truncate">{formatEmoji} {formatLabel || "—"}</span>
+              <ObjectifBadge objectif={post.objectif || post.category || null} />
+              <InlineStatusSelect status={post.status} onChange={(s) => onStatusChange(post.id, s)} />
+              <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => onEditPost(post)} className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors" title="Modifier">
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                {onDuplicate && (
+                  <button onClick={() => onDuplicate(post)} className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors" title="Dupliquer">
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <button onClick={() => onDeletePost(post.id)} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Supprimer">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
+            {isExpanded && (
+              <DraftSection post={post} editDraft={editDraft} setEditDraft={setEditDraft} onUpdateDraft={onUpdateDraft} />
+            )}
           </div>
         );
       })}
