@@ -60,6 +60,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
   const [ideaFormat, setIdeaFormat] = useState("post");
   const [objective, setObjective] = useState("visibilite");
   const [notes, setNotes] = useState("");
+  const [contentDraft, setContentDraft] = useState("");
   const [planDate, setPlanDate] = useState<Date | undefined>();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -71,6 +72,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       setIdeaFormat(idea.format || "post");
       setObjective(idea.objectif || "visibilite");
       setNotes(idea.notes || "");
+      setContentDraft(idea.content_draft || "");
       setConfirmDelete(false);
       setShowDatePicker(false);
       setShowTransformPicker(false);
@@ -85,6 +87,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       format: ideaFormat,
       objectif: objective,
       notes: notes || null,
+      content_draft: contentDraft || null,
       canal: ideaFormat === "linkedin" ? "linkedin" : "instagram",
     }).eq("id", idea.id);
     toast({ title: "Idée enregistrée !" });
@@ -229,6 +232,41 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
           className="rounded-[10px] min-h-[80px] text-sm"
         />
       </div>
+
+      {/* Generated content */}
+      {(idea?.content_draft || contentDraft) && (
+        <div>
+          <label className="text-xs font-semibold mb-1.5 block text-foreground flex items-center gap-1.5">
+            ✨ Contenu généré
+          </label>
+          <Textarea
+            value={contentDraft}
+            onChange={(e) => setContentDraft(e.target.value)}
+            placeholder="Le contenu généré apparaîtra ici..."
+            className="rounded-[10px] min-h-[120px] text-sm"
+          />
+        </div>
+      )}
+
+      {/* Script (reel) */}
+      {(idea as any)?.content_data?.script && (
+        <div>
+          <label className="text-xs font-semibold mb-1.5 block text-foreground">
+            🎬 Script
+          </label>
+          <div className="bg-muted/30 rounded-lg p-3 space-y-2 text-xs">
+            {(idea as any).content_data.script.map((scene: any, i: number) => (
+              <div key={i} className="border-b border-border/30 pb-2 last:border-0 last:pb-0">
+                <span className="font-semibold text-muted-foreground">[{scene.timing}] {scene.section?.toUpperCase()}</span>
+                <p className="text-foreground mt-0.5">"{scene.texte_parle}"</p>
+                {scene.texte_overlay && (
+                  <p className="text-muted-foreground mt-0.5">📝 {scene.texte_overlay}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Date picker for planning */}
       {showDatePicker && (
