@@ -119,7 +119,7 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
                       <ChevronRight className="h-3 w-3" />
                     </button>
                   )}
-                  {onQuickGenerate && (post.status === "idea" || post.status === "a_rediger") && (
+                  {onQuickGenerate && !post.content_draft && !(post as any).generated_content_id && (post.status === "idea" || post.status === "a_rediger") && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
