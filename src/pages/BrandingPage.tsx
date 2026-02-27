@@ -499,9 +499,6 @@ export default function BrandingPage() {
                     localStorage.setItem("branding_skip_import", "true");
                     await reloadCompletion();
                   }}
-                  onOpenCoaching={(section, context) => {
-                    toast.info("Le coaching IA pour cette section arrive bientôt !");
-                  }}
                 />
               </motion.div>
             )}

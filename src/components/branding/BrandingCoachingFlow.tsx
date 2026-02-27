@@ -106,9 +106,11 @@ interface BrandingCoachingFlowProps {
   section: Section;
   onComplete?: () => void;
   onBack?: () => void;
+  autofillData?: Record<string, any> | null;
+  autofillConfidence?: string | null;
 }
 
-export default function BrandingCoachingFlow({ section, onComplete, onBack }: BrandingCoachingFlowProps) {
+export default function BrandingCoachingFlow({ section, onComplete, onBack, autofillData, autofillConfidence }: BrandingCoachingFlowProps) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -296,6 +298,8 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
           messages: simpleMsgs,
           context,
           covered_topics: coveredTopicsRef.current,
+          autofill_data: autofillData || undefined,
+          autofill_confidence: autofillConfidence || undefined,
         },
       });
 
