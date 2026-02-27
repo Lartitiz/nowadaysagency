@@ -21,7 +21,7 @@ const MISSIONS_META = [
     title: "Raconte ton histoire",
     emoji: "📖",
     time: "15 min",
-    route: "/branding/storytelling",
+    route: "/branding/storytelling/new",
     description: "Écris pourquoi tu fais ce que tu fais. C'est la base de ta marque.",
   },
   {
