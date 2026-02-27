@@ -667,9 +667,22 @@ export default function CalendarPage() {
               ))}
             </div>
           ) : (
-            <span className="font-display text-lg font-bold capitalize">
-              {viewMode === "month" ? monthName : weekLabel}
-            </span>
+            <div className="flex items-center gap-2">
+              {(() => {
+                const now = new Date();
+                const isCurrentMonth = now.getMonth() === month && now.getFullYear() === year;
+                const isCurrentWeek = viewMode === "week" && weekStart.getTime() === getWeekStart(now).getTime();
+                const isCurrent = viewMode === "month" ? isCurrentMonth : isCurrentWeek;
+                return !isCurrent ? (
+                  <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())} className="rounded-full text-xs px-3">
+                    Aujourd'hui
+                  </Button>
+                ) : null;
+              })()}
+              <span className="font-display text-lg font-bold capitalize">
+                {viewMode === "month" ? monthName : weekLabel}
+              </span>
+            </div>
           )}
         </div>
         {viewMode !== "kanban" && viewMode !== "list" ? (
