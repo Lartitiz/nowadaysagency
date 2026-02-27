@@ -167,7 +167,7 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
               <Lightbulb className="h-5 w-5 text-primary" />
               Coaching LinkedIn
             </SheetTitle>
-            <SheetDescription className="sr-only">Coaching IA pour optimiser ton LinkedIn</SheetDescription>
+            <SheetDescription className="sr-only">Coaching pour optimiser ton LinkedIn</SheetDescription>
           </SheetHeader>
 
           {auditScore != null && (

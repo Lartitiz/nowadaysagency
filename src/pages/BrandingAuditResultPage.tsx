@@ -620,7 +620,7 @@ export default function BrandingAuditResultPage() {
                             setCoachingOpen(true);
                           }}
                         >
-                          <MessageCircle className="h-3 w-3" /> Coaching IA
+                          <MessageCircle className="h-3 w-3" /> Coaching
                         </Button>
                         <Button
                           size="sm"

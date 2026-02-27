@@ -427,7 +427,7 @@ export default function BrandingSectionPage() {
             </TabsTrigger>
             <TabsTrigger value="coaching" className="flex-1 gap-2">
               <MessageSquare className="h-4 w-4" />
-              Coaching IA
+              Coaching
             </TabsTrigger>
             <TabsTrigger value="synthese" className="flex-1 gap-2">
               <FileText className="h-4 w-4" />

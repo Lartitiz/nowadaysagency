@@ -141,7 +141,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
       open={open}
       onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}
       title="Planifier ma semaine"
-      description="Coaching IA pour planifier ta semaine de contenu"
+      description="Coaching pour planifier ta semaine de contenu"
       emoji="📅"
     >
         {/* Step 1: Posts per week */}

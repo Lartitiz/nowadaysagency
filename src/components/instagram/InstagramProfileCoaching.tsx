@@ -192,7 +192,7 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
               <Lightbulb className="h-5 w-5 text-primary" />
               Coaching profil Instagram
             </SheetTitle>
-            <SheetDescription className="sr-only">Coaching IA pour optimiser ton profil Instagram</SheetDescription>
+            <SheetDescription className="sr-only">Coaching pour optimiser ton profil Instagram</SheetDescription>
           </SheetHeader>
 
           {/* Module tabs */}

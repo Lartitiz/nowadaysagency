@@ -489,7 +489,7 @@ export default function BrandCharterPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="coaching" className="gap-1.5">
-              <Sparkles className="h-3.5 w-3.5" /> Coaching IA
+              <Sparkles className="h-3.5 w-3.5" /> Coaching
             </TabsTrigger>
             <TabsTrigger value="fiche" className="gap-1.5">
               <FileText className="h-3.5 w-3.5" /> Ma fiche
