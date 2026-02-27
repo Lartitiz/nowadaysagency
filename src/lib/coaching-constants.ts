@@ -54,13 +54,13 @@ export const FIXED_SESSIONS = [
 ] as const;
 
 export const DEFAULT_DELIVERABLES = [
-  { title: "Audit de communication", type: "audit", route: "/audit-branding" },
+  { title: "Audit de communication", type: "audit", route: "/branding/audit" },
   { title: "Branding complet", type: "branding", route: "/branding" },
-  { title: "Portrait cible", type: "persona", route: "/branding/cible" },
+  { title: "Portrait cible", type: "persona", route: "/branding/persona" },
   { title: "Offres reformulées", type: "offers", route: "/branding/offres" },
-  { title: "Ligne éditoriale", type: "editorial", route: "/branding/editorial" },
+  { title: "Ligne éditoriale", type: "editorial", route: "/branding/strategie" },
   { title: "Calendrier 3 mois", type: "calendar", route: "/calendrier" },
-  { title: "Bio optimisée", type: "bio", route: "/instagram/bio" },
+  { title: "Bio optimisée", type: "bio", route: "/instagram/profil/bio" },
   { title: "10-15 contenus prêts", type: "content", route: "/calendrier" },
   { title: "Templates Canva", type: "templates", route: null },
   { title: "Plan de com' 6 mois", type: "plan", route: "/plan" },
