@@ -7,9 +7,9 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
-import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight, Cookie } from "lucide-react";
+import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight, Cookie, RotateCcw } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { enablePostHog, disablePostHog } from "@/lib/posthog";
 import { enableSentryReplays, disableSentryReplays } from "@/lib/sentry";
@@ -45,6 +45,8 @@ export default function SettingsPage() {
   const [notifReminders, setNotifReminders] = useState(() => localStorage.getItem("pref_notif_reminders") !== "false");
 
   const [deleting, setDeleting] = useState(false);
+  const [resettingOnboarding, setResettingOnboarding] = useState(false);
+  const navigate = useNavigate();
   const [cookieConsent, setCookieConsent] = useState(() => localStorage.getItem("cookie_consent"));
 
   // Subscription state
@@ -358,6 +360,58 @@ export default function SettingsPage() {
             <p className="text-muted-foreground">Tes données sont utilisées uniquement pour personnaliser les générations dans l'app. Elles ne sont pas partagées avec des tiers.</p>
             <Link to="/legal-ia" className="text-primary text-xs font-medium hover:underline">Nos engagements →</Link>
           </div>
+        </Section>
+
+        {/* ─── Refaire l'onboarding ─── */}
+        <Section icon={<RotateCcw className="h-4 w-4" />} title="Parcours initial">
+          <p className="text-sm text-muted-foreground mb-4">
+            Tu peux relancer le parcours d'onboarding pour mettre à jour ton profil, ton activité et tes objectifs. Tes données de branding existantes ne seront pas supprimées.
+          </p>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" className="rounded-full" disabled={resettingOnboarding}>
+                {resettingOnboarding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+                Refaire l'onboarding
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Relancer le parcours initial ?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tu vas repasser par les étapes d'onboarding pour mettre à jour ton profil. Tes contenus et ton branding existants seront conservés.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="rounded-full">Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  className="rounded-full"
+                  disabled={resettingOnboarding}
+                  onClick={async () => {
+                    if (!user) return;
+                    setResettingOnboarding(true);
+                    try {
+                      await Promise.all([
+                        supabase.from("profiles").update({ onboarding_completed: false, onboarding_step: 0 }).eq("user_id", user.id),
+                        supabase.from("user_plan_config").update({ onboarding_completed: false }).eq("user_id", user.id),
+                      ]);
+                      localStorage.removeItem("lac_onboarding_step");
+                      localStorage.removeItem("lac_onboarding_answers");
+                      localStorage.removeItem("lac_onboarding_branding");
+                      localStorage.removeItem("lac_onboarding_ts");
+                      navigate("/onboarding", { replace: true });
+                    } catch (e) {
+                      console.error("Reset onboarding error:", e);
+                      toast({ title: "Erreur", description: "Impossible de relancer l'onboarding.", variant: "destructive" });
+                    } finally {
+                      setResettingOnboarding(false);
+                    }
+                  }}
+                >
+                  Oui, relancer
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </Section>
 
         {/* ─── Danger zone ─── */}

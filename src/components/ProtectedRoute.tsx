@@ -31,8 +31,10 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
         ]);
         const done = profile?.onboarding_completed === true && config?.onboarding_completed === true;
         setNeedsOnboarding(!done);
-      } catch {
-        setNeedsOnboarding(false);
+      } catch (e) {
+        console.error("Onboarding check failed:", e);
+        // On error, assume onboarding needed to prevent bypass
+        setNeedsOnboarding(true);
       } finally {
         setCheckingOnboarding(false);
       }
