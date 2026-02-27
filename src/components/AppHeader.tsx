@@ -381,6 +381,9 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
         <DropdownMenuItem onClick={() => navigate("/branding")} className="gap-2 cursor-pointer">
           <Palette className="h-4 w-4" /> Mon branding
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate("/dashboard/complet")} className="gap-2 cursor-pointer">
+          <LayoutGrid className="h-4 w-4" /> Tableau de bord complet
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate("/abonnement")} className="gap-2 cursor-pointer">
           <CreditCard className="h-4 w-4" /> Mon abonnement
