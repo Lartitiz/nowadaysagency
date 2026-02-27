@@ -43,12 +43,12 @@ export interface UseGuideRecommendationResult {
 
 /* ── Section helpers ── */
 const SECTION_ORDER = [
-  { key: "storytelling" as const, label: "Ton histoire", route: "/branding/storytelling/new" },
-  { key: "persona" as const, label: "Ton·ta client·e idéal·e", route: "/branding/persona" },
-  { key: "proposition" as const, label: "Ta proposition de valeur", route: "/branding/proposition" },
-  { key: "tone" as const, label: "Ton & style", route: "/branding/ton" },
-  { key: "strategy" as const, label: "Ta stratégie de contenu", route: "/branding/strategie" },
-  { key: "charter" as const, label: "Ta charte visuelle", route: "/branding/charter" },
+  { key: "storytelling" as const, label: "Ton histoire", route: "/branding/storytelling", routeNew: "/branding/storytelling/new" },
+  { key: "persona" as const, label: "Ton·ta client·e idéal·e", route: "/branding/persona/recap", routeNew: "/branding/persona" },
+  { key: "proposition" as const, label: "Ta proposition de valeur", route: "/branding/proposition/recap", routeNew: "/branding/proposition" },
+  { key: "tone" as const, label: "Ton & style", route: "/branding/ton/recap", routeNew: "/branding/ton" },
+  { key: "strategy" as const, label: "Ta stratégie de contenu", route: "/branding/strategie/recap", routeNew: "/branding/strategie" },
+  { key: "charter" as const, label: "Ta charte visuelle", route: "/branding/charter", routeNew: "/branding/charter" },
 ] as const;
 
 function countFilledSections(bc: BrandingCompletion): number {
@@ -56,7 +56,8 @@ function countFilledSections(bc: BrandingCompletion): number {
 }
 
 function getNextEmptySection(bc: BrandingCompletion) {
-  return SECTION_ORDER.find((s) => bc[s.key] < 50) ?? SECTION_ORDER[0];
+  const s = SECTION_ORDER.find((s) => bc[s.key] < 50) ?? SECTION_ORDER[0];
+  return { ...s, activeRoute: bc[s.key] > 0 ? s.route : s.routeNew };
 }
 
 /* ── Fallback recommendation ── */
@@ -109,7 +110,7 @@ function buildRecommendation(
       explanation:
         "Ton histoire est posée, bravo ! Mais là il faut qu'on parle de l'essentiel : à qui tu t'adresses. Parce que parler à tout le monde, c'est parler à personne. *(Oui, je sais, on te l'a déjà dit. Mais cette fois, on le fait pour de vrai.)*",
       ctaLabel: "C'est parti !",
-      ctaRoute: "/branding/persona",
+      ctaRoute: bc.persona > 0 ? "/branding/persona/recap" : "/branding/persona",
       icon: "Users",
       alternatives: [
         { title: "Créer ton premier post", route: "/creer", icon: "PenLine" },
@@ -126,7 +127,7 @@ function buildRecommendation(
       title: "Continue à structurer ta com'",
       explanation: `Tu avances bien, il te reste ${remaining} section${remaining > 1 ? "s" : ""}. Le truc c'est que chaque section nourrit les autres : ton persona influence ton ton, ton ton influence tes contenus... On continue ?`,
       ctaLabel: "C'est parti !",
-      ctaRoute: next.route,
+      ctaRoute: next.activeRoute,
       icon: "Layers",
       alternatives: [
         { title: "Créer un contenu", route: "/creer", icon: "PenLine" },
