@@ -29,7 +29,16 @@ export default function CharterTemplatesSection({
 }: CharterTemplatesSectionProps) {
   const handleTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || !userId) return;
+    if (!files) return;
+
+    // Always use the authenticated user's ID for storage path (matches RLS policy)
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Vous devez être connectée pour uploader des fichiers");
+      return;
+    }
+    const authUserId = user.id;
+
     if (data.uploaded_templates.length + files.length > 10) {
       toast.error("Maximum 10 templates");
       return;
@@ -38,17 +47,25 @@ export default function CharterTemplatesSection({
     try {
       const newTemplates = [...data.uploaded_templates];
       for (const file of Array.from(files)) {
-        const path = `${userId}/templates/${Date.now()}-${file.name}`;
-        const { error } = await supabase.storage.from("brand-assets").upload(path, file);
-        if (error) throw error;
+        // Sanitize filename to avoid storage path issues
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `${authUserId}/templates/${Date.now()}-${safeName}`;
+        const { error } = await supabase.storage.from("brand-assets").upload(path, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+        if (error) {
+          console.error("Upload error:", error.message, error);
+          throw error;
+        }
         const { data: urlData } = supabase.storage.from("brand-assets").getPublicUrl(path);
         newTemplates.push({ url: urlData.publicUrl, name: file.name });
       }
       onDataChange({ uploaded_templates: newTemplates });
       toast.success("Templates uploadés !");
     } catch (err: any) {
-      toast.error("Erreur lors de l'upload");
-      console.error(err);
+      console.error("Upload failed:", err);
+      toast.error(err?.message || "Erreur lors de l'upload");
     } finally {
       setTemplatesUploading(false);
     }
