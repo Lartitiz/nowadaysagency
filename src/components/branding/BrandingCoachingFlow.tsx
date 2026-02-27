@@ -638,14 +638,15 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
               .eq("id", existing.id);
           } else {
             await (supabase.from("brand_charter") as any)
-              .insert({ user_id: user.id, ...charterPayload });
+              .insert({ user_id: profileUserId, workspace_id: workspaceId !== profileUserId ? workspaceId : undefined, ...charterPayload });
           }
           // Update local ref for next step
           charterDataRef.current = { ...charterDataRef.current, ...charterPayload };
         }
       } else if (sec === "persona") {
         await supabase.from("persona").upsert({
-          user_id: user.id,
+          user_id: profileUserId,
+          workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
           ...insights,
           updated_at: new Date().toISOString(),
         } as any, { onConflict: "user_id" });
@@ -671,7 +672,8 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
             .eq("id", existing.id);
         } else {
           await (supabase.from("storytelling") as any).insert({
-            user_id: user.id,
+            user_id: profileUserId,
+            workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
             ...storyData,
             title: "Mon histoire fondatrice",
             story_type: "fondatrice",
@@ -682,7 +684,8 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack }: Br
         }
       } else {
         await supabase.from("brand_profile").upsert({
-          user_id: user.id,
+          user_id: profileUserId,
+          workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
           ...insights,
           updated_at: new Date().toISOString(),
         } as any, { onConflict: "user_id" });

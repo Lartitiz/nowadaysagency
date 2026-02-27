@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -158,6 +158,8 @@ function VoiceLayersSummary({ layers }: { layers?: Array<{name: string; summary:
 export default function BrandingSynthesisSheet({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
+  const profileUserId = useProfileUserId();
   const { data: profileHookData } = useProfile();
   const { data: brandProfileHookData } = useBrandProfile();
   const navigate = useNavigate();
@@ -554,7 +556,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
                 } else {
                   const { data: newLink, error } = await supabase
                     .from("shared_branding_links")
-                    .insert({ user_id: user.id } as any)
+                    .insert({ user_id: profileUserId, workspace_id: workspaceId !== profileUserId ? workspaceId : undefined } as any)
                     .select("token")
                     .single() as any;
                   if (error) throw error;
