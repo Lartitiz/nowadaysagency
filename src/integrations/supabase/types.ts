@@ -798,6 +798,65 @@ export type Database = {
           },
         ]
       }
+      branding_autofill: {
+        Row: {
+          analysis_result: Json | null
+          autofill_pending_review: boolean
+          created_at: string
+          document_ids: string[] | null
+          id: string
+          instagram_handle: string | null
+          linkedin_url: string | null
+          overall_confidence: string | null
+          sources_failed: string[] | null
+          sources_used: string[] | null
+          updated_at: string
+          user_id: string
+          website_url: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          analysis_result?: Json | null
+          autofill_pending_review?: boolean
+          created_at?: string
+          document_ids?: string[] | null
+          id?: string
+          instagram_handle?: string | null
+          linkedin_url?: string | null
+          overall_confidence?: string | null
+          sources_failed?: string[] | null
+          sources_used?: string[] | null
+          updated_at?: string
+          user_id: string
+          website_url?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          analysis_result?: Json | null
+          autofill_pending_review?: boolean
+          created_at?: string
+          document_ids?: string[] | null
+          id?: string
+          instagram_handle?: string | null
+          linkedin_url?: string | null
+          overall_confidence?: string | null
+          sources_failed?: string[] | null
+          sources_used?: string[] | null
+          updated_at?: string
+          user_id?: string
+          website_url?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branding_autofill_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branding_coaching_sessions: {
         Row: {
           completed_at: string | null
