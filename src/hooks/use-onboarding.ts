@@ -8,7 +8,7 @@ import { friendlyError } from "@/lib/error-messages";
 import { getActivityExamples } from "@/lib/activity-examples";
 import { TOTAL_STEPS } from "@/lib/onboarding-constants";
 import { type DiagnosticData } from "@/lib/diagnostic-data";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { posthog } from "@/lib/posthog";
 
 /* ────────────────────────────────────────────── helpers */
@@ -78,6 +78,7 @@ export function useOnboarding() {
   const { user } = useAuth();
   const { isDemoMode, demoData, skipDemoOnboarding } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -400,7 +401,7 @@ export function useOnboarding() {
       if (existingBrand) {
         await supabase.from("brand_profile").update(brandData).eq("user_id", user.id);
       } else {
-        await supabase.from("brand_profile").insert({ user_id: user.id, ...brandData });
+        await supabase.from("brand_profile").insert({ user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, ...brandData });
       }
 
       // 4. PERSONA (upsert description)
@@ -410,7 +411,7 @@ export function useOnboarding() {
         if (existingPersona) {
           await supabase.from("persona").update({ description: brandingAnswers.target_description }).eq("user_id", user.id);
         } else {
-          await supabase.from("persona").insert({ user_id: user.id, description: brandingAnswers.target_description });
+          await supabase.from("persona").insert({ user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, description: brandingAnswers.target_description });
         }
       }
 
@@ -420,6 +421,7 @@ export function useOnboarding() {
         await supabase.from("offers").insert(
           validOffers.map((o, i) => ({
             user_id: user.id,
+            workspace_id: workspaceId !== user.id ? workspaceId : undefined,
             name: o.name,
             price_text: o.price || null,
             promise: o.description || null,
