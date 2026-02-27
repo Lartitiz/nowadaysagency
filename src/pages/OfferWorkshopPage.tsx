@@ -405,7 +405,10 @@ function Step2({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
                 <Button size="sm" className="text-xs rounded-pill" onClick={() => update("problem_deep_confirmed", true)}>
                   <Check className="h-3 w-3 mr-1" />C'est exactement ça
                 </Button>
-                <Button size="sm" variant="outline" className="text-xs rounded-pill" onClick={() => {}}>
+                <Button size="sm" variant="outline" className="text-xs rounded-pill" onClick={() => {
+                  update("problem_deep_confirmed", false);
+                  toast.info("Tu peux reformuler le problème ci-dessus pour affiner.");
+                }}>
                   <Pencil className="h-3 w-3 mr-1" />Pas tout à fait
                 </Button>
               </div>
@@ -453,7 +456,10 @@ function Step3({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
                 </button>
               ))}
               <button
-                onClick={() => {}}
+                onClick={() => {
+                  const textarea = document.querySelector('textarea[placeholder*="système de communication"]') as HTMLTextAreaElement;
+                  if (textarea) { textarea.focus(); textarea.scrollIntoView({ behavior: "smooth" }); }
+                }}
                 className="text-xs text-primary underline mt-1"
               >
                 ✏️ Écrire la mienne
