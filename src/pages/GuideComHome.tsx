@@ -8,6 +8,7 @@ import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { DashboardViewToggle, getDashboardPreference } from "@/components/dashboard/DashboardViewToggle";
 import GuideProgressBar from "@/components/dashboard/GuideProgressBar";
+import GuideCoachingSection from "@/components/dashboard/GuideCoachingSection";
 import {
   Target, Compass, MessageCircle, ArrowRight, BookOpen, Users, Search,
   ClipboardCheck, LayoutGrid, PenLine, Palette, Layers, CalendarDays,
@@ -338,6 +339,11 @@ export default function GuideComHome() {
                 </div>
               </motion.div>
             )}
+
+            {/* ─── Coaching section ─── */}
+            <motion.div variants={itemVariants}>
+              <GuideCoachingSection brandingPercent={Math.round((profileSummary.brandingSections / 6) * 100)} />
+            </motion.div>
           </>
         )}
 
