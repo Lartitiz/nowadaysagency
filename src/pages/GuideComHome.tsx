@@ -39,8 +39,10 @@ function RichExplanation({ text }: { text: string }) {
           return (
             <span
               key={i}
-              className="block mt-2 text-xs italic"
-              style={{ color: "#91014b", fontFamily: "'IBM Plex Mono', monospace" }}
+              className="block mt-2 italic"
+              style={{ color: "#91014b", fontFamily: "'IBM Plex Mono', monospace", fontSize: "13px" }}
+              role="note"
+              aria-label="note"
             >
               ({inner})
             </span>
@@ -55,7 +57,7 @@ function RichExplanation({ text }: { text: string }) {
 /* ── Animations ── */
 const containerVariants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.12 } },
+  show: { transition: { staggerChildren: 0.15 } },
 };
 
 const itemVariants = {
@@ -66,11 +68,11 @@ const itemVariants = {
 /* ── Dots loading animation ── */
 function DotsLoading() {
   return (
-    <span className="inline-flex gap-1 ml-1">
+    <span className="inline-flex gap-1 ml-1" aria-hidden="true">
       {[0, 1, 2].map((i) => (
         <motion.span
           key={i}
-          className="inline-block w-1.5 h-1.5 rounded-full bg-[#fb3d80]/50"
+          className="inline-block w-1.5 h-1.5 rounded-full bg-primary/50"
           animate={{ opacity: [0.3, 1, 0.3] }}
           transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
         />
@@ -82,16 +84,16 @@ function DotsLoading() {
 /* ── Skeleton loader ── */
 function GuideSkeleton() {
   return (
-    <div className="min-h-screen" style={{ background: "#fff4f8" }}>
+    <div className="min-h-screen bg-rose-pale">
       <AppHeader />
-      <main className="mx-auto max-w-2xl px-4 sm:px-6 py-8 sm:py-12">
-        <div className="mb-8">
-          <div className="h-7 w-72 rounded-md bg-muted/40 animate-pulse mb-3" />
+      <main className="mx-auto max-w-2xl px-4 sm:px-6 py-6 sm:py-12" role="main" id="main-content">
+        <div className="mb-6 sm:mb-8">
+          <div className="h-6 sm:h-7 w-72 rounded-md bg-muted/40 animate-pulse mb-3" />
           <div className="h-4 w-56 rounded-md bg-muted/30 animate-pulse" />
         </div>
-        <div className="bg-white rounded-[20px] border-l-4 border-[#fb3d80]/30 p-6 sm:p-8 mb-6">
-          <div className="flex items-start gap-4">
-            <div className="h-8 w-8 rounded-lg bg-muted/30 animate-pulse shrink-0" />
+        <div className="bg-card rounded-[20px] border-l-4 border-primary/30 p-5 sm:p-8 mb-4 sm:mb-6">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="h-7 sm:h-8 w-7 sm:w-8 rounded-lg bg-muted/30 animate-pulse shrink-0" />
             <div className="flex-1 space-y-3">
               <div className="h-5 w-3/4 rounded bg-muted/40 animate-pulse" />
               <div className="h-4 w-full rounded bg-muted/30 animate-pulse" />
@@ -103,6 +105,7 @@ function GuideSkeleton() {
         <p
           className="text-xs text-muted-foreground italic"
           style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+          aria-live="polite"
         >
           Je regarde où tu en es
           <DotsLoading />
@@ -115,16 +118,16 @@ function GuideSkeleton() {
 /* ── Error state ── */
 function GuideError({ navigate }: { navigate: (path: string) => void }) {
   return (
-    <div className="min-h-screen" style={{ background: "#fff4f8" }}>
+    <div className="min-h-screen bg-rose-pale">
       <AppHeader />
-      <main className="mx-auto max-w-2xl px-4 sm:px-6 py-8 sm:py-12">
+      <main className="mx-auto max-w-2xl px-4 sm:px-6 py-6 sm:py-12" role="main" id="main-content">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="bg-white rounded-[20px] shadow-[0_4px_24px_rgba(0,0,0,0.06)] border-l-4 border-[#fb3d80] p-6 sm:p-8 text-center"
+          className="bg-card rounded-[20px] shadow-[0_4px_24px_rgba(0,0,0,0.06)] border-l-4 border-primary p-5 sm:p-8 text-center"
         >
-          <Sparkles className="h-10 w-10 text-[#fb3d80] mx-auto mb-4" />
+          <Sparkles className="h-10 w-10 text-primary mx-auto mb-4" />
           <h2
             className="text-lg sm:text-xl text-foreground mb-3"
             style={{ fontFamily: "'Libre Baskerville', serif" }}
@@ -141,8 +144,8 @@ function GuideError({ navigate }: { navigate: (path: string) => void }) {
           </p>
           <Button
             onClick={() => navigate("/dashboard/complet")}
-            className="text-white border-0 rounded-xl px-6 py-2.5 text-sm font-medium hover:opacity-90"
-            style={{ background: "#fb3d80" }}
+            className="bg-primary text-primary-foreground border-0 rounded-xl px-6 py-2.5 text-sm font-medium hover:opacity-90 transition-all duration-200"
+            aria-label="Explorer l'outil librement"
           >
             Explorer l'outil
             <ArrowRight className="ml-2 h-4 w-4" />
@@ -158,7 +161,7 @@ function FirstVisitWelcome({ firstName, navigate }: { firstName: string; navigat
   return (
     <motion.div
       variants={itemVariants}
-      className="bg-white rounded-[20px] shadow-[0_4px_24px_rgba(0,0,0,0.06)] border-l-4 border-[#fb3d80] p-6 sm:p-8 mb-6"
+      className="bg-card rounded-[20px] shadow-[0_4px_24px_rgba(0,0,0,0.06)] border-l-4 border-primary p-5 sm:p-8 mb-4 sm:mb-6"
     >
       <h2
         className="text-lg sm:text-xl text-foreground mb-4"
@@ -174,11 +177,11 @@ function FirstVisitWelcome({ firstName, navigate }: { firstName: string; navigat
       </p>
       <div className="space-y-3 mb-6">
         {[
-          { icon: <Heart className="h-5 w-5 text-[#fb3d80]" />, text: "Poser les fondations de ta marque (ton histoire, ton persona, ta proposition de valeur)" },
-          { icon: <Zap className="h-5 w-5 text-[#fb3d80]" />, text: "Créer du contenu qui te ressemble, avec l'aide de l'IA" },
-          { icon: <Rocket className="h-5 w-5 text-[#fb3d80]" />, text: "Planifier et publier régulièrement, sans prise de tête" },
+          { icon: <Heart className="h-5 w-5 text-primary" />, text: "Poser les fondations de ta marque (ton histoire, ton persona, ta proposition de valeur)" },
+          { icon: <Zap className="h-5 w-5 text-primary" />, text: "Créer du contenu qui te ressemble, avec l'aide de l'IA" },
+          { icon: <Rocket className="h-5 w-5 text-primary" />, text: "Planifier et publier régulièrement, sans prise de tête" },
         ].map((item, i) => (
-          <div key={i} className="flex items-start gap-3 bg-[#fff4f8] rounded-xl p-3">
+          <div key={i} className="flex items-start gap-3 bg-rose-pale rounded-xl p-3">
             <div className="mt-0.5 shrink-0">{item.icon}</div>
             <span
               className="text-sm text-foreground leading-relaxed"
@@ -191,8 +194,8 @@ function FirstVisitWelcome({ firstName, navigate }: { firstName: string; navigat
       </div>
       <Button
         onClick={() => navigate("/onboarding")}
-        className="text-white border-0 rounded-xl px-6 py-2.5 text-sm font-medium hover:opacity-90"
-        style={{ background: "#fb3d80" }}
+        className="bg-primary text-primary-foreground border-0 rounded-xl px-6 py-2.5 text-sm font-medium hover:opacity-90 transition-all duration-200"
+        aria-label="Commencer le diagnostic de communication"
       >
         Commencer mon diagnostic
         <ArrowRight className="ml-2 h-4 w-4" />
@@ -221,7 +224,7 @@ export default function GuideComHome() {
       profileSummary.firstName,
       new Date().getHours(),
       isFirstVisit,
-      null, // TODO: track daysSinceLastVisit
+      null,
     );
   }, [profileSummary.firstName, profileSummary.onboardingComplete, profileSummary.brandingSections]);
 
@@ -234,30 +237,36 @@ export default function GuideComHome() {
   if (error) return <GuideError navigate={navigate} />;
 
   return (
-    <div className="min-h-screen" style={{ background: "#fff4f8" }}>
+    <div className="min-h-screen bg-rose-pale">
       <AppHeader />
 
       <motion.main
-        className="mx-auto max-w-2xl px-4 sm:px-6 py-8 sm:py-12"
+        className="mx-auto max-w-2xl px-4 sm:px-6 py-6 sm:py-12"
         variants={containerVariants}
         initial="hidden"
         animate="show"
+        role="main"
+        id="main-content"
       >
         {/* ─── Toggle ─── */}
-        <motion.div variants={itemVariants} className="flex justify-end mb-4">
+        <motion.div variants={itemVariants} className="flex justify-end mb-3 sm:mb-4">
           <DashboardViewToggle current="guide" />
         </motion.div>
 
         {/* ─── Header accueil ─── */}
-        <motion.div variants={itemVariants} className="mb-8 sm:mb-10">
+        <motion.div variants={itemVariants} className="mb-6 sm:mb-10">
           <h1
-            className="text-xl sm:text-2xl md:text-[28px] text-foreground leading-tight"
-            style={{ fontFamily: "'Libre Baskerville', serif" }}
+            className="text-foreground leading-tight"
+            style={{
+              fontFamily: "'Libre Baskerville', serif",
+              fontSize: "clamp(20px, 4vw, 28px)",
+            }}
           >
+            <span aria-hidden="true" className="mr-1.5">👋</span>
             {welcomeMessage}
           </h1>
           <p
-            className="mt-2 text-sm text-muted-foreground"
+            className="mt-2 text-xs sm:text-sm text-muted-foreground"
             style={{ fontFamily: "'IBM Plex Mono', monospace" }}
           >
             Je regarde où tu en es et je te propose la prochaine étape.
@@ -279,29 +288,29 @@ export default function GuideComHome() {
             {/* ─── Recommandation principale ─── */}
             <motion.div
               variants={itemVariants}
-              className="bg-white rounded-[20px] shadow-[0_4px_24px_rgba(0,0,0,0.06)] border-l-4 border-[#fb3d80] p-6 sm:p-8 mb-6"
+              className="bg-card rounded-[20px] shadow-[0_4px_24px_rgba(0,0,0,0.06)] border-l-4 border-primary p-5 sm:p-8 mb-4 sm:mb-6 transition-all duration-200 hover:shadow-[0_8px_32px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
             >
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-3 sm:gap-4">
                 <div className="mt-1">
-                  {getIcon(recommendation.icon, "h-8 w-8 text-[#fb3d80] shrink-0")}
+                  {getIcon(recommendation.icon, "h-6 w-6 sm:h-8 sm:w-8 text-primary shrink-0")}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2
-                    className="text-lg sm:text-xl text-foreground mb-2"
+                    className="text-base sm:text-xl text-foreground mb-2"
                     style={{ fontFamily: "'Libre Baskerville', serif" }}
                   >
                     {recommendation.title}
                   </h2>
                   <div
-                    className="text-sm text-muted-foreground leading-relaxed mb-5"
+                    className="text-sm text-muted-foreground leading-relaxed mb-4 sm:mb-5"
                     style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                   >
                     <RichExplanation text={recommendation.explanation} />
                   </div>
                   <Button
                     onClick={() => navigate(recommendation.ctaRoute)}
-                    className="text-white border-0 rounded-xl px-6 py-2.5 text-sm font-medium hover:opacity-90"
-                    style={{ background: "#fb3d80" }}
+                    className="bg-primary text-primary-foreground border-0 rounded-xl px-5 sm:px-6 py-2.5 text-sm font-medium hover:opacity-90 transition-all duration-200"
+                    aria-label={`${recommendation.ctaLabel} – ${recommendation.title}`}
                   >
                     {recommendation.ctaLabel}
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -312,24 +321,25 @@ export default function GuideComHome() {
 
             {/* ─── Alternatives ─── */}
             {recommendation.alternatives.length > 0 && (
-              <motion.div variants={itemVariants} className="mb-10">
+              <motion.div variants={itemVariants} className="mb-6 sm:mb-10">
                 <p
                   className="text-xs text-muted-foreground mb-3"
                   style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                 >
                   Sinon, tu peux aussi...
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   {recommendation.alternatives.map((alt) => (
                     <button
                       key={alt.route}
                       onClick={() => navigate(alt.route)}
-                      className="flex items-center gap-3 bg-white rounded-[16px] border border-[#fb3d80]/20 p-4 text-left
-                        hover:border-[#fb3d80]/50 hover:shadow-sm transition-all duration-200 group"
+                      className="flex items-center gap-3 bg-card rounded-[16px] border border-primary/20 p-3 sm:p-4 text-left
+                        hover:border-primary/50 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200 group focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      aria-label={alt.title}
                     >
-                      {getIcon(alt.icon, "h-5 w-5 text-[#fb3d80]")}
+                      {getIcon(alt.icon, "h-5 w-5 text-primary")}
                       <span
-                        className="text-sm text-foreground group-hover:text-[#fb3d80] transition-colors"
+                        className="text-sm text-foreground group-hover:text-primary transition-colors"
                         style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                       >
                         {alt.title}
@@ -348,11 +358,12 @@ export default function GuideComHome() {
         )}
 
         {/* ─── Lien dashboard complet ─── */}
-        <motion.div variants={itemVariants} className="text-center">
+        <motion.div variants={itemVariants} className="text-center mt-2">
           <Link
             to="/dashboard/complet"
-            className="text-xs text-muted-foreground hover:text-[#fb3d80] transition-colors inline-flex items-center gap-1"
+            className="text-xs text-muted-foreground hover:text-primary transition-colors duration-200 inline-flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none rounded"
             style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+            aria-label="Voir toutes les fonctionnalités du dashboard"
           >
             Voir toutes les fonctionnalités
             <ArrowRight className="h-3 w-3" />
