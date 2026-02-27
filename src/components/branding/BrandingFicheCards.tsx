@@ -104,7 +104,7 @@ function StoryCards() {
     return (
       <Card className="p-6 text-center border-dashed">
         <p className="text-muted-foreground text-sm mb-3">Aucun storytelling pour l'instant.</p>
-        <Button size="sm" className="rounded-pill text-xs" onClick={() => navigate("/branding/storytelling")}>
+        <Button size="sm" className="rounded-pill text-xs" onClick={() => navigate("/branding/storytelling/new")}>
           <Plus className="h-3.5 w-3.5 mr-1" /> Créer mon premier storytelling
         </Button>
       </Card>
