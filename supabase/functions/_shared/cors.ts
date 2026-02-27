@@ -6,7 +6,9 @@ export function getCorsHeaders(req?: Request): Record<string, string> {
     allowedOrigin === "*" ||
     origin === allowedOrigin ||
     origin.endsWith(".lovable.app") ||
-    origin.endsWith(".lovableproject.com");
+    origin.endsWith(".lovableproject.com") ||
+    origin === "https://nowadays-assistant.fr" ||
+    origin === "https://www.nowadays-assistant.fr";
 
   return {
     "Access-Control-Allow-Origin": isAllowed ? origin : allowedOrigin,
