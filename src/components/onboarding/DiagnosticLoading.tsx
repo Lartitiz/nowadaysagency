@@ -9,7 +9,7 @@ interface Props {
   hasWebsite: boolean;
   hasDocuments: boolean;
   isDemoMode: boolean;
-  answers: { canaux: string[]; instagram: string; website: string; linkedin?: string; activite?: string; activity_type?: string; objectif?: string; blocage?: string; temps?: string };
+  answers: { canaux: string[]; instagram: string; website: string; linkedin?: string; activite?: string; activity_type?: string; objectif?: string; blocage?: string; temps?: string; change_priority?: string; product_or_service?: string; uniqueness?: string };
   brandingAnswers: {
     positioning: string; mission: string; target_description: string;
     tone_keywords: string[]; offers: { name: string; price?: string; description?: string }[]; values: string[];
@@ -91,6 +91,9 @@ export default function DiagnosticLoading({
             positioning: brandingAnswers.positioning || "",
             mission: brandingAnswers.mission || "",
             target_description: brandingAnswers.target_description || "",
+            change_priority: answers.change_priority || "",
+            product_or_service: answers.product_or_service || "",
+            uniqueness: answers.uniqueness || "",
           },
         };
 
