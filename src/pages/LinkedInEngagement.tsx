@@ -160,7 +160,7 @@ export default function LinkedInEngagement() {
         <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between gap-3 mb-6">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">✨ Coaching commentaires</p>
-            <p className="text-xs text-muted-foreground">L'IA t'aide à écrire des commentaires qui attirent les bonnes personnes.</p>
+            <p className="text-xs text-muted-foreground">On t'aide à écrire des commentaires qui attirent les bonnes personnes.</p>
           </div>
           <button onClick={() => setCoachingOpen(true)} className="shrink-0 rounded-pill bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity">
             Commencer

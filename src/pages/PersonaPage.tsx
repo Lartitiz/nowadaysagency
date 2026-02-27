@@ -394,7 +394,7 @@ export default function PersonaPage() {
               {/* AI Result */}
               {aiResult && (
                 <div className="rounded-xl bg-rose-pale border-l-4 border-primary p-4 mb-4 animate-fade-in">
-                  <p className="font-mono-ui text-[12px] text-muted-foreground mb-2">Résultat IA :</p>
+                  <p className="font-mono-ui text-[12px] text-muted-foreground mb-2">✨ Résultat :</p>
                   <div className="text-[13px] text-foreground leading-relaxed whitespace-pre-line max-h-[400px] overflow-y-auto">
                     {formatAiResult(aiResult)}
                   </div>

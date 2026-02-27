@@ -485,11 +485,11 @@ export default function InstagramReels() {
                     onCheckedChange={(v) => setCheckedItems(prev => ({ ...prev, [i]: !!v }))}
                   />
                   <span className={`text-sm ${checkedItems[i] ? "text-foreground" : "text-muted-foreground"}`}>{item.item}</span>
-                  {item.auto && <span className="text-[10px] text-primary font-medium">✓ IA</span>}
+                  {item.auto && <span className="text-[10px] text-primary font-medium">✓ Auto</span>}
                 </label>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground italic">💡 Les cases marquées ✓ IA ont été vérifiées par l'IA. Les autres sont à vérifier manuellement.</p>
+            <p className="text-xs text-muted-foreground italic">💡 Les cases marquées ✓ Auto ont été vérifiées automatiquement. Les autres sont à vérifier manuellement.</p>
           </div>
 
           {/* Actions */}

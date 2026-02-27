@@ -442,7 +442,7 @@ const SiteAuditPage = () => {
                 <Sparkles className="h-4 w-4" /> Lancer l'audit
               </Button>
 
-              <p className="text-xs text-muted-foreground text-center sm:text-left">~30 secondes · Analyse IA automatique</p>
+              <p className="text-xs text-muted-foreground text-center sm:text-left">~30 secondes · Analyse automatique</p>
             </div>
 
             {/* Secondary link to screenshot */}
@@ -570,7 +570,7 @@ const SiteAuditPage = () => {
             {screenshotLoading && (
               <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" /> L'IA analyse ton screenshot...
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" /> Analyse en cours...
                 </div>
                 <Skeleton className="h-6 w-48" />
                 <Skeleton className="h-4 w-full" />

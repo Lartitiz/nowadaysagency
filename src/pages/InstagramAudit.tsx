@@ -559,8 +559,8 @@ export default function InstagramAudit() {
         </h1>
         <p className="mt-2 text-sm text-muted-foreground italic mb-8">
           {hasExistingAudit
-            ? "Mets à jour tes infos et relance l'analyse IA."
-            : "Remplis les infos de ton profil. L'IA analyse tout et te donne un score avec des recommandations concrètes."}
+            ? "Mets à jour tes infos et relance l'analyse."
+            : "Remplis les infos de ton profil. On analyse tout et on te donne un score avec des recommandations concrètes."}
         </p>
         {analyzing ? (
           <AiLoadingIndicator context="audit" isLoading={analyzing} />

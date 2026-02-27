@@ -397,7 +397,7 @@ export default function InstagramLaunch() {
                       <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0.16s" }} />
                       <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0.32s" }} />
                     </div>
-                    <span className="text-sm italic text-muted-foreground">L'IA prépare tes idées de lancement...</span>
+                    <span className="text-sm italic text-muted-foreground">Je prépare tes idées de lancement...</span>
                   </div>
                 )}
 

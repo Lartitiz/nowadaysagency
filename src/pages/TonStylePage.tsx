@@ -178,7 +178,7 @@ export default function TonStylePage() {
       if (profile.things_to_avoid) promptParts.push(`- Ce qu'elle évite : ${profile.things_to_avoid}`);
 
       if (!storyText && !profile.key_expressions) {
-        toast({ title: "Remplis d'abord ton storytelling ou tes expressions", description: "L'IA a besoin d'éléments pour décrire ton ton.", variant: "destructive" });
+        toast({ title: "Remplis d'abord ton storytelling ou tes expressions", description: "J'ai besoin d'éléments pour décrire ton ton.", variant: "destructive" });
         setAiLoading(null);
         return;
       }
@@ -273,7 +273,7 @@ Réponds avec le texte seul, 3-4 phrases.`);
       const stData2 = storytellingHook as any;
       const text = stData2?.step_7_polished || stData2?.step_1_raw || "";
       if (!text) {
-        toast({ title: "Remplis d'abord ton storytelling", description: "L'IA a besoin de ton histoire pour identifier tes expressions.", variant: "destructive" });
+        toast({ title: "Remplis d'abord ton storytelling", description: "J'ai besoin de ton histoire pour identifier tes expressions.", variant: "destructive" });
         setAiLoading(null);
         return;
       }
@@ -571,11 +571,11 @@ Réponds avec le texte seul, 3-4 phrases.`);
         {/* Section 7: Ma voix (profil opérationnel) */}
         <SectionTitle title="🎤 Ma voix" />
         <p className="text-[13px] text-muted-foreground mb-3">
-          L'IA utilisera ces éléments pour que chaque contenu sonne comme toi.
+          Ces éléments seront utilisés pour que chaque contenu sonne comme toi.
         </p>
 
         <h3 className="font-display text-sm font-bold text-foreground mb-2">Mes expressions signature</h3>
-        <p className="text-[12px] text-muted-foreground mb-1">L'IA les utilisera naturellement dans tes contenus.</p>
+        <p className="text-[12px] text-muted-foreground mb-1">Tes contenus les reprendront naturellement.</p>
         <Textarea
           value={profile.key_expressions}
           onChange={(e) => updateField("key_expressions", e.target.value)}
@@ -585,7 +585,7 @@ Réponds avec le texte seul, 3-4 phrases.`);
         />
 
         <h3 className="font-display text-sm font-bold text-foreground mb-2">Mes expressions interdites</h3>
-        <p className="text-[12px] text-muted-foreground mb-1">L'IA ne les utilisera JAMAIS.</p>
+        <p className="text-[12px] text-muted-foreground mb-1">Tes contenus ne les utiliseront JAMAIS.</p>
         <Textarea
           value={profile.things_to_avoid}
           onChange={(e) => updateField("things_to_avoid", e.target.value)}
