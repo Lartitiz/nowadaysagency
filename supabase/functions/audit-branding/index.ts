@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { validateInput, ValidationError, AuditBrandingSchema } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -75,8 +75,9 @@ async function fetchSiteContent(url: string): Promise<string> {
 }
 
 Deno.serve(async (req) => {
+  const cors = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: cors });
   }
 
   try {
@@ -84,7 +85,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Non authentifié" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
     const sb = createClient(
@@ -95,19 +96,19 @@ Deno.serve(async (req) => {
     const { data: { user } } = await sb.auth.getUser();
     if (!user) {
       return new Response(JSON.stringify({ error: "Non authentifié" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
     // Rate limit check
     const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, cors);
 
     // Quota check
     const quota = await checkQuota(user.id, "audit");
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 429, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -178,7 +179,7 @@ Deno.serve(async (req) => {
 
     if (sourcesUsed.length === 0) {
       return new Response(JSON.stringify({ error: "Fournis au moins une source à analyser." }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -294,7 +295,7 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
     } catch (e) {
       console.error("Failed to parse AI response:", raw);
       return new Response(JSON.stringify({ error: "Erreur lors de l'analyse. Réessaie." }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -361,14 +362,14 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
     await logUsage(user.id, "audit", "audit_branding");
 
     return new Response(JSON.stringify({ audit: auditResult, sources_used: sourcesUsed }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("audit-branding error:", e);
     const msg = e instanceof Error ? e.message : "Erreur inconnue";
     const status = e instanceof ValidationError ? 400 : 500;
     return new Response(JSON.stringify({ error: msg }), {
-      status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 });

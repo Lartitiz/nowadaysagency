@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
@@ -211,7 +211,8 @@ function validateUrl(raw: string): { valid: boolean; url?: string; error?: strin
 /* ─── Main ─── */
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const cors = getCorsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   const globalTimeout = setTimeout(() => {}, GLOBAL_TIMEOUT_MS);
 
@@ -220,7 +221,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Authentification requise" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -233,14 +234,14 @@ serve(async (req) => {
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData.user) {
       return new Response(JSON.stringify({ error: "Non authentifié·e" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
     const userId = userData.user.id;
 
     // Rate limit check
     const rateCheck = checkRateLimit(userId);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, cors);
 
     // Parse body
     const body = await req.json();
@@ -248,7 +249,7 @@ serve(async (req) => {
 
     if (!site_url || typeof site_url !== "string") {
       return new Response(JSON.stringify({ error: "site_url est obligatoire" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -256,7 +257,7 @@ serve(async (req) => {
     const urlCheck = validateUrl(site_url);
     if (!urlCheck.valid) {
       return new Response(JSON.stringify({ error: urlCheck.error }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
     const baseUrl = urlCheck.url!;
@@ -265,7 +266,7 @@ serve(async (req) => {
     const quota = await checkQuota(userId, "audit", workspace_id);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota: true }), {
-        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 429, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -289,7 +290,7 @@ serve(async (req) => {
         error: "site_inaccessible",
         message: `Impossible d'accéder à ${baseUrl}. Vérifie que l'URL est correcte et que ton site est en ligne.`,
       }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -465,13 +466,13 @@ Réponds UNIQUEMENT en JSON (sans backticks) avec cette structure :
     clearTimeout(globalTimeout);
 
     return new Response(JSON.stringify(parsed), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (e: any) {
     clearTimeout(globalTimeout);
     console.error("[audit-site-auto] Error:", e);
     return new Response(JSON.stringify({ error: e.message || "Erreur inattendue" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 });

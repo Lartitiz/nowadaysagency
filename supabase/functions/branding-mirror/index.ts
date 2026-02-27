@@ -1,18 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const cors = getCorsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Authentification requise" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -25,7 +26,7 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Authentification invalide" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -33,7 +34,7 @@ serve(async (req) => {
     const quota = await checkQuota(user.id, "audit");
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: "limit_reached", message: quota.message }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -49,7 +50,7 @@ serve(async (req) => {
 
     if (!brand) {
       return new Response(JSON.stringify({ error: "Profil de marque non trouvé. Complète d'abord ta section Ton & Style." }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -127,13 +128,13 @@ Sois bienveillante et constructive. L'objectif n'est pas de culpabiliser mais de
     await logUsage(user.id, "audit", "branding_mirror");
 
     return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (error: any) {
     console.error("branding-mirror error:", error);
     const status = error.status || 500;
     return new Response(JSON.stringify({ error: error.message || "Erreur interne" }), {
-      status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 });
