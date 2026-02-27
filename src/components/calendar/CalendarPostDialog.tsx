@@ -15,7 +15,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn, toLocalDateStr } from "@/lib/utils";
-import { Trash2, ChevronDown, Sparkles, Zap, Copy, RefreshCw, Loader2, Undo2, CalendarIcon, Upload } from "lucide-react";
+import { Trash2, ChevronDown, Sparkles, Zap, Copy, RefreshCw, Loader2, Undo2, CalendarIcon, Upload, MoreHorizontal, CheckCircle2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getGuide } from "@/lib/production-guides";
 import { ANGLES, STATUSES, OBJECTIFS, type CalendarPost } from "@/lib/calendar-constants";
 import { FORMAT_EMOJIS, FORMAT_LABELS } from "@/lib/calendar-helpers";
@@ -205,6 +206,15 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleSmartGenerate = () => {
+    const fmt = format || "post_carrousel";
+    if (fmt === "post_carrousel" || fmt === "carousel" || fmt === "reel" || fmt === "story_serie" || postCanal === "linkedin") {
+      handleNavigateToGenerator("generate");
+      return;
+    }
+    handleQuickGenerate();
   };
 
   const handleCopy = () => {
@@ -665,113 +675,174 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             </label>
           </div>
 
-          {editingPost && theme.trim() && (
-            <div>
-              <label className="text-xs font-semibold mb-2 block text-foreground">✨ Générer</label>
-              {editingPost.generated_content_id ? (
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => handleNavigateToGenerator("view")}
-                    variant="outline"
-                    className="flex-1 rounded-pill gap-1.5"
-                    size="sm"
-                  >
-                    👁️ Voir le contenu
-                  </Button>
-                  <Button
-                    onClick={() => handleNavigateToGenerator("regenerate")}
-                    variant="outline"
-                    className="flex-1 rounded-pill gap-1.5"
-                    size="sm"
-                  >
-                    <RefreshCw className="h-3 w-3" /> Régénérer
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  onClick={() => handleNavigateToGenerator("generate")}
-                  className="w-full rounded-pill gap-2"
-                  size="lg"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Générer le contenu →
-                </Button>
-              )}
-            </div>
-          )}
+          {/* ── ZONE 3 : CONTENU (section unifiée) ── */}
+          {editingPost && theme.trim() && (() => {
+            const hasContent = !!(contentDraft || editingPost.generated_content_id);
+            const isPublished = status === "published";
+            const isReady = status === "ready" || status === "draft_ready";
 
-          {/* Rédaction section */}
-          <div>
-            <label className="text-xs font-semibold mb-2 block text-foreground">✍️ Rédaction</label>
+            return (
+              <div>
+                <label className="text-xs font-semibold mb-2 block text-foreground">✍️ Contenu</label>
 
-            {contentDraft && !isEditing ? (
-              /* Content exists - show preview */
-              <div className="space-y-3">
-                <div className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap">
-                  {contentPreview}
-                  {contentDraft.length > 200 && !showFullContent && (
-                    <button onClick={() => setShowFullContent(true)} className="block mt-1 text-xs text-primary hover:underline">
-                      voir la suite ↓
+                {isEditing ? (
+                  /* ── Mode édition ── */
+                  <div className="space-y-2">
+                    <Textarea
+                      value={contentDraft || ""}
+                      onChange={(e) => setContentDraft(e.target.value)}
+                      className="rounded-[10px] min-h-[120px] text-sm"
+                      placeholder="Écris ou colle ton contenu ici..."
+                      aria-label="Contenu du post"
+                    />
+                    <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} className="rounded-pill text-xs">
+                      ✅ Terminer l'édition
+                    </Button>
+                  </div>
+
+                ) : isPublished && hasContent ? (
+                  /* ── ÉTAT PUBLIÉ ── */
+                  <div className="space-y-3">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-pill">
+                      <CheckCircle2 className="h-3 w-3" /> Publié
+                    </span>
+                    <div className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap opacity-80">
+                      {contentPreview}
+                      {contentDraft && contentDraft.length > 200 && !showFullContent && (
+                        <button onClick={() => setShowFullContent(true)} className="block mt-1 text-xs text-primary hover:underline">voir la suite ↓</button>
+                      )}
+                      {showFullContent && contentDraft && contentDraft.length > 200 && (
+                        <button onClick={() => setShowFullContent(false)} className="block mt-1 text-xs text-primary hover:underline">réduire ↑</button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleCopy} className="rounded-pill text-xs gap-1.5">
+                        <Copy className="h-3 w-3" /> Copier
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="rounded-pill px-2">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => navigate("/transformer")}>
+                            🔄 Recycler (crosspost)
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+
+                ) : hasContent && isReady ? (
+                  /* ── ÉTAT PRÊT ── */
+                  <div className="space-y-3">
+                    <div className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap">
+                      {contentPreview}
+                      {contentDraft && contentDraft.length > 200 && !showFullContent && (
+                        <button onClick={() => setShowFullContent(true)} className="block mt-1 text-xs text-primary hover:underline">voir la suite ↓</button>
+                      )}
+                      {showFullContent && contentDraft && contentDraft.length > 200 && (
+                        <button onClick={() => setShowFullContent(false)} className="block mt-1 text-xs text-primary hover:underline">réduire ↑</button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleCopy} className="rounded-pill text-xs gap-1.5">
+                        <Copy className="h-3 w-3" /> Copier
+                      </Button>
+                      <Button size="sm" onClick={() => setStatus("published")} className="rounded-pill text-xs gap-1.5">
+                        ✅ Marquer comme publié
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="rounded-pill px-2">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                            ✏️ Modifier
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleSmartGenerate}>
+                            🔄 Nouvelle version IA
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleOpenAtelier}>
+                            ✨ Ouvrir dans l'atelier
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+
+                ) : hasContent ? (
+                  /* ── ÉTAT BROUILLON ── */
+                  <div className="space-y-3">
+                    <div className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap">
+                      {contentPreview}
+                      {contentDraft && contentDraft.length > 200 && !showFullContent && (
+                        <button onClick={() => setShowFullContent(true)} className="block mt-1 text-xs text-primary hover:underline">voir la suite ↓</button>
+                      )}
+                      {showFullContent && contentDraft && contentDraft.length > 200 && (
+                        <button onClick={() => setShowFullContent(false)} className="block mt-1 text-xs text-primary hover:underline">réduire ↑</button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="rounded-pill text-xs gap-1.5">
+                        ✏️ Modifier
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleCopy} className="rounded-pill text-xs gap-1.5">
+                        <Copy className="h-3 w-3" /> Copier
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="rounded-pill px-2">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={handleSmartGenerate}>
+                            🔄 Nouvelle version IA
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleOpenAtelier}>
+                            ✨ Ouvrir dans l'atelier
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setContentDraft(null); setAccroche(null); }} className="text-destructive">
+                            🗑️ Supprimer le contenu
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+
+                ) : (
+                  /* ── ÉTAT VIDE ── */
+                  <div className="space-y-3">
+                    {!angle && (
+                      <p className="text-xs italic text-muted-foreground">
+                        💡 Choisis un angle pour un meilleur résultat
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">Pas encore de contenu.</p>
+                    <Button
+                      onClick={handleSmartGenerate}
+                      disabled={isGenerating || !theme.trim()}
+                      className="w-full rounded-pill gap-2"
+                      size="default"
+                    >
+                      {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      ✨ Rédiger avec l'IA
+                    </Button>
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="block w-full text-center text-xs text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      ou écrire moi-même
                     </button>
-                  )}
-                  {showFullContent && contentDraft.length > 200 && (
-                    <button onClick={() => setShowFullContent(false)} className="block mt-1 text-xs text-primary hover:underline">
-                      réduire ↑
-                    </button>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={handleCopy} className="rounded-pill text-xs gap-1.5">
-                    <Copy className="h-3 w-3" /> Copier
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="rounded-pill text-xs gap-1.5">
-                    ✏️ Modifier
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleQuickGenerate} disabled={isGenerating || !angle} className="rounded-pill text-xs gap-1.5">
-                    {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Regénérer
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleOpenAtelier} className="rounded-pill text-xs gap-1.5">
-                    <Sparkles className="h-3 w-3" /> Retravailler à l'atelier
-                  </Button>
-                </div>
-              </div>
-            ) : isEditing ? (
-              /* Editing mode */
-              <div className="space-y-2">
-                <Textarea
-                  value={contentDraft || ""}
-                  onChange={(e) => setContentDraft(e.target.value)}
-                  className="rounded-[10px] min-h-[120px] text-sm"
-                  placeholder="Écris ou colle ton contenu ici..."
-                  aria-label="Contenu du post"
-                />
-                <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} className="rounded-pill text-xs">
-                  ✅ Terminer l'édition
-                </Button>
-              </div>
-            ) : (
-              /* No content yet */
-              <div className="space-y-2">
-                {!angle && (
-                  <p className="text-xs italic text-muted-foreground mb-1">
-                    💡 Choisis un angle pour débloquer la rédaction rapide.
-                  </p>
+                  </div>
                 )}
-                <p className="text-xs text-muted-foreground mb-2">Pas encore de contenu rédigé.</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={handleOpenAtelier} className="rounded-pill text-xs gap-1.5">
-                    <Sparkles className="h-3 w-3" /> Rédiger avec l'atelier créatif
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleQuickGenerate} disabled={isGenerating || !theme.trim() || !angle} className="rounded-pill text-xs gap-1.5">
-                    {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />} Générer en mode rapide
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="rounded-pill text-xs gap-1.5">
-                    ✏️ Écrire manuellement
-                  </Button>
-                </div>
               </div>
-            )}
-          </div>
+            );
+          })()}
 
           {/* Production guide */}
           {guide && (
