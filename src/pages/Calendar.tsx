@@ -449,6 +449,13 @@ export default function CalendarPage() {
     toast({ title: "🗑️ Post supprimé" });
   };
 
+  const handleUpdateDraft = async (postId: string, draft: string) => {
+    await (supabase.from("calendar_posts") as any)
+      .update({ content_draft: draft, updated_at: new Date().toISOString() })
+      .eq("id", postId);
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, content_draft: draft } as any : p));
+  };
+
   const handleQuickGenerate = (post: CalendarPost) => {
     const route = getGeneratorRoute(post);
     if (route) {
@@ -695,6 +702,7 @@ export default function CalendarPage() {
           onStatusChange={handleQuickStatusChange}
           onDeletePost={handleQuickDelete}
           onDuplicate={handleQuickDuplicate}
+          onUpdateDraft={handleUpdateDraft}
           canalFilter={canalFilter}
           categoryFilter={categoryFilter}
         />
