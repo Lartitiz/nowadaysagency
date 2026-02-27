@@ -29,6 +29,7 @@ const Onboarding = lazy(() => import("./pages/Onboarding"));
 const WelcomePage = lazy(() => import("./pages/WelcomePage"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const GuideComHome = lazy(() => import("./pages/GuideComHome"));
+const ChatGuidePage = lazy(() => import("./pages/ChatGuidePage"));
 const IdeasPage = lazy(() => import("./pages/IdeasPage"));
 const Profile = lazy(() => import("./pages/Profile"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
@@ -191,8 +192,8 @@ function AnimatedRoutes() {
               <Route path="/now-studio" element={<Navigate to="/studio/discover" replace />} />
               <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
               <Route path="/welcome" element={<ProtectedRoute><WelcomePage /></ProtectedRoute>} />
-              <Route path="/dashboard" element={<ProtectedRoute><GuideComHome /></ProtectedRoute>} />
-              <Route path="/dashboard/guide" element={<ProtectedRoute><GuideComHome /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute><ChatGuidePage /></ProtectedRoute>} />
+              <Route path="/dashboard/guide" element={<ProtectedRoute><ChatGuidePage /></ProtectedRoute>} />
               <Route path="/dashboard/complet" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/idees" element={<ProtectedRoute><IdeasPage /></ProtectedRoute>} />
               <Route element={<ErrorBoundaryLayout />}>
