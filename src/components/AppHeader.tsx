@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus } from "lucide-react";
+import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass } from "lucide-react";
 
 import { useDemoContext } from "@/contexts/DemoContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const BASE_NAV_ITEMS = [
-  { to: "/dashboard", label: "Accueil", icon: Home, matchExact: true },
+  { to: "/dashboard", label: "Mon Guide", icon: Compass, matchExact: false, matchPaths: ["/dashboard", "/dashboard/guide", "/dashboard/complet"] },
   { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
   { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
@@ -36,7 +36,7 @@ function getDesktopNav(isPilot: boolean) {
 function getMobileNav(isPilot: boolean) {
   if (isPilot) {
     return [
-      { to: "/dashboard", label: "Accueil", icon: Home, matchExact: true },
+      { to: "/dashboard", label: "Guide", icon: Compass, matchExact: false, matchPaths: ["/dashboard", "/dashboard/guide", "/dashboard/complet"] },
       { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
       { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
       { to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false },
@@ -44,7 +44,7 @@ function getMobileNav(isPilot: boolean) {
     ];
   }
   return [
-    { to: "/dashboard", label: "Accueil", icon: Home, matchExact: true },
+    { to: "/dashboard", label: "Guide", icon: Compass, matchExact: false, matchPaths: ["/dashboard", "/dashboard/guide", "/dashboard/complet"] },
     { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
     { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
     { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },

@@ -38,6 +38,7 @@ import OnboardingMissions from "@/components/dashboard/OnboardingMissions";
 import WelcomeOverlay from "@/components/dashboard/WelcomeOverlay";
 import SessionFocusWidget from "@/components/dashboard/SessionFocusWidget";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
+import { DashboardViewToggle } from "@/components/dashboard/DashboardViewToggle";
 
 /* ── Types ── */
 export interface UserProfile {
@@ -314,6 +315,11 @@ export default function Dashboard() {
       <AppHeader />
       
       <main id="main-content" role="main" className="mx-auto max-w-[1100px] px-4 sm:px-6 py-6 sm:py-8">
+
+        {/* ─── View toggle ─── */}
+        <div className="flex justify-end mb-4">
+          <DashboardViewToggle current="complete" />
+        </div>
 
         {/* ─── Greeting ─── */}
         <div className="mb-6 sm:mb-8">

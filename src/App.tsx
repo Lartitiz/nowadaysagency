@@ -184,6 +184,7 @@ function AnimatedRoutes() {
               <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
               <Route path="/welcome" element={<ProtectedRoute><WelcomePage /></ProtectedRoute>} />
               <Route path="/dashboard" element={<ProtectedRoute><GuideComHome /></ProtectedRoute>} />
+              <Route path="/dashboard/guide" element={<ProtectedRoute><GuideComHome /></ProtectedRoute>} />
               <Route path="/dashboard/complet" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/idees" element={<ProtectedRoute><IdeasPage /></ProtectedRoute>} />
               <Route element={<ErrorBoundaryLayout />}>
