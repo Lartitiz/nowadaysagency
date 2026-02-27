@@ -137,56 +137,6 @@ export default function CharterTypographySection({ data, onDataChange, toneKeywo
         />
       </div>
 
-      {/* Font combo suggestions */}
-      <div className="mt-5 pt-5 border-t border-border">
-        <h3 className="text-sm font-semibold text-foreground mb-1">💡 Combinaisons typographiques suggérées</h3>
-        {toneKeywords.length === 0 ? (
-          <p className="text-xs text-muted-foreground mb-3">
-            Remplis ta section <a href="/branding/voice" className="text-primary hover:underline">Ma voix & mes combats</a> pour des suggestions personnalisées.
-          </p>
-        ) : (
-          <p className="text-xs text-muted-foreground mb-3">Basées sur ton style de voix</p>
-        )}
-        <div className="space-y-2">
-          {(() => {
-            const scored = FONT_COMBOS.map(combo => {
-              const score = toneKeywords.length > 0
-                ? combo.tone_match.filter(t => toneKeywords.some(tk => tk.includes(t) || t.includes(tk))).length
-                : 0;
-              return { ...combo, score };
-            });
-            const sorted = [...scored].sort((a, b) => b.score - a.score);
-            const toShow = toneKeywords.length > 0 ? sorted.slice(0, 3) : sorted;
-            toShow.forEach(c => { loadGoogleFont(c.title); loadGoogleFont(c.body); });
-            return toShow.map(combo => (
-              <button
-                key={combo.name}
-                onClick={() => {
-                  onDataChange({ font_title: combo.title, font_body: combo.body });
-                  loadGoogleFont(combo.title);
-                  loadGoogleFont(combo.body);
-                  toast.success(`Combo "${combo.name}" appliqué !`);
-                }}
-                className="w-full rounded-xl border border-border hover:border-primary/50 bg-background p-4 text-left transition-all hover:shadow-sm"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-foreground">{combo.name}</span>
-                  {combo.score > 0 && (
-                    <span className="text-[10px] text-primary font-medium">✦ Recommandé</span>
-                  )}
-                </div>
-                <p style={{ fontFamily: `'${combo.title}', serif`, fontWeight: 700 }} className="text-base text-foreground leading-tight mb-1">
-                  Communique sans te trahir
-                </p>
-                <p style={{ fontFamily: `'${combo.body}', sans-serif` }} className="text-sm text-muted-foreground leading-snug mb-2">
-                  Et voici le corps de texte pour voir le contraste entre les deux polices.
-                </p>
-                <p className="text-[10px] text-muted-foreground">{combo.description}</p>
-              </button>
-            ));
-          })()}
-        </div>
-      </div>
     </section>
   );
 }
