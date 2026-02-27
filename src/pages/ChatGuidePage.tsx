@@ -53,6 +53,18 @@ function getIcon(name: string, className?: string) {
   return <Icon className={className} />;
 }
 
+/** Guess icon for a suggestion label */
+function guessIconForSuggestion(label: string): string {
+  const l = label.toLowerCase();
+  if (l.includes("post") || l.includes("écrire") || l.includes("rédiger") || l.includes("carrousel")) return "PenLine";
+  if (l.includes("calendrier") || l.includes("planifier") || l.includes("semaine")) return "CalendarDays";
+  if (l.includes("branding") || l.includes("charte") || l.includes("ton")) return "Palette";
+  if (l.includes("cliente") || l.includes("persona") || l.includes("cible")) return "Target";
+  if (l.includes("idée") || l.includes("idees") || l.includes("trouver")) return "Lightbulb";
+  if (l.includes("question") || l.includes("aide") || l.includes("com'")) return "Sparkles";
+  return "Sparkles";
+}
+
 /* ── Typing indicator ── */
 function TypingIndicator() {
   return (
@@ -117,14 +129,57 @@ const DEMO_FALLBACK = {
   suggestions: DEMO_WELCOME_SUGGESTIONS,
 };
 
-/* ── Welcome suggestions (real mode) ── */
-const WELCOME_SUGGESTIONS: Suggestion[] = [
+/* ── Welcome suggestions (real mode) — fallback only ── */
+const FALLBACK_WELCOME_SUGGESTIONS: Suggestion[] = [
   { icon: "PenLine", label: "Je veux créer un post" },
   { icon: "Target", label: "Je veux définir ma cible" },
   { icon: "Palette", label: "Je veux travailler mon branding" },
   { icon: "CalendarDays", label: "Je veux planifier ma semaine" },
   { icon: "Lightbulb", label: "J'ai pas d'idées de contenu" },
 ];
+
+/** Build personalized welcome suggestions from profile data */
+function buildWelcomeSuggestions(profile: any): Suggestion[] {
+  if (!profile) return FALLBACK_WELCOME_SUGGESTIONS;
+
+  const suggestions: Suggestion[] = [];
+  const p = profile as any;
+  const activity = p.activite || p.type_activite;
+  const pillars: string[] = Array.isArray(p.piliers) ? p.piliers : [];
+
+  // Suggestion 1: next logical action
+  // Priority: branding gaps → calendar → content
+  if (!p.cible) {
+    suggestions.push({ icon: "Target", label: "Définir ma cliente idéale" });
+  } else if (!p.probleme_principal) {
+    suggestions.push({ icon: "Palette", label: "Clarifier mon positionnement" });
+  } else {
+    suggestions.push({ icon: "CalendarDays", label: "Planifier mes posts de la semaine" });
+  }
+
+  // Suggestion 2: activity-based
+  if (activity) {
+    const activitySuggestions = [
+      `Créer un post sur mon métier de ${activity}`,
+      `Écrire un post "coulisses" sur ${activity}`,
+      `Partager une anecdote sur ${activity}`,
+    ];
+    const pick = activitySuggestions[Math.floor(Math.random() * activitySuggestions.length)];
+    suggestions.push({ icon: "PenLine", label: pick });
+  } else {
+    suggestions.push({ icon: "PenLine", label: "Je veux créer un post" });
+  }
+
+  // Suggestion 3: exploration / pillar-based
+  if (pillars.length > 0) {
+    const pillar = pillars[Math.floor(Math.random() * pillars.length)];
+    suggestions.push({ icon: "Lightbulb", label: `Trouver des idées sur "${pillar}"` });
+  } else {
+    suggestions.push({ icon: "Lightbulb", label: "J'ai une question sur ma com'" });
+  }
+
+  return suggestions.slice(0, 3);
+}
 
 /* ── Component ── */
 export default function ChatGuidePage() {
@@ -170,6 +225,9 @@ export default function ChatGuidePage() {
     return () => window.removeEventListener("keydown", handler);
   }, [drawerOpen]);
 
+  // Track recent suggestions to avoid repetitions
+  const recentSuggestionsRef = useRef<string[]>([]);
+
   // Welcome message
   const welcomeMessage = useMemo<ChatMessage>(() => {
     if (isDemoMode) {
@@ -188,14 +246,18 @@ export default function ChatGuidePage() {
     else if (hour < 18) greeting = "Hello";
     else greeting = "Bonsoir";
 
+    const dynamicSuggestions = buildWelcomeSuggestions(profile);
+    // Track these suggestions
+    recentSuggestionsRef.current = dynamicSuggestions.map(s => s.label);
+
     return {
       id: "welcome",
       role: "assistant",
       content: `${greeting} ${firstName} ! 👋\n\nJe suis ton Assistant Com'. Dis-moi ce que tu veux faire aujourd'hui, ou choisis une suggestion ci-dessous.`,
-      suggestions: WELCOME_SUGGESTIONS,
+      suggestions: dynamicSuggestions,
       created_at: new Date().toISOString(),
     };
-  }, [firstName, isDemoMode]);
+  }, [firstName, isDemoMode, profile]);
 
   // Load latest conversation (skip in demo)
   useEffect(() => {
@@ -358,9 +420,20 @@ export default function ChatGuidePage() {
         role: "assistant",
         content: data.reply || "Hmm, je n'ai pas compris. Reformule ?",
         actions: data.actions || [],
-        suggestions: data.suggestions ? data.suggestions.map((s: string) => ({ icon: "Sparkles", label: s })) : undefined,
+        suggestions: data.suggestions ? data.suggestions
+          .filter((s: string) => !recentSuggestionsRef.current.includes(s))
+          .map((s: string) => ({ icon: guessIconForSuggestion(s), label: s }))
+          : undefined,
         created_at: new Date().toISOString(),
       };
+
+      // Track recent suggestions (keep last 5)
+      if (data.suggestions) {
+        recentSuggestionsRef.current = [
+          ...data.suggestions.slice(0, 3),
+          ...recentSuggestionsRef.current,
+        ].slice(0, 5);
+      }
 
       setMessages((prev) => [...prev, aiMsg]);
       await saveMessage({ role: "assistant", content: aiMsg.content, actions: aiMsg.actions });
