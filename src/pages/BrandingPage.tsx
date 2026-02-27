@@ -428,16 +428,22 @@ export default function BrandingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background animate-fade-in">
         <AppHeader />
         <main className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <SkeletonCard variant="medium" />
-            <SkeletonCard variant="medium" />
-            <SkeletonCard variant="medium" />
-            <SkeletonCard variant="medium" />
-            <SkeletonCard variant="medium" />
-            <SkeletonCard variant="medium" />
+          <div className="space-y-4">
+            <div className="h-6 w-48 rounded-lg bg-muted animate-pulse" />
+            <div className="h-3 w-72 rounded bg-muted animate-pulse" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                  <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
+                  <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+                  <div className="h-3 w-full rounded bg-muted animate-pulse" />
+                  <div className="h-2 w-full rounded-full bg-muted animate-pulse" />
+                </div>
+              ))}
+            </div>
           </div>
         </main>
       </div>
@@ -457,14 +463,21 @@ export default function BrandingPage() {
   // Show new import for demo mode too
   const showNewImportDemo = isDemoMode && filledSections < 2 && !skipImport && !coachingActive;
 
-  if (showNewImport || showNewImportDemo || importPhaseNew === "reviewing") {
+  // Determine which top-level view to show: "import" | "review" | "identity"
+  const topView = (importPhaseNew === "reviewing" && analysisResult)
+    ? "review"
+    : (showNewImport || showNewImportDemo)
+      ? "import"
+      : "identity";
+
+  if (topView === "import" || topView === "review") {
     return (
       <div className="min-h-screen bg-[hsl(var(--rose-pale))]">
         <AppHeader />
         <main className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
           <AnimatePresence mode="wait">
-            {importPhaseNew === "form" && (
-              <motion.div key="form" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+            {importPhaseNew === "form" && topView === "import" && (
+              <motion.div key="form" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3 }}>
                 <BrandingImport
                   loading={importAnalyzing}
                   onAnalyze={handleStartAnalysis}
@@ -477,7 +490,7 @@ export default function BrandingPage() {
               </motion.div>
             )}
             {(importPhaseNew === "analyzing" || importPhaseNew === "error") && (
-              <motion.div key="loader" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.1 }}>
+              <motion.div key="loader" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3, delay: 0.1 }}>
                 <BrandingAnalysisLoader
                   sources={analysisSources}
                   error={importPhaseNew === "error" ? analysisError : null}
@@ -494,8 +507,8 @@ export default function BrandingPage() {
                 />
               </motion.div>
             )}
-            {importPhaseNew === "reviewing" && analysisResult && (
-              <motion.div key="review" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
+            {topView === "review" && analysisResult && (
+              <motion.div key="review" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.4 }}>
                 <BrandingReview
                   analysis={analysisResult}
                   sourcesUsed={analysisResult.sources_used || []}
@@ -527,7 +540,13 @@ export default function BrandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <motion.div
+      key="identity"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="min-h-screen bg-background"
+    >
       <AppHeader />
       <main id="main-content" className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
         <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-6 transition-colors">
@@ -824,6 +843,6 @@ export default function BrandingPage() {
           ) : null}
         </SheetContent>
       </Sheet>
-    </div>
+    </motion.div>
   );
 }
