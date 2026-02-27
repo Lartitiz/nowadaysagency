@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Mic, MicOff, ArrowRight, Plus, Sparkles, PenLine, Palette, Target, CalendarDays, Users, Lightbulb } from "lucide-react";
+import { Send, Mic, MicOff, ArrowRight, Plus, Sparkles, PenLine, Palette, Target, CalendarDays, Users, Lightbulb, MessageSquare, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/use-profile";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -10,7 +10,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { DashboardViewToggle, getDashboardPreference } from "@/components/dashboard/DashboardViewToggle";
 import { useDemoContext } from "@/contexts/DemoContext";
 import AppHeader from "@/components/AppHeader";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
+import { format, isAfter, subHours } from "date-fns";
+import { fr } from "date-fns/locale";
 
 /* ── Types ── */
 interface ChatMessage {
@@ -31,6 +34,13 @@ interface ActionLink {
   icon: string;
   label: string;
   route: string;
+}
+
+interface Conversation {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
 }
 
 /* ── Icon resolver ── */
@@ -94,9 +104,12 @@ export default function ChatGuidePage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [sessionId, setSessionId] = useState<string>("");
+  const [conversationId, setConversationId] = useState<string>("");
   const [suggestionsVisible, setSuggestionsVisible] = useState(true);
   const [loaded, setLoaded] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [showOldDivider, setShowOldDivider] = useState(false);
 
   const firstName = (profile as any)?.prenom || "toi";
 
@@ -129,41 +142,52 @@ export default function ChatGuidePage() {
     };
   }, [firstName]);
 
-  // Load messages from DB
+  // Load latest conversation
   useEffect(() => {
     if (!user) return;
     (async () => {
-      // Get latest session
-      const { data } = await supabase
-        .from("chat_guide_messages")
+      const { data: convs } = await supabase
+        .from("chat_guide_conversations")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
+        .order("updated_at", { ascending: false })
         .limit(1);
 
-      if (data && data.length > 0) {
-        const latestSessionId = data[0].session_id;
-        setSessionId(latestSessionId);
+      if (convs && convs.length > 0) {
+        const conv = convs[0];
+        setConversationId(conv.id);
 
-        // Load all messages from that session
-        const { data: sessionMessages } = await supabase
+        const { data: msgs } = await supabase
           .from("chat_guide_messages")
           .select("*")
-          .eq("user_id", user.id)
-          .eq("session_id", latestSessionId)
+          .eq("conversation_id", conv.id)
           .order("created_at", { ascending: true });
 
-        if (sessionMessages && sessionMessages.length > 0) {
-          setMessages(sessionMessages.map((m: any) => ({
+        if (msgs && msgs.length > 0) {
+          setMessages(msgs.map((m: any) => ({
             id: m.id,
             role: m.role,
             content: m.content,
+            actions: m.actions || undefined,
             created_at: m.created_at,
           })));
           setSuggestionsVisible(false);
+
+          // Check if conversation is older than 24h
+          const lastMsgDate = new Date(msgs[msgs.length - 1].created_at);
+          if (!isAfter(lastMsgDate, subHours(new Date(), 24))) {
+            setShowOldDivider(true);
+          }
         }
       } else {
-        setSessionId(crypto.randomUUID());
+        // No conversation yet, create one
+        const newId = crypto.randomUUID();
+        setConversationId(newId);
+        if (!isDemoMode) {
+          const convRow: any = { id: newId, user_id: user.id, title: "Nouvelle conversation" };
+          if (workspaceId && workspaceId !== user.id) convRow.workspace_id = workspaceId;
+          await supabase.from("chat_guide_conversations").insert(convRow);
+        }
       }
       setLoaded(true);
     })();
@@ -183,15 +207,27 @@ export default function ChatGuidePage() {
   }, []);
 
   // Save message to DB
-  const saveMessage = useCallback(async (msg: Pick<ChatMessage, "role" | "content">) => {
-    if (!user || isDemoMode) return;
-    await supabase.from("chat_guide_messages").insert({
+  const saveMessage = useCallback(async (msg: Pick<ChatMessage, "role" | "content"> & { actions?: ActionLink[] }) => {
+    if (!user || isDemoMode || !conversationId) return;
+    const row: any = {
       user_id: user.id,
+      conversation_id: conversationId,
       role: msg.role,
       content: msg.content,
-      session_id: sessionId,
-    });
-  }, [user, sessionId, isDemoMode]);
+      actions: msg.actions || null,
+    };
+    if (workspaceId && workspaceId !== user.id) row.workspace_id = workspaceId;
+    await supabase.from("chat_guide_messages").insert(row);
+    // Update conversation updated_at
+    await supabase.from("chat_guide_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+  }, [user, conversationId, isDemoMode, workspaceId]);
+
+  // Update conversation title from first user message
+  const updateConversationTitle = useCallback(async (text: string) => {
+    if (!user || isDemoMode || !conversationId) return;
+    const title = text.length > 50 ? text.slice(0, 50) + "…" : text;
+    await supabase.from("chat_guide_conversations").update({ title }).eq("id", conversationId);
+  }, [user, conversationId, isDemoMode]);
 
   // Send message
   const sendMessage = useCallback(async (text: string) => {
@@ -207,14 +243,21 @@ export default function ChatGuidePage() {
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setSuggestionsVisible(false);
+    setShowOldDivider(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
 
     await saveMessage({ role: "user", content: userMsg.content });
 
-    // Build conversation history for context
-    const history = messages.map((m) => ({ role: m.role, content: m.content }));
+    // Update title if first user message in conversation
+    const isFirstUserMsg = messages.filter(m => m.role === "user").length === 0;
+    if (isFirstUserMsg) {
+      updateConversationTitle(userMsg.content);
+    }
+
+    // Build conversation history (last 10 messages)
+    const history = messages.slice(-10).map((m) => ({ role: m.role, content: m.content }));
 
     setIsTyping(true);
     try {
@@ -240,7 +283,7 @@ export default function ChatGuidePage() {
       };
 
       setMessages((prev) => [...prev, aiMsg]);
-      await saveMessage({ role: "assistant", content: aiMsg.content });
+      await saveMessage({ role: "assistant", content: aiMsg.content, actions: aiMsg.actions });
     } catch (err) {
       console.error("Chat guide error:", err);
       setIsTyping(false);
@@ -253,7 +296,7 @@ export default function ChatGuidePage() {
       };
       setMessages((prev) => [...prev, fallbackMsg]);
     }
-  }, [saveMessage, messages, workspaceId, user]);
+  }, [saveMessage, messages, workspaceId, user, updateConversationTitle]);
 
   // Handle keyboard
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -264,16 +307,67 @@ export default function ChatGuidePage() {
   }, [input, sendMessage]);
 
   // New conversation
-  const startNewConversation = useCallback(() => {
+  const startNewConversation = useCallback(async () => {
+    const newId = crypto.randomUUID();
     setMessages([]);
-    setSessionId(crypto.randomUUID());
+    setConversationId(newId);
     setSuggestionsVisible(true);
+    setShowOldDivider(false);
+    if (!isDemoMode && user) {
+      const convRow: any = { id: newId, user_id: user.id, title: "Nouvelle conversation" };
+      if (workspaceId && workspaceId !== user.id) convRow.workspace_id = workspaceId;
+      await supabase.from("chat_guide_conversations").insert(convRow);
+    }
+  }, [user, isDemoMode, workspaceId]);
+
+  // Load conversations for drawer
+  const loadConversations = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("chat_guide_conversations")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false })
+      .limit(30);
+    if (data) setConversations(data);
+  }, [user]);
+
+  // Load a specific conversation
+  const loadConversation = useCallback(async (conv: Conversation) => {
+    setConversationId(conv.id);
+    setDrawerOpen(false);
+    setShowOldDivider(false);
+
+    const { data: msgs } = await supabase
+      .from("chat_guide_messages")
+      .select("*")
+      .eq("conversation_id", conv.id)
+      .order("created_at", { ascending: true });
+
+    if (msgs && msgs.length > 0) {
+      setMessages(msgs.map((m: any) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        actions: m.actions || undefined,
+        created_at: m.created_at,
+      })));
+      setSuggestionsVisible(false);
+    } else {
+      setMessages([]);
+      setSuggestionsVisible(true);
+    }
   }, []);
 
   // All messages including welcome
   const allMessages = useMemo(() => {
+    const result: ChatMessage[] = [];
+    // If old divider, show old messages, then divider, then welcome
+    if (showOldDivider && messages.length > 0) {
+      return [...messages, { ...welcomeMessage, id: "welcome-new" }];
+    }
     return [welcomeMessage, ...messages];
-  }, [welcomeMessage, messages]);
+  }, [welcomeMessage, messages, showOldDivider]);
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#FAFAFA" }}>
@@ -298,6 +392,14 @@ export default function ChatGuidePage() {
           </div>
           <div className="flex items-center gap-3">
             <button
+              onClick={() => { loadConversations(); setDrawerOpen(true); }}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              title="Historique"
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Historique</span>
+            </button>
+            <button
               onClick={startNewConversation}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
               title="Nouvelle conversation"
@@ -319,88 +421,99 @@ export default function ChatGuidePage() {
         {/* ─── Messages zone ─── */}
         <div className="flex-1 overflow-y-auto px-4 py-5 space-y-3">
           <AnimatePresence mode="popLayout">
-            {allMessages.map((msg) => (
-              <motion.div
-                key={msg.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-                className={cn(
-                  "flex gap-3 mb-3",
-                  msg.role === "user" ? "justify-end" : "items-start"
-                )}
-              >
-                {/* Assistant avatar */}
-                {msg.role === "assistant" && (
-                  <div
-                    className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold mt-0.5"
-                    style={{ backgroundColor: "#fb3d80", fontFamily: "'IBM Plex Sans', sans-serif" }}
-                  >
-                    AC
+            {allMessages.map((msg, idx) => (
+              <div key={msg.id}>
+                {/* Date divider for old conversations */}
+                {showOldDivider && msg.id === "welcome-new" && (
+                  <div className="flex items-center gap-3 my-4">
+                    <div className="flex-1 h-px bg-border/50" />
+                    <span className="text-xs text-muted-foreground" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+                      Aujourd'hui
+                    </span>
+                    <div className="flex-1 h-px bg-border/50" />
                   </div>
                 )}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className={cn(
+                    "flex gap-3 mb-3",
+                    msg.role === "user" ? "justify-end" : "items-start"
+                  )}
+                >
+                  {/* Assistant avatar */}
+                  {msg.role === "assistant" && (
+                    <div
+                      className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold mt-0.5"
+                      style={{ backgroundColor: "#fb3d80", fontFamily: "'IBM Plex Sans', sans-serif" }}
+                    >
+                      AC
+                    </div>
+                  )}
 
-                <div className={cn("max-w-[85%]", msg.role === "user" ? "ml-auto" : "")}>
-                  {/* Bubble */}
-                  <div
-                    className={cn(
-                      "px-4 py-3 whitespace-pre-wrap",
-                      msg.role === "user"
-                        ? "text-white rounded-2xl rounded-tr-lg"
-                        : "bg-white rounded-2xl rounded-tl-lg shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
+                  <div className={cn("max-w-[85%]", msg.role === "user" ? "ml-auto" : "")}>
+                    {/* Bubble */}
+                    <div
+                      className={cn(
+                        "px-4 py-3 whitespace-pre-wrap",
+                        msg.role === "user"
+                          ? "text-white rounded-2xl rounded-tr-lg"
+                          : "bg-white rounded-2xl rounded-tl-lg shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
+                      )}
+                      style={{
+                        fontFamily: "'IBM Plex Sans', sans-serif",
+                        fontSize: 15,
+                        lineHeight: "1.55",
+                        ...(msg.role === "user" ? { backgroundColor: "#fb3d80" } : {}),
+                      }}
+                    >
+                      {msg.content}
+                    </div>
+
+                    {/* Action links */}
+                    {msg.actions && msg.actions.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {msg.actions.map((action, i) => (
+                          <button
+                            key={i}
+                            onClick={() => navigate(action.route)}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
+                            style={{
+                              backgroundColor: "rgba(251, 61, 128, 0.1)",
+                              color: "#fb3d80",
+                              fontFamily: "'IBM Plex Sans', sans-serif",
+                            }}
+                          >
+                            {getIcon(action.icon, "h-4 w-4")}
+                            {action.label}
+                          </button>
+                        ))}
+                      </div>
                     )}
-                    style={{
-                      fontFamily: "'IBM Plex Sans', sans-serif",
-                      fontSize: 15,
-                      lineHeight: "1.55",
-                      ...(msg.role === "user" ? { backgroundColor: "#fb3d80" } : {}),
-                    }}
-                  >
-                    {msg.content}
+
+                    {/* Suggestions */}
+                    {msg.suggestions && suggestionsVisible && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {msg.suggestions.map((sug, i) => (
+                          <button
+                            key={i}
+                            onClick={() => sendMessage(sug.label)}
+                            className="inline-flex items-center gap-2 bg-white border rounded-xl px-3 py-2.5 text-sm transition-all hover:shadow-sm hover:-translate-y-0.5"
+                            style={{
+                              borderColor: "#ffa7c6",
+                              fontFamily: "'IBM Plex Sans', sans-serif",
+                            }}
+                          >
+                            {getIcon(sug.icon, "h-4 w-4 text-primary")}
+                            <span className="text-foreground">{sug.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-
-                  {/* Action links */}
-                  {msg.actions && msg.actions.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {msg.actions.map((action, i) => (
-                        <button
-                          key={i}
-                          onClick={() => navigate(action.route)}
-                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
-                          style={{
-                            backgroundColor: "rgba(251, 61, 128, 0.1)",
-                            color: "#fb3d80",
-                            fontFamily: "'IBM Plex Sans', sans-serif",
-                          }}
-                        >
-                          {getIcon(action.icon, "h-4 w-4")}
-                          {action.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Suggestions (only on welcome, when visible) */}
-                  {msg.suggestions && suggestionsVisible && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {msg.suggestions.map((sug, i) => (
-                        <button
-                          key={i}
-                          onClick={() => sendMessage(sug.label)}
-                          className="inline-flex items-center gap-2 bg-white border rounded-xl px-3 py-2.5 text-sm transition-all hover:shadow-sm hover:-translate-y-0.5"
-                          style={{
-                            borderColor: "#ffa7c6",
-                            fontFamily: "'IBM Plex Sans', sans-serif",
-                          }}
-                        >
-                          {getIcon(sug.icon, "h-4 w-4 text-primary")}
-                          <span className="text-foreground">{sug.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </motion.div>
+                </motion.div>
+              </div>
             ))}
           </AnimatePresence>
 
@@ -411,7 +524,6 @@ export default function ChatGuidePage() {
         {/* ─── Input zone (sticky bottom) ─── */}
         <div className="sticky bottom-0 bg-white border-t border-border/30 px-4 py-3">
           <div className="flex items-end gap-2">
-            {/* Mic button */}
             {micSupported && (
               <button
                 onClick={toggleMic}
@@ -427,7 +539,6 @@ export default function ChatGuidePage() {
               </button>
             )}
 
-            {/* Textarea */}
             <textarea
               ref={textareaRef}
               value={input}
@@ -444,7 +555,6 @@ export default function ChatGuidePage() {
               }}
             />
 
-            {/* Send button */}
             <button
               onClick={() => sendMessage(input)}
               disabled={!input.trim()}
@@ -462,6 +572,44 @@ export default function ChatGuidePage() {
           </div>
         </div>
       </div>
+
+      {/* ─── Conversation history drawer ─── */}
+      <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerHeader className="flex items-center justify-between">
+            <DrawerTitle style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+              Conversations
+            </DrawerTitle>
+          </DrawerHeader>
+          <div className="overflow-y-auto px-4 pb-6 space-y-1">
+            {conversations.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-8">Aucune conversation</p>
+            )}
+            {conversations.map((conv) => (
+              <button
+                key={conv.id}
+                onClick={() => loadConversation(conv)}
+                className={cn(
+                  "w-full text-left px-3 py-3 rounded-xl transition-colors hover:bg-muted/50",
+                  conv.id === conversationId && "bg-muted/70"
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    className="text-sm font-medium text-foreground truncate max-w-[70%]"
+                    style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                  >
+                    {conv.title}
+                  </span>
+                  <span className="text-xs text-muted-foreground flex-shrink-0">
+                    {format(new Date(conv.updated_at), "d MMM", { locale: fr })}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }
