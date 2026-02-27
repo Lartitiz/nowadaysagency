@@ -153,7 +153,7 @@ export function generateMissions(state: AppState): MissionDef[] {
       description: "Ta proposition de valeur est prête, mais ta bio ne la reflète pas encore. C'est ta vitrine : chaque mot compte.",
       priority: "important",
       module: "instagram",
-      route: "/instagram/bio",
+      route: "/instagram/profil/bio",
       estimated_minutes: 15,
     });
   }
@@ -177,7 +177,7 @@ export function generateMissions(state: AppState): MissionDef[] {
       description: `Tu es à ${state.engagementDone}/${state.engagementTarget} interactions. Commente, réponds aux stories, envoie des DM. C'est ce qui fait grandir ta communauté.`,
       priority: "important",
       module: "instagram",
-      route: "/instagram/engagement",
+      route: "/instagram/routine",
       estimated_minutes: 15,
     });
   }
@@ -189,7 +189,7 @@ export function generateMissions(state: AppState): MissionDef[] {
       description: "C'est la première chose qu'une visiteuse regarde. Structure tes highlights comme un mini-site.",
       priority: "important",
       module: "instagram",
-      route: "/instagram/highlights",
+      route: "/instagram/profil/stories",
       estimated_minutes: 20,
     });
   }
