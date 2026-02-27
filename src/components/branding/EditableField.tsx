@@ -100,7 +100,7 @@ export default function EditableField({
   }
 
   return (
-    <div className={`mb-6 group ${className}`}>
+    <div className={`mb-6 group ${className}`} data-selection-enabled="true">
       <div className="flex justify-between items-start">
         <label className="text-xs text-muted-foreground uppercase tracking-wide mb-2 block font-medium">{label}</label>
         <button

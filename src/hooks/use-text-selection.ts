@@ -28,6 +28,13 @@ export function useTextSelection() {
         const sel = window.getSelection();
         const text = sel?.toString().trim();
 
+        // Only show menu in editable/generated content areas
+        const anchorNode = sel?.anchorNode;
+        const container = anchorNode?.parentElement?.closest(
+          '[data-selection-enabled="true"], textarea, [role="textbox"], .editable-content, .generated-content, [contenteditable="true"]'
+        );
+        if (!container) return;
+
         if (text && text.length > 3) {
           const range = sel!.getRangeAt(0);
           const rect = range.getBoundingClientRect();
