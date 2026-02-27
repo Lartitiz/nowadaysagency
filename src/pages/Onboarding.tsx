@@ -291,6 +291,7 @@ export default function Onboarding() {
                     isDemoMode={isDemoMode}
                     answers={answers}
                     brandingAnswers={brandingAnswers}
+                    uploadedFileIds={uploadedFiles.map(f => f.id)}
                     onReady={(data) => {
                       setDiagnosticData(data);
                       setStep(19);

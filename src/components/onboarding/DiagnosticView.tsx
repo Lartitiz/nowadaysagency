@@ -2,8 +2,16 @@ import { useState, useEffect, useRef, type ReactNode } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { type DiagnosticData, getScoreMessage } from "@/lib/diagnostic-data";
+import { type DiagnosticData, type DiagnosticStrength, type DiagnosticWeakness, normalizeStrength, getScoreMessage } from "@/lib/diagnostic-data";
 import Confetti from "@/components/Confetti";
+
+const SOURCE_BADGES: Record<string, { emoji: string; label: string }> = {
+  instagram: { emoji: "📱", label: "Instagram" },
+  website: { emoji: "🌐", label: "Site" },
+  linkedin: { emoji: "💼", label: "LinkedIn" },
+  documents: { emoji: "📄", label: "Documents" },
+  profile: { emoji: "✨", label: "Profil" },
+};
 
 interface Props {
   data: DiagnosticData;
@@ -24,7 +32,8 @@ export default function DiagnosticView({ data, prenom, onComplete, hasInstagram,
 function MobileSlides({ data, prenom, onComplete, hasInstagram, hasWebsite }: Props) {
   const [slide, setSlide] = useState(0);
   const [touchStart, setTouchStart] = useState(0);
-  const totalSlides = 7;
+  const hasSummary = !!data.summary;
+  const totalSlides = hasSummary ? 8 : 7;
 
   const handleTouchStart = (e: React.TouchEvent) => setTouchStart(e.touches[0].clientX);
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -35,15 +44,18 @@ function MobileSlides({ data, prenom, onComplete, hasInstagram, hasWebsite }: Pr
     }
   };
 
-  const sections = [
+  const sections: ReactNode[] = [
     <AccrocheSection key="a" prenom={prenom} hasInstagram={hasInstagram} hasWebsite={hasWebsite} />,
+  ];
+  if (hasSummary) sections.push(<SummarySection key="sum" summary={data.summary!} />);
+  sections.push(
     <ScoreSection key="b" score={data.totalScore} />,
     <StrengthsSection key="c" strengths={data.strengths} />,
     <WeaknessesSection key="d" weaknesses={data.weaknesses} />,
     <PrioritiesSection key="e" priorities={data.priorities} />,
     <ChannelScoresSection key="f" channelScores={data.channelScores} />,
     <FinalSection key="g" onComplete={onComplete} />,
-  ];
+  );
 
   return (
     <div
@@ -96,6 +108,7 @@ function DesktopScroll({ data, prenom, onComplete, hasInstagram, hasWebsite }: P
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-[640px] mx-auto px-6 py-16 space-y-24">
         <AnimatedSection><AccrocheSection prenom={prenom} hasInstagram={hasInstagram} hasWebsite={hasWebsite} /></AnimatedSection>
+        {data.summary && <AnimatedSection><SummarySection summary={data.summary} /></AnimatedSection>}
         <AnimatedSection><ScoreSection score={data.totalScore} /></AnimatedSection>
         <AnimatedSection><StrengthsSection strengths={data.strengths} /></AnimatedSection>
         <AnimatedSection><WeaknessesSection weaknesses={data.weaknesses} /></AnimatedSection>
@@ -122,7 +135,7 @@ function AnimatedSection({ children }: { children: ReactNode }) {
   );
 }
 
-/* ═══ Section 1: Accroche ═══ */
+/* ═══ Section: Accroche ═══ */
 function AccrocheSection({ prenom, hasInstagram, hasWebsite }: { prenom: string; hasInstagram?: boolean; hasWebsite?: boolean }) {
   let analyzed = "ce que tu m'as partagé sur ta marque";
   if (hasInstagram && hasWebsite) analyzed = "ton Instagram, ton site, et ce que tu m'as partagé";
@@ -140,7 +153,19 @@ function AccrocheSection({ prenom, hasInstagram, hasWebsite }: { prenom: string;
   );
 }
 
-/* ═══ Section 2: Score ═══ */
+/* ═══ Section: Summary (wahou moment) ═══ */
+function SummarySection({ summary }: { summary: string }) {
+  return (
+    <div className="space-y-3">
+      <h2 className="text-xl font-display font-bold text-foreground">💡 Ce que j'ai compris de ton projet</h2>
+      <p className="font-display text-base text-foreground leading-relaxed" style={{ fontSize: "16px" }}>
+        {summary}
+      </p>
+    </div>
+  );
+}
+
+/* ═══ Section: Score ═══ */
 function ScoreSection({ score }: { score: number }) {
   const [displayed, setDisplayed] = useState(0);
   const ref = useRef(null);
@@ -191,52 +216,81 @@ function ScoreSection({ score }: { score: number }) {
   );
 }
 
-/* ═══ Section 3: Strengths ═══ */
-function StrengthsSection({ strengths }: { strengths: string[] }) {
+/* ═══ Section: Strengths ═══ */
+function StrengthsSection({ strengths }: { strengths: (string | DiagnosticStrength)[] }) {
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-display font-bold text-foreground">✅ Ce qui marche déjà chez toi</h2>
-      {strengths.map((s, i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: i * 0.3, duration: 0.4 }}
-          className="flex items-start gap-3"
-        >
-          <span className="text-green-500 text-xl mt-0.5">✓</span>
-          <p className="text-foreground text-base">{s}</p>
-        </motion.div>
-      ))}
+      {strengths.map((s, i) => {
+        const norm = normalizeStrength(s);
+        const badge = norm.source ? SOURCE_BADGES[norm.source] : null;
+        return (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.3, duration: 0.4 }}
+            className="flex items-start gap-3"
+          >
+            <span className="text-green-500 text-xl mt-0.5">✓</span>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-foreground text-base">{norm.title}</p>
+                {badge && (
+                  <span className="text-[11px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md shrink-0">
+                    {badge.emoji} {badge.label}
+                  </span>
+                )}
+              </div>
+              {norm.detail && (
+                <p className="text-sm text-muted-foreground mt-0.5 leading-relaxed">{norm.detail}</p>
+              )}
+            </div>
+          </motion.div>
+        );
+      })}
     </div>
   );
 }
 
-/* ═══ Section 4: Weaknesses ═══ */
-function WeaknessesSection({ weaknesses }: { weaknesses: { title: string; why: string }[] }) {
+/* ═══ Section: Weaknesses ═══ */
+function WeaknessesSection({ weaknesses }: { weaknesses: DiagnosticWeakness[] }) {
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-display font-bold text-foreground">⚡ Ce qu'on va travailler</h2>
-      {weaknesses.map((w, i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: i * 0.3, duration: 0.4 }}
-          className="flex items-start gap-3"
-        >
-          <span className="text-orange-400 text-xl mt-0.5">⚠️</span>
-          <div>
-            <p className="font-medium text-foreground">{w.title}</p>
-            <p className="text-sm text-muted-foreground mt-0.5">{w.why}</p>
-          </div>
-        </motion.div>
-      ))}
+      {weaknesses.map((w, i) => {
+        const badge = w.source ? SOURCE_BADGES[w.source] : null;
+        return (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.3, duration: 0.4 }}
+            className="flex items-start gap-3"
+          >
+            <span className="text-orange-400 text-xl mt-0.5">⚠️</span>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-foreground">{w.title}</p>
+                {badge && (
+                  <span className="text-[11px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md shrink-0">
+                    {badge.emoji} {badge.label}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground mt-0.5">{w.detail || w.why}</p>
+              {w.fix_hint && (
+                <p className="text-xs text-primary mt-1 italic">💡 {w.fix_hint}</p>
+              )}
+            </div>
+          </motion.div>
+        );
+      })}
     </div>
   );
 }
 
-/* ═══ Section 5: Priorities ═══ */
+/* ═══ Section: Priorities ═══ */
 function PrioritiesSection({ priorities }: { priorities: DiagnosticData["priorities"] }) {
   const channelEmoji: Record<string, string> = {
     instagram: "📱", website: "🌐", newsletter: "✉️",
@@ -263,6 +317,7 @@ function PrioritiesSection({ priorities }: { priorities: DiagnosticData["priorit
               <span className="text-2xl font-bold text-primary">{i + 1}.</span>
               <div>
                 <p className="font-medium text-foreground">{p.title}</p>
+                {p.why && <p className="text-sm text-muted-foreground mt-1">{p.why}</p>}
                 <div className="flex gap-3 mt-2 text-xs text-muted-foreground">
                   <span>{channelEmoji[p.channel] || "📌"} {p.channel}</span>
                   <span>·</span>
@@ -279,7 +334,7 @@ function PrioritiesSection({ priorities }: { priorities: DiagnosticData["priorit
   );
 }
 
-/* ═══ Section 6: Channel Scores ═══ */
+/* ═══ Section: Channel Scores ═══ */
 function ChannelScoresSection({ channelScores }: { channelScores: DiagnosticData["channelScores"] }) {
   return (
     <div className="space-y-4">
@@ -323,7 +378,7 @@ function ChannelBar({ emoji, label, score }: { emoji: string; label: string; sco
   );
 }
 
-/* ═══ Section 7: Final ═══ */
+/* ═══ Section: Final ═══ */
 function FinalSection({ onComplete }: { onComplete: () => void }) {
   const [showConfetti, setShowConfetti] = useState(false);
 
