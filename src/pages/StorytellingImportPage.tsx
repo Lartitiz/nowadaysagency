@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useNavigate } from "react-router-dom";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ const TYPES = [
 export default function StorytellingImportPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -88,6 +89,7 @@ export default function StorytellingImportPage() {
 
       const { data: inserted, error: insertError } = await supabase.from("storytelling").insert({
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         title: title || "Mon storytelling importé",
         story_type: storyType,
         source: "import",
