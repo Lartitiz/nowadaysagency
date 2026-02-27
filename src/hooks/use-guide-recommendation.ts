@@ -194,25 +194,30 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
       recommendation: GuideRecommendation;
       profileSummary: ProfileSummary;
     }> => {
-      // Demo mode
+      // Demo mode – Léa, photographe portraitiste éthique
       if (isDemoMode && demoData) {
-        // Demo: show P5 (branding advanced but calendar empty) for realistic experience
+        // 4/6 sections: storytelling ✓, persona ✓, proposition ✓, tone ✓, strategy ✗, charter ✗
         const bc: BrandingCompletion = {
           storytelling: 100,
           persona: 100,
           proposition: 80,
-          tone: 60,
-          strategy: 50,
+          tone: 70,
+          strategy: 0,
           charter: 0,
           total: 62,
         };
+        // Audit done 2 weeks ago
+        const twoWeeksAgo = new Date();
+        twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+        const lastAudit = twoWeeksAgo.toISOString();
+
         return {
-          recommendation: buildRecommendation(true, bc, 0, null),
+          recommendation: buildRecommendation(true, bc, 0, lastAudit),
           profileSummary: {
             firstName: demoData.profile.first_name,
-            brandingSections: countFilledSections(bc),
+            brandingSections: 4,
             calendarPosts: 0,
-            lastAuditDate: null,
+            lastAuditDate: lastAudit,
             onboardingComplete: true,
             contentsGenerated: 3,
           },

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Heart, ArrowRight, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
+import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 
 /* ── localStorage helpers ── */
@@ -34,11 +35,11 @@ function isDismissed(): boolean {
 }
 
 /* ── Should show soft CTA? ── */
-function shouldShowSoftCTA(brandingScore: number): boolean {
+function shouldShowSoftCTA(brandingScore: number, isDemo: boolean): boolean {
+  // In demo mode, always show (branding > 50%)
+  if (isDemo) return true;
   if (isDismissed()) return false;
-  // Always show if branding > 50%
   if (brandingScore > 50) return true;
-  // Otherwise 1 visit out of 3
   const count = getVisitCount();
   return count % 3 === 0;
 }
@@ -49,7 +50,69 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" as const } },
 };
 
-/* ── Active program card ── */
+/* ── Demo program card ── */
+function DemoActiveProgramCard() {
+  const navigate = useNavigate();
+
+  const nextSessionDate = new Date();
+  nextSessionDate.setDate(nextSessionDate.getDate() + 5);
+  const nextSession = nextSessionDate.toLocaleDateString("fr-FR", {
+    weekday: "long", day: "numeric", month: "long",
+  });
+
+  const month = 2;
+  const progressPct = Math.round((month / 6) * 100);
+
+  return (
+    <motion.div
+      variants={itemVariants}
+      className="bg-white rounded-[20px] shadow-[0_4px_24px_rgba(0,0,0,0.06)] border-l-4 border-[#fb3d80] p-5 sm:p-6 mb-6"
+    >
+      <div className="flex items-start gap-4">
+        <div
+          className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-sm font-medium text-white"
+          style={{ background: "linear-gradient(135deg, #ffa7c6, #fb3d80)" }}
+        >
+          LM
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3
+            className="text-base sm:text-lg text-foreground mb-1"
+            style={{ fontFamily: "'Libre Baskerville', serif" }}
+          >
+            Ton accompagnement
+          </h3>
+          <p
+            className="text-xs text-muted-foreground mb-3"
+            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+          >
+            Phase stratégie : on construit ton plan de com'
+          </p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-3" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+            <span className="text-foreground">Mois {month}/6</span>
+            <span className="text-muted-foreground">Prochaine session : {nextSession}</span>
+          </div>
+          <div className="w-full h-1.5 rounded-full overflow-hidden mb-3" style={{ background: "rgba(255,167,198,0.2)" }}>
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${progressPct}%`, background: "linear-gradient(90deg, #ffa7c6, #fb3d80)" }}
+            />
+          </div>
+          <button
+            onClick={() => navigate("/accompagnement")}
+            className="text-xs font-medium inline-flex items-center gap-1 transition-colors hover:opacity-80"
+            style={{ color: "#fb3d80", fontFamily: "'IBM Plex Mono', monospace" }}
+          >
+            Voir mon espace accompagnement
+            <ArrowRight className="h-3 w-3" />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ── Active program card (real data) ── */
 function ActiveProgramCard() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -67,7 +130,6 @@ function ActiveProgramCard() {
       if (!prog) return;
       setProgram(prog);
 
-      // Fetch next scheduled session
       const { data: sess } = await (supabase.from("coaching_sessions" as any) as any)
         .select("scheduled_date")
         .eq("program_id", prog.id)
@@ -97,7 +159,6 @@ function ActiveProgramCard() {
       className="bg-white rounded-[20px] shadow-[0_4px_24px_rgba(0,0,0,0.06)] border-l-4 border-[#fb3d80] p-5 sm:p-6 mb-6"
     >
       <div className="flex items-start gap-4">
-        {/* Avatar placeholder */}
         <div
           className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-sm font-medium text-white"
           style={{ background: "linear-gradient(135deg, #ffa7c6, #fb3d80)" }}
@@ -117,23 +178,18 @@ function ActiveProgramCard() {
           >
             {phaseLabel}
           </p>
-
-          {/* Quick info */}
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-3" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
             <span className="text-foreground">Mois {month}/6</span>
             {nextSession && (
               <span className="text-muted-foreground">Prochaine session : {nextSession}</span>
             )}
           </div>
-
-          {/* Mini progress bar */}
           <div className="w-full h-1.5 rounded-full overflow-hidden mb-3" style={{ background: "rgba(255,167,198,0.2)" }}>
             <div
               className="h-full rounded-full transition-all duration-700"
               style={{ width: `${progressPct}%`, background: "linear-gradient(90deg, #ffa7c6, #fb3d80)" }}
             />
           </div>
-
           <button
             onClick={() => navigate("/accompagnement")}
             className="text-xs font-medium inline-flex items-center gap-1 transition-colors hover:opacity-80"
@@ -149,7 +205,7 @@ function ActiveProgramCard() {
 }
 
 /* ── Soft CTA card ── */
-function SoftCTACard({ onDismiss }: { onDismiss: () => void }) {
+function SoftCTACard({ onDismiss, isDemo }: { onDismiss: () => void; isDemo: boolean }) {
   const navigate = useNavigate();
 
   return (
@@ -161,14 +217,16 @@ function SoftCTACard({ onDismiss }: { onDismiss: () => void }) {
         border: "2px dashed #ffa7c6",
       }}
     >
-      {/* Dismiss button */}
-      <button
-        onClick={() => { dismiss(); onDismiss(); }}
-        className="absolute top-3 right-3 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-        title="Pas maintenant"
-      >
-        <X className="h-4 w-4" />
-      </button>
+      {/* Dismiss button (hidden in demo) */}
+      {!isDemo && (
+        <button
+          onClick={() => { dismiss(); onDismiss(); }}
+          className="absolute top-3 right-3 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          title="Pas maintenant"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
 
       <div className="flex items-start gap-4">
         <Heart className="h-7 w-7 text-[#fb3d80] shrink-0 mt-0.5" />
@@ -206,17 +264,27 @@ interface GuideCoachingSectionProps {
 
 export default function GuideCoachingSection({ brandingPercent }: GuideCoachingSectionProps) {
   const { isPilot } = useUserPlan();
+  const { isDemoMode, demoPlan } = useDemoContext();
   const [dismissed, setDismissed] = useState(false);
 
-  // Increment visit counter on mount
-  useEffect(() => { incrementVisitCount(); }, []);
+  // Increment visit counter on mount (skip in demo)
+  useEffect(() => { if (!isDemoMode) incrementVisitCount(); }, [isDemoMode]);
 
+  // Demo mode: respect the Free/Binôme toggle
+  if (isDemoMode) {
+    if (demoPlan === "now_pilot") {
+      return <DemoActiveProgramCard />;
+    }
+    // Free demo: always show soft CTA (branding > 50%)
+    return <SoftCTACard onDismiss={() => {}} isDemo />;
+  }
+
+  // Real mode
   if (isPilot) {
     return <ActiveProgramCard />;
   }
 
-  // Soft CTA logic
-  if (dismissed || !shouldShowSoftCTA(brandingPercent)) return null;
+  if (dismissed || !shouldShowSoftCTA(brandingPercent, false)) return null;
 
-  return <SoftCTACard onDismiss={() => setDismissed(true)} />;
+  return <SoftCTACard onDismiss={() => setDismissed(true)} isDemo={false} />;
 }
