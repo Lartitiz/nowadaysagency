@@ -40,7 +40,7 @@ function RichExplanation({ text }: { text: string }) {
             <span
               key={i}
               className="block mt-2 italic"
-              style={{ color: "#91014b", fontFamily: "'IBM Plex Mono', monospace", fontSize: "13px" }}
+              style={{ color: "#91014b", fontSize: "13px" }}
               role="note"
               aria-label="note"
             >
@@ -103,8 +103,7 @@ function GuideSkeleton() {
           </div>
         </div>
         <p
-          className="text-xs text-muted-foreground italic"
-          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+          className="text-xs text-muted-foreground italic font-body"
           aria-live="polite"
         >
           Je regarde où tu en es
@@ -135,8 +134,7 @@ function GuideError({ navigate }: { navigate: (path: string) => void }) {
             Oups, un petit souci
           </h2>
           <p
-            className="text-sm text-muted-foreground leading-relaxed mb-5"
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+            className="text-sm text-muted-foreground leading-relaxed mb-5 font-body"
           >
             Je n'arrive pas à analyser ton compte pour le moment.
             <br />
@@ -170,8 +168,7 @@ function FirstVisitWelcome({ firstName, navigate }: { firstName: string; navigat
         Bienvenue {firstName} ! 🎉
       </h2>
       <p
-        className="text-sm text-muted-foreground leading-relaxed mb-5"
-        style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+        className="text-sm text-muted-foreground leading-relaxed mb-5 font-body"
       >
         Je suis ton assistant com'. Ensemble, on va :
       </p>
@@ -184,8 +181,7 @@ function FirstVisitWelcome({ firstName, navigate }: { firstName: string; navigat
           <div key={i} className="flex items-start gap-3 bg-rose-pale rounded-xl p-3">
             <div className="mt-0.5 shrink-0">{item.icon}</div>
             <span
-              className="text-sm text-foreground leading-relaxed"
-              style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+              className="text-sm text-foreground leading-relaxed font-body"
             >
               {item.text}
             </span>
@@ -266,8 +262,7 @@ export default function GuideComHome() {
             {welcomeMessage}
           </h1>
           <p
-            className="mt-2 text-xs sm:text-sm text-muted-foreground"
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+            className="mt-2 text-xs sm:text-sm text-muted-foreground font-body"
           >
             Je regarde où tu en es et je te propose la prochaine étape.
           </p>
@@ -302,8 +297,7 @@ export default function GuideComHome() {
                     {recommendation.title}
                   </h2>
                   <div
-                    className="text-sm text-muted-foreground leading-relaxed mb-4 sm:mb-5"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                    className="text-sm text-muted-foreground leading-relaxed mb-4 sm:mb-5 font-body"
                   >
                     <RichExplanation text={recommendation.explanation} />
                   </div>
@@ -323,8 +317,7 @@ export default function GuideComHome() {
             {recommendation.alternatives.length > 0 && (
               <motion.div variants={itemVariants} className="mb-6 sm:mb-10">
                 <p
-                  className="text-xs text-muted-foreground mb-3"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  className="text-xs text-muted-foreground mb-3 font-body"
                 >
                   Sinon, tu peux aussi...
                 </p>
@@ -339,8 +332,7 @@ export default function GuideComHome() {
                     >
                       {getIcon(alt.icon, "h-5 w-5 text-primary")}
                       <span
-                        className="text-sm text-foreground group-hover:text-primary transition-colors"
-                        style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                        className="text-sm text-foreground group-hover:text-primary transition-colors font-body"
                       >
                         {alt.title}
                       </span>
@@ -361,8 +353,7 @@ export default function GuideComHome() {
         <motion.div variants={itemVariants} className="text-center mt-2">
           <Link
             to="/dashboard/complet"
-            className="text-xs text-muted-foreground hover:text-primary transition-colors duration-200 inline-flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none rounded"
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+            className="text-xs text-muted-foreground hover:text-primary transition-colors duration-200 inline-flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none rounded font-body"
             aria-label="Voir toutes les fonctionnalités du dashboard"
           >
             Voir toutes les fonctionnalités

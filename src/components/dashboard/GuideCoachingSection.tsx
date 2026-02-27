@@ -83,12 +83,11 @@ function DemoActiveProgramCard() {
             Ton accompagnement
           </h3>
           <p
-            className="text-xs text-muted-foreground mb-3"
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+            className="text-xs text-muted-foreground mb-3 font-body"
           >
             Phase stratégie : on construit ton plan de com'
           </p>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-3" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-3 font-body">
             <span className="text-foreground">Mois {month}/6</span>
             <span className="text-muted-foreground">Prochaine session : {nextSession}</span>
           </div>
@@ -101,7 +100,7 @@ function DemoActiveProgramCard() {
           <button
             onClick={() => navigate("/accompagnement")}
             className="text-xs font-medium inline-flex items-center gap-1 transition-colors hover:opacity-80"
-            style={{ color: "#fb3d80", fontFamily: "'IBM Plex Mono', monospace" }}
+            style={{ color: "#fb3d80" }}
           >
             Voir mon espace accompagnement
             <ArrowRight className="h-3 w-3" />
@@ -173,12 +172,11 @@ function ActiveProgramCard() {
             Ton accompagnement
           </h3>
           <p
-            className="text-xs text-muted-foreground mb-3"
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+            className="text-xs text-muted-foreground mb-3 font-body"
           >
             {phaseLabel}
           </p>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-3" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-3 font-body">
             <span className="text-foreground">Mois {month}/6</span>
             {nextSession && (
               <span className="text-muted-foreground">Prochaine session : {nextSession}</span>
@@ -193,7 +191,7 @@ function ActiveProgramCard() {
           <button
             onClick={() => navigate("/accompagnement")}
             className="text-xs font-medium inline-flex items-center gap-1 transition-colors hover:opacity-80"
-            style={{ color: "#fb3d80", fontFamily: "'IBM Plex Mono', monospace" }}
+            style={{ color: "#fb3d80" }}
           >
             Voir mon espace accompagnement
             <ArrowRight className="h-3 w-3" />
@@ -238,15 +236,14 @@ function SoftCTACard({ onDismiss, isDemo }: { onDismiss: () => void; isDemo: boo
             Envie de ne plus être seul·e ?
           </h3>
           <p
-            className="text-sm text-muted-foreground leading-relaxed mb-4"
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+            className="text-sm text-muted-foreground leading-relaxed mb-4 font-body"
           >
             Avec "Ta binôme de com'", on avance ensemble. Pas des conseils qu'on applique jamais : on fait à deux, pendant 6 mois.
           </p>
           <button
             onClick={() => navigate("/abonnement")}
             className="text-sm font-medium inline-flex items-center gap-1 transition-colors hover:opacity-80"
-            style={{ color: "#fb3d80", fontFamily: "'IBM Plex Mono', monospace" }}
+            style={{ color: "#fb3d80" }}
           >
             En savoir plus
             <ArrowRight className="h-3.5 w-3.5" />

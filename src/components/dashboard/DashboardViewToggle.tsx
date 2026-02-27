@@ -24,8 +24,7 @@ export function DashboardViewToggle({ current }: { current: DashboardView }) {
 
   return (
     <div
-      className="inline-flex items-center gap-0.5 rounded-lg border border-border/60 bg-card/80 p-0.5"
-      style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+      className="inline-flex items-center gap-0.5 rounded-lg border border-border/60 bg-card/80 p-0.5 font-body"
       role="tablist"
       aria-label="Mode d'affichage du dashboard"
     >

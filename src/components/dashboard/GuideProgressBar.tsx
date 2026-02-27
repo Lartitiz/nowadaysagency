@@ -130,7 +130,7 @@ export default function GuideProgressBar({ profileSummary, firstName }: GuidePro
       {/* ── Label ── */}
       <p
         className="text-xs sm:text-sm mb-2"
-        style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#91014b" }}
+        style={{ color: "#91014b" }}
       >
         Ta com' est structurée à {score}%{" "}
         <span className="text-muted-foreground">{getEncouragement(score)}</span>
@@ -166,14 +166,13 @@ export default function GuideProgressBar({ profileSummary, firstName }: GuidePro
             className={`
               inline-flex items-center px-2.5 py-1 rounded-full text-xs border transition-all duration-200
               hover:shadow-sm hover:scale-[1.02] active:scale-[0.98]
-              focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none
+              focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none font-body
               ${
                 chip.done
                   ? "border-emerald-300 bg-emerald-50 text-emerald-700"
                   : "border-primary/20 bg-card text-muted-foreground"
               }
             `}
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
             aria-label={`${chip.label} – ${chip.done ? "complété" : "à compléter"}`}
           >
             <span
