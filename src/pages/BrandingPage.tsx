@@ -455,30 +455,6 @@ export default function BrandingPage() {
         ? "Tu avances bien ! Quelques sections à compléter."
         : "Continue à remplir pour débloquer tout le potentiel de l'outil.";
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background animate-fade-in">
-        <AppHeader />
-        <main className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
-          <div className="space-y-4">
-            <div className="h-6 w-48 rounded-lg bg-muted animate-pulse" />
-            <div className="h-3 w-72 rounded bg-muted animate-pulse" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                  <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
-                  <div className="h-4 w-32 rounded bg-muted animate-pulse" />
-                  <div className="h-3 w-full rounded bg-muted animate-pulse" />
-                  <div className="h-2 w-full rounded-full bg-muted animate-pulse" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
   const getRecapRoute = (card: BrandingCard) => {
     if (card.scoreKey === "storytelling" && primaryStoryId) {
       return card.recapRoute.replace("__PRIMARY__", primaryStoryId);
@@ -489,173 +465,191 @@ export default function BrandingPage() {
   const filledSections = (["storytelling", "persona", "proposition", "tone", "strategy", "charter"] as const)
     .filter((k) => completion[k] > 0).length;
   const showNewImport = (filledSections < 2 && !skipImport && !isDemoMode && !coachingActive) || reanalyzeMode;
-  // Show new import for demo mode too
   const showNewImportDemo = isDemoMode && filledSections < 2 && !skipImport && !coachingActive;
 
-  // Determine which top-level view to show: "import" | "review" | "identity"
-  const topView = (importPhaseNew === "reviewing" && analysisResult)
-    ? "review"
-    : (showNewImport || showNewImportDemo)
-      ? "import"
-      : "identity";
-
-  if (topView === "import" || topView === "review") {
-    return (
-      <div className="min-h-screen bg-[hsl(var(--rose-pale))]">
-        <AppHeader />
-        <main className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
-          <AnimatePresence mode="wait">
-            {importPhaseNew === "form" && topView === "import" && (
-              <motion.div key="form" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3 }}>
-                <BrandingImport
-                  loading={importAnalyzing}
-                  onAnalyze={handleStartAnalysis}
-                  onSkip={handleSkipImport}
-                  initialWebsite={reanalyzeUrls.website}
-                  initialInstagram={reanalyzeUrls.instagram}
-                  initialLinkedin={reanalyzeUrls.linkedin}
-                  reanalyzeWarning={reanalyzeMode}
-                />
-              </motion.div>
-            )}
-            {(importPhaseNew === "analyzing" || importPhaseNew === "error") && (
-              <motion.div key="loader" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3, delay: 0.1 }}>
-                <BrandingAnalysisLoader
-                  sources={analysisSources}
-                  error={importPhaseNew === "error" ? analysisError : null}
-                  done={false}
-                  onRetry={() => {
-                    setImportPhaseNew("form");
-                    setImportAnalyzing(false);
-                    setAnalysisError(null);
-                    if (lastImportData) {
-                      setTimeout(() => handleStartAnalysis(lastImportData), 100);
-                    }
-                  }}
-                  onSkip={handleSkipImport}
-                />
-              </motion.div>
-            )}
-            {topView === "review" && analysisResult && (
-              <motion.div key="review" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.4 }}>
-                <BrandingReview
-                  analysis={analysisResult}
-                  sourcesUsed={analysisResult.sources_used || []}
-                  sourcesFailed={analysisResult.sources_failed || []}
-                  preFilledSections={preFilledSections}
-                  onReanalyzeWithBio={handleReanalyzeWithBio}
-                  onDone={async () => {
-                    // Mark autofill as completed
-                    if (user?.id && !isDemoMode) {
-                      await (supabase.from("branding_autofill") as any)
-                        .update({ autofill_status: "completed", autofill_pending_review: false })
-                        .eq("user_id", user.id)
-                        .eq("autofill_status", "pending_review");
-                    }
-                    setImportPhaseNew("form");
-                    setAnalysisResult(null);
-                    setSkipImport(true);
-                    setReanalyzeMode(false);
-                    localStorage.setItem("branding_skip_import", "true");
-                    await reloadCompletion();
-                  }}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </main>
-      </div>
-    );
-  }
+  // Determine which top-level view to show: "loading" | "import" | "review" | "identity"
+  const topView: "loading" | "import" | "review" | "identity" = loading
+    ? "loading"
+    : (importPhaseNew === "reviewing" && analysisResult)
+      ? "review"
+      : (showNewImport || showNewImportDemo)
+        ? "import"
+        : "identity";
 
   return (
-    <motion.div
-      key="identity"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-      className="min-h-screen bg-[hsl(var(--rose-pale))]"
-    >
+    <div className="min-h-screen bg-[hsl(var(--rose-pale))]">
       <AppHeader />
-      <main id="main-content" className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
-        <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-6 transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Retour au hub
-        </Link>
-
-        {!coachingActive && <AuditRecommendationBanner />}
-
-        {coachingActive && coachingModule && (
-          <div className="mb-6">
-            <CoachingFlow
-              module={coachingModule}
-              recId={coachingRecId}
-              onComplete={async () => { setCoachingActive(false); setSearchParams({}); await reloadCompletion(); }}
-              onSkip={() => { setCoachingActive(false); setSearchParams({}); }}
-            />
-          </div>
-        )}
-
-        {showSynthesis ? (
-          <BrandingSynthesisSheet onClose={() => setShowSynthesis(false)} />
-        ) : importPhase === 'reviewing' && importExtraction ? (
-          <BrandingImportReview
-            extraction={importExtraction}
-            onDone={handleImportDone}
-            onCancel={() => { setImportPhase('idle'); setImportExtraction(null); }}
-          />
-        ) : viewMode === "guided" ? (
-          <>
-            <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
-              <h1 className="font-display text-[26px] font-bold text-foreground">Mon Branding</h1>
-              <div className="flex items-center gap-2">
-                {!isDemoMode && completion.total > 0 && (
-                  <button onClick={handleStartReanalyze} className="font-mono-ui text-[12px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">🔄 Réanalyser mes liens</button>
-                )}
-                <div className="flex items-center gap-1 rounded-full border border-border bg-muted/50 p-0.5">
-                  <button onClick={() => { setViewMode("free"); localStorage.setItem("branding_mode", "free"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all text-muted-foreground hover:text-foreground">
-                    <LayoutGrid className="h-3.5 w-3.5" /> Mode libre
-                  </button>
-                  <button onClick={() => { setViewMode("guided"); localStorage.setItem("branding_mode", "guided"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all bg-card text-foreground shadow-sm">
-                    <ListOrdered className="h-3.5 w-3.5" /> Guidé (7 jours)
-                  </button>
+      <main className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
+        <AnimatePresence mode="wait">
+          {/* === LOADING === */}
+          {topView === "loading" && (
+            <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+              <div className="space-y-4">
+                <div className="h-6 w-52 rounded-lg bg-muted animate-pulse" />
+                <div className="h-3 w-80 rounded bg-muted animate-pulse" />
+                <div className="rounded-2xl border border-border bg-card/60 p-5 mt-4 animate-pulse">
+                  <div className="h-4 w-64 rounded bg-muted mb-2" />
+                  <div className="h-3 w-48 rounded bg-muted" />
+                </div>
+                <div className="space-y-3 mt-2">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="rounded-2xl border border-border bg-card p-4 flex items-center gap-3 animate-pulse">
+                      <div className="h-8 w-8 rounded-full bg-muted shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-4 w-36 rounded bg-muted" />
+                        <div className="h-3 w-56 rounded bg-muted" />
+                      </div>
+                      <div className="h-5 w-14 rounded-full bg-muted shrink-0" />
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-            <p className="text-[15px] text-muted-foreground mb-6">Suis le parcours jour par jour pour construire ton branding pas à pas.</p>
-            <GuidedTimeline completion={completion} navigate={navigate} onShowSynthesis={() => setShowSynthesis(true)} />
-          </>
-        ) : (
-          <>
-            <div className="flex items-center gap-2 mb-6 justify-end">
-              <div className="flex items-center gap-1 rounded-full border border-border bg-muted/50 p-0.5">
-                <button onClick={() => { setViewMode("free"); localStorage.setItem("branding_mode", "free"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all bg-card text-foreground shadow-sm">
-                  <LayoutGrid className="h-3.5 w-3.5" /> Fiche d'identité
-                </button>
-                <button onClick={() => { setViewMode("guided"); localStorage.setItem("branding_mode", "guided"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all text-muted-foreground hover:text-foreground">
-                  <ListOrdered className="h-3.5 w-3.5" /> Guidé (7 jours)
-                </button>
-              </div>
-            </div>
+            </motion.div>
+          )}
 
-            <BrandingIdentityCard
-              completion={completion}
-              summaries={sectionSummaries}
-              onReanalyze={!isDemoMode && completion.total > 0 ? handleStartReanalyze : undefined}
-            />
+          {/* === IMPORT === */}
+          {topView === "import" && importPhaseNew === "form" && (
+            <motion.div key="form" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3 }}>
+              <BrandingImport
+                loading={importAnalyzing}
+                onAnalyze={handleStartAnalysis}
+                onSkip={handleSkipImport}
+                initialWebsite={reanalyzeUrls.website}
+                initialInstagram={reanalyzeUrls.instagram}
+                initialLinkedin={reanalyzeUrls.linkedin}
+                reanalyzeWarning={reanalyzeMode}
+              />
+            </motion.div>
+          )}
+          {topView === "import" && (importPhaseNew === "analyzing" || importPhaseNew === "error") && (
+            <motion.div key="loader" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3, delay: 0.1 }}>
+              <BrandingAnalysisLoader
+                sources={analysisSources}
+                error={importPhaseNew === "error" ? analysisError : null}
+                done={false}
+                onRetry={() => {
+                  setImportPhaseNew("form");
+                  setImportAnalyzing(false);
+                  setAnalysisError(null);
+                  if (lastImportData) {
+                    setTimeout(() => handleStartAnalysis(lastImportData), 100);
+                  }
+                }}
+                onSkip={handleSkipImport}
+              />
+            </motion.div>
+          )}
 
-            {/* Extra tools */}
-            <div className="mt-6 flex flex-col sm:flex-row gap-2">
-              {completion.total >= 10 && (
-                <Button variant="outline" className="flex-1 gap-2 text-sm" onClick={() => setShowSynthesis(true)}>
-                  <ClipboardList className="h-4 w-4" /> 📋 Générer ma fiche de synthèse
-                </Button>
+          {/* === REVIEW === */}
+          {topView === "review" && analysisResult && (
+            <motion.div key="review" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.4 }}>
+              <BrandingReview
+                analysis={analysisResult}
+                sourcesUsed={analysisResult.sources_used || []}
+                sourcesFailed={analysisResult.sources_failed || []}
+                preFilledSections={preFilledSections}
+                onReanalyzeWithBio={handleReanalyzeWithBio}
+                onDone={async () => {
+                  if (user?.id && !isDemoMode) {
+                    await (supabase.from("branding_autofill") as any)
+                      .update({ autofill_status: "completed", autofill_pending_review: false })
+                      .eq("user_id", user.id)
+                      .eq("autofill_status", "pending_review");
+                  }
+                  setImportPhaseNew("form");
+                  setAnalysisResult(null);
+                  setSkipImport(true);
+                  setReanalyzeMode(false);
+                  localStorage.setItem("branding_skip_import", "true");
+                  await reloadCompletion();
+                }}
+              />
+            </motion.div>
+          )}
+
+          {/* === IDENTITY === */}
+          {topView === "identity" && (
+            <motion.div key="identity" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.35 }}>
+              <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-6 transition-colors">
+                <ArrowLeft className="h-4 w-4" /> Retour au hub
+              </Link>
+
+              {!coachingActive && <AuditRecommendationBanner />}
+
+              {coachingActive && coachingModule && (
+                <div className="mb-6">
+                  <CoachingFlow
+                    module={coachingModule}
+                    recId={coachingRecId}
+                    onComplete={async () => { setCoachingActive(false); setSearchParams({}); await reloadCompletion(); }}
+                    onSkip={() => { setCoachingActive(false); setSearchParams({}); }}
+                  />
+                </div>
               )}
-              {canShowMirror && (
-                <Button variant="outline" className="gap-2 text-sm sm:w-auto" onClick={runMirror}>🪞 Mon Branding Mirror</Button>
+
+              {showSynthesis ? (
+                <BrandingSynthesisSheet onClose={() => setShowSynthesis(false)} />
+              ) : importPhase === 'reviewing' && importExtraction ? (
+                <BrandingImportReview
+                  extraction={importExtraction}
+                  onDone={handleImportDone}
+                  onCancel={() => { setImportPhase('idle'); setImportExtraction(null); }}
+                />
+              ) : viewMode === "guided" ? (
+                <>
+                  <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
+                    <h1 className="font-display text-[26px] font-bold text-foreground">Mon Branding</h1>
+                    <div className="flex items-center gap-2">
+                      {!isDemoMode && completion.total > 0 && (
+                        <button onClick={handleStartReanalyze} className="font-mono-ui text-[12px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">🔄 Réanalyser mes liens</button>
+                      )}
+                      <div className="flex items-center gap-1 rounded-full border border-border bg-muted/50 p-0.5">
+                        <button onClick={() => { setViewMode("free"); localStorage.setItem("branding_mode", "free"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all text-muted-foreground hover:text-foreground">
+                          <LayoutGrid className="h-3.5 w-3.5" /> Mode libre
+                        </button>
+                        <button onClick={() => { setViewMode("guided"); localStorage.setItem("branding_mode", "guided"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all bg-card text-foreground shadow-sm">
+                          <ListOrdered className="h-3.5 w-3.5" /> Guidé (7 jours)
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[15px] text-muted-foreground mb-6">Suis le parcours jour par jour pour construire ton branding pas à pas.</p>
+                  <GuidedTimeline completion={completion} navigate={navigate} onShowSynthesis={() => setShowSynthesis(true)} />
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 mb-6 justify-end">
+                    <div className="flex items-center gap-1 rounded-full border border-border bg-muted/50 p-0.5">
+                      <button onClick={() => { setViewMode("free"); localStorage.setItem("branding_mode", "free"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all bg-card text-foreground shadow-sm">
+                        <LayoutGrid className="h-3.5 w-3.5" /> Fiche d'identité
+                      </button>
+                      <button onClick={() => { setViewMode("guided"); localStorage.setItem("branding_mode", "guided"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all text-muted-foreground hover:text-foreground">
+                        <ListOrdered className="h-3.5 w-3.5" /> Guidé (7 jours)
+                      </button>
+                    </div>
+                  </div>
+
+                  <BrandingIdentityCard
+                    completion={completion}
+                    summaries={sectionSummaries}
+                    onReanalyze={!isDemoMode && completion.total > 0 ? handleStartReanalyze : undefined}
+                  />
+
+                  <div className="mt-6 flex flex-col sm:flex-row gap-2">
+                    {completion.total >= 10 && (
+                      <Button variant="outline" className="flex-1 gap-2 text-sm" onClick={() => setShowSynthesis(true)}>
+                        <ClipboardList className="h-4 w-4" /> 📋 Générer ma fiche de synthèse
+                      </Button>
+                    )}
+                    {canShowMirror && (
+                      <Button variant="outline" className="gap-2 text-sm sm:w-auto" onClick={runMirror}>🪞 Mon Branding Mirror</Button>
+                    )}
+                  </div>
+                </>
               )}
-            </div>
-          </>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       <Sheet open={mirrorOpen} onOpenChange={setMirrorOpen}>
@@ -699,6 +693,6 @@ export default function BrandingPage() {
           ) : null}
         </SheetContent>
       </Sheet>
-    </motion.div>
+    </div>
   );
 }
