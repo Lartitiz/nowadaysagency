@@ -13,7 +13,7 @@ export default function BrandingTransitionStep({ onNext }: BrandingTransitionSte
           OK, maintenant on entre<br />dans le cœur de ta marque.
         </h1>
         <p className="text-sm text-muted-foreground">
-          Les 5 prochaines questions vont nourrir ton IA perso. Elle s'en servira pour écrire tes contenus, auditer ton profil, et te coacher.
+          Les 5 prochaines questions vont personnaliser tout l'outil. Il s'en servira pour écrire tes contenus, auditer ton profil, et te coacher.
         </p>
         <p className="text-sm font-medium text-foreground">
           Réponds comme tu parles. Il n'y a pas de mauvaise réponse.

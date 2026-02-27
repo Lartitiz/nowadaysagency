@@ -20,7 +20,7 @@ export default function PromiseStep({ onNext }: PromiseStepProps) {
         </div>
         <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
           <span className="text-2xl">🧠</span>
-          <p className="text-sm text-foreground">Une IA qui connaît ta marque, ton ton, ta cible</p>
+          <p className="text-sm text-foreground">Un outil qui connaît ta marque, ton ton, ta cible</p>
         </div>
         <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
           <span className="text-2xl">📅</span>
