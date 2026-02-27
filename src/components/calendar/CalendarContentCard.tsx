@@ -213,7 +213,7 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
           {canalShort && (
             <span
               className="text-muted-foreground uppercase"
-              style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, letterSpacing: "0.04em" }}
+              style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.04em" }}
             >
               {canalShort}
             </span>
@@ -277,7 +277,7 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
       {showPreview && hasPreview && (
         <div className="absolute left-full top-0 ml-2 z-50 pointer-events-none animate-in fade-in-0 zoom-in-95 duration-150" style={{ width: 260 }}>
           <div className="rounded-xl border border-border shadow-lg bg-card overflow-hidden p-3" style={{ maxHeight: 200 }}>
-            <p className="text-[10px] uppercase mb-1 text-muted-foreground" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+            <p className="text-[10px] uppercase mb-1 text-muted-foreground font-body">
               {post.canal} · {FORMAT_LABELS[post.format || ""] || "post"}
             </p>
             <p className="text-xs text-foreground whitespace-pre-wrap line-clamp-6">{post.content_draft}</p>

@@ -1,4 +1,4 @@
-/* Fonts loaded via index.html — Libre Baskerville + IBM Plex Sans + IBM Plex Mono */
+/* Fonts loaded via index.html — Libre Baskerville + IBM Plex Sans */
 
 @tailwind base;
 @tailwind components;
@@ -171,7 +171,7 @@
   }
 
   .font-mono-ui {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
   }
 }
 

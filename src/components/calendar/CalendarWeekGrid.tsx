@@ -112,7 +112,7 @@ function DroppableWeekDay({
         <div className="flex flex-col items-start">
           <span
             className={cn("uppercase", isToday ? "text-primary" : "text-muted-foreground")}
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.05em" }}
+            style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.05em" }}
           >
             {dayName}
           </span>

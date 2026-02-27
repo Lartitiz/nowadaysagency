@@ -501,7 +501,7 @@ export default function SharedCalendarPage() {
 
           {/* Wording complet */}
           <div className="bg-white rounded-xl border border-gray-200 p-3">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 font-body">
               Wording complet
             </p>
             <p className="text-[13px] text-gray-800 leading-relaxed whitespace-pre-line">{wording}</p>
@@ -509,7 +509,7 @@ export default function SharedCalendarPage() {
 
           {/* Comments */}
           <div className="space-y-2">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider font-body">
               Commentaires ({postComments.length})
             </p>
             {postComments.length === 0 && (
@@ -594,7 +594,7 @@ export default function SharedCalendarPage() {
             {profile.activite && <p className="text-sm text-gray-500 mt-0.5">{profile.activite}</p>}
             {share?.label && <p className="text-xs text-gray-400 mt-1">{share.label}</p>}
             {lastUpdated && (
-              <p className="text-[10px] text-gray-400 mt-1" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+              <p className="text-[10px] text-gray-400 mt-1 font-body">
                 Dernière mise à jour : {format(parseISO(lastUpdated), "d MMM yyyy · HH:mm", { locale: fr })}
               </p>
             )}
@@ -650,7 +650,7 @@ export default function SharedCalendarPage() {
           {/* Canal filter */}
           {uniqueCanals.length > 1 && (
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>Canal</span>
+              <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1 font-body">Canal</span>
               <FilterChip label="Tout" active={filterCanal === "all"} onClick={() => setFilterCanal("all")} />
               {uniqueCanals.map(c => (
                 <FilterChip key={c} label={CANAL_COLORS[c]?.label || c} active={filterCanal === c} onClick={() => setFilterCanal(c)} />
@@ -660,7 +660,7 @@ export default function SharedCalendarPage() {
           {/* Status filter */}
           {uniqueStatuses.length > 1 && (
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>Statut</span>
+              <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1 font-body">Statut</span>
               <FilterChip label="Tous" active={filterStatus === "all"} onClick={() => setFilterStatus("all")} />
               {uniqueStatuses.map(s => (
                 <FilterChip key={s} label={getStatusInfo(s).label} active={filterStatus === s} onClick={() => setFilterStatus(s)} />
@@ -670,7 +670,7 @@ export default function SharedCalendarPage() {
           {/* Phase filter */}
           {uniquePhases.length > 1 && (
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>Phase</span>
+              <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1 font-body">Phase</span>
               <FilterChip label="Toutes" active={filterPhase === "all"} onClick={() => setFilterPhase("all")} />
               {uniquePhases.map(p => (
                 <FilterChip key={p!} label={p!} active={filterPhase === p} onClick={() => setFilterPhase(p!)} />
@@ -710,7 +710,7 @@ export default function SharedCalendarPage() {
             <div className="grid gap-0 border-b border-gray-200 bg-white sticky top-0 z-10"
               style={{
                 gridTemplateColumns: buildGridCols(showColumns, !!share?.guest_can_edit_status),
-                fontFamily: "'IBM Plex Mono', monospace",
+                fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
               }}
             >
               {showColumns.includes("date") && (
@@ -757,7 +757,7 @@ export default function SharedCalendarPage() {
                   style={{ gridTemplateColumns: buildGridCols(showColumns, !!share?.guest_can_edit_status) }}
                 >
                   {showColumns.includes("date") && (
-                    <div className="px-3 py-2.5 text-[12px] text-gray-600" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+                    <div className="px-3 py-2.5 text-[12px] text-gray-600 font-body">
                       {format(parseISO(post.date), "d MMM yyyy", { locale: fr })}
                     </div>
                   )}
@@ -1018,7 +1018,7 @@ function MobilePostCard({ post, share, comments, unresolvedCount, onOpenComments
           <p className="text-[13px] text-gray-900 leading-snug" style={{ fontFamily: "'Libre Baskerville', serif" }}>
             {post.theme}
           </p>
-          <p className="text-[11px] text-gray-400 mt-1" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+          <p className="text-[11px] text-gray-400 mt-1 font-body">
             {format(parseISO(post.date), "d MMM yyyy", { locale: fr })}
           </p>
         </div>
