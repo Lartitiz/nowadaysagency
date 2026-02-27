@@ -133,14 +133,14 @@ export default function StrategySimplePage() {
   ].filter(Boolean);
 
   if (loading || brandingLoading) return (
-    <div className="min-h-screen bg-[hsl(var(--rose-pale))]">
+    <div className="min-h-screen bg-background">
       <AppHeader />
       <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--rose-pale))]">
+    <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
         <SubPageHeader breadcrumbs={[{ label: "Branding", to: "/branding" }]} currentLabel="Ma stratégie de contenu" />

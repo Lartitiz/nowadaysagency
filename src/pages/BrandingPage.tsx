@@ -474,7 +474,7 @@ export default function BrandingPage() {
         : "identity";
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--rose-pale))]">
+    <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
         <AnimatePresence mode="wait">

@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    --background: 330 33% 99%;
+    --background: 0 0% 98%;
     --foreground: 270 25% 17%;
 
     --card: 0 0% 100%;
@@ -92,7 +92,7 @@
     --obj-credibilite-bg: 271 81% 94%;
 
     /* ── Sidebar ───────────────────────────── */
-    --sidebar-background: 340 100% 97%;
+    --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 270 25% 17%;
     --sidebar-primary: 338 96% 61%;
     --sidebar-primary-foreground: 0 0% 100%;

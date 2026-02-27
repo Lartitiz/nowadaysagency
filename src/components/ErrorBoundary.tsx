@@ -43,7 +43,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       const msg = MESSAGES.errors.generic;
       return (
-        <div className="min-h-screen bg-rose-pale flex items-center justify-center p-6">
+        <div className="min-h-screen bg-background flex items-center justify-center p-6">
           <div className="max-w-md w-full text-center space-y-6">
             <div className="text-5xl">😵</div>
             <h1 className="font-display text-2xl font-bold text-foreground">
