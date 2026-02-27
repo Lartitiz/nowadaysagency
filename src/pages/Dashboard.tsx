@@ -266,6 +266,7 @@ export default function Dashboard() {
           workspaceName={activeWorkspace?.name || "Client"}
           workspaceId={activeWorkspace!.id}
           onComplete={() => {
+            localStorage.setItem(`onboarding_skipped_${activeWorkspace!.id}`, "true");
             queryClient.invalidateQueries();
           }}
           onSkip={() => {
