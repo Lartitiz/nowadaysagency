@@ -56,17 +56,31 @@ export default function BrandingCoachingHistory({ section }: Props) {
       return;
     }
     if (!user) return;
-    (supabase
-      .from("branding_coaching_sessions") as any)
-      .select("id, messages, created_at, question_count, is_complete")
-      .eq(column, value)
-      .eq("section", section)
-      .order("created_at", { ascending: true })
-      .then(({ data }) => {
-        setSessions(data || []);
-        setLoading(false);
-      });
-  }, [user?.id, section, isDemoMode]);
+    const fetchSessions = async () => {
+      // Try workspace filter first
+      let { data } = await (supabase
+        .from("branding_coaching_sessions") as any)
+        .select("id, messages, created_at, question_count, is_complete")
+        .eq(column, value)
+        .eq("section", section)
+        .order("created_at", { ascending: true });
+      
+      // Fallback: if workspace filter returned nothing, try user_id directly
+      if ((!data || data.length === 0) && column === "workspace_id") {
+        const fallback = await (supabase
+          .from("branding_coaching_sessions") as any)
+          .select("id, messages, created_at, question_count, is_complete")
+          .eq("user_id", user.id)
+          .eq("section", section)
+          .order("created_at", { ascending: true });
+        data = fallback.data;
+      }
+      
+      setSessions(data || []);
+      setLoading(false);
+    };
+    fetchSessions();
+  }, [user?.id, section, isDemoMode, column, value]);
 
   if (loading) return <p className="text-sm text-muted-foreground py-4">Chargement...</p>;
 

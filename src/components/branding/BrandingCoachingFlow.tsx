@@ -153,12 +153,23 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
     if (isDemoMode || !user) return;
 
     const loadSession = async () => {
-      const { data } = await (supabase
+      let { data } = await (supabase
         .from("branding_coaching_sessions") as any)
         .select("*")
         .eq(column, value)
         .eq("section", section)
         .maybeSingle();
+
+      // Fallback: if workspace filter returned nothing, try user_id directly
+      if (!data && column === "workspace_id") {
+        const fallback = await (supabase
+          .from("branding_coaching_sessions") as any)
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("section", section)
+          .maybeSingle();
+        data = fallback.data;
+      }
 
       if (data && data.messages && (data.messages as any[]).length > 0) {
         setHasExistingSession(true);
@@ -541,8 +552,10 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
     setCompletionPct(realPct);
 
     // Save session
+    const wsId = workspaceId !== user!.id ? workspaceId : undefined;
     supabase.from("branding_coaching_sessions").upsert({
       user_id: user!.id,
+      workspace_id: wsId,
       section,
       messages: updatedMessages as any,
       extracted_data: {
