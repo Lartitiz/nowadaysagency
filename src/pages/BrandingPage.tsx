@@ -17,6 +17,7 @@ import { usePersona, useBrandProposition, useStorytelling } from "@/hooks/use-br
 import { useQueryClient } from "@tanstack/react-query";
 import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
 import GuidedTimeline from "@/components/branding/GuidedTimeline";
+import BrandingIdentityCard from "@/components/branding/BrandingIdentityCard";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import BrandingImportBlock from "@/components/branding/BrandingImportBlock";
 import BrandingImport from "@/components/branding/BrandingImport";
@@ -121,6 +122,7 @@ export default function BrandingPage() {
   const [reanalyzeUrls, setReanalyzeUrls] = useState<{ website?: string; instagram?: string; linkedin?: string }>({});
   // Pre-filled sections detection
   const [preFilledSections, setPreFilledSections] = useState<Set<string>>(new Set());
+  const [sectionSummaries, setSectionSummaries] = useState<any>({});
 
   const canShowMirror = completion.tone > 0 && !!lastAudit;
 
@@ -208,6 +210,33 @@ export default function BrandingPage() {
         const primary = data.storytellingList.find((s: any) => s.is_primary);
         setPrimaryStoryId(primary?.id || data.storytellingList[0].id);
       }
+
+      // Build section summaries for identity card
+      const [personaFullRes, storyFullRes, stratFullRes, toneFullRes] = await Promise.all([
+        (supabase.from("persona") as any).select("portrait_prenom, description, pitch_short").eq(column, value).maybeSingle(),
+        data.storytellingList && data.storytellingList.length > 0
+          ? (supabase.from("storytelling") as any).select("step_7_polished, imported_text, step_1_raw").eq("id", (data.storytellingList.find((s: any) => s.is_primary) || data.storytellingList[0]).id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        (supabase.from("brand_strategy") as any).select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq(column, value).maybeSingle(),
+        (supabase.from("brand_profile") as any).select("tone_register, tone_level, tone_style, tone_humor, tone_engagement").eq(column, value).maybeSingle(),
+      ]);
+
+      const storyText = storyFullRes.data?.step_7_polished || storyFullRes.data?.imported_text || storyFullRes.data?.step_1_raw || "";
+      const toneKw = toneFullRes.data ? [toneFullRes.data.tone_register, toneFullRes.data.tone_style, toneFullRes.data.tone_humor, toneFullRes.data.tone_level].filter(Boolean) : [];
+      const pillars = stratFullRes.data ? [stratFullRes.data.pillar_major, stratFullRes.data.pillar_minor_1, stratFullRes.data.pillar_minor_2, stratFullRes.data.pillar_minor_3].filter(Boolean) : [];
+      const charterParts: string[] = [];
+      if (data.charter?.color_primary) charterParts.push("Couleurs");
+      if (data.charter?.font_title) charterParts.push("Typos");
+      if (data.charter?.logo_url) charterParts.push("Logo");
+
+      setSectionSummaries({
+        storytelling: { firstLine: storyText.split(/[.\n]/)[0]?.trim() || "" },
+        persona: { prenom: personaFullRes.data?.portrait_prenom || "", age: "", job: personaFullRes.data?.description?.split(",")[0]?.trim() || "" },
+        proposition: { phrase: data.proposition?.version_pitch_naturel || data.proposition?.version_final || "" },
+        tone: { keywords: toneKw },
+        strategy: { pillars },
+        charter: { summary: charterParts.length > 0 ? charterParts.join(" · ") : "" },
+      });
 
       const { data: auditData } = await (supabase.from("branding_audits") as any)
         .select("id, created_at, score_global, points_forts, points_faibles")
@@ -545,7 +574,7 @@ export default function BrandingPage() {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className="min-h-screen bg-background"
+      className="min-h-screen bg-[hsl(var(--rose-pale))]"
     >
       <AppHeader />
       <main id="main-content" className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
@@ -566,40 +595,6 @@ export default function BrandingPage() {
           </div>
         )}
 
-        <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
-          <h1 className="font-display text-[26px] font-bold text-foreground">Mon Branding</h1>
-          <div className="flex items-center gap-2">
-            {/* Reanalyze button */}
-            {!isDemoMode && completion.total > 0 && (
-              <button
-                onClick={handleStartReanalyze}
-                className="font-mono-ui text-[12px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-              >
-                🔄 Réanalyser mes liens
-              </button>
-            )}
-            <div className="flex items-center gap-1 rounded-full border border-border bg-muted/50 p-0.5">
-              <button
-                onClick={() => { setViewMode("free"); localStorage.setItem("branding_mode", "free"); }}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all ${viewMode === "free" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <LayoutGrid className="h-3.5 w-3.5" /> Mode libre
-              </button>
-              <button
-                onClick={() => { setViewMode("guided"); localStorage.setItem("branding_mode", "guided"); }}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all ${viewMode === "guided" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <ListOrdered className="h-3.5 w-3.5" /> Guidé (7 jours)
-              </button>
-            </div>
-          </div>
-        </div>
-        <p className="text-[15px] text-muted-foreground mb-6">
-          {viewMode === "guided"
-            ? "Suis le parcours jour par jour pour construire ton branding pas à pas."
-            : "C'est ici que tout commence. Plus tu remplis, plus L'Assistant Com' te connaît et te propose des idées qui te ressemblent."}
-        </p>
-
         {showSynthesis ? (
           <BrandingSynthesisSheet onClose={() => setShowSynthesis(false)} />
         ) : importPhase === 'reviewing' && importExtraction ? (
@@ -608,196 +603,57 @@ export default function BrandingPage() {
             onDone={handleImportDone}
             onCancel={() => { setImportPhase('idle'); setImportExtraction(null); }}
           />
+        ) : viewMode === "guided" ? (
+          <>
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
+              <h1 className="font-display text-[26px] font-bold text-foreground">Mon Branding</h1>
+              <div className="flex items-center gap-2">
+                {!isDemoMode && completion.total > 0 && (
+                  <button onClick={handleStartReanalyze} className="font-mono-ui text-[12px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">🔄 Réanalyser mes liens</button>
+                )}
+                <div className="flex items-center gap-1 rounded-full border border-border bg-muted/50 p-0.5">
+                  <button onClick={() => { setViewMode("free"); localStorage.setItem("branding_mode", "free"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all text-muted-foreground hover:text-foreground">
+                    <LayoutGrid className="h-3.5 w-3.5" /> Mode libre
+                  </button>
+                  <button onClick={() => { setViewMode("guided"); localStorage.setItem("branding_mode", "guided"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all bg-card text-foreground shadow-sm">
+                    <ListOrdered className="h-3.5 w-3.5" /> Guidé (7 jours)
+                  </button>
+                </div>
+              </div>
+            </div>
+            <p className="text-[15px] text-muted-foreground mb-6">Suis le parcours jour par jour pour construire ton branding pas à pas.</p>
+            <GuidedTimeline completion={completion} navigate={navigate} onShowSynthesis={() => setShowSynthesis(true)} />
+          </>
         ) : (
           <>
-            <div className="space-y-2 mb-4">
-              {!lastAudit && (
-                <button onClick={() => navigate("/branding/audit")} className="w-full rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors p-4 text-left">
-                  <p className="text-sm font-medium text-foreground flex items-center gap-2">🔍 Tu veux d'abord faire un diagnostic de ce que t'as déjà ?</p>
-                  <p className="text-xs text-muted-foreground mt-1">Analyse ton site, tes réseaux et tes documents en un clic.</p>
+            <div className="flex items-center gap-2 mb-6 justify-end">
+              <div className="flex items-center gap-1 rounded-full border border-border bg-muted/50 p-0.5">
+                <button onClick={() => { setViewMode("free"); localStorage.setItem("branding_mode", "free"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all bg-card text-foreground shadow-sm">
+                  <LayoutGrid className="h-3.5 w-3.5" /> Fiche d'identité
                 </button>
-              )}
-              {showImportBlock ? (
-                <BrandingImportBlock onResult={handleImportResult} />
-              ) : (
-                <button onClick={() => setShowImportBlock(true)} className="w-full rounded-xl border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors p-4 text-left">
-                  <p className="text-sm font-medium text-foreground flex items-center gap-2">📄 Tu as un document stratégique ? Importe-le pour pré-remplir ton branding.</p>
+                <button onClick={() => { setViewMode("guided"); localStorage.setItem("branding_mode", "guided"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all text-muted-foreground hover:text-foreground">
+                  <ListOrdered className="h-3.5 w-3.5" /> Guidé (7 jours)
                 </button>
-              )}
+              </div>
             </div>
 
-            <div className="mb-8 flex flex-col sm:flex-row gap-2">
-              {completion.total >= 10 ? (
+            <BrandingIdentityCard
+              completion={completion}
+              summaries={sectionSummaries}
+              onReanalyze={!isDemoMode && completion.total > 0 ? handleStartReanalyze : undefined}
+            />
+
+            {/* Extra tools */}
+            <div className="mt-6 flex flex-col sm:flex-row gap-2">
+              {completion.total >= 10 && (
                 <Button variant="outline" className="flex-1 gap-2 text-sm" onClick={() => setShowSynthesis(true)}>
                   <ClipboardList className="h-4 w-4" /> 📋 Générer ma fiche de synthèse
                 </Button>
-              ) : (
-                <div className="flex-1 text-center py-3 px-4 rounded-xl bg-muted/40 border border-border">
-                  <p className="text-xs text-muted-foreground">Remplis au moins ton positionnement ou ta cible pour générer ta fiche de synthèse.</p>
-                </div>
               )}
               {canShowMirror && (
                 <Button variant="outline" className="gap-2 text-sm sm:w-auto" onClick={runMirror}>🪞 Mon Branding Mirror</Button>
               )}
             </div>
-
-            {viewMode === "guided" ? (
-              <GuidedTimeline completion={completion} navigate={navigate} onShowSynthesis={() => setShowSynthesis(true)} />
-            ) : (
-            <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {CARDS.map((card) => {
-                const pValue = completion[card.scoreKey];
-                const isCompleted = pValue === 100;
-                const pLabel = isCompleted ? "✅ Complet" : `${pValue}%`;
-
-                if (card.scoreKey === "proposition") {
-                  return (
-                    <div key={card.stepperRoute} className="rounded-2xl border-2 bg-card p-5 transition-all border-border hover:border-primary/30 hover:shadow-md">
-                      <div className="flex items-start justify-between mb-3"><span className="text-2xl">{card.emoji}</span></div>
-                      <h3 className="font-display text-base font-bold text-foreground mb-1">{card.title}</h3>
-                      {hasProposition ? (
-                        <>
-                          <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">{card.description}</p>
-                          <div className="flex items-center gap-2 mb-4">
-                            <Progress value={100} className="h-1.5 flex-1" />
-                            <span className="font-mono-ui text-[10px] font-semibold shrink-0 text-[#2E7D32]">✅ Complet</span>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground/80 mt-1 leading-snug line-clamp-1 mb-3">{getRecommendation("proposition", 100)}</p>
-                          <div className="flex items-center gap-2">
-                            <Button size="sm" className="rounded-pill text-xs flex-1" onClick={() => navigate("/branding/proposition/recap")}><Eye className="h-3.5 w-3.5 mr-1" /> Voir ma fiche</Button>
-                            <Button variant="outline" size="sm" className="rounded-pill text-xs" onClick={() => navigate("/branding/section?section=value_proposition")}><Pencil className="h-3.5 w-3.5" /></Button>
-                          </div>
-                        </>
-                      ) : hasEnoughData ? (
-                        <>
-                          <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">L'IA peut maintenant synthétiser tes autres sections pour créer tes 6 versions.</p>
-                          <div className="flex items-center gap-2 mb-4">
-                            <Progress value={pValue} className="h-1.5 flex-1" />
-                            <span className="font-mono-ui text-[10px] font-semibold shrink-0 text-muted-foreground">{pLabel}</span>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground/80 mt-1 leading-snug line-clamp-1 mb-3">{getRecommendation("proposition", pValue)}</p>
-                          <Button size="sm" className="rounded-pill text-xs w-full mb-2" onClick={generateProposition} disabled={generatingProp}>
-                            {generatingProp ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Génération en cours...</> : <><Sparkles className="h-3.5 w-3.5 mr-1" /> Générer ma proposition de valeur</>}
-                          </Button>
-                          {generatingProp && <p className="text-[11px] text-muted-foreground text-center">L'IA synthétise ton histoire, ton persona et ton ton pour créer 6 versions...</p>}
-                          <Link to="/branding/proposition" className="block text-[11px] text-muted-foreground hover:text-primary text-center mt-1">Ou remplir manuellement →</Link>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">Complète d'abord ton histoire et ton persona pour générer automatiquement.</p>
-                          <div className="flex items-center gap-2 mb-4">
-                            <Progress value={pValue} className="h-1.5 flex-1" />
-                            <span className="font-mono-ui text-[10px] font-semibold shrink-0 text-muted-foreground">{pLabel}</span>
-                          </div>
-                          <Button size="sm" className="rounded-pill text-xs w-full mb-2" disabled><Sparkles className="h-3.5 w-3.5 mr-1" /> Générer ma proposition de valeur</Button>
-                          <Link to="/branding/proposition" className="block text-[11px] text-muted-foreground hover:text-primary text-center mt-1">Ou remplir manuellement →</Link>
-                        </>
-                      )}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div key={card.stepperRoute} className="rounded-2xl border-2 bg-card p-5 transition-all border-border hover:border-primary/30 hover:shadow-md">
-                    <div className="flex items-start justify-between mb-3"><span className="text-2xl">{card.emoji}</span></div>
-                    <h3 className="font-display text-base font-bold text-foreground mb-1">{card.title}</h3>
-                    <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">{card.description}</p>
-                    <div className="flex items-center gap-2 mb-4">
-                      <Progress value={pValue} className="h-1.5 flex-1" />
-                      <span className={`font-mono-ui text-[10px] font-semibold shrink-0 ${isCompleted ? "text-[#2E7D32]" : "text-muted-foreground"}`}>{pLabel}</span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground/80 mt-1 leading-snug line-clamp-1 mb-3">{getRecommendation(card.scoreKey, pValue)}</p>
-                    {isCompleted ? (
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" className="rounded-pill text-xs flex-1" onClick={() => navigate(getRecapRoute(card))}><Eye className="h-3.5 w-3.5 mr-1" /> Voir ma fiche</Button>
-                        <Button variant="outline" size="sm" className="rounded-pill text-xs" onClick={() => navigate(card.stepperRoute)}><Pencil className="h-3.5 w-3.5" /></Button>
-                      </div>
-                    ) : pValue > 0 ? (
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" className="rounded-pill text-xs flex-1" onClick={() => navigate(card.stepperRoute)}>Continuer →</Button>
-                      </div>
-                    ) : (
-                      <Button size="sm" className="rounded-pill text-xs w-full" onClick={() => navigate(card.stepperRoute)}><Sparkles className="h-3.5 w-3.5 mr-1" /> Commencer</Button>
-                    )}
-                  </div>
-                );
-              })}
-
-              {completion.tone === 100 && (
-                <div className="rounded-2xl border-2 bg-card p-5 transition-all border-primary/30 hover:border-primary hover:shadow-md cursor-pointer" onClick={() => navigate("/branding/voice-guide")}>
-                  <div className="flex items-start justify-between mb-3"><span className="text-2xl">🎤</span></div>
-                  <h3 className="font-display text-base font-bold text-foreground mb-1">Mon guide de voix</h3>
-                  <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">Un livrable pro à partager avec tes prestataires.</p>
-                  <Button size="sm" className="rounded-pill text-xs w-full" onClick={(e) => { e.stopPropagation(); navigate("/branding/voice-guide"); }}><Sparkles className="h-3.5 w-3.5 mr-1" /> Voir mon guide</Button>
-                </div>
-              )}
-
-              <div className="rounded-2xl border-2 bg-card p-5 transition-all border-primary/30 hover:border-primary hover:shadow-md cursor-pointer" onClick={() => navigate("/branding/offres")}>
-                <div className="flex items-start justify-between mb-3"><span className="text-2xl">🎁</span></div>
-                <h3 className="font-display text-base font-bold text-foreground mb-1">Mes offres</h3>
-                <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">Formule tes offres de manière désirable. L'IA te coache à chaque étape.</p>
-                <div className="flex gap-2">
-                  <Button size="sm" className="rounded-pill text-xs flex-1" onClick={(e) => { e.stopPropagation(); navigate("/branding/offres"); }}><Eye className="h-3.5 w-3.5 mr-1" /> Voir mes offres</Button>
-                  <Button size="sm" variant="outline" className="rounded-pill text-xs flex-1" onClick={(e) => { e.stopPropagation(); navigate("/branding/coaching?section=offers"); }}><Sparkles className="h-3.5 w-3.5 mr-1" /> Coaching</Button>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-5 mt-8">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono-ui text-[12px] font-semibold text-foreground">Mon branding est complet à {completion.total}%</span>
-              </div>
-              <Progress value={completion.total} className="h-2.5 mb-2" />
-              <p className="text-[12px] text-muted-foreground">{globalMessage}</p>
-            </div>
-            </>
-            )}
-
-            {lastAudit && (() => {
-              const forts = Array.isArray(lastAudit.points_forts) ? lastAudit.points_forts.slice(0, 2) : [];
-              const faibles = Array.isArray(lastAudit.points_faibles)
-                ? [...lastAudit.points_faibles].sort((a: any, b: any) => {
-                    const pri: Record<string, number> = { haute: 0, moyenne: 1, basse: 2 };
-                    return (pri[a?.priorite] ?? 2) - (pri[b?.priorite] ?? 2);
-                  }).slice(0, 3) : [];
-              const score = lastAudit.score_global ?? 0;
-              const color = score >= 75 ? "bg-green-500" : score >= 50 ? "bg-yellow-500" : "bg-red-500";
-              const dateStr = lastAudit.created_at ? format(new Date(lastAudit.created_at), "d MMMM yyyy", { locale: fr }) : "";
-
-              return (
-                <div className="rounded-2xl border border-border bg-card p-5 mt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-foreground">🔍 Mon dernier audit · {dateStr}</h3>
-                  </div>
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-muted-foreground">Score global</span>
-                      <span className="font-mono-ui text-xs font-semibold text-foreground">{score}/100</span>
-                    </div>
-                    <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
-                      <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${score}%` }} />
-                    </div>
-                  </div>
-                  {forts.length > 0 && (
-                    <div className="mb-2">
-                      <p className="text-xs font-semibold text-foreground mb-1">✅ Points forts</p>
-                      {forts.map((p: any, i: number) => <p key={i} className="text-xs text-muted-foreground leading-relaxed">· {typeof p === "string" ? p : p?.titre || ""}</p>)}
-                    </div>
-                  )}
-                  {faibles.length > 0 && (
-                    <div className="mb-3">
-                      <p className="text-xs font-semibold text-foreground mb-1">⚠️ À améliorer</p>
-                      {faibles.map((p: any, i: number) => <p key={i} className="text-xs text-muted-foreground leading-relaxed">· {typeof p === "string" ? p : p?.titre || ""}</p>)}
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="text-xs flex-1" onClick={() => navigate(`/branding/audit/${lastAudit.id}`)}>Voir l'audit complet →</Button>
-                    <Button size="sm" variant="ghost" className="text-xs gap-1" onClick={() => navigate("/branding/audit")}><RefreshCw className="h-3 w-3" /> Refaire</Button>
-                  </div>
-                </div>
-              );
-            })()}
           </>
         )}
       </main>
