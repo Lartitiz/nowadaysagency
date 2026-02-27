@@ -82,15 +82,22 @@ export default function InstagramCreer() {
     try {
       const { data: session } = await supabase.auth.getSession();
       const token = session?.session?.access_token;
+      const wsId = column === "workspace_id" ? value : undefined;
       const res = await supabase.functions.invoke("suggest-format", {
-        body: { idea: ideaText },
+        body: { idea: ideaText, workspace_id: wsId },
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
       setSuggestion(res.data);
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      const msg = e?.message || "";
+      if (msg.includes("API_KEY") || msg.includes("not configured")) {
+        toast({ title: "Fonctionnalité en cours de configuration", description: "Cette recommandation sera bientôt disponible. En attendant, choisis un format ci-dessous 👇", variant: "default" });
+      } else {
+        toast({ title: "Oups", description: "Impossible de recommander un format pour l'instant. Choisis directement ci-dessous 👇", variant: "default" });
+      }
     } finally {
       setSuggesting(false);
     }
