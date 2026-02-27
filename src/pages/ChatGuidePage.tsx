@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Send, Mic, MicOff, ArrowRight, Plus, Sparkles, PenLine, Palette, Target, CalendarDays, Users, Lightbulb } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/use-profile";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardViewToggle, getDashboardPreference } from "@/components/dashboard/DashboardViewToggle";
@@ -80,58 +81,13 @@ const WELCOME_SUGGESTIONS: Suggestion[] = [
   { icon: "Lightbulb", label: "J'ai pas d'idées de contenu" },
 ];
 
-/* ── Mock responses ── */
-const MOCK_RESPONSES: Record<string, { content: string; actions?: ActionLink[] }> = {
-  "Je veux créer un post": {
-    content: "Super ! Quel type de contenu tu veux créer ? Je peux t'aider avec un post Instagram, un carrousel, ou un post LinkedIn.",
-    actions: [
-      { icon: "PenLine", label: "Créer un post Instagram", route: "/creer" },
-      { icon: "PenLine", label: "Créer un carrousel", route: "/creer/carrousel" },
-      { icon: "PenLine", label: "Rédiger un post LinkedIn", route: "/creer/linkedin" },
-    ],
-  },
-  "Je veux définir ma cible": {
-    content: "Bonne idée ! Connaître ta cliente idéale, c'est la base de toute communication efficace. Je te propose de passer par le module simplifié — 3 questions suffisent pour démarrer.",
-    actions: [
-      { icon: "Target", label: "Définir ma cliente idéale", route: "/branding/simple/persona" },
-    ],
-  },
-  "Je veux travailler mon branding": {
-    content: "Parfait ! Ton branding, c'est ton identité. On peut commencer par ton histoire, ta proposition de valeur, ou ta charte graphique. Par quoi tu veux commencer ?",
-    actions: [
-      { icon: "PenLine", label: "Mon histoire", route: "/branding/simple/story" },
-      { icon: "Target", label: "Ma proposition de valeur", route: "/branding/simple/proposition" },
-      { icon: "Palette", label: "Ma charte graphique", route: "/branding/charte" },
-    ],
-  },
-  "Je veux planifier ma semaine": {
-    content: "C'est parti ! Je t'emmène vers ton calendrier éditorial. Tu peux planifier tes posts pour la semaine et même générer des idées.",
-    actions: [
-      { icon: "CalendarDays", label: "Ouvrir mon calendrier", route: "/calendrier" },
-    ],
-  },
-  "J'ai pas d'idées de contenu": {
-    content: "Pas de panique, ça arrive à tout le monde ! J'ai un générateur d'idées qui peut t'inspirer en quelques secondes, basé sur ton branding.",
-    actions: [
-      { icon: "Lightbulb", label: "Générer des idées", route: "/idees" },
-      { icon: "Sparkles", label: "Explorer les formats", route: "/creer" },
-    ],
-  },
-};
-
-const DEFAULT_MOCK = {
-  content: "Je suis encore en apprentissage ! Pour l'instant, je peux te guider vers les bons outils. Clique sur une suggestion ou explore les fonctionnalités.",
-  actions: [
-    { icon: "Sparkles", label: "Explorer les outils", route: "/dashboard/complet" },
-  ],
-};
-
 /* ── Component ── */
 export default function ChatGuidePage() {
   const { user } = useAuth();
   const { data: profile } = useProfile();
   const { isDemoMode } = useDemoContext();
   const navigate = useNavigate();
+  const workspaceId = useWorkspaceId();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -257,24 +213,47 @@ export default function ChatGuidePage() {
 
     await saveMessage({ role: "user", content: userMsg.content });
 
-    // Simulate typing
+    // Build conversation history for context
+    const history = messages.map((m) => ({ role: m.role, content: m.content }));
+
     setIsTyping(true);
-    await new Promise((r) => setTimeout(r, 800 + Math.random() * 700));
-    setIsTyping(false);
+    try {
+      const { data, error } = await supabase.functions.invoke("chat-guide", {
+        body: {
+          message: userMsg.content,
+          conversationHistory: history,
+          workspaceId: workspaceId !== user?.id ? workspaceId : undefined,
+        },
+      });
 
-    // Mock response
-    const mock = MOCK_RESPONSES[text.trim()] || DEFAULT_MOCK;
-    const aiMsg: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      content: mock.content,
-      actions: mock.actions,
-      created_at: new Date().toISOString(),
-    };
+      setIsTyping(false);
 
-    setMessages((prev) => [...prev, aiMsg]);
-    await saveMessage({ role: "assistant", content: aiMsg.content });
-  }, [saveMessage]);
+      if (error) throw error;
+
+      const aiMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: data.reply || "Hmm, je n'ai pas compris. Reformule ?",
+        actions: data.actions || [],
+        suggestions: data.suggestions ? data.suggestions.map((s: string) => ({ icon: "Sparkles", label: s })) : undefined,
+        created_at: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, aiMsg]);
+      await saveMessage({ role: "assistant", content: aiMsg.content });
+    } catch (err) {
+      console.error("Chat guide error:", err);
+      setIsTyping(false);
+
+      const fallbackMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: "Je suis un peu dans les choux là... Réessaie dans quelques secondes !",
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, fallbackMsg]);
+    }
+  }, [saveMessage, messages, workspaceId, user]);
 
   // Handle keyboard
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
