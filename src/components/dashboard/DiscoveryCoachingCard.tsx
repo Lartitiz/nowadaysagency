@@ -59,7 +59,7 @@ export default function DiscoveryCoachingCard({ animationDelay = 0 }: { animatio
           <img
             src={laetitiaPhoto}
             alt="Laetitia Mattioli"
-            className="w-[80px] h-auto object-contain drop-shadow-md rounded-xl"
+            className="w-[80px] h-auto object-contain drop-shadow-md"
             loading="lazy"
           />
         </div>
@@ -102,7 +102,7 @@ export default function DiscoveryCoachingCard({ animationDelay = 0 }: { animatio
           <img
             src={laetitiaPhoto}
             alt="Laetitia Mattioli"
-            className="w-[100px] h-auto object-contain drop-shadow-md rounded-xl"
+            className="w-[100px] h-auto object-contain drop-shadow-md"
             loading="lazy"
           />
         </div>

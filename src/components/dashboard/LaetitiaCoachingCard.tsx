@@ -124,7 +124,7 @@ export default function LaetitiaCoachingCard({ animationDelay = 0 }: { animation
           <img
             src={laetitiaPhoto}
             alt="Laetitia Mattioli"
-            className="w-[120px] h-auto object-contain drop-shadow-md"
+            className="w-[120px] h-auto object-contain mix-blend-multiply"
             loading="lazy"
           />
         </div>
@@ -257,7 +257,7 @@ export default function LaetitiaCoachingCard({ animationDelay = 0 }: { animation
           <img
             src={laetitiaPhoto}
             alt="Laetitia Mattioli"
-            className="w-[140px] h-auto object-contain drop-shadow-md"
+            className="w-[140px] h-auto object-contain mix-blend-multiply"
             loading="lazy"
           />
         </div>
