@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -111,6 +111,11 @@ export default function Onboarding() {
   } = useOnboarding();
 
   const { toast } = useToast();
+  const voiceTipShown = useRef(false);
+
+  useEffect(() => {
+    if (step > 11) voiceTipShown.current = true;
+  }, [step]);
 
   const validatedNext = useCallback(() => {
     const validator = stepValidators[step];
@@ -200,6 +205,7 @@ export default function Onboarding() {
                     placeholder={getPlaceholder("positioning")}
                     hasAiSuggestion={!!auditResults.documents?.positioning && !brandingAnswers.positioning}
                     onNext={validatedNext}
+                    showVoiceTip={!voiceTipShown.current}
                   />
                 )}
                 {step === 12 && (
@@ -298,13 +304,14 @@ export default function Onboarding() {
    ════════════════════════════════════════════════════════ */
 
 /* WelcomeScreen extracted to steps/WelcomeStep.tsx */
-function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = true, multiline = false }: {
+function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = true, multiline = false, showVoiceTip = false }: {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
   onEnter?: () => void;
   autoFocus?: boolean;
   multiline?: boolean;
+  showVoiceTip?: boolean;
 }) {
   const { isListening, toggle } = useSpeechRecognition(
     (transcript) => onChange(value ? value + " " + transcript : transcript),
@@ -312,27 +319,37 @@ function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = true, m
 
   if (multiline) {
     return (
-      <div className="relative w-full">
-        <textarea
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          placeholder={placeholder}
-          aria-label={placeholder}
-          autoFocus={autoFocus}
-          rows={4}
-          className="w-full text-base p-4 pr-12 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50 resize-none"
-        />
-        <button
-          type="button"
-          onClick={toggle}
-          className={`absolute right-3 bottom-3 p-2 rounded-full transition-all ${
-            isListening
-              ? "bg-destructive text-destructive-foreground animate-pulse"
-              : "bg-muted text-muted-foreground hover:bg-secondary"
-          }`}
-        >
-          🎤
-        </button>
+      <div className="relative w-full space-y-3">
+        {showVoiceTip && !value.trim() && (
+          <div className="flex items-start gap-2.5 bg-secondary/80 border border-primary/15 rounded-xl px-4 py-3 animate-fade-in">
+            <span className="text-lg shrink-0 mt-0.5">🎤</span>
+            <p className="text-xs text-foreground/80 leading-relaxed">
+              <span className="font-semibold text-foreground">Astuce :</span> tu vois le petit micro en bas à droite ? Clique dessus et parle. C'est souvent plus naturel (et plus rapide) que de taper.
+            </p>
+          </div>
+        )}
+        <div className="relative">
+          <textarea
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            placeholder={placeholder}
+            aria-label={placeholder}
+            autoFocus={autoFocus}
+            rows={4}
+            className="w-full text-base p-4 pr-12 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50 resize-none"
+          />
+          <button
+            type="button"
+            onClick={toggle}
+            className={`absolute right-3 bottom-3 p-2 rounded-full transition-all ${
+              isListening
+                ? "bg-destructive text-destructive-foreground animate-pulse"
+                : "bg-muted text-muted-foreground hover:bg-secondary"
+            }`}
+          >
+            🎤
+          </button>
+        </div>
       </div>
     );
   }
@@ -563,12 +580,13 @@ function ImportScreen({ files, uploading, onUpload, onRemove, onNext, onSkip, is
    SCREEN COMPONENTS - PHASE 3: BRANDING
    ════════════════════════════════════════════════════════ */
 
-function PositioningScreen({ value, onChange, placeholder, hasAiSuggestion, onNext }: {
+function PositioningScreen({ value, onChange, placeholder, hasAiSuggestion, onNext, showVoiceTip }: {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
   hasAiSuggestion: boolean;
   onNext: () => void;
+  showVoiceTip?: boolean;
 }) {
   return (
     <div className="space-y-8">
@@ -583,7 +601,7 @@ function PositioningScreen({ value, onChange, placeholder, hasAiSuggestion, onNe
           ✨ Suggestion basée sur tes documents
         </p>
       )}
-      <VoiceInput value={value} onChange={onChange} placeholder={placeholder} multiline />
+      <VoiceInput value={value} onChange={onChange} placeholder={placeholder} multiline showVoiceTip={showVoiceTip} />
       <div className="text-center">
         <Button onClick={onNext} disabled={!value.trim()} className="rounded-full px-8">Suivant →</Button>
       </div>
