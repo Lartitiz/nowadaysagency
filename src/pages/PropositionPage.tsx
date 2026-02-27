@@ -181,7 +181,7 @@ export default function PropositionPage() {
       setAiDiffPoints(JSON.parse(raw));
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
+      toast({ title: "Oups, un souci", description: friendlyError(e), variant: "destructive" });
     }
     setAiLoading(false);
   };
@@ -201,7 +201,7 @@ export default function PropositionPage() {
       setAiBenefit(fn.content);
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
+      toast({ title: "Oups, un souci", description: friendlyError(e), variant: "destructive" });
     }
     setAiLoading(false);
   };
@@ -228,7 +228,7 @@ export default function PropositionPage() {
       debouncedSave(updated);
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
+      toast({ title: "Oups, un souci", description: friendlyError(e), variant: "destructive" });
     }
     setAiLoading(false);
   };

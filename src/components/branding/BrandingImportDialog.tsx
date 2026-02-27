@@ -106,7 +106,7 @@ export default function BrandingImportDialog({
       setEditedValues(initialEdited);
       setStep("review");
     } catch (err: any) {
-      toast.error(err.message || "Erreur lors de l'analyse IA");
+      toast.error(err.message || "Erreur lors de l'analyse");
       setStep("input");
     }
   };

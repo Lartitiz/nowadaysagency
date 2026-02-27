@@ -521,7 +521,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             className="gap-1.5 text-xs"
           >
             {summariesLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            {summariesLoading ? "Synthèse..." : "Synthétiser IA"}
+            {summariesLoading ? "Synthèse..." : "✨ Synthétiser"}
           </Button>
           <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1.5 text-xs">
             <Copy className="h-3.5 w-3.5" /> Copier

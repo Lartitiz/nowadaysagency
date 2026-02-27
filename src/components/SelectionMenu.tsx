@@ -51,7 +51,7 @@ export default function SelectionMenu({ selectedText, position, isVisible, onAct
       const res = await onAction(selectedText, action.prompt);
       setResult(res);
     } catch {
-      toast.error("Erreur lors du traitement IA");
+      toast.error("Oups, quelque chose a coincé");
     } finally {
       setIsLoading(false);
     }
@@ -64,7 +64,7 @@ export default function SelectionMenu({ selectedText, position, isVisible, onAct
       const res = await onAction(selectedText, customPrompt);
       setResult(res);
     } catch {
-      toast.error("Erreur lors du traitement IA");
+      toast.error("Oups, quelque chose a coincé");
     } finally {
       setIsLoading(false);
     }
@@ -177,7 +177,7 @@ export default function SelectionMenu({ selectedText, position, isVisible, onAct
       return (
         <div className="p-4 flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          L'IA réfléchit...
+          Je réfléchis...
         </div>
       );
     }

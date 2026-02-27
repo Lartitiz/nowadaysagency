@@ -166,7 +166,7 @@ export default function StrategiePage() {
       debouncedSave(updated);
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
+      toast({ title: "Oups, un souci", description: friendlyError(e), variant: "destructive" });
     }
     setAiLoading(false);
   };
@@ -188,7 +188,7 @@ export default function StrategiePage() {
       debouncedSave(updated);
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
+      toast({ title: "Oups, un souci", description: friendlyError(e), variant: "destructive" });
     }
     setAiLoading(false);
   };
@@ -225,7 +225,7 @@ export default function StrategiePage() {
       debouncedSave(updated);
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
+      toast({ title: "Oups, un souci", description: friendlyError(e), variant: "destructive" });
     }
     setAiLoading(false);
   };
