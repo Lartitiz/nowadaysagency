@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { toast } from "sonner";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 
 const SOURCE_TYPES = [
   // TODO: à réactiver quand le générateur newsletter sera prêt
@@ -42,6 +42,7 @@ export default function LinkedInCrosspost() {
   const { user } = useAuth();
   
   const workspaceId = useWorkspaceId();
+  const profileUserId = useProfileUserId();
   const [sourceType, setSourceType] = useState("libre");
   const [sourceContent, setSourceContent] = useState("");
   const [targets, setTargets] = useState<Set<string>>(new Set(["linkedin", "instagram"]));
@@ -150,15 +151,16 @@ export default function LinkedInCrosspost() {
     const text = getActiveVersionText();
     const label = getActiveChannelLabel();
     const version = getActiveVersion();
+    const formattedDate = new Date(dateStr + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
     const insertData: any = {
-      user_id: user.id,
+      user_id: profileUserId,
       date: dateStr,
       theme: `Crosspost ${label} : ${sourceType}`,
       canal: getActiveChannelCanal(),
       format: getActiveFormat(),
       content_draft: text,
       accroche: text.split("\n")[0]?.slice(0, 200) || "",
-      status: "ready",
+      status: "drafting",
       story_sequence_detail: {
         type: "crosspost",
         source_type: sourceType,
@@ -167,15 +169,16 @@ export default function LinkedInCrosspost() {
         full_content: text,
       },
     };
-    if (workspaceId && workspaceId !== user.id) {
+    if (workspaceId && workspaceId !== profileUserId) {
       insertData.workspace_id = workspaceId;
     }
     const { error } = await supabase.from("calendar_posts").insert(insertData);
     setShowCalendarDialog(false);
     if (error) {
-      toast.error("Erreur lors de la planification");
+      console.error("calendar_posts insert error:", error);
+      toast.error(`Erreur : ${error.message}`);
     } else {
-      toast.success("📅 Planifié dans ton calendrier !");
+      toast.success(`📅 Post enregistré dans ton calendrier au ${formattedDate}`);
     }
   };
 
