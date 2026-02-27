@@ -62,7 +62,7 @@ const TOPIC_LABELS: Record<string, string> = {
   offer_includes: "Ce qui est inclus",
 };
 
-function buildSystemPrompt(section: string, context: any, coveredTopics: string[]): string {
+function buildSystemPrompt(section: string, context: any, coveredTopics: string[], autofillData?: any, autofillConfidence?: string): string {
   const prenom = context.profile?.prenom || context.profile?.first_name || "toi";
   const sectionName = SECTION_NAMES[section] || section;
   const checklist = SECTION_CHECKLISTS[section] || [];
@@ -98,11 +98,33 @@ function buildSystemPrompt(section: string, context: any, coveredTopics: string[
     contextLines.push(`\nDONNÉES EXISTANTES :\n${JSON.stringify(existing, null, 2)}`);
   }
 
+  // ── Autofill context injection ──
+  let autofillBlock = "";
+  if (autofillData && Object.keys(autofillData).length > 0) {
+    autofillBlock = `
+══ DONNÉES PRÉ-REMPLIES PAR L'ANALYSE AUTOMATIQUE ══
+Niveau de confiance de l'analyse : ${autofillConfidence || "medium"}
+Données pré-remplies :
+${JSON.stringify(autofillData, null, 2)}
+
+══ RÈGLES SPÉCIALES MODE AUTOFILL ══
+- L'utilisatrice a importé ses liens et l'IA a pré-rempli cette section automatiquement.
+- Tu interviens pour AFFINER, pas pour tout refaire.
+- COMMENCE par un résumé de ce que l'analyse a trouvé : "D'après ce que j'ai vu, voici ce que j'ai noté pour ${sectionName} : [résumé]. Est-ce que c'est juste ? Qu'est-ce que tu voudrais changer ou préciser ?"
+${autofillConfidence === "high" ? `- Confiance ÉLEVÉE : pose 1-2 questions de validation max. "J'ai l'impression que [X]. Tu confirmes ou tu ajusterais ?"
+- Ne redemande PAS ce qui est déjà bien rempli.` : ""}
+${autofillConfidence === "medium" ? `- Confiance MOYENNE : pose 2-3 questions ciblées sur les parties floues. "J'ai bien compris [X], mais je suis moins sûr·e de [Y]. Tu peux me préciser ?"
+- Ne redemande pas les parties claires.` : ""}
+${autofillConfidence === "low" ? `- Confiance BASSE : fais un mini coaching plus complet mais pars de ce qui existe. "J'ai trouvé très peu d'infos sur ${sectionName}. On va la construire ensemble."` : ""}
+- Quand tu as assez d'infos, propose une version finalisée et demande validation.
+`;
+  }
+
   return `Tu es l'assistante branding de Nowadays. Tu aides ${prenom} à construire la section "${sectionName}" de son branding.
 
 ══ CONTEXTE DE ${prenom.toUpperCase()} ══
 ${contextLines.join("\n")}
-
+${autofillBlock}
 ══ CHECKLIST DE CETTE SECTION ══
 Sujets à couvrir : ${checklist.map(t => `${t} (${TOPIC_LABELS[t] || t})`).join(", ")}
 
@@ -143,7 +165,7 @@ Quand is_complete = true, ajoute :
   "completion_percentage": 100,
   "covered_topic": "dernier champ couvert",
   "extracted_insights": { ... },
-  "final_summary": "Un résumé structuré en 3 parties :\n\n✅ Ce qu'on a construit ensemble : [résumé des éléments clés extraits]\n\n💡 Pour aller plus loin : [2-3 suggestions concrètes d'amélioration]\n\n🎯 Prochaine étape : [une action concrète à faire maintenant]"
+  "final_summary": "Un résumé structuré en 3 parties :\\n\\n✅ Ce qu'on a construit ensemble : [résumé des éléments clés extraits]\\n\\n💡 Pour aller plus loin : [2-3 suggestions concrètes d'amélioration]\\n\\n🎯 Prochaine étape : [une action concrète à faire maintenant]"
 }`;
 }
 
@@ -180,7 +202,7 @@ serve(async (req) => {
     const rateCheck = checkRateLimit(userId);
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, cors);
 
-    const { section, messages, context, covered_topics, workspace_id } = body;
+    const { section, messages, context, covered_topics, workspace_id, autofill_data, autofill_confidence } = body;
 
     if (!section) {
       return new Response(JSON.stringify({ error: "section requis" }), {
@@ -233,7 +255,7 @@ serve(async (req) => {
       });
     }
 
-    const systemPrompt = BASE_SYSTEM_RULES + "\n\n" + buildSystemPrompt(section, context || {}, covered_topics || []) + "\n\n" + ANTI_SLOP;
+    const systemPrompt = BASE_SYSTEM_RULES + "\n\n" + buildSystemPrompt(section, context || {}, covered_topics || [], autofill_data, autofill_confidence) + "\n\n" + ANTI_SLOP;
 
     // Build anthropic messages — send ALL messages, no pruning
     let anthropicMessages = (messages || []).map((m: any) => ({

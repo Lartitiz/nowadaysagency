@@ -1,12 +1,13 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Sparkles } from "lucide-react";
+import { CheckCircle2, Sparkles, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import Confetti from "@/components/Confetti";
+import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 
 // ─── Types ───────────────────────────────────────────────────
 export interface AnalysisResult {
@@ -27,8 +28,17 @@ interface Props {
   sourcesUsed?: string[];
   sourcesFailed?: string[];
   onDone: () => void;
-  onOpenCoaching?: (section: string, context: string) => void;
 }
+
+// Map review keys to coaching section keys
+const COACHING_SECTION_MAP: Record<SectionKey, string> = {
+  story: "story",
+  persona: "persona",
+  value_proposition: "value_proposition",
+  tone_style: "tone_style",
+  content_strategy: "content_strategy",
+  offers: "offers",
+};
 
 // ─── Section config ──────────────────────────────────────────
 const SECTIONS = [
@@ -358,7 +368,7 @@ function sectionHasData(key: SectionKey, analysis: AnalysisResult): boolean {
 }
 
 // ─── Main Component ──────────────────────────────────────────
-export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFailed = [], onDone, onOpenCoaching }: Props) {
+export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFailed = [], onDone }: Props) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const queryClient = useQueryClient();
@@ -367,6 +377,8 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
   const [collapsed, setCollapsed] = useState<Set<SectionKey>>(new Set());
   const [savingSection, setSavingSection] = useState<SectionKey | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [coachingSection, setCoachingSection] = useState<SectionKey | null>(null);
+  const [refinedSections, setRefinedSections] = useState<Set<SectionKey>>(new Set());
 
   const validatedCount = validated.size;
   const allDone = validatedCount === 6;
@@ -457,113 +469,160 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
         )}
       </motion.div>
 
-      {/* Section cards */}
-      <div className="space-y-4">
-        {SECTIONS.map((sec, idx) => {
-          const conf = getConfidence(analysis[sec.key]);
-          const isValidated = validated.has(sec.key);
-          const isCollapsed = collapsed.has(sec.key);
-          const hasData = sectionHasData(sec.key, analysis);
-          const isLow = conf === "low" && !hasData;
-          const isSaving = savingSection === sec.key;
-
-          return (
-            <motion.div
-              key={sec.key}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: idx * 0.08 }}
+      {/* Coaching overlay */}
+      <AnimatePresence>
+        {coachingSection && (
+          <motion.div
+            key="coaching"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6"
+          >
+            <button
+              onClick={() => setCoachingSection(null)}
+              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground mb-4 transition-colors"
             >
-              <div className="bg-card rounded-[20px] shadow-card border border-border overflow-hidden">
-                {/* Card header – always visible */}
-                <button
-                  onClick={() => isValidated && toggleCollapse(sec.key)}
-                  className="w-full flex items-center justify-between p-5 sm:p-6 text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-[20px]">{sec.emoji}</span>
-                    <h2 className="font-display text-[18px] text-foreground" style={{ fontWeight: 400 }}>{sec.title}</h2>
-                    {isValidated && <CheckCircle2 className="h-5 w-5 text-emerald-500" />}
-                  </div>
-                  {!isValidated && <ConfidenceBadge level={conf} />}
-                </button>
+              <ArrowLeft className="h-4 w-4" />
+              Revenir à la vue d'ensemble
+            </button>
+            <BrandingCoachingFlow
+              section={COACHING_SECTION_MAP[coachingSection] as any}
+              autofillData={analysis[coachingSection]}
+              autofillConfidence={getConfidence(analysis[coachingSection])}
+              onComplete={() => {
+                // Mark section as validated + refined
+                setValidated((prev) => new Set(prev).add(coachingSection));
+                setCollapsed((prev) => new Set(prev).add(coachingSection));
+                setRefinedSections((prev) => new Set(prev).add(coachingSection));
+                // Invalidate queries
+                for (const qk of QUERY_KEYS[coachingSection]) {
+                  queryClient.invalidateQueries({ queryKey: [qk] });
+                }
+                setCoachingSection(null);
+                toast.success("Section affinée et sauvegardée ✓");
+                // Check if all done
+                if (validated.size === 5) {
+                  setShowConfetti(true);
+                  setTimeout(() => setShowConfetti(false), 4000);
+                }
+              }}
+              onBack={() => setCoachingSection(null)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                {/* Card body */}
-                <AnimatePresence initial={false}>
-                  {!isCollapsed && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="px-5 sm:px-6 pb-5 sm:pb-6">
-                        {isLow ? (
-                          <div className="text-center py-6">
-                            <p className="text-[14px] text-muted-foreground mb-4">
-                              Je n'ai pas assez d'éléments pour cette section. On la remplit ensemble ?
-                            </p>
-                            <button
-                              onClick={() => onOpenCoaching?.(sec.key, `J'ai pré-rempli cette section à partir de tes liens mais je n'ai pas trouvé assez d'infos. On va la compléter ensemble.`)}
-                              className="inline-flex items-center gap-2 bg-[#fb3d80] text-white rounded-[12px] px-6 py-2.5 text-[14px] font-semibold transition-all hover:scale-[1.02] hover:shadow-lg"
-                            >
-                              <Sparkles className="h-4 w-4" />
-                              On la remplit ensemble →
-                            </button>
-                          </div>
-                        ) : (
-                          <>
-                            {/* Rendered content */}
-                            <div className="mb-5">
-                              {RENDERERS[sec.key](analysis)}
-                            </div>
+      {/* Section cards – hidden when coaching is active */}
+      {!coachingSection && (
+        <div className="space-y-4">
+          {SECTIONS.map((sec, idx) => {
+            const conf = getConfidence(analysis[sec.key]);
+            const isValidated = validated.has(sec.key);
+            const isCollapsed = collapsed.has(sec.key);
+            const hasData = sectionHasData(sec.key, analysis);
+            const isLow = conf === "low" && !hasData;
+            const isSaving = savingSection === sec.key;
+            const isRefined = refinedSections.has(sec.key);
 
-                            {/* Action buttons */}
-                            {!isValidated && (
-                              <div className="flex flex-col sm:flex-row gap-2">
-                                <button
-                                  onClick={() => handleValidate(sec.key)}
-                                  disabled={isSaving}
-                                  className="inline-flex items-center justify-center gap-2 border-[1.5px] border-emerald-500 text-emerald-600 rounded-[12px] px-5 py-2 text-[14px] font-semibold hover:bg-emerald-50 transition-all disabled:opacity-50"
-                                >
-                                  {isSaving ? (
-                                    <span className="inline-block h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                                  ) : (
-                                    <CheckCircle2 className="h-4 w-4" />
-                                  )}
-                                  C'est bon ✓
-                                </button>
-                                <button
-                                  onClick={() => onOpenCoaching?.(sec.key, `J'ai pré-rempli cette section à partir de tes liens. Voici ce que j'ai noté. Qu'est-ce que tu voudrais changer ou préciser ?`)}
-                                  className={`inline-flex items-center justify-center gap-2 rounded-[12px] px-5 py-2 text-[14px] font-semibold transition-all ${
-                                    conf === "low"
-                                      ? "bg-[#fb3d80] text-white hover:scale-[1.02] hover:shadow-lg"
-                                      : "border-[1.5px] border-[#fb3d80] text-[#fb3d80] hover:bg-[#fce4ec]"
-                                  }`}
-                                >
-                                  <Sparkles className="h-4 w-4" />
-                                  On affine ensemble →
-                                </button>
-                              </div>
-                            )}
+            return (
+              <motion.div
+                key={sec.key}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: idx * 0.08 }}
+              >
+                <div className="bg-card rounded-[20px] shadow-card border border-border overflow-hidden">
+                  {/* Card header */}
+                  <button
+                    onClick={() => isValidated && toggleCollapse(sec.key)}
+                    className="w-full flex items-center justify-between p-5 sm:p-6 text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-[20px]">{sec.emoji}</span>
+                      <h2 className="font-display text-[18px] text-foreground" style={{ fontWeight: 400 }}>{sec.title}</h2>
+                      {isValidated && <CheckCircle2 className="h-5 w-5 text-emerald-500" />}
+                      {isRefined && <span className="text-[11px] text-emerald-600 font-medium">Affiné</span>}
+                    </div>
+                    {!isValidated && <ConfidenceBadge level={conf} />}
+                  </button>
 
-                            {conf === "low" && !isValidated && (
-                              <p className="text-[12px] text-muted-foreground mt-2">
-                                Je n'ai pas trouvé assez d'infos pour cette partie. Quelques questions vont m'aider à compléter.
+                  {/* Card body */}
+                  <AnimatePresence initial={false}>
+                    {!isCollapsed && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-5 sm:px-6 pb-5 sm:pb-6">
+                          {isLow ? (
+                            <div className="text-center py-6">
+                              <p className="text-[14px] text-muted-foreground mb-4">
+                                Je n'ai pas assez d'éléments pour cette section. On la remplit ensemble ?
                               </p>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
+                              <button
+                                onClick={() => setCoachingSection(sec.key)}
+                                className="inline-flex items-center gap-2 bg-[#fb3d80] text-white rounded-[12px] px-6 py-2.5 text-[14px] font-semibold transition-all hover:scale-[1.02] hover:shadow-lg"
+                              >
+                                <Sparkles className="h-4 w-4" />
+                                On la remplit ensemble →
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="mb-5">
+                                {RENDERERS[sec.key](analysis)}
+                              </div>
+
+                              {!isValidated && (
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                  <button
+                                    onClick={() => handleValidate(sec.key)}
+                                    disabled={isSaving}
+                                    className="inline-flex items-center justify-center gap-2 border-[1.5px] border-emerald-500 text-emerald-600 rounded-[12px] px-5 py-2 text-[14px] font-semibold hover:bg-emerald-50 transition-all disabled:opacity-50"
+                                  >
+                                    {isSaving ? (
+                                      <span className="inline-block h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <CheckCircle2 className="h-4 w-4" />
+                                    )}
+                                    C'est bon ✓
+                                  </button>
+                                  <button
+                                    onClick={() => setCoachingSection(sec.key)}
+                                    className={`inline-flex items-center justify-center gap-2 rounded-[12px] px-5 py-2 text-[14px] font-semibold transition-all ${
+                                      conf === "low"
+                                        ? "bg-[#fb3d80] text-white hover:scale-[1.02] hover:shadow-lg"
+                                        : "border-[1.5px] border-[#fb3d80] text-[#fb3d80] hover:bg-[#fce4ec]"
+                                    }`}
+                                  >
+                                    <Sparkles className="h-4 w-4" />
+                                    On affine ensemble →
+                                  </button>
+                                </div>
+                              )}
+
+                              {conf === "low" && !isValidated && (
+                                <p className="text-[12px] text-muted-foreground mt-2">
+                                  Je n'ai pas trouvé assez d'infos pour cette partie. Quelques questions vont m'aider à compléter.
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Sticky bottom bar */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border px-4 py-3">
