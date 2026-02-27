@@ -388,7 +388,7 @@ function Step2({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
 
       {aiResponse && (
         <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
-          <p className="text-sm font-semibold text-primary">🤖 L'IA réagit</p>
+          <p className="text-sm font-semibold text-primary">✨ Voici ce que j'en pense</p>
           <p className="text-sm text-foreground whitespace-pre-line">{aiResponse.reaction}</p>
           {aiResponse.follow_up_questions && (
             <ul className="text-sm text-muted-foreground space-y-1">
@@ -435,7 +435,7 @@ function Step3({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
 
       {aiResponse && (
         <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
-          <p className="text-sm font-semibold text-primary">🤖 L'IA challenge</p>
+          <p className="text-sm font-semibold text-primary">✨ Je challenge un peu</p>
           <p className="text-sm text-foreground whitespace-pre-line">{aiResponse.reaction}</p>
           {aiResponse.suggestions && (
             <div className="space-y-2 mt-2">
@@ -484,7 +484,7 @@ function Step4({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
 
       {aiResponse && (
         <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
-          <p className="text-sm font-semibold text-primary">🤖 L'IA transforme en bénéfices</p>
+          <p className="text-sm font-semibold text-primary">✨ Tes bénéfices, reformulés</p>
           {aiResponse.reaction && <p className="text-sm text-foreground">{aiResponse.reaction}</p>}
           {aiResponse.features_to_benefits && (
             <div className="overflow-x-auto">
@@ -537,7 +537,7 @@ function Step5({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
 
       {aiResponse && (
         <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
-          <p className="text-sm font-semibold text-primary">🤖 L'IA pose des questions</p>
+          <p className="text-sm font-semibold text-primary">✨ Quelques questions pour toi</p>
           <p className="text-sm text-foreground whitespace-pre-line">{aiResponse.reaction}</p>
           {aiResponse.follow_up_questions && (
             <ul className="text-sm text-muted-foreground space-y-1">
@@ -586,7 +586,7 @@ function Step6({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
 
       {aiResponse?.objections && (
         <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
-          <p className="text-sm font-semibold text-primary">🤖 Réponses aux objections</p>
+          <p className="text-sm font-semibold text-primary">✨ Réponses aux objections</p>
           {aiResponse.objections.map((o: any, i: number) => (
             <div key={i} className="rounded-lg bg-card border border-border p-3">
               <p className="text-sm font-semibold text-foreground mb-1">{o.emoji} "{o.objection}"</p>
@@ -641,7 +641,7 @@ function Step7({ formData, setFormData, aiResponse, aiLoading, offer, onAskAI }:
 
       {displayData && (
         <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-4">
-          <p className="text-sm font-semibold text-primary">🤖 Voici ce que j'ai compris de ton offre</p>
+          <p className="text-sm font-semibold text-primary">✨ Voici ce que j'ai compris de ton offre</p>
 
           {displayData.problem_summary && (
             <div>
