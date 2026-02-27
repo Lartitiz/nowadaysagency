@@ -112,6 +112,7 @@ export default function Onboarding() {
 
   const { toast } = useToast();
   const voiceTipShown = useRef(false);
+  const [pendingAutoNext, setPendingAutoNext] = useState(false);
 
   useEffect(() => {
     if (step > 11) voiceTipShown.current = true;
@@ -129,6 +130,19 @@ export default function Onboarding() {
     }
     next();
   }, [step, answers, brandingAnswers, next, toast]);
+
+  // Auto-next after state has settled for steps 6, 7, 8
+  useEffect(() => {
+    if (!pendingAutoNext) return;
+    const field = step === 6 ? answers.blocage : step === 7 ? answers.objectif : step === 8 ? answers.temps : null;
+    if (field) {
+      const timer = setTimeout(() => {
+        validatedNext();
+        setPendingAutoNext(false);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [pendingAutoNext, answers.blocage, answers.objectif, answers.temps, step, validatedNext]);
 
   const isCurrentStep = step < TOTAL_STEPS;
 
@@ -191,9 +205,9 @@ export default function Onboarding() {
                 {step === 3 && <ActiviteScreen prenom={answers.prenom} value={answers.activite} onChange={v => set("activite", v)} onNext={validatedNext} />}
                 {step === 4 && <ActivityStep value={answers.activity_type} detailValue={answers.activity_detail} onChange={v => { set("activity_type", v); if (v !== "autre") { set("activity_detail", ""); setTimeout(validatedNext, 600); } }} onDetailChange={v => set("activity_detail", v)} onNext={validatedNext} />}
                 {step === 5 && <ChannelsStep value={answers.canaux} onChange={v => set("canaux", v)} onNext={validatedNext} />}
-                {step === 6 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setTimeout(validatedNext, 500); }} />}
-                {step === 7 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setTimeout(validatedNext, 500); }} />}
-                {step === 8 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setTimeout(validatedNext, 500); }} />}
+                {step === 6 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
+                {step === 7 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}
+                {step === 8 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setPendingAutoNext(true); }} />}
                 {step === 9 && <InstagramScreen answers={answers} set={set} onNext={next} onSkip={next} />}
 
                 {/* PHASE 3: BRANDING CONVERSATIONNEL */}
