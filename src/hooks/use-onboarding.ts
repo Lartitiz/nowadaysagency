@@ -44,6 +44,9 @@ export interface Answers {
   instagram: string;
   website: string;
   linkedin: string;
+  change_priority: string;
+  product_or_service: string;
+  uniqueness: string;
 }
 
 export interface BrandingAnswers {
@@ -104,6 +107,9 @@ export function useOnboarding() {
     instagram: isDemoMode ? "@lea_portraits" : "",
     website: isDemoMode ? "www.leaportraits.fr" : "",
     linkedin: isDemoMode ? "" : "",
+    change_priority: isDemoMode ? "Avoir une identité visuelle cohérente sur tous mes supports" : "",
+    product_or_service: isDemoMode ? "services" : "",
+    uniqueness: isDemoMode ? "Mon approche est très humaine, je mets les gens à l'aise" : "",
   });
 
   // Keep BrandingAnswers as state for backward compatibility (used by DiagnosticLoading fallback)

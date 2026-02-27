@@ -81,13 +81,14 @@ export default function Onboarding() {
     next();
   }, [step, answers, brandingAnswers, next, toast]);
 
-  // Auto-next after state has settled for steps 2, 4, 5, 6
+   // Auto-next after state has settled for steps 2, 4, 5, 6, 8
   useEffect(() => {
     if (!pendingAutoNext) return;
     const field = step === 2 ? answers.activity_type
       : step === 4 ? answers.objectif
       : step === 5 ? answers.blocage
       : step === 6 ? answers.temps
+      : step === 8 ? answers.product_or_service
       : null;
     if (field) {
       if (step === 2 && field === "autre") {
@@ -100,7 +101,7 @@ export default function Onboarding() {
       }, 400);
       return () => clearTimeout(timer);
     }
-  }, [pendingAutoNext, answers.activity_type, answers.objectif, answers.blocage, answers.temps, step, validatedNext]);
+  }, [pendingAutoNext, answers.activity_type, answers.objectif, answers.blocage, answers.temps, answers.product_or_service, step, validatedNext]);
 
   const isCurrentStep = step <= TOTAL_STEPS;
   // Deduce canaux for DiagnosticLoading
@@ -205,9 +206,30 @@ export default function Onboarding() {
                 {/* Step 6: Temps */}
                 {step === 6 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setPendingAutoNext(true); }} />}
 
-                {/* Steps 7-9: Affinage (placeholder — see prompt 3.2) */}
-                {(step === 7 || step === 8 || step === 9) && (
-                  <AffinageScreen step={step} onNext={() => { if (step === 9) handleFinish(); next(); }} />
+                {/* Step 7: Change priority */}
+                {step === 7 && (
+                  <ChangeScreen
+                    value={answers.change_priority}
+                    onChange={v => set("change_priority", v)}
+                    onNext={validatedNext}
+                  />
+                )}
+
+                {/* Step 8: Product or service */}
+                {step === 8 && (
+                  <ProductServiceScreen
+                    value={answers.product_or_service}
+                    onChange={v => { set("product_or_service", v); setPendingAutoNext(true); }}
+                  />
+                )}
+
+                {/* Step 9: Uniqueness */}
+                {step === 9 && (
+                  <UniquenessScreen
+                    value={answers.uniqueness}
+                    onChange={v => set("uniqueness", v)}
+                    onNext={() => { handleFinish(); next(); }}
+                  />
                 )}
 
                 {/* Step 10: Diagnostic Loading */}
@@ -558,25 +580,69 @@ function TempsScreen({ value, onChange }: { value: string; onChange: (v: string)
 }
 
 /* ════════════════════════════════════════════════════════
-   AFFINAGE PLACEHOLDER (will be implemented in prompt 3.2)
+   AFFINAGE SCREENS (Steps 7-9)
    ════════════════════════════════════════════════════════ */
 
-function AffinageScreen({ step, onNext }: { step: number; onNext: () => void }) {
-  const questions = [
-    { title: "Si tu devais changer UNE chose dans ta com' demain, ce serait quoi ?", subtitle: "La première chose qui te vient, sans réfléchir." },
-    { title: "Tu vends plutôt un produit ou un service ?", subtitle: "Ça m'aide à adapter mes conseils." },
-    { title: "Qu'est-ce qui te rend unique par rapport aux autres dans ton domaine ?", subtitle: "Le truc que tes clientes disent de toi, pas toi." },
+function ChangeScreen({ value, onChange, onNext }: { value: string; onChange: (v: string) => void; onNext: () => void }) {
+  return (
+    <div className="space-y-8">
+      <div className="text-center space-y-2">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+          Si tu pouvais changer UNE chose dans ta com' demain, ce serait quoi ?
+        </h1>
+        <p className="text-sm text-muted-foreground italic">pas de mauvaise réponse, dis ce qui te vient</p>
+      </div>
+      <VoiceInput
+        value={value}
+        onChange={onChange}
+        placeholder="Ex : avoir un feed Instagram cohérent, trouver ma ligne éditoriale..."
+        multiline
+      />
+      <div className="text-center">
+        <Button onClick={onNext} disabled={!value.trim()} className="rounded-full px-8">Suivant →</Button>
+      </div>
+    </div>
+  );
+}
+
+function ProductServiceScreen({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const options = [
+    { key: "produits", emoji: "🎁", label: "Des produits" },
+    { key: "services", emoji: "🤝", label: "Des services" },
+    { key: "les_deux", emoji: "✨", label: "Les deux" },
   ];
-  const q = questions[step - 7];
 
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">{q.title}</h1>
-        <p className="text-sm text-muted-foreground italic">{q.subtitle}</p>
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Tu vends plutôt...</h1>
       </div>
+      <div className="space-y-3">
+        {options.map(o => (
+          <ChoiceCard key={o.key} emoji={o.emoji} label={o.label} selected={value === o.key} onClick={() => onChange(o.key)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function UniquenessScreen({ value, onChange, onNext }: { value: string; onChange: (v: string) => void; onNext: () => void }) {
+  return (
+    <div className="space-y-8">
+      <div className="text-center space-y-2">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+          C'est quoi LE truc qui te rend différente des autres dans ton domaine ?
+        </h1>
+        <p className="text-sm text-muted-foreground italic">même si tu penses que c'est pas grand-chose</p>
+      </div>
+      <VoiceInput
+        value={value}
+        onChange={onChange}
+        placeholder="Ex : mon approche est très humaine, je mets les gens à l'aise..."
+        multiline
+      />
       <div className="text-center">
-        <Button onClick={onNext} className="rounded-full px-8">Suivant →</Button>
+        <Button onClick={onNext} disabled={!value.trim()} className="rounded-full px-8">Voir mon diagnostic →</Button>
       </div>
     </div>
   );
