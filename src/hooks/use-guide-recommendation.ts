@@ -28,6 +28,7 @@ export interface GuideRecommendation {
 export interface ProfileSummary {
   firstName: string;
   brandingSections: number; // 0-6
+  brandingTotal: number; // 0-100
   calendarPosts: number;
   lastAuditDate: string | null;
   onboardingComplete: boolean;
@@ -217,6 +218,7 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
           profileSummary: {
             firstName: demoData.profile.first_name,
             brandingSections: 4,
+            brandingTotal: bc.total,
             calendarPosts: 0,
             lastAuditDate: lastAudit,
             onboardingComplete: true,
@@ -267,10 +269,11 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
         profileSummary: {
           firstName,
           brandingSections: countFilledSections(bc),
+          brandingTotal: bc.total,
           calendarPosts,
           lastAuditDate,
           onboardingComplete: onboardingDone,
-          contentsGenerated: 0, // TODO: fetch from ai_usage table
+          contentsGenerated: 0,
         },
       };
     },
@@ -283,6 +286,7 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
     profileSummary: data?.profileSummary ?? {
       firstName: "toi",
       brandingSections: 0,
+      brandingTotal: 0,
       calendarPosts: 0,
       lastAuditDate: null,
       onboardingComplete: false,
