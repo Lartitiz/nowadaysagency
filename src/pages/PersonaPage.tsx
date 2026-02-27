@@ -92,6 +92,11 @@ export default function PersonaPage() {
     if (personaHookLoading) return;
     if (!isNewPersona && personaHookData) {
       const { id, user_id, created_at, updated_at, ...rest } = personaHookData;
+      // If persona is completed, redirect to recap page
+      if (rest.completed && !fromAudit) {
+        navigate("/branding/persona/recap", { replace: true });
+        return;
+      }
       setData(rest as PersonaData);
       setExistingId(id);
       setCurrentStep(rest.current_step || 1);
