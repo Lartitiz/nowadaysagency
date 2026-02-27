@@ -114,9 +114,24 @@ export default function BrandingImportBlock({ onResult, prefillLinks }: Props) {
       // Extract text from all files
       if (files.length > 0) {
         for (const file of files) {
-          const extractedText = await extractTextFromFile(file);
-          if (extractedText.trim().length > 0) parts.push(extractedText.trim());
+          try {
+            const extractedText = await extractTextFromFile(file);
+            if (extractedText.trim().length > 0) parts.push(extractedText.trim());
+          } catch (err) {
+            console.warn(`Impossible de lire ${file.name}:`, err);
+          }
         }
+      }
+
+      // Warn if files were uploaded but no text could be extracted
+      if (files.length > 0 && parts.length === 0) {
+        toast.error("Impossible d'extraire le texte de tes fichiers. Vérifie qu'ils ne sont pas des scans (images) et qu'ils sont bien au format PDF, Word ou texte.", { duration: 8000 });
+        setAnalyzing(false);
+        return;
+      }
+      // Warn if some files failed
+      if (files.length > 0 && parts.length < files.length) {
+        toast.info(`${files.length - parts.length} fichier(s) n'ont pas pu être lus. Les autres ont bien été analysés.`, { duration: 5000 });
       }
 
       // Add pasted text
@@ -184,7 +199,13 @@ export default function BrandingImportBlock({ onResult, prefillLinks }: Props) {
       <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-8 mb-8 text-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
         <p className="font-display font-bold text-foreground text-base mb-1">✨ On analyse tes documents…</p>
-        <p className="text-sm text-muted-foreground">Ça peut prendre quelques secondes.</p>
+        <p className="text-sm text-muted-foreground">Ça peut prendre jusqu'à 30 secondes selon la taille de tes documents.</p>
+        <button
+          onClick={() => setAnalyzing(false)}
+          className="text-xs text-muted-foreground underline mt-3 hover:text-foreground transition-colors"
+        >
+          Annuler
+        </button>
       </div>
     );
   }
