@@ -192,10 +192,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       if (res.error) throw new Error(res.error.message);
       const generated = res.data?.content || "";
       setContentDraft(generated);
-      // Extract first sentence as accroche
       const firstLine = generated.split(/[.\n]/)[0]?.trim();
       setAccroche(firstLine || null);
-      // Auto-update status
       if (status === "idea" || status === "a_rediger") {
         setStatus("drafting");
       }
@@ -225,7 +223,6 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleOpenAtelier = () => {
-    // Save current state first, then navigate
     handleSave();
     navigate("/atelier?canal=" + (postCanal || "instagram"), {
       state: {
@@ -239,7 +236,6 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         postDate: selectedDate,
         existingContent: contentDraft,
         existingAccroche: accroche,
-        // Launch context
         launchId: editingPost?.launch_id,
         contentType: editingPost?.content_type,
         contentTypeEmoji: editingPost?.content_type_emoji,
@@ -253,7 +249,6 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     });
   };
 
-  // Angle → carousel type mapping
   const ANGLE_TO_CAROUSEL: Record<string, string> = {
     "Storytelling": "storytelling",
     "Mythe à déconstruire": "mythe_realite",
@@ -268,9 +263,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleNavigateToGenerator = (mode: "generate" | "regenerate" | "view") => {
-    // Save first
     handleSave();
-
     const calendarId = editingPost?.id;
     const params = new URLSearchParams();
     if (calendarId) params.set("calendar_id", calendarId);
@@ -278,7 +271,6 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     if (objectif) params.set("objectif", objectif);
     params.set("from", "/calendrier");
 
-    // Pass rich context via state for all generators
     const state = {
       fromCalendar: true,
       calendarPostId: calendarId,
@@ -288,20 +280,16 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       format,
       notes,
       postDate: selectedDate,
-      // Launch context
       launchId: editingPost?.launch_id,
       contentType: editingPost?.content_type,
       category: editingPost?.category,
       objective: editingPost?.objective,
     };
 
-    // Determine route based on format and canal
     const fmt = format || "post_carrousel";
     if (postCanal === "linkedin") {
-      // LinkedIn posts go to the dedicated LinkedIn generator
       navigate(`/linkedin/post?${params.toString()}`, { state: { ...state, sujet: theme } });
     } else if (fmt === "post_carrousel" || fmt === "carousel") {
-      // Also pass carousel type hint from angle
       if (angle && ANGLE_TO_CAROUSEL[angle]) {
         params.set("carousel_type", ANGLE_TO_CAROUSEL[angle]);
       }
@@ -311,7 +299,6 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     } else if (fmt === "story_serie") {
       navigate(`/instagram/stories?${params.toString()}`, { state });
     } else {
-      // Default: atelier for regular posts
       navigate(`/atelier?canal=${postCanal || "instagram"}&${params.toString()}`, { state });
     }
   };
@@ -333,14 +320,311 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     ? contentDraft.slice(0, 200) + "..."
     : contentDraft;
 
+  /* ── Metadata sidebar (shared between desktop & mobile) ── */
+  const MetadataFields = () => (
+    <>
+      {/* Statut */}
+      <div>
+        <label className="text-xs font-semibold mb-1.5 block text-foreground">Statut</label>
+        <div className="flex flex-wrap gap-1.5">
+          {STATUSES.map((s) => (
+            <button key={s.id} onClick={() => setStatus(s.id)}
+              className={`rounded-pill px-2.5 py-1 text-[11px] font-medium border transition-all ${status === s.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Canal */}
+      <div>
+        <label className="text-xs font-semibold mb-1.5 block text-foreground">Canal</label>
+        <div className="flex flex-wrap gap-1.5">
+          {[
+            { id: "instagram", emoji: "📸", label: "Instagram" },
+            { id: "linkedin", emoji: "💼", label: "LinkedIn" },
+            { id: "pinterest", emoji: "📌", label: "Pinterest" },
+          ].map((c) => (
+            <button key={c.id} onClick={() => setPostCanal(c.id)}
+              className={`rounded-pill px-2.5 py-1 text-[11px] font-medium border transition-all ${postCanal === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+              {c.emoji} {c.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Date */}
+      {editingPost && selectedDate && (
+        <div>
+          <label className="text-xs font-semibold mb-1.5 block text-foreground">Date</label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("w-full justify-start text-left font-normal rounded-[10px] h-9 text-xs")}>
+                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                {formatDate(new Date(selectedDate + "T00:00:00"), "EEE d MMM yyyy", { locale: fr })}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 z-[60]" align="start">
+              <Calendar
+                mode="single"
+                selected={new Date(selectedDate + "T00:00:00")}
+                onSelect={(d) => {
+                  if (d && onDateChange && editingPost) {
+                    const newDateStr = toLocalDateStr(d);
+                    onDateChange(editingPost.id, newDateStr);
+                  }
+                }}
+                locale={fr}
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+
+      {/* Format */}
+      <div>
+        <label className="text-xs font-semibold mb-1.5 block text-foreground">Format</label>
+        <div className="flex flex-wrap gap-1.5">
+          {(FORMAT_OPTIONS_BY_CANAL[postCanal] || FORMAT_OPTIONS_BY_CANAL.instagram).map((f) => (
+            <button key={f.id} onClick={() => setFormat(format === f.id ? null : f.id)}
+              className={`rounded-pill px-2.5 py-1 text-[11px] font-medium border transition-all ${format === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+              {f.emoji} {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Objectif + Angle — Collapsible */}
+      <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+        <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors py-1">
+          <span>🎯 Objectif & angle</span>
+          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-3 pt-2">
+          {/* Objectif */}
+          <div>
+            <label className="text-[11px] font-medium mb-1 block text-muted-foreground">Objectif</label>
+            <div className="flex flex-wrap gap-1">
+              {OBJECTIFS.map((o) => (
+                <button key={o.id} onClick={() => setObjectif(objectif === o.id ? null : o.id)}
+                  className="rounded-pill px-2 py-1 text-[11px] font-medium border transition-all"
+                  style={objectif === o.id ? {
+                    backgroundColor: `hsl(var(--${o.cssVar}-bg))`,
+                    color: `hsl(var(--${o.cssVar}))`,
+                    borderColor: `hsl(var(--${o.cssVar}))`
+                  } : undefined}>
+                  {o.emoji} {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Angle */}
+          <div>
+            <label className="text-[11px] font-medium mb-1 block text-muted-foreground">Angle</label>
+            <div className="flex flex-wrap gap-1">
+              {ANGLES.map((a) => (
+                <button key={a} onClick={() => setAngle(angle === a ? null : a)}
+                  className={`rounded-pill px-2 py-0.5 text-[10px] font-medium border transition-all ${angle === a ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </>
+  );
+
+  /* ── Content section (left column) ── */
+  const ContentSection = () => {
+    if (!editingPost || !theme.trim()) return null;
+    const hasContent = !!(contentDraft || editingPost.generated_content_id);
+    const isPublished = status === "published";
+    const isReady = status === "ready" || status === "draft_ready";
+
+    return (
+      <div>
+        <label className="text-xs font-semibold mb-2 block text-foreground">✍️ Contenu</label>
+
+        {isEditing ? (
+          <div className="space-y-2">
+            <Textarea
+              value={contentDraft || ""}
+              onChange={(e) => setContentDraft(e.target.value)}
+              className="rounded-[10px] min-h-[120px] text-sm"
+              placeholder="Écris ou colle ton contenu ici..."
+              aria-label="Contenu du post"
+            />
+            <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} className="rounded-pill text-xs">
+              ✅ Terminer l'édition
+            </Button>
+          </div>
+
+        ) : isPublished && hasContent ? (
+          <div className="space-y-3">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-pill">
+              <CheckCircle2 className="h-3 w-3" /> Publié
+            </span>
+            <div className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap opacity-80">
+              {contentPreview}
+              {contentDraft && contentDraft.length > 200 && !showFullContent && (
+                <button onClick={() => setShowFullContent(true)} className="block mt-1 text-xs text-primary hover:underline">voir la suite ↓</button>
+              )}
+              {showFullContent && contentDraft && contentDraft.length > 200 && (
+                <button onClick={() => setShowFullContent(false)} className="block mt-1 text-xs text-primary hover:underline">réduire ↑</button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleCopy} className="rounded-pill text-xs gap-1.5">
+                <Copy className="h-3 w-3" /> Copier
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="rounded-pill px-2">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => navigate("/transformer")}>
+                    🔄 Recycler (crosspost)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+        ) : hasContent && isReady ? (
+          <div className="space-y-3">
+            <div className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap">
+              {contentPreview}
+              {contentDraft && contentDraft.length > 200 && !showFullContent && (
+                <button onClick={() => setShowFullContent(true)} className="block mt-1 text-xs text-primary hover:underline">voir la suite ↓</button>
+              )}
+              {showFullContent && contentDraft && contentDraft.length > 200 && (
+                <button onClick={() => setShowFullContent(false)} className="block mt-1 text-xs text-primary hover:underline">réduire ↑</button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleCopy} className="rounded-pill text-xs gap-1.5">
+                <Copy className="h-3 w-3" /> Copier
+              </Button>
+              <Button size="sm" onClick={() => setStatus("published")} className="rounded-pill text-xs gap-1.5">
+                ✅ Marquer comme publié
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="rounded-pill px-2">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                    ✏️ Modifier
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSmartGenerate}>
+                    🔄 Nouvelle version IA
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleOpenAtelier}>
+                    ✨ Ouvrir dans l'atelier
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+        ) : hasContent ? (
+          <div className="space-y-3">
+            <div className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap">
+              {contentPreview}
+              {contentDraft && contentDraft.length > 200 && !showFullContent && (
+                <button onClick={() => setShowFullContent(true)} className="block mt-1 text-xs text-primary hover:underline">voir la suite ↓</button>
+              )}
+              {showFullContent && contentDraft && contentDraft.length > 200 && (
+                <button onClick={() => setShowFullContent(false)} className="block mt-1 text-xs text-primary hover:underline">réduire ↑</button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="rounded-pill text-xs gap-1.5">
+                ✏️ Modifier
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleCopy} className="rounded-pill text-xs gap-1.5">
+                <Copy className="h-3 w-3" /> Copier
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="rounded-pill px-2">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleSmartGenerate}>
+                    🔄 Nouvelle version IA
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleOpenAtelier}>
+                    ✨ Ouvrir dans l'atelier
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setContentDraft(null); setAccroche(null); }} className="text-destructive">
+                    🗑️ Supprimer le contenu
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+        ) : (
+          <div className="space-y-3">
+            {!angle && (
+              <p className="text-xs italic text-muted-foreground">
+                💡 Choisis un angle pour un meilleur résultat
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">Pas encore de contenu.</p>
+            <Button
+              onClick={handleSmartGenerate}
+              disabled={isGenerating || !theme.trim()}
+              className="w-full rounded-pill gap-2"
+              size="default"
+            >
+              {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              ✨ Rédiger avec l'IA
+            </Button>
+            <button
+              onClick={() => setIsEditing(true)}
+              className="block w-full text-center text-xs text-muted-foreground hover:text-primary transition-colors"
+            >
+              ou écrire moi-même
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-display">
-            {isReelPost ? "🎬 Script Reel" : isStoriesPost ? "📱 Séquence Stories" : editingPost ? "Modifier le post" : "Ajouter un post"}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="font-display">
+              {isReelPost ? "🎬 Script Reel" : isStoriesPost ? "📱 Séquence Stories" : editingPost ? "Modifier le post" : "Ajouter un post"}
+            </DialogTitle>
+            {/* Tabs in header — only for regular posts */}
+            {!isReelPost && !isStoriesPost && (
+              <div className="flex rounded-full border border-border overflow-hidden mr-6">
+                <button onClick={() => setDialogTab("edit")}
+                  className={`px-3 py-1 text-[11px] font-medium transition-colors ${dialogTab === "edit" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                  ✏️ Éditer
+                </button>
+                <button onClick={() => setDialogTab("preview")}
+                  className={`px-3 py-1 text-[11px] font-medium transition-colors ${dialogTab === "preview" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                  👁️ Preview
+                </button>
+              </div>
+            )}
+          </div>
           <DialogDescription className="sr-only">Formulaire de création ou modification d'un post du calendrier éditorial</DialogDescription>
         </DialogHeader>
 
@@ -359,7 +643,6 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               )}
             </div>
 
-            {/* Status */}
             <div>
               <label className="text-sm font-medium mb-1.5 block">Statut</label>
               <div className="flex flex-wrap gap-1.5">
@@ -432,7 +715,6 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               )}
             </div>
 
-            {/* Status */}
             <div>
               <label className="text-sm font-medium mb-1.5 block">Statut</label>
               <div className="flex flex-wrap gap-1.5">
@@ -482,23 +764,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             </div>
           </div>
         ) : (
-        <div className="space-y-5 mt-2">
-          {/* Tabs: Edit / Preview */}
-          <div className="flex rounded-full border border-border overflow-hidden">
-            <button
-              onClick={() => setDialogTab("edit")}
-              className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${dialogTab === "edit" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              ✏️ Éditer
-            </button>
-            <button
-              onClick={() => setDialogTab("preview")}
-              className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${dialogTab === "preview" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              👁️ Prévisualiser
-            </button>
-          </div>
-
+        /* ── REGULAR POST: 2-column layout ── */
+        <div className="mt-2">
           {dialogTab === "preview" ? (
             <PreviewTab
               canal={postCanal}
@@ -514,377 +781,108 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             />
           ) : (
           <>
-          {/* ── ZONE 1 : ESSENTIEL ── */}
-
-          {/* Theme */}
-          <div>
-            <label className="text-xs font-semibold mb-1.5 block text-foreground">Thème / sujet</label>
-            <Input autoFocus value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="De quoi parle ce post ?" className="rounded-[10px] h-11" />
-          </div>
-
-          {/* Canal */}
-          <div>
-            <label className="text-xs font-semibold mb-1.5 block text-foreground">Canal</label>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { id: "instagram", emoji: "📸", label: "Instagram" },
-                { id: "linkedin", emoji: "💼", label: "LinkedIn" },
-                { id: "pinterest", emoji: "📌", label: "Pinterest" },
-              ].map((c) => (
-                <button key={c.id} onClick={() => setPostCanal(c.id)}
-                  className={`rounded-pill px-3 py-1.5 text-xs font-medium border transition-all ${postCanal === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-                  {c.emoji} {c.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Status */}
-          <div>
-            <label className="text-xs font-semibold mb-1.5 block text-foreground">Statut</label>
-            <div className="flex flex-wrap gap-1.5">
-              {STATUSES.map((s) => (
-                <button key={s.id} onClick={() => setStatus(s.id)}
-                  className={`rounded-pill px-3 py-1.5 text-xs font-medium border transition-all ${status === s.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Date picker */}
-          {editingPost && selectedDate && (
-            <div>
-              <label className="text-xs font-semibold mb-1.5 block text-foreground">Date</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal rounded-[10px] h-11")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formatDate(new Date(selectedDate + "T00:00:00"), "EEEE d MMMM yyyy", { locale: fr })}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 z-[60]" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={new Date(selectedDate + "T00:00:00")}
-                    onSelect={(d) => {
-                      if (d && onDateChange && editingPost) {
-                        const newDateStr = toLocalDateStr(d);
-                        onDateChange(editingPost.id, newDateStr);
-                      }
-                    }}
-                    locale={fr}
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          )}
-
-          {/* ── ZONE 2 : AVANCÉ (Collapsible) ── */}
-          <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
-            <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors py-2">
-              <span>⚙️ Plus d'options</span>
-              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")} />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-5 pt-2">
-              {/* Objectif */}
-              <div>
-                <label className="text-xs font-semibold mb-1.5 block text-foreground">🎯 Objectif</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {OBJECTIFS.map((o) => (
-                    <button
-                      key={o.id}
-                      onClick={() => setObjectif(objectif === o.id ? null : o.id)}
-                      className="rounded-pill px-3 py-1.5 text-xs font-medium border transition-all"
-                      style={
-                        objectif === o.id
-                          ? { backgroundColor: `hsl(var(--${o.cssVar}-bg))`, color: `hsl(var(--${o.cssVar}))`, borderColor: `hsl(var(--${o.cssVar}))` }
-                          : undefined
-                      }
-                    >
-                      {o.emoji} {o.label}
-                    </button>
-                  ))}
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_220px] gap-5">
+              {/* ── COLONNE GAUCHE : Contenu ── */}
+              <div className="space-y-4 min-w-0">
+                {/* Thème */}
+                <div>
+                  <label className="text-xs font-semibold mb-1.5 block text-foreground">Thème / sujet</label>
+                  <Input autoFocus value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="De quoi parle ce post ?" className="rounded-[10px] h-11" />
                 </div>
-              </div>
 
-              {/* Angle */}
-              <div>
-                <label className="text-xs font-semibold mb-1.5 block text-foreground">🧭 Angle</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {ANGLES.map((a) => (
-                    <button key={a} onClick={() => setAngle(angle === a ? null : a)}
-                      className={`rounded-pill px-3 py-1.5 text-xs font-medium border transition-all ${angle === a ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-                      {a}
-                    </button>
-                  ))}
+                {/* Contenu */}
+                <ContentSection />
+
+                {/* Notes */}
+                <div>
+                  <label className="text-xs font-semibold mb-1.5 block text-foreground">📝 Notes</label>
+                  <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Idées, brouillon, remarques..." className="rounded-[10px] min-h-[80px]" />
                 </div>
-              </div>
 
-              {/* Format */}
-              <div>
-                <label className="text-xs font-semibold mb-1.5 block text-foreground">📐 Format</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {(FORMAT_OPTIONS_BY_CANAL[postCanal] || FORMAT_OPTIONS_BY_CANAL.instagram).map((f) => (
-                    <button key={f.id} onClick={() => setFormat(format === f.id ? null : f.id)}
-                      className={`rounded-pill px-3 py-1.5 text-xs font-medium border transition-all ${format === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-                      {f.emoji} {f.label}
-                    </button>
-                  ))}
+                {/* Visuels */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-foreground">🖼️ Visuels</label>
+                  {mediaUrls.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {mediaUrls.map((url, i) => (
+                        <div key={i} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-border">
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                          <button
+                            onClick={() => handleRemoveMedia(i)}
+                            className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                          >x</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+                    <Upload className="h-3.5 w-3.5" />
+                    {uploading ? "Upload en cours..." : "Ajouter des visuels"}
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={handleMediaUpload} disabled={uploading} />
+                  </label>
                 </div>
-              </div>
 
-              {/* Notes */}
-              <div>
-                <label className="text-xs font-semibold mb-1.5 block text-foreground">📝 Notes (optionnel)</label>
-                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Idées, brouillon, remarques..." className="rounded-[10px] min-h-[60px]" />
-              </div>
-            </CollapsibleContent>
-           </Collapsible>
+                {/* Production guide */}
+                {guide && (
+                  <Collapsible>
+                    <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors w-full">
+                      <span>📝 Comment produire ce post</span>
+                      <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-3">
+                      <ol className="space-y-3 text-[13px] leading-relaxed text-foreground">
+                        {guide.map((step, i) => (
+                          <li key={i}>
+                            <span className="font-semibold text-primary">{step.label}</span>
+                            <p className="mt-0.5 text-muted-foreground">{step.detail}</p>
+                          </li>
+                        ))}
+                      </ol>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
 
-          {/* Visuels */}
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">🖼️ Visuels</label>
-            
-            {mediaUrls.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {mediaUrls.map((url, i) => (
-                  <div key={i} className="relative group w-16 h-16 rounded-lg overflow-hidden border border-border">
-                    <img src={url} alt="" className="w-full h-full object-cover" />
-                    <button
-                      onClick={() => handleRemoveMedia(i)}
-                      className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                    >x</button>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
-              <Upload className="h-3.5 w-3.5" />
-              {uploading ? "Upload en cours..." : "Ajouter des visuels"}
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={handleMediaUpload}
-                disabled={uploading}
-              />
-            </label>
-          </div>
-
-          {/* ── ZONE 3 : CONTENU (section unifiée) ── */}
-          {editingPost && theme.trim() && (() => {
-            const hasContent = !!(contentDraft || editingPost.generated_content_id);
-            const isPublished = status === "published";
-            const isReady = status === "ready" || status === "draft_ready";
-
-            return (
-              <div>
-                <label className="text-xs font-semibold mb-2 block text-foreground">✍️ Contenu</label>
-
-                {isEditing ? (
-                  /* ── Mode édition ── */
-                  <div className="space-y-2">
-                    <Textarea
-                      value={contentDraft || ""}
-                      onChange={(e) => setContentDraft(e.target.value)}
-                      className="rounded-[10px] min-h-[120px] text-sm"
-                      placeholder="Écris ou colle ton contenu ici..."
-                      aria-label="Contenu du post"
-                    />
-                    <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} className="rounded-pill text-xs">
-                      ✅ Terminer l'édition
-                    </Button>
-                  </div>
-
-                ) : isPublished && hasContent ? (
-                  /* ── ÉTAT PUBLIÉ ── */
-                  <div className="space-y-3">
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-pill">
-                      <CheckCircle2 className="h-3 w-3" /> Publié
-                    </span>
-                    <div className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap opacity-80">
-                      {contentPreview}
-                      {contentDraft && contentDraft.length > 200 && !showFullContent && (
-                        <button onClick={() => setShowFullContent(true)} className="block mt-1 text-xs text-primary hover:underline">voir la suite ↓</button>
-                      )}
-                      {showFullContent && contentDraft && contentDraft.length > 200 && (
-                        <button onClick={() => setShowFullContent(false)} className="block mt-1 text-xs text-primary hover:underline">réduire ↑</button>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={handleCopy} className="rounded-pill text-xs gap-1.5">
-                        <Copy className="h-3 w-3" /> Copier
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" className="rounded-pill px-2">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => navigate("/transformer")}>
-                            🔄 Recycler (crosspost)
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-
-                ) : hasContent && isReady ? (
-                  /* ── ÉTAT PRÊT ── */
-                  <div className="space-y-3">
-                    <div className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap">
-                      {contentPreview}
-                      {contentDraft && contentDraft.length > 200 && !showFullContent && (
-                        <button onClick={() => setShowFullContent(true)} className="block mt-1 text-xs text-primary hover:underline">voir la suite ↓</button>
-                      )}
-                      {showFullContent && contentDraft && contentDraft.length > 200 && (
-                        <button onClick={() => setShowFullContent(false)} className="block mt-1 text-xs text-primary hover:underline">réduire ↑</button>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={handleCopy} className="rounded-pill text-xs gap-1.5">
-                        <Copy className="h-3 w-3" /> Copier
-                      </Button>
-                      <Button size="sm" onClick={() => setStatus("published")} className="rounded-pill text-xs gap-1.5">
-                        ✅ Marquer comme publié
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" className="rounded-pill px-2">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                            ✏️ Modifier
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleSmartGenerate}>
-                            🔄 Nouvelle version IA
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleOpenAtelier}>
-                            ✨ Ouvrir dans l'atelier
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-
-                ) : hasContent ? (
-                  /* ── ÉTAT BROUILLON ── */
-                  <div className="space-y-3">
-                    <div className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap">
-                      {contentPreview}
-                      {contentDraft && contentDraft.length > 200 && !showFullContent && (
-                        <button onClick={() => setShowFullContent(true)} className="block mt-1 text-xs text-primary hover:underline">voir la suite ↓</button>
-                      )}
-                      {showFullContent && contentDraft && contentDraft.length > 200 && (
-                        <button onClick={() => setShowFullContent(false)} className="block mt-1 text-xs text-primary hover:underline">réduire ↑</button>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="rounded-pill text-xs gap-1.5">
-                        ✏️ Modifier
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={handleCopy} className="rounded-pill text-xs gap-1.5">
-                        <Copy className="h-3 w-3" /> Copier
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" className="rounded-pill px-2">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={handleSmartGenerate}>
-                            🔄 Nouvelle version IA
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleOpenAtelier}>
-                            ✨ Ouvrir dans l'atelier
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => { setContentDraft(null); setAccroche(null); }} className="text-destructive">
-                            🗑️ Supprimer le contenu
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-
-                ) : (
-                  /* ── ÉTAT VIDE ── */
-                  <div className="space-y-3">
-                    {!angle && (
-                      <p className="text-xs italic text-muted-foreground">
-                        💡 Choisis un angle pour un meilleur résultat
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">Pas encore de contenu.</p>
-                    <Button
-                      onClick={handleSmartGenerate}
-                      disabled={isGenerating || !theme.trim()}
-                      className="w-full rounded-pill gap-2"
-                      size="default"
-                    >
-                      {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                      ✨ Rédiger avec l'IA
-                    </Button>
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="block w-full text-center text-xs text-muted-foreground hover:text-primary transition-colors"
-                    >
-                      ou écrire moi-même
-                    </button>
-                  </div>
+                {/* Comments */}
+                {editingPost && (
+                  <PostCommentsSection postId={editingPost.id} ownerName={ownerName} />
                 )}
               </div>
-            );
-          })()}
 
-          {/* Production guide */}
-          {guide && (
-            <Collapsible>
-              <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors w-full">
-                <span>📝 Comment produire ce post</span>
-                <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-3">
-                <ol className="space-y-3 text-[13px] leading-relaxed text-foreground">
-                  {guide.map((step, i) => (
-                    <li key={i}>
-                      <span className="font-semibold text-primary">{step.label}</span>
-                      <p className="mt-0.5 text-muted-foreground">{step.detail}</p>
-                    </li>
-                  ))}
-                </ol>
-              </CollapsibleContent>
-            </Collapsible>
-          )}
+              {/* ── COLONNE DROITE (desktop) : Métadonnées ── */}
+              <div className="hidden sm:block space-y-4 sm:border-l sm:border-border sm:pl-5">
+                <MetadataFields />
+              </div>
 
-          {/* Comments section */}
-          {editingPost && (
-            <PostCommentsSection postId={editingPost.id} ownerName={ownerName} />
-          )}
+              {/* ── Mobile : Métadonnées en collapsible ── */}
+              <div className="sm:hidden">
+                <Collapsible>
+                  <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary w-full py-2">
+                    <span>📋 Canal, statut, date, format</span>
+                    <ChevronDown className="h-3.5 w-3.5 ml-auto" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-4 pt-2">
+                    <MetadataFields />
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
+            </div>
 
-          {/* Actions */}
-          <div className="flex gap-2 pt-2">
-            <Button onClick={handleSave} disabled={!theme.trim()} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">
-              💾 Enregistrer
-            </Button>
-            {onUnplan && editingPost && (
-              <Button variant="outline" size="icon" onClick={onUnplan} className="rounded-full text-muted-foreground hover:text-primary" title="Remettre en idée">
-                <Undo2 className="h-4 w-4" />
+            {/* Actions — full width below columns */}
+            <div className="flex gap-2 pt-4 mt-4 border-t border-border">
+              <Button onClick={handleSave} disabled={!theme.trim()} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">
+                💾 Enregistrer
               </Button>
-            )}
-            {editingPost && (
-              <Button variant="outline" size="icon" onClick={onDelete} className="rounded-full text-destructive hover:bg-destructive/10">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
+              {onUnplan && editingPost && (
+                <Button variant="outline" size="icon" onClick={onUnplan} className="rounded-full text-muted-foreground hover:text-primary" title="Remettre en idée">
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+              )}
+              {editingPost && (
+                <Button variant="outline" size="icon" onClick={onDelete} className="rounded-full text-destructive hover:bg-destructive/10">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </>
           )}
         </div>
@@ -892,7 +890,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       </DialogContent>
     </Dialog>
 
-    {/* Content Viewer Sheet — now uses ContentPreview with inline editing */}
+    {/* Content Viewer Sheet */}
     <Sheet open={showContentViewer} onOpenChange={setShowContentViewer}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
@@ -916,7 +914,6 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             }}
           />
 
-          {/* Revert to AI version */}
           {editingPost && (editingPost as any).original_content_data && (
             <RevertToOriginalButton onRevert={async () => {
               const original = (editingPost as any).original_content_data;
@@ -973,7 +970,6 @@ function PreviewTab({ canal, format, caption, theme, username, displayName, medi
   let parsed: any = null;
   try { parsed = JSON.parse(caption); } catch { /* plain text */ }
 
-  // Structured JSON (reel script, stories sequence) → ContentPreview
   if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
     return (
       <div className="py-2 overflow-y-auto">
@@ -982,7 +978,6 @@ function PreviewTab({ canal, format, caption, theme, username, displayName, medi
     );
   }
 
-  // Array JSON (carousel slides) → SocialMockup
   if (parsed && Array.isArray(parsed)) {
     const slides = parsed.map((s: any, i: number) => ({
       title: s.title || s.titre || `Slide ${i + 1}`,
@@ -1008,7 +1003,6 @@ function PreviewTab({ canal, format, caption, theme, username, displayName, medi
     );
   }
 
-  // Plain text → SocialMockup
   const mockupCanal = (canal === "instagram" || canal === "linkedin") ? canal : "instagram";
   const mockupFormat = (() => {
     if (format === "post_carrousel") return "carousel" as const;
