@@ -267,27 +267,55 @@ export default function CalendarPage() {
       return;
     }
     if (!user) return;
-    let query = (supabase.from("calendar_posts") as any).select("*").eq(column, value);
 
     if ((viewMode === "kanban" || viewMode === "list") && kanbanPeriod === "all") {
       // No date filter — fetch all posts
-    } else {
+      const { data } = await (supabase.from("calendar_posts") as any)
+        .select("*").eq(column, value).order("date");
+      if (data) setPosts(data as CalendarPost[]);
+    } else if (viewMode === "kanban" || viewMode === "list") {
+      // Kanban/List with week or month: date-filtered posts + ALL ideas
       let startDate: string, endDate: string;
-      if ((viewMode === "kanban" || viewMode === "list") && kanbanPeriod === "month") {
+      if (kanbanPeriod === "month") {
         startDate = toLocalDateStr(new Date(year, month, 1));
         endDate = toLocalDateStr(new Date(year, month + 1, 0));
-      } else if (viewMode === "week" || ((viewMode === "kanban" || viewMode === "list") && kanbanPeriod === "week")) {
+      } else {
+        startDate = toLocalDateStr(weekDays[0]);
+        endDate = toLocalDateStr(weekDays[6]);
+      }
+      const [{ data: datedPosts }, { data: ideaPosts }] = await Promise.all([
+        (supabase.from("calendar_posts") as any)
+          .select("*").eq(column, value)
+          .gte("date", startDate).lte("date", endDate)
+          .order("date"),
+        (supabase.from("calendar_posts") as any)
+          .select("*").eq(column, value)
+          .eq("status", "idea")
+          .or(`date.lt.${startDate},date.gt.${endDate}`)
+          .order("date"),
+      ]);
+      const allPosts = [...(datedPosts || [])];
+      const existingIds = new Set(allPosts.map((p: any) => p.id));
+      for (const idea of (ideaPosts || [])) {
+        if (!existingIds.has(idea.id)) allPosts.push(idea);
+      }
+      setPosts(allPosts as CalendarPost[]);
+    } else {
+      // Calendar month/week view — existing behavior
+      let startDate: string, endDate: string;
+      if (viewMode === "week") {
         startDate = toLocalDateStr(weekDays[0]);
         endDate = toLocalDateStr(weekDays[6]);
       } else {
         startDate = toLocalDateStr(new Date(year, month, 1));
         endDate = toLocalDateStr(new Date(year, month + 1, 0));
       }
-      query = query.gte("date", startDate).lte("date", endDate);
+      const { data } = await (supabase.from("calendar_posts") as any)
+        .select("*").eq(column, value)
+        .gte("date", startDate).lte("date", endDate)
+        .order("date");
+      if (data) setPosts(data as CalendarPost[]);
     }
-
-    const { data } = await query.order("date");
-    if (data) setPosts(data as CalendarPost[]);
     setPostsLoading(false);
   }, [user, year, month, viewMode, weekStart, isDemoMode, kanbanPeriod]);
 
