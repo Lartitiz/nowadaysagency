@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Mic, MicOff, ArrowRight, Plus, Sparkles, PenLine, Palette, Target, CalendarDays, Users, Lightbulb, MessageSquare, X } from "lucide-react";
+import { Send, Mic, MicOff, ArrowRight, Plus, Sparkles, PenLine, Palette, Target, CalendarDays, Users, Lightbulb, MessageSquare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/use-profile";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -61,6 +61,8 @@ function TypingIndicator() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       className="flex items-start gap-3 mb-3"
+      aria-label="L'assistant rédige une réponse"
+      role="status"
     >
       <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold" style={{ backgroundColor: "#fb3d80", fontFamily: "'IBM Plex Sans', sans-serif" }}>
         AC
@@ -82,7 +84,40 @@ function TypingIndicator() {
   );
 }
 
-/* ── Welcome suggestions ── */
+/* ── Demo responses ── */
+const DEMO_WELCOME_SUGGESTIONS: Suggestion[] = [
+  { icon: "PenLine", label: "Créer un post Instagram" },
+  { icon: "CalendarDays", label: "Planifier ma semaine" },
+  { icon: "Palette", label: "Compléter mon branding" },
+];
+
+const DEMO_RESPONSES: Record<string, { content: string; actions?: ActionLink[]; suggestions?: Suggestion[] }> = {
+  "Créer un post Instagram": {
+    content: "Super idée ! Tu as un bon storytelling et ton persona est défini. Je te propose de créer un post qui parle de ton approche de la photographie portraitiste éthique. Ça montrerait ta différence.",
+    actions: [{ route: "/creer/instagram-post", label: "Créer le post", icon: "PenLine" }],
+    suggestions: [
+      { icon: "Lightbulb", label: "Donne-moi des idées de sujets" },
+      { icon: "PenLine", label: "Je préfère un carrousel" },
+      { icon: "Sparkles", label: "Autre chose" },
+    ],
+  },
+  "Planifier ma semaine": {
+    content: "Bonne idée de passer à l'action ! Je vois que ton calendrier est vide pour le moment. On va prévoir 2-3 posts pour la semaine. *(Pas besoin de poster tous les jours, la régularité compte plus que la quantité.)*",
+    actions: [{ route: "/calendrier", label: "Ouvrir le calendrier", icon: "CalendarDays" }],
+    suggestions: [
+      { icon: "CalendarDays", label: "Combien de posts par semaine ?" },
+      { icon: "Lightbulb", label: "Aide-moi à trouver des idées" },
+      { icon: "Sparkles", label: "Autre chose" },
+    ],
+  },
+};
+
+const DEMO_FALLBACK = {
+  content: "En mode démo, je ne peux pas te répondre en temps réel. Mais dans la vraie version, je t'aurais aidée sur ça ! Essaie une des suggestions ci-dessous.",
+  suggestions: DEMO_WELCOME_SUGGESTIONS,
+};
+
+/* ── Welcome suggestions (real mode) ── */
 const WELCOME_SUGGESTIONS: Suggestion[] = [
   { icon: "PenLine", label: "Je veux créer un post" },
   { icon: "Target", label: "Je veux définir ma cible" },
@@ -111,7 +146,7 @@ export default function ChatGuidePage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [showOldDivider, setShowOldDivider] = useState(false);
 
-  const firstName = (profile as any)?.prenom || "toi";
+  const firstName = isDemoMode ? "Léa" : ((profile as any)?.prenom || "toi");
 
   // Redirect if preference is complete dashboard
   useEffect(() => {
@@ -125,8 +160,33 @@ export default function ChatGuidePage() {
     setInput((prev) => prev + (prev ? " " : "") + text);
   });
 
+  // Cmd/Ctrl+K to focus input & Escape to close drawer
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        textareaRef.current?.focus();
+      }
+      if (e.key === "Escape" && drawerOpen) {
+        setDrawerOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [drawerOpen]);
+
   // Welcome message
   const welcomeMessage = useMemo<ChatMessage>(() => {
+    if (isDemoMode) {
+      return {
+        id: "welcome",
+        role: "assistant",
+        content: "Salut Léa ! 👋\n\nJe suis ton assistant com'. Ton branding avance bien (60% complété). Qu'est-ce qu'on fait aujourd'hui ?",
+        suggestions: DEMO_WELCOME_SUGGESTIONS,
+        created_at: new Date().toISOString(),
+      };
+    }
+
     const hour = new Date().getHours();
     let greeting = "Salut";
     if (hour < 12) greeting = "Bonjour";
@@ -140,11 +200,14 @@ export default function ChatGuidePage() {
       suggestions: WELCOME_SUGGESTIONS,
       created_at: new Date().toISOString(),
     };
-  }, [firstName]);
+  }, [firstName, isDemoMode]);
 
-  // Load latest conversation
+  // Load latest conversation (skip in demo)
   useEffect(() => {
-    if (!user) return;
+    if (!user || isDemoMode) {
+      setLoaded(true);
+      return;
+    }
     (async () => {
       const { data: convs } = await supabase
         .from("chat_guide_conversations")
@@ -173,25 +236,21 @@ export default function ChatGuidePage() {
           })));
           setSuggestionsVisible(false);
 
-          // Check if conversation is older than 24h
           const lastMsgDate = new Date(msgs[msgs.length - 1].created_at);
           if (!isAfter(lastMsgDate, subHours(new Date(), 24))) {
             setShowOldDivider(true);
           }
         }
       } else {
-        // No conversation yet, create one
         const newId = crypto.randomUUID();
         setConversationId(newId);
-        if (!isDemoMode) {
-          const convRow: any = { id: newId, user_id: user.id, title: "Nouvelle conversation" };
-          if (workspaceId && workspaceId !== user.id) convRow.workspace_id = workspaceId;
-          await supabase.from("chat_guide_conversations").insert(convRow);
-        }
+        const convRow: any = { id: newId, user_id: user.id, title: "Nouvelle conversation" };
+        if (workspaceId && workspaceId !== user.id) convRow.workspace_id = workspaceId;
+        await supabase.from("chat_guide_conversations").insert(convRow);
       }
       setLoaded(true);
     })();
-  }, [user]);
+  }, [user, isDemoMode]);
 
   // Auto-scroll
   useEffect(() => {
@@ -218,16 +277,26 @@ export default function ChatGuidePage() {
     };
     if (workspaceId && workspaceId !== user.id) row.workspace_id = workspaceId;
     await supabase.from("chat_guide_messages").insert(row);
-    // Update conversation updated_at
     await supabase.from("chat_guide_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
   }, [user, conversationId, isDemoMode, workspaceId]);
 
-  // Update conversation title from first user message
+  // Update conversation title
   const updateConversationTitle = useCallback(async (text: string) => {
     if (!user || isDemoMode || !conversationId) return;
     const title = text.length > 50 ? text.slice(0, 50) + "…" : text;
     await supabase.from("chat_guide_conversations").update({ title }).eq("id", conversationId);
   }, [user, conversationId, isDemoMode]);
+
+  // Demo response handler
+  const getDemoResponse = useCallback((text: string): { content: string; actions?: ActionLink[]; suggestions?: Suggestion[] } => {
+    const normalised = text.trim();
+    if (DEMO_RESPONSES[normalised]) return DEMO_RESPONSES[normalised];
+    // Fuzzy match
+    const lower = normalised.toLowerCase();
+    if (lower.includes("post") || lower.includes("instagram") || lower.includes("créer")) return DEMO_RESPONSES["Créer un post Instagram"];
+    if (lower.includes("planifier") || lower.includes("semaine") || lower.includes("calendrier")) return DEMO_RESPONSES["Planifier ma semaine"];
+    return DEMO_FALLBACK;
+  }, []);
 
   // Send message
   const sendMessage = useCallback(async (text: string) => {
@@ -248,15 +317,32 @@ export default function ChatGuidePage() {
       textareaRef.current.style.height = "auto";
     }
 
+    // Demo mode: mock response
+    if (isDemoMode) {
+      setIsTyping(true);
+      await new Promise((r) => setTimeout(r, 800 + Math.random() * 600));
+      setIsTyping(false);
+
+      const demo = getDemoResponse(userMsg.content);
+      const aiMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: demo.content,
+        actions: demo.actions,
+        suggestions: demo.suggestions,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+      return;
+    }
+
     await saveMessage({ role: "user", content: userMsg.content });
 
-    // Update title if first user message in conversation
     const isFirstUserMsg = messages.filter(m => m.role === "user").length === 0;
     if (isFirstUserMsg) {
       updateConversationTitle(userMsg.content);
     }
 
-    // Build conversation history (last 10 messages)
     const history = messages.slice(-10).map((m) => ({ role: m.role, content: m.content }));
 
     setIsTyping(true);
@@ -270,7 +356,6 @@ export default function ChatGuidePage() {
       });
 
       setIsTyping(false);
-
       if (error) throw error;
 
       const aiMsg: ChatMessage = {
@@ -296,7 +381,7 @@ export default function ChatGuidePage() {
       };
       setMessages((prev) => [...prev, fallbackMsg]);
     }
-  }, [saveMessage, messages, workspaceId, user, updateConversationTitle]);
+  }, [saveMessage, messages, workspaceId, user, updateConversationTitle, isDemoMode, getDemoResponse]);
 
   // Handle keyboard
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -322,7 +407,7 @@ export default function ChatGuidePage() {
 
   // Load conversations for drawer
   const loadConversations = useCallback(async () => {
-    if (!user) return;
+    if (!user || isDemoMode) return;
     const { data } = await supabase
       .from("chat_guide_conversations")
       .select("*")
@@ -330,7 +415,7 @@ export default function ChatGuidePage() {
       .order("updated_at", { ascending: false })
       .limit(30);
     if (data) setConversations(data);
-  }, [user]);
+  }, [user, isDemoMode]);
 
   // Load a specific conversation
   const loadConversation = useCallback(async (conv: Conversation) => {
@@ -361,8 +446,6 @@ export default function ChatGuidePage() {
 
   // All messages including welcome
   const allMessages = useMemo(() => {
-    const result: ChatMessage[] = [];
-    // If old divider, show old messages, then divider, then welcome
     if (showOldDivider && messages.length > 0) {
       return [...messages, { ...welcomeMessage, id: "welcome-new" }];
     }
@@ -370,16 +453,16 @@ export default function ChatGuidePage() {
   }, [welcomeMessage, messages, showOldDivider]);
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#FAFAFA" }}>
+    <div className="min-h-screen flex flex-col bg-muted/30">
       <AppHeader />
 
-      <div className="flex-1 flex flex-col mx-auto w-full" style={{ maxWidth: 720 }}>
+      <div className="flex-1 flex flex-col mx-auto w-full max-w-[720px]">
         {/* ─── Chat header ─── */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-sm font-semibold flex-shrink-0"
-              style={{ backgroundColor: "#fb3d80", fontFamily: "'IBM Plex Sans', sans-serif" }}
+              className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 bg-primary"
+              style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
             >
               AC
             </div>
@@ -390,19 +473,23 @@ export default function ChatGuidePage() {
               Ton Assistant Com'
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => { loadConversations(); setDrawerOpen(true); }}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-              title="Historique"
-            >
-              <MessageSquare className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Historique</span>
-            </button>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {!isDemoMode && (
+              <button
+                onClick={() => { loadConversations(); setDrawerOpen(true); }}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                title="Historique des conversations"
+                aria-label="Ouvrir l'historique des conversations"
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Historique</span>
+              </button>
+            )}
             <button
               onClick={startNewConversation}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
               title="Nouvelle conversation"
+              aria-label="Démarrer une nouvelle conversation"
             >
               <Plus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Nouveau</span>
@@ -412,20 +499,25 @@ export default function ChatGuidePage() {
               to="/dashboard/complet"
               className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
             >
-              Voir tous les outils
+              <span className="hidden sm:inline">Voir tous les outils</span>
               <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
         </div>
 
         {/* ─── Messages zone ─── */}
-        <div className="flex-1 overflow-y-auto px-4 py-5 space-y-3">
+        <div
+          className="flex-1 overflow-y-auto px-4 py-5 space-y-3"
+          role="log"
+          aria-live="polite"
+          aria-label="Messages du chat"
+        >
           <AnimatePresence mode="popLayout">
-            {allMessages.map((msg, idx) => (
+            {allMessages.map((msg) => (
               <div key={msg.id}>
                 {/* Date divider for old conversations */}
                 {showOldDivider && msg.id === "welcome-new" && (
-                  <div className="flex items-center gap-3 my-4">
+                  <div className="flex items-center gap-3 my-4" aria-hidden="true">
                     <div className="flex-1 h-px bg-border/50" />
                     <span className="text-xs text-muted-foreground" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
                       Aujourd'hui
@@ -441,12 +533,14 @@ export default function ChatGuidePage() {
                     "flex gap-3 mb-3",
                     msg.role === "user" ? "justify-end" : "items-start"
                   )}
+                  aria-label={`${msg.role === "assistant" ? "Assistant" : "Vous"} : ${msg.content}`}
                 >
                   {/* Assistant avatar */}
                   {msg.role === "assistant" && (
                     <div
-                      className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold mt-0.5"
-                      style={{ backgroundColor: "#fb3d80", fontFamily: "'IBM Plex Sans', sans-serif" }}
+                      className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold mt-0.5 bg-primary"
+                      style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                      aria-hidden="true"
                     >
                       AC
                     </div>
@@ -458,14 +552,13 @@ export default function ChatGuidePage() {
                       className={cn(
                         "px-4 py-3 whitespace-pre-wrap",
                         msg.role === "user"
-                          ? "text-white rounded-2xl rounded-tr-lg"
-                          : "bg-white rounded-2xl rounded-tl-lg shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
+                          ? "text-primary-foreground rounded-2xl rounded-tr-lg bg-primary"
+                          : "bg-background rounded-2xl rounded-tl-lg shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
                       )}
                       style={{
                         fontFamily: "'IBM Plex Sans', sans-serif",
                         fontSize: 15,
                         lineHeight: "1.55",
-                        ...(msg.role === "user" ? { backgroundColor: "#fb3d80" } : {}),
                       }}
                     >
                       {msg.content}
@@ -478,12 +571,8 @@ export default function ChatGuidePage() {
                           <button
                             key={i}
                             onClick={() => navigate(action.route)}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
-                            style={{
-                              backgroundColor: "rgba(251, 61, 128, 0.1)",
-                              color: "#fb3d80",
-                              fontFamily: "'IBM Plex Sans', sans-serif",
-                            }}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all bg-primary/10 text-primary hover:bg-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
                           >
                             {getIcon(action.icon, "h-4 w-4")}
                             {action.label}
@@ -493,21 +582,21 @@ export default function ChatGuidePage() {
                     )}
 
                     {/* Suggestions */}
-                    {msg.suggestions && suggestionsVisible && (
-                      <div className="flex flex-wrap gap-2 mt-3">
+                    {msg.suggestions && (msg.id.startsWith("welcome") ? suggestionsVisible : true) && (
+                      <div className="flex flex-nowrap sm:flex-wrap gap-2 mt-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
                         {msg.suggestions.map((sug, i) => (
-                          <button
+                          <motion.button
                             key={i}
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2, delay: i * 0.05 }}
                             onClick={() => sendMessage(sug.label)}
-                            className="inline-flex items-center gap-2 bg-white border rounded-xl px-3 py-2.5 text-sm transition-all hover:shadow-sm hover:-translate-y-0.5"
-                            style={{
-                              borderColor: "#ffa7c6",
-                              fontFamily: "'IBM Plex Sans', sans-serif",
-                            }}
+                            className="inline-flex items-center gap-2 bg-background border border-primary/30 rounded-xl px-3 py-2.5 text-sm transition-all hover:shadow-sm hover:-translate-y-0.5 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
                           >
                             {getIcon(sug.icon, "h-4 w-4 text-primary")}
-                            <span className="text-foreground">{sug.label}</span>
-                          </button>
+                            <span className="text-foreground whitespace-nowrap">{sug.label}</span>
+                          </motion.button>
                         ))}
                       </div>
                     )}
@@ -522,7 +611,7 @@ export default function ChatGuidePage() {
         </div>
 
         {/* ─── Input zone (sticky bottom) ─── */}
-        <div className="sticky bottom-0 bg-white border-t border-border/30 px-4 py-3">
+        <div className="sticky bottom-0 bg-background border-t border-border/30 px-4 py-3">
           <div className="flex items-end gap-2">
             {micSupported && (
               <button
@@ -530,16 +619,20 @@ export default function ChatGuidePage() {
                 className={cn(
                   "flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
                   isListening
-                    ? "bg-red-100 text-red-500"
+                    ? "bg-destructive/10 text-destructive animate-pulse"
                     : "bg-muted/50 text-muted-foreground hover:text-foreground"
                 )}
-                title={isListening ? "Arrêter la dictée" : "Dicter"}
+                title={isListening ? "Arrêter la dictée" : "Dicter (micro)"}
+                aria-label={isListening ? "Arrêter la dictée vocale" : "Activer la dictée vocale"}
+                aria-pressed={isListening}
               >
                 {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
               </button>
             )}
 
+            <label htmlFor="chat-input" className="sr-only">Message pour l'assistant</label>
             <textarea
+              id="chat-input"
               ref={textareaRef}
               value={input}
               onChange={handleInputChange}
@@ -553,19 +646,20 @@ export default function ChatGuidePage() {
                 maxHeight: 120,
                 lineHeight: "1.4",
               }}
+              aria-label="Message pour l'assistant"
             />
 
             <button
               onClick={() => sendMessage(input)}
               disabled={!input.trim()}
               className={cn(
-                "flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all text-white",
+                "flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all text-primary-foreground bg-primary",
                 input.trim()
                   ? "opacity-100 hover:opacity-90"
                   : "opacity-40 cursor-not-allowed"
               )}
-              style={{ backgroundColor: "#fb3d80" }}
               title="Envoyer"
+              aria-label="Envoyer le message"
             >
               <Send className="h-5 w-5" />
             </button>
@@ -590,7 +684,7 @@ export default function ChatGuidePage() {
                 key={conv.id}
                 onClick={() => loadConversation(conv)}
                 className={cn(
-                  "w-full text-left px-3 py-3 rounded-xl transition-colors hover:bg-muted/50",
+                  "w-full text-left px-3 py-3 rounded-xl transition-colors hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30",
                   conv.id === conversationId && "bg-muted/70"
                 )}
               >
