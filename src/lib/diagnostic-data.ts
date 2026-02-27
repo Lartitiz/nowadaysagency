@@ -102,8 +102,8 @@ export const DEMO_DIAGNOSTIC: DiagnosticData = {
     { title: "Newsletter pas en place", why: "C'est le canal qui t'appartient. Instagram peut changer ses règles demain." },
   ],
   priorities: [
-    { title: "Optimise ta bio Instagram", channel: "instagram", impact: "high", time: "5 min", route: "/instagram/bio" },
-    { title: "Crée un calendrier de publication régulier", channel: "instagram", impact: "high", time: "20 min", route: "/calendar" },
+    { title: "Optimise ta bio Instagram", channel: "instagram", impact: "high", time: "5 min", route: "/instagram/profil/bio" },
+    { title: "Crée un calendrier de publication régulier", channel: "instagram", impact: "high", time: "20 min", route: "/calendrier" },
     { title: "Ajoute des CTA dans tes légendes", channel: "instagram", impact: "medium", time: "2 min/post", route: "/creer" },
   ],
   channelScores: [
