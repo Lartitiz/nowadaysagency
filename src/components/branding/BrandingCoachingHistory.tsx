@@ -99,7 +99,7 @@ export default function BrandingCoachingHistory({ section }: Props) {
               {msgs.map((msg: any, mi: number) => (
                 <div key={mi} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
                   {msg.role === "assistant" && (
-                    <span className="text-lg shrink-0 mt-0.5">🤖</span>
+                    <span className="text-lg shrink-0 mt-0.5">✨</span>
                   )}
                   <div className={`rounded-xl px-4 py-3 text-sm leading-relaxed max-w-[85%] ${
                     msg.role === "user"
