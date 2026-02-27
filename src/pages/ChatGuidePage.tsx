@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Mic, MicOff, ArrowRight, Plus, Sparkles, PenLine, Palette, Target, CalendarDays, Users, Lightbulb, MessageSquare } from "lucide-react";
+import { Send, Mic, MicOff, Plus, Sparkles, PenLine, Palette, Target, CalendarDays, Users, Lightbulb, MessageSquare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/use-profile";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { supabase } from "@/integrations/supabase/client";
-import { DashboardViewToggle, getDashboardPreference } from "@/components/dashboard/DashboardViewToggle";
+import { LayoutGrid } from "lucide-react";
 import { useDemoContext } from "@/contexts/DemoContext";
 import AppHeader from "@/components/AppHeader";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
@@ -148,12 +148,7 @@ export default function ChatGuidePage() {
 
   const firstName = isDemoMode ? "Léa" : ((profile as any)?.prenom || "toi");
 
-  // Redirect if preference is complete dashboard
-  useEffect(() => {
-    if (!isDemoMode && getDashboardPreference() === "complete") {
-      navigate("/dashboard/complet", { replace: true });
-    }
-  }, [isDemoMode, navigate]);
+  // No auto-redirect — chat is now the default /dashboard view
 
   // Speech recognition
   const { isListening, isSupported: micSupported, toggle: toggleMic } = useSpeechRecognition((text) => {
@@ -494,13 +489,12 @@ export default function ChatGuidePage() {
               <Plus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Nouveau</span>
             </button>
-            <DashboardViewToggle current="guide" />
             <Link
               to="/dashboard/complet"
               className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
             >
-              <span className="hidden sm:inline">Voir tous les outils</span>
-              <ArrowRight className="h-3 w-3" />
+              <LayoutGrid className="h-3 w-3" />
+              <span className="hidden sm:inline">Tableau de bord</span>
             </Link>
           </div>
         </div>
