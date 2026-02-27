@@ -52,7 +52,7 @@ serve(async (req) => {
         purchases: [],
         ai_usage: unlimitedUsage,
       }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
         status: 200,
       });
     }
@@ -125,14 +125,23 @@ serve(async (req) => {
       ai_usage: usage,
       bonus_credits: bonusCredits,
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    return new Response(JSON.stringify({ error: msg }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+    console.error("[check-subscription] Error:", msg);
+    return new Response(JSON.stringify({
+      plan: "free",
+      status: "active",
+      subscribed: false,
+      credits: 10,
+      ai_usage: {},
+      bonus_credits: 0,
+      error: msg,
+    }), {
+      headers: { ...cors, "Content-Type": "application/json" },
+      status: 200,
     });
   }
 });
