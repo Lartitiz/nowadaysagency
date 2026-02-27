@@ -52,7 +52,7 @@ serve(async (req) => {
         purchases: [],
         ai_usage: unlimitedUsage,
       }), {
-        headers: { ...cors, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
     }
@@ -125,7 +125,7 @@ serve(async (req) => {
       ai_usage: usage,
       bonus_credits: bonusCredits,
     }), {
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
@@ -140,7 +140,7 @@ serve(async (req) => {
       bonus_credits: 0,
       error: msg,
     }), {
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   }

@@ -380,10 +380,24 @@ export default function BrandingPage() {
     setTimeout(() => setImportPhaseNew("analyzing"), 1000);
 
     try {
+      // Normalize website URL
+      let normalizedWebsite = data.website?.trim() || null;
+      if (normalizedWebsite && !normalizedWebsite.startsWith("http://") && !normalizedWebsite.startsWith("https://")) {
+        normalizedWebsite = `https://${normalizedWebsite}`;
+      }
+      if (normalizedWebsite) {
+        try { new URL(normalizedWebsite); } catch {
+          toast.error("URL invalide — vérifie l'adresse de ton site web.");
+          setImportAnalyzing(false);
+          setImportPhaseNew("form");
+          return;
+        }
+      }
+
       const { data: result, error } = await supabase.functions.invoke("analyze-brand", {
         body: {
           userId: user?.id,
-          websiteUrl: data.website || null,
+          websiteUrl: normalizedWebsite,
           instagramHandle: data.instagram || null,
           linkedinUrl: data.linkedin || null,
           documentIds: [],
@@ -406,8 +420,10 @@ export default function BrandingPage() {
       setImportPhaseNew("reviewing");
     } catch (e: any) {
       console.error("Analysis error:", e);
+      const errorMsg = e?.message || "Erreur inconnue";
+      toast.error(`L'analyse a échoué : ${errorMsg}`);
       setImportAnalyzing(false);
-      setAnalysisError(e.message || "Erreur inconnue");
+      setAnalysisError(errorMsg);
       setImportPhaseNew("error");
     }
   };
