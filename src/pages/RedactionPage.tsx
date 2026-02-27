@@ -290,7 +290,7 @@ export default function RedactionPage() {
                     <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} />
                     <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
                   </div>
-                  <span className="text-sm italic text-muted-foreground">L'IA rédige des accroches...</span>
+                  <span className="text-sm italic text-muted-foreground">Je prépare des accroches...</span>
                 </div>
               )}
 
@@ -346,7 +346,7 @@ export default function RedactionPage() {
             <div className="rounded-2xl border border-border bg-card p-6">
               <h2 className="font-display text-lg font-bold mb-3">Génère le premier jet</h2>
               <p className="text-sm text-muted-foreground mb-4">
-                L'IA va rédiger un premier jet basé sur ta structure, ton accroche et ton profil de marque.
+                Je vais rédiger un premier jet basé sur ta structure, ton accroche et ton profil de marque.
               </p>
 
               {!draft && !loadingDraft && (
@@ -363,7 +363,7 @@ export default function RedactionPage() {
                     <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} />
                     <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
                   </div>
-                  <span className="text-sm italic text-muted-foreground">L'IA rédige ton contenu...</span>
+                  <span className="text-sm italic text-muted-foreground">Je rédige ton contenu...</span>
                 </div>
               )}
 

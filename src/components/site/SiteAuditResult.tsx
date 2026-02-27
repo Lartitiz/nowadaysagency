@@ -410,7 +410,7 @@ export default function SiteAuditResult({
               className="gap-2 rounded-pill"
             >
               {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              Générer un diagnostic IA personnalisé
+              ✨ Générer un diagnostic personnalisé
             </Button>
           </div>
         )}

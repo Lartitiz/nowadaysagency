@@ -83,7 +83,7 @@ export default function TransformContentPage() {
             <div className="mb-4">
               <h2 className="font-display text-lg font-bold text-foreground">♻️ Recycler un contenu</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Colle un contenu existant ou importe des fichiers : newsletter, post, article, PDF... L'IA le transforme en plusieurs formats.
+                Colle un contenu existant ou importe des fichiers : newsletter, post, article, PDF... On le transforme en plusieurs formats.
               </p>
             </div>
             <ContentRecycling />
@@ -107,7 +107,7 @@ export default function TransformContentPage() {
             <div className="mb-4">
               <h2 className="font-display text-lg font-bold text-foreground">✨ M'inspirer d'un contenu</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Colle un contenu qui t'a plu. L'IA décrypte pourquoi ça marche et t'en crée une version à toi.
+                Colle un contenu qui t'a plu. On décrypte pourquoi ça marche et on t'en crée une version à toi.
               </p>
             </div>
             <InspireFlow />
