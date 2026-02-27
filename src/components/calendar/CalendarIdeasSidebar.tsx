@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemoContext } from "@/contexts/DemoContext";
+import { DEMO_DATA } from "@/lib/demo-data";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, GripVertical, MoreVertical, Trash2, CalendarIcon, Undo2, Search, X } from "lucide-react";
@@ -55,6 +57,7 @@ interface Props {
 
 export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: Props) {
   const { user } = useAuth();
+  const { isDemoMode } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const { toast } = useToast();
   const [ideas, setIdeas] = useState<SavedIdea[]>([]);
@@ -66,6 +69,11 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: P
   const [planDate, setPlanDate] = useState<Date | undefined>();
 
   const fetchIdeas = async () => {
+    if (isDemoMode) {
+      const demoIdeas = (DEMO_DATA as any).saved_ideas || [];
+      setIdeas(demoIdeas as SavedIdea[]);
+      return;
+    }
     if (!user) return;
     const { data } = await (supabase.from("saved_ideas") as any)
       .select("id, titre, format, objectif, notes, status, canal, content_draft, content_data, source_module, planned_date, calendar_post_id")
@@ -75,7 +83,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: P
     if (data) setIdeas(data as SavedIdea[]);
   };
 
-  useEffect(() => { fetchIdeas(); }, [user?.id]);
+  useEffect(() => { fetchIdeas(); }, [user?.id, isDemoMode]);
 
   // Expose refresh so parent can trigger after unplan
   useEffect(() => {
@@ -231,10 +239,12 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: P
       </div>
 
       {/* Add idea button */}
-      <button onClick={() => setShowAddForm(true)}
-        className="mt-3 w-full text-center text-xs font-medium text-primary hover:underline py-2 border border-dashed border-primary/30 rounded-lg hover:bg-primary/5 transition-colors">
-        + Ajouter une idée
-      </button>
+      {!isDemoMode && (
+        <button onClick={() => setShowAddForm(true)}
+          className="mt-3 w-full text-center text-xs font-medium text-primary hover:underline py-2 border border-dashed border-primary/30 rounded-lg hover:bg-primary/5 transition-colors">
+          + Ajouter une idée
+        </button>
+      )}
 
       {/* Add idea dialog */}
       <AddIdeaDialog open={showAddForm} onOpenChange={setShowAddForm} onAdded={fetchIdeas} />
