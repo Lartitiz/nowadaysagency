@@ -488,6 +488,7 @@ export default function BrandCharterPage() {
         <div className="flex items-center gap-3 mb-2">
           <span className="text-2xl">🎨</span>
           <h1 className="font-display text-[26px] font-bold text-foreground">Ma charte graphique</h1>
+          <div className="ml-auto"><SaveIndicator saved={saved} saving={saving} /></div>
         </div>
 
         {/* Tabs */}
