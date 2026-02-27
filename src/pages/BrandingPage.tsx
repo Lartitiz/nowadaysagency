@@ -7,7 +7,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw, Loader2, LayoutGrid, ListOrdered, CheckCircle2, AlertTriangle, Zap, Download } from "lucide-react";
+import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw, Loader2, LayoutGrid, CheckCircle2, AlertTriangle, Zap, Download } from "lucide-react";
 import { exportMirrorPDF } from "@/lib/mirror-pdf-export";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -16,7 +16,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePersona, useBrandProposition, useStorytelling } from "@/hooks/use-branding";
 import { useQueryClient } from "@tanstack/react-query";
 import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
-import GuidedTimeline from "@/components/branding/GuidedTimeline";
 import BrandingIdentityCard from "@/components/branding/BrandingIdentityCard";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import BrandingImportBlock from "@/components/branding/BrandingImportBlock";
@@ -112,9 +111,6 @@ export default function BrandingPage() {
   const [hasEnoughData, setHasEnoughData] = useState(false);
   const [hasProposition, setHasProposition] = useState(false);
   const [generatingProp, setGeneratingProp] = useState(false);
-  const [viewMode, setViewMode] = useState<"free" | "guided">(() => {
-    try { return (localStorage.getItem("branding_mode") as "free" | "guided") || "free"; } catch { return "free"; }
-  });
   const [mirrorOpen, setMirrorOpen] = useState(false);
   const [mirrorLoading, setMirrorLoading] = useState(false);
   const [mirrorData, setMirrorData] = useState<any>(null);
@@ -596,40 +592,8 @@ export default function BrandingPage() {
                   onDone={handleImportDone}
                   onCancel={() => { setImportPhase('idle'); setImportExtraction(null); }}
                 />
-              ) : viewMode === "guided" ? (
-                <>
-                  <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
-                    <h1 className="font-display text-[26px] font-bold text-foreground">Mon Branding</h1>
-                    <div className="flex items-center gap-2">
-                      {!isDemoMode && completion.total > 0 && (
-                        <button onClick={handleStartReanalyze} className="font-mono-ui text-[12px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">🔄 Réanalyser mes liens</button>
-                      )}
-                      <div className="flex items-center gap-1 rounded-full border border-border bg-muted/50 p-0.5">
-                        <button onClick={() => { setViewMode("free"); localStorage.setItem("branding_mode", "free"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all text-muted-foreground hover:text-foreground">
-                          <LayoutGrid className="h-3.5 w-3.5" /> Mode libre
-                        </button>
-                        <button onClick={() => { setViewMode("guided"); localStorage.setItem("branding_mode", "guided"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all bg-card text-foreground shadow-sm">
-                          <ListOrdered className="h-3.5 w-3.5" /> Guidé (7 jours)
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-[15px] text-muted-foreground mb-6">Suis le parcours jour par jour pour construire ton branding pas à pas.</p>
-                  <GuidedTimeline completion={completion} navigate={navigate} onShowSynthesis={() => setShowSynthesis(true)} />
-                </>
               ) : (
                 <>
-                  <div className="flex items-center gap-2 mb-6 justify-end">
-                    <div className="flex items-center gap-1 rounded-full border border-border bg-muted/50 p-0.5">
-                      <button onClick={() => { setViewMode("free"); localStorage.setItem("branding_mode", "free"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all bg-card text-foreground shadow-sm">
-                        <LayoutGrid className="h-3.5 w-3.5" /> Fiche d'identité
-                      </button>
-                      <button onClick={() => { setViewMode("guided"); localStorage.setItem("branding_mode", "guided"); }} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all text-muted-foreground hover:text-foreground">
-                        <ListOrdered className="h-3.5 w-3.5" /> Guidé (7 jours)
-                      </button>
-                    </div>
-                  </div>
-
                   <BrandingIdentityCard
                     completion={completion}
                     summaries={sectionSummaries}
