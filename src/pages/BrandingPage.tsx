@@ -22,6 +22,7 @@ import BrandingImportBlock from "@/components/branding/BrandingImportBlock";
 import BrandingImport from "@/components/branding/BrandingImport";
 import BrandingAnalysisLoader from "@/components/branding/BrandingAnalysisLoader";
 import BrandingImportReview from "@/components/branding/BrandingImportReview";
+import BrandingReview, { type AnalysisResult } from "@/components/branding/BrandingReview";
 import CoachingFlow from "@/components/CoachingFlow";
 import type { BrandingExtraction } from "@/lib/branding-import-types";
 import { format } from "date-fns";
@@ -163,10 +164,11 @@ export default function BrandingPage() {
   });
   const [importAnalyzing, setImportAnalyzing] = useState(false);
   const [lastAudit, setLastAudit] = useState<any>(null);
-  const [importPhaseNew, setImportPhaseNew] = useState<"form" | "analyzing" | "error">("form");
+  const [importPhaseNew, setImportPhaseNew] = useState<"form" | "analyzing" | "error" | "reviewing">("form");
   const [analysisSources, setAnalysisSources] = useState<{ website?: string; instagram?: string; linkedin?: string; hasDocuments?: boolean }>({});
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [lastImportData, setLastImportData] = useState<{ website?: string; instagram?: string; linkedin?: string; files: File[] } | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [hasEnoughData, setHasEnoughData] = useState(false);
   const [hasProposition, setHasProposition] = useState(false);
   const [generatingProp, setGeneratingProp] = useState(false);
@@ -434,11 +436,10 @@ export default function BrandingPage() {
       if (error) throw error;
       if (!result?.success) throw new Error(result?.error || "Analyse échouée");
 
-      // Store result and transition (next prompt will handle review screen)
-      setImportExtraction(result.analysis);
-      setImportPhaseNew("form");
+      // Store result and transition to review screen
+      setAnalysisResult(result.analysis);
       setImportAnalyzing(false);
-      setImportPhase("reviewing");
+      setImportPhaseNew("reviewing");
     } catch (e: any) {
       console.error("Analysis error:", e);
       setImportAnalyzing(false);
@@ -452,7 +453,7 @@ export default function BrandingPage() {
     localStorage.setItem("branding_skip_import", "true");
   };
 
-  if (showNewImport) {
+  if (showNewImport || importPhaseNew === "reviewing") {
     return (
       <div className="min-h-screen bg-[hsl(var(--rose-pale))]">
         <AppHeader />
@@ -482,6 +483,25 @@ export default function BrandingPage() {
                     }
                   }}
                   onSkip={handleSkipImport}
+                />
+              </motion.div>
+            )}
+            {importPhaseNew === "reviewing" && analysisResult && (
+              <motion.div key="review" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
+                <BrandingReview
+                  analysis={analysisResult}
+                  sourcesUsed={analysisResult.sources_used || []}
+                  sourcesFailed={analysisResult.sources_failed || []}
+                  onDone={async () => {
+                    setImportPhaseNew("form");
+                    setAnalysisResult(null);
+                    setSkipImport(true);
+                    localStorage.setItem("branding_skip_import", "true");
+                    await reloadCompletion();
+                  }}
+                  onOpenCoaching={(section, context) => {
+                    toast.info("Le coaching IA pour cette section arrive bientôt !");
+                  }}
                 />
               </motion.div>
             )}
