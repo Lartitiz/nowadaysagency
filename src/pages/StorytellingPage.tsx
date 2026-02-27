@@ -178,7 +178,7 @@ export default function StorytellingPage() {
       if (error) throw error;
       setAiResult(fnData.content);
     } catch (e: any) {
-      toast({ title: "Erreur IA", description: e.message, variant: "destructive" });
+      toast({ title: "Oups, un souci", description: e.message, variant: "destructive" });
     }
     setAiLoading(false);
   };
@@ -204,7 +204,7 @@ export default function StorytellingPage() {
       // Also prefill step 7
       updateField("step_7_polished", fnData.content);
     } catch (e: any) {
-      toast({ title: "Erreur IA", description: e.message, variant: "destructive" });
+      toast({ title: "Oups, un souci", description: e.message, variant: "destructive" });
     }
     setAiLoading(false);
   };
@@ -229,7 +229,7 @@ export default function StorytellingPage() {
       setData(updated);
       debouncedSave(updated);
     } catch (e: any) {
-      toast({ title: "Erreur IA", description: e.message, variant: "destructive" });
+      toast({ title: "Oups, un souci", description: e.message, variant: "destructive" });
     }
     setAiLoading(false);
   };

@@ -146,7 +146,7 @@ export default function PersonaRecapPage() {
       queryClient.invalidateQueries({ queryKey: ["persona"] });
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur IA", description: friendlyError(e), variant: "destructive" });
+      toast({ title: "Oups, un souci", description: friendlyError(e), variant: "destructive" });
     }
     setGenerating(false);
   };

@@ -235,7 +235,7 @@ Réponds avec le texte seul, 3-4 phrases.`);
         setAiCombats(JSON.parse(raw));
       }
     } catch {
-      toast({ title: "Erreur IA", variant: "destructive" });
+      toast({ title: "Oups, un souci", variant: "destructive" });
     }
     setAiLoading(null);
   };
@@ -261,7 +261,7 @@ Réponds avec le texte seul, 3-4 phrases.`);
         setAiLimits(JSON.parse(raw));
       }
     } catch {
-      toast({ title: "Erreur IA", variant: "destructive" });
+      toast({ title: "Oups, un souci", variant: "destructive" });
     }
     setAiLoading(null);
   };
