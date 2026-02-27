@@ -225,8 +225,8 @@ export default function InstagramInspirer() {
       const { data: saved } = await supabase
         .from("instagram_inspirations")
         .insert({
-          user_id: user!.id,
-          workspace_id: workspaceId !== user!.id ? workspaceId : undefined,
+          user_id: user?.id ?? "",
+          workspace_id: workspaceId !== (user?.id ?? "") ? workspaceId : undefined,
           source_text: isScreenshot
             ? `[Screenshots: ${files.map((f) => f.name).join(", ")}]${screenshotContext ? ` — ${screenshotContext}` : ""}`
             : sourceText.trim(),

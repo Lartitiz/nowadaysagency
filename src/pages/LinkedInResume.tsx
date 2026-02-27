@@ -152,8 +152,8 @@ export default function LinkedInResume() {
 
       // Save to DB
       const dbPayload = {
-        user_id: user!.id,
-        workspace_id: workspaceId !== user!.id ? workspaceId : undefined,
+        user_id: user?.id ?? "",
+        workspace_id: workspaceId !== (user?.id ?? "") ? workspaceId : undefined,
         summary_final: textToAnalyze,
         updated_at: new Date().toISOString(),
       };

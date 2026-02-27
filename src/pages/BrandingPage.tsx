@@ -180,7 +180,7 @@ export default function BrandingPage() {
       // Save mirror results to database
       const wsId = workspaceId !== user?.id ? workspaceId : undefined;
       await supabase.from("branding_mirror_results").upsert({
-        user_id: user!.id,
+        user_id: user?.id ?? "",
         workspace_id: wsId || null,
         coherence_score: data.coherence_score,
         summary: data.summary,

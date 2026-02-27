@@ -192,10 +192,11 @@ export default function LinkedInAudit() {
   };
 
   const uploadAllScreenshots = async () => {
+    if (!user) throw new Error("Session expirée");
     const uploaded: { url: string; type: ScreenshotType }[] = [];
     for (const s of screenshots) {
       const safeName = sanitizeFileName(s.file.name);
-      const path = `${user!.id}/${s.type}-${safeName}`;
+      const path = `${user.id}/${s.type}-${safeName}`;
       const { error } = await supabase.storage.from("linkedin-audit-screenshots").upload(path, s.file, { contentType: s.file.type, upsert: false });
       if (error) throw error;
       const { data } = supabase.storage.from("linkedin-audit-screenshots").getPublicUrl(path);

@@ -86,7 +86,7 @@ export default function StudioDashboard() {
     const [coachRes, delivRes, subRes] = await Promise.all([
       (supabase.from("studio_coachings") as any).select("*").eq(column, value).order("scheduled_at", { ascending: false }),
       (supabase.from("studio_deliverables") as any).select("*").eq(column, value).order("created_at"),
-      supabase.from("subscriptions").select("studio_start_date, studio_end_date, studio_months_paid").eq("user_id", user!.id).single(),
+      supabase.from("subscriptions").select("studio_start_date, studio_end_date, studio_months_paid").eq("user_id", user?.id ?? "").single(),
     ]);
     if (coachRes.data) setCoachings(coachRes.data as Coaching[]);
     if (delivRes.data) setDeliverables(delivRes.data as Deliverable[]);

@@ -66,8 +66,9 @@ export default function LinkedInCrosspost() {
   };
 
   const uploadFileToSupabase = async (file: File): Promise<string> => {
+    if (!user) throw new Error("Session expirée");
     const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-    const path = `${user!.id}/crosspost-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const path = `${user.id}/crosspost-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
     const { error } = await supabase.storage.from("crosspost-uploads").upload(path, file, { contentType: file.type, upsert: false });
     if (error) throw error;
     const { data: signedData } = await supabase.storage.from("crosspost-uploads").createSignedUrl(path, 3600);
