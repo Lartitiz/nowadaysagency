@@ -131,18 +131,27 @@ export default function Onboarding() {
     next();
   }, [step, answers, brandingAnswers, next, toast]);
 
-  // Auto-next after state has settled for steps 6, 7, 8
+  // Auto-next after state has settled for steps 4, 6, 7, 8
   useEffect(() => {
     if (!pendingAutoNext) return;
-    const field = step === 6 ? answers.blocage : step === 7 ? answers.objectif : step === 8 ? answers.temps : null;
+    const field = step === 4 ? answers.activity_type
+      : step === 6 ? answers.blocage
+      : step === 7 ? answers.objectif
+      : step === 8 ? answers.temps
+      : null;
     if (field) {
+      // For step 4, skip auto-next if "autre" selected
+      if (step === 4 && field === "autre") {
+        setPendingAutoNext(false);
+        return;
+      }
       const timer = setTimeout(() => {
         validatedNext();
         setPendingAutoNext(false);
       }, 400);
       return () => clearTimeout(timer);
     }
-  }, [pendingAutoNext, answers.blocage, answers.objectif, answers.temps, step, validatedNext]);
+  }, [pendingAutoNext, answers.activity_type, answers.blocage, answers.objectif, answers.temps, step, validatedNext]);
 
   const isCurrentStep = step < TOTAL_STEPS;
 
@@ -203,7 +212,7 @@ export default function Onboarding() {
                 {/* PHASE 2: QUI ES-TU */}
                 {step === 2 && <PrenomScreen value={answers.prenom} onChange={v => set("prenom", v)} onNext={validatedNext} />}
                 {step === 3 && <ActiviteScreen prenom={answers.prenom} value={answers.activite} onChange={v => set("activite", v)} onNext={validatedNext} />}
-                {step === 4 && <ActivityStep value={answers.activity_type} detailValue={answers.activity_detail} onChange={v => { set("activity_type", v); if (v !== "autre") { set("activity_detail", ""); setTimeout(validatedNext, 600); } }} onDetailChange={v => set("activity_detail", v)} onNext={validatedNext} />}
+                {step === 4 && <ActivityStep value={answers.activity_type} detailValue={answers.activity_detail} onChange={v => { set("activity_type", v); if (v !== "autre") { set("activity_detail", ""); setPendingAutoNext(true); } }} onDetailChange={v => set("activity_detail", v)} onNext={validatedNext} />}
                 {step === 5 && <ChannelsStep value={answers.canaux} onChange={v => set("canaux", v)} onNext={validatedNext} />}
                 {step === 6 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
                 {step === 7 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}
