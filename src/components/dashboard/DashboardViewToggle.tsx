@@ -24,30 +24,38 @@ export function DashboardViewToggle({ current }: { current: DashboardView }) {
 
   return (
     <div
-      className="inline-flex items-center gap-0.5 rounded-lg border border-border/60 bg-white/80 p-0.5"
+      className="inline-flex items-center gap-0.5 rounded-lg border border-border/60 bg-card/80 p-0.5"
       style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+      role="tablist"
+      aria-label="Mode d'affichage du dashboard"
     >
       <button
         onClick={() => toggle("guide")}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all ${
+        role="tab"
+        aria-selected={current === "guide"}
+        aria-label="Vue guidée"
+        className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs transition-all duration-200 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
           current === "guide"
-            ? "bg-[#fb3d80]/10 text-[#fb3d80] font-medium"
+            ? "bg-primary/10 text-primary font-medium"
             : "text-muted-foreground hover:text-foreground"
         }`}
       >
         <Compass className="h-3.5 w-3.5" />
-        Vue guidée
+        <span className="hidden sm:inline">Vue guidée</span>
       </button>
       <button
         onClick={() => toggle("complete")}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all ${
+        role="tab"
+        aria-selected={current === "complete"}
+        aria-label="Vue complète"
+        className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs transition-all duration-200 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
           current === "complete"
-            ? "bg-[#fb3d80]/10 text-[#fb3d80] font-medium"
+            ? "bg-primary/10 text-primary font-medium"
             : "text-muted-foreground hover:text-foreground"
         }`}
       >
         <LayoutGrid className="h-3.5 w-3.5" />
-        Vue complète
+        <span className="hidden sm:inline">Vue complète</span>
       </button>
     </div>
   );

@@ -102,7 +102,6 @@ export default function GuideProgressBar({ profileSummary, firstName }: GuidePro
     if (newMilestone) {
       celebratedRef.current = true;
       markMilestoneReached(newMilestone);
-      // Delay to let the bar animate first
       setTimeout(() => {
         confetti({
           particleCount: 60,
@@ -126,11 +125,11 @@ export default function GuideProgressBar({ profileSummary, firstName }: GuidePro
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="mb-6"
+      className="mb-4 sm:mb-6"
     >
       {/* ── Label ── */}
       <p
-        className="text-sm mb-2"
+        className="text-xs sm:text-sm mb-2"
         style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#91014b" }}
       >
         Ta com' est structurée à {score}%{" "}
@@ -141,6 +140,11 @@ export default function GuideProgressBar({ profileSummary, firstName }: GuidePro
       <div
         className="w-full h-2 rounded-full overflow-hidden"
         style={{ background: "rgba(255, 167, 198, 0.2)" }}
+        role="progressbar"
+        aria-valuenow={score}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`Progression de ta communication : ${score}%`}
       >
         <motion.div
           className="h-full rounded-full"
@@ -153,8 +157,8 @@ export default function GuideProgressBar({ profileSummary, firstName }: GuidePro
         />
       </div>
 
-      {/* ── Chips ── */}
-      <div className="flex flex-wrap gap-2 mt-3">
+      {/* ── Chips (2x2 grid on mobile, inline on desktop) ── */}
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mt-3">
         {chips.map((chip) => (
           <button
             key={chip.route}
@@ -162,18 +166,21 @@ export default function GuideProgressBar({ profileSummary, firstName }: GuidePro
             className={`
               inline-flex items-center px-2.5 py-1 rounded-full text-xs border transition-all duration-200
               hover:shadow-sm hover:scale-[1.02] active:scale-[0.98]
+              focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none
               ${
                 chip.done
                   ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                  : "border-[#ffa7c6]/40 bg-white text-muted-foreground"
+                  : "border-primary/20 bg-card text-muted-foreground"
               }
             `}
             style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+            aria-label={`${chip.label} – ${chip.done ? "complété" : "à compléter"}`}
           >
             <span
               className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${
-                chip.done ? "bg-emerald-500" : "bg-[#ffa7c6]"
+                chip.done ? "bg-emerald-500" : "bg-rose-medium"
               }`}
+              aria-hidden="true"
             />
             {chip.label}
           </button>
