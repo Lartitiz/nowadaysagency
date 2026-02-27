@@ -2191,6 +2191,62 @@ export type Database = {
         }
         Relationships: []
       }
+      diagnostic_results: {
+        Row: {
+          branding_prefill: Json | null
+          created_at: string
+          id: string
+          priorities: Json | null
+          raw_analysis: Json | null
+          scores: Json | null
+          sources_failed: string[] | null
+          sources_used: string[] | null
+          strengths: Json | null
+          summary: string | null
+          user_id: string
+          weaknesses: Json | null
+          workspace_id: string | null
+        }
+        Insert: {
+          branding_prefill?: Json | null
+          created_at?: string
+          id?: string
+          priorities?: Json | null
+          raw_analysis?: Json | null
+          scores?: Json | null
+          sources_failed?: string[] | null
+          sources_used?: string[] | null
+          strengths?: Json | null
+          summary?: string | null
+          user_id: string
+          weaknesses?: Json | null
+          workspace_id?: string | null
+        }
+        Update: {
+          branding_prefill?: Json | null
+          created_at?: string
+          id?: string
+          priorities?: Json | null
+          raw_analysis?: Json | null
+          scores?: Json | null
+          sources_failed?: string[] | null
+          sources_used?: string[] | null
+          strengths?: Json | null
+          summary?: string | null
+          user_id?: string
+          weaknesses?: Json | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagnostic_results_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dismissed_suggestions: {
         Row: {
           context_key: string

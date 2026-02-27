@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments } from "../_shared/scraping.ts";
 
 const MAX_TEXT_PER_SOURCE = 5000;
 const GLOBAL_TIMEOUT_MS = 50000;
@@ -114,7 +115,6 @@ serve(async (req) => {
     const analysisResult = await callClaude(scrapedContent, sourcesUsed);
 
     // --- 6. SAVE TO DB ---
-    // Get user's workspace
     const { data: wsData } = await supabaseAdmin
       .from("workspace_members")
       .select("workspace_id")
@@ -166,194 +166,6 @@ serve(async (req) => {
     );
   }
 });
-
-// ====== SCRAPING HELPERS ======
-
-async function scrapeWebsite(url: string, signal: AbortSignal): Promise<string | null> {
-  let formattedUrl = url.trim();
-  if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
-
-  const resp = await fetch(formattedUrl, {
-    signal,
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
-  });
-  if (!resp.ok) return null;
-
-  const html = await resp.text();
-  const mainText = extractTextFromHtml(html);
-
-  // Try to find and scrape about page
-  const aboutPaths = ["/about", "/a-propos", "/qui-suis-je", "/qui-sommes-nous", "/notre-histoire"];
-  let aboutText = "";
-  for (const path of aboutPaths) {
-    try {
-      const aboutUrl = new URL(path, formattedUrl).href;
-      const aboutResp = await fetch(aboutUrl, {
-        signal,
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
-      });
-      if (aboutResp.ok) {
-        const aboutHtml = await aboutResp.text();
-        aboutText = extractTextFromHtml(aboutHtml);
-        break;
-      }
-    } catch {
-      // continue
-    }
-  }
-
-  return `=== PAGE D'ACCUEIL ===\n${mainText}\n\n=== PAGE À PROPOS ===\n${aboutText}`.trim();
-}
-
-function extractTextFromHtml(html: string): string {
-  // Remove script and style tags
-  let text = html
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
-    .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "");
-
-  // Extract title
-  const titleMatch = text.match(/<title[^>]*>(.*?)<\/title>/i);
-  const title = titleMatch ? titleMatch[1].trim() : "";
-
-  // Extract meta description
-  const metaMatch = text.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i);
-  const metaDesc = metaMatch ? metaMatch[1].trim() : "";
-
-  // Extract headings
-  const headings: string[] = [];
-  const hRegex = /<h[1-3][^>]*>(.*?)<\/h[1-3]>/gi;
-  let match;
-  while ((match = hRegex.exec(text)) !== null) {
-    headings.push(match[1].replace(/<[^>]+>/g, "").trim());
-  }
-
-  // Extract paragraphs
-  const paragraphs: string[] = [];
-  const pRegex = /<p[^>]*>(.*?)<\/p>/gi;
-  while ((match = pRegex.exec(text)) !== null) {
-    const p = match[1].replace(/<[^>]+>/g, "").trim();
-    if (p.length > 20) paragraphs.push(p);
-  }
-
-  const parts = [];
-  if (title) parts.push(`Titre: ${title}`);
-  if (metaDesc) parts.push(`Description: ${metaDesc}`);
-  if (headings.length) parts.push(`Titres: ${headings.join(" | ")}`);
-  if (paragraphs.length) parts.push(`Contenu:\n${paragraphs.join("\n")}`);
-
-  return parts.join("\n\n");
-}
-
-async function scrapeInstagram(handle: string, signal: AbortSignal): Promise<string | null> {
-  let username = handle.trim();
-  if (username.startsWith("https://")) {
-    const match = username.match(/instagram\.com\/([^/?]+)/);
-    if (match) username = match[1];
-  }
-  username = username.replace(/^@/, "");
-
-  try {
-    const resp = await fetch(`https://www.instagram.com/${username}/`, {
-      signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept": "text/html,application/xhtml+xml",
-        "Accept-Language": "fr-FR,fr;q=0.9",
-      },
-    });
-
-    if (!resp.ok) return null;
-    const html = await resp.text();
-
-    // Try to extract from meta tags
-    const descMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i);
-    const titleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']*)["']/i);
-
-    const parts = [`Profil Instagram: @${username}`];
-    if (titleMatch) parts.push(`Nom: ${titleMatch[1]}`);
-    if (descMatch) parts.push(`Bio/Description: ${descMatch[1]}`);
-
-    if (parts.length <= 1) return null; // Only username, no useful data
-    return parts.join("\n");
-  } catch {
-    return null;
-  }
-}
-
-async function scrapeLinkedin(url: string, signal: AbortSignal): Promise<string | null> {
-  try {
-    const resp = await fetch(url, {
-      signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept": "text/html,application/xhtml+xml",
-      },
-    });
-
-    if (!resp.ok) return null;
-    const html = await resp.text();
-
-    const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
-    const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i);
-
-    const parts = [`Profil LinkedIn: ${url}`];
-    if (titleMatch) parts.push(`Titre: ${titleMatch[1].trim()}`);
-    if (descMatch) parts.push(`Description: ${descMatch[1].trim()}`);
-
-    if (parts.length <= 1) return null;
-    return parts.join("\n");
-  } catch {
-    return null;
-  }
-}
-
-async function processDocuments(
-  supabase: ReturnType<typeof createClient>,
-  documentIds: string[],
-  userId: string
-): Promise<string | null> {
-  const texts: string[] = [];
-
-  for (const docId of documentIds.slice(0, 5)) {
-    try {
-      // Documents are stored in onboarding-uploads bucket with path: {userId}/{filename}
-      const { data: files } = await supabase.storage
-        .from("onboarding-uploads")
-        .list(userId);
-
-      if (!files || files.length === 0) continue;
-
-      // Try to find the file by docId or get all files
-      for (const file of files) {
-        const { data: fileData } = await supabase.storage
-          .from("onboarding-uploads")
-          .download(`${userId}/${file.name}`);
-
-        if (!fileData) continue;
-
-        const ext = file.name.split(".").pop()?.toLowerCase();
-
-        if (ext === "txt" || ext === "md") {
-          const text = await fileData.text();
-          texts.push(`[Document: ${file.name}]\n${text}`);
-        } else if (ext === "pdf" || ext === "docx") {
-          // For PDF/DOCX, we'll pass the filename info and let Claude know
-          texts.push(`[Document uploadé: ${file.name} - contenu binaire non extractible directement]`);
-        } else if (["png", "jpg", "jpeg", "webp"].includes(ext || "")) {
-          texts.push(`[Image uploadée: ${file.name}]`);
-        }
-
-        if (texts.join("\n").length > MAX_TEXT_PER_SOURCE) break;
-      }
-    } catch (e) {
-      console.error(`Error processing doc ${docId}:`, e);
-    }
-  }
-
-  return texts.length > 0 ? texts.join("\n\n") : null;
-}
 
 // ====== CLAUDE API ======
 
@@ -425,7 +237,6 @@ Structure attendue :
       return JSON.parse(textContent);
     } catch {
       console.error("Failed to parse Claude response as JSON:", textContent.slice(0, 500));
-      // Try to extract JSON from response
       const jsonMatch = textContent.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
@@ -435,7 +246,6 @@ Structure attendue :
   };
 
   const result = await makeRequest();
-  // Inject actual sources info
   result.sources_used = sourcesUsed;
   return result;
 }
