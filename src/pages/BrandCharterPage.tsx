@@ -138,9 +138,10 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
     try {
       const newImages = [...images];
       for (const file of toUpload) {
-        const ext = file.name.split(".").pop();
-        const path = `${userId}/${Date.now()}-${file.name}`;
-        const { error } = await supabase.storage.from("moodboards").upload(path, file);
+        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const path = `${userId}/${safeName}`;
+        const { error } = await supabase.storage.from("moodboards").upload(path, file, { contentType: file.type });
         if (error) throw error;
         // Get signed URL (private bucket)
         const { data: signedData } = await supabase.storage.from("moodboards").createSignedUrl(path, 60 * 60 * 24 * 365);
@@ -149,8 +150,8 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
       onImagesChange(newImages);
       toast.success("Images ajoutées !");
     } catch (err: any) {
-      console.error(err);
-      toast.error("Erreur lors de l'upload");
+      console.error("Moodboard upload error:", err);
+      toast.error(err?.message || "Erreur lors de l'upload. Vérifie le format de l'image.");
     } finally {
       setUploading(false);
     }
