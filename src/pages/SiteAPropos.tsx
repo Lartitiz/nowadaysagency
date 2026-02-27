@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
@@ -46,6 +46,7 @@ export default function SiteAPropos() {
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const profileUserId = useProfileUserId();
   const [data, setData] = useState<AboutData | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -497,7 +498,7 @@ export default function SiteAPropos() {
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
           <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
           <h1 className="font-display text-[22px] font-bold text-foreground mb-6">🔧 Résultats de l'optimisation</h1>
-          <AboutOptimizeResult result={optimizeResult} originalText={originalText} onRetry={() => setMode("optimize-input")} userId={user!.id} />
+          <AboutOptimizeResult result={optimizeResult} originalText={originalText} onRetry={() => setMode("optimize-input")} userId={profileUserId} />
           <div className="mt-6">
             <RedFlagsChecker
               content={optimizeResult?.sections?.map((s: any) => s.improved || s.original || "").join("\n\n") || optimizeResult?.summary || ""}

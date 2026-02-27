@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { useToast } from "@/hooks/use-toast";
@@ -58,6 +59,8 @@ interface Props {
 export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const workspaceId = useWorkspaceId();
+  const profileUserId = useProfileUserId();
   const [searchParams] = useSearchParams();
   const [canal, setCanal] = useState("instagram");
   const [objectif, setObjectif] = useState<string | null>(null);
@@ -138,7 +141,7 @@ export default function ContentWorkshop({ profile, onIdeaGenerated }: Props) {
 
       await supabase
         .from("generated_posts")
-        .insert({ user_id: user.id, format: "ideas", sujet: sujet || "(idées variées)", contenu: content });
+        .insert({ user_id: profileUserId, workspace_id: workspaceId !== profileUserId ? workspaceId : undefined, format: "ideas", sujet: sujet || "(idées variées)", contenu: content });
       onIdeaGenerated();
     } catch (e: any) {
       console.error("Erreur technique:", e);

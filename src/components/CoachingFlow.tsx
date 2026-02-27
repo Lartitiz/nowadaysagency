@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -42,6 +42,8 @@ type Phase = "intro" | "questions" | "diagnostic" | "adjust" | "done";
 export default function CoachingFlow({ module, recId, conseil, onComplete, onSkip }: CoachingFlowProps) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
+  const profileUserId = useProfileUserId();
   const [phase, setPhase] = useState<Phase>("intro");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [intro, setIntro] = useState("");
@@ -251,7 +253,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
         } else {
           const { error } = await supabase
             .from("persona")
-            .insert({ user_id: user.id, portrait: portraitUpdates as any, portrait_prenom: portraitPrenom } as any);
+            .insert({ user_id: profileUserId, workspace_id: workspaceId !== profileUserId ? workspaceId : undefined, portrait: portraitUpdates as any, portrait_prenom: portraitPrenom } as any);
           if (error) throw error;
         }
       } else {
@@ -275,7 +277,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
             const { error } = await supabase.from(table as any).update(updates).eq(column, value);
             if (error) throw error;
           } else {
-            const { error } = await supabase.from(table as any).insert({ ...updates, user_id: user.id });
+            const { error } = await supabase.from(table as any).insert({ ...updates, user_id: profileUserId, workspace_id: workspaceId !== profileUserId ? workspaceId : undefined });
             if (error) throw error;
           }
         }
