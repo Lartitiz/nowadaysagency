@@ -802,6 +802,7 @@ export type Database = {
         Row: {
           analysis_result: Json | null
           autofill_pending_review: boolean
+          autofill_status: string
           created_at: string
           document_ids: string[] | null
           id: string
@@ -818,6 +819,7 @@ export type Database = {
         Insert: {
           analysis_result?: Json | null
           autofill_pending_review?: boolean
+          autofill_status?: string
           created_at?: string
           document_ids?: string[] | null
           id?: string
@@ -834,6 +836,7 @@ export type Database = {
         Update: {
           analysis_result?: Json | null
           autofill_pending_review?: boolean
+          autofill_status?: string
           created_at?: string
           document_ids?: string[] | null
           id?: string

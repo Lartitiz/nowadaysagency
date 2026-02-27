@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMergedProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,6 +29,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
+import { DEMO_AUTOFILL_RESULT } from "@/lib/demo-autofill-data";
 import { toast } from "sonner";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 
@@ -42,93 +43,21 @@ interface BrandingCard {
 }
 
 const CARDS: BrandingCard[] = [
-  {
-    emoji: "📖",
-    title: "Mon histoire",
-    description: "Raconte ton histoire. L'IA te guide question par question.",
-    stepperRoute: "/branding/section?section=story",
-    recapRoute: "/branding/section?section=story",
-    scoreKey: "storytelling",
-  },
-  {
-    emoji: "👩‍💻",
-    title: "Mon client·e idéal·e",
-    description: "Comprends qui tu veux toucher, ce qui la bloque, ce qu'elle désire.",
-    stepperRoute: "/branding/section?section=persona",
-    recapRoute: "/branding/section?section=persona",
-    scoreKey: "persona",
-  },
-  {
-    emoji: "❤️",
-    title: "Ma proposition de valeur",
-    description: "Ce qui te rend unique. Les phrases que tu vas utiliser partout.",
-    stepperRoute: "/branding/section?section=value_proposition",
-    recapRoute: "/branding/section?section=value_proposition",
-    scoreKey: "proposition",
-  },
-  {
-    emoji: "🎨",
-    title: "Ma voix & mes combats",
-    description: "Ton ADN verbal : comment tu parles, ce que tu défends, ce que tu refuses.",
-    stepperRoute: "/branding/section?section=tone_style",
-    recapRoute: "/branding/section?section=tone_style",
-    scoreKey: "tone",
-  },
-  {
-    emoji: "🍒",
-    title: "Ma ligne éditoriale",
-    description: "De quoi tu parles : tes piliers de contenu, tes thèmes, ton angle créatif.",
-    stepperRoute: "/branding/section?section=content_strategy",
-    recapRoute: "/branding/section?section=content_strategy",
-    scoreKey: "strategy",
-  },
-  {
-    emoji: "🎨",
-    title: "Ma charte graphique",
-    description: "Tes couleurs, typos, logo et style visuel. Ce qui rend ta marque reconnaissable.",
-    stepperRoute: "/branding/charter",
-    recapRoute: "/branding/charter",
-    scoreKey: "charter",
-  },
+  { emoji: "📖", title: "Mon histoire", description: "Raconte ton histoire. L'IA te guide question par question.", stepperRoute: "/branding/section?section=story", recapRoute: "/branding/section?section=story", scoreKey: "storytelling" },
+  { emoji: "👩‍💻", title: "Mon client·e idéal·e", description: "Comprends qui tu veux toucher, ce qui la bloque, ce qu'elle désire.", stepperRoute: "/branding/section?section=persona", recapRoute: "/branding/section?section=persona", scoreKey: "persona" },
+  { emoji: "❤️", title: "Ma proposition de valeur", description: "Ce qui te rend unique. Les phrases que tu vas utiliser partout.", stepperRoute: "/branding/section?section=value_proposition", recapRoute: "/branding/section?section=value_proposition", scoreKey: "proposition" },
+  { emoji: "🎨", title: "Ma voix & mes combats", description: "Ton ADN verbal : comment tu parles, ce que tu défends, ce que tu refuses.", stepperRoute: "/branding/section?section=tone_style", recapRoute: "/branding/section?section=tone_style", scoreKey: "tone" },
+  { emoji: "🍒", title: "Ma ligne éditoriale", description: "De quoi tu parles : tes piliers de contenu, tes thèmes, ton angle créatif.", stepperRoute: "/branding/section?section=content_strategy", recapRoute: "/branding/section?section=content_strategy", scoreKey: "strategy" },
+  { emoji: "🎨", title: "Ma charte graphique", description: "Tes couleurs, typos, logo et style visuel. Ce qui rend ta marque reconnaissable.", stepperRoute: "/branding/charter", recapRoute: "/branding/charter", scoreKey: "charter" },
 ];
 
 const RECOMMENDATIONS: Record<string, { low: string; mid: string; high: string; done: string }> = {
-  storytelling: {
-    low: "Commence par raconter ton moment déclic. 5 minutes suffisent.",
-    mid: "Ton histoire prend forme ! Il te manque le texte final poli.",
-    high: "Presque terminé. Laisse l'IA t'aider à peaufiner ton récit.",
-    done: "Ton histoire est prête. Tu peux en faire un post ou un carousel.",
-  },
-  persona: {
-    low: "Décris les frustrations de ta cliente idéale pour démarrer.",
-    mid: "Bon début ! Creuse sa transformation rêvée pour compléter.",
-    high: "Il te manque les détails esthétiques et ses premières actions.",
-    done: "Ta cliente idéale est définie. Utilise-la dans tes contenus.",
-  },
-  proposition: {
-    low: "Commence par répondre : qu'est-ce que tu fais, pour qui, et pourquoi ?",
-    mid: "Tu as les bases. Il te manque ta phrase de positionnement finale.",
-    high: "Presque ! Finalise ta version courte et ton one-liner.",
-    done: "Ta proposition de valeur est claire. Parfait pour ta bio et tes pitchs.",
-  },
-  tone: {
-    low: "Définis comment tu parles : plutôt tutoiement ou vouvoiement ? Direct ou doux ?",
-    mid: "Ton registre est posé. Ajoute tes combats et ce que tu refuses.",
-    high: "Il te manque tes expressions clés et ce qu'on évite.",
-    done: "Ta voix est définie. L'IA l'utilisera dans tous tes contenus.",
-  },
-  strategy: {
-    low: "Choisis tes 3 grands sujets de contenu pour commencer.",
-    mid: "Tes piliers sont là. Ajoute ton concept créatif.",
-    high: "Presque ! Affine tes facettes cachées pour te démarquer.",
-    done: "Ta stratégie est solide. Lance-toi dans la création !",
-  },
-  charter: {
-    low: "Commence par uploader ton logo ou choisir tes couleurs.",
-    mid: "Ta charte prend forme ! Ajoute tes typos et ton style visuel.",
-    high: "Presque ! Il te manque ton style photo ou tes mots-clés visuels.",
-    done: "Ta charte graphique est complète. Ton identité visuelle est posée.",
-  },
+  storytelling: { low: "Commence par raconter ton moment déclic. 5 minutes suffisent.", mid: "Ton histoire prend forme ! Il te manque le texte final poli.", high: "Presque terminé. Laisse l'IA t'aider à peaufiner ton récit.", done: "Ton histoire est prête. Tu peux en faire un post ou un carousel." },
+  persona: { low: "Décris les frustrations de ta cliente idéale pour démarrer.", mid: "Bon début ! Creuse sa transformation rêvée pour compléter.", high: "Il te manque les détails esthétiques et ses premières actions.", done: "Ta cliente idéale est définie. Utilise-la dans tes contenus." },
+  proposition: { low: "Commence par répondre : qu'est-ce que tu fais, pour qui, et pourquoi ?", mid: "Tu as les bases. Il te manque ta phrase de positionnement finale.", high: "Presque ! Finalise ta version courte et ton one-liner.", done: "Ta proposition de valeur est claire. Parfait pour ta bio et tes pitchs." },
+  tone: { low: "Définis comment tu parles : plutôt tutoiement ou vouvoiement ? Direct ou doux ?", mid: "Ton registre est posé. Ajoute tes combats et ce que tu refuses.", high: "Il te manque tes expressions clés et ce qu'on évite.", done: "Ta voix est définie. L'IA l'utilisera dans tous tes contenus." },
+  strategy: { low: "Choisis tes 3 grands sujets de contenu pour commencer.", mid: "Tes piliers sont là. Ajoute ton concept créatif.", high: "Presque ! Affine tes facettes cachées pour te démarquer.", done: "Ta stratégie est solide. Lance-toi dans la création !" },
+  charter: { low: "Commence par uploader ton logo ou choisir tes couleurs.", mid: "Ta charte prend forme ! Ajoute tes typos et ton style visuel.", high: "Presque ! Il te manque ton style photo ou tes mots-clés visuels.", done: "Ta charte graphique est complète. Ton identité visuelle est posée." },
 };
 
 function getRecommendation(scoreKey: string, pValue: number): string {
@@ -139,6 +68,15 @@ function getRecommendation(scoreKey: string, pValue: number): string {
   if (pValue > 0) return rec.mid;
   return rec.low;
 }
+
+// Map completion keys to analysis section keys
+const COMPLETION_TO_SECTION: Record<string, string> = {
+  storytelling: "story",
+  persona: "persona",
+  proposition: "value_proposition",
+  tone: "tone_style",
+  strategy: "content_strategy",
+};
 
 export default function BrandingPage() {
   const { user } = useAuth();
@@ -178,19 +116,38 @@ export default function BrandingPage() {
   const [mirrorOpen, setMirrorOpen] = useState(false);
   const [mirrorLoading, setMirrorLoading] = useState(false);
   const [mirrorData, setMirrorData] = useState<any>(null);
+  // Reanalyze mode
+  const [reanalyzeMode, setReanalyzeMode] = useState(false);
+  const [reanalyzeUrls, setReanalyzeUrls] = useState<{ website?: string; instagram?: string; linkedin?: string }>({});
+  // Pre-filled sections detection
+  const [preFilledSections, setPreFilledSections] = useState<Set<string>>(new Set());
 
   const canShowMirror = completion.tone > 0 && !!lastAudit;
 
+  // Analytics logging helper
+  const logEvent = useCallback(async (eventType: string) => {
+    if (!user?.id || isDemoMode) return;
+    try {
+      await supabase.from("ai_usage").insert({
+        user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : null,
+        action_type: eventType,
+        category: "autofill",
+        model_used: null,
+        tokens_used: null,
+      } as any);
+    } catch { /* silent */ }
+  }, [user?.id, workspaceId, isDemoMode]);
+
   const runMirror = async () => {
     setMirrorOpen(true);
-    if (mirrorData) return; // already loaded
+    if (mirrorData) return;
     setMirrorLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("branding-mirror");
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setMirrorData(data);
-      // Save mirror results to database
       const wsId = workspaceId !== user?.id ? workspaceId : undefined;
       await supabase.from("branding_mirror_results").upsert({
         user_id: user?.id ?? "",
@@ -213,7 +170,6 @@ export default function BrandingPage() {
     }
   };
 
-  // Coaching mode from audit
   const fromAudit = searchParams.get("from") === "audit";
   const coachingModule = searchParams.get("module");
   const coachingRecId = searchParams.get("rec_id") || undefined;
@@ -221,34 +177,29 @@ export default function BrandingPage() {
 
   useEffect(() => {
     if (isDemoMode) {
-      setCompletion({
-        storytelling: 100,
-        persona: 100,
-        proposition: 100,
-        tone: 80,
-        strategy: 70,
-        charter: 0,
-        total: DEMO_DATA.branding.completion,
-      });
+      setCompletion({ storytelling: 100, persona: 100, proposition: 100, tone: 80, strategy: 70, charter: 0, total: DEMO_DATA.branding.completion });
       setPrimaryStoryId("demo-story");
       setHasEnoughData(true);
       setHasProposition(true);
-      setLastAudit({
-        id: "demo-audit",
-        created_at: new Date().toISOString(),
-        score_global: DEMO_DATA.audit.score,
-        points_forts: DEMO_DATA.audit.points_forts,
-        points_faibles: DEMO_DATA.audit.points_faibles,
-      });
+      setLastAudit({ id: "demo-audit", created_at: new Date().toISOString(), score_global: DEMO_DATA.audit.score, points_forts: DEMO_DATA.audit.points_forts, points_faibles: DEMO_DATA.audit.points_faibles });
       setLoading(false);
       return;
     }
     if (!user) return;
     const load = async () => {
       const data = await fetchBrandingData({ column, value });
-      setCompletion(calculateBrandingCompletion(data));
+      const comp = calculateBrandingCompletion(data);
+      setCompletion(comp);
 
-      // Determine proposition card state
+      // Detect pre-filled sections
+      const filled = new Set<string>();
+      if (comp.storytelling > 0) filled.add("story");
+      if (comp.persona > 0) filled.add("persona");
+      if (comp.proposition > 0) filled.add("value_proposition");
+      if (comp.tone > 0) filled.add("tone_style");
+      if (comp.strategy > 0) filled.add("content_strategy");
+      setPreFilledSections(filled);
+
       const enough = !!(data.persona?.step_1_frustrations && data.storytellingList && data.storytellingList.length > 0);
       setHasEnoughData(enough);
       setHasProposition(!!(data.proposition?.version_pitch_naturel));
@@ -258,14 +209,30 @@ export default function BrandingPage() {
         setPrimaryStoryId(primary?.id || data.storytellingList[0].id);
       }
 
-      // Fetch last branding audit
       const { data: auditData } = await (supabase.from("branding_audits") as any)
         .select("id, created_at, score_global, points_forts, points_faibles")
         .eq(column, value)
         .order("created_at", { ascending: false })
         .limit(1);
-      if (auditData && auditData.length > 0) {
-        setLastAudit(auditData[0]);
+      if (auditData && auditData.length > 0) setLastAudit(auditData[0]);
+
+      // Check for pending autofill review
+      const { data: pendingAutofill } = await (supabase.from("branding_autofill") as any)
+        .select("analysis_result, sources_used, sources_failed, website_url, instagram_handle, linkedin_url")
+        .eq("user_id", user.id)
+        .eq("autofill_status", "pending_review")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pendingAutofill?.analysis_result) {
+        setAnalysisResult(pendingAutofill.analysis_result as AnalysisResult);
+        setImportPhaseNew("reviewing");
+        setReanalyzeUrls({
+          website: pendingAutofill.website_url || "",
+          instagram: pendingAutofill.instagram_handle || "",
+          linkedin: pendingAutofill.linkedin_url || "",
+        });
       }
 
       setLoading(false);
@@ -298,16 +265,8 @@ export default function BrandingPage() {
       };
 
       const { data: fn, error } = await supabase.functions.invoke("proposition-ai", {
-        body: {
-          type: "generate-versions",
-          proposition_data: syntheticData,
-          persona: personaRes.data,
-          storytelling: storyRes.data,
-          tone: profileRes.data,
-          profile: profiles.data,
-        },
+        body: { type: "generate-versions", proposition_data: syntheticData, persona: personaRes.data, storytelling: storyRes.data, tone: profileRes.data, profile: profiles.data },
       });
-
       if (error) throw error;
 
       const raw = fn?.content || fn?.response || (typeof fn === "string" ? fn : JSON.stringify(fn));
@@ -328,16 +287,13 @@ export default function BrandingPage() {
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       };
 
-      const { data: existing } = await (supabase.from("brand_proposition") as any)
-        .select("id").eq(column, value).maybeSingle();
+      const { data: existing } = await (supabase.from("brand_proposition") as any).select("id").eq(column, value).maybeSingle();
       if (existing) {
         await supabase.from("brand_proposition").update(payload as any).eq("id", existing.id);
-        queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
       } else {
         await supabase.from("brand_proposition").insert(payload as any);
-        queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
       }
-
+      queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
       toast.success("✨ Tes 6 propositions de valeur sont prêtes !");
       navigate("/branding/proposition/recap");
     } catch (e: any) {
@@ -368,6 +324,99 @@ export default function BrandingPage() {
     setImportPhase('idle');
     setImportExtraction(null);
     await reloadCompletion();
+  };
+
+  const handleStartAnalysis = async (data: { website?: string; instagram?: string; linkedin?: string; files: File[] }) => {
+    // Demo mode: simulate analysis
+    if (isDemoMode) {
+      setLastImportData(data);
+      setImportAnalyzing(true);
+      setAnalysisSources({ website: data.website, instagram: data.instagram, linkedin: data.linkedin, hasDocuments: data.files.length > 0 });
+      setTimeout(() => setImportPhaseNew("analyzing"), 500);
+      // Simulate 3-second delay
+      setTimeout(() => {
+        setAnalysisResult(DEMO_AUTOFILL_RESULT);
+        setImportAnalyzing(false);
+        setImportPhaseNew("reviewing");
+      }, 3500);
+      return;
+    }
+
+    setLastImportData(data);
+    setImportAnalyzing(true);
+    setAnalysisError(null);
+    setAnalysisSources({ website: data.website, instagram: data.instagram, linkedin: data.linkedin, hasDocuments: data.files.length > 0 });
+    setReanalyzeUrls({ website: data.website, instagram: data.instagram, linkedin: data.linkedin });
+
+    // Log event
+    logEvent("autofill_started");
+
+    setTimeout(() => setImportPhaseNew("analyzing"), 1000);
+
+    try {
+      const { data: result, error } = await supabase.functions.invoke("analyze-brand", {
+        body: {
+          userId: user?.id,
+          websiteUrl: data.website || null,
+          instagramHandle: data.instagram || null,
+          linkedinUrl: data.linkedin || null,
+          documentIds: [],
+        },
+      });
+
+      if (error) throw error;
+      if (!result?.success) throw new Error(result?.error || "Analyse échouée");
+
+      // Save autofill status
+      if (result.id) {
+        await (supabase.from("branding_autofill") as any).update({ autofill_status: "pending_review" }).eq("id", result.id);
+      }
+
+      // Log completion
+      logEvent("autofill_completed");
+
+      setAnalysisResult(result.analysis);
+      setImportAnalyzing(false);
+      setImportPhaseNew("reviewing");
+    } catch (e: any) {
+      console.error("Analysis error:", e);
+      setImportAnalyzing(false);
+      setAnalysisError(e.message || "Erreur inconnue");
+      setImportPhaseNew("error");
+    }
+  };
+
+  const handleReanalyzeWithBio = (bio: string) => {
+    // Re-run analysis with bio as extra context
+    const data = lastImportData || { files: [] };
+    // We'll pass the bio via documentIds mechanism or as a note
+    // For now, append bio to website text
+    setImportPhaseNew("form");
+    setTimeout(() => {
+      handleStartAnalysis({
+        ...data,
+        // The bio will be used as additional context
+        instagram: `${data.instagram || ""} [BIO: ${bio}]`,
+        files: data.files || [],
+      });
+    }, 100);
+  };
+
+  const handleSkipImport = () => {
+    if (reanalyzeMode) {
+      setReanalyzeMode(false);
+      setImportPhaseNew("form");
+      return;
+    }
+    setSkipImport(true);
+    localStorage.setItem("branding_skip_import", "true");
+    logEvent("autofill_abandoned");
+  };
+
+  const handleStartReanalyze = () => {
+    setReanalyzeMode(true);
+    setImportPhaseNew("form");
+    setAnalysisResult(null);
   };
 
   const globalMessage =
@@ -402,58 +451,13 @@ export default function BrandingPage() {
     return card.recapRoute;
   };
 
-  // Count how many sections have >0 completion
   const filledSections = (["storytelling", "persona", "proposition", "tone", "strategy", "charter"] as const)
     .filter((k) => completion[k] > 0).length;
-  const showNewImport = filledSections < 2 && !skipImport && !isDemoMode && !coachingActive;
+  const showNewImport = (filledSections < 2 && !skipImport && !isDemoMode && !coachingActive) || reanalyzeMode;
+  // Show new import for demo mode too
+  const showNewImportDemo = isDemoMode && filledSections < 2 && !skipImport && !coachingActive;
 
-
-  const handleStartAnalysis = async (data: { website?: string; instagram?: string; linkedin?: string; files: File[] }) => {
-    setLastImportData(data);
-    setImportAnalyzing(true);
-    setAnalysisError(null);
-    setAnalysisSources({
-      website: data.website,
-      instagram: data.instagram,
-      linkedin: data.linkedin,
-      hasDocuments: data.files.length > 0,
-    });
-
-    // Show button loading for 1s, then switch to full-screen loader
-    setTimeout(() => setImportPhaseNew("analyzing"), 1000);
-
-    try {
-      const { data: result, error } = await supabase.functions.invoke("analyze-brand", {
-        body: {
-          userId: user?.id,
-          websiteUrl: data.website || null,
-          instagramHandle: data.instagram || null,
-          linkedinUrl: data.linkedin || null,
-          documentIds: [],
-        },
-      });
-
-      if (error) throw error;
-      if (!result?.success) throw new Error(result?.error || "Analyse échouée");
-
-      // Store result and transition to review screen
-      setAnalysisResult(result.analysis);
-      setImportAnalyzing(false);
-      setImportPhaseNew("reviewing");
-    } catch (e: any) {
-      console.error("Analysis error:", e);
-      setImportAnalyzing(false);
-      setAnalysisError(e.message || "Erreur inconnue");
-      setImportPhaseNew("error");
-    }
-  };
-
-  const handleSkipImport = () => {
-    setSkipImport(true);
-    localStorage.setItem("branding_skip_import", "true");
-  };
-
-  if (showNewImport || importPhaseNew === "reviewing") {
+  if (showNewImport || showNewImportDemo || importPhaseNew === "reviewing") {
     return (
       <div className="min-h-screen bg-[hsl(var(--rose-pale))]">
         <AppHeader />
@@ -465,6 +469,10 @@ export default function BrandingPage() {
                   loading={importAnalyzing}
                   onAnalyze={handleStartAnalysis}
                   onSkip={handleSkipImport}
+                  initialWebsite={reanalyzeUrls.website}
+                  initialInstagram={reanalyzeUrls.instagram}
+                  initialLinkedin={reanalyzeUrls.linkedin}
+                  reanalyzeWarning={reanalyzeMode}
                 />
               </motion.div>
             )}
@@ -492,10 +500,20 @@ export default function BrandingPage() {
                   analysis={analysisResult}
                   sourcesUsed={analysisResult.sources_used || []}
                   sourcesFailed={analysisResult.sources_failed || []}
+                  preFilledSections={preFilledSections}
+                  onReanalyzeWithBio={handleReanalyzeWithBio}
                   onDone={async () => {
+                    // Mark autofill as completed
+                    if (user?.id && !isDemoMode) {
+                      await (supabase.from("branding_autofill") as any)
+                        .update({ autofill_status: "completed", autofill_pending_review: false })
+                        .eq("user_id", user.id)
+                        .eq("autofill_status", "pending_review");
+                    }
                     setImportPhaseNew("form");
                     setAnalysisResult(null);
                     setSkipImport(true);
+                    setReanalyzeMode(false);
                     localStorage.setItem("branding_skip_import", "true");
                     await reloadCompletion();
                   }}
@@ -513,46 +531,48 @@ export default function BrandingPage() {
       <AppHeader />
       <main id="main-content" className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
         <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-6 transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-          Retour au hub
+          <ArrowLeft className="h-4 w-4" /> Retour au hub
         </Link>
 
         {!coachingActive && <AuditRecommendationBanner />}
 
-        {/* Coaching flow from audit */}
         {coachingActive && coachingModule && (
           <div className="mb-6">
             <CoachingFlow
               module={coachingModule}
               recId={coachingRecId}
-              onComplete={async () => {
-                setCoachingActive(false);
-                setSearchParams({});
-                await reloadCompletion();
-              }}
-              onSkip={() => {
-                setCoachingActive(false);
-                setSearchParams({});
-              }}
+              onComplete={async () => { setCoachingActive(false); setSearchParams({}); await reloadCompletion(); }}
+              onSkip={() => { setCoachingActive(false); setSearchParams({}); }}
             />
           </div>
         )}
 
         <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
           <h1 className="font-display text-[26px] font-bold text-foreground">Mon Branding</h1>
-          <div className="flex items-center gap-1 rounded-full border border-border bg-muted/50 p-0.5">
-            <button
-              onClick={() => { setViewMode("free"); localStorage.setItem("branding_mode", "free"); }}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all ${viewMode === "free" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" /> Mode libre
-            </button>
-            <button
-              onClick={() => { setViewMode("guided"); localStorage.setItem("branding_mode", "guided"); }}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all ${viewMode === "guided" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <ListOrdered className="h-3.5 w-3.5" /> Guidé (7 jours)
-            </button>
+          <div className="flex items-center gap-2">
+            {/* Reanalyze button */}
+            {!isDemoMode && completion.total > 0 && (
+              <button
+                onClick={handleStartReanalyze}
+                className="font-mono-ui text-[12px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              >
+                🔄 Réanalyser mes liens
+              </button>
+            )}
+            <div className="flex items-center gap-1 rounded-full border border-border bg-muted/50 p-0.5">
+              <button
+                onClick={() => { setViewMode("free"); localStorage.setItem("branding_mode", "free"); }}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all ${viewMode === "free" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" /> Mode libre
+              </button>
+              <button
+                onClick={() => { setViewMode("guided"); localStorage.setItem("branding_mode", "guided"); }}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all ${viewMode === "guided" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <ListOrdered className="h-3.5 w-3.5" /> Guidé (7 jours)
+              </button>
+            </div>
           </div>
         </div>
         <p className="text-[15px] text-muted-foreground mb-6">
@@ -571,61 +591,34 @@ export default function BrandingPage() {
           />
         ) : (
           <>
-            {/* Audit & Import links moved here, audit summary moved to bottom */}
-            {/* Audit & Import links */}
             <div className="space-y-2 mb-4">
               {!lastAudit && (
-                <button
-                  onClick={() => navigate("/branding/audit")}
-                  className="w-full rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors p-4 text-left"
-                >
-                  <p className="text-sm font-medium text-foreground flex items-center gap-2">
-                    🔍 Tu veux d'abord faire un diagnostic de ce que t'as déjà ?
-                  </p>
+                <button onClick={() => navigate("/branding/audit")} className="w-full rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors p-4 text-left">
+                  <p className="text-sm font-medium text-foreground flex items-center gap-2">🔍 Tu veux d'abord faire un diagnostic de ce que t'as déjà ?</p>
                   <p className="text-xs text-muted-foreground mt-1">Analyse ton site, tes réseaux et tes documents en un clic.</p>
                 </button>
               )}
-
               {showImportBlock ? (
                 <BrandingImportBlock onResult={handleImportResult} />
               ) : (
-                <button
-                  onClick={() => setShowImportBlock(true)}
-                  className="w-full rounded-xl border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors p-4 text-left"
-                >
-                  <p className="text-sm font-medium text-foreground flex items-center gap-2">
-                    📄 Tu as un document stratégique ? Importe-le pour pré-remplir ton branding.
-                  </p>
+                <button onClick={() => setShowImportBlock(true)} className="w-full rounded-xl border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors p-4 text-left">
+                  <p className="text-sm font-medium text-foreground flex items-center gap-2">📄 Tu as un document stratégique ? Importe-le pour pré-remplir ton branding.</p>
                 </button>
               )}
             </div>
 
-            {/* Synthesis + Mirror buttons */}
             <div className="mb-8 flex flex-col sm:flex-row gap-2">
               {completion.total >= 10 ? (
-                <Button
-                  variant="outline"
-                  className="flex-1 gap-2 text-sm"
-                  onClick={() => setShowSynthesis(true)}
-                >
-                  <ClipboardList className="h-4 w-4" />
-                  📋 Générer ma fiche de synthèse
+                <Button variant="outline" className="flex-1 gap-2 text-sm" onClick={() => setShowSynthesis(true)}>
+                  <ClipboardList className="h-4 w-4" /> 📋 Générer ma fiche de synthèse
                 </Button>
               ) : (
                 <div className="flex-1 text-center py-3 px-4 rounded-xl bg-muted/40 border border-border">
-                  <p className="text-xs text-muted-foreground">
-                    Remplis au moins ton positionnement ou ta cible pour générer ta fiche de synthèse.
-                  </p>
+                  <p className="text-xs text-muted-foreground">Remplis au moins ton positionnement ou ta cible pour générer ta fiche de synthèse.</p>
                 </div>
               )}
               {canShowMirror && (
-                <Button
-                  variant="outline"
-                  className="gap-2 text-sm sm:w-auto"
-                  onClick={runMirror}
-                >
-                  🪞 Mon Branding Mirror
-                </Button>
+                <Button variant="outline" className="gap-2 text-sm sm:w-auto" onClick={runMirror}>🪞 Mon Branding Mirror</Button>
               )}
             </div>
 
@@ -639,79 +632,47 @@ export default function BrandingPage() {
                 const isCompleted = pValue === 100;
                 const pLabel = isCompleted ? "✅ Complet" : `${pValue}%`;
 
-                // Special 3-state rendering for proposition card
                 if (card.scoreKey === "proposition") {
                   return (
-                    <div
-                      key={card.stepperRoute}
-                      className="rounded-2xl border-2 bg-card p-5 transition-all border-border hover:border-primary/30 hover:shadow-md"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <span className="text-2xl">{card.emoji}</span>
-                      </div>
+                    <div key={card.stepperRoute} className="rounded-2xl border-2 bg-card p-5 transition-all border-border hover:border-primary/30 hover:shadow-md">
+                      <div className="flex items-start justify-between mb-3"><span className="text-2xl">{card.emoji}</span></div>
                       <h3 className="font-display text-base font-bold text-foreground mb-1">{card.title}</h3>
-
                       {hasProposition ? (
                         <>
                           <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">{card.description}</p>
                           <div className="flex items-center gap-2 mb-4">
                             <Progress value={100} className="h-1.5 flex-1" />
-                             <span className="font-mono-ui text-[10px] font-semibold shrink-0 text-[#2E7D32]">✅ Complet</span>
+                            <span className="font-mono-ui text-[10px] font-semibold shrink-0 text-[#2E7D32]">✅ Complet</span>
                           </div>
                           <p className="text-[11px] text-muted-foreground/80 mt-1 leading-snug line-clamp-1 mb-3">{getRecommendation("proposition", 100)}</p>
                           <div className="flex items-center gap-2">
-                            <Button size="sm" className="rounded-pill text-xs flex-1" onClick={() => navigate("/branding/proposition/recap")}>
-                              <Eye className="h-3.5 w-3.5 mr-1" /> Voir ma fiche
-                            </Button>
-                            <Button variant="outline" size="sm" className="rounded-pill text-xs" onClick={() => navigate("/branding/section?section=value_proposition")}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
+                            <Button size="sm" className="rounded-pill text-xs flex-1" onClick={() => navigate("/branding/proposition/recap")}><Eye className="h-3.5 w-3.5 mr-1" /> Voir ma fiche</Button>
+                            <Button variant="outline" size="sm" className="rounded-pill text-xs" onClick={() => navigate("/branding/section?section=value_proposition")}><Pencil className="h-3.5 w-3.5" /></Button>
                           </div>
                         </>
                       ) : hasEnoughData ? (
                         <>
-                          <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">
-                            L'IA peut maintenant synthétiser tes autres sections pour créer tes 6 versions.
-                          </p>
-                          <div className="flex items-center gap-2 mb-4">
-                            <Progress value={pValue} className="h-1.5 flex-1" />
-                             <span className="font-mono-ui text-[10px] font-semibold shrink-0 text-muted-foreground">{pLabel}</span>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground/80 mt-1 leading-snug line-clamp-1 mb-3">{getRecommendation("proposition", pValue)}</p>
-                          <Button
-                            size="sm"
-                            className="rounded-pill text-xs w-full mb-2"
-                            onClick={generateProposition}
-                            disabled={generatingProp}
-                          >
-                            {generatingProp ? (
-                              <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Génération en cours...</>
-                            ) : (
-                              <><Sparkles className="h-3.5 w-3.5 mr-1" /> Générer ma proposition de valeur</>
-                            )}
-                          </Button>
-                          {generatingProp && (
-                            <p className="text-[11px] text-muted-foreground text-center">L'IA synthétise ton histoire, ton persona et ton ton pour créer 6 versions...</p>
-                          )}
-                          <Link to="/branding/proposition" className="block text-[11px] text-muted-foreground hover:text-primary text-center mt-1">
-                            Ou remplir manuellement →
-                          </Link>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">
-                            Complète d'abord ton histoire et ton persona pour générer automatiquement.
-                          </p>
+                          <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">L'IA peut maintenant synthétiser tes autres sections pour créer tes 6 versions.</p>
                           <div className="flex items-center gap-2 mb-4">
                             <Progress value={pValue} className="h-1.5 flex-1" />
                             <span className="font-mono-ui text-[10px] font-semibold shrink-0 text-muted-foreground">{pLabel}</span>
                           </div>
-                          <Button size="sm" className="rounded-pill text-xs w-full mb-2" disabled>
-                            <Sparkles className="h-3.5 w-3.5 mr-1" /> Générer ma proposition de valeur
+                          <p className="text-[11px] text-muted-foreground/80 mt-1 leading-snug line-clamp-1 mb-3">{getRecommendation("proposition", pValue)}</p>
+                          <Button size="sm" className="rounded-pill text-xs w-full mb-2" onClick={generateProposition} disabled={generatingProp}>
+                            {generatingProp ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Génération en cours...</> : <><Sparkles className="h-3.5 w-3.5 mr-1" /> Générer ma proposition de valeur</>}
                           </Button>
-                          <Link to="/branding/proposition" className="block text-[11px] text-muted-foreground hover:text-primary text-center mt-1">
-                            Ou remplir manuellement →
-                          </Link>
+                          {generatingProp && <p className="text-[11px] text-muted-foreground text-center">L'IA synthétise ton histoire, ton persona et ton ton pour créer 6 versions...</p>}
+                          <Link to="/branding/proposition" className="block text-[11px] text-muted-foreground hover:text-primary text-center mt-1">Ou remplir manuellement →</Link>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">Complète d'abord ton histoire et ton persona pour générer automatiquement.</p>
+                          <div className="flex items-center gap-2 mb-4">
+                            <Progress value={pValue} className="h-1.5 flex-1" />
+                            <span className="font-mono-ui text-[10px] font-semibold shrink-0 text-muted-foreground">{pLabel}</span>
+                          </div>
+                          <Button size="sm" className="rounded-pill text-xs w-full mb-2" disabled><Sparkles className="h-3.5 w-3.5 mr-1" /> Générer ma proposition de valeur</Button>
+                          <Link to="/branding/proposition" className="block text-[11px] text-muted-foreground hover:text-primary text-center mt-1">Ou remplir manuellement →</Link>
                         </>
                       )}
                     </div>
@@ -719,127 +680,54 @@ export default function BrandingPage() {
                 }
 
                 return (
-                  <div
-                    key={card.stepperRoute}
-                    className="rounded-2xl border-2 bg-card p-5 transition-all border-border hover:border-primary/30 hover:shadow-md"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <span className="text-2xl">{card.emoji}</span>
-                    </div>
+                  <div key={card.stepperRoute} className="rounded-2xl border-2 bg-card p-5 transition-all border-border hover:border-primary/30 hover:shadow-md">
+                    <div className="flex items-start justify-between mb-3"><span className="text-2xl">{card.emoji}</span></div>
                     <h3 className="font-display text-base font-bold text-foreground mb-1">{card.title}</h3>
                     <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">{card.description}</p>
                     <div className="flex items-center gap-2 mb-4">
                       <Progress value={pValue} className="h-1.5 flex-1" />
-                       <span className={`font-mono-ui text-[10px] font-semibold shrink-0 ${isCompleted ? "text-[#2E7D32]" : "text-muted-foreground"}`}>{pLabel}</span>
+                      <span className={`font-mono-ui text-[10px] font-semibold shrink-0 ${isCompleted ? "text-[#2E7D32]" : "text-muted-foreground"}`}>{pLabel}</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground/80 mt-1 leading-snug line-clamp-1 mb-3">{getRecommendation(card.scoreKey, pValue)}</p>
-
                     {isCompleted ? (
                       <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          className="rounded-pill text-xs flex-1"
-                          onClick={() => navigate(getRecapRoute(card))}
-                        >
-                          <Eye className="h-3.5 w-3.5 mr-1" />
-                          Voir ma fiche
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="rounded-pill text-xs"
-                          onClick={() => navigate(card.stepperRoute)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
+                        <Button size="sm" className="rounded-pill text-xs flex-1" onClick={() => navigate(getRecapRoute(card))}><Eye className="h-3.5 w-3.5 mr-1" /> Voir ma fiche</Button>
+                        <Button variant="outline" size="sm" className="rounded-pill text-xs" onClick={() => navigate(card.stepperRoute)}><Pencil className="h-3.5 w-3.5" /></Button>
                       </div>
                     ) : pValue > 0 ? (
                       <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          className="rounded-pill text-xs flex-1"
-                          onClick={() => navigate(card.stepperRoute)}
-                        >
-                          Continuer →
-                        </Button>
+                        <Button size="sm" className="rounded-pill text-xs flex-1" onClick={() => navigate(card.stepperRoute)}>Continuer →</Button>
                       </div>
                     ) : (
-                      <Button
-                        size="sm"
-                        className="rounded-pill text-xs w-full"
-                        onClick={() => navigate(card.stepperRoute)}
-                      >
-                        <Sparkles className="h-3.5 w-3.5 mr-1" />
-                        Commencer
-                      </Button>
+                      <Button size="sm" className="rounded-pill text-xs w-full" onClick={() => navigate(card.stepperRoute)}><Sparkles className="h-3.5 w-3.5 mr-1" /> Commencer</Button>
                     )}
                   </div>
                 );
               })}
 
-              {/* Voice guide card — visible only if tone is 100% */}
               {completion.tone === 100 && (
-                <div
-                  className="rounded-2xl border-2 bg-card p-5 transition-all border-primary/30 hover:border-primary hover:shadow-md cursor-pointer"
-                  onClick={() => navigate("/branding/voice-guide")}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <span className="text-2xl">🎤</span>
-                  </div>
+                <div className="rounded-2xl border-2 bg-card p-5 transition-all border-primary/30 hover:border-primary hover:shadow-md cursor-pointer" onClick={() => navigate("/branding/voice-guide")}>
+                  <div className="flex items-start justify-between mb-3"><span className="text-2xl">🎤</span></div>
                   <h3 className="font-display text-base font-bold text-foreground mb-1">Mon guide de voix</h3>
-                  <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">
-                    Un livrable pro à partager avec tes prestataires.
-                  </p>
-                  <Button
-                    size="sm"
-                    className="rounded-pill text-xs w-full"
-                    onClick={(e) => { e.stopPropagation(); navigate("/branding/voice-guide"); }}
-                  >
-                    <Sparkles className="h-3.5 w-3.5 mr-1" />
-                    Voir mon guide
-                  </Button>
+                  <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">Un livrable pro à partager avec tes prestataires.</p>
+                  <Button size="sm" className="rounded-pill text-xs w-full" onClick={(e) => { e.stopPropagation(); navigate("/branding/voice-guide"); }}><Sparkles className="h-3.5 w-3.5 mr-1" /> Voir mon guide</Button>
                 </div>
               )}
 
-              {/* Mes offres card */}
-              <div
-                className="rounded-2xl border-2 bg-card p-5 transition-all border-primary/30 hover:border-primary hover:shadow-md cursor-pointer"
-                onClick={() => navigate("/branding/offres")}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <span className="text-2xl">🎁</span>
-                </div>
+              <div className="rounded-2xl border-2 bg-card p-5 transition-all border-primary/30 hover:border-primary hover:shadow-md cursor-pointer" onClick={() => navigate("/branding/offres")}>
+                <div className="flex items-start justify-between mb-3"><span className="text-2xl">🎁</span></div>
                 <h3 className="font-display text-base font-bold text-foreground mb-1">Mes offres</h3>
-                <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">
-                  Formule tes offres de manière désirable. L'IA te coache à chaque étape.
-                </p>
+                <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">Formule tes offres de manière désirable. L'IA te coache à chaque étape.</p>
                 <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    className="rounded-pill text-xs flex-1"
-                    onClick={(e) => { e.stopPropagation(); navigate("/branding/offres"); }}
-                  >
-                    <Eye className="h-3.5 w-3.5 mr-1" />
-                    Voir mes offres
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-pill text-xs flex-1"
-                    onClick={(e) => { e.stopPropagation(); navigate("/branding/coaching?section=offers"); }}
-                  >
-                    <Sparkles className="h-3.5 w-3.5 mr-1" />
-                    Coaching
-                  </Button>
+                  <Button size="sm" className="rounded-pill text-xs flex-1" onClick={(e) => { e.stopPropagation(); navigate("/branding/offres"); }}><Eye className="h-3.5 w-3.5 mr-1" /> Voir mes offres</Button>
+                  <Button size="sm" variant="outline" className="rounded-pill text-xs flex-1" onClick={(e) => { e.stopPropagation(); navigate("/branding/coaching?section=offers"); }}><Sparkles className="h-3.5 w-3.5 mr-1" /> Coaching</Button>
                 </div>
               </div>
             </div>
 
             <div className="rounded-2xl border border-border bg-card p-5 mt-8">
               <div className="flex items-center justify-between mb-2">
-                <span className="font-mono-ui text-[12px] font-semibold text-foreground">
-                  Mon branding est complet à {completion.total}%
-                </span>
+                <span className="font-mono-ui text-[12px] font-semibold text-foreground">Mon branding est complet à {completion.total}%</span>
               </div>
               <Progress value={completion.total} className="h-2.5 mb-2" />
               <p className="text-[12px] text-muted-foreground">{globalMessage}</p>
@@ -853,20 +741,16 @@ export default function BrandingPage() {
                 ? [...lastAudit.points_faibles].sort((a: any, b: any) => {
                     const pri: Record<string, number> = { haute: 0, moyenne: 1, basse: 2 };
                     return (pri[a?.priorite] ?? 2) - (pri[b?.priorite] ?? 2);
-                  }).slice(0, 3)
-                : [];
+                  }).slice(0, 3) : [];
               const score = lastAudit.score_global ?? 0;
               const color = score >= 75 ? "bg-green-500" : score >= 50 ? "bg-yellow-500" : "bg-red-500";
-              const dateStr = lastAudit.created_at
-                ? format(new Date(lastAudit.created_at), "d MMMM yyyy", { locale: fr })
-                : "";
+              const dateStr = lastAudit.created_at ? format(new Date(lastAudit.created_at), "d MMMM yyyy", { locale: fr }) : "";
 
               return (
                 <div className="rounded-2xl border border-border bg-card p-5 mt-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-foreground">🔍 Mon dernier audit · {dateStr}</h3>
                   </div>
-
                   <div className="mb-3">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs text-muted-foreground">Score global</span>
@@ -876,32 +760,21 @@ export default function BrandingPage() {
                       <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${score}%` }} />
                     </div>
                   </div>
-
                   {forts.length > 0 && (
                     <div className="mb-2">
                       <p className="text-xs font-semibold text-foreground mb-1">✅ Points forts</p>
-                      {forts.map((p: any, i: number) => (
-                        <p key={i} className="text-xs text-muted-foreground leading-relaxed">· {typeof p === "string" ? p : p?.titre || ""}</p>
-                      ))}
+                      {forts.map((p: any, i: number) => <p key={i} className="text-xs text-muted-foreground leading-relaxed">· {typeof p === "string" ? p : p?.titre || ""}</p>)}
                     </div>
                   )}
-
                   {faibles.length > 0 && (
                     <div className="mb-3">
                       <p className="text-xs font-semibold text-foreground mb-1">⚠️ À améliorer</p>
-                      {faibles.map((p: any, i: number) => (
-                        <p key={i} className="text-xs text-muted-foreground leading-relaxed">· {typeof p === "string" ? p : p?.titre || ""}</p>
-                      ))}
+                      {faibles.map((p: any, i: number) => <p key={i} className="text-xs text-muted-foreground leading-relaxed">· {typeof p === "string" ? p : p?.titre || ""}</p>)}
                     </div>
                   )}
-
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="text-xs flex-1" onClick={() => navigate(`/branding/audit/${lastAudit.id}`)}>
-                      Voir l'audit complet →
-                    </Button>
-                    <Button size="sm" variant="ghost" className="text-xs gap-1" onClick={() => navigate("/branding/audit")}>
-                      <RefreshCw className="h-3 w-3" /> Refaire
-                    </Button>
+                    <Button size="sm" variant="outline" className="text-xs flex-1" onClick={() => navigate(`/branding/audit/${lastAudit.id}`)}>Voir l'audit complet →</Button>
+                    <Button size="sm" variant="ghost" className="text-xs gap-1" onClick={() => navigate("/branding/audit")}><RefreshCw className="h-3 w-3" /> Refaire</Button>
                   </div>
                 </div>
               );
@@ -910,106 +783,42 @@ export default function BrandingPage() {
         )}
       </main>
 
-      {/* Branding Mirror Sheet */}
       <Sheet open={mirrorOpen} onOpenChange={setMirrorOpen}>
         <SheetContent side="right" className="overflow-y-auto sm:max-w-lg">
           <SheetHeader>
             <SheetTitle className="text-lg font-display">🪞 Branding Mirror</SheetTitle>
           </SheetHeader>
-
           {mirrorLoading ? (
-            <div className="py-6">
-              <AiLoadingIndicator context="branding" isLoading={mirrorLoading} />
-            </div>
+            <div className="py-6"><AiLoadingIndicator context="branding" isLoading={mirrorLoading} /></div>
           ) : mirrorData ? (
             <div className="space-y-6 mt-4">
-              {/* Coherence Score */}
               <div className="text-center space-y-2">
-                <p className="text-4xl font-bold font-display" style={{ color: mirrorData.coherence_score >= 70 ? 'hsl(var(--chart-2))' : mirrorData.coherence_score >= 40 ? 'hsl(var(--chart-4))' : 'hsl(var(--destructive))' }}>
-                  {mirrorData.coherence_score}/100
-                </p>
+                <p className="text-4xl font-bold font-display" style={{ color: mirrorData.coherence_score >= 70 ? 'hsl(var(--chart-2))' : mirrorData.coherence_score >= 40 ? 'hsl(var(--chart-4))' : 'hsl(var(--destructive))' }}>{mirrorData.coherence_score}/100</p>
                 <Progress value={mirrorData.coherence_score} className="h-2.5 mx-auto max-w-[200px]" />
                 <p className="text-xs text-muted-foreground">Score de cohérence</p>
               </div>
-
-              {/* Summary */}
-              <p className="text-sm text-foreground leading-relaxed bg-muted/50 rounded-xl p-3 border border-border">
-                {mirrorData.summary}
-              </p>
-
-              {/* Alignments */}
+              <p className="text-sm text-foreground leading-relaxed bg-muted/50 rounded-xl p-3 border border-border">{mirrorData.summary}</p>
               {mirrorData.alignments?.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                    <CheckCircle2 className="h-4 w-4 text-chart-2" /> Ce qui est aligné
-                  </h4>
-                  <div className="space-y-2">
-                    {mirrorData.alignments.map((a: any, i: number) => (
-                      <div key={i} className="rounded-lg bg-chart-2/10 border border-chart-2/20 p-3">
-                        <p className="text-xs font-semibold text-foreground">{a.aspect}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{a.detail}</p>
-                      </div>
-                    ))}
-                  </div>
+                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-chart-2" /> Ce qui est aligné</h4>
+                  <div className="space-y-2">{mirrorData.alignments.map((a: any, i: number) => <div key={i} className="rounded-lg bg-chart-2/10 border border-chart-2/20 p-3"><p className="text-xs font-semibold text-foreground">{a.aspect}</p><p className="text-xs text-muted-foreground mt-0.5">{a.detail}</p></div>)}</div>
                 </div>
               )}
-
-              {/* Gaps */}
               {mirrorData.gaps?.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                    <AlertTriangle className="h-4 w-4 text-chart-4" /> Les écarts à ajuster
-                  </h4>
-                  <div className="space-y-2">
-                    {mirrorData.gaps.map((g: any, i: number) => (
-                      <div key={i} className="rounded-lg bg-chart-4/10 border border-chart-4/20 p-3 space-y-1">
-                        <p className="text-xs font-semibold text-foreground">{g.aspect}</p>
-                        <p className="text-xs text-muted-foreground"><span className="font-medium">Déclaré :</span> {g.declared}</p>
-                        <p className="text-xs text-muted-foreground"><span className="font-medium">Réalité :</span> {g.actual}</p>
-                        <p className="text-xs text-primary font-medium mt-1">💡 {g.suggestion}</p>
-                      </div>
-                    ))}
-                  </div>
+                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5"><AlertTriangle className="h-4 w-4 text-chart-4" /> Les écarts à ajuster</h4>
+                  <div className="space-y-2">{mirrorData.gaps.map((g: any, i: number) => <div key={i} className="rounded-lg bg-chart-4/10 border border-chart-4/20 p-3 space-y-1"><p className="text-xs font-semibold text-foreground">{g.aspect}</p><p className="text-xs text-muted-foreground"><span className="font-medium">Déclaré :</span> {g.declared}</p><p className="text-xs text-muted-foreground"><span className="font-medium">Réalité :</span> {g.actual}</p><p className="text-xs text-primary font-medium mt-1">💡 {g.suggestion}</p></div>)}</div>
                 </div>
               )}
-
-              {/* Quick wins */}
               {mirrorData.quick_wins?.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                    <Zap className="h-4 w-4 text-primary" /> 3 quick wins
-                  </h4>
-                  <div className="space-y-1.5">
-                    {mirrorData.quick_wins.map((qw: string, i: number) => (
-                      <div key={i} className="flex gap-2 text-xs text-foreground">
-                        <span className="text-primary font-bold shrink-0">{i + 1}.</span>
-                        <span>{qw}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5"><Zap className="h-4 w-4 text-primary" /> 3 quick wins</h4>
+                  <div className="space-y-1.5">{mirrorData.quick_wins.map((qw: string, i: number) => <div key={i} className="flex gap-2 text-xs text-foreground"><span className="text-primary font-bold shrink-0">{i + 1}.</span><span>{qw}</span></div>)}</div>
                 </div>
               )}
-
-              {/* Actions */}
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-2 text-xs"
-                  onClick={() => { setMirrorData(null); runMirror(); }}
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Refaire l'analyse
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-2 text-xs"
-                  onClick={() => exportMirrorPDF(mirrorData)}
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Exporter PDF
-                </Button>
+                <Button variant="outline" size="sm" className="flex-1 gap-2 text-xs" onClick={() => { setMirrorData(null); runMirror(); }}><RefreshCw className="h-3.5 w-3.5" /> Refaire l'analyse</Button>
+                <Button variant="outline" size="sm" className="flex-1 gap-2 text-xs" onClick={() => exportMirrorPDF(mirrorData)}><Download className="h-3.5 w-3.5" /> Exporter PDF</Button>
               </div>
             </div>
           ) : null}
