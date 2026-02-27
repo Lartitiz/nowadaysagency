@@ -31,6 +31,7 @@ export interface ProfileSummary {
   calendarPosts: number;
   lastAuditDate: string | null;
   onboardingComplete: boolean;
+  contentsGenerated: number;
 }
 
 export interface UseGuideRecommendationResult {
@@ -213,6 +214,7 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
             calendarPosts: 0,
             lastAuditDate: null,
             onboardingComplete: true,
+            contentsGenerated: 3,
           },
         };
       }
@@ -262,6 +264,7 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
           calendarPosts,
           lastAuditDate,
           onboardingComplete: onboardingDone,
+          contentsGenerated: 0, // TODO: fetch from ai_usage table
         },
       };
     },
@@ -277,6 +280,7 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
       calendarPosts: 0,
       lastAuditDate: null,
       onboardingComplete: false,
+      contentsGenerated: 0,
     },
     isLoading,
     error: error ? (error as Error).message : null,

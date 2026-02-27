@@ -7,6 +7,7 @@ import { getWelcomeMessage } from "@/lib/welcome-messages";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { DashboardViewToggle, getDashboardPreference } from "@/components/dashboard/DashboardViewToggle";
+import GuideProgressBar from "@/components/dashboard/GuideProgressBar";
 import {
   Target, Compass, MessageCircle, ArrowRight, BookOpen, Users, Search,
   ClipboardCheck, LayoutGrid, PenLine, Palette, Layers, CalendarDays,
@@ -261,6 +262,13 @@ export default function GuideComHome() {
             Je regarde où tu en es et je te propose la prochaine étape.
           </p>
         </motion.div>
+
+        {/* ─── Progress bar (not for brand new accounts) ─── */}
+        {!isBrandNew && (
+          <motion.div variants={itemVariants}>
+            <GuideProgressBar profileSummary={profileSummary} firstName={profileSummary.firstName} />
+          </motion.div>
+        )}
 
         {/* ─── Brand new account: special welcome ─── */}
         {isBrandNew ? (
