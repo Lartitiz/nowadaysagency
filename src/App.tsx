@@ -134,6 +134,14 @@ const SharedCalendarPage = lazy(() => import("./pages/SharedCalendarPage"));
 const VoiceGuidePage = lazy(() => import("./pages/VoiceGuidePage"));
 const BrandCharterPage = lazy(() => import("./pages/BrandCharterPage"));
 
+// Branding Simple pages
+const StorySimplePage = lazy(() => import("./pages/branding-simple/StorySimplePage"));
+const PersonaSimplePage = lazy(() => import("./pages/branding-simple/PersonaSimplePage"));
+const PropositionSimplePage = lazy(() => import("./pages/branding-simple/PropositionSimplePage"));
+const ToneSimplePage = lazy(() => import("./pages/branding-simple/ToneSimplePage"));
+const StrategySimplePage = lazy(() => import("./pages/branding-simple/StrategySimplePage"));
+const OffersSimplePage = lazy(() => import("./pages/branding-simple/OffersSimplePage"));
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -214,6 +222,12 @@ function AnimatedRoutes() {
                 <Route path="/branding/section" element={<ProtectedRoute><BrandingSectionPage /></ProtectedRoute>} />
                 <Route path="/branding/voice-guide" element={<ProtectedRoute><VoiceGuidePage /></ProtectedRoute>} />
                 <Route path="/branding/charter" element={<ProtectedRoute><BrandCharterPage /></ProtectedRoute>} />
+                <Route path="/branding/simple/story" element={<ProtectedRoute><StorySimplePage /></ProtectedRoute>} />
+                <Route path="/branding/simple/persona" element={<ProtectedRoute><PersonaSimplePage /></ProtectedRoute>} />
+                <Route path="/branding/simple/proposition" element={<ProtectedRoute><PropositionSimplePage /></ProtectedRoute>} />
+                <Route path="/branding/simple/tone" element={<ProtectedRoute><ToneSimplePage /></ProtectedRoute>} />
+                <Route path="/branding/simple/strategy" element={<ProtectedRoute><StrategySimplePage /></ProtectedRoute>} />
+                <Route path="/branding/simple/offers" element={<ProtectedRoute><OffersSimplePage /></ProtectedRoute>} />
               </Route>
               <Route path="/intake" element={<IntakePage />} />
               <Route path="/plan" element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />

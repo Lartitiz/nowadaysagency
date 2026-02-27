@@ -44,12 +44,13 @@ interface BrandingCard {
 }
 
 const CARDS: BrandingCard[] = [
-  { emoji: "📖", title: "Mon histoire", description: "Raconte ton histoire. L'IA te guide question par question.", stepperRoute: "/branding/section?section=story", recapRoute: "/branding/section?section=story", scoreKey: "storytelling" },
-  { emoji: "👩‍💻", title: "Mon client·e idéal·e", description: "Comprends qui tu veux toucher, ce qui la bloque, ce qu'elle désire.", stepperRoute: "/branding/section?section=persona", recapRoute: "/branding/section?section=persona", scoreKey: "persona" },
-  { emoji: "❤️", title: "Ma proposition de valeur", description: "Ce qui te rend unique. Les phrases que tu vas utiliser partout.", stepperRoute: "/branding/section?section=value_proposition", recapRoute: "/branding/section?section=value_proposition", scoreKey: "proposition" },
-  { emoji: "🎨", title: "Ma voix & mes combats", description: "Ton ADN verbal : comment tu parles, ce que tu défends, ce que tu refuses.", stepperRoute: "/branding/section?section=tone_style", recapRoute: "/branding/section?section=tone_style", scoreKey: "tone" },
-  { emoji: "🍒", title: "Ma ligne éditoriale", description: "De quoi tu parles : tes piliers de contenu, tes thèmes, ton angle créatif.", stepperRoute: "/branding/section?section=content_strategy", recapRoute: "/branding/section?section=content_strategy", scoreKey: "strategy" },
-  { emoji: "🎨", title: "Ma charte graphique", description: "Tes couleurs, typos, logo et style visuel. Ce qui rend ta marque reconnaissable.", stepperRoute: "/branding/charter", recapRoute: "/branding/charter", scoreKey: "charter" },
+  { emoji: "📖", title: "Mon histoire", description: "Raconte ton projet en quelques lignes, l'IA structure tout.", stepperRoute: "/branding/simple/story", recapRoute: "/branding/section?section=story", scoreKey: "storytelling" },
+  { emoji: "👩‍💻", title: "Mon client·e idéal·e", description: "3 questions simples et l'IA crée ta fiche persona.", stepperRoute: "/branding/simple/persona", recapRoute: "/branding/section?section=persona", scoreKey: "persona" },
+  { emoji: "❤️", title: "Ma proposition de valeur", description: "Dis ce que tu fais, l'IA formule ta proposition.", stepperRoute: "/branding/simple/proposition", recapRoute: "/branding/section?section=value_proposition", scoreKey: "proposition" },
+  { emoji: "🎨", title: "Ma voix & mes combats", description: "Choisis ta vibe, l'IA définit ton ton.", stepperRoute: "/branding/simple/tone", recapRoute: "/branding/section?section=tone_style", scoreKey: "tone" },
+  { emoji: "🍒", title: "Ma ligne éditoriale", description: "Générée automatiquement à partir de ton branding.", stepperRoute: "/branding/simple/strategy", recapRoute: "/branding/section?section=content_strategy", scoreKey: "strategy" },
+  { emoji: "🎁", title: "Mes offres", description: "Décris tes offres simplement, l'IA les structure.", stepperRoute: "/branding/simple/offers", recapRoute: "/branding/offres", scoreKey: "charter" },
+  { emoji: "🎨", title: "Ma charte graphique", description: "Tes couleurs, typos, logo et style visuel.", stepperRoute: "/branding/charter", recapRoute: "/branding/charter", scoreKey: "charter" },
 ];
 
 const RECOMMENDATIONS: Record<string, { low: string; mid: string; high: string; done: string }> = {
