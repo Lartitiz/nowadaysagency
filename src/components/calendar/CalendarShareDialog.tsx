@@ -232,7 +232,8 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
       .single();
 
     if (error) {
-      toast({ title: "Erreur lors de la création", variant: "destructive" });
+      console.error("calendar_shares insert error:", error);
+      toast({ title: "Erreur lors de la création", description: error.message, variant: "destructive" });
     } else {
       setCreatedToken(data.share_token);
       setShares(prev => [{ ...data, unresolved_count: 0, edit_count: 0, to_validate_count: 0, edit_logs: [] }, ...prev]);
