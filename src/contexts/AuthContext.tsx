@@ -10,6 +10,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   isAdmin: boolean;
+  adminLoading: boolean;
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -23,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(true);
   const navigate = useNavigate();
   const lastHiddenAt = useRef<number>(0);
 
@@ -217,17 +219,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isDemoMode || !user) {
       setIsAdmin(false);
+      setAdminLoading(false);
       return;
     }
+    setAdminLoading(true);
     Promise.resolve(supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()).then(({ data }) => {
       setIsAdmin(!!data);
-    }).catch(() => setIsAdmin(false));
+    }).catch(() => setIsAdmin(false)).finally(() => setAdminLoading(false));
   }, [user?.id, isDemoMode]);
 
   // Memoize the context value to prevent unnecessary re-renders of all consumers
   const value = useMemo<AuthContextType>(
-    () => ({ user, session, loading, isAdmin, signUp, signIn, signOut }),
-    [user, session, loading, isAdmin, signUp, signIn, signOut]
+    () => ({ user, session, loading, isAdmin, adminLoading, signUp, signIn, signOut }),
+    [user, session, loading, isAdmin, adminLoading, signUp, signIn, signOut]
   );
 
   return (
