@@ -171,9 +171,11 @@ export default function InstagramProfile() {
                   🔍 Lancer mon premier audit
                 </Button>
               </Link>
-              <Button variant="outline" className="rounded-pill" onClick={() => {}}>
-                ⏭️ Passer aux optimisations
-              </Button>
+              <Link to="/instagram/profil/nom">
+                <Button variant="outline" className="rounded-pill">
+                  ⏭️ Passer aux optimisations
+                </Button>
+              </Link>
             </div>
           </div>
         ) : (

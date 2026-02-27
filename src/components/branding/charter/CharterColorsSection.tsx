@@ -1,11 +1,13 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Slider } from "@/components/ui/slider";
-import { X, Plus, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
-import { generatePersonalizedPalettes, type Emotion, type Universe, type StyleAxis, type GeneratedPalette } from "@/lib/charter-palette-generator";
+import { X, Plus, Sparkles, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { type Emotion, type Universe, type StyleAxis, type GeneratedPalette } from "@/lib/charter-palette-generator";
 import { SECTOR_PALETTES, DEFAULT_SECTOR } from "@/lib/charter-palettes";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CharterData {
   color_primary: string;
@@ -52,6 +54,8 @@ export default function CharterColorsSection({
   sectorPalettesOpen,
   setSectorPalettesOpen,
 }: CharterColorsSectionProps) {
+  const [isGenerating, setIsGenerating] = useState(false);
+
   const addCustomColor = () => {
     if (data.custom_colors.length >= 5) {
       toast.info("Maximum 5 couleurs supplémentaires");
@@ -72,6 +76,29 @@ export default function CharterColorsSection({
       color_background: colors.background,
       color_text: colors.text,
     });
+  };
+
+  const handleGeneratePalettes = async () => {
+    if (!selectedUniverse || selectedEmotions.length === 0) return;
+    setIsGenerating(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke("palette-ai", {
+        body: { emotions: selectedEmotions, universe: selectedUniverse, styleAxes, userSector },
+      });
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+      if (result?.palettes?.length) {
+        setGeneratedPalettes(result.palettes);
+        toast.success("Palettes générées par l'IA !");
+      } else {
+        throw new Error("Aucune palette reçue");
+      }
+    } catch (e: any) {
+      console.error("Palette generation error:", e);
+      toast.error(e.message || "Erreur lors de la génération. Réessaie.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -226,15 +253,11 @@ export default function CharterColorsSection({
           <Button
             size="sm"
             className="w-full gap-2"
-            disabled={selectedEmotions.length === 0 || !selectedUniverse}
-            onClick={() => {
-              if (!selectedUniverse) return;
-              const palettes = generatePersonalizedPalettes(selectedEmotions, selectedUniverse, styleAxes);
-              setGeneratedPalettes(palettes);
-            }}
+            disabled={selectedEmotions.length === 0 || !selectedUniverse || isGenerating}
+            onClick={handleGeneratePalettes}
           >
-            <Sparkles className="h-4 w-4" />
-            Générer mes palettes
+            {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {isGenerating ? "Génération en cours…" : "Générer mes palettes"}
           </Button>
 
           {/* Generated palettes */}
@@ -250,6 +273,9 @@ export default function CharterColorsSection({
                       ))}
                     </div>
                     <p className="text-xs font-medium text-foreground">{palette.name}</p>
+                    {(palette as any).explanation && (
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">{(palette as any).explanation}</p>
+                    )}
                     <div className="flex gap-1.5">
                       <Button
                         size="sm"

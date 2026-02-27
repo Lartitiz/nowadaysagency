@@ -152,3 +152,6 @@ verify_jwt = false
 
 [functions.analyze-brand]
 verify_jwt = false
+
+[functions.palette-ai]
+verify_jwt = false
