@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { supabase } from "@/integrations/supabase/client";
@@ -256,6 +256,7 @@ export default function BrandCharterPage() {
   const initialTab = searchParams.get("tab") === "coaching" ? "coaching" : "fiche";
   const [activeTab, setActiveTab] = useState(initialTab);
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const queryClient = useQueryClient();
   const { data: charterHookData, isLoading: charterHookLoading } = useBrandCharter();
   const [data, setData] = useState<CharterData>(INITIAL);
@@ -361,6 +362,9 @@ export default function BrandCharterPage() {
       queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
     } else {
       payload.user_id = user.id;
+      if (workspaceId && workspaceId !== user.id) {
+        payload.workspace_id = workspaceId;
+      }
       const { data: inserted } = await (supabase.from("brand_charter") as any)
         .insert(payload)
         .select("id")
@@ -370,7 +374,7 @@ export default function BrandCharterPage() {
         queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
       }
     }
-  }, [user]);
+  }, [user, workspaceId]);
 
   const { saved, saving, triggerSave } = useAutoSave(saveFn, 1200, "brand_charter");
 
