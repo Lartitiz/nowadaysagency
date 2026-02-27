@@ -4,12 +4,12 @@ import { ClipboardList, Eye, Sparkles } from "lucide-react";
 import { type BrandingCompletion } from "@/lib/branding-completion";
 
 const GUIDED_STEPS = [
-  { day: 1, emoji: "🌱", title: "Qui es-tu ?", subtitle: "Mon histoire (storytelling)", desc: "Raconte ton point de départ. 10 minutes max.", route: "/branding/section?section=story", scoreKey: "storytelling" as const },
-  { day: 2, emoji: "👩‍💻", title: "Pour qui ?", subtitle: "Client·e idéal·e (persona)", desc: "Dessine le portrait de celle que tu veux aider.", route: "/branding/section?section=persona", scoreKey: "persona" as const },
-  { day: 3, emoji: "❤️", title: "Pourquoi toi ?", subtitle: "Proposition de valeur", desc: "Formule ce qui te rend unique.", route: "/branding/section?section=value_proposition", scoreKey: "proposition" as const },
-  { day: 4, emoji: "🎨", title: "Comment tu parles ?", subtitle: "Ton & style", desc: "Définis ta voix et tes combats.", route: "/branding/section?section=tone_style", scoreKey: "tone" as const },
-  { day: 5, emoji: "🍒", title: "De quoi tu parles ?", subtitle: "Stratégie de contenu", desc: "Pose tes piliers et ton concept créatif.", route: "/branding/section?section=content_strategy", scoreKey: "strategy" as const },
-  { day: 6, emoji: "🎁", title: "Qu'est-ce que tu vends ?", subtitle: "Mes offres", desc: "Formule tes offres de manière désirable.", route: "/branding/offres", scoreKey: null },
+  { day: 1, emoji: "🌱", title: "Qui es-tu ?", subtitle: "Mon histoire", desc: "Raconte ton projet en quelques lignes. L'IA structure tout.", route: "/branding/simple/story", scoreKey: "storytelling" as const },
+  { day: 2, emoji: "👩‍💻", title: "Pour qui ?", subtitle: "Client·e idéal·e", desc: "3 questions simples, l'IA crée ta fiche persona.", route: "/branding/simple/persona", scoreKey: "persona" as const },
+  { day: 3, emoji: "❤️", title: "Pourquoi toi ?", subtitle: "Proposition de valeur", desc: "Dis ce que tu fais, l'IA formule ta proposition.", route: "/branding/simple/proposition", scoreKey: "proposition" as const },
+  { day: 4, emoji: "🎨", title: "Comment tu parles ?", subtitle: "Ton & style", desc: "Choisis ta vibe, l'IA définit ton ton.", route: "/branding/simple/tone", scoreKey: "tone" as const },
+  { day: 5, emoji: "🍒", title: "De quoi tu parles ?", subtitle: "Stratégie de contenu", desc: "Générée automatiquement à partir de ton branding.", route: "/branding/simple/strategy", scoreKey: "strategy" as const },
+  { day: 6, emoji: "🎁", title: "Qu'est-ce que tu vends ?", subtitle: "Mes offres", desc: "Décris tes offres simplement, l'IA les structure.", route: "/branding/simple/offers", scoreKey: null },
   { day: 7, emoji: "📋", title: "Synthèse", subtitle: "Générer la synthèse branding", desc: "Ton Brand Book est prêt !", route: null, scoreKey: null },
 ];
 
