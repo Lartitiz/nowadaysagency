@@ -209,7 +209,7 @@ export default function ToneSimplePage() {
             </Button>
 
             <button
-              onClick={() => navigate("/branding/ton-style")}
+              onClick={() => navigate("/branding/ton")}
               className="block mx-auto text-xs text-muted-foreground hover:text-foreground transition-colors mt-2"
             >
               Remplir les champs détaillés →
@@ -273,7 +273,7 @@ export default function ToneSimplePage() {
             )}
 
             <button
-              onClick={() => navigate("/branding/ton-style")}
+              onClick={() => navigate("/branding/ton")}
               className="block mx-auto text-xs text-muted-foreground hover:text-foreground transition-colors mt-2"
             >
               Remplir les champs détaillés →
