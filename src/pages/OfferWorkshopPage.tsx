@@ -264,7 +264,7 @@ export default function OfferWorkshopPage() {
       <AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
         <div className="flex items-center justify-between mb-6">
-          <SubPageHeader breadcrumbs={[{ label: "Branding", to: "/branding" }, { label: "Mes offres", to: "/branding/offres" }]} currentLabel={offer?.name || "Offre"} />
+          <SubPageHeader breadcrumbs={[{ label: "Mon identité", to: "/branding" }, { label: "Mes offres", to: "/branding/offres" }]} currentLabel={offer?.name || "Offre"} />
           <Button variant="ghost" size="sm" onClick={deleteOffer} className="text-destructive hover:text-destructive">
             <Trash2 className="h-4 w-4" />
           </Button>

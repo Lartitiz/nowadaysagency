@@ -623,7 +623,7 @@ export default function BrandingPage() {
                       </Button>
                     )}
                     {canShowMirror && (
-                      <Button variant="outline" className="gap-2 text-sm sm:w-auto" onClick={runMirror}>🪞 Mon Branding Mirror</Button>
+                      <Button variant="outline" className="gap-2 text-sm sm:w-auto" onClick={runMirror}>🪞 Mon Mirror</Button>
                     )}
                   </div>
                 </>
@@ -636,7 +636,7 @@ export default function BrandingPage() {
       <Sheet open={mirrorOpen} onOpenChange={setMirrorOpen}>
         <SheetContent side="right" className="overflow-y-auto sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle className="text-lg font-display">🪞 Branding Mirror</SheetTitle>
+            <SheetTitle className="text-lg font-display">🪞 Mirror</SheetTitle>
           </SheetHeader>
           {mirrorLoading ? (
             <div className="py-6"><AiLoadingIndicator context="branding" isLoading={mirrorLoading} /></div>

@@ -59,7 +59,7 @@ const SECTION_CONFIGS: Record<Section, SectionConfig> = {
   story: {
     emoji: "📖",
     title: "Mon histoire",
-    parentLabel: "Branding",
+    parentLabel: "Mon identité",
     table: "storytelling",
     idField: "id",
     fields: [
@@ -78,7 +78,7 @@ const SECTION_CONFIGS: Record<Section, SectionConfig> = {
   persona: {
     emoji: "👩‍💻",
     title: "Mon client·e idéal·e",
-    parentLabel: "Branding",
+    parentLabel: "Mon identité",
     table: "persona",
     idField: "id",
     fields: [
@@ -99,7 +99,7 @@ const SECTION_CONFIGS: Record<Section, SectionConfig> = {
   tone_style: {
     emoji: "🎨",
     title: "Ma voix & mes combats",
-    parentLabel: "Branding",
+    parentLabel: "Mon identité",
     table: "brand_profile",
     fields: [
       { key: "voice_description", label: "Comment je parle" },
@@ -120,7 +120,7 @@ const SECTION_CONFIGS: Record<Section, SectionConfig> = {
   content_strategy: {
     emoji: "🍒",
     title: "Ma ligne éditoriale",
-    parentLabel: "Branding",
+    parentLabel: "Mon identité",
     table: "brand_strategy",
     fields: [
       { key: "step_1_hidden_facets", label: "Mes facettes cachées" },
@@ -347,7 +347,7 @@ export default function BrandingSectionPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
-        <SubPageHeader breadcrumbs={[{ label: "Branding", to: "/branding" }]} currentLabel={config.title} />
+        <SubPageHeader breadcrumbs={[{ label: "Mon identité", to: "/branding" }]} currentLabel={config.title} />
 
         <button
           onClick={() => navigate(-1)}

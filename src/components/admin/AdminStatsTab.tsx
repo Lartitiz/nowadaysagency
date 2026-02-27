@@ -234,7 +234,7 @@ function OverviewSection({ stats }: { stats: StatsData }) {
           sub={`${stats.paid_users} abonnées`}
           subColor="text-emerald-600"
         />
-        <KpiCard title="Score branding" value={stats.avg_branding_score} suffix="/100" />
+        <KpiCard title="Score identité" value={stats.avg_branding_score} suffix="/100" />
       </div>
 
       {/* Charts row 1 */}

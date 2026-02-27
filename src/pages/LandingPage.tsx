@@ -223,7 +223,7 @@ function FounderPhoto() {
 
 /* ─── Features grid data ─── */
 const FEATURES = [
-  { emoji: "🎨", title: "Branding", sub: "Définis ta marque", desc: "Mission, cible, ton, positionnement : pose les fondations de ta com' avec un atelier guidé pas à pas.", soon: false },
+  { emoji: "🎨", title: "Mon identité", sub: "Définis ta marque", desc: "Mission, cible, ton, positionnement : pose les fondations de ta com' avec un atelier guidé pas à pas.", soon: false },
   { emoji: "✍️", title: "Création de contenu", sub: "Trouve des idées et rédige", desc: "Formats, angles, accroches, rédaction guidée. De l'idée au post publié, sans panne d'inspiration.", soon: false },
   { emoji: "📅", title: "Calendrier éditorial", sub: "Planifie ta communication", desc: "Calendrier visuel avec tags d'objectif et jauge d'équilibre. Tu sais quoi poster et quand.", soon: false },
   { emoji: "📱", title: "Instagram", sub: "Optimise ton profil", desc: "Bio, stories à la une, audit de profil, routine d'engagement, prospection douce.", soon: false },

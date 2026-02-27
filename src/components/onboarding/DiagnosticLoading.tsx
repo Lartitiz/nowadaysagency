@@ -195,7 +195,7 @@ function mapEdgeResponseToDiagnostic(data: any): DiagnosticData {
   const totalScore = scores.total ?? 50;
 
   const channelScores: DiagnosticData["channelScores"] = [
-    { emoji: "🎨", label: "Branding", score: scores.branding ?? null },
+    { emoji: "🎨", label: "Identité", score: scores.branding ?? null },
   ];
   if (scores.instagram != null) channelScores.push({ emoji: "📱", label: "Instagram", score: scores.instagram });
   if (scores.website != null) channelScores.push({ emoji: "🌐", label: "Site web", score: scores.website });

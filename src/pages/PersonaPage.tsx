@@ -213,7 +213,7 @@ export default function PersonaPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Mon client·e idéal·e" useFromParam />
+        <SubPageHeader parentLabel="Mon identité" parentTo="/branding" currentLabel="Mon client·e idéal·e" useFromParam />
         {!coachingMode && <AuditRecommendationBanner />}
 
         {/* Coaching mode */}

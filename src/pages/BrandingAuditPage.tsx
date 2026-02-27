@@ -230,7 +230,7 @@ export default function BrandingAuditPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="container max-w-2xl mx-auto px-4 py-6 pb-24">
-        <SubPageHeader currentLabel="🔍 Audit de ta communication" parentLabel="Branding" parentTo="/branding" />
+        <SubPageHeader currentLabel="🔍 Audit de ta communication" parentLabel="Mon identité" parentTo="/branding" />
 
         {/* ─── Results section (shown first if audit exists) ─── */}
         {result && (

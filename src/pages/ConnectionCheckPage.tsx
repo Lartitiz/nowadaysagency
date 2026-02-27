@@ -48,10 +48,10 @@ const DEMO_CHECKS: Check[] = [
   { category: "Profil", name: "Profil chargé", status: "ok", detail: "OK" },
   { category: "Profil", name: "Prénom renseigné", status: "ok", detail: "Léa" },
   { category: "Profil", name: "Onboarding complété", status: "ok", detail: "Complété" },
-  { category: "Branding", name: "Branding existe", status: "ok", detail: "OK" },
-  { category: "Branding", name: 'Champ "positioning"', status: "ok", detail: "Rempli" },
-  { category: "Branding", name: 'Champ "mission"', status: "ok", detail: "Rempli" },
-  { category: "Branding", name: 'Champ "values"', status: "warning", detail: "Vide" },
+  { category: "Identité", name: "Identité de marque existe", status: "ok", detail: "OK" },
+  { category: "Identité", name: 'Champ "positioning"', status: "ok", detail: "Rempli" },
+  { category: "Identité", name: 'Champ "mission"', status: "ok", detail: "Rempli" },
+  { category: "Identité", name: 'Champ "values"', status: "warning", detail: "Vide" },
   { category: "Cible", name: "Persona défini", status: "ok", detail: "1 persona" },
   { category: "Offres", name: "Offres définies", status: "ok", detail: "2 offres" },
   { category: "Calendrier", name: "Posts avec date", status: "ok", detail: "5/5 ont une date" },
@@ -107,12 +107,12 @@ export default function ConnectionCheckPage() {
 
     // Branding
     const brand = hookBrandProfile as any;
-    results.push({ category: "Branding", name: "Branding existe", status: brand ? "ok" : "warning", detail: brand ? "OK" : "Pas de branding en base" });
+    results.push({ category: "Identité", name: "Identité de marque existe", status: brand ? "ok" : "warning", detail: brand ? "OK" : "Pas d'identité en base" });
     if (brand) {
       for (const field of ["positioning", "mission", "values", "tone_keywords"] as const) {
         const val = brand[field];
         const filled = val && (typeof val === "string" ? val.trim() !== "" : Array.isArray(val) ? (val as any[]).length > 0 : true);
-        results.push({ category: "Branding", name: `Champ "${field}"`, status: filled ? "ok" : "warning", detail: filled ? "Rempli" : "Vide" });
+        results.push({ category: "Identité", name: `Champ "${field}"`, status: filled ? "ok" : "warning", detail: filled ? "Rempli" : "Vide" });
       }
     }
 
