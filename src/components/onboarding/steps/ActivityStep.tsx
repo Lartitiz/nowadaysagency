@@ -18,7 +18,7 @@ export default function ActivityStep({ value, detailValue, onChange, onDetailCha
         <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Tu te reconnais dans quoi ?</h1>
         <p className="text-sm text-muted-foreground italic">choisis ce qui te correspond le mieux</p>
       </div>
-      <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1">
+      <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1" onPointerDown={e => e.stopPropagation()}>
         {ACTIVITY_SECTIONS.map(section => (
           <div key={section.label}>
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">{section.label}</p>
