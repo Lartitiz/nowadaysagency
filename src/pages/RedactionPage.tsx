@@ -252,7 +252,7 @@ export default function RedactionPage() {
                       <div className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
                     </div>
                   ) : (
-                    <div className="whitespace-pre-wrap text-sm text-foreground bg-muted/30 rounded-xl p-4 leading-relaxed">
+                    <div className="whitespace-pre-wrap text-sm text-foreground bg-muted/30 rounded-xl p-4 leading-relaxed" data-selection-enabled="true">
                       {structure}
                     </div>
                   )}
@@ -368,7 +368,7 @@ export default function RedactionPage() {
               )}
 
               {draft && !loadingDraft && (
-                <div className="whitespace-pre-wrap text-sm text-foreground bg-muted/30 rounded-xl p-4 leading-relaxed">
+                <div className="whitespace-pre-wrap text-sm text-foreground bg-muted/30 rounded-xl p-4 leading-relaxed" data-selection-enabled="true">
                   {draft}
                 </div>
               )}

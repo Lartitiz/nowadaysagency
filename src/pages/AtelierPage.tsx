@@ -515,7 +515,7 @@ export default function AtelierPage() {
           <div className="space-y-4 animate-fade-in">
             <h2 className="font-display text-xl font-bold">Tes idées</h2>
             {ideas.map((idea, idx) => (
-              <div key={idx} className="rounded-2xl border border-border bg-card p-5 space-y-3">
+              <div key={idx} className="rounded-2xl border border-border bg-card p-5 space-y-3" data-selection-enabled="true">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-display text-base font-bold text-foreground">{idea.titre}</h3>

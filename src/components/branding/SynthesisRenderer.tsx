@@ -881,7 +881,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
 
       {isStale && <StaleBanner onRegenerate={generateSynthesis} generating={generating} />}
 
-      <div ref={synthRef}>
+      <div ref={synthRef} data-selection-enabled="true">
         {section === "story" && <StorySynthesis data={localData} onSaveRecap={saveRecapField} onSaveDirect={saveDirectField} copyText={copyText} />}
         {section === "persona" && <PersonaSynthesis data={localData} onSavePortrait={saveRecapField} />}
         {section === "value_proposition" && <ValuePropSynthesis data={localData} onSaveDirect={saveDirectField} />}

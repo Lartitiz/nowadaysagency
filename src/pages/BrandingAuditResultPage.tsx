@@ -288,7 +288,7 @@ export default function BrandingAuditResultPage() {
           <p className="text-xs text-muted-foreground mb-6">Audit réalisé le {auditDate}</p>
         )}
 
-        <div className="space-y-6">
+        <div className="space-y-6" data-selection-enabled="true">
           {/* Score global */}
           <div className="rounded-2xl border border-border bg-card p-6 text-center">
             <p className={`text-5xl font-display font-bold ${scoreColor}`}>
