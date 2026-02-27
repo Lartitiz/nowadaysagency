@@ -6,9 +6,9 @@ import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 Deno.serve(async (req) => {
-  const cors = getCorsHeaders(req);
+  const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: cors });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
