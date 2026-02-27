@@ -4,8 +4,8 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
-  const cors = getCorsHeaders(req);
-  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  const corsHeaders = getCorsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { userId } = await authenticateRequest(req);

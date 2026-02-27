@@ -5,8 +5,8 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
-  const cors = getCorsHeaders(req);
-  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  const corsHeaders = getCorsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");

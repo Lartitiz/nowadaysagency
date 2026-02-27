@@ -7,9 +7,9 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, InspireAiSchema } from "../_shared/input-validators.ts";
 
 Deno.serve(async (req) => {
-  const cors = getCorsHeaders(req);
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: cors });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {

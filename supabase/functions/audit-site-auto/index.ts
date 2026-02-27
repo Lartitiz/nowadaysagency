@@ -211,8 +211,8 @@ function validateUrl(raw: string): { valid: boolean; url?: string; error?: strin
 /* ─── Main ─── */
 
 serve(async (req) => {
-  const cors = getCorsHeaders(req);
-  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const globalTimeout = setTimeout(() => {}, GLOBAL_TIMEOUT_MS);
 

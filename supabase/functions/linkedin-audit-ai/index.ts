@@ -12,8 +12,8 @@ import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 // Branding data now fetched via getUserContext
 
 serve(async (req) => {
-  const cors = getCorsHeaders(req);
-  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  const corsHeaders = getCorsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");

@@ -8,8 +8,8 @@ import { validateRequiredFields } from "../_shared/ai-validators.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 
 serve(async (req) => {
-  const cors = getCorsHeaders(req);
-  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");

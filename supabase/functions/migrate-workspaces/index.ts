@@ -20,9 +20,9 @@ const TABLES_TO_BACKFILL = [
 ];
 
 Deno.serve(async (req) => {
-  const cors = getCorsHeaders(req);
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: cors });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
