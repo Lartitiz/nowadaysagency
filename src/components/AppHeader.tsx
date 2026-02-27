@@ -463,7 +463,7 @@ function WorkspaceSwitcher({
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate("/clients")} className="gap-2 cursor-pointer">
+        <DropdownMenuItem onClick={() => navigate("/admin/coaching")} className="gap-2 cursor-pointer">
           <Plus className="h-3.5 w-3.5 shrink-0" />
           Nouveau client
         </DropdownMenuItem>

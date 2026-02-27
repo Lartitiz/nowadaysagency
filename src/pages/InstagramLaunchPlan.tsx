@@ -302,7 +302,7 @@ export default function InstagramLaunchPlan() {
       await supabase.from("launch_plan_contents").update({ sent_to_calendar: true }).eq("launch_id", launch.id);
 
       toast.success(`${slots.length} emplacements ajoutés au calendrier ! 🚀`);
-      navigate("/instagram/calendrier");
+      navigate("/calendrier?canal=instagram");
     } catch (e: any) {
       toast.error("Erreur lors de l'envoi au calendrier");
     } finally {

@@ -88,7 +88,7 @@ export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
         transition-all duration-[250ms] ease-out
         opacity-0 animate-reveal-up cursor-pointer"
       style={{ animationDelay: `${animationDelay}s`, animationFillMode: "forwards" }}
-      onClick={() => navigate("/instagram/engagement")}
+      onClick={() => navigate("/instagram/routine")}
     >
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-heading text-base font-bold text-foreground">
@@ -103,7 +103,7 @@ export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
             className="text-xs font-medium text-primary flex items-center gap-1"
             onClick={(e) => {
               e.stopPropagation();
-              navigate("/instagram/engagement");
+              navigate("/instagram/routine");
             }}
           >
             15 min · Go <ArrowRight className="h-3 w-3" />
