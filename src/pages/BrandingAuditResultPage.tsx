@@ -282,7 +282,7 @@ export default function BrandingAuditResultPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="container max-w-2xl mx-auto px-4 py-6 pb-24">
-        <SubPageHeader currentLabel="🔍 Résultats de l'audit" parentLabel="Branding" parentTo="/branding" />
+        <SubPageHeader currentLabel="🔍 Résultats de l'audit" parentLabel="Mon identité" parentTo="/branding" />
 
         {auditDate && (
           <p className="text-xs text-muted-foreground mb-6">Audit réalisé le {auditDate}</p>

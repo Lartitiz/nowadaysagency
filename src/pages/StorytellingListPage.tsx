@@ -123,7 +123,7 @@ export default function StorytellingListPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Mes storytellings" />
+        <SubPageHeader parentLabel="Mon identité" parentTo="/branding" currentLabel="Mes storytellings" />
 
         <h1 className="font-display text-[26px] font-bold text-foreground mb-1">Mes storytellings</h1>
         <p className="text-[15px] text-muted-foreground mb-6">

@@ -140,7 +140,7 @@ export default function PropositionRecapPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Ma proposition de valeur" />
+        <SubPageHeader parentLabel="Mon identité" parentTo="/branding" currentLabel="Ma proposition de valeur" />
         <div className="rounded-2xl bg-[hsl(var(--rose-pale))] border border-border p-6 text-center">
           <p className="text-foreground text-[15px] mb-4">💎 Complète d'abord ta proposition de valeur pour voir ta fiche récap.</p>
           <Link to="/branding/proposition"><Button className="rounded-pill">Commencer →</Button></Link>
@@ -162,7 +162,7 @@ export default function PropositionRecapPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[780px] px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Branding" parentTo="/branding" currentLabel="Ma proposition de valeur" />
+        <SubPageHeader parentLabel="Mon identité" parentTo="/branding" currentLabel="Ma proposition de valeur" />
 
         {/* Action bar */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">

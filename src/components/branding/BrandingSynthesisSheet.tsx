@@ -352,7 +352,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(28);
       pdf.setTextColor(COLOR_TITLE);
-      const headerName = userName || "Mon Branding";
+      const headerName = userName || "Mon identité";
       pdf.text(headerName, pageW / 2, y, { align: "center" });
       y += 10;
 

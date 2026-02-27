@@ -20,7 +20,7 @@ const DEMO_SCORE: ComScore = {
 };
 
 const COMPONENTS = [
-  { key: "branding" as const, label: "Branding", max: 35 },
+  { key: "branding" as const, label: "Identité", max: 35 },
   { key: "regularity" as const, label: "Régularité", max: 25 },
   { key: "engagement" as const, label: "Engagement", max: 15 },
   { key: "channels" as const, label: "Canaux", max: 10 },

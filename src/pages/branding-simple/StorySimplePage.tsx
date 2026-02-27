@@ -160,7 +160,7 @@ export default function StorySimplePage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
-        <SubPageHeader breadcrumbs={[{ label: "Branding", to: "/branding" }]} currentLabel="Mon histoire" />
+        <SubPageHeader breadcrumbs={[{ label: "Mon identité", to: "/branding" }]} currentLabel="Mon histoire" />
 
         <div className="flex items-center gap-3 mb-1">
           <span className="text-2xl">📖</span>

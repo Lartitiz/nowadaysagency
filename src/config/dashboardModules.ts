@@ -125,7 +125,7 @@ export interface SpaceModule {
 export const spaceModules: SpaceModule[] = [
   {
     id: "branding",
-    title: "Branding",
+    title: "Mon identité",
     subtitle: "Ta marque, ton positionnement, ta cible, tes offres.",
     icon: "🎨",
     gradient: "from-[hsl(var(--bento-lavande))] to-[hsl(340_100%_97%)]",

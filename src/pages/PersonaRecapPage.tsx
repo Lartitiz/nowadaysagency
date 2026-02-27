@@ -316,7 +316,7 @@ export default function PersonaRecapPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
-        <SubPageHeader breadcrumbs={[{ label: "Branding", to: "/branding" }, { label: "Ma cliente idéale", to: "/branding/section?section=persona" }]} currentLabel="Portrait" />
+        <SubPageHeader breadcrumbs={[{ label: "Mon identité", to: "/branding" }, { label: "Ma cliente idéale", to: "/branding/section?section=persona" }]} currentLabel="Portrait" />
 
         <div className="rounded-2xl border border-border bg-card p-8 text-center">
           <div className="w-16 h-16 rounded-full bg-rose-pale flex items-center justify-center mx-auto mb-4">
@@ -353,7 +353,7 @@ export default function PersonaRecapPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
-        <SubPageHeader breadcrumbs={[{ label: "Branding", to: "/branding" }, { label: "Ma cliente idéale", to: "/branding/section?section=persona" }]} currentLabel="Portrait" />
+        <SubPageHeader breadcrumbs={[{ label: "Mon identité", to: "/branding" }, { label: "Ma cliente idéale", to: "/branding/section?section=persona" }]} currentLabel="Portrait" />
 
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

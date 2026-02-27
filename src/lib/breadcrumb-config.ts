@@ -258,7 +258,7 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
   ]],
   ["/branding", [
     { label: "Accueil", path: "/dashboard" },
-    { label: "Branding" },
+    { label: "Mon identité" },
   ]],
 
   // ── LinkedIn ──

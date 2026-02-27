@@ -143,7 +143,7 @@ export default function StrategySimplePage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
-        <SubPageHeader breadcrumbs={[{ label: "Branding", to: "/branding" }]} currentLabel="Ma stratégie de contenu" />
+        <SubPageHeader breadcrumbs={[{ label: "Mon identité", to: "/branding" }]} currentLabel="Ma stratégie de contenu" />
 
         <div className="flex items-center gap-3 mb-1">
           <span className="text-2xl">🍒</span>
