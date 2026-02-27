@@ -148,6 +148,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       initialSessionHandled = true;
+    }).catch((error) => {
+      console.error("Failed to get initial session:", error);
+      if (!mounted) return;
+      setSession(null);
+      setUser(null);
+      setLoading(false);
+      initialSessionHandled = true;
     });
 
     // 3. Silently refresh session when tab becomes visible again (only after 5 min away)
