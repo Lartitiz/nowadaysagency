@@ -95,7 +95,8 @@ export default function InstagramAudit() {
   };
 
   const uploadFile = async (file: File, bucket: string, prefix: string) => {
-    const path = `${user!.id}/${prefix}-${sanitizeFileName(file.name)}`;
+    if (!user) throw new Error("Session expirée");
+    const path = `${user.id}/${prefix}-${sanitizeFileName(file.name)}`;
     const { error } = await supabase.storage.from(bucket).upload(path, file, { contentType: file.type, upsert: false });
     if (error) throw error;
     // For private buckets, create a signed URL (1 hour expiry)
