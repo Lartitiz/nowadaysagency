@@ -440,7 +440,7 @@ export default function InstagramStats() {
           <TabsList className="w-full justify-start">
             <TabsTrigger value="overview">📊 Vue d'ensemble</TabsTrigger>
             <TabsTrigger value="input">📝 Saisir mes stats</TabsTrigger>
-            <TabsTrigger value="ai">🧠 Analyse IA</TabsTrigger>
+            <TabsTrigger value="ai">🧠 Mon analyse</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-8">
@@ -480,7 +480,7 @@ export default function InstagramStats() {
               <div className="rounded-xl border border-border bg-card p-5 sm:p-6 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-display text-base font-bold text-foreground">
-                    🧠 Analyse IA — Basée sur tes {Math.min(allStats.length, 6)} derniers mois
+                    🧠 Mon analyse — Basée sur tes {Math.min(allStats.length, 6)} derniers mois
                   </h3>
                   <Button variant="ghost" size="sm" onClick={handleAnalyze} disabled={isGenerating} className="gap-1">
                     <RefreshCw className={`h-3.5 w-3.5 ${isGenerating ? "animate-spin" : ""}`} />
