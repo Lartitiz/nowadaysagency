@@ -35,22 +35,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [isDemoMode]);
 
   async function resolvePostAuthRoute(userId: string): Promise<string> {
-    const [{ data: profile }, { data: config }] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("onboarding_completed")
-        .eq("user_id", userId)
-        .maybeSingle(),
-      supabase
-        .from("user_plan_config")
-        .select("onboarding_completed, welcome_seen")
-        .eq("user_id", userId)
-        .maybeSingle(),
-    ]);
-    const onboardingDone = profile?.onboarding_completed && config?.onboarding_completed;
-    if (!onboardingDone) return "/onboarding";
-    if (!config?.welcome_seen) return "/welcome";
-    return "/dashboard";
+    try {
+      const [{ data: profile }, { data: config }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("onboarding_completed")
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabase
+          .from("user_plan_config")
+          .select("onboarding_completed, welcome_seen")
+          .eq("user_id", userId)
+          .maybeSingle(),
+      ]);
+      const onboardingDone = profile?.onboarding_completed && config?.onboarding_completed;
+      if (!onboardingDone) return "/onboarding";
+      if (!config?.welcome_seen) return "/welcome";
+      return "/dashboard";
+    } catch (err) {
+      console.error("Failed to check onboarding status:", err);
+      return "/dashboard";
+    }
   }
 
   useEffect(() => {
@@ -176,7 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               return refreshedSession.user;
             });
           }
-        });
+        }).catch(() => { /* silent: visibility refresh is best-effort */ });
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -214,9 +219,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAdmin(false);
       return;
     }
-    supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle().then(({ data }) => {
+    Promise.resolve(supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()).then(({ data }) => {
       setIsAdmin(!!data);
-    });
+    }).catch(() => setIsAdmin(false));
   }, [user?.id, isDemoMode]);
 
   // Memoize the context value to prevent unnecessary re-renders of all consumers
