@@ -3,7 +3,7 @@ import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,7 @@ export default function LinkedInPostGenerator() {
   const { user } = useAuth();
   const { toast } = useToast();
   const workspaceId = useWorkspaceId();
+  const profileUserId = useProfileUserId();
   const location = useLocation();
   const calendarState = location.state as {
     fromCalendar?: boolean;
@@ -203,20 +204,23 @@ export default function LinkedInPostGenerator() {
     }
 
     const dateStr = getNextOptimalDate();
+    const formattedDate = new Date(dateStr + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
     const { error } = await supabase.from("calendar_posts").insert({
-      user_id: user.id,
-      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+      user_id: profileUserId,
+      workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
       date: dateStr,
-      theme: sujet || "Post amélioré",
+      theme: sujet || "Post LinkedIn",
       angle: template || "improve",
       canal: "linkedin",
-      status: "idea",
+      status: "drafting",
       content_draft: text,
+      accroche: text.split(/[.\n]/)[0]?.trim()?.slice(0, 200) || "",
     });
     if (error) {
-      toast({ title: "Erreur", description: "Impossible d'ajouter au calendrier", variant: "destructive" });
+      console.error("calendar_posts insert error:", error);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Ajouté au calendrier LinkedIn !" });
+      toast({ title: `📅 Post enregistré dans ton calendrier au ${formattedDate}` });
     }
   };
 
