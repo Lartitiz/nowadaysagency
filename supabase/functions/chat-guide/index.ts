@@ -64,6 +64,13 @@ function parseSuggestions(text: string): { cleanText: string; suggestions: strin
   return { cleanText, suggestions };
 }
 
+/** Safely stringify any value (handles jsonb objects, strings, null) */
+function safeStr(val: any, maxLen = 80): string {
+  if (!val) return "";
+  if (typeof val === "string") return val.slice(0, maxLen);
+  try { return JSON.stringify(val).slice(0, maxLen); } catch { return String(val).slice(0, maxLen); }
+}
+
 /** Build enriched context block from user account */
 async function buildContext(sb: any, userId: string, workspaceId?: string): Promise<string> {
   const col = workspaceId ? "workspace_id" : "user_id";
@@ -76,8 +83,8 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   ] = await Promise.all([
     sb.from("profiles").select("prenom, activite, type_activite, channels, cible, probleme_principal, piliers, tons").eq("user_id", userId).maybeSingle(),
     sb.from("brand_profile").select("mission, positioning, tone_description, content_pillars, story_origin, combats, content_editorial_line").eq(col, val).maybeSingle(),
-    sb.from("storytelling").select("story_final").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    sb.from("persona").select("portrait_prenom, portrait").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    sb.from("storytelling").select("step_7_polished, step_6_full_story, title").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    sb.from("persona").select("portrait_prenom, portrait, description, frustrations_detail, desires").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     sb.from("brand_proposition").select("version_one_liner, version_complete").eq(col, val).maybeSingle(),
     sb.from("brand_profile").select("tone_keywords, tone_style").eq(col, val).maybeSingle(),
     sb.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept").eq(col, val).maybeSingle(),
@@ -85,18 +92,27 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
     sb.from("calendar_posts").select("id", { count: "exact", head: true }).eq(col, val),
     sb.from("branding_audits").select("score_global, created_at").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     sb.from("ai_usage").select("id", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
-    // Coaching sessions (last 3)
     sb.from("branding_coaching_sessions").select("section, extracted_data, completed_at").eq(col, val).order("updated_at", { ascending: false }).limit(3),
-    // Recent content drafts (last 3)
     sb.from("content_drafts").select("theme, canal, format, created_at").eq(col, val).order("created_at", { ascending: false }).limit(3),
-    // Upcoming calendar posts (next 5)
     sb.from("calendar_posts").select("theme, date, canal, format").eq(col, val).gte("date", new Date().toISOString().slice(0, 10)).order("date", { ascending: true }).limit(5),
   ]);
 
+  // Fallback: if workspace filter returned nothing for persona/story, retry with user_id
+  let persona = personaRes.data;
+  let story = storyRes.data;
+  if (!persona && workspaceId) {
+    const fallback = await sb.from("persona").select("portrait_prenom, portrait, description, frustrations_detail, desires").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    persona = fallback.data;
+    if (persona) console.log("[chat-guide] Persona found via user_id fallback");
+  }
+  if (!story && workspaceId) {
+    const fallback = await sb.from("storytelling").select("step_7_polished, step_6_full_story, title").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    story = fallback.data;
+    if (story) console.log("[chat-guide] Story found via user_id fallback");
+  }
+
   const profile = profileRes.data;
   const brand = brandRes.data;
-  const story = storyRes.data;
-  const persona = personaRes.data;
   const prop = propRes.data;
   const tone = toneRes.data;
   const strat = stratRes.data;
@@ -107,6 +123,16 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   const coachingSessions = coachingRes.data || [];
   const recentDrafts = contentDraftsRes.data || [];
   const upcomingPosts = upcomingPostsRes.data || [];
+
+  // Debug logging
+  console.log("=== DIAGNOSTIC BRANDING ===");
+  console.log("Filter:", col, "=", val, "(userId:", userId, ")");
+  console.log("Story raw:", JSON.stringify(story));
+  console.log("Persona raw:", JSON.stringify(persona));
+  console.log("Proposition raw:", JSON.stringify(prop));
+  console.log("Tone raw:", JSON.stringify(tone));
+  console.log("Strategy raw:", JSON.stringify(strat));
+  console.log("Offers raw:", JSON.stringify(offers));
 
   const lines: string[] = [];
 
@@ -147,13 +173,25 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   // ── Branding status ──
   lines.push("\nÉTAT DU BRANDING :");
   const sections: Record<string, string> = {};
-  sections["Histoire"] = story?.story_final ? (story.story_final as string).slice(0, 100) + "..." : "❌ Vide";
-  sections["Persona"] = persona?.portrait_prenom ? `${persona.portrait_prenom} : ${(persona.portrait || "").slice(0, 80)}...` : "❌ Vide";
+
+  // Story: use step_7_polished or step_6_full_story (story_final doesn't exist)
+  const storyText = story?.step_7_polished || story?.step_6_full_story;
+  sections["Histoire"] = storyText ? safeStr(storyText, 100) + "..." : "❌ Vide";
+
+  // Persona: portrait is JSONB, must use safeStr
+  const personaFilled = persona?.portrait_prenom || persona?.description || persona?.frustrations_detail || persona?.desires;
+  sections["Persona"] = personaFilled
+    ? `${persona.portrait_prenom || "Sans prénom"} : ${safeStr(persona.portrait || persona.description, 80)}...`
+    : "❌ Vide";
+
   sections["Proposition de valeur"] = prop?.version_one_liner || "❌ Vide";
-  sections["Ton & style"] = tone?.tone_style || (tone?.tone_keywords ? JSON.stringify(tone.tone_keywords).slice(0, 80) : "❌ Vide");
+  sections["Ton & style"] = tone?.tone_style || (tone?.tone_keywords ? safeStr(tone.tone_keywords, 80) : "❌ Vide");
   sections["Stratégie contenu"] = strat?.pillar_major || "❌ Vide";
   sections["Offres"] = offers && offers.length > 0 ? offers.map((o: any) => o.name).join(", ") : "❌ Vide";
+
+  console.log("=== BRANDING STATUS ===");
   for (const [name, v] of Object.entries(sections)) {
+    console.log(`${name}: ${v.startsWith("❌") ? "VIDE" : "REMPLIE"}`);
     lines.push(`- ${name} : ${v}`);
   }
 
