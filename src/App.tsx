@@ -28,6 +28,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const WelcomePage = lazy(() => import("./pages/WelcomePage"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const GuideComHome = lazy(() => import("./pages/GuideComHome"));
 const IdeasPage = lazy(() => import("./pages/IdeasPage"));
 const Profile = lazy(() => import("./pages/Profile"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
@@ -182,7 +183,8 @@ function AnimatedRoutes() {
               <Route path="/now-studio" element={<Navigate to="/studio/discover" replace />} />
               <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
               <Route path="/welcome" element={<ProtectedRoute><WelcomePage /></ProtectedRoute>} />
-              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute><GuideComHome /></ProtectedRoute>} />
+              <Route path="/dashboard/complet" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/idees" element={<ProtectedRoute><IdeasPage /></ProtectedRoute>} />
               <Route element={<ErrorBoundaryLayout />}>
                 <Route path="/branding" element={<ProtectedRoute><BrandingPage /></ProtectedRoute>} />
