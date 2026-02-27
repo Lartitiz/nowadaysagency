@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
 import { useDemoContext } from "@/contexts/DemoContext";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
+import { DashboardViewToggle, getDashboardPreference } from "@/components/dashboard/DashboardViewToggle";
 import {
   Target, Compass, MessageCircle, ArrowRight, BookOpen, Users, Search,
   ClipboardCheck, LayoutGrid, PenLine, Palette, Layers, CalendarDays,
@@ -73,6 +74,13 @@ export default function GuideComHome() {
   const navigate = useNavigate();
   const { recommendation, profileSummary, isLoading } = useGuideRecommendation();
 
+  // Redirect to complete view if user preference is saved (skip in demo)
+  useEffect(() => {
+    if (!isDemoMode && getDashboardPreference() === "complete") {
+      navigate("/dashboard/complet", { replace: true });
+    }
+  }, [isDemoMode, navigate]);
+
   if (isLoading) return <GuideSkeleton />;
 
   return (
@@ -85,6 +93,11 @@ export default function GuideComHome() {
         initial="hidden"
         animate="show"
       >
+        {/* ─── Toggle ─── */}
+        <motion.div variants={itemVariants} className="flex justify-end mb-4">
+          <DashboardViewToggle current="guide" />
+        </motion.div>
+
         {/* ─── Header accueil ─── */}
         <motion.div variants={itemVariants} className="mb-8 sm:mb-10">
           <h1

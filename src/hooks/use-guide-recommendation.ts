@@ -195,21 +195,22 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
     }> => {
       // Demo mode
       if (isDemoMode && demoData) {
+        // Demo: show P5 (branding advanced but calendar empty) for realistic experience
         const bc: BrandingCompletion = {
           storytelling: 100,
-          persona: 0,
-          proposition: 20,
-          tone: 15,
-          strategy: 10,
+          persona: 100,
+          proposition: 80,
+          tone: 60,
+          strategy: 50,
           charter: 0,
-          total: demoData.branding.completion ?? 24,
+          total: 62,
         };
         return {
-          recommendation: buildRecommendation(true, bc, demoData.calendar_posts.length, null),
+          recommendation: buildRecommendation(true, bc, 0, null),
           profileSummary: {
             firstName: demoData.profile.first_name,
             brandingSections: countFilledSections(bc),
-            calendarPosts: demoData.calendar_posts.length,
+            calendarPosts: 0,
             lastAuditDate: null,
             onboardingComplete: true,
           },
