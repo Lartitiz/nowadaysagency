@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +40,10 @@ const MAX_ADJUSTMENTS = 3;
 type Phase = "intro" | "questions" | "diagnostic" | "adjust" | "done";
 
 export default function CoachingFlow({ module, recId, conseil, onComplete, onSkip }: CoachingFlowProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    setTimeout(() => containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  }, []);
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -303,7 +307,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
 
   if (loading && phase === "intro") {
     return (
-      <div className="rounded-2xl border border-primary/20 bg-[hsl(var(--rose-pale))] p-8 text-center">
+      <div ref={containerRef} className="rounded-2xl border border-primary/20 bg-[hsl(var(--rose-pale))] p-8 text-center pt-5">
         <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
         <p className="text-sm text-muted-foreground">Préparation du coaching…</p>
       </div>
@@ -311,7 +315,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
   }
 
   return (
-    <div className="space-y-4">
+    <div ref={containerRef} className="space-y-4 pt-5">
       {/* Header banner */}
       <div className="rounded-xl border border-primary/20 bg-[hsl(var(--rose-pale))] p-4 flex items-start gap-3">
         <Lightbulb className="h-5 w-5 text-primary shrink-0 mt-0.5" />
