@@ -62,7 +62,7 @@ function getNextEmptySection(bc: BrandingCompletion) {
 const FALLBACK: GuideRecommendation = {
   title: "Raconte-moi ton histoire",
   explanation:
-    "Avant de créer du contenu, il faut poser les fondations. Ton storytelling, c'est ce qui va te différencier. On commence par là.",
+    "Bon, on part de zéro et c'est très bien. La première étape : raconter ton histoire. C'est la fondation de tout le reste. Sans ça, ta com' ressemblera à toutes les autres.",
   ctaLabel: "C'est parti !",
   ctaRoute: "/branding/storytelling/new",
   icon: "BookOpen",
@@ -86,7 +86,7 @@ function buildRecommendation(
     return {
       title: "Termine ton diagnostic",
       explanation:
-        "Tu as commencé à me raconter ton projet mais on n'a pas fini. Ton diagnostic va te donner un score et des priorités claires pour ta com'.",
+        "On avait commencé à discuter de ton projet et je suis restée sur ma faim ! Ton diagnostic va te donner une vraie feuille de route. Promis, ça prend 10 minutes max.",
       ctaLabel: "Reprendre →",
       ctaRoute: "/onboarding",
       icon: "ClipboardCheck",
@@ -106,7 +106,7 @@ function buildRecommendation(
     return {
       title: "Clarifie qui est ton·ta client·e idéal·e",
       explanation:
-        "Tu as une super histoire. Maintenant il faut savoir à qui tu la racontes. Sans persona, tes contenus parlent dans le vide.",
+        "Ton histoire est posée, bravo ! Mais là il faut qu'on parle de l'essentiel : à qui tu t'adresses. Parce que parler à tout le monde, c'est parler à personne. *(Oui, je sais, on te l'a déjà dit. Mais cette fois, on le fait pour de vrai.)*",
       ctaLabel: "C'est parti !",
       ctaRoute: "/branding/persona",
       icon: "Users",
@@ -123,7 +123,7 @@ function buildRecommendation(
     const remaining = 6 - sectionsFilled;
     return {
       title: "Continue à structurer ta com'",
-      explanation: `Tu avances bien ! Il te reste ${remaining} section${remaining > 1 ? "s" : ""} à compléter. La prochaine : ${next.label}.`,
+      explanation: `Tu avances bien, il te reste ${remaining} section${remaining > 1 ? "s" : ""}. Le truc c'est que chaque section nourrit les autres : ton persona influence ton ton, ton ton influence tes contenus... On continue ?`,
       ctaLabel: "C'est parti !",
       ctaRoute: next.route,
       icon: "Layers",
@@ -139,7 +139,7 @@ function buildRecommendation(
     return {
       title: "Planifie ta première semaine de contenus",
       explanation:
-        "Ton branding est en bonne voie. Le truc maintenant, c'est de passer à l'action. On planifie ensemble tes premiers posts ?",
+        "Ton branding prend forme et c'est top. Sauf que la plus belle stratégie du monde ne sert à rien si elle reste dans un tiroir. On planifie tes premiers contenus ? *(Spoiler : c'est plus simple que tu crois.)*",
       ctaLabel: "C'est parti !",
       ctaRoute: "/calendrier",
       icon: "CalendarPlus",
@@ -155,7 +155,7 @@ function buildRecommendation(
     return {
       title: "Fais le point sur ton Instagram",
       explanation:
-        "Tu crées du contenu, c'est top. Mais est-ce que ça porte ses fruits ? Un petit audit va te montrer ce qui marche et ce qu'on peut améliorer.",
+        "Tu publies, c'est déjà énorme. Maintenant la question : est-ce que ça marche ? Un petit check-up de ton Instagram va te donner des pistes concrètes pour t'améliorer.",
       ctaLabel: "C'est parti !",
       ctaRoute: "/instagram/audit",
       icon: "BarChart3",
@@ -170,7 +170,7 @@ function buildRecommendation(
   return {
     title: "Crée ton prochain contenu",
     explanation:
-      "Ta com' est bien structurée. Le plus important maintenant : la régularité. On génère ton prochain post ?",
+      "Ta com' est bien calée. Le secret maintenant, c'est la régularité. Pas la perfection, la régularité. On crée ton prochain contenu ?",
     ctaLabel: "C'est parti !",
     ctaRoute: "/creer",
     icon: "Sparkles",
