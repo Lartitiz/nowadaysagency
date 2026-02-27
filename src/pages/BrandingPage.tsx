@@ -18,6 +18,7 @@ import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet
 import GuidedTimeline from "@/components/branding/GuidedTimeline";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import BrandingImportBlock from "@/components/branding/BrandingImportBlock";
+import BrandingImport from "@/components/branding/BrandingImport";
 import BrandingImportReview from "@/components/branding/BrandingImportReview";
 import CoachingFlow from "@/components/CoachingFlow";
 import type { BrandingExtraction } from "@/lib/branding-import-types";
@@ -155,6 +156,10 @@ export default function BrandingPage() {
   const [importPhase, setImportPhase] = useState<'idle' | 'reviewing'>('idle');
   const [importExtraction, setImportExtraction] = useState<BrandingExtraction | null>(null);
   const [showImportBlock, setShowImportBlock] = useState(false);
+  const [skipImport, setSkipImport] = useState(() => {
+    try { return localStorage.getItem("branding_skip_import") === "true"; } catch { return false; }
+  });
+  const [importAnalyzing, setImportAnalyzing] = useState(false);
   const [lastAudit, setLastAudit] = useState<any>(null);
   const [hasEnoughData, setHasEnoughData] = useState(false);
   const [hasProposition, setHasProposition] = useState(false);
@@ -388,6 +393,36 @@ export default function BrandingPage() {
     }
     return card.recapRoute;
   };
+
+  // Count how many sections have >0 completion
+  const filledSections = (["storytelling", "persona", "proposition", "tone", "strategy", "charter"] as const)
+    .filter((k) => completion[k] > 0).length;
+  const showNewImport = filledSections < 2 && !skipImport && !isDemoMode && !coachingActive;
+
+  if (showNewImport) {
+    return (
+      <div className="min-h-screen bg-[hsl(var(--rose-pale))]">
+        <AppHeader />
+        <main className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
+          <BrandingImport
+            loading={importAnalyzing}
+            onAnalyze={(data) => {
+              setImportAnalyzing(true);
+              // For now just show loading state then stop after 2s
+              setTimeout(() => {
+                setImportAnalyzing(false);
+                toast.info("L'analyse IA sera connectée au prochain prompt !");
+              }, 2000);
+            }}
+            onSkip={() => {
+              setSkipImport(true);
+              localStorage.setItem("branding_skip_import", "true");
+            }}
+          />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
