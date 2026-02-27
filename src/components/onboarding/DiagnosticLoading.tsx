@@ -1,38 +1,49 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { type DiagnosticData, computeDiagnosticData, DEMO_DIAGNOSTIC } from "@/lib/diagnostic-data";
-
-const LOADING_PHRASES = [
-  "Je regarde ta bio...",
-  "J'analyse tes derniers posts...",
-  "Je scanne les pages de ton site...",
-  "Je calcule ton score...",
-  "Je prépare tes recommandations...",
-];
 
 interface Props {
   hasInstagram: boolean;
   hasWebsite: boolean;
   hasDocuments: boolean;
   isDemoMode: boolean;
-  answers: { canaux: string[]; instagram: string; website: string };
+  answers: { canaux: string[]; instagram: string; website: string; activite?: string; activity_type?: string; objectif?: string; blocage?: string; temps?: string };
   brandingAnswers: {
     positioning: string; mission: string; target_description: string;
-    tone_keywords: string[]; offers: { name: string }[]; values: string[];
+    tone_keywords: string[]; offers: { name: string; price?: string; description?: string }[]; values: string[];
   };
+  uploadedFileIds?: string[];
   onReady: (data: DiagnosticData) => void;
+}
+
+interface ProgressMessage {
+  text: string;
+  delay: number;
+}
+
+function buildProgressMessages(hasInstagram: boolean, hasWebsite: boolean, hasDocuments: boolean): ProgressMessage[] {
+  const msgs: ProgressMessage[] = [];
+  if (hasInstagram) msgs.push({ text: "J'analyse ton profil Instagram...", delay: 2000 });
+  if (hasWebsite) msgs.push({ text: "Je lis les pages de ton site...", delay: 5000 });
+  if (hasDocuments) msgs.push({ text: "Je parcours tes documents...", delay: 8000 });
+  msgs.push({ text: "Je prépare ton diagnostic personnalisé...", delay: 12000 });
+  msgs.push({ text: "Encore un instant, j'affine mes recommandations...", delay: 20000 });
+  return msgs;
 }
 
 export default function DiagnosticLoading({
   hasInstagram, hasWebsite, hasDocuments, isDemoMode,
-  answers, brandingAnswers, onReady,
+  answers, brandingAnswers, uploadedFileIds, onReady,
 }: Props) {
-  const [phraseIdx, setPhraseIdx] = useState(0);
+  const { user } = useAuth();
+  const [currentMessage, setCurrentMessage] = useState("J'analyse ta communication...");
   const [checks, setChecks] = useState({ ig: false, web: false, docs: false });
+  const calledRef = useRef(false);
 
   useEffect(() => {
     if (isDemoMode) {
-      // Show animated loading in demo too, but faster (3s)
       const timers = [
         setTimeout(() => setChecks(c => ({ ...c, ig: true })), 500),
         setTimeout(() => setChecks(c => ({ ...c, web: true })), 1000),
@@ -42,25 +53,80 @@ export default function DiagnosticLoading({
       return () => timers.forEach(clearTimeout);
     }
 
-    const timers = [
-      setTimeout(() => setChecks(c => ({ ...c, docs: true })), 1000),
-      setTimeout(() => setChecks(c => ({ ...c, web: true })), 1800),
-      setTimeout(() => setChecks(c => ({ ...c, ig: true })), 2500),
+    if (calledRef.current) return;
+    calledRef.current = true;
+
+    // Smart progress messages
+    const progressMsgs = buildProgressMessages(hasInstagram, hasWebsite, hasDocuments);
+    const msgTimers = progressMsgs.map(m =>
+      setTimeout(() => setCurrentMessage(m.text), m.delay)
+    );
+
+    // Check animations
+    const checkTimers = [
+      setTimeout(() => setChecks(c => ({ ...c, docs: true })), 3000),
+      setTimeout(() => setChecks(c => ({ ...c, web: true })), 6000),
+      setTimeout(() => setChecks(c => ({ ...c, ig: true })), 9000),
     ];
 
-    const data = computeDiagnosticData(answers, brandingAnswers);
-    timers.push(setTimeout(() => onReady(data), 3500));
+    // Call edge function
+    callDeepDiagnostic();
 
-    return () => timers.forEach(clearTimeout);
+    async function callDeepDiagnostic() {
+      try {
+        const body = {
+          userId: user?.id,
+          websiteUrl: answers.website || null,
+          instagramHandle: answers.instagram || null,
+          linkedinUrl: null, // Will be added in batch 3
+          documentIds: uploadedFileIds || [],
+          profile: {
+            activity: answers.activite || "",
+            activityType: answers.activity_type || "",
+            objective: answers.objectif || "",
+            blocker: answers.blocage || "",
+            weeklyTime: answers.temps || "",
+          },
+          freeformAnswers: {
+            positioning: brandingAnswers.positioning || "",
+            mission: brandingAnswers.mission || "",
+            target_description: brandingAnswers.target_description || "",
+          },
+        };
+
+        const { data, error } = await supabase.functions.invoke("deep-diagnostic", { body });
+
+        if (error || !data) {
+          console.warn("Edge function failed, using fallback:", error);
+          useFallback();
+          return;
+        }
+
+        // Map edge function response to DiagnosticData
+        const result = mapEdgeResponseToDiagnostic(data);
+
+        // Mark all checks as done
+        setChecks({ ig: true, web: true, docs: true });
+        // Small delay for animation
+        setTimeout(() => onReady(result), 500);
+      } catch (err) {
+        console.warn("Deep diagnostic error, using fallback:", err);
+        useFallback();
+      }
+    }
+
+    function useFallback() {
+      const data = computeDiagnosticData(answers, brandingAnswers);
+      setChecks({ ig: true, web: true, docs: true });
+      setTimeout(() => onReady(data), 1000);
+    }
+
+    return () => {
+      msgTimers.forEach(clearTimeout);
+      checkTimers.forEach(clearTimeout);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPhraseIdx(p => (p + 1) % LOADING_PHRASES.length);
-    }, isDemoMode ? 1000 : 2500);
-    return () => clearInterval(interval);
-  }, [isDemoMode]);
 
   const getStatus = (key: "ig" | "web" | "docs", has: boolean) => {
     if (!has) return "—";
@@ -81,14 +147,14 @@ export default function DiagnosticLoading({
 
       <AnimatePresence mode="wait">
         <motion.p
-          key={phraseIdx}
+          key={currentMessage}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.3 }}
           className="text-sm text-muted-foreground italic"
         >
-          {LOADING_PHRASES[phraseIdx]}
+          {currentMessage}
         </motion.p>
       </AnimatePresence>
 
@@ -103,6 +169,54 @@ export default function DiagnosticLoading({
       </div>
     </div>
   );
+}
+
+function mapEdgeResponseToDiagnostic(data: any): DiagnosticData {
+  const analysis = data.analysis || data;
+
+  const strengths = (analysis.strengths || []).map((s: any) => ({
+    title: s.title || s,
+    detail: s.detail || "",
+    source: s.source || "profile",
+  }));
+
+  const weaknesses = (analysis.weaknesses || []).map((w: any) => ({
+    title: w.title || "",
+    why: w.detail || w.why || "",
+    detail: w.detail || "",
+    source: w.source || "profile",
+    fix_hint: w.fix_hint || "",
+  }));
+
+  const scores = analysis.scores || {};
+  const totalScore = scores.total ?? 50;
+
+  const channelScores: DiagnosticData["channelScores"] = [
+    { emoji: "🎨", label: "Branding", score: scores.branding ?? null },
+  ];
+  if (scores.instagram != null) channelScores.push({ emoji: "📱", label: "Instagram", score: scores.instagram });
+  if (scores.website != null) channelScores.push({ emoji: "🌐", label: "Site web", score: scores.website });
+  if (scores.linkedin != null) channelScores.push({ emoji: "💼", label: "LinkedIn", score: scores.linkedin });
+
+  const priorities = (analysis.priorities || []).map((p: any) => ({
+    title: p.title || "",
+    channel: (p.route || "").includes("instagram") ? "instagram" : (p.route || "").includes("linkedin") ? "linkedin" : (p.route || "").includes("site") ? "website" : "branding",
+    impact: p.impact || "medium",
+    time: p.time || "",
+    route: p.route || "/dashboard",
+    why: p.why || "",
+  }));
+
+  return {
+    totalScore,
+    summary: analysis.summary || undefined,
+    strengths,
+    weaknesses,
+    priorities: priorities.slice(0, 3),
+    channelScores,
+    scores,
+    branding_prefill: analysis.branding_prefill || undefined,
+  };
 }
 
 function CheckLine({ emoji, label, status }: { emoji: string; label: string; status: string }) {

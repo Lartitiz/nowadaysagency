@@ -1,15 +1,54 @@
+export interface DiagnosticStrength {
+  title: string;
+  detail?: string;
+  source?: "instagram" | "website" | "linkedin" | "documents" | "profile";
+}
+
+export interface DiagnosticWeakness {
+  title: string;
+  why: string;
+  detail?: string;
+  source?: "instagram" | "website" | "linkedin" | "documents" | "profile";
+  fix_hint?: string;
+}
+
+export interface DiagnosticScores {
+  total: number;
+  branding: number;
+  instagram?: number | null;
+  website?: number | null;
+  linkedin?: number | null;
+}
+
 export interface DiagnosticData {
   totalScore: number;
-  strengths: string[];
-  weaknesses: { title: string; why: string }[];
+  summary?: string;
+  strengths: (string | DiagnosticStrength)[];
+  weaknesses: DiagnosticWeakness[];
   priorities: {
     title: string;
     channel: string;
     impact: "high" | "medium" | "low";
     time: string;
     route: string;
+    why?: string;
   }[];
   channelScores: { emoji: string; label: string; score: number | null }[];
+  scores?: DiagnosticScores;
+  branding_prefill?: {
+    positioning?: string | null;
+    mission?: string | null;
+    target_description?: string | null;
+    tone_keywords?: string[];
+    values?: string[];
+    offers?: { name: string; price: string; description: string }[];
+  };
+}
+
+/** Helper: normalize a strength to always have title + detail */
+export function normalizeStrength(s: string | DiagnosticStrength): DiagnosticStrength {
+  if (typeof s === "string") return { title: s };
+  return s;
 }
 
 export function computeDiagnosticData(
@@ -47,7 +86,7 @@ export function computeDiagnosticData(
   if (brandingAnswers.tone_keywords?.length >= 2) strengths.push("Ton ton de voix est défini — ta com' sera cohérente");
   if (answers.canaux.length > 1 && !answers.canaux.includes("none")) strengths.push("Tu es présente sur plusieurs canaux");
 
-  const weaknesses: { title: string; why: string }[] = [];
+  const weaknesses: DiagnosticWeakness[] = [];
   if (hasIg && answers.instagram) weaknesses.push({ title: "Ton profil Instagram n'est pas encore optimisé", why: "Sans un profil travaillé, tu perds des visiteurs qui te découvrent." });
   if (!hasNl) weaknesses.push({ title: "Tu n'as pas de newsletter", why: "Ta liste email, c'est le seul endroit qu'Instagram ne peut pas te reprendre." });
   if (hasWeb && !answers.website) weaknesses.push({ title: "Ton site web n'est pas renseigné", why: "Sans site, tu dépends à 100% des réseaux sociaux." });
@@ -75,6 +114,7 @@ export function computeDiagnosticData(
     weaknesses: weaknesses.slice(0, 4),
     priorities: priorities.slice(0, 3),
     channelScores,
+    scores: { total: totalScore, branding: brandingScore, instagram: igScore, website: webScore, linkedin: null },
   };
 }
 
@@ -88,23 +128,23 @@ export function getScoreMessage(score: number): string {
 
 export const DEMO_DIAGNOSTIC: DiagnosticData = {
   totalScore: 62,
+  summary: "Tu es photographe portraitiste pour entrepreneures. Tes photos sont magnifiques et ton œil est unique — tu ne fais pas juste des photos, tu captures la confiance. Ton positionnement est clair dans ta tête, mais il ne ressort pas assez dans ta communication en ligne.",
   strengths: [
-    "Ton positionnement est clair et différenciant",
-    "Tes photos sont de qualité pro (forcément 😉)",
-    "Tu as déjà un site web actif",
-    "Ton ton est authentique et cohérent",
+    { title: "Ton positionnement est clair et différenciant", detail: "\"Photographe de confiance\" — tu ne vends pas des photos, tu vends une transformation. C'est rare et puissant.", source: "profile" },
+    { title: "Tes photos sont de qualité pro", detail: "Le coaching posture inclus dans tes séances te différencie de 99% des photographes.", source: "instagram" },
+    { title: "Tu as déjà un site web actif", detail: "Ton site existe et montre ton travail. C'est une base solide qu'on va optimiser.", source: "website" },
+    { title: "Ton ton est authentique et cohérent", detail: "Tu parles comme une amie qui sait de quoi elle parle. C'est exactement le bon registre.", source: "profile" },
   ],
   weaknesses: [
-    { title: "Ta bio Instagram manque de mots-clés", why: "Les gens cherchent 'photographe portrait femmes', pas juste 'photographe'. Ajoute ces mots." },
-    { title: "Tu postes de façon irrégulière", why: "2 posts en 3 semaines puis 5 en une semaine. L'algorithme préfère la régularité." },
-    { title: "Pas de CTA dans tes légendes", why: "Tes légendes sont belles mais ne disent jamais quoi faire ensuite." },
-    { title: "Pas de page Témoignages sur ton site", why: "La preuve sociale, c'est ce qui transforme les visiteuses en clientes." },
-    { title: "Newsletter pas en place", why: "C'est le canal qui t'appartient. Instagram peut changer ses règles demain." },
+    { title: "Ta bio Instagram manque de mots-clés", why: "Les gens cherchent 'photographe portrait femmes', pas juste 'photographe'. Ajoute ces mots.", detail: "Ta bio actuelle dit seulement \"📸 Photographe\" — c'est trop vague pour l'algorithme.", source: "instagram", fix_hint: "Ajoute ta spécialité + ta ville dans ta bio." },
+    { title: "Tu postes de façon irrégulière", why: "2 posts en 3 semaines puis 5 en une semaine. L'algorithme préfère la régularité.", source: "instagram", fix_hint: "Planifie 3 posts/semaine dans ton calendrier." },
+    { title: "Pas de CTA dans tes légendes", why: "Tes légendes sont belles mais ne disent jamais quoi faire ensuite.", source: "instagram", fix_hint: "Termine chaque légende par une question ou un appel à l'action." },
+    { title: "Pas de page Témoignages sur ton site", why: "La preuve sociale, c'est ce qui transforme les visiteuses en clientes.", source: "website", fix_hint: "Crée une section témoignages avec 3-5 retours clients." },
   ],
   priorities: [
-    { title: "Optimise ta bio Instagram", channel: "instagram", impact: "high", time: "5 min", route: "/instagram/profil/bio" },
-    { title: "Crée un calendrier de publication régulier", channel: "instagram", impact: "high", time: "20 min", route: "/calendrier" },
-    { title: "Ajoute des CTA dans tes légendes", channel: "instagram", impact: "medium", time: "2 min/post", route: "/creer" },
+    { title: "Optimise ta bio Instagram", channel: "instagram", impact: "high", time: "5 min", route: "/instagram/profil/bio", why: "C'est la première chose que voient tes visiteurs." },
+    { title: "Crée un calendrier de publication régulier", channel: "instagram", impact: "high", time: "20 min", route: "/calendrier", why: "La régularité est le facteur n°1 de croissance." },
+    { title: "Ajoute des CTA dans tes légendes", channel: "instagram", impact: "medium", time: "2 min/post", route: "/creer", why: "Sans CTA, tes posts ne convertissent pas." },
   ],
   channelScores: [
     { emoji: "📱", label: "Instagram", score: 58 },
@@ -112,4 +152,5 @@ export const DEMO_DIAGNOSTIC: DiagnosticData = {
     { emoji: "✉️", label: "Newsletter", score: 12 },
     { emoji: "🎨", label: "Branding", score: 85 },
   ],
+  scores: { total: 62, branding: 85, instagram: 58, website: 71, linkedin: null },
 };
