@@ -105,6 +105,12 @@
         try{localStorage.clear();}catch(e){}
         window.location.reload(true);
       }
+      // Auto-reload on chunk loading failures after new deployments
+      window.addEventListener('vite:preloadError', function(e) {
+        e.preventDefault();
+        console.warn('Chunk loading failed, reloading...', e.payload);
+        window.location.reload(true);
+      });
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
