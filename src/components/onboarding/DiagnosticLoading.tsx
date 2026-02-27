@@ -9,7 +9,7 @@ interface Props {
   hasWebsite: boolean;
   hasDocuments: boolean;
   isDemoMode: boolean;
-  answers: { canaux: string[]; instagram: string; website: string; activite?: string; activity_type?: string; objectif?: string; blocage?: string; temps?: string };
+  answers: { canaux: string[]; instagram: string; website: string; linkedin?: string; activite?: string; activity_type?: string; objectif?: string; blocage?: string; temps?: string };
   brandingAnswers: {
     positioning: string; mission: string; target_description: string;
     tone_keywords: string[]; offers: { name: string; price?: string; description?: string }[]; values: string[];
@@ -78,7 +78,7 @@ export default function DiagnosticLoading({
           userId: user?.id,
           websiteUrl: answers.website || null,
           instagramHandle: answers.instagram || null,
-          linkedinUrl: null, // Will be added in batch 3
+          linkedinUrl: (answers as any).linkedin || null,
           documentIds: uploadedFileIds || [],
           profile: {
             activity: answers.activite || "",

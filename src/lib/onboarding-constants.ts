@@ -73,4 +73,4 @@ export const VALUE_CHIPS = [
   "Beauté", "Transmission", "Inclusivité", "Audace",
 ];
 
-export const TOTAL_STEPS = 18; // 0=welcome, 1=promise, 2-9=phase1, 10=transition_branding, 11-16=branding, 17=import, 18=building
+export const TOTAL_STEPS = 11; // 0=welcome, 1=prenom+activite, 2=activity_type, 3=links+docs, 4=objectif, 5=blocage, 6=temps, 7-9=affinage, 10=diagnostic_loading, (11=diagnostic_view via step>TOTAL_STEPS)
