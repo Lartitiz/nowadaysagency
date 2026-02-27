@@ -84,7 +84,7 @@ function DotsLoading() {
 /* ── Skeleton loader ── */
 function GuideSkeleton() {
   return (
-    <div className="min-h-screen bg-rose-pale">
+    <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-2xl px-4 sm:px-6 py-6 sm:py-12" role="main" id="main-content">
         <div className="mb-6 sm:mb-8">
@@ -117,7 +117,7 @@ function GuideSkeleton() {
 /* ── Error state ── */
 function GuideError({ navigate }: { navigate: (path: string) => void }) {
   return (
-    <div className="min-h-screen bg-rose-pale">
+    <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-2xl px-4 sm:px-6 py-6 sm:py-12" role="main" id="main-content">
         <motion.div
@@ -233,7 +233,7 @@ export default function GuideComHome() {
   if (error) return <GuideError navigate={navigate} />;
 
   return (
-    <div className="min-h-screen bg-rose-pale">
+    <div className="min-h-screen bg-background">
       <AppHeader />
 
       <motion.main

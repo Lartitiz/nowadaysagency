@@ -15,7 +15,7 @@ const NotFound = () => {
   const msg = MESSAGES.errors.not_found;
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-rose-pale px-6 text-center">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6 text-center">
       <span className="text-6xl mb-6">🌸</span>
       <h1 className="font-heading text-3xl font-bold text-foreground mb-3">
         {msg.title}
