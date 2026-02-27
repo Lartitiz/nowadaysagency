@@ -16,24 +16,16 @@ import { posthog } from "@/lib/posthog";
 function getStepName(step: number): string {
   const names: Record<number, string> = {
     0: "welcome",
-    1: "promise",
-    2: "prenom",
-    3: "activite",
-    4: "activity_type",
-    5: "canaux",
-    6: "blocage",
-    7: "objectif",
-    8: "temps",
-    9: "instagram_website",
-    10: "transition_branding",
-    11: "positioning",
-    12: "mission",
-    13: "target_description",
-    14: "tone_keywords",
-    15: "offers",
-    16: "values",
-    17: "import_documents",
-    18: "building_diagnostic",
+    1: "prenom_activite",
+    2: "activity_type",
+    3: "links_docs",
+    4: "objectif",
+    5: "blocage",
+    6: "temps",
+    7: "affinage_1",
+    8: "affinage_2",
+    9: "affinage_3",
+    10: "building_diagnostic",
   };
   return names[step] || "unknown_" + step;
 }
@@ -51,6 +43,7 @@ export interface Answers {
   temps: string;
   instagram: string;
   website: string;
+  linkedin: string;
 }
 
 export interface BrandingAnswers {
@@ -110,25 +103,26 @@ export function useOnboarding() {
     temps: isDemoMode ? "2h" : "",
     instagram: isDemoMode ? "@lea_portraits" : "",
     website: isDemoMode ? "www.leaportraits.fr" : "",
+    linkedin: isDemoMode ? "" : "",
   });
 
+  // Keep BrandingAnswers as state for backward compatibility (used by DiagnosticLoading fallback)
   const [brandingAnswers, setBrandingAnswers] = useState<BrandingAnswers>({
     positioning: isDemoMode ? (demoData?.branding.positioning ?? "") : "",
     mission: isDemoMode ? (demoData?.branding.mission ?? "") : "",
-    target_description: isDemoMode ? "Femme entrepreneure, 30-45 ans, qui a lancé son activité depuis 1-3 ans. Elle sait qu'elle a besoin de photos pro mais elle repousse parce qu'elle ne se trouve pas photogénique. Elle veut des images qui lui ressemblent, pas des photos corporate sans âme." : "",
+    target_description: isDemoMode ? "Femme entrepreneure, 30-45 ans, qui a lancé son activité depuis 1-3 ans." : "",
     tone_keywords: isDemoMode ? ["chaleureux", "direct", "inspirant"] : [],
     offers: isDemoMode ? (demoData?.offers?.map((o: { name: string; price: string; description: string }) => ({ name: o.name, price: o.price, description: o.description })) ?? []) : [{ name: "", price: "", description: "" }],
     values: isDemoMode ? ([...(demoData?.branding.values ?? [])]) : [],
   });
 
-  // Persist step + all answers to localStorage
+  // Persist step + answers to localStorage
   useEffect(() => {
     if (isDemoMode) return;
     localStorage.setItem("lac_onboarding_step", String(step));
     localStorage.setItem("lac_onboarding_answers", JSON.stringify(answers));
-    localStorage.setItem("lac_onboarding_branding", JSON.stringify(brandingAnswers));
     localStorage.setItem("lac_onboarding_ts", new Date().toISOString());
-  }, [step, isDemoMode, answers, brandingAnswers]);
+  }, [step, isDemoMode, answers]);
 
   // Restore answers from localStorage on mount
   useEffect(() => {
@@ -148,15 +142,10 @@ export function useOnboarding() {
         }
       }
       const savedAnswers = localStorage.getItem("lac_onboarding_answers");
-      const savedBranding = localStorage.getItem("lac_onboarding_branding");
       const savedStep = localStorage.getItem("lac_onboarding_step");
       if (savedAnswers) {
         const parsed = JSON.parse(savedAnswers);
         setAnswers(prev => ({ ...prev, ...parsed }));
-      }
-      if (savedBranding) {
-        const parsed = JSON.parse(savedBranding);
-        setBrandingAnswers(prev => ({ ...prev, ...parsed }));
       }
       if (savedStep && parseInt(savedStep, 10) > 0) {
         setRestoredFromSave(true);
@@ -174,7 +163,7 @@ export function useOnboarding() {
 
   // Check if onboarding already completed
   useEffect(() => {
-    if (isDemoMode || !user || step >= 18) return;
+    if (isDemoMode || !user || step >= TOTAL_STEPS) return;
     const check = async () => {
       const { data: config } = await (supabase
         .from("user_plan_config") as any)
@@ -188,12 +177,12 @@ export function useOnboarding() {
     check();
   }, [user?.id, isDemoMode, navigate, step]);
 
-  const set = useCallback(<K extends keyof Answers>(key: K, value: Answers[K]) => {
-    setAnswers(prev => ({ ...prev, [key]: value }));
+  const set = useCallback(<K extends keyof Answers>(key: K, val: Answers[K]) => {
+    setAnswers(prev => ({ ...prev, [key]: val }));
   }, []);
 
-  const setBranding = useCallback(<K extends keyof BrandingAnswers>(key: K, value: BrandingAnswers[K]) => {
-    setBrandingAnswers(prev => ({ ...prev, [key]: value }));
+  const setBranding = useCallback(<K extends keyof BrandingAnswers>(key: K, val: BrandingAnswers[K]) => {
+    setBrandingAnswers(prev => ({ ...prev, [key]: val }));
   }, []);
 
   const next = useCallback(() => setStep(s => {
@@ -215,9 +204,8 @@ export function useOnboarding() {
     const stepsLeft = TOTAL_STEPS - currentStep;
     if (stepsLeft <= 1) return "Presque fini !";
     if (stepsLeft <= 3) return "Dernière ligne droite · ~1 min";
-    if (stepsLeft <= 6) return "Plus que ~2 min";
-    if (stepsLeft <= 10) return "Encore ~3 min";
-    return "~4 min";
+    if (stepsLeft <= 5) return "Plus que ~2 min";
+    return "~3 min";
   };
 
   // Keyboard shortcut
@@ -229,11 +217,11 @@ export function useOnboarding() {
     return () => window.removeEventListener("keydown", handler);
   }, [step, prev]);
 
-  // Launch background audits when entering phase 3 (step 10)
+  // Launch background audits when entering diagnostic phase
   const auditsLaunched = useRef(false);
   useEffect(() => {
     if (isDemoMode || !user || auditsLaunched.current) return;
-    if (step < 11) return;
+    if (step < 7) return; // Start at affinage phase
     auditsLaunched.current = true;
     setAuditResults(prev => ({ ...prev, isLoading: true }));
 
@@ -248,15 +236,6 @@ export function useOnboarding() {
           .then(res => {
             if (res.data?.extracted_data) {
               setAuditResults(prev => ({ ...prev, documents: res.data.extracted_data }));
-              const d = res.data.extracted_data;
-              setBrandingAnswers(prev => ({
-                positioning: prev.positioning || d.positioning || "",
-                mission: prev.mission || d.mission || "",
-                target_description: prev.target_description || d.target_description || "",
-                tone_keywords: prev.tone_keywords.length > 0 ? prev.tone_keywords : (d.tone_keywords || []),
-                offers: prev.offers[0]?.name ? prev.offers : (d.offers?.length ? d.offers : prev.offers),
-                values: prev.values.length > 0 ? prev.values : (d.values || []),
-              }));
             }
           })
           .catch(e => console.error("Document analysis failed:", e))
@@ -291,10 +270,6 @@ export function useOnboarding() {
           toast({ title: "Erreur", description: `Upload de ${file.name} échoué`, variant: "destructive" });
           continue;
         }
-
-        const { data: urlData } = supabase.storage
-          .from("onboarding-uploads")
-          .getPublicUrl(filePath);
 
         const { data: docRecord } = await supabase
           .from("user_documents")
@@ -339,6 +314,12 @@ export function useOnboarding() {
     if (!user) return;
     setSaving(true);
     try {
+      // Deduce canaux from links provided
+      const canaux: string[] = [];
+      if (answers.instagram) canaux.push("instagram");
+      if (answers.website) canaux.push("website");
+      if (answers.linkedin) canaux.push("linkedin");
+
       // 1. PROFILES
       const { data: existingProfile } = await supabase
         .from("profiles").select("id").eq("user_id", user.id).maybeSingle();
@@ -348,7 +329,7 @@ export function useOnboarding() {
         activite: answers.activite,
         type_activite: answers.activity_type,
         activity_detail: answers.activity_detail || null,
-        canaux: answers.canaux,
+        canaux,
         main_blocker: answers.blocage,
         main_goal: answers.objectif,
         weekly_time: answers.temps,
@@ -358,6 +339,7 @@ export function useOnboarding() {
       };
       if (answers.instagram) profileData.instagram_username = answers.instagram.replace(/^@/, "");
       if (answers.website) profileData.website_url = answers.website;
+      if (answers.linkedin) profileData.linkedin_url = answers.linkedin;
 
       if (existingProfile) {
         await supabase.from("profiles").update(profileData).eq("user_id", user.id);
@@ -366,11 +348,11 @@ export function useOnboarding() {
       }
 
       // 2. user_plan_config
-      // Track onboarding completion
       posthog.capture("onboarding_completed", {
         total_steps: TOTAL_STEPS,
         has_instagram: Boolean(answers.instagram),
         has_website: Boolean(answers.website),
+        has_linkedin: Boolean(answers.linkedin),
         uploaded_files: uploadedFiles.length,
       });
 
@@ -389,47 +371,7 @@ export function useOnboarding() {
         await supabase.from("user_plan_config").insert({ user_id: user.id, ...configData });
       }
 
-      // 3. BRAND_PROFILE (upsert)
-      const { data: existingBrand } = await supabase
-        .from("brand_profile").select("id").eq("user_id", user.id).maybeSingle();
-      const brandData = {
-        positioning: brandingAnswers.positioning || null,
-        mission: brandingAnswers.mission || null,
-        values: brandingAnswers.values.length > 0 ? brandingAnswers.values : null,
-        tone_keywords: brandingAnswers.tone_keywords.length > 0 ? brandingAnswers.tone_keywords : null,
-      };
-      if (existingBrand) {
-        await supabase.from("brand_profile").update(brandData).eq("user_id", user.id);
-      } else {
-        await supabase.from("brand_profile").insert({ user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, ...brandData });
-      }
-
-      // 4. PERSONA (upsert description)
-      if (brandingAnswers.target_description) {
-        const { data: existingPersona } = await supabase
-          .from("persona").select("id").eq("user_id", user.id).maybeSingle();
-        if (existingPersona) {
-          await supabase.from("persona").update({ description: brandingAnswers.target_description }).eq("user_id", user.id);
-        } else {
-          await supabase.from("persona").insert({ user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, description: brandingAnswers.target_description });
-        }
-      }
-
-      // 5. OFFERS (insert)
-      const validOffers = brandingAnswers.offers.filter(o => o.name.trim());
-      if (validOffers.length > 0) {
-        await supabase.from("offers").insert(
-          validOffers.map((o, i) => ({
-            user_id: user.id,
-            workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-            name: o.name,
-            price_text: o.price || null,
-            promise: o.description || null,
-            offer_type: "paid",
-            sort_order: i,
-          })) as any
-        );
-      }
+      // NOTE: brand_profile and persona are now filled by the deep-diagnostic edge function, not here.
 
       localStorage.removeItem("lac_prenom");
       localStorage.removeItem("lac_activite");
