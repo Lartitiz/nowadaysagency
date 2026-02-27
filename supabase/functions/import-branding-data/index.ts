@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
-import { getUserContext, formatContextForPrompt } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -47,7 +47,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
     const userContext = await getUserContext(adminSupabase, user.id, workspace_id);
-    const contextBlock = formatContextForPrompt(userContext);
+    const contextBlock = formatContextForAI(userContext);
 
     const fieldsList = fields
       .map((f: { key: string; label: string }) => `- "${f.key}" : ${f.label}`)
