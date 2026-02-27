@@ -1282,32 +1282,88 @@ export type Database = {
           },
         ]
       }
+      chat_guide_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_guide_conversations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_guide_messages: {
         Row: {
+          actions: Json | null
           content: string
+          conversation_id: string
           created_at: string
           id: string
           role: string
-          session_id: string
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
+          actions?: Json | null
           content: string
+          conversation_id: string
           created_at?: string
           id?: string
           role: string
-          session_id?: string
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
+          actions?: Json | null
           content?: string
+          conversation_id?: string
           created_at?: string
           id?: string
           role?: string
-          session_id?: string
           user_id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_guide_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_guide_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_guide_messages_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       coach_exercises: {
         Row: {
