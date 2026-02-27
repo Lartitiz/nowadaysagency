@@ -93,10 +93,11 @@ function DroppableWeekDay({
         if (isToday && todayRef) (todayRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
       }}
       className={cn(
-        "flex-1 min-w-0 border-r last:border-r-0 border-border p-2 group relative transition-colors min-h-[200px]",
-        isToday && "bg-rose-pale ring-2 ring-primary/20 ring-inset",
+        "flex-1 min-w-0 border-r last:border-r-0 border-border p-2 group relative transition-colors",
+        isToday && "bg-primary/5 ring-2 ring-primary/20 ring-inset",
         isOver && "bg-primary/10 ring-2 ring-primary/30 ring-inset",
       )}
+      style={{ minHeight: 140 }}
     >
       {/* Today badge */}
       {isToday && (
@@ -237,7 +238,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
   return (
     <div
       id={isToday ? "today-mobile" : undefined}
-      className={`rounded-xl border p-3 ${isToday ? "bg-rose-pale border-primary/30 ring-2 ring-primary/20" : "border-border"}`}
+      className={`rounded-xl border p-3 ${isToday ? "bg-primary/5 border-primary/30 ring-2 ring-primary/20" : "border-border"}`}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
