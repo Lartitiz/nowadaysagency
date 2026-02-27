@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useMergedProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -19,6 +20,7 @@ import GuidedTimeline from "@/components/branding/GuidedTimeline";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import BrandingImportBlock from "@/components/branding/BrandingImportBlock";
 import BrandingImport from "@/components/branding/BrandingImport";
+import BrandingAnalysisLoader from "@/components/branding/BrandingAnalysisLoader";
 import BrandingImportReview from "@/components/branding/BrandingImportReview";
 import CoachingFlow from "@/components/CoachingFlow";
 import type { BrandingExtraction } from "@/lib/branding-import-types";
@@ -161,6 +163,10 @@ export default function BrandingPage() {
   });
   const [importAnalyzing, setImportAnalyzing] = useState(false);
   const [lastAudit, setLastAudit] = useState<any>(null);
+  const [importPhaseNew, setImportPhaseNew] = useState<"form" | "analyzing" | "error">("form");
+  const [analysisSources, setAnalysisSources] = useState<{ website?: string; instagram?: string; linkedin?: string; hasDocuments?: boolean }>({});
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [lastImportData, setLastImportData] = useState<{ website?: string; instagram?: string; linkedin?: string; files: File[] } | null>(null);
   const [hasEnoughData, setHasEnoughData] = useState(false);
   const [hasProposition, setHasProposition] = useState(false);
   const [generatingProp, setGeneratingProp] = useState(false);
@@ -399,26 +405,87 @@ export default function BrandingPage() {
     .filter((k) => completion[k] > 0).length;
   const showNewImport = filledSections < 2 && !skipImport && !isDemoMode && !coachingActive;
 
+
+  const handleStartAnalysis = async (data: { website?: string; instagram?: string; linkedin?: string; files: File[] }) => {
+    setLastImportData(data);
+    setImportAnalyzing(true);
+    setAnalysisError(null);
+    setAnalysisSources({
+      website: data.website,
+      instagram: data.instagram,
+      linkedin: data.linkedin,
+      hasDocuments: data.files.length > 0,
+    });
+
+    // Show button loading for 1s, then switch to full-screen loader
+    setTimeout(() => setImportPhaseNew("analyzing"), 1000);
+
+    try {
+      const { data: result, error } = await supabase.functions.invoke("analyze-brand", {
+        body: {
+          userId: user?.id,
+          websiteUrl: data.website || null,
+          instagramHandle: data.instagram || null,
+          linkedinUrl: data.linkedin || null,
+          documentIds: [],
+        },
+      });
+
+      if (error) throw error;
+      if (!result?.success) throw new Error(result?.error || "Analyse échouée");
+
+      // Store result and transition (next prompt will handle review screen)
+      setImportExtraction(result.analysis);
+      setImportPhaseNew("form");
+      setImportAnalyzing(false);
+      setImportPhase("reviewing");
+    } catch (e: any) {
+      console.error("Analysis error:", e);
+      setImportAnalyzing(false);
+      setAnalysisError(e.message || "Erreur inconnue");
+      setImportPhaseNew("error");
+    }
+  };
+
+  const handleSkipImport = () => {
+    setSkipImport(true);
+    localStorage.setItem("branding_skip_import", "true");
+  };
+
   if (showNewImport) {
     return (
       <div className="min-h-screen bg-[hsl(var(--rose-pale))]">
         <AppHeader />
         <main className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
-          <BrandingImport
-            loading={importAnalyzing}
-            onAnalyze={(data) => {
-              setImportAnalyzing(true);
-              // For now just show loading state then stop after 2s
-              setTimeout(() => {
-                setImportAnalyzing(false);
-                toast.info("L'analyse IA sera connectée au prochain prompt !");
-              }, 2000);
-            }}
-            onSkip={() => {
-              setSkipImport(true);
-              localStorage.setItem("branding_skip_import", "true");
-            }}
-          />
+          <AnimatePresence mode="wait">
+            {importPhaseNew === "form" && (
+              <motion.div key="form" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+                <BrandingImport
+                  loading={importAnalyzing}
+                  onAnalyze={handleStartAnalysis}
+                  onSkip={handleSkipImport}
+                />
+              </motion.div>
+            )}
+            {(importPhaseNew === "analyzing" || importPhaseNew === "error") && (
+              <motion.div key="loader" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.1 }}>
+                <BrandingAnalysisLoader
+                  sources={analysisSources}
+                  error={importPhaseNew === "error" ? analysisError : null}
+                  done={false}
+                  onRetry={() => {
+                    setImportPhaseNew("form");
+                    setImportAnalyzing(false);
+                    setAnalysisError(null);
+                    if (lastImportData) {
+                      setTimeout(() => handleStartAnalysis(lastImportData), 100);
+                    }
+                  }}
+                  onSkip={handleSkipImport}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </main>
       </div>
     );
