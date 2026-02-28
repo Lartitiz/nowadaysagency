@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -712,6 +713,7 @@ function StrategySynthesis({ data, onSaveRecap }: {
 /* ── MAIN COMPONENT ── */
 export default function SynthesisRenderer({ section, data, table, onSynthesisGenerated, lastCoachingUpdate }: SynthesisRendererProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { column, value } = useWorkspaceFilter();
   const { data: profileData } = useProfile();
   const { data: brandProfileData } = useBrandProfile();
@@ -758,6 +760,8 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         const parsed = JSON.parse(raw);
         await supabase.from("storytelling").update({ recap_summary: parsed } as any).eq("id", localData.id);
+        queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
+        queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
         setLocalData({ ...localData, recap_summary: parsed });
       } else if (section === "persona") {
         const profile = { ...(profileData || {}), ...(brandProfileData || {}) };
@@ -768,6 +772,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         const parsed = JSON.parse(raw);
         await supabase.from("persona").update({ portrait: parsed as any, portrait_prenom: parsed.prenom }).eq("id", localData.id);
+        queryClient.invalidateQueries({ queryKey: ["persona"] });
         setLocalData({ ...localData, portrait: parsed, portrait_prenom: parsed.prenom });
       } else if (section === "content_strategy") {
         const profile = { ...(profileData || {}), ...(brandProfileData || {}) };
@@ -781,6 +786,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         const parsed = JSON.parse(raw);
         await supabase.from("brand_strategy").update({ recap_summary: parsed } as any).eq("id", localData.id);
+        queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
         setLocalData({ ...localData, recap_summary: parsed });
       }
       setIsStale(false);
