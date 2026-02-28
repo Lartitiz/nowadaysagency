@@ -9,7 +9,7 @@ const GUIDED_STEPS = [
   { day: 3, emoji: "❤️", title: "Pourquoi toi ?", subtitle: "Proposition de valeur", desc: "Dis ce que tu fais, l'IA formule ta proposition.", route: "/branding/simple/proposition", scoreKey: "proposition" as const },
   { day: 4, emoji: "🎨", title: "Comment tu parles ?", subtitle: "Ton & style", desc: "Choisis ta vibe, l'IA définit ton ton.", route: "/branding/simple/tone", scoreKey: "tone" as const },
   { day: 5, emoji: "🍒", title: "De quoi tu parles ?", subtitle: "Stratégie de contenu", desc: "Générée automatiquement à partir de ton branding.", route: "/branding/simple/strategy", scoreKey: "strategy" as const },
-  { day: 6, emoji: "🎁", title: "Qu'est-ce que tu vends ?", subtitle: "Mes offres", desc: "Décris tes offres simplement, l'IA les structure.", route: "/branding/simple/offers", scoreKey: null },
+  { day: 6, emoji: "🎁", title: "Qu'est-ce que tu vends ?", subtitle: "Mes offres", desc: "Décris tes offres simplement, l'IA les structure.", route: "/branding/simple/offers", scoreKey: "offers" as const },
   { day: 7, emoji: "📋", title: "Synthèse", subtitle: "Générer la synthèse branding", desc: "Ton Brand Book est prêt !", route: null, scoreKey: null },
 ];
 

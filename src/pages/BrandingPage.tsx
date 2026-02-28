@@ -48,7 +48,7 @@ const CARDS: BrandingCard[] = [
   { emoji: "❤️", title: "Ma proposition de valeur", description: "Dis ce que tu fais, l'IA formule ta proposition.", stepperRoute: "/branding/simple/proposition", recapRoute: "/branding/section?section=value_proposition", scoreKey: "proposition" },
   { emoji: "🎨", title: "Ma voix & mes combats", description: "Choisis ta vibe, l'IA définit ton ton.", stepperRoute: "/branding/simple/tone", recapRoute: "/branding/section?section=tone_style", scoreKey: "tone" },
   { emoji: "🍒", title: "Ma ligne éditoriale", description: "Générée automatiquement à partir de ton branding.", stepperRoute: "/branding/simple/strategy", recapRoute: "/branding/section?section=content_strategy", scoreKey: "strategy" },
-  { emoji: "🎁", title: "Mes offres", description: "Décris tes offres simplement, l'IA les structure.", stepperRoute: "/branding/simple/offers", recapRoute: "/branding/offres", scoreKey: "charter" },
+  { emoji: "🎁", title: "Mes offres", description: "Décris tes offres simplement, l'IA les structure.", stepperRoute: "/branding/simple/offers", recapRoute: "/branding/offres", scoreKey: "offers" },
   { emoji: "🎨", title: "Ma charte graphique", description: "Tes couleurs, typos, logo et style visuel.", stepperRoute: "/branding/charter", recapRoute: "/branding/charter", scoreKey: "charter" },
 ];
 
@@ -58,6 +58,7 @@ const RECOMMENDATIONS: Record<string, { low: string; mid: string; high: string; 
   proposition: { low: "Commence par répondre : qu'est-ce que tu fais, pour qui, et pourquoi ?", mid: "Tu as les bases. Il te manque ta phrase de positionnement finale.", high: "Presque ! Finalise ta version courte et ton one-liner.", done: "Ta proposition de valeur est claire. Parfait pour ta bio et tes pitchs." },
   tone: { low: "Définis comment tu parles : plutôt tutoiement ou vouvoiement ? Direct ou doux ?", mid: "Ton registre est posé. Ajoute tes combats et ce que tu refuses.", high: "Il te manque tes expressions clés et ce qu'on évite.", done: "Ta voix est définie. L'IA l'utilisera dans tous tes contenus." },
   strategy: { low: "Choisis tes 3 grands sujets de contenu pour commencer.", mid: "Tes piliers sont là. Ajoute ton concept créatif.", high: "Presque ! Affine tes facettes cachées pour te démarquer.", done: "Ta stratégie est solide. Lance-toi dans la création !" },
+  offers: { low: "Ajoute ta première offre : son nom et ce qu'elle apporte.", mid: "Ton offre est là ! Détaille sa promesse et son prix.", high: "Presque ! Ajoute la cible idéale et les objections.", done: "Tes offres sont prêtes. L'IA les intégrera dans tes contenus." },
   charter: { low: "Commence par uploader ton logo ou choisir tes couleurs.", mid: "Ta charte prend forme ! Ajoute tes typos et ton style visuel.", high: "Presque ! Il te manque ton style photo ou tes mots-clés visuels.", done: "Ta charte graphique est complète. Ton identité visuelle est posée." },
 };
 
@@ -475,7 +476,7 @@ export default function BrandingPage() {
     return card.recapRoute;
   };
 
-  const filledSections = (["storytelling", "persona", "proposition", "tone", "strategy", "charter"] as const)
+  const filledSections = (["storytelling", "persona", "proposition", "tone", "strategy", "offers", "charter"] as const)
     .filter((k) => completion[k] > 0).length;
   const showNewImport = (filledSections < 2 && !skipImport && !isDemoMode && !coachingActive) || reanalyzeMode;
   const showNewImportDemo = isDemoMode && filledSections < 2 && !skipImport && !coachingActive;
