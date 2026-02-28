@@ -321,8 +321,7 @@ export default function Dashboard() {
   const activeSpaces = useMemo(() => spaceModules.filter(s => {
     if (channelsLoading) return false;
     // Feature flag: hide disabled modules for non-admin
-    const flagId = s.id === "website" ? "site" : s.id;
-    if (!isModuleVisible(flagId, isAdmin)) return false;
+    if (s.moduleFlag && !isModuleVisible(s.moduleFlag, isAdmin)) return false;
     if (s.id === "branding") return true;
     if (s.id === "instagram") return hasInstagram;
     if (s.id === "website") return hasWebsite;
@@ -493,7 +492,7 @@ export default function Dashboard() {
                   : space.subtitle}
                 icon={space.icon}
                 gradient={space.gradient}
-                badge={isModuleHidden(space.id === "website" ? "site" : space.id) ? "Masqué" : space.badge}
+                badge={space.moduleFlag && isModuleHidden(space.moduleFlag) ? "Masqué" : space.badge}
                 onClick={() => {
                   if (space.external) window.open(space.route, "_blank");
                   else navigate(space.route);
