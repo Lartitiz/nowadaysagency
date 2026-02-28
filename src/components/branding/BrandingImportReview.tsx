@@ -69,7 +69,7 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
     try {
       const brandRes = { data: hookBrandProfile || null };
       const [personaRes, propRes, stratRes, storyRes] = await Promise.all([
-        (supabase.from("persona") as any).select("*").eq(filterCol, filterVal).maybeSingle(),
+        (supabase.from("persona") as any).select("*").eq(filterCol, filterVal).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         (supabase.from("brand_proposition") as any).select("*").eq(filterCol, filterVal).maybeSingle(),
         (supabase.from("brand_strategy") as any).select("*").eq(filterCol, filterVal).maybeSingle(),
         (supabase.from("storytelling") as any).select("*").eq(filterCol, filterVal).limit(1).maybeSingle(),

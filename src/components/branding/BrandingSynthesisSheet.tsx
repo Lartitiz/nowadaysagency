@@ -177,7 +177,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
     const uid = user.id;
 
     const [personaRes, storyRes, propRes, stratRes, offersRes, configRes, auditRes, brandingRaw] = await Promise.all([
-      (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle(),
+      (supabase.from("persona") as any).select("*").eq(column, value).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       (supabase.from("storytelling") as any).select("*").eq(column, value).eq("is_primary", true).maybeSingle(),
       (supabase.from("brand_proposition") as any).select("*").eq(column, value).maybeSingle(),
       (supabase.from("brand_strategy") as any).select("*").eq(column, value).maybeSingle(),

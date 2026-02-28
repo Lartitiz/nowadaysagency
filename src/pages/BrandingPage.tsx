@@ -192,7 +192,7 @@ export default function BrandingPage() {
 
       // Build section summaries for identity card
       const [personaFullRes, storyFullRes, stratFullRes, toneFullRes, offersFullRes] = await Promise.all([
-        (supabase.from("persona") as any).select("portrait_prenom, description, pitch_short").eq(column, value).maybeSingle(),
+        (supabase.from("persona") as any).select("portrait_prenom, description, pitch_short").eq(column, value).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         data.storytellingList && data.storytellingList.length > 0
           ? (supabase.from("storytelling") as any).select("step_7_polished, imported_text, step_1_raw").eq("id", (data.storytellingList.find((s: any) => s.is_primary) || data.storytellingList[0]).id).maybeSingle()
           : Promise.resolve({ data: null }),

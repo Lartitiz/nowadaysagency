@@ -776,7 +776,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         setLocalData({ ...localData, portrait: parsed, portrait_prenom: parsed.prenom });
       } else if (section === "content_strategy") {
         const profile = { ...(profileData || {}), ...(brandProfileData || {}) };
-        const { data: personaData } = await (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).maybeSingle();
+        const { data: personaData } = await (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle();
         const { data: propositionData } = await (supabase.from("brand_proposition") as any).select("version_final, version_bio").eq(column, value).maybeSingle();
         const { data: editorialData } = await (supabase.from("instagram_editorial_line") as any).select("*").eq(column, value).maybeSingle();
         const { data: fnData, error } = await supabase.functions.invoke("strategy-ai", {
