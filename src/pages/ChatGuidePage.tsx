@@ -1,18 +1,21 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Mic, MicOff, Plus, Sparkles, PenLine, Palette, Target, CalendarDays, Users, Lightbulb, MessageSquare } from "lucide-react";
+import { Send, Mic, MicOff, Plus, Sparkles, PenLine, Palette, Target, CalendarDays, Users, Lightbulb, MessageSquare, BarChart3 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/use-profile";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId, useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { useUserPhase } from "@/hooks/use-user-phase";
+import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { LayoutGrid } from "lucide-react";
 import { useDemoContext } from "@/contexts/DemoContext";
 import AppHeader from "@/components/AppHeader";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
-import { format, isAfter, subHours } from "date-fns";
+import { format, isAfter, subHours, startOfWeek as dateFnsStartOfWeek, endOfWeek as dateFnsEndOfWeek } from "date-fns";
 import { fr } from "date-fns/locale";
 
 /* ── Types ── */
@@ -45,7 +48,7 @@ interface Conversation {
 
 /* ── Icon resolver ── */
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  PenLine, Palette, Target, CalendarDays, Users, Lightbulb, Sparkles,
+  PenLine, Palette, Target, CalendarDays, Users, Lightbulb, Sparkles, BarChart3,
 };
 
 function getIcon(name: string, className?: string) {
@@ -188,8 +191,12 @@ export default function ChatGuidePage() {
   const { isDemoMode } = useDemoContext();
   const navigate = useNavigate();
   const workspaceId = useWorkspaceId();
+  const { column, value } = useWorkspaceFilter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const { phase, isLoading: phaseLoading } = useUserPhase();
+  const { recommendation } = useGuideRecommendation();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -202,6 +209,40 @@ export default function ChatGuidePage() {
   const [showOldDivider, setShowOldDivider] = useState(false);
 
   const firstName = isDemoMode ? "Léa" : ((profile as any)?.prenom || "toi");
+
+  // Week posts for pilotage phase
+  const { data: weekPostsData } = useQuery({
+    queryKey: ["chat-week-posts", column, value, phase],
+    queryFn: async () => {
+      const now = new Date();
+      const weekStart = format(dateFnsStartOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      const weekEnd = format(dateFnsEndOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      const { data } = await (supabase.from("calendar_posts") as any)
+        .select("id, status, date, theme")
+        .eq(column, value)
+        .gte("date", weekStart)
+        .lte("date", weekEnd);
+      return data || [];
+    },
+    enabled: !!user && phase === "pilotage" && !isDemoMode,
+    staleTime: 3 * 60 * 1000,
+  });
+
+  // Pending posts for action phase
+  const { data: pendingPostsData } = useQuery({
+    queryKey: ["chat-pending-posts", column, value, phase],
+    queryFn: async () => {
+      const { data } = await (supabase.from("calendar_posts") as any)
+        .select("id, theme, date, status")
+        .eq(column, value)
+        .in("status", ["idea", "a_rediger"])
+        .order("date", { ascending: true })
+        .limit(3);
+      return data || [];
+    },
+    enabled: !!user && phase === "action" && !isDemoMode,
+    staleTime: 3 * 60 * 1000,
+  });
 
   // No auto-redirect — chat is now the default /dashboard view
 
@@ -228,13 +269,13 @@ export default function ChatGuidePage() {
   // Track recent suggestions to avoid repetitions
   const recentSuggestionsRef = useRef<string[]>([]);
 
-  // Welcome message
+  // Welcome message — phase-aware
   const welcomeMessage = useMemo<ChatMessage>(() => {
     if (isDemoMode) {
       return {
         id: "welcome",
         role: "assistant",
-        content: "Salut Léa ! 👋\n\nJe suis ton assistant com'. Ton branding avance bien (60% complété). Qu'est-ce qu'on fait aujourd'hui ?",
+        content: "Salut Léa ! 👋\n\nTon branding avance bien. Qu'est-ce qu'on crée aujourd'hui ?",
         suggestions: DEMO_WELCOME_SUGGESTIONS,
         created_at: new Date().toISOString(),
       };
@@ -246,18 +287,83 @@ export default function ChatGuidePage() {
     else if (hour < 18) greeting = "Hello";
     else greeting = "Bonsoir";
 
-    const dynamicSuggestions = buildWelcomeSuggestions(profile);
-    // Track these suggestions
-    recentSuggestionsRef.current = dynamicSuggestions.map(s => s.label);
+    const effectivePhase = phaseLoading ? "construction" : phase;
+
+    if (effectivePhase === "construction") {
+      // Single priority suggestion from guide recommendation
+      const mainSuggestion: Suggestion = {
+        icon: guessIconForSuggestion(recommendation.ctaLabel),
+        label: recommendation.ctaLabel.replace(" →", ""),
+      };
+      recentSuggestionsRef.current = [mainSuggestion.label];
+
+      return {
+        id: "welcome",
+        role: "assistant",
+        content: `${greeting} ${firstName} ! 👋\n\nOn continue à poser les bases de ta com'. Aujourd'hui je te propose ça :`,
+        suggestions: [mainSuggestion],
+        created_at: new Date().toISOString(),
+      };
+    }
+
+    if (effectivePhase === "action") {
+      const suggestions = buildWelcomeSuggestions(profile);
+      // Add pending post suggestion if available
+      if (pendingPostsData && pendingPostsData.length > 0) {
+        const post = pendingPostsData[0];
+        const dateStr = post.date ? format(new Date(post.date), "d MMM", { locale: fr }) : "";
+        suggestions.unshift({
+          icon: "CalendarDays",
+          label: `Rédiger le post prévu${dateStr ? ` pour le ${dateStr}` : ""}`,
+        });
+      }
+      const finalSuggestions = suggestions.slice(0, 3);
+      recentSuggestionsRef.current = finalSuggestions.map(s => s.label);
+
+      return {
+        id: "welcome",
+        role: "assistant",
+        content: `${greeting} ${firstName} ! 👋\n\nTon branding avance bien. Qu'est-ce qu'on crée aujourd'hui ?`,
+        suggestions: finalSuggestions,
+        created_at: new Date().toISOString(),
+      };
+    }
+
+    // Pilotage phase
+    const weekPosts = weekPostsData || [];
+    const planned = weekPosts.length;
+    const published = weekPosts.filter((p: any) => p.status === "published").length;
+    const late = weekPosts.filter((p: any) => {
+      const postDate = new Date(p.date);
+      return postDate < new Date() && p.status !== "published";
+    }).length;
+
+    let weekContext: string;
+    if (planned === 0) {
+      weekContext = "Rien de prévu cette semaine. On planifie ?";
+    } else if (published === planned) {
+      weekContext = "Semaine bouclée, bravo ! On prépare la suivante ?";
+    } else if (late > 0) {
+      weekContext = `Tu as ${late} post${late > 1 ? "s" : ""} en retard. On s'en occupe ?`;
+    } else {
+      weekContext = "On continue sur cette lancée ?";
+    }
+
+    const pilotSuggestions: Suggestion[] = [
+      { icon: "PenLine", label: "Créer mon prochain post" },
+      { icon: "CalendarDays", label: "Planifier la semaine prochaine" },
+      { icon: "BarChart3", label: "Analyser mes résultats" },
+    ];
+    recentSuggestionsRef.current = pilotSuggestions.map(s => s.label);
 
     return {
       id: "welcome",
       role: "assistant",
-      content: `${greeting} ${firstName} ! 👋\n\nJe suis ton Assistant Com'. Dis-moi ce que tu veux faire aujourd'hui, ou choisis une suggestion ci-dessous.`,
-      suggestions: dynamicSuggestions,
+      content: `${greeting} ${firstName} ! 👋\n\nCette semaine : ${planned} post${planned > 1 ? "s" : ""} planifié${planned > 1 ? "s" : ""}, ${published} publié${published > 1 ? "s" : ""}. ${weekContext}`,
+      suggestions: pilotSuggestions,
       created_at: new Date().toISOString(),
     };
-  }, [firstName, isDemoMode, profile]);
+  }, [firstName, isDemoMode, profile, phase, phaseLoading, recommendation, weekPostsData, pendingPostsData]);
 
   // Load latest conversation (skip in demo)
   useEffect(() => {
@@ -704,7 +810,7 @@ export default function ChatGuidePage() {
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Dis-moi ce que tu veux faire..."
+              placeholder={phase === "construction" ? "Ou dis-moi ce que tu préfères faire..." : "Dis-moi ce que tu veux faire..."}
               rows={1}
               className="flex-1 resize-none border border-border/50 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all bg-muted/20"
               style={{
