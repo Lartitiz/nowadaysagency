@@ -446,7 +446,11 @@ export default function SettingsPage() {
                     if (!user) return;
                     setResettingBranding(true);
                     try {
-                      const tables = [
+                      const userId = user.id;
+                      const tablesToDelete = [
+                        "audit_recommendations",
+                        "branding_suggestions",
+                        "branding_summary",
                         "branding_coaching_sessions",
                         "branding_mirror_results",
                         "branding_autofill",
@@ -455,18 +459,33 @@ export default function SettingsPage() {
                         "brand_strategy",
                         "brand_proposition",
                         "brand_profile",
+                        "bio_versions",
+                        "audit_validations",
                         "storytelling",
                         "persona",
                         "offers",
                         "voice_profile",
-                      ] as const;
-                      for (const table of tables) {
-                        const { error } = await (supabase.from(table) as any).delete().eq("user_id", user.id);
-                        if (error) console.error(`Failed to delete ${table}:`, error);
+                      ];
+                      const errors: string[] = [];
+                      for (const table of tablesToDelete) {
+                        try {
+                          const { error } = await (supabase.from(table as any) as any).delete().eq("user_id", userId);
+                          if (error) {
+                            console.error(`Delete ${table} by user_id failed:`, error);
+                            errors.push(`${table}: ${error.message}`);
+                          }
+                        } catch (e: any) {
+                          errors.push(`${table}: ${e.message || e}`);
+                        }
                       }
-                      localStorage.removeItem("branding_skip_import");
-                      toast({ title: "✅ Ton branding a été réinitialisé. Tu peux repartir de zéro !" });
-                      navigate("/branding");
+                      console.log(`Branding reset: ${tablesToDelete.length - errors.length} tables OK, ${errors.length} erreurs`, errors);
+                      if (errors.length > 0) {
+                        toast({ title: `⚠️ Reset partiel : ${errors.length} tables en erreur`, description: errors.join(", "), variant: "destructive" });
+                      } else {
+                        localStorage.removeItem("branding_skip_import");
+                        toast({ title: "✅ Ton branding a été réinitialisé. Tu peux repartir de zéro !" });
+                        navigate("/branding");
+                      }
                     } catch (e) {
                       console.error("Reset branding error:", e);
                       toast({ title: "Erreur", description: "Impossible de réinitialiser le branding.", variant: "destructive" });
