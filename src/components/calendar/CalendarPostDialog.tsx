@@ -287,8 +287,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
     const fmt = format || "post_carrousel";
 
-    // Save in background (don't await — navigate first to avoid dialog unmount blocking navigation)
-    handleSave();
+    // Save data directly via onSave (without closing dialog) then navigate
+    const saveData = { theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null };
 
     if (postCanal === "linkedin") {
       navigate(`/linkedin/post?${params.toString()}`, { state: { ...state, sujet: theme } });
@@ -304,6 +304,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     } else {
       navigate(`/atelier?canal=${postCanal || "instagram"}&${params.toString()}`, { state });
     }
+
+    // Save after navigate to prevent dialog unmount from blocking navigation
+    setTimeout(() => onSave(saveData), 0);
   };
 
   const handleViewStoriesSequence = () => {
