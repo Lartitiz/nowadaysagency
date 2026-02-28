@@ -1,6 +1,7 @@
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
+import { useUserPhase } from "@/hooks/use-user-phase";
 import { useToast } from "@/hooks/use-toast";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -9,15 +10,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
-
-/* ── Phase detection ── */
-type Phase = "construction" | "action" | "pilotage";
-
-function detectPhase(brandingTotal: number, calendarPosts: number): Phase {
-  if (brandingTotal < 50) return "construction";
-  if (calendarPosts < 5) return "action";
-  return "pilotage";
-}
 
 /* ── Upcoming posts hook ── */
 function useUpcomingPosts() {
@@ -83,9 +75,8 @@ export default function AdaptiveHome() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { recommendation, profileSummary, isLoading } = useGuideRecommendation();
+  const { phase, isLoading: phaseLoading } = useUserPhase();
   const { data: upcoming } = useUpcomingPosts();
-
-  const phase = detectPhase(profileSummary.brandingTotal, profileSummary.calendarPosts);
 
   const handleNavigate = (route: string) => {
     if (route === "/creer" && profileSummary.brandingTotal < 50) {
@@ -96,7 +87,7 @@ export default function AdaptiveHome() {
     navigate(route);
   };
 
-  if (isLoading) {
+  if (isLoading || phaseLoading) {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
