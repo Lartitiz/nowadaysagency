@@ -138,7 +138,7 @@ export default function StorytellingListPage() {
 
         {/* Action buttons */}
         <div className="flex flex-wrap gap-3 mb-8">
-          <Button onClick={() => navigate("/branding/storytelling/new")} className="rounded-pill">
+          <Button onClick={() => navigate("/branding/section?section=story")} className="rounded-pill">
             <Plus className="h-4 w-4 mr-1" /> Créer un nouveau storytelling guidé
           </Button>
           <Button variant="outline" onClick={() => navigate("/branding/storytelling/import")} className="rounded-pill">
