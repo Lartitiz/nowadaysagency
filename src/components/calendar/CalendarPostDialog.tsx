@@ -168,7 +168,10 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleQuickGenerate = async () => {
-    if (!theme.trim() || !angle) return;
+    if (!theme.trim()) {
+      toast({ title: "Il me faut un sujet !", description: "Remplis le thème au-dessus pour que je puisse rédiger.", variant: "destructive" });
+      return;
+    }
     setIsGenerating(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -207,6 +210,10 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleSmartGenerate = () => {
+    if (!theme.trim()) {
+      toast({ title: "Il me faut un sujet !", description: "Remplis le thème au-dessus pour que je puisse rédiger.", variant: "destructive" });
+      return;
+    }
     const fmt = format || "post_carrousel";
     if (fmt === "post_carrousel" || fmt === "carousel" || fmt === "reel" || fmt === "story_serie" || postCanal === "linkedin") {
       handleNavigateToGenerator("generate");
