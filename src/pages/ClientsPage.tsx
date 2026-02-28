@@ -37,7 +37,7 @@ interface ExtraLink {
 const EXTRA_LINK_TYPES = ["Pinterest", "TikTok", "YouTube", "Autre"];
 
 export default function ClientsPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, adminLoading } = useAuth();
   const { workspaces, switchWorkspace, loading, activeRole } = useWorkspace();
   const { plan, loading: planLoading, isPilot } = useUserPlan();
   const navigate = useNavigate();
@@ -191,7 +191,7 @@ export default function ClientsPage() {
   const hasManagerRole = workspaces.length > 0 && activeRole === "manager";
   const canAccess = isAdmin || plan === "studio" || plan === "now_pilot" || isPilot || hasManagerRole;
 
-  if (!planLoading && !canAccess) {
+  if (!planLoading && !adminLoading && !canAccess) {
     return (
       <div className="min-h-screen bg-background pb-24 md:pb-8">
         <AppHeader />
