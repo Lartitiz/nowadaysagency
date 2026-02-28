@@ -43,6 +43,7 @@ import WelcomeOverlay from "@/components/dashboard/WelcomeOverlay";
 import SessionFocusWidget from "@/components/dashboard/SessionFocusWidget";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 import { DashboardViewToggle } from "@/components/dashboard/DashboardViewToggle";
+import { isModuleVisible, isModuleHidden } from "@/config/feature-flags";
 
 /* ── Types ── */
 export interface UserProfile {
@@ -161,7 +162,7 @@ function PhaseBadge() {
 }
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
   const navigate = useNavigate();
   const { isPilot } = useUserPlan();
@@ -319,13 +320,16 @@ export default function Dashboard() {
 
   const activeSpaces = useMemo(() => spaceModules.filter(s => {
     if (channelsLoading) return false;
+    // Feature flag: hide disabled modules for non-admin
+    const flagId = s.id === "website" ? "site" : s.id;
+    if (!isModuleVisible(flagId, isAdmin)) return false;
     if (s.id === "branding") return true;
     if (s.id === "instagram") return hasInstagram;
     if (s.id === "website") return hasWebsite;
     if (s.id === "linkedin") return hasLinkedin;
     if (s.id === "seo") return hasSeo;
     return s.enabled;
-  }), [channelsLoading, hasInstagram, hasLinkedin, hasWebsite, hasSeo]);
+  }), [channelsLoading, hasInstagram, hasLinkedin, hasWebsite, hasSeo, isAdmin]);
 
   // ── Client onboarding for empty workspace ──
   if (isClientWorkspace && clientHasData === false && !skippedOnboarding) {
@@ -437,7 +441,7 @@ export default function Dashboard() {
                     { label: "Carousel", route: "/instagram/carousel" },
                     { label: "Reel", route: "/instagram/reels" },
                     { label: "Post LinkedIn", route: "/linkedin/post" },
-                    { label: "Article de blog", route: "/site/accueil" },
+                    ...(isModuleVisible("site", isAdmin) ? [{ label: "Article de blog", route: "/site/accueil" }] : []),
                   ].map((item) => (
                     <button
                       key={item.route + item.label}
@@ -489,7 +493,7 @@ export default function Dashboard() {
                   : space.subtitle}
                 icon={space.icon}
                 gradient={space.gradient}
-                badge={space.badge}
+                badge={isModuleHidden(space.id === "website" ? "site" : space.id) ? "Masqué" : space.badge}
                 onClick={() => {
                   if (space.external) window.open(space.route, "_blank");
                   else navigate(space.route);
@@ -521,7 +525,7 @@ export default function Dashboard() {
         <BentoGrid>
 
           {/* Améliorer mon SEO */}
-          {hasSeo && (
+          {hasSeo && isModuleVisible("seo", isAdmin) && (
             <BentoCard
               title=""
               colSpan={4}
@@ -545,7 +549,7 @@ export default function Dashboard() {
           )}
 
           {/* Rédiger ma page d'accueil */}
-          {hasWebsite && (
+          {hasWebsite && isModuleVisible("site", isAdmin) && (
             <BentoCard
               title=""
               colSpan={hasSeo ? 4 : 8}
