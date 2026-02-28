@@ -13,6 +13,28 @@ import { posthog } from "@/lib/posthog";
 
 /* ────────────────────────────────────────────── helpers */
 
+function mapOnboardingTimeToPlan(temps: string): string {
+  const mapping: Record<string, string> = {
+    "30min": "less_2h",
+    "1h": "less_2h",
+    "2h": "2_5h",
+    "5h": "5_10h",
+    "10h": "more_10h",
+  };
+  return mapping[temps] || "2_5h";
+}
+
+function mapObjectifToPlanGoal(objectif: string): string {
+  const mapping: Record<string, string> = {
+    "system": "structure",
+    "visibility": "visibility",
+    "sell": "clients",
+    "zen": "structure",
+    "expert": "visibility",
+  };
+  return mapping[objectif] || "visibility";
+}
+
 function getStepName(step: number): string {
   const names: Record<number, string> = {
     0: "welcome",
@@ -353,7 +375,7 @@ export function useOnboarding() {
         await supabase.from("profiles").insert({ user_id: user.id, ...profileData });
       }
 
-      // 2. user_plan_config
+      // 2. user_plan_config — pre-configure plan from onboarding answers
       posthog.capture("onboarding_completed", {
         total_steps: TOTAL_STEPS,
         has_instagram: Boolean(answers.instagram),
@@ -362,12 +384,17 @@ export function useOnboarding() {
         uploaded_files: uploadedFiles.length,
       });
 
+      const planChannels = canaux.filter(c => c !== "none");
+      const mappedGoal = mapObjectifToPlanGoal(answers.objectif);
+      const mappedTime = mapOnboardingTimeToPlan(answers.temps);
+
       const { data: existingConfig } = await supabase
         .from("user_plan_config").select("id").eq("user_id", user.id).maybeSingle();
       const configData = {
-        main_goal: answers.objectif,
+        main_goal: mappedGoal,
         level: "beginner",
-        weekly_time: answers.temps,
+        weekly_time: mappedTime,
+        channels: planChannels,
         onboarding_completed: true,
         onboarding_completed_at: new Date().toISOString(),
       };
@@ -410,6 +437,7 @@ export function useOnboarding() {
     }
     try {
       if (diagnosticData) {
+        // Save recommendations
         const recs = diagnosticData.priorities.map((p, i) => ({
           user_id: user.id,
           titre: p.title,
@@ -421,6 +449,11 @@ export function useOnboarding() {
           position: i + 1,
         }));
         await supabase.from("audit_recommendations").insert(recs);
+
+        // Save diagnostic data to profiles for plan personalization
+        await supabase.from("profiles").update({
+          diagnostic_data: diagnosticData as any,
+        }).eq("user_id", user.id);
       }
     } catch (e) {
       console.error("Failed to save diagnostic:", e);
