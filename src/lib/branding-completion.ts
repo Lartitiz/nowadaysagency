@@ -21,26 +21,49 @@ export interface BrandingRawData {
   charter: any | null;
 }
 
-export async function fetchBrandingData(filter: { column: string; value: string }): Promise<BrandingRawData> {
-  const [stRes, perRes, propRes, toneRes, stratRes, offersRes, charterRes] = await Promise.all([
-    (supabase.from("storytelling") as any).select("id, is_primary, completed, step_7_polished, imported_text").eq(filter.column, filter.value),
-    (supabase.from("persona") as any).select("description, step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions").eq(filter.column, filter.value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    (supabase.from("brand_proposition") as any).select("step_1_what, step_2a_process, step_2b_values, step_3_for_whom, version_final, version_pitch_naturel").eq(filter.column, filter.value).maybeSingle(),
-    (supabase.from("brand_profile") as any).select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels").eq(filter.column, filter.value).maybeSingle(),
-    (supabase.from("brand_strategy") as any).select("step_1_hidden_facets, facet_1, pillar_major, creative_concept").eq(filter.column, filter.value).maybeSingle(),
-    (supabase.from("offers") as any).select("id, name, promise, target_ideal, price_text, completed").eq(filter.column, filter.value),
-    (supabase.from("brand_charter") as any).select("logo_url, color_primary, color_secondary, color_accent, font_title, font_body, mood_keywords, photo_style").eq(filter.column, filter.value).maybeSingle(),
-  ]);
-
-  return {
-    storytellingList: stRes.data,
-    persona: perRes.data,
-    proposition: propRes.data,
-    brandProfile: toneRes.data,
-    strategy: stratRes.data,
-    offersList: offersRes.data,
-    charter: charterRes.data,
+export async function fetchBrandingData(
+  filter: { column: string; value: string },
+  fallbackFilter?: { column: string; value: string }
+): Promise<BrandingRawData> {
+  const runQueries = async (f: { column: string; value: string }) => {
+    const [stRes, perRes, propRes, toneRes, stratRes, offersRes, charterRes] = await Promise.all([
+      (supabase.from("storytelling") as any).select("id, is_primary, completed, step_7_polished, imported_text").eq(f.column, f.value),
+      (supabase.from("persona") as any).select("description, step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions").eq(f.column, f.value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      (supabase.from("brand_proposition") as any).select("step_1_what, step_2a_process, step_2b_values, step_3_for_whom, version_final, version_pitch_naturel").eq(f.column, f.value).maybeSingle(),
+      (supabase.from("brand_profile") as any).select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels").eq(f.column, f.value).maybeSingle(),
+      (supabase.from("brand_strategy") as any).select("step_1_hidden_facets, facet_1, pillar_major, creative_concept").eq(f.column, f.value).maybeSingle(),
+      (supabase.from("offers") as any).select("id, name, promise, target_ideal, price_text, completed").eq(f.column, f.value),
+      (supabase.from("brand_charter") as any).select("logo_url, color_primary, color_secondary, color_accent, font_title, font_body, mood_keywords, photo_style").eq(f.column, f.value).maybeSingle(),
+    ]);
+    return {
+      storytellingList: stRes.data,
+      persona: perRes.data,
+      proposition: propRes.data,
+      brandProfile: toneRes.data,
+      strategy: stratRes.data,
+      offersList: offersRes.data,
+      charter: charterRes.data,
+    };
   };
+
+  const result = await runQueries(filter);
+
+  // If all data is empty and a fallback filter exists, retry with fallback
+  if (fallbackFilter && fallbackFilter.value !== filter.value) {
+    const isEmpty =
+      (!result.storytellingList || result.storytellingList.length === 0) &&
+      !result.persona &&
+      !result.proposition &&
+      !result.brandProfile &&
+      !result.strategy &&
+      (!result.offersList || result.offersList.length === 0) &&
+      !result.charter;
+    if (isEmpty) {
+      return runQueries(fallbackFilter);
+    }
+  }
+
+  return result;
 }
 
 function filled(val: unknown): boolean {
