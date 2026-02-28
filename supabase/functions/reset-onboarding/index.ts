@@ -153,13 +153,18 @@ Deno.serve(async (req) => {
         onboarding_completed: false,
         onboarding_completed_at: null,
         welcome_seen: false,
-        main_goal: null,
-        weekly_time: null,
+        main_goal: '',
+        weekly_time: '',
       })
       .eq("user_id", targetUserId);
 
-    if (configErr) errors.push(`user_plan_config: ${configErr.message}`);
-    else tablesCleaned++;
+    if (configErr) {
+      console.error("[reset-onboarding] CRITICAL - user_plan_config update failed:", configErr.message);
+      errors.push(`user_plan_config: ${configErr.message}`);
+    } else {
+      console.log("[reset-onboarding] user_plan_config reset OK");
+      tablesCleaned++;
+    }
 
     console.log(
       `[reset-onboarding] Done. Cleaned: ${tablesCleaned}, Errors: ${errors.length}`
