@@ -27,6 +27,7 @@ serve(async (req) => {
       documentIds,
       profile,
       freeformAnswers,
+      isOnboarding,
     } = await req.json();
 
     if (!userId) {
@@ -53,14 +54,16 @@ serve(async (req) => {
 
     const workspaceId = wsData?.workspace_id || null;
 
-    // Check quota (diagnostic = 3 credits, category: audit)
-    const quota = await checkQuota(userId, "audit", workspaceId);
-    if (!quota.allowed) {
-      clearTimeout(timeout);
-      return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Check quota (diagnostic = 3 credits, category: audit) — skip during onboarding
+    if (!isOnboarding) {
+      const quota = await checkQuota(userId, "audit", workspaceId);
+      if (!quota.allowed) {
+        clearTimeout(timeout);
+        return new Response(JSON.stringify({ error: quota.message, quota }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // ====== SCRAPING ======

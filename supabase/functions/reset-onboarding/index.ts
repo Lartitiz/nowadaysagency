@@ -136,7 +136,17 @@ Deno.serve(async (req) => {
       tablesCleaned++;
     }
 
-    // Phase 3: Reset user_plan_config
+    // Phase 3: Clear audit usage so onboarding diagnostic isn't blocked
+    const { error: usageErr } = await admin
+      .from("ai_usage")
+      .delete()
+      .eq("user_id", targetUserId)
+      .eq("category", "audit");
+
+    if (usageErr) errors.push(`ai_usage cleanup: ${usageErr.message}`);
+    else tablesCleaned++;
+
+    // Phase 4: Reset user_plan_config
     const { error: configErr } = await admin
       .from("user_plan_config")
       .update({
