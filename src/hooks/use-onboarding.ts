@@ -193,19 +193,15 @@ export function useOnboarding() {
     }
   }, [restoredFromSave]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Check if onboarding already completed
-  // Skip this check entirely if we arrive from a reset
-  const skipCheckRef = useRef(false);
-
+  // Check if onboarding already completed — skip entirely if arriving from a reset
   useEffect(() => {
+    if (isDemoMode || !user || step >= TOTAL_STEPS) return;
+
+    // If reset flag is present, this is an intentional redo — don't redirect
     if (localStorage.getItem("lac_onboarding_reset") === "true") {
       localStorage.removeItem("lac_onboarding_reset");
-      skipCheckRef.current = true;
+      return;
     }
-  }, []);
-
-  useEffect(() => {
-    if (isDemoMode || !user || step >= TOTAL_STEPS || skipCheckRef.current) return;
 
     const check = async () => {
       const { data: profile } = await supabase
@@ -227,7 +223,8 @@ export function useOnboarding() {
       }
     };
     check();
-  }, [user?.id, isDemoMode, navigate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, isDemoMode]);
 
   const set = useCallback(<K extends keyof Answers>(key: K, val: Answers[K]) => {
     setAnswers(prev => ({ ...prev, [key]: val }));
