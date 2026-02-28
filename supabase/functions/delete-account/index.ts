@@ -163,19 +163,28 @@ serve(async (req) => {
     const deleteFromTables = async (tables: string[]) => {
       for (const table of tables) {
         try {
-          // workspaces uses created_by, not user_id
           const col = table === "workspaces" ? "created_by" : "user_id";
           const { error } = await admin.from(table).delete().eq(col, userId);
           if (error) {
-            console.error(`[delete-account] Error deleting ${table}:`, error.message);
-            errors.push(`${table}: ${error.message}`);
+            if (error.message?.includes("does not exist") || error.code === "42P01") {
+              console.log(`[delete-account] Table ${table} does not exist, skipping`);
+              tablesCleaned++;
+            } else {
+              console.error(`[delete-account] Error deleting ${table}:`, error.message);
+              errors.push(`${table}: ${error.message}`);
+            }
           } else {
             tablesCleaned++;
           }
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
-          console.error(`[delete-account] Exception on ${table}:`, msg);
-          errors.push(`${table}: ${msg}`);
+          if (msg.includes("does not exist")) {
+            console.log(`[delete-account] Table ${table} does not exist, skipping`);
+            tablesCleaned++;
+          } else {
+            console.error(`[delete-account] Exception on ${table}:`, msg);
+            errors.push(`${table}: ${msg}`);
+          }
         }
       }
     };
