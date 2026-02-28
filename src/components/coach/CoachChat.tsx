@@ -38,7 +38,7 @@ const PAGE_CONTEXT_MAP: Record<string, string> = {
   "/seo": "seo",
   "/instagram": "instagram",
   "/instagram/audit": "audit-instagram",
-  "/instagram/engagement": "engagement-instagram",
+  "/instagram/routine": "engagement-instagram",
   "/linkedin": "linkedin",
   "/dashboard": "tableau-de-bord",
 };

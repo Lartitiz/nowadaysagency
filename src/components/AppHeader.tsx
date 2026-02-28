@@ -455,7 +455,7 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
           </>
         )}
         {canMultiClient && (
-          <DropdownMenuItem onClick={() => navigate("/clients")} className="gap-2 cursor-pointer">
+          <DropdownMenuItem onClick={() => navigate("/admin/coaching")} className="gap-2 cursor-pointer">
             <Users className="h-4 w-4" /> 👥 Mes client·es
           </DropdownMenuItem>
         )}
