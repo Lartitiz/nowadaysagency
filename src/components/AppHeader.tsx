@@ -95,7 +95,7 @@ function AppHeaderInner() {
   const { user, signOut, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { plan, usage, isPilot } = useUserPlan();
+  const { plan, usage, isPilot, isPaid } = useUserPlan();
   const { phase, isLoading: phaseLoading } = useUserPhase();
   const { activateDemo } = useDemoContext();
   const handleDemoClick = () => { activateDemo(); navigate("/onboarding"); };
@@ -210,6 +210,7 @@ function AppHeaderInner() {
               isAdmin={isAdmin}
               hasCoaching={hasCoaching || isPilot}
               isPilot={isPilot}
+              canMultiClient={isPaid || isPilot || isAdmin}
               coachingMonth={coachingMonth}
               coachingPhase={coachingPhase}
               onDemoClick={handleDemoClick}
@@ -273,6 +274,7 @@ function AppHeaderInner() {
               isAdmin={isAdmin}
               hasCoaching={hasCoaching || isPilot}
               isPilot={isPilot}
+              canMultiClient={isPaid || isPilot || isAdmin}
               coachingMonth={coachingMonth}
               coachingPhase={coachingPhase}
               onDemoClick={handleDemoClick}
@@ -307,6 +309,7 @@ function AppHeaderInner() {
               isAdmin={isAdmin}
               hasCoaching={hasCoaching || isPilot}
               isPilot={isPilot}
+              canMultiClient={isPaid || isPilot || isAdmin}
               coachingMonth={coachingMonth}
               coachingPhase={coachingPhase}
               onDemoClick={handleDemoClick}
@@ -386,12 +389,13 @@ interface AvatarMenuProps {
   isAdmin: boolean;
   hasCoaching?: boolean;
   isPilot?: boolean;
+  canMultiClient?: boolean;
   coachingMonth?: number | null;
   coachingPhase?: string | null;
   onDemoClick: () => void;
 }
 
-function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, totalLimit, totalPercent, signOut, navigate, isAdmin, hasCoaching, isPilot, coachingMonth, coachingPhase, onDemoClick }: AvatarMenuProps) {
+function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, totalLimit, totalPercent, signOut, navigate, isAdmin, hasCoaching, isPilot, canMultiClient, coachingMonth, coachingPhase, onDemoClick }: AvatarMenuProps) {
   const remaining = totalLimit - totalUsed;
   const isLow = remaining <= 10 && totalLimit > 0;
 
@@ -450,12 +454,12 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
             <DropdownMenuSeparator />
           </>
         )}
-        {(hasCoaching || isPilot) && (
+        {canMultiClient && (
           <DropdownMenuItem onClick={() => navigate("/clients")} className="gap-2 cursor-pointer">
             <Users className="h-4 w-4" /> 👥 Mes client·es
           </DropdownMenuItem>
         )}
-        {(hasCoaching || isPilot) && <DropdownMenuSeparator />}
+        {canMultiClient && <DropdownMenuSeparator />}
         <DropdownMenuItem onClick={() => navigate("/profil")} className="gap-2 cursor-pointer">
           <User className="h-4 w-4" /> Mon profil
         </DropdownMenuItem>
