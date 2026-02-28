@@ -22,6 +22,7 @@ serve(async (req) => {
     const { data: userData, error: authError } = await anonClient.auth.getUser(token);
     if (authError || !userData.user) throw new Error("User not authenticated");
     const userId = userData.user.id;
+    console.log("[reset] Starting reset for user:", userId);
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -70,7 +71,7 @@ serve(async (req) => {
     }
 
     // 2. Reset onboarding flags in profiles
-    await admin.from("profiles").update({
+    const { error: profileError, count: profileCount } = await admin.from("profiles").update({
       onboarding_completed: false,
       onboarding_step: 0,
       canaux: null,
@@ -79,6 +80,7 @@ serve(async (req) => {
       weekly_time: null,
       diagnostic_data: null,
     }).eq("user_id", userId);
+    console.log("[reset] profiles update:", JSON.stringify({ error: profileError?.message, count: profileCount }));
 
     // 3. Reset or delete user_plan_config
     const { error: configUpdateError } = await admin
@@ -86,8 +88,11 @@ serve(async (req) => {
       .update({ onboarding_completed: false, onboarding_completed_at: null, welcome_seen: false })
       .eq("user_id", userId);
 
+    console.log("[reset] config update:", JSON.stringify({ error: configUpdateError?.message }));
+
     if (configUpdateError) {
-      await admin.from("user_plan_config").delete().eq("user_id", userId);
+      const { error: delErr } = await admin.from("user_plan_config").delete().eq("user_id", userId);
+      console.log("[reset] config delete fallback:", JSON.stringify({ error: delErr?.message }));
     }
 
     // 4. Delete diagnostic data
@@ -108,7 +113,8 @@ serve(async (req) => {
       .eq("user_id", userId)
       .maybeSingle();
 
-    const resetSuccess = profile?.onboarding_completed !== true && config?.onboarding_completed !== true;
+    console.log("[reset] verify:", JSON.stringify({ profile, config, resetSuccess }));
+    console.log("[reset] tables cleaned:", cleaned, "errors:", errors);
 
     return new Response(
       JSON.stringify({
