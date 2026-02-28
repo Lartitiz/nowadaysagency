@@ -22,10 +22,11 @@ const EMPTY_DATA: BrandingRawData = {
   proposition: null,
   brandProfile: null,
   strategy: null,
+  offersList: null,
   charter: null,
 };
 
-const SECTIONS = ["storytelling", "persona", "proposition", "tone", "strategy", "charter"] as const;
+const SECTIONS = ["storytelling", "persona", "proposition", "tone", "strategy", "offers", "charter"] as const;
 
 describe("calculateBrandingCompletion", () => {
   it("returns 0 for all sections when data is empty/null", () => {
@@ -43,10 +44,11 @@ describe("calculateBrandingCompletion", () => {
       proposition: null,                // 0
       brandProfile: null,               // 0
       strategy: null,                   // 0
+      offersList: null,                 // 0
       charter: null,                    // 0
     };
     const result = calculateBrandingCompletion(data);
-    const expectedTotal = Math.round((result.storytelling + result.persona + result.proposition + result.tone + result.strategy + result.charter) / 6);
+    const expectedTotal = Math.round((result.storytelling + result.persona + result.proposition + result.tone + result.strategy + result.offers + result.charter) / 7);
     expect(result.total).toBe(expectedTotal);
   });
 
@@ -80,6 +82,7 @@ describe("calculateBrandingCompletion", () => {
         pillar_major: "b",
         creative_concept: "c",
       },
+      offersList: null,
       charter: null,
     };
     const result = calculateBrandingCompletion(fullData);
@@ -124,6 +127,7 @@ describe("calculateBrandingCompletion", () => {
         channels: null,
       },
       strategy: null,
+      offersList: null,
       charter: null,
     };
     const result = calculateBrandingCompletion(partial);

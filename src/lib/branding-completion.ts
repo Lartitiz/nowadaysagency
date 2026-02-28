@@ -6,6 +6,7 @@ export interface BrandingCompletion {
   proposition: number;
   tone: number;
   strategy: number;
+  offers: number;
   charter: number;
   total: number;
 }
@@ -16,16 +17,18 @@ export interface BrandingRawData {
   proposition: any | null;
   brandProfile: any | null;
   strategy: any | null;
+  offersList: any[] | null;
   charter: any | null;
 }
 
 export async function fetchBrandingData(filter: { column: string; value: string }): Promise<BrandingRawData> {
-  const [stRes, perRes, propRes, toneRes, stratRes, charterRes] = await Promise.all([
+  const [stRes, perRes, propRes, toneRes, stratRes, offersRes, charterRes] = await Promise.all([
     (supabase.from("storytelling") as any).select("id, is_primary, completed, step_7_polished, imported_text").eq(filter.column, filter.value),
     (supabase.from("persona") as any).select("description, step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions").eq(filter.column, filter.value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     (supabase.from("brand_proposition") as any).select("step_1_what, step_2a_process, step_2b_values, step_3_for_whom, version_final, version_pitch_naturel").eq(filter.column, filter.value).maybeSingle(),
     (supabase.from("brand_profile") as any).select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels").eq(filter.column, filter.value).maybeSingle(),
     (supabase.from("brand_strategy") as any).select("step_1_hidden_facets, facet_1, pillar_major, creative_concept").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("offers") as any).select("id, name, promise, target_ideal, price_text, completed").eq(filter.column, filter.value),
     (supabase.from("brand_charter") as any).select("logo_url, color_primary, color_secondary, color_accent, font_title, font_body, mood_keywords, photo_style").eq(filter.column, filter.value).maybeSingle(),
   ]);
 
@@ -35,6 +38,7 @@ export async function fetchBrandingData(filter: { column: string; value: string 
     proposition: propRes.data,
     brandProfile: toneRes.data,
     strategy: stratRes.data,
+    offersList: offersRes.data,
     charter: charterRes.data,
   };
 }
@@ -123,9 +127,14 @@ export function calculateBrandingCompletion(data: BrandingRawData): BrandingComp
   }
   const charter = charterScore;
 
-  const total = Math.round((storytelling + persona + proposition + tone + strategy + charter) / 6);
+  // OFFERS: at least 1 offer with name + promise or price
+  const offerList = data.offersList || [];
+  const completedOffers = offerList.filter((o: any) => filled(o.name) && (filled(o.promise) || filled(o.price_text)));
+  const offers = completedOffers.length >= 1 ? 100 : offerList.length > 0 ? 50 : 0;
 
-  return { storytelling, persona, proposition, tone, strategy, charter, total };
+  const total = Math.round((storytelling + persona + proposition + tone + strategy + offers + charter) / 7);
+
+  return { storytelling, persona, proposition, tone, strategy, offers, charter, total };
 }
 
 /**
