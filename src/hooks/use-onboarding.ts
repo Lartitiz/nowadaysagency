@@ -69,6 +69,7 @@ export interface Answers {
   instagram: string;
   website: string;
   linkedin: string;
+  linkedin_summary: string;
   change_priority: string;
   product_or_service: string;
   uniqueness: string;
@@ -133,6 +134,7 @@ export function useOnboarding() {
     instagram: isDemoMode ? "@lea_portraits" : "",
     website: isDemoMode ? "www.leaportraits.fr" : "",
     linkedin: isDemoMode ? "" : "",
+    linkedin_summary: isDemoMode ? "Photographe portraitiste spécialisée dans les portraits d'entrepreneures. J'aide les femmes à révéler leur image de marque à travers des photos authentiques." : "",
     change_priority: isDemoMode ? "Avoir une identité visuelle cohérente sur tous mes supports" : "",
     product_or_service: isDemoMode ? "services" : "",
     uniqueness: isDemoMode ? "Mon approche est très humaine, je mets les gens à l'aise" : "",
@@ -396,6 +398,7 @@ export function useOnboarding() {
       if (answers.instagram) profileData.instagram_username = answers.instagram.replace(/^@/, "");
       if (answers.website) profileData.website_url = answers.website;
       if (answers.linkedin) profileData.linkedin_url = answers.linkedin;
+      if (answers.linkedin_summary) profileData.linkedin_summary = answers.linkedin_summary;
 
       if (existingProfile) {
         const { error: updateErr } = await supabase.from("profiles").update(profileData).eq("user_id", user.id);

@@ -422,14 +422,28 @@ function LinksScreen({ answers, set, files, uploading, onUpload, onRemove, onNex
 
         {/* LinkedIn */}
         <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">💼 Ton LinkedIn</label>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">💼 URL de ton profil LinkedIn (optionnel)</label>
           <input
             type="text"
             value={answers.linkedin}
             onChange={e => set("linkedin", e.target.value)}
             placeholder="https://linkedin.com/in/..."
             aria-label="URL de ton profil LinkedIn"
-            className="w-full text-base p-3 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50"
+            className="w-full text-sm p-2.5 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50"
+          />
+        </div>
+
+        {/* LinkedIn Summary */}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">💼 Ton résumé LinkedIn</label>
+          <p className="text-xs text-muted-foreground/70 mb-2 italic">Copie-colle le texte de la section "Infos" de ton profil LinkedIn. Le scraping automatique ne fonctionne pas avec LinkedIn, alors c'est plus fiable comme ça.</p>
+          <textarea
+            value={answers.linkedin_summary}
+            onChange={e => set("linkedin_summary", e.target.value)}
+            placeholder="Ex : J'accompagne les entrepreneures à développer leur marque personnelle…"
+            aria-label="Résumé LinkedIn"
+            rows={4}
+            className="w-full text-base p-3 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50 resize-none"
           />
         </div>
 

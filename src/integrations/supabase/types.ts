@@ -5152,6 +5152,7 @@ export type Database = {
           instagram_username: string | null
           level: string | null
           linkedin_posts_per_week: number | null
+          linkedin_summary: string | null
           linkedin_url: string | null
           main_blocker: string | null
           main_goal: string | null
@@ -5217,6 +5218,7 @@ export type Database = {
           instagram_username?: string | null
           level?: string | null
           linkedin_posts_per_week?: number | null
+          linkedin_summary?: string | null
           linkedin_url?: string | null
           main_blocker?: string | null
           main_goal?: string | null
@@ -5282,6 +5284,7 @@ export type Database = {
           instagram_username?: string | null
           level?: string | null
           linkedin_posts_per_week?: number | null
+          linkedin_summary?: string | null
           linkedin_url?: string | null
           main_blocker?: string | null
           main_goal?: string | null
