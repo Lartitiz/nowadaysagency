@@ -30,6 +30,69 @@ const MOOD_OPTIONS = [
   "Luxe", "Naturel", "Audacieux", "Doux", "Géométrique", "Organique",
 ];
 
+const PHOTO_STYLE_TAGS = [
+  "Lumière naturelle", "Tons chauds", "Tons froids", "Cadrage serré", "Plans larges",
+  "Fond uni / épuré", "Textures et matières", "Flat lay", "Lifestyle / mise en situation",
+  "Studio", "Extérieur / nature", "Urbain", "Gros plans / détails", "Noir et blanc",
+  "Couleurs vives", "Couleurs pastels",
+];
+
+const VISUAL_DONTS_TAGS = [
+  "Stock photos", "Néons / flashy", "Fonds blancs cliniques", "Trop de texte sur les visuels",
+  "Polices manuscrites", "Filtres Instagram lourds", "Photos floues / basse qualité",
+  "Couleurs criardes", "Emojis partout", "Mises en page surchargées", "Templates génériques",
+  "Noir et blanc",
+];
+
+function TagSelector({ label, tags, value, onChange }: { label: string; tags: string[]; value: string; onChange: (v: string) => void }) {
+  const parts = value.split(",").map(s => s.trim()).filter(Boolean);
+  const selectedTags = parts.filter(p => tags.includes(p));
+  const otherText = parts.filter(p => !tags.includes(p)).join(", ");
+
+  const rebuild = (newTags: string[], other: string) => {
+    const all = [...newTags, ...other.split(",").map(s => s.trim()).filter(Boolean)];
+    onChange(all.join(", "));
+  };
+
+  const toggle = (tag: string) => {
+    const next = selectedTags.includes(tag) ? selectedTags.filter(t => t !== tag) : [...selectedTags, tag];
+    rebuild(next, otherText);
+  };
+
+  return (
+    <div className="mb-4">
+      <label className="text-sm font-medium text-foreground mb-1.5 block">{label}</label>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {tags.map(tag => {
+          const selected = selectedTags.includes(tag);
+          return (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => toggle(tag)}
+              className={`rounded-full px-3.5 py-1.5 text-xs font-medium border transition-all ${
+                selected
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-muted/50 text-muted-foreground border-border hover:border-primary/40"
+              }`}
+            >
+              {tag}
+            </button>
+          );
+        })}
+      </div>
+      <input
+        type="text"
+        value={otherText}
+        onChange={e => rebuild(selectedTags, e.target.value)}
+        placeholder="Autre…"
+        maxLength={100}
+        className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground"
+      />
+    </div>
+  );
+}
+
 const DEFAULT_COLORS = {
   color_primary: "#E91E8C",
   color_secondary: "#1A1A2E",
@@ -623,28 +686,18 @@ export default function BrandCharterPage() {
               })}
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Style photo</label>
-                <Textarea
-                  value={data.photo_style || ""}
-                  onChange={e => update("photo_style", e.target.value)}
-                  placeholder="Ex : lumière naturelle, tons chauds, cadrage serré"
-                  rows={2}
-                  className="text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Ce que je ne fais JAMAIS visuellement</label>
-                <Textarea
-                  value={data.visual_donts || ""}
-                  onChange={e => update("visual_donts", e.target.value)}
-                  placeholder="Ex : stock photos, néons, fonds blancs cliniques..."
-                  rows={2}
-                  className="text-sm"
-                />
-              </div>
-            </div>
+            <TagSelector
+              label="Style photo"
+              tags={PHOTO_STYLE_TAGS}
+              value={data.photo_style || ""}
+              onChange={(v) => update("photo_style", v)}
+            />
+            <TagSelector
+              label="Ce que je ne fais JAMAIS visuellement"
+              tags={VISUAL_DONTS_TAGS}
+              value={data.visual_donts || ""}
+              onChange={(v) => update("visual_donts", v)}
+            />
           </section>
 
           {/* SECTION 5: Templates */}
