@@ -117,21 +117,25 @@ function QuickActions({ onImport, onShowSynthesis, onRunMirror, lastAuditScore, 
 
   return (
     <div className={`grid grid-cols-1 ${actions.length >= 4 ? "sm:grid-cols-2" : actions.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3`}>
-      {actions.map((a) => (
+      {actions.map((a, index) => (
         <button
           key={a.label}
           onClick={a.onClick}
-          className="group relative rounded-2xl border border-border bg-card p-4 text-left transition-all hover:border-primary/30 hover:shadow-sm"
+          className={`group relative rounded-2xl p-6 text-left transition-all hover:shadow-md ${
+            index === 0
+              ? "border-2 border-dashed border-primary/30 bg-primary/5 hover:border-primary/50 hover:bg-primary/10"
+              : "border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 hover:border-primary/40"
+          }`}
         >
-          <div className="flex items-start gap-3">
-            <span className="text-xl">{a.emoji}</span>
+          <div className="flex items-start gap-4">
+            <span className="text-3xl">{a.emoji}</span>
             <div>
-              <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{a.label}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{a.desc}</p>
+              <p className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">{a.label}</p>
+              <p className="text-sm text-muted-foreground mt-1">{a.desc}</p>
             </div>
           </div>
           {a.badge && (
-            <span className="absolute top-3 right-3 text-xs font-semibold text-muted-foreground">{a.badge}</span>
+            <span className="absolute top-4 right-4 text-sm font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full">{a.badge}</span>
           )}
         </button>
       ))}
@@ -197,6 +201,15 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
         </div>
       )}
 
+      {/* Séparateur */}
+      <div className="flex items-center gap-3 mt-8 mb-4">
+        <div className="h-px flex-1 bg-border/50" />
+        <p className="text-xs font-mono-ui text-muted-foreground uppercase tracking-wider shrink-0">
+          Tes sections
+        </p>
+        <div className="h-px flex-1 bg-border/50" />
+      </div>
+
       {/* Grille sections */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {GRID_SECTIONS.map(section => {
@@ -208,7 +221,11 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
             <button
               key={section.key}
               onClick={() => navigate(section.editRoute)}
-              className="group rounded-2xl border border-border bg-card p-4 text-left hover:border-primary/30 hover:shadow-sm transition-all"
+              className={`group rounded-2xl p-4 text-left transition-all ${
+                score === 100
+                  ? "border border-border/50 bg-muted/30 opacity-80 hover:opacity-100 hover:bg-muted/50"
+                  : "border border-border bg-card hover:border-primary/20 hover:shadow-sm"
+              }`}
             >
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-lg">{section.icon}</span>
