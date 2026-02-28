@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { DiagnosticData } from "@/lib/diagnostic-data";
 
 export type StepStatus = "done" | "in_progress" | "todo" | "locked";
 
@@ -104,6 +105,7 @@ export async function computePlan(
     strategyRes,
     propRes,
     toneRes,
+    diagnosticRes,
   ] = await Promise.all([
     (supabase.from("brand_profile") as any).select("mission, voice_description, tone_register, offer").eq(filter.column, filter.value).maybeSingle(),
     (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(filter.column, filter.value).maybeSingle(),
@@ -119,8 +121,10 @@ export async function computePlan(
     (supabase.from("brand_strategy") as any).select("facet_1, pillar_major, creative_concept, step_1_hidden_facets").eq(filter.column, filter.value).maybeSingle(),
     (supabase.from("brand_proposition") as any).select("step_1_what, version_final").eq(filter.column, filter.value).maybeSingle(),
     (supabase.from("brand_profile") as any).select("tone_register, tone_level, tone_style, combat_cause, combat_fights, key_expressions").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("profiles") as any).select("diagnostic_data").eq(filter.column === "workspace_id" ? "workspace_id" : "user_id", filter.value).maybeSingle(),
   ]);
   const auditLi = liAuditResult?.data;
+  const diagnosticData = diagnosticRes?.data?.diagnostic_data as DiagnosticData | null;
 
   const channels = config.channels || [];
 
@@ -474,6 +478,42 @@ export async function computePlan(
         steps: coachPhaseSteps,
         locked: false,
       });
+    }
+  }
+
+  // Apply diagnostic recommendations as badges on priority steps
+  if (diagnosticData?.priorities?.length) {
+    // Map diagnostic channel priorities to step IDs
+    const channelToStepIds: Record<string, string[]> = {
+      instagram: ["ig_audit", "ig_bio", "engagement", "edito"],
+      branding: ["branding", "persona", "storytelling", "proposition", "tone"],
+      linkedin: ["li_audit", "li_profil"],
+      website: ["site"],
+      newsletter: ["newsletter"],
+    };
+    const priorityStepIds = new Set<string>();
+    for (const p of diagnosticData.priorities.slice(0, 3)) {
+      const ids = channelToStepIds[p.channel] || [];
+      ids.forEach(id => priorityStepIds.add(id));
+    }
+    // Also check scores: deprioritize channels with high scores
+    const scores = diagnosticData.scores;
+    const highScoreChannels = new Set<string>();
+    if (scores?.instagram && scores.instagram >= 75) highScoreChannels.add("instagram");
+    if (scores?.website && scores.website >= 75) highScoreChannels.add("website");
+    if (scores?.branding && scores.branding >= 75) highScoreChannels.add("branding");
+
+    let badgeCount = 0;
+    for (const phase of phases) {
+      for (const step of phase.steps) {
+        if (step.status === "done" || step.status === "locked") continue;
+        if (priorityStepIds.has(step.id) && badgeCount < 3) {
+          step.recommendation = step.recommendation
+            ? step.recommendation
+            : "🎯 Recommandé par ton diagnostic";
+          badgeCount++;
+        }
+      }
     }
   }
 

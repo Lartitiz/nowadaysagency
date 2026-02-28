@@ -216,7 +216,9 @@ function StepCard({ step, isOverridden, onToggleOverride }: { step: PlanStep; is
             <p className="text-xs text-primary font-medium mt-1">{step.detail}</p>
           )}
           {step.recommendation && (
-            <p className="text-xs text-amber-600 mt-1">{step.recommendation}</p>
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/30 px-2 py-0.5 rounded-full mt-1.5">
+              {step.recommendation}
+            </span>
           )}
         </div>
         <div className="shrink-0 flex flex-col items-end gap-2">

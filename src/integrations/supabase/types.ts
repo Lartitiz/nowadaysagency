@@ -5128,6 +5128,7 @@ export type Database = {
           created_at: string
           croyances_limitantes: string
           current_plan: string | null
+          diagnostic_data: Json | null
           differentiation_text: string | null
           differentiation_type: string | null
           email: string | null
@@ -5192,6 +5193,7 @@ export type Database = {
           created_at?: string
           croyances_limitantes?: string
           current_plan?: string | null
+          diagnostic_data?: Json | null
           differentiation_text?: string | null
           differentiation_type?: string | null
           email?: string | null
@@ -5256,6 +5258,7 @@ export type Database = {
           created_at?: string
           croyances_limitantes?: string
           current_plan?: string | null
+          diagnostic_data?: Json | null
           differentiation_text?: string | null
           differentiation_type?: string | null
           email?: string | null
