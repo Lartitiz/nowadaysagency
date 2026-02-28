@@ -112,6 +112,7 @@ export default function AdminResetTool() {
   const [targetEmail, setTargetEmail] = useState("laetitiamattioli@gmail.com");
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [totalResetting, setTotalResetting] = useState(false);
 
   const allTableIds = RESET_GROUPS.flatMap(g => g.tables.map(t => t.id));
   const allSelected = allTableIds.length > 0 && allTableIds.every(id => selectedTables.includes(id));
@@ -138,56 +139,98 @@ export default function AdminResetTool() {
 
   const selectedCount = selectedTables.length;
 
+  const resolveUserId = async (): Promise<string | null> => {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("user_id")
+      .eq("email", targetEmail)
+      .maybeSingle();
+    if (!profile) {
+      toast.error("Compte non trouvé pour " + targetEmail);
+      return null;
+    }
+    return profile.user_id;
+  };
+
+  const resetTables = async (userId: string, tableFilter?: (tableId: string) => boolean) => {
+    let deleted = 0;
+    const errors: string[] = [];
+
+    for (const group of RESET_GROUPS) {
+      for (const table of group.tables) {
+        if (tableFilter && !tableFilter(table.id)) continue;
+        try {
+          if (table.updateInstead) {
+            const { error } = await (supabase.from(table.table as any) as any)
+              .update(table.updateInstead)
+              .eq(table.filterColumn, userId);
+            if (error) throw error;
+          } else {
+            const { error } = await (supabase.from(table.table as any) as any)
+              .delete()
+              .eq(table.filterColumn, userId);
+            if (error) throw error;
+          }
+          deleted++;
+        } catch (e: any) {
+          errors.push(`${table.label}: ${e.message || e}`);
+        }
+      }
+    }
+    return { deleted, errors };
+  };
+
   const handleReset = async () => {
     setLoading(true);
     try {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .eq("email", targetEmail)
-        .maybeSingle();
-
-      if (!profile) {
-        toast.error("Compte non trouvé pour " + targetEmail);
-        return;
-      }
-
-      const userId = profile.user_id;
-      let deleted = 0;
-      const errors: string[] = [];
-
-      for (const group of RESET_GROUPS) {
-        for (const table of group.tables) {
-          if (!selectedTables.includes(table.id)) continue;
-          try {
-            if (table.updateInstead) {
-              const { error } = await (supabase.from(table.table as any) as any)
-                .update(table.updateInstead)
-                .eq(table.filterColumn, userId);
-              if (error) throw error;
-            } else {
-              const { error } = await (supabase.from(table.table as any) as any)
-                .delete()
-                .eq(table.filterColumn, userId);
-              if (error) throw error;
-            }
-            deleted++;
-          } catch (e: any) {
-            errors.push(`${table.label}: ${e.message || e}`);
-          }
-        }
-      }
+      const userId = await resolveUserId();
+      if (!userId) return;
+      const { deleted, errors } = await resetTables(userId, (id) => selectedTables.includes(id));
 
       if (errors.length > 0) {
-        toast.warning(`${deleted} tables reset, ${errors.length} erreurs`, {
-          description: errors.join(" | "),
-          duration: 10000,
-        });
+        toast.warning(`${deleted} tables reset, ${errors.length} erreurs`, { description: errors.join(" | "), duration: 10000 });
       } else {
         toast.success(`✅ ${deleted} tables réinitialisées pour ${targetEmail}`);
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTotalReset = async () => {
+    setTotalResetting(true);
+    try {
+      const userId = await resolveUserId();
+      if (!userId) return;
+
+      // Reset ALL tables (no filter)
+      const { deleted, errors } = await resetTables(userId);
+
+      // Reset profile onboarding fields
+      await (supabase.from("profiles") as any).update({
+        onboarding_completed: false,
+        onboarding_completed_at: null,
+        onboarding_step: null,
+        canaux: null,
+        main_blocker: null,
+        main_goal: null,
+        weekly_time: null,
+        diagnostic_data: null,
+      }).eq("user_id", userId);
+
+      // Reset user_plan_config onboarding
+      await (supabase.from("user_plan_config") as any).update({
+        onboarding_completed: false,
+        onboarding_completed_at: null,
+      }).eq("user_id", userId);
+
+      if (errors.length > 0) {
+        toast.warning(`🔥 ${deleted} tables reset, ${errors.length} erreurs`, { description: errors.join(" | "), duration: 10000 });
+      } else {
+        toast.success(`🔥 Compte ${targetEmail} remis à zéro. ${deleted} tables réinitialisées.`);
+      }
+    } finally {
+      setTotalResetting(false);
     }
   };
 
@@ -201,6 +244,34 @@ export default function AdminResetTool() {
           placeholder="email@example.com"
           className="max-w-md"
         />
+      </div>
+
+      {/* Total reset button */}
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="destructive" disabled={!targetEmail || totalResetting} className="w-full max-w-md">
+            {totalResetting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+            🔥 Reset total du compte
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset total du compte ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              TOUTES les données seront supprimées pour <strong>{targetEmail}</strong> : profil (reset onboarding), branding, contenus, calendrier, plan de com, stats, chat, audits, réseaux sociaux, badges, etc. Le compte repartira comme au premier jour. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleTotalReset} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Oui, tout supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="border-t border-border/50 pt-4">
+        <p className="text-sm font-medium text-muted-foreground mb-4">Ou sélectionne des catégories spécifiques :</p>
       </div>
 
       <div className="flex items-center gap-2">
