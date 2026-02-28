@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/use-profile";
@@ -20,7 +20,7 @@ import AuditInputForm, { type AuditFormData } from "@/components/audit/AuditInpu
 import ContentAnalysisResults from "@/components/audit/ContentAnalysisResults";
 import { calculateAuditScore, type ProfileForScore } from "@/lib/audit-score";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
-import StoriesPerformanceSection, { type StoryPerformanceEntry } from "@/components/audit/StoriesPerformanceSection";
+
 
 type ViewMode = "hub" | "form" | "results";
 
@@ -43,25 +43,6 @@ export default function InstagramAudit() {
   const { data: editorialLineData } = useEditorialLine();
   const [liveScore, setLiveScore] = useState<number | null>(null);
   const [hasExistingAudit, setHasExistingAudit] = useState(false);
-  const [storyEntries, setStoryEntries] = useState<StoryPerformanceEntry[]>([]);
-  const [storyFiles, setStoryFiles] = useState<File[]>([]);
-  const [storyPreviews, setStoryPreviews] = useState<string[]>([]);
-
-  const handleStoryFiles = useCallback((fl: FileList | null) => {
-    if (!fl) return;
-    const newFiles = Array.from(fl).slice(0, 5 - storyFiles.length);
-    setStoryFiles(prev => [...prev, ...newFiles]);
-    newFiles.forEach(f => {
-      const reader = new FileReader();
-      reader.onloadend = () => setStoryPreviews(prev => [...prev, reader.result as string]);
-      reader.readAsDataURL(f);
-    });
-  }, [storyFiles.length]);
-
-  const handleRemoveStoryFile = useCallback((i: number) => {
-    setStoryFiles(prev => prev.filter((_, idx) => idx !== i));
-    setStoryPreviews(prev => prev.filter((_, idx) => idx !== i));
-  }, []);
 
   // Determine initial view from search params
   const paramView = searchParams.get("view") as ViewMode | null;
@@ -524,17 +505,6 @@ export default function InstagramAudit() {
             </div>
           )}
 
-          {/* Stories performance section */}
-          <div className="mt-8">
-            <StoriesPerformanceSection
-              entries={storyEntries}
-              onChange={setStoryEntries}
-              files={storyFiles}
-              previews={storyPreviews}
-              onFiles={handleStoryFiles}
-              onRemoveFile={handleRemoveStoryFile}
-            />
-          </div>
 
           {/* Red flags checker */}
           <div className="mt-6">
