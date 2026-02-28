@@ -1,6 +1,7 @@
 import { authenticateRequest, getServiceClient, AuthError } from "../_shared/auth.ts";
 import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { extractFromBlob } from "../_shared/scraping.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -51,21 +52,14 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const ext = doc.file_name?.split(".").pop()?.toLowerCase();
+        const extracted = await extractFromBlob(fileData, doc.file_name || "file.txt");
 
-        if (ext === "txt" || ext === "md") {
-          const text = await fileData.text();
-          textParts.push(`--- ${doc.file_name} ---\n${text}`);
-        } else if (ext === "pdf" || ext === "docx" || ext === "doc") {
-          // For PDF/DOCX, send raw text content - best effort
-          const text = await fileData.text();
-          if (text.length > 100) {
-            textParts.push(`--- ${doc.file_name} ---\n${text.substring(0, 15000)}`);
-          } else {
-            textParts.push(`--- ${doc.file_name} (binary, couldn't extract text) ---`);
-          }
-        } else if (["png", "jpg", "jpeg", "webp"].includes(ext || "")) {
-          textParts.push(`--- ${doc.file_name} (image uploaded, visual content) ---`);
+        if (extracted && !extracted.startsWith("[")) {
+          textParts.push(`--- ${doc.file_name} ---\n${extracted.substring(0, 15000)}`);
+        } else if (extracted) {
+          textParts.push(`--- ${doc.file_name} ${extracted} ---`);
+        } else {
+          textParts.push(`--- ${doc.file_name} (format non lisible) ---`);
         }
       } catch (e) {
         console.error(`Error processing ${doc.file_name}:`, e);
