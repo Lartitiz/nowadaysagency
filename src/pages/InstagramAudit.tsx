@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { Loader2, Sparkles, BarChart3, RotateCcw } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
+import { useDiagnosticCache } from "@/hooks/use-diagnostic-cache";
+import DiagnosticCacheBanner from "@/components/audit/DiagnosticCacheBanner";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import AuditVisualResult, { type AuditVisualData, type AuditEvolution } from "@/components/audit/AuditVisualResult";
@@ -31,6 +33,7 @@ export default function InstagramAudit() {
   const [searchParams] = useSearchParams();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const { diagnosticData: diagCache, isRecent: diagIsRecent } = useDiagnosticCache();
 
   const [analyzing, setAnalyzing] = useState(false);
   const [auditResult, setAuditResult] = useState<any>(null);
@@ -552,6 +555,8 @@ export default function InstagramAudit() {
     pillars: (profileData.instagram_pillars as string[] || []).join(", "),
   } : undefined;
 
+  const showDiagBanner = !hasExistingAudit && diagIsRecent && diagCache && diagCache.scores?.instagram != null;
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -565,6 +570,11 @@ export default function InstagramAudit() {
             ? "Mets à jour tes infos et relance l'analyse."
             : "Remplis les infos de ton profil. On analyse tout et on te donne un score avec des recommandations concrètes."}
         </p>
+        {showDiagBanner && (
+          <div className="mb-6">
+            <DiagnosticCacheBanner diagnosticData={diagCache} domain="instagram" onRelaunch={() => {}} />
+          </div>
+        )}
         {analyzing ? (
           <AiLoadingIndicator context="audit" isLoading={analyzing} />
         ) : (
