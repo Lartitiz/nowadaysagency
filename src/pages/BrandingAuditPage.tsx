@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -91,7 +92,9 @@ export default function BrandingAuditPage() {
   const [expandedPillar, setExpandedPillar] = useState<string | null>(null);
   const [previousAudit, setPreviousAudit] = useState<any>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [autofilling, setAutofilling] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   /* ─── Pre-fill from profile & load previous audit ─── */
   useEffect(() => {
@@ -213,6 +216,121 @@ export default function BrandingAuditPage() {
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth" }), 200);
   };
 
+  /* ─── Autofill branding from extraction ─── */
+  const handleAutofillBranding = async () => {
+    if (!user || !result?.extraction_branding) return;
+    setAutofilling(true);
+    try {
+      const ext = result.extraction_branding;
+      const wId = workspaceId;
+      const fCol = wId ? "workspace_id" : "user_id";
+      const fVal = wId || user.id;
+
+      // 1. brand_profile: positioning, mission, values, voice, offer, content_pillars
+      const brandUpdate: Record<string, any> = {};
+      if (ext.positioning?.value) brandUpdate.positioning = ext.positioning.value;
+      if (ext.mission?.value) brandUpdate.mission = ext.mission.value;
+      if (ext.voice_description?.value) brandUpdate.voice_description = ext.voice_description.value;
+      if (ext.offers?.value) brandUpdate.offer = ext.offers.value;
+      if (ext.values?.value) {
+        brandUpdate.values = typeof ext.values.value === "string"
+          ? ext.values.value.split(",").map((v: string) => v.trim()).filter(Boolean)
+          : ext.values.value;
+      }
+      if (ext.content_pillars?.value) {
+        brandUpdate.content_pillars = typeof ext.content_pillars.value === "string"
+          ? ext.content_pillars.value.split(",").map((v: string) => v.trim()).filter(Boolean)
+          : ext.content_pillars.value;
+      }
+
+      if (Object.keys(brandUpdate).length > 0) {
+        const { data: existing } = await supabase
+          .from("brand_profile")
+          .select("id, positioning, mission, voice_description, offer, values, content_pillars")
+          .eq(fCol, fVal)
+          .maybeSingle();
+
+        if (existing) {
+          const safeUpdate: Record<string, any> = {};
+          for (const [k, v] of Object.entries(brandUpdate)) {
+            const cur = (existing as any)[k];
+            if (!cur || (typeof cur === "string" && cur.trim() === "") || (Array.isArray(cur) && cur.length === 0)) {
+              safeUpdate[k] = v;
+            }
+          }
+          if (Object.keys(safeUpdate).length > 0) {
+            await supabase.from("brand_profile").update(safeUpdate).eq("id", existing.id);
+          }
+        } else {
+          await supabase.from("brand_profile").insert({
+            user_id: user.id,
+            workspace_id: wId || null,
+            ...brandUpdate,
+          } as any);
+        }
+      }
+
+      // 2. persona: description
+      const personaDesc = ext.for_whom?.value || ext.target_description?.value;
+      if (personaDesc) {
+        const { data: existingPersona } = await supabase
+          .from("persona")
+          .select("id, description")
+          .eq(fCol, fVal)
+          .maybeSingle();
+
+        if (existingPersona) {
+          if (!existingPersona.description || existingPersona.description.trim() === "") {
+            await supabase.from("persona").update({ description: personaDesc }).eq("id", existingPersona.id);
+          }
+        } else {
+          await supabase.from("persona").insert({
+            user_id: user.id,
+            workspace_id: wId || null,
+            description: personaDesc,
+          } as any);
+        }
+      }
+
+      // 3. storytelling: imported_text
+      if (ext.story?.value) {
+        const { data: existingStory } = await supabase
+          .from("storytelling")
+          .select("id, imported_text, step_1_raw")
+          .eq(fCol, fVal)
+          .maybeSingle();
+
+        if (existingStory) {
+          if (!existingStory.imported_text && !existingStory.step_1_raw) {
+            await supabase.from("storytelling").update({
+              imported_text: ext.story.value,
+              source: "audit",
+            }).eq("id", existingStory.id);
+          }
+        } else {
+          await supabase.from("storytelling").insert({
+            user_id: user.id,
+            workspace_id: wId || null,
+            imported_text: ext.story.value,
+            source: "audit",
+          } as any);
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
+      queryClient.invalidateQueries({ queryKey: ["persona"] });
+      queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
+      queryClient.invalidateQueries({ queryKey: ["branding-completion"] });
+
+      toast.success("Branding pré-rempli avec les données de ton audit !");
+      navigate("/branding");
+    } catch (e: any) {
+      toast.error("Erreur lors du pré-remplissage : " + (e.message || "Réessaie."));
+    } finally {
+      setAutofilling(false);
+    }
+  };
+
   /* ════════════════════════════════════ RENDER ════════════════════════════════════ */
 
   if (loading) {
@@ -242,6 +360,8 @@ export default function BrandingAuditPage() {
               setExpandedPillar={setExpandedPillar}
               navigate={navigate}
               onRedo={handleRedoClick}
+              autofilling={autofilling}
+              onAutofillBranding={handleAutofillBranding}
             />
           </div>
         )}
@@ -380,9 +500,9 @@ function SourceToggle({ checked, onToggle, label, children }: { checked: boolean
 }
 
 /* ─── Audit Results Display ─── */
-function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar, navigate, onRedo }: {
+function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar, navigate, onRedo, autofilling, onAutofillBranding }: {
   result: AuditResult; previousAudit: any; expandedPillar: string | null; setExpandedPillar: (p: string | null) => void;
-  navigate: (path: string) => void; onRedo: () => void;
+  navigate: (path: string) => void; onRedo: () => void; autofilling: boolean; onAutofillBranding: () => void;
 }) {
   const scoreColor = result.score_global >= 75 ? "text-emerald-500" : result.score_global >= 50 ? "text-amber-500" : "text-red-500";
 
@@ -530,8 +650,8 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
       {/* Actions */}
       <div className="space-y-3 pt-2">
         {result.extraction_branding && (
-          <Button variant="outline" className="w-full gap-2" onClick={() => navigate("/branding")}>
-            📋 Pré-remplir mon branding avec les infos extraites
+          <Button variant="outline" className="w-full gap-2" disabled={autofilling} onClick={onAutofillBranding}>
+            {autofilling ? <Loader2 className="h-4 w-4 animate-spin" /> : "📋"} Pré-remplir mon branding avec les infos extraites
           </Button>
         )}
         <Button variant="outline" className="w-full gap-2" onClick={onRedo}>
