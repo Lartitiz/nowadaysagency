@@ -533,18 +533,6 @@ export function useOnboarding() {
         .eq("user_id", user.id);
 
       if (diagnosticData) {
-        const recs = diagnosticData.priorities.map((p, i) => ({
-          user_id: user.id,
-          titre: p.title,
-          label: p.title,
-          module: p.channel,
-          route: p.route,
-          priorite: p.impact,
-          temps_estime: p.time,
-          position: i + 1,
-        }));
-      await supabase.from("audit_recommendations").insert(recs);
-
         // Save diagnostic as branding audit
         await supabase.from("branding_audits").insert({
           user_id: user.id,
