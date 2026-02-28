@@ -123,6 +123,47 @@ serve(async (req) => {
         systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\n${objectifInstruction}\n\nPropose exactement 5 idées de sujets de posts ${canalLabel}, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.\n\nVarie les angles : un sujet éducatif, un storytelling, un sujet engagé, un sujet pratique, un sujet inspirant.\n\nRéponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans tiret, sans explication.`;
         userPrompt = `Propose-moi 5 sujets de posts ${canalLabel}.`;
 
+      } else if (type === "weekly-suggestions") {
+        const ctx = await getUserContext(supabase, user.id, workspace_id);
+        const wFullContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
+
+        systemPrompt = `${CORE_PRINCIPLES}
+
+PROFIL DE L'UTILISATRICE :
+${wFullContext}
+
+CONSIGNE :
+Tu es l'assistant com' de cette utilisatrice. Génère exactement 3 contenus COMPLETS et prêts à publier pour sa semaine sur Instagram.
+
+IMPORTANT :
+- Chaque contenu doit être COMPLET : accroche + corps + CTA. Pas juste une idée, un VRAI post qu'elle peut copier-coller.
+- Le ton doit correspondre EXACTEMENT à sa voix de marque (ses expressions, son style, son niveau de langage).
+- Varie les objectifs : 1 contenu "inspirer", 1 contenu "éduquer", 1 contenu "engager" ou "vendre".
+- Varie les formats : au moins 1 carrousel et 1 post photo ou reel.
+- Les accroches doivent être percutantes et spécifiques à son activité (pas des accroches génériques).
+- Chaque contenu fait entre 100 et 300 mots.
+- Pas d'emojis dans les accroches. Les emojis dans le corps sont OK mais avec parcimonie.
+- Utilise les piliers de contenu de l'utilisatrice si disponibles.
+- Si elle a un persona défini, adresse-toi à cette cible spécifique.
+
+STRUCTURE DE RÉPONSE (JSON strict) :
+[
+  {
+    "theme": "Le sujet en une phrase courte",
+    "accroche": "La première phrase qui accroche (max 20 mots, percutante)",
+    "fullContent": "Le contenu complet du post (accroche incluse + corps + CTA)",
+    "contentPreview": "Les 2-3 premières lignes après l'accroche (pour la preview)",
+    "format": "post_carrousel" | "reel" | "post_photo" | "story_serie",
+    "canal": "instagram",
+    "objective": "inspirer" | "eduquer" | "vendre" | "engager",
+    "suggestedDay": "Mardi" | "Jeudi" | "Samedi" (répartis dans la semaine)
+  }
+]
+
+Réponds UNIQUEMENT avec le JSON, sans markdown, sans backticks, sans explication.`;
+
+        userPrompt = "Génère mes 3 contenus de la semaine.";
+
       } else if (type === "ideas") {
         // SECTION 1 (principes) + SECTION 2 (frameworks pour les accroches)
         const formatInstruction = format
@@ -652,6 +693,20 @@ Reponds en JSON :
 
     // Use getDefaultModel() for all content generation
     const content = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt, 0.8, 4096);
+
+    if (type === "weekly-suggestions") {
+      let suggestions;
+      try {
+        const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+        suggestions = JSON.parse(cleaned);
+      } catch {
+        suggestions = [];
+      }
+      return new Response(
+        JSON.stringify({ suggestions, type: "weekly-suggestions" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     return new Response(
       JSON.stringify({ content }),
