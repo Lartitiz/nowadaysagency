@@ -223,11 +223,13 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleOpenAtelier = () => {
-    const saveData = {
-      theme, angle, status, notes, canal: postCanal, objectif, format,
-      content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null,
-    };
-    onSave(saveData);
+    if (theme.trim()) {
+      onSave({
+        theme, angle, status, notes, canal: postCanal, objectif, format,
+        content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null,
+      });
+    }
+    onOpenChange(false);
     setTimeout(() => {
       navigate("/atelier?canal=" + (postCanal || "instagram"), {
         state: {
@@ -269,11 +271,13 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleNavigateToGenerator = (mode: "generate" | "regenerate" | "view") => {
-    const saveData = {
-      theme, angle, status, notes, canal: postCanal, objectif, format,
-      content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null,
-    };
-    onSave(saveData);
+    if (theme.trim()) {
+      onSave({
+        theme, angle, status, notes, canal: postCanal, objectif, format,
+        content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null,
+      });
+    }
+    onOpenChange(false);
 
     setTimeout(() => {
       const calendarId = editingPost?.id;
