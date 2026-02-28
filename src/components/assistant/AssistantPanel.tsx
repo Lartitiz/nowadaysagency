@@ -61,24 +61,68 @@ const WELCOME_DEFAULT = `Hey ! Je suis ton GPS com'. Je connais ton branding, te
 
 const WELCOME_PILOT = `Hey ! Accompagnement Binôme 🤝\nPose-moi une question ou dis-moi ce que tu veux changer.\n\nPour les questions stratégiques, écris à Laetitia sur WhatsApp.\n\nExemples :\n· "Reformule ma bio"\n· "Planifie 3 posts pour la semaine"\n· "Analyse mes stats de la semaine"`;
 
-function renderAssistantMessage(content: string, navigate: ReturnType<typeof useNavigate>) {
-  const parts = content.split(/(\[[^\]]+\]\([^)]+\))/g);
+function formatInline(text: string, navigate: ReturnType<typeof useNavigate>): React.ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g);
+
   return parts.map((part, i) => {
-    const linkMatch = part.match(/\[([^\]]+)\]\(([^)]+)\)/);
+    const boldMatch = part.match(/^\*\*(.+)\*\*$/);
+    if (boldMatch) return <strong key={i} className="font-semibold">{boldMatch[1]}</strong>;
+
+    const italicMatch = part.match(/^\*(.+)\*$/);
+    if (italicMatch) return <em key={i}>{italicMatch[1]}</em>;
+
+    const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     if (linkMatch) {
-      const [, text, route] = linkMatch;
       return (
         <button
           key={i}
-          onClick={() => navigate(route)}
+          onClick={() => navigate(linkMatch[2])}
           className="inline-flex items-center gap-1 text-primary font-medium hover:underline"
         >
-          {text} →
+          {linkMatch[1]} →
         </button>
       );
     }
+
     return <span key={i}>{part}</span>;
   });
+}
+
+function renderAssistantMessage(content: string, navigate: ReturnType<typeof useNavigate>) {
+  const paragraphs = content.split(/\n\n+/);
+
+  return (
+    <div className="space-y-2">
+      {paragraphs.map((para, pIdx) => {
+        const lines = para.split("\n");
+        const isList = lines.every(l => l.match(/^[·\-•]\s/) || l.trim() === "");
+
+        if (isList) {
+          return (
+            <ul key={pIdx} className="space-y-1 ml-1">
+              {lines.filter(l => l.trim()).map((line, lIdx) => (
+                <li key={lIdx} className="flex gap-2 items-start">
+                  <span className="text-primary mt-0.5 shrink-0">·</span>
+                  <span>{formatInline(line.replace(/^[·\-•]\s*/, ""), navigate)}</span>
+                </li>
+              ))}
+            </ul>
+          );
+        }
+
+        return (
+          <p key={pIdx}>
+            {lines.map((line, lIdx) => (
+              <span key={lIdx}>
+                {lIdx > 0 && <br />}
+                {formatInline(line, navigate)}
+              </span>
+            ))}
+          </p>
+        );
+      })}
+    </div>
+  );
 }
 
 function isConfirmation(msg: string): boolean {
@@ -241,9 +285,9 @@ export default function AssistantPanel({ onClose }: { onClose: () => void }) {
           <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
             <div
               className={cn(
-                "max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap",
+                "max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed",
                 msg.role === "user"
-                  ? "bg-rose-pale text-foreground"
+                  ? "bg-rose-pale text-foreground whitespace-pre-wrap"
                   : "bg-muted text-foreground"
               )}
             >
