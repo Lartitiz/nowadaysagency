@@ -15,11 +15,11 @@ import { posthog } from "@/lib/posthog";
 
 function mapOnboardingTimeToPlan(temps: string): string {
   const mapping: Record<string, string> = {
+    "15min": "less_2h",
     "30min": "less_2h",
     "1h": "less_2h",
     "2h": "2_5h",
-    "5h": "5_10h",
-    "10h": "more_10h",
+    "more": "5_10h",
   };
   return mapping[temps] || "2_5h";
 }
