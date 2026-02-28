@@ -113,6 +113,7 @@ serve(async (req) => {
       .eq("user_id", userId)
       .maybeSingle();
 
+    const resetSuccess = profile?.onboarding_completed === false && config?.onboarding_completed === false;
     console.log("[reset] verify:", JSON.stringify({ profile, config, resetSuccess }));
     console.log("[reset] tables cleaned:", cleaned, "errors:", errors);
 
