@@ -193,6 +193,15 @@ export function useOnboarding() {
   useEffect(() => {
     if (isDemoMode || !user || step >= TOTAL_STEPS) return;
     const check = async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("onboarding_completed")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (profile?.onboarding_completed) {
+        navigate("/dashboard", { replace: true });
+        return;
+      }
       const { data: config } = await (supabase
         .from("user_plan_config") as any)
         .select("onboarding_completed")
@@ -436,8 +445,17 @@ export function useOnboarding() {
       return;
     }
     try {
+      // Safety net: ensure onboarding_completed is saved even if handleFinish failed
+      await supabase
+        .from("profiles")
+        .update({
+          onboarding_completed: true,
+          onboarding_completed_at: new Date().toISOString(),
+          onboarding_step: TOTAL_STEPS,
+        })
+        .eq("user_id", user.id);
+
       if (diagnosticData) {
-        // Save recommendations
         const recs = diagnosticData.priorities.map((p, i) => ({
           user_id: user.id,
           titre: p.title,
@@ -450,7 +468,6 @@ export function useOnboarding() {
         }));
         await supabase.from("audit_recommendations").insert(recs);
 
-        // Save diagnostic data to profiles for plan personalization
         await supabase.from("profiles").update({
           diagnostic_data: diagnosticData as any,
         }).eq("user_id", user.id);
