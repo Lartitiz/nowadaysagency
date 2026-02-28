@@ -145,7 +145,7 @@ const FALLBACK_WELCOME_SUGGESTIONS: Suggestion[] = [
 ];
 
 /** Build personalized welcome suggestions from profile data */
-function buildWelcomeSuggestions(profile: any): Suggestion[] {
+function buildWelcomeSuggestions(profile: any, phase: string): Suggestion[] {
   if (!profile) return FALLBACK_WELCOME_SUGGESTIONS;
 
   const suggestions: Suggestion[] = [];
@@ -153,37 +153,36 @@ function buildWelcomeSuggestions(profile: any): Suggestion[] {
   const activity = p.activite || p.type_activite;
   const pillars: string[] = Array.isArray(p.piliers) ? p.piliers : [];
 
-  // Suggestion 1: next logical action
-  // Priority: branding gaps → calendar → content
-  if (!p.cible) {
-    suggestions.push({ icon: "Target", label: "Définir ma cliente idéale" });
-  } else if (!p.probleme_principal) {
-    suggestions.push({ icon: "Palette", label: "Clarifier mon positionnement" });
-  } else {
+  if (phase === "construction") {
+    if (!p.cible) {
+      suggestions.push({ icon: "Target", label: "Définir ma cliente idéale" });
+    } else if (!p.probleme_principal) {
+      suggestions.push({ icon: "Palette", label: "Poser les bases de mon positionnement" });
+    } else {
+      suggestions.push({ icon: "PenLine", label: "Créer mon premier contenu" });
+    }
+    return suggestions.slice(0, 1);
+  }
+
+  if (phase === "action") {
     suggestions.push({ icon: "CalendarDays", label: "Planifier mes posts de la semaine" });
+    if (activity) {
+      const pick = [`Créer un post sur mon métier de ${activity}`, `Écrire un post coulisses`][Math.floor(Math.random() * 2)];
+      suggestions.push({ icon: "PenLine", label: pick });
+    } else {
+      suggestions.push({ icon: "PenLine", label: "Je veux créer un post" });
+    }
+    if (pillars.length > 0) {
+      const pillar = pillars[Math.floor(Math.random() * pillars.length)];
+      suggestions.push({ icon: "Lightbulb", label: `Trouver des idées sur "${pillar}"` });
+    }
+    return suggestions.slice(0, 3);
   }
 
-  // Suggestion 2: activity-based
-  if (activity) {
-    const activitySuggestions = [
-      `Créer un post sur mon métier de ${activity}`,
-      `Écrire un post "coulisses" sur ${activity}`,
-      `Partager une anecdote sur ${activity}`,
-    ];
-    const pick = activitySuggestions[Math.floor(Math.random() * activitySuggestions.length)];
-    suggestions.push({ icon: "PenLine", label: pick });
-  } else {
-    suggestions.push({ icon: "PenLine", label: "Je veux créer un post" });
-  }
-
-  // Suggestion 3: exploration / pillar-based
-  if (pillars.length > 0) {
-    const pillar = pillars[Math.floor(Math.random() * pillars.length)];
-    suggestions.push({ icon: "Lightbulb", label: `Trouver des idées sur "${pillar}"` });
-  } else {
-    suggestions.push({ icon: "Lightbulb", label: "J'ai une question sur ma com'" });
-  }
-
+  // pilotage
+  suggestions.push({ icon: "CalendarDays", label: "Préparer la semaine prochaine" });
+  suggestions.push({ icon: "Lightbulb", label: "Trouver de nouvelles idées de contenu" });
+  suggestions.push({ icon: "Target", label: "Analyser ce qui a marché cette semaine" });
   return suggestions.slice(0, 3);
 }
 
@@ -318,14 +317,14 @@ export default function ChatGuidePage() {
       return {
         id: "welcome",
         role: "assistant",
-        content: `${greeting} ${firstName} ! 👋\n\nOn continue à poser les bases de ta com'. Aujourd'hui je te propose ça :`,
+        content: `${greeting} ${firstName} ! 👋\n\nOn continue à poser les bases de ta com'. Voici ce que je te propose :`,
         suggestions: [mainSuggestion],
         created_at: new Date().toISOString(),
       };
     }
 
     if (effectivePhase === "action") {
-      const suggestions = buildWelcomeSuggestions(profile);
+      const suggestions = buildWelcomeSuggestions(profile, "action");
       // Add pending post suggestion if available
       if (pendingPostsData && pendingPostsData.length > 0) {
         const post = pendingPostsData[0];
@@ -341,7 +340,7 @@ export default function ChatGuidePage() {
       return {
         id: "welcome",
         role: "assistant",
-        content: `${greeting} ${firstName} ! 👋\n\nTon branding avance bien. Qu'est-ce qu'on crée aujourd'hui ?`,
+        content: `${greeting} ${firstName} ! 👋\n\nQu'est-ce qu'on crée aujourd'hui ?`,
         suggestions: finalSuggestions,
         created_at: new Date().toISOString(),
       };
@@ -377,7 +376,7 @@ export default function ChatGuidePage() {
     return {
       id: "welcome",
       role: "assistant",
-      content: `${greeting} ${firstName} ! 👋\n\nCette semaine : ${planned} post${planned > 1 ? "s" : ""} planifié${planned > 1 ? "s" : ""}, ${published} publié${published > 1 ? "s" : ""}. ${weekContext}`,
+      content: `${greeting} ${firstName} ! 👋\n\nTa com' roule bien. Cette semaine : ${planned} post${planned > 1 ? "s" : ""} planifié${planned > 1 ? "s" : ""}, ${published} publié${published > 1 ? "s" : ""}. ${weekContext}`,
       suggestions: pilotSuggestions,
       created_at: new Date().toISOString(),
     };
@@ -944,7 +943,7 @@ export default function ChatGuidePage() {
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder={phase === "construction" ? "Ou dis-moi ce que tu préfères faire..." : "Dis-moi ce que tu veux faire..."}
+              placeholder={phase === "construction" ? "Ou dis-moi ce que tu préfères faire..." : phase === "action" ? "Demande-moi n'importe quoi sur ta com'..." : "Une question, une idée, un doute ?"}
               rows={1}
               className="flex-1 resize-none border border-border/50 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all bg-muted/20"
               style={{
