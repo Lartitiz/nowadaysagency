@@ -223,30 +223,36 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleOpenAtelier = () => {
-    handleSave();
-    navigate("/atelier?canal=" + (postCanal || "instagram"), {
-      state: {
-        fromCalendar: true,
-        calendarPostId: editingPost?.id,
-        theme,
-        objectif,
-        angle,
-        format,
-        notes,
-        postDate: selectedDate,
-        existingContent: contentDraft,
-        existingAccroche: accroche,
-        launchId: editingPost?.launch_id,
-        contentType: editingPost?.content_type,
-        contentTypeEmoji: editingPost?.content_type_emoji,
-        category: editingPost?.category,
-        objective: editingPost?.objective,
-        angleSuggestion: editingPost?.angle_suggestion,
-        chapter: (editingPost as any)?.chapter,
-        chapterLabel: (editingPost as any)?.chapter_label,
-        audiencePhase: (editingPost as any)?.audience_phase,
-      },
-    });
+    const saveData = {
+      theme, angle, status, notes, canal: postCanal, objectif, format,
+      content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null,
+    };
+    onSave(saveData);
+    setTimeout(() => {
+      navigate("/atelier?canal=" + (postCanal || "instagram"), {
+        state: {
+          fromCalendar: true,
+          calendarPostId: editingPost?.id,
+          theme,
+          objectif,
+          angle,
+          format,
+          notes,
+          postDate: selectedDate,
+          existingContent: contentDraft,
+          existingAccroche: accroche,
+          launchId: editingPost?.launch_id,
+          contentType: editingPost?.content_type,
+          contentTypeEmoji: editingPost?.content_type_emoji,
+          category: editingPost?.category,
+          objective: editingPost?.objective,
+          angleSuggestion: editingPost?.angle_suggestion,
+          chapter: (editingPost as any)?.chapter,
+          chapterLabel: (editingPost as any)?.chapter_label,
+          audiencePhase: (editingPost as any)?.audience_phase,
+        },
+      });
+    }, 100);
   };
 
   const ANGLE_TO_CAROUSEL: Record<string, string> = {
@@ -263,57 +269,61 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleNavigateToGenerator = (mode: "generate" | "regenerate" | "view") => {
-    const calendarId = editingPost?.id;
-    const params = new URLSearchParams();
-    if (calendarId) params.set("calendar_id", calendarId);
-    if (theme) params.set("sujet", encodeURIComponent(theme));
-    if (objectif) params.set("objectif", objectif);
-    params.set("from", "/calendrier");
-
-    const state = {
-      fromCalendar: true,
-      calendarPostId: calendarId,
-      theme,
-      objectif,
-      angle,
-      format,
-      notes,
-      postDate: selectedDate,
-      launchId: editingPost?.launch_id,
-      contentType: editingPost?.content_type,
-      category: editingPost?.category,
-      objective: editingPost?.objective,
+    const saveData = {
+      theme, angle, status, notes, canal: postCanal, objectif, format,
+      content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null,
     };
+    onSave(saveData);
 
-    const fmt = format || "post_carrousel";
+    setTimeout(() => {
+      const calendarId = editingPost?.id;
+      const params = new URLSearchParams();
+      if (calendarId) params.set("calendar_id", calendarId);
+      if (theme) params.set("sujet", encodeURIComponent(theme));
+      if (objectif) params.set("objectif", objectif);
+      params.set("from", "/calendrier");
 
-    // Save data directly via onSave (without closing dialog) then navigate
-    const saveData = { theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null };
+      const state = {
+        fromCalendar: true,
+        calendarPostId: calendarId,
+        theme,
+        objectif,
+        angle,
+        format,
+        notes,
+        postDate: selectedDate,
+        launchId: editingPost?.launch_id,
+        contentType: editingPost?.content_type,
+        category: editingPost?.category,
+        objective: editingPost?.objective,
+      };
 
-    if (postCanal === "linkedin") {
-      navigate(`/linkedin/post?${params.toString()}`, { state: { ...state, sujet: theme } });
-    } else if (fmt === "post_carrousel" || fmt === "carousel") {
-      if (angle && ANGLE_TO_CAROUSEL[angle]) {
-        params.set("carousel_type", ANGLE_TO_CAROUSEL[angle]);
+      const fmt = format || "post_carrousel";
+      if (postCanal === "linkedin") {
+        navigate(`/linkedin/post?${params.toString()}`, { state: { ...state, sujet: theme } });
+      } else if (fmt === "post_carrousel" || fmt === "carousel") {
+        if (angle && ANGLE_TO_CAROUSEL[angle]) {
+          params.set("carousel_type", ANGLE_TO_CAROUSEL[angle]);
+        }
+        navigate(`/instagram/carousel?${params.toString()}`, { state });
+      } else if (fmt === "reel") {
+        navigate(`/instagram/reels?${params.toString()}`, { state });
+      } else if (fmt === "story_serie") {
+        navigate(`/instagram/stories?${params.toString()}`, { state });
+      } else {
+        navigate(`/atelier?canal=${postCanal || "instagram"}&${params.toString()}`, { state });
       }
-      navigate(`/instagram/carousel?${params.toString()}`, { state });
-    } else if (fmt === "reel") {
-      navigate(`/instagram/reels?${params.toString()}`, { state });
-    } else if (fmt === "story_serie") {
-      navigate(`/instagram/stories?${params.toString()}`, { state });
-    } else {
-      navigate(`/atelier?canal=${postCanal || "instagram"}&${params.toString()}`, { state });
-    }
-
-    // Save after navigate to prevent dialog unmount from blocking navigation
-    setTimeout(() => onSave(saveData), 0);
+    }, 100);
   };
 
   const handleViewStoriesSequence = () => {
     if (editingPost?.stories_sequence_id) {
-      navigate("/instagram/stories", {
-        state: { viewSequenceId: editingPost.stories_sequence_id },
-      });
+      onOpenChange(false);
+      setTimeout(() => {
+        navigate("/instagram/stories", {
+          state: { viewSequenceId: editingPost.stories_sequence_id },
+        });
+      }, 100);
     }
   };
 
