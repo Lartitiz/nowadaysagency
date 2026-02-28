@@ -19,6 +19,8 @@ import SiteAuditResult from "@/components/site/SiteAuditResult";
 import SiteAuditAutoResult, { type AutoAuditResult } from "@/components/site/SiteAuditAutoResult";
 import { friendlyError } from "@/lib/error-messages";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import { useDiagnosticCache } from "@/hooks/use-diagnostic-cache";
+import DiagnosticCacheBanner from "@/components/audit/DiagnosticCacheBanner";
 
 // ── Loading messages ──
 const LOADING_MESSAGES = [
@@ -115,6 +117,7 @@ const SiteAuditPage = () => {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const [searchParams] = useSearchParams();
+  const { diagnosticData: diagCache, isRecent: diagIsRecent } = useDiagnosticCache();
 
   const [loading, setLoading] = useState(true);
   const [existing, setExisting] = useState<AuditData | null>(null);
@@ -368,6 +371,10 @@ const SiteAuditPage = () => {
                 Colle ton URL, l'IA fait le reste. En 30 secondes, tu sais exactement ce qui freine tes visiteuses.
               </p>
             </div>
+
+            {!hasAutoAudit && !hasOldAudit && diagIsRecent && diagCache && diagCache.scores?.website != null && (
+              <DiagnosticCacheBanner diagnosticData={diagCache} domain="website" onRelaunch={() => {}} />
+            )}
 
             {/* Existing audit banners */}
             {hasAutoAudit && (

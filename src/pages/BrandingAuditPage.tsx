@@ -16,6 +16,8 @@ import { extractTextFromFile, isAcceptedFile, ACCEPTED_MIME_TYPES } from "@/lib/
 import { Search, Loader2, Upload, FileText, X, ChevronDown, ChevronUp, ArrowRight } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import { useDiagnosticCache } from "@/hooks/use-diagnostic-cache";
+import DiagnosticCacheBanner from "@/components/audit/DiagnosticCacheBanner";
 
 /* ─── Types ─── */
 interface PillarDetail {
@@ -71,6 +73,7 @@ export default function BrandingAuditPage() {
   const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
   const location = useLocation();
+  const { diagnosticData: diagCache, isRecent: diagIsRecent } = useDiagnosticCache();
 
   /* ─── Source toggles ─── */
   const [useSite, setUseSite] = useState(false);
@@ -398,6 +401,11 @@ export default function BrandingAuditPage() {
               <p className="text-sm text-muted-foreground mb-6">
                 Donne-moi ce que t'as, je te dis où t'en es. L'outil analyse ton site, ton Instagram, tes documents et te fait un diagnostic complet.
               </p>
+              {!previousAudit && diagIsRecent && diagCache && diagCache.scores?.branding != null && (
+                <div className="mb-6">
+                  <DiagnosticCacheBanner diagnosticData={diagCache} domain="branding" onRelaunch={() => {}} />
+                </div>
+              )}
               <AuditForm
                 useSite={useSite} setUseSite={setUseSite} siteUrl={siteUrl} setSiteUrl={setSiteUrl}
                 useInstagram={useInstagram} setUseInstagram={setUseInstagram} instagramUsername={instagramUsername} setInstagramUsername={setInstagramUsername}
