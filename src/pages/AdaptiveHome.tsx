@@ -300,7 +300,7 @@ function PilotagePhase({
               size="sm"
               variant="outline"
               className="rounded-xl shrink-0"
-              onClick={() => onNavigate("/calendrier")}
+              onClick={() => onNavigate(`/calendrier?post=${nextPost.id}`)}
             >
               Finaliser
             </Button>
