@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -6,6 +6,7 @@ import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, Cred
 
 import { useDemoContext } from "@/contexts/DemoContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
+import { useUserPhase, incrementFullToolsClicks } from "@/hooks/use-user-phase";
 import { Progress } from "@/components/ui/progress";
 import NotificationBell from "@/components/NotificationBell";
 import AiCreditsCounter from "@/components/AiCreditsCounter";
@@ -18,7 +19,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const BASE_NAV_ITEMS = [
+/* ─── Phase-aware nav items ─── */
+
+const NAV_CONSTRUCTION = [
+  { to: "/dashboard", label: "Mon Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
+  { to: "/branding", label: "Ma marque", icon: Palette, matchExact: false },
+  { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
+];
+
+const NAV_ACTION = [
+  { to: "/dashboard", label: "Mon Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
+  { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
+  { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
+  { to: "/branding", label: "Ma marque", icon: Palette, matchExact: false },
+];
+
+const NAV_PILOTAGE = [
   { to: "/dashboard", label: "Mon Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
   { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
@@ -27,28 +43,42 @@ const BASE_NAV_ITEMS = [
 
 const ACCOMPAGNEMENT_ITEM = { to: "/accompagnement", label: "Accompagnement", icon: HeartHandshake, matchExact: false };
 
-function getDesktopNav(isPilot: boolean) {
-  return isPilot
-    ? [...BASE_NAV_ITEMS, ACCOMPAGNEMENT_ITEM]
-    : [...BASE_NAV_ITEMS];
+function getPhaseDesktopNav(phase: string, isPilot: boolean) {
+  let items;
+  if (phase === "construction") items = [...NAV_CONSTRUCTION];
+  else if (phase === "action") items = [...NAV_ACTION];
+  else items = [...NAV_PILOTAGE];
+  if (isPilot) items.push(ACCOMPAGNEMENT_ITEM);
+  return items;
 }
 
-function getMobileNav(isPilot: boolean) {
-  if (isPilot) {
-    return [
-      { to: "/dashboard", label: "Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
-      { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
-      { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
-      { to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false },
-      { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
-    ];
-  }
-  return [
-    { to: "/dashboard", label: "Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
-    { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
-    { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
-    { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
-  ];
+const MOBILE_CONSTRUCTION = [
+  { to: "/dashboard", label: "Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
+  { to: "/branding", label: "Ma marque", icon: Palette, matchExact: false },
+  { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
+];
+
+const MOBILE_ACTION = [
+  { to: "/dashboard", label: "Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
+  { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
+  { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
+  { to: "/branding", label: "Marque", icon: Palette, matchExact: false },
+];
+
+const MOBILE_PILOTAGE = [
+  { to: "/dashboard", label: "Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
+  { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
+  { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
+  { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
+];
+
+function getPhaseMobileNav(phase: string, isPilot: boolean) {
+  let items;
+  if (phase === "construction") items = [...MOBILE_CONSTRUCTION];
+  else if (phase === "action") items = [...MOBILE_ACTION];
+  else items = [...MOBILE_PILOTAGE];
+  if (isPilot) items.push({ to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false });
+  return items;
 }
 
 export default function AppHeader() {
@@ -63,12 +93,17 @@ function AppHeaderInner() {
   const location = useLocation();
   const navigate = useNavigate();
   const { plan, usage, isPilot } = useUserPlan();
+  const { phase, isLoading: phaseLoading } = useUserPhase();
   const { activateDemo } = useDemoContext();
   const handleDemoClick = () => { activateDemo(); navigate("/onboarding"); };
   const [hasCoaching, setHasCoaching] = useState(false);
   const [coachingMonth, setCoachingMonth] = useState<number | null>(null);
   const [coachingPhase, setCoachingPhase] = useState<string | null>(null);
-  
+
+  const handleAllToolsClick = useCallback(() => {
+    incrementFullToolsClicks();
+    navigate("/dashboard/complet");
+  }, [navigate]);
 
   // Check if user has an active coaching program
   useEffect(() => {
@@ -89,8 +124,12 @@ function AppHeaderInner() {
     });
   }, [user?.id]);
 
-  const desktopNav = getDesktopNav(isPilot);
-  const mobileNav = getMobileNav(isPilot);
+  // Use "construction" as default during loading (fewer items = less confusion)
+  const effectivePhase = phaseLoading ? "construction" : phase;
+  const showAllToolsLink = effectivePhase !== "pilotage";
+
+  const desktopNav = getPhaseDesktopNav(effectivePhase, isPilot);
+  const mobileNav = getPhaseMobileNav(effectivePhase, isPilot);
 
   const isActive = (item: { to: string; matchExact: boolean }) =>
     item.matchExact ? location.pathname === item.to : location.pathname.startsWith(item.to);
@@ -122,22 +161,32 @@ function AppHeaderInner() {
             {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
           </div>
 
-          <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1 flex-nowrap overflow-hidden">
-            {desktopNav.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-sm font-semibold transition-all duration-200 whitespace-nowrap ${
-                  isActive(item)
-                    ? "bg-card text-primary shadow-[0_2px_8px_hsl(338_96%_61%/0.1)]"
-                    : "text-muted-foreground hover:bg-secondary"
-                }`}
+          <div className="flex items-center gap-2">
+            <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1 flex-nowrap overflow-hidden">
+              {desktopNav.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-sm font-semibold transition-all duration-200 whitespace-nowrap ${
+                    isActive(item)
+                      ? "bg-card text-primary shadow-[0_2px_8px_hsl(338_96%_61%/0.1)]"
+                      : "text-muted-foreground hover:bg-secondary"
+                  }`}
+                >
+                  <item.icon className="h-3.5 w-3.5" />
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+            {showAllToolsLink && (
+              <button
+                onClick={handleAllToolsClick}
+                className="font-mono-ui text-[12px] text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
               >
-                <item.icon className="h-3.5 w-3.5" />
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+                Tous les outils →
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-2 shrink-0">
             <AiCreditsCounter plan={plan} usage={usage} />
@@ -174,22 +223,33 @@ function AppHeaderInner() {
             {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
           </div>
 
-          <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1 flex-nowrap overflow-hidden">
-            {desktopNav.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`flex items-center justify-center rounded-pill w-9 h-9 transition-all duration-200 ${
-                  isActive(item)
-                    ? "bg-card text-primary shadow-[0_2px_8px_hsl(338_96%_61%/0.1)]"
-                    : "text-muted-foreground hover:bg-secondary"
-                }`}
-                title={item.label}
+          <div className="flex items-center gap-1.5">
+            <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1 flex-nowrap overflow-hidden">
+              {desktopNav.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`flex items-center justify-center rounded-pill w-9 h-9 transition-all duration-200 ${
+                    isActive(item)
+                      ? "bg-card text-primary shadow-[0_2px_8px_hsl(338_96%_61%/0.1)]"
+                      : "text-muted-foreground hover:bg-secondary"
+                  }`}
+                  title={item.label}
+                >
+                  <item.icon className="h-4 w-4" />
+                </Link>
+              ))}
+            </nav>
+            {showAllToolsLink && (
+              <button
+                onClick={handleAllToolsClick}
+                className="font-mono-ui text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                title="Voir tous les outils"
               >
-                <item.icon className="h-4 w-4" />
-              </Link>
-            ))}
-          </nav>
+                +
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-2 shrink-0">
             <AiCreditsCounter plan={plan} usage={usage} />
@@ -267,6 +327,15 @@ function AppHeaderInner() {
               </Link>
             );
           })}
+          {showAllToolsLink && (
+            <button
+              onClick={handleAllToolsClick}
+              className="flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold text-muted-foreground"
+            >
+              <LayoutGrid className="h-5 w-5" />
+              Plus
+            </button>
+          )}
         </div>
       </nav>
 
