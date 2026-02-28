@@ -121,7 +121,7 @@ const AccompagnementPage = lazy(() => import("./pages/AccompagnementPage"));
 const AdminCoachingPage = lazy(() => import("./pages/AdminCoachingPage"));
 const AdminAuditPage = lazy(() => import("./pages/AdminAuditPage"));
 
-const NowPilotPage = lazy(() => import("./pages/NowPilotPage"));
+
 const BrandingCoachingPage = lazy(() => import("./pages/BrandingCoachingPage"));
 const BrandingSectionPage = lazy(() => import("./pages/BrandingSectionPage"));
 const IntakePage = lazy(() => import("./pages/IntakePage"));
@@ -167,7 +167,7 @@ const SuspenseFallback = () => (
 
 const ErrorBoundaryLayout = () => <ErrorBoundary><Outlet /></ErrorBoundary>;
 
-const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilot", "/pricing", "/services", "/studio/discover", "/share/branding", "/checkout/binome"];
+const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilot", "/binome", "/pricing", "/services", "/studio/discover", "/share/branding", "/checkout/binome"];
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -236,7 +236,7 @@ function AnimatedRoutes() {
               <Route path="/mon-plan" element={<ProtectedRoute><CommPlanPage /></ProtectedRoute>} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/studio" element={<ProtectedRoute><StudioDashboard /></ProtectedRoute>} />
-              <Route path="/studio/discover" element={<NowStudioSalesPage />} />
+              <Route path="/studio/discover" element={<Navigate to="/binome" replace />} />
               <Route path="/services" element={<ServicesPage />} />
               <Route path="/lives" element={<ProtectedRoute><LivesPage /></ProtectedRoute>} />
               <Route path="/communaute" element={<ProtectedRoute><CommunautePage /></ProtectedRoute>} />
@@ -250,7 +250,9 @@ function AnimatedRoutes() {
               <Route path="/clients" element={<Navigate to="/admin/coaching" replace />} />
               <Route path="/admin/audit" element={<AdminRoute><AdminAuditPage /></AdminRoute>} />
               <Route path="/admin/analytics" element={<Navigate to="/admin/coaching" replace />} />
-              <Route path="/now-pilot" element={<NowPilotPage />} />
+              <Route path="/now-pilot" element={<Navigate to="/binome" replace />} />
+              <Route path="/now-studio" element={<Navigate to="/binome" replace />} />
+              <Route path="/binome" element={<NowStudioSalesPage />} />
               <Route path="/legal-ia" element={<ProtectedRoute><LegalAiPage /></ProtectedRoute>} />
               <Route path="/mentions-legales" element={<MentionsLegalesPage />} />
               <Route path="/confidentialite" element={<ConfidentialitePage />} />

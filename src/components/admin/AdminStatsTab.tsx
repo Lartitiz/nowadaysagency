@@ -19,7 +19,7 @@ import {
 /* ── Constants ── */
 
 const PLAN_LABELS: Record<string, string> = {
-  free: "Gratuit", outil: "Outil", studio: "Binôme", now_pilot: "Binôme", pro: "Pro",
+  free: "Gratuit", outil: "Assistant Com'", studio: "Binôme", now_pilot: "Binôme", pro: "Pro",
 };
 
 const PIE_COLORS = ["#fb3d80", "#8B5CF6", "#F59E0B", "#3B82F6", "#10B981", "#6366F1", "#EC4899"];

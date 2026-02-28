@@ -1,5 +1,5 @@
 /**
- * Demo intake questionnaire data for Léa (Now Pilot).
+ * Demo intake questionnaire data for Léa (Binôme de com').
  */
 
 export interface DemoIntakeQuestion {

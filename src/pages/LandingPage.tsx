@@ -650,7 +650,7 @@ export default function LandingPage() {
                 </a>
               </div>
             </Reveal>
-            {/* Now Studio */}
+            {/* Ton binôme de com' */}
             <Reveal delay={0.2}>
               <div className="rounded-2xl bg-card border border-border p-6 text-left flex flex-col h-full hover:shadow-card-hover transition-shadow">
                 <span className="text-2xl mb-2">🤝</span>
@@ -658,7 +658,7 @@ export default function LandingPage() {
                 <p className="text-primary font-bold text-xl mt-1">250€<span className="text-sm font-normal text-muted-foreground">/mois × 6</span></p>
                 <p className="text-sm text-muted-foreground mt-1 mb-6">L'outil + Laetitia à tes côtés. On fait ensemble.</p>
                 <div className="flex-1" />
-                <Link to="/studio/discover" className="block text-center rounded-pill border border-border py-2.5 font-medium text-foreground hover:bg-secondary transition-colors text-sm">
+                <Link to="/binome" className="block text-center rounded-pill border border-border py-2.5 font-medium text-foreground hover:bg-secondary transition-colors text-sm">
                   En savoir plus
                 </Link>
               </div>

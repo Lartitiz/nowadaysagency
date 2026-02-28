@@ -135,7 +135,7 @@ export default function ServicesPage() {
           ))}
         </div>
 
-        {/* CTA Now Studio */}
+        {/* CTA Binôme de com' */}
         <div className="rounded-2xl border-2 border-primary/20 bg-rose-pale/30 p-8 text-center">
           <Sparkles className="h-6 w-6 text-primary mx-auto mb-3" />
           <h2 className="font-display text-xl font-bold text-foreground mb-2">
@@ -145,7 +145,7 @@ export default function ServicesPage() {
             Ta binôme de com : 6 mois pour structurer, créer et piloter ta communication. Ensemble.
           </p>
           <Button asChild variant="outline" className="rounded-full gap-2">
-            <Link to="/studio">
+            <Link to="/binome">
               Découvrir l'accompagnement <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>

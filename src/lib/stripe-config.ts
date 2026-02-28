@@ -13,7 +13,7 @@ export const STRIPE_PLANS = {
     ],
   },
   outil: {
-    name: "Outil",
+    name: "L'Assistant Com'",
     price: 39,
     priceId: "price_1T3ionI0YZbTj9ITVDBDYXMr",
     productId: "prod_U1mNtVtFHNrlNy",
@@ -27,7 +27,7 @@ export const STRIPE_PLANS = {
     ],
   },
   studio_monthly: {
-    name: "Now Studio",
+    name: "Ton binôme de com'",
     price: 250,
     priceId: "price_1T3ipcI0YZbTj9ITlKOQN5Tm",
     productId: "prod_U1mOM9l58BhlY3",
@@ -41,7 +41,7 @@ export const STRIPE_PLANS = {
     ],
   },
   studio_once: {
-    name: "Now Studio (paiement unique)",
+    name: "Ton binôme de com' (paiement unique)",
     price: 1500,
     priceId: "price_1T3iq5I0YZbTj9ITnDSpkNWN",
     productId: "prod_U1mO5DAp2VmRoR",
