@@ -210,13 +210,14 @@ export default function BrandingPage() {
       }
 
       // Build section summaries for identity card
-      const [personaFullRes, storyFullRes, stratFullRes, toneFullRes] = await Promise.all([
+      const [personaFullRes, storyFullRes, stratFullRes, toneFullRes, offersFullRes] = await Promise.all([
         (supabase.from("persona") as any).select("portrait_prenom, description, pitch_short").eq(column, value).maybeSingle(),
         data.storytellingList && data.storytellingList.length > 0
           ? (supabase.from("storytelling") as any).select("step_7_polished, imported_text, step_1_raw").eq("id", (data.storytellingList.find((s: any) => s.is_primary) || data.storytellingList[0]).id).maybeSingle()
           : Promise.resolve({ data: null }),
         (supabase.from("brand_strategy") as any).select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq(column, value).maybeSingle(),
         (supabase.from("brand_profile") as any).select("tone_register, tone_level, tone_style, tone_humor, tone_engagement").eq(column, value).maybeSingle(),
+        (supabase.from("offers") as any).select("name").eq(column, value).order("created_at", { ascending: true }),
       ]);
 
       const storyText = storyFullRes.data?.step_7_polished || storyFullRes.data?.imported_text || storyFullRes.data?.step_1_raw || "";
@@ -226,6 +227,7 @@ export default function BrandingPage() {
       if (data.charter?.color_primary) charterParts.push("Couleurs");
       if (data.charter?.font_title) charterParts.push("Typos");
       if (data.charter?.logo_url) charterParts.push("Logo");
+      const offersData = offersFullRes.data || [];
 
       setSectionSummaries({
         storytelling: { firstLine: storyText.split(/[.\n]/)[0]?.trim() || "" },
@@ -233,6 +235,7 @@ export default function BrandingPage() {
         proposition: { phrase: data.proposition?.version_pitch_naturel || data.proposition?.version_final || "" },
         tone: { keywords: toneKw },
         strategy: { pillars },
+        offers: { count: offersData.length, mainName: offersData[0]?.name || "" },
         charter: { summary: charterParts.length > 0 ? charterParts.join(" · ") : "" },
       });
 
@@ -615,6 +618,8 @@ export default function BrandingPage() {
                     completion={completion}
                     summaries={sectionSummaries}
                     onReanalyze={!isDemoMode && completion.total > 0 ? handleStartReanalyze : undefined}
+                    profileName={hookProfile?.prenom || ""}
+                    profileActivity={hookProfile?.activite || ""}
                   />
 
                   <div className="mt-6 flex flex-col sm:flex-row gap-2">
