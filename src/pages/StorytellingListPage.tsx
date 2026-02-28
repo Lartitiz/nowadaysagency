@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import EmptyState from "@/components/EmptyState";
 import { MESSAGES } from "@/lib/messages";
 import { useAuth } from "@/contexts/AuthContext";
@@ -62,6 +63,7 @@ export default function StorytellingListPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { isDemoMode, demoData } = useDemoContext();
+  const queryClient = useQueryClient();
   const [items, setItems] = useState<StorytellingRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -96,12 +98,16 @@ export default function StorytellingListPage() {
 
   const setPrimary = async (id: string) => {
     await supabase.from("storytelling").update({ is_primary: true } as any).eq("id", id);
+    queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
+    queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
     toast({ title: "Ce storytelling est maintenant le principal ✨" });
     fetchItems();
   };
 
   const deleteItem = async (id: string) => {
     await supabase.from("storytelling").delete().eq("id", id);
+    queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
+    queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
     toast({ title: "Storytelling supprimé" });
     fetchItems();
   };

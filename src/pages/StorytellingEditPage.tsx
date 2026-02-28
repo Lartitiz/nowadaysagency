@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -16,6 +17,7 @@ export default function StorytellingEditPage() {
   const { id } = useParams();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -36,6 +38,8 @@ export default function StorytellingEditPage() {
     if (!id) return;
     setSaving(true);
     await supabase.from("storytelling").update({ title, imported_text: text } as any).eq("id", id);
+    queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
+    queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
     toast({ title: "Modifications enregistrées !" });
     setSaving(false);
     navigate("/branding/storytelling");
