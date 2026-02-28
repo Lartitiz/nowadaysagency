@@ -4,9 +4,10 @@ import { Navigate, useLocation } from "react-router-dom";
 import { ReactNode, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import FloatingChatButton from "@/components/FloatingChatButton";
+import { isRouteVisible } from "@/config/feature-flags";
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const { isDemoMode } = useDemoContext();
   const location = useLocation();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
@@ -57,6 +58,11 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   }
 
   if (!user) return <Navigate to="/login" replace />;
+
+  // Feature flag: redirect non-admin from hidden module routes
+  if (!isRouteVisible(location.pathname, isAdmin)) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   if (needsOnboarding && location.pathname !== "/onboarding") {
     return <Navigate to="/onboarding" replace />;
