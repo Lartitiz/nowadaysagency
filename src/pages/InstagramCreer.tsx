@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ContentSetupForm from "@/components/ContentSetupForm";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 import { useNavigate, Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
@@ -64,6 +65,7 @@ export default function InstagramCreer() {
   const [ideaText, setIdeaText] = useState("");
   const [suggesting, setSuggesting] = useState(false);
   const [suggestion, setSuggestion] = useState<FormatSuggestion | null>(null);
+  const [showGuidedFlow, setShowGuidedFlow] = useState(false);
   const FORMAT_OPTIONS = getFormatOptions(suggestion).filter(f => activeChannels.includes(f.channel as any));
   const [secondaryMode, setSecondaryMode] = useState<"none" | "dictate">("none");
   const [contentCoachingOpen, setContentCoachingOpen] = useState(false);
@@ -205,6 +207,43 @@ export default function InstagramCreer() {
                   <RefreshCw className="h-3 w-3" /> Autre suggestion
                 </Button>
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* ─── Création guidée ─── */}
+        <div className="rounded-2xl border border-border bg-card mb-6 overflow-hidden">
+          <button
+            onClick={() => setShowGuidedFlow(!showGuidedFlow)}
+            className="w-full flex items-center justify-between p-5 text-left"
+          >
+            <div>
+              <h3 className="font-display font-bold text-sm text-foreground">
+                🎯 Tu sais ce que tu veux dire mais pas comment ?
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Choisis ton objectif et ton angle, on te guide vers le bon format.
+              </p>
+            </div>
+            <span className={`text-muted-foreground transition-transform ${showGuidedFlow ? "rotate-180" : ""}`}>
+              ▾
+            </span>
+          </button>
+          {showGuidedFlow && (
+            <div className="px-5 pb-5 animate-fade-in">
+              <ContentSetupForm
+                compact
+                submitLabel="Créer ce contenu →"
+                onSubmit={({ canal, objectif, format, sujet }) => {
+                  const params = new URLSearchParams();
+                  params.set("canal", canal);
+                  params.set("from", "/creer");
+                  if (objectif) params.set("objectif", objectif);
+                  if (sujet) params.set("sujet", encodeURIComponent(sujet));
+                  if (format) params.set("format", format);
+                  navigate(`/atelier?${params.toString()}`);
+                }}
+              />
             </div>
           )}
         </div>

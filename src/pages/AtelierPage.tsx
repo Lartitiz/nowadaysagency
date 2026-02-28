@@ -40,6 +40,9 @@ export default function AtelierPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const urlCanal = searchParams.get("canal");
+  const urlObjectif = searchParams.get("objectif");
+  const urlSujet = searchParams.get("sujet");
+  const urlFormat = searchParams.get("format");
 
   // Calendar context
   const calendarData = location.state as any;
@@ -47,9 +50,15 @@ export default function AtelierPage() {
 
   // State
   const [canal, setCanal] = useState(urlCanal || "instagram");
-  const [objectif, setObjectif] = useState<string | null>(null);
-  const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
-  const [sujetLibre, setSujetLibre] = useState("");
+  const [objectif, setObjectif] = useState<string | null>(urlObjectif || null);
+  const [selectedFormat, setSelectedFormat] = useState<string | null>(() => {
+    if (urlFormat) {
+      const matched = FORMATS.find(f => f.id === urlFormat);
+      return matched ? matched.id : null;
+    }
+    return null;
+  });
+  const [sujetLibre, setSujetLibre] = useState(urlSujet ? decodeURIComponent(urlSujet) : "");
   const [generating, setGenerating] = useState(false);
   const [ideas, setIdeas] = useState<IdeaResult[]>([]);
   const { profile, brandProfile, mergedProfile, isLoading: profileLoading } = useMergedProfile();
