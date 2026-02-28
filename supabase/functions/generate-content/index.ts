@@ -88,7 +88,12 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const body = validateInput(await req.json(), GenerateContentSchema);
+    const rawBody = await req.json();
+    // Health check ping from admin audit
+    if (rawBody.ping) {
+      return new Response(JSON.stringify({ pong: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const body = validateInput(rawBody, GenerateContentSchema);
     const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt, workspace_id } = body;
 
     let systemPrompt = "";
