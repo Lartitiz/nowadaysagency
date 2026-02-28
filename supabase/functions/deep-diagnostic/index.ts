@@ -457,6 +457,61 @@ Temps disponible/semaine : ${profile.weeklyTime || "non renseigné"}`);
   }
 });
 
+// ====== ACTIVITY INSIGHTS ======
+
+const ACTIVITY_INSIGHTS: Record<string, { strengths: string[]; tips: string[]; priority: string }> = {
+  artisane: {
+    strengths: ["Le fait-main a une histoire à raconter : le processus de fabrication peut devenir ton meilleur contenu"],
+    tips: ["Montre les coulisses de ta création : les mains, les matières, le travail en cours", "Le visuel produit est ton premier levier de vente en ligne"],
+    priority: "Photographie tes produits sous plusieurs angles et en situation",
+  },
+  mode_textile: {
+    strengths: ["La mode éthique est un marché en forte croissance, tu es sur le bon créneau"],
+    tips: ["Les lookbooks et les mises en situation font vendre plus que les photos produit seules", "Ton histoire de marque (pourquoi l'éthique) est un puissant levier émotionnel"],
+    priority: "Crée du contenu storytelling sur ta démarche éthique",
+  },
+  art_design: {
+    strengths: ["Ton travail visuel est ton CV : chaque publication est une preuve de talent"],
+    tips: ["Montre ton processus créatif, pas seulement le résultat final", "Les carrousels avant/après fonctionnent très bien pour les créatif·ves"],
+    priority: "Constitue un portfolio en ligne qui montre ta diversité",
+  },
+  beaute_cosmetiques: {
+    strengths: ["Les tutoriels et démonstrations sont le format roi dans la beauté"],
+    tips: ["Le Reels/vidéo courte est ton meilleur allié : montre les textures, les applications", "Les avis client·es et avant/après sont très convaincants dans ton secteur"],
+    priority: "Lance une série de tutoriels courts sur tes produits phares",
+  },
+  bien_etre: {
+    strengths: ["Ton expertise se partage naturellement via du contenu éducatif"],
+    tips: ["Les formats 'tips du jour' et 'mythes vs réalités' fonctionnent très bien", "Ta personnalité et ton approche sont ton principal différenciant"],
+    priority: "Crée du contenu éducatif qui montre ton expertise unique",
+  },
+  coach: {
+    strengths: ["Les témoignages et transformations client·es sont tes meilleurs arguments"],
+    tips: ["Partage des mini-coachings gratuits en stories pour donner un avant-goût", "Ta posture personnelle (ce que tu incarnes) est aussi importante que tes méthodes"],
+    priority: "Collecte et mets en avant 3 témoignages client·es",
+  },
+  coach_sportive: {
+    strengths: ["Le contenu vidéo (démos, exercices) crée un lien fort avec ta communauté"],
+    tips: ["Les transformations et défis engagent beaucoup sur les réseaux", "Montre ta propre pratique : l'authenticité inspire plus que la perfection"],
+    priority: "Lance un mini-programme gratuit en stories pour engager ta communauté",
+  },
+  consultante: {
+    strengths: ["Ton expertise peut se décliner en contenus éducatifs à forte valeur ajoutée"],
+    tips: ["Les études de cas (anonymisées) sont le meilleur format pour prouver ton expertise", "LinkedIn est probablement ton canal prioritaire pour toucher des client·es B2B"],
+    priority: "Publie une étude de cas détaillée de ta meilleure mission",
+  },
+  formatrice: {
+    strengths: ["Tu sais déjà transmettre : ton contenu peut naturellement être pédagogique"],
+    tips: ["Les carrousels 'X étapes pour...' et les mini-formations gratuites attirent ton audience", "Montre des extraits de tes formations pour donner envie"],
+    priority: "Crée un lead magnet (checklist, mini-guide) autour de ton expertise",
+  },
+  deco_interieur: {
+    strengths: ["Les avant/après et les moodboards sont tes formats stars"],
+    tips: ["Pinterest est un canal stratégique pour la déco : les gens y cherchent activement de l'inspiration", "Montre ton processus de réflexion, pas juste le résultat"],
+    priority: "Crée un tableau Pinterest optimisé par style de décoration",
+  },
+};
+
 // ====== FALLBACK DIAGNOSTIC ======
 
 function buildFallbackDiagnostic(
@@ -465,6 +520,8 @@ function buildFallbackDiagnostic(
   sourcesUsed: string[]
 ): Record<string, unknown> {
   const hasWebPresence = sourcesUsed.length > 0;
+  const activityType = profile?.activityType || "";
+  const insights = ACTIVITY_INSIGHTS[activityType] || null;
 
   const strengths: any[] = [];
   const weaknesses: any[] = [];
@@ -485,12 +542,19 @@ function buildFallbackDiagnostic(
     });
   }
 
+  // Add activity-specific strengths
+  if (insights) {
+    for (const s of insights.strengths) {
+      strengths.push({ title: s, detail: s, source: "profile" });
+    }
+  }
+
   if (!hasWebPresence) {
     weaknesses.push({
       title: "Présence en ligne limitée",
       detail: "Je n'ai pas pu analyser de site web ni de réseaux sociaux. Sans présence en ligne visible, tes client·es potentiel·les ont du mal à te trouver.",
       source: "profile",
-      fix_hint: "Commence par optimiser ta bio Instagram ou créer une page simple.",
+      fix_hint: insights?.tips[0] || "Commence par optimiser ta bio Instagram ou créer une page simple.",
     });
   }
 
@@ -499,7 +563,7 @@ function buildFallbackDiagnostic(
       title: "Manque de visibilité",
       detail: "Tu te sens invisible — c'est le blocage principal que tu as identifié. Souvent, c'est une question de régularité et de clarté dans le message.",
       source: "profile",
-      fix_hint: "Définis tes 3 piliers de contenu et publie 2-3 fois par semaine.",
+      fix_hint: insights?.tips[1] || "Définis tes 3 piliers de contenu et publie 2-3 fois par semaine.",
     });
   }
 
@@ -511,8 +575,46 @@ function buildFallbackDiagnostic(
     10 // base
   ));
 
+  // Build summary
+  const activityLabel = profile?.activityType || "entrepreneure";
+  const activityDomain = profile?.activity || "ton activité";
+  const blockerLine = profile?.blocker === "invisible"
+    ? "Tu te sens invisible et cherches à gagner en visibilité."
+    : "Tu veux développer ta communication.";
+  const insightLine = insights?.tips[0] ? ` Mon conseil : ${insights.tips[0].toLowerCase()}.` : "";
+  const sourceLine = hasWebPresence
+    ? ""
+    : " J'ai pas eu accès à tes réseaux ni à ton site, donc je me base sur ce que tu m'as dit. Ajoute tes liens pour un diagnostic plus poussé.";
+
+  const summary = `Tu es ${activityLabel} dans le domaine "${activityDomain}". ${blockerLine}${insightLine}${sourceLine}`;
+
+  // Build priorities — use activity-specific first priority if available
+  const priorities = [
+    {
+      title: insights?.priority || "Complète ton identité de marque",
+      why: insights ? "C'est le levier le plus impactant pour ton type d'activité" : "Sans fondations claires, ta communication manque de cohérence",
+      time: "30 min",
+      route: insights ? "/storytelling" : "/storytelling",
+      impact: "high",
+    },
+    {
+      title: "Définis ta cliente idéale",
+      why: "Savoir à qui tu parles change tout dans ton contenu",
+      time: "20 min",
+      route: "/persona",
+      impact: "high",
+    },
+    {
+      title: "Planifie tes premiers contenus",
+      why: "La régularité est plus importante que la perfection",
+      time: "15 min",
+      route: "/calendrier",
+      impact: "medium",
+    },
+  ];
+
   return {
-    summary: `Tu es ${profile?.activityType || "entrepreneure"} dans le domaine "${profile?.activity || "ton activité"}". ${profile?.blocker === "invisible" ? "Tu te sens invisible et cherches à gagner en visibilité." : "Tu veux développer ta communication."} Ce diagnostic est basé sur tes réponses — pour un résultat plus précis, ajoute tes liens (site, Instagram, LinkedIn).`,
+    summary,
     strengths,
     weaknesses,
     scores: {
@@ -522,29 +624,7 @@ function buildFallbackDiagnostic(
       website: null,
       linkedin: null,
     },
-    priorities: [
-      {
-        title: "Complète ton identité de marque",
-        why: "Sans fondations claires, ta communication manque de cohérence",
-        time: "30 min",
-        route: "/storytelling",
-        impact: "high",
-      },
-      {
-        title: "Définis ta cliente idéale",
-        why: "Savoir à qui tu parles change tout dans ton contenu",
-        time: "20 min",
-        route: "/persona",
-        impact: "high",
-      },
-      {
-        title: "Planifie tes premiers contenus",
-        why: "La régularité est plus importante que la perfection",
-        time: "15 min",
-        route: "/calendrier",
-        impact: "medium",
-      },
-    ],
+    priorities,
     branding_prefill: {
       positioning: null,
       mission: null,
