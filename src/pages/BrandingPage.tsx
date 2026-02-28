@@ -33,25 +33,6 @@ import { DEMO_AUTOFILL_RESULT } from "@/lib/demo-autofill-data";
 import { toast } from "sonner";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 
-interface BrandingCard {
-  emoji: string;
-  title: string;
-  description: string;
-  stepperRoute: string;
-  recapRoute: string;
-  scoreKey: keyof Omit<BrandingCompletion, "total">;
-}
-
-const CARDS: BrandingCard[] = [
-  { emoji: "📖", title: "Mon histoire", description: "Raconte ton projet en quelques lignes, l'IA structure tout.", stepperRoute: "/branding/simple/story", recapRoute: "/branding/section?section=story", scoreKey: "storytelling" },
-  { emoji: "👩‍💻", title: "Mon client·e idéal·e", description: "3 questions simples et l'IA crée ta fiche persona.", stepperRoute: "/branding/simple/persona", recapRoute: "/branding/section?section=persona", scoreKey: "persona" },
-  { emoji: "❤️", title: "Ma proposition de valeur", description: "Dis ce que tu fais, l'IA formule ta proposition.", stepperRoute: "/branding/simple/proposition", recapRoute: "/branding/proposition/recap", scoreKey: "proposition" },
-  { emoji: "🎨", title: "Ma voix & mes combats", description: "Choisis ta vibe, l'IA définit ton ton.", stepperRoute: "/branding/simple/tone", recapRoute: "/branding/section?section=tone_style", scoreKey: "tone" },
-  { emoji: "🍒", title: "Ma ligne éditoriale", description: "Générée automatiquement à partir de ton branding.", stepperRoute: "/branding/simple/strategy", recapRoute: "/branding/section?section=content_strategy", scoreKey: "strategy" },
-  { emoji: "🎁", title: "Mes offres", description: "Décris tes offres simplement, l'IA les structure.", stepperRoute: "/branding/simple/offers", recapRoute: "/branding/offres", scoreKey: "offers" },
-  { emoji: "🎨", title: "Ma charte graphique", description: "Tes couleurs, typos, logo et style visuel.", stepperRoute: "/branding/charter", recapRoute: "/branding/charter", scoreKey: "charter" },
-];
-
 const RECOMMENDATIONS: Record<string, { low: string; mid: string; high: string; done: string }> = {
   storytelling: { low: "Commence par raconter ton moment déclic. 5 minutes suffisent.", mid: "Ton histoire prend forme ! Il te manque le texte final poli.", high: "Presque terminé. Laisse l'IA t'aider à peaufiner ton récit.", done: "Ton histoire est prête. Tu peux en faire un post ou un carousel." },
   persona: { low: "Décris les frustrations de ta cliente idéale pour démarrer.", mid: "Bon début ! Creuse sa transformation rêvée pour compléter.", high: "Il te manque les détails esthétiques et ses premières actions.", done: "Ta cliente idéale est définie. Utilise-la dans tes contenus." },
@@ -471,13 +452,6 @@ export default function BrandingPage() {
       : completion.total >= 50
         ? "Tu avances bien ! Quelques sections à compléter."
         : "Continue à remplir pour débloquer tout le potentiel de l'outil.";
-
-  const getRecapRoute = (card: BrandingCard) => {
-    if (card.scoreKey === "storytelling" && primaryStoryId) {
-      return card.recapRoute.replace("__PRIMARY__", primaryStoryId);
-    }
-    return card.recapRoute;
-  };
 
   const filledSections = (["storytelling", "persona", "proposition", "tone", "strategy", "offers", "charter"] as const)
     .filter((k) => completion[k] > 0).length;
