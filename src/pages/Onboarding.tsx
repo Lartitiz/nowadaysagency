@@ -336,6 +336,40 @@ function PrenomActiviteScreen({ prenom, activite, onPrenomChange, onActiviteChan
   );
 }
 
+function normalizeInstagramHandle(input: string): string {
+  let v = input.trim();
+  // Strip full URLs
+  v = v.replace(/^https?:\/\/(www\.)?instagram\.com\//, "");
+  // Strip leading @
+  v = v.replace(/^@/, "");
+  // Remove trailing slash
+  v = v.replace(/\/$/, "");
+  // Take only first path segment
+  v = v.split("/")[0].split("?")[0];
+  return v;
+}
+
+function isValidUrl(input: string): boolean {
+  return /^https?:\/\/.+\..+/.test(input.trim());
+}
+
+function addHttpsIfNeeded(input: string): string {
+  const v = input.trim();
+  if (!v) return v;
+  if (/^https?:\/\//.test(v)) return v;
+  if (v.includes(".")) return "https://" + v;
+  return v;
+}
+
+function InputIndicator({ status }: { status: "valid" | "warn" | "none" }) {
+  if (status === "none") return null;
+  return (
+    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm pointer-events-none">
+      {status === "valid" ? "✅" : "⚠️"}
+    </span>
+  );
+}
+
 function LinksScreen({ answers, set, files, uploading, onUpload, onRemove, onNext, isDemoMode }: {
   answers: Answers;
   set: <K extends keyof Answers>(k: K, v: Answers[K]) => void;
@@ -349,6 +383,15 @@ function LinksScreen({ answers, set, files, uploading, onUpload, onRemove, onNex
   const inputRef = useRef<HTMLInputElement>(null);
   const hasAnyLink = !!(answers.instagram || answers.website || answers.linkedin);
   const hasAnything = hasAnyLink || files.length > 0;
+
+  const igStatus: "valid" | "warn" | "none" = !answers.instagram ? "none"
+    : /^[a-zA-Z0-9_.]+$/.test(answers.instagram) ? "valid" : "warn";
+
+  const webStatus: "valid" | "warn" | "none" = !answers.website ? "none"
+    : isValidUrl(answers.website) ? "valid" : "warn";
+
+  const liStatus: "valid" | "warn" | "none" = !answers.linkedin ? "none"
+    : answers.linkedin.includes("linkedin.com") ? "valid" : "warn";
 
   return (
     <div className="space-y-6">
@@ -365,40 +408,51 @@ function LinksScreen({ answers, set, files, uploading, onUpload, onRemove, onNex
         {/* Instagram */}
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">📱 Ton @ Instagram</label>
-          <input
-            type="text"
-            value={answers.instagram}
-            onChange={e => set("instagram", e.target.value)}
-            placeholder="@tonpseudo"
-            aria-label="Ton @ Instagram"
-            className="w-full text-base p-3 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              value={answers.instagram}
+              onChange={e => set("instagram", normalizeInstagramHandle(e.target.value))}
+              placeholder="@tonpseudo"
+              aria-label="Ton @ Instagram"
+              className="w-full text-base p-3 pr-10 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50"
+            />
+            <InputIndicator status={igStatus} />
+          </div>
         </div>
 
         {/* Website */}
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">🌐 Ton site web</label>
-          <input
-            type="text"
-            value={answers.website}
-            onChange={e => set("website", e.target.value)}
-            placeholder="https://tonsite.fr"
-            aria-label="URL de ton site web"
-            className="w-full text-base p-3 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              value={answers.website}
+              onChange={e => set("website", e.target.value)}
+              onBlur={() => { if (answers.website) set("website", addHttpsIfNeeded(answers.website)); }}
+              placeholder="https://tonsite.fr"
+              aria-label="URL de ton site web"
+              className="w-full text-base p-3 pr-10 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50"
+            />
+            <InputIndicator status={webStatus} />
+          </div>
         </div>
 
         {/* LinkedIn */}
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">💼 URL de ton profil LinkedIn (optionnel)</label>
-          <input
-            type="text"
-            value={answers.linkedin}
-            onChange={e => set("linkedin", e.target.value)}
-            placeholder="https://linkedin.com/in/..."
-            aria-label="URL de ton profil LinkedIn"
-            className="w-full text-sm p-2.5 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              value={answers.linkedin}
+              onChange={e => set("linkedin", e.target.value)}
+              onBlur={() => { if (answers.linkedin) set("linkedin", addHttpsIfNeeded(answers.linkedin)); }}
+              placeholder="https://linkedin.com/in/..."
+              aria-label="URL de ton profil LinkedIn"
+              className="w-full text-sm p-2.5 pr-10 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50"
+            />
+            <InputIndicator status={liStatus} />
+          </div>
         </div>
 
         {/* LinkedIn Summary */}
