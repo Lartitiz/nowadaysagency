@@ -49,6 +49,7 @@ const SECTION_ORDER = [
   { key: "proposition" as const, label: "Ta proposition de valeur", route: "/branding/proposition/recap", routeNew: "/branding/proposition" },
   { key: "tone" as const, label: "Ton & style", route: "/branding/ton/recap", routeNew: "/branding/ton" },
   { key: "strategy" as const, label: "Ta stratégie de contenu", route: "/branding/strategie/recap", routeNew: "/branding/strategie" },
+  { key: "offers" as const, label: "Tes offres", route: "/branding/offres", routeNew: "/branding/offres" },
   { key: "charter" as const, label: "Ta charte visuelle", route: "/branding/charter", routeNew: "/branding/charter" },
 ] as const;
 
@@ -207,7 +208,7 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
           strategy: 0,
           offers: 0,
           charter: 0,
-          total: 62,
+          total: 50,
         };
         // Audit done 2 weeks ago
         const twoWeeksAgo = new Date();

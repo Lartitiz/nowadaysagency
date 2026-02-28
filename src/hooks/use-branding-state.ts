@@ -103,7 +103,7 @@ export function useBrandingState(): BrandingState {
   }, [user?.id, isDemoMode, column, value]);
 
   // Compute the derived view
-  const filledSections = (["storytelling", "persona", "proposition", "tone", "strategy", "charter"] as const)
+  const filledSections = (["storytelling", "persona", "proposition", "tone", "strategy", "offers", "charter"] as const)
     .filter((k) => completion[k] > 0).length;
 
   let derivedView: BrandingView;

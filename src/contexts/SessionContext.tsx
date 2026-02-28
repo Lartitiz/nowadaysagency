@@ -81,6 +81,7 @@ function pickBrandingRoute(
     { key: "proposition", threshold: 50, route: "/branding/proposition" },
     { key: "tone", threshold: 50, route: "/branding/ton" },
     { key: "strategy", threshold: 50, route: "/branding/strategie" },
+    { key: "offers", threshold: 50, route: "/branding/offres" },
   ];
 
   for (const s of sections) {
