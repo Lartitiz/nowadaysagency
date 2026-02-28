@@ -239,7 +239,7 @@ export default function Onboarding() {
                   <UniquenessScreen
                     value={answers.uniqueness}
                     onChange={v => set("uniqueness", v)}
-                    onNext={() => { handleFinish(); next(); }}
+                    onNext={async () => { await handleFinish(); next(); }}
                   />
                 )}
 

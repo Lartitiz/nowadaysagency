@@ -237,13 +237,13 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
       const [brandingData, profileRes, planConfigRes, calendarCountRes, auditRes] =
         await Promise.all([
           fetchBrandingData(filter),
-          (supabase.from("profiles") as any)
+    (supabase.from("profiles") as any)
             .select("prenom, onboarding_completed")
-            .eq(filter.column, filter.value)
+            .eq("user_id", user.id)
             .maybeSingle(),
           (supabase.from("user_plan_config") as any)
             .select("onboarding_completed")
-            .eq(filter.column, filter.value)
+            .eq("user_id", user.id)
             .maybeSingle(),
           (supabase.from("calendar_posts") as any)
             .select("id", { count: "exact", head: true })
