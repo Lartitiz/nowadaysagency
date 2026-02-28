@@ -47,6 +47,7 @@ export default function SettingsPage() {
 
   const [deleting, setDeleting] = useState(false);
   const [resettingOnboarding, setResettingOnboarding] = useState(false);
+  const [resettingBranding, setResettingBranding] = useState(false);
   const navigate = useNavigate();
   const [cookieConsent, setCookieConsent] = useState(() => localStorage.getItem("cookie_consent"));
 
@@ -412,6 +413,69 @@ export default function SettingsPage() {
                   }}
                 >
                   Oui, relancer
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <div className="border-t border-border/50 my-4" />
+
+          <p className="text-sm text-muted-foreground mb-4">
+            Tu peux aussi repartir de zéro sur ton branding uniquement (storytelling, persona, ton, stratégie, offres, charte). Ton profil et tes contenus seront conservés.
+          </p>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" className="rounded-full text-muted-foreground hover:text-destructive hover:border-destructive/30" disabled={resettingBranding}>
+                {resettingBranding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                Réinitialiser mon branding
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Réinitialiser ton branding ?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Toutes tes données de branding seront supprimées : storytelling, persona, proposition de valeur, ton & voix, stratégie, offres, charte graphique, audits et sessions de coaching. Cette action est irréversible. Ton profil, tes contenus et ton calendrier ne seront pas touchés.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="rounded-full">Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  disabled={resettingBranding}
+                  onClick={async () => {
+                    if (!user) return;
+                    setResettingBranding(true);
+                    try {
+                      const tables = [
+                        "branding_coaching_sessions",
+                        "branding_mirror_results",
+                        "branding_autofill",
+                        "branding_audits",
+                        "brand_charter",
+                        "brand_strategy",
+                        "brand_proposition",
+                        "brand_profile",
+                        "storytelling",
+                        "persona",
+                        "offers",
+                        "voice_profile",
+                      ] as const;
+                      for (const table of tables) {
+                        const { error } = await (supabase.from(table) as any).delete().eq("user_id", user.id);
+                        if (error) console.error(`Failed to delete ${table}:`, error);
+                      }
+                      localStorage.removeItem("branding_skip_import");
+                      toast({ title: "✅ Ton branding a été réinitialisé. Tu peux repartir de zéro !" });
+                      navigate("/branding");
+                    } catch (e) {
+                      console.error("Reset branding error:", e);
+                      toast({ title: "Erreur", description: "Impossible de réinitialiser le branding.", variant: "destructive" });
+                    } finally {
+                      setResettingBranding(false);
+                    }
+                  }}
+                >
+                  Oui, réinitialiser
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
