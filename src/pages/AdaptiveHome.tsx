@@ -185,6 +185,22 @@ function ConstructionPhase({
           </Chip>
         ))}
       </div>
+
+      <Card
+        className="mt-6 p-4 cursor-pointer hover:border-primary/30 transition bg-card rounded-2xl border border-dashed border-primary/20"
+        onClick={() => onNavigate("/dashboard/guide")}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <span className="text-lg">💬</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm text-foreground">Discuter avec mon assistant</p>
+            <p className="text-xs text-muted-foreground">Pose n'importe quelle question sur ta com'</p>
+          </div>
+          <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
+        </div>
+      </Card>
     </>
   );
 }
@@ -237,8 +253,23 @@ function ActionPhase({
         ))}
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-2">
-        <Chip onClick={() => onNavigate("/dashboard/guide")}>💬 Parler à mon assistant</Chip>
+      <Card
+        className="mt-6 p-4 cursor-pointer hover:border-primary/30 transition bg-card rounded-2xl border border-dashed border-primary/20"
+        onClick={() => onNavigate("/dashboard/guide")}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <span className="text-lg">💬</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm text-foreground">Discuter avec mon assistant</p>
+            <p className="text-xs text-muted-foreground">Pose n'importe quelle question sur ta com'</p>
+          </div>
+          <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
+        </div>
+      </Card>
+
+      <div className="mt-4 flex flex-wrap gap-2">
         <Chip onClick={() => onNavigate("/dashboard/complet")}>Voir tous mes outils →</Chip>
       </div>
     </>
@@ -319,6 +350,22 @@ function PilotagePhase({
           </Card>
         ))}
       </div>
+
+      <Card
+        className="mt-6 p-4 cursor-pointer hover:border-primary/30 transition bg-card rounded-2xl border border-dashed border-primary/20"
+        onClick={() => onNavigate("/dashboard/guide")}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <span className="text-lg">💬</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm text-foreground">Discuter avec mon assistant</p>
+            <p className="text-xs text-muted-foreground">Pose n'importe quelle question sur ta com'</p>
+          </div>
+          <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
+        </div>
+      </Card>
 
       <Link
         to="/dashboard/complet"
