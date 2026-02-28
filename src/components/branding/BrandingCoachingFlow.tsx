@@ -708,6 +708,10 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         } as any, { onConflict: "user_id" });
         queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
         queryClient.invalidateQueries({ queryKey: ["profile"] });
+        queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
+        queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
+        queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
+        queryClient.invalidateQueries({ queryKey: ["persona"] });
       }
     } catch (e) {
       console.error("[BrandingCoaching] Error saving insights:", e);
