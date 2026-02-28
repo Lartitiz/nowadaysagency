@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Mic, MicOff, Plus, Sparkles, PenLine, Palette, Target, CalendarDays, Users, Lightbulb, MessageSquare, BarChart3 } from "lucide-react";
@@ -112,7 +113,7 @@ const DEMO_WELCOME_SUGGESTIONS: Suggestion[] = [
 const DEMO_RESPONSES: Record<string, { content: string; actions?: ActionLink[]; suggestions?: Suggestion[] }> = {
   "Créer un post Instagram": {
     content: "Super idée ! Tu as un bon storytelling et ton persona est défini. Je te propose de créer un post qui parle de ton approche de la photographie portraitiste éthique. Ça montrerait ta différence.",
-    actions: [{ route: "/creer/instagram-post", label: "Créer le post", icon: "PenLine" }],
+    actions: [{ route: "/creer", label: "Créer le post", icon: "PenLine" }],
     suggestions: [
       { icon: "Lightbulb", label: "Donne-moi des idées de sujets" },
       { icon: "PenLine", label: "Je préfère un carrousel" },
@@ -850,7 +851,27 @@ export default function ChatGuidePage() {
                         {msg.actions.map((action, i) => (
                           <button
                             key={i}
-                            onClick={() => navigate(action.route)}
+                            onClick={() => {
+                              const validRoutes = [
+                                "/creer", "/calendrier", "/branding", "/branding/storytelling",
+                                "/branding/persona", "/branding/proposition", "/branding/ton-style",
+                                "/branding/strategie", "/branding/charte",
+                                "/instagram/bio", "/instagram/carousel", "/instagram/reels",
+                                "/instagram/stories", "/instagram/audit", "/instagram/stats",
+                                "/instagram/engagement", "/instagram/profil",
+                                "/linkedin", "/linkedin/post", "/linkedin/audit",
+                                "/plan", "/contacts", "/atelier", "/transformer",
+                                "/dashboard", "/profil", "/site", "/seo",
+                              ];
+                              const baseRoute = action.route.split("?")[0];
+                              if (validRoutes.includes(baseRoute) || validRoutes.some(r => baseRoute.startsWith(r + "/"))) {
+                                navigate(action.route);
+                              } else {
+                                console.warn("Route inconnue dans le chat:", action.route);
+                                navigate("/creer");
+                                toast("La page demandée n'existe pas encore, voici les options disponibles.");
+                              }
+                            }}
                             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all bg-primary/10 text-primary hover:bg-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30"
                             style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
                           >
