@@ -392,86 +392,112 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
     setCompletionPct(q.completion_percentage);
   }, []);
 
+  const startingRef = useRef(false);
+
   const handleStart = useCallback(async () => {
+    // Guard against double-start (React strict mode / double mount)
+    if (startingRef.current) return;
+    startingRef.current = true;
+
     setPhase("coaching");
 
-    if (isDemoMode && demoQuestions) {
-      const first = demoQuestions[0];
-      setCurrentQuestion({
-        question: first.question,
-        question_type: first.question_type,
-        options: first.options,
-        placeholder: first.placeholder,
-        is_complete: false,
-        completion_percentage: first.completion_percentage,
-      });
-      setAnswer(first.demo_answer);
-      setCompletionPct(5);
-      return;
-    }
+    try {
+      if (isDemoMode && demoQuestions) {
+        const first = demoQuestions[0];
+        setCurrentQuestion({
+          question: first.question,
+          question_type: first.question_type,
+          options: first.options,
+          placeholder: first.placeholder,
+          is_complete: false,
+          completion_percentage: first.completion_percentage,
+        });
+        setAnswer(first.demo_answer);
+        setCompletionPct(5);
+        return;
+      }
 
-    // Charter: show first question directly (step-based, no initial API call)
-    if (section === "charter") {
-      charterStepRef.current = 0;
-      const CHARTER_QUESTIONS = [
-        "Si ta marque était un lieu, ce serait quoi ? Un café cosy avec des plantes, une galerie d'art contemporain, un marché artisanal en plein air, un studio de yoga épuré, une boutique vintage colorée, ou autre chose ?",
-        "Quelles couleurs te font vibrer quand tu penses à ta marque ? Pas celles que tu 'devrais' utiliser : celles qui te PARLENT. Décris-les (ex : rose vif, vert sauge, jaune moutarde, bleu nuit) ou donne des codes HEX si tu les as.",
-        "Comment décrirais-tu le style de tes visuels ? Plutôt minimaliste et épuré ? Coloré et pop ? Artisanal et chaleureux ? Luxe et raffiné ? Donne-moi 3 mots qui décrivent l'ambiance visuelle que tu veux créer.",
-        "Pour les polices de caractères : tu préfères un style plutôt classique et élégant (serif type Playfair Display), moderne et clean (sans-serif type Montserrat), ou manuscrit et organique ?",
-        "As-tu déjà un logo ? Si oui, décris-le. Si non, pas de panique : on peut travailler sans. L'important c'est d'avoir une identité visuelle cohérente, le logo vient après.",
-        "Dernière question : qu'est-ce que tu DÉTESTES visuellement ? Les trucs qui te font fuir quand tu les vois sur un compte Instagram ?",
-      ];
+      // Charter: show first question directly (step-based, no initial API call)
+      if (section === "charter") {
+        charterStepRef.current = 0;
+        const CHARTER_QUESTIONS = [
+          "Si ta marque était un lieu, ce serait quoi ? Un café cosy avec des plantes, une galerie d'art contemporain, un marché artisanal en plein air, un studio de yoga épuré, une boutique vintage colorée, ou autre chose ?",
+          "Quelles couleurs te font vibrer quand tu penses à ta marque ? Pas celles que tu 'devrais' utiliser : celles qui te PARLENT. Décris-les (ex : rose vif, vert sauge, jaune moutarde, bleu nuit) ou donne des codes HEX si tu les as.",
+          "Comment décrirais-tu le style de tes visuels ? Plutôt minimaliste et épuré ? Coloré et pop ? Artisanal et chaleureux ? Luxe et raffiné ? Donne-moi 3 mots qui décrivent l'ambiance visuelle que tu veux créer.",
+          "Pour les polices de caractères : tu préfères un style plutôt classique et élégant (serif type Playfair Display), moderne et clean (sans-serif type Montserrat), ou manuscrit et organique ?",
+          "As-tu déjà un logo ? Si oui, décris-le. Si non, pas de panique : on peut travailler sans. L'important c'est d'avoir une identité visuelle cohérente, le logo vient après.",
+          "Dernière question : qu'est-ce que tu DÉTESTES visuellement ? Les trucs qui te font fuir quand tu les vois sur un compte Instagram ?",
+        ];
 
-      // If resuming existing session, figure out which step we're on
+        // If resuming existing session, figure out which step we're on
+        if (hasExistingSession && messagesRef.current.length > 0) {
+          const userMsgs = messagesRef.current.filter(m => m.role === "user").length;
+          charterStepRef.current = userMsgs;
+          if (userMsgs < CHARTER_QUESTIONS.length) {
+            setCurrentQuestion({
+              question: CHARTER_QUESTIONS[userMsgs],
+              question_type: "textarea",
+              placeholder: "Ta réponse...",
+              is_complete: false,
+              completion_percentage: Math.round((userMsgs / 6) * 100),
+            });
+            setCompletionPct(Math.round((userMsgs / 6) * 100));
+          }
+          return;
+        }
+
+        setCurrentQuestion({
+          question: CHARTER_QUESTIONS[0],
+          question_type: "textarea",
+          placeholder: "Décris le lieu qui te vient en tête...",
+          is_complete: false,
+          completion_percentage: 0,
+        });
+        const initial = [makeMsg("assistant", CHARTER_QUESTIONS[0])];
+        setMessages(initial);
+        setCompletionPct(0);
+        return;
+      }
+
       if (hasExistingSession && messagesRef.current.length > 0) {
-        const userMsgs = messagesRef.current.filter(m => m.role === "user").length;
-        charterStepRef.current = userMsgs;
-        if (userMsgs < CHARTER_QUESTIONS.length) {
+        const lastMsg = messagesRef.current[messagesRef.current.length - 1];
+
+        // If the last message is already from the assistant, we already have the pending question
+        // No need to call the AI again — just restore it as currentQuestion
+        if (lastMsg.role === "assistant") {
           setCurrentQuestion({
-            question: CHARTER_QUESTIONS[userMsgs],
+            question: lastMsg.content,
             question_type: "textarea",
             placeholder: "Ta réponse...",
             is_complete: false,
-            completion_percentage: Math.round((userMsgs / 6) * 100),
+            completion_percentage: completionPct,
           });
-          setCompletionPct(Math.round((userMsgs / 6) * 100));
+          return;
+        }
+
+        // Last message is from user — AI needs to respond
+        lastCallMsgsRef.current = messagesRef.current;
+        const response = await askAI(messagesRef.current);
+        if (response) {
+          setCurrentQuestion(response);
+          updateCoveredTopics(response);
+          setCompletionPct(response.completion_percentage || 5);
         }
         return;
       }
 
-      setCurrentQuestion({
-        question: CHARTER_QUESTIONS[0],
-        question_type: "textarea",
-        placeholder: "Décris le lieu qui te vient en tête...",
-        is_complete: false,
-        completion_percentage: 0,
-      });
-      const initial = [makeMsg("assistant", CHARTER_QUESTIONS[0])];
-      setMessages(initial);
-      setCompletionPct(0);
-      return;
-    }
-
-    if (hasExistingSession && messagesRef.current.length > 0) {
-      lastCallMsgsRef.current = messagesRef.current;
-      const response = await askAI(messagesRef.current);
+      lastCallMsgsRef.current = [];
+      const response = await askAI([]);
       if (response) {
         setCurrentQuestion(response);
-        updateCoveredTopics(response);
+        const initial = [makeMsg("assistant", response.question)];
+        setMessages(initial);
         setCompletionPct(response.completion_percentage || 5);
       }
-      return;
+    } finally {
+      startingRef.current = false;
     }
-
-    lastCallMsgsRef.current = [];
-    const response = await askAI([]);
-    if (response) {
-      setCurrentQuestion(response);
-      const initial = [makeMsg("assistant", response.question)];
-      setMessages(initial);
-      setCompletionPct(response.completion_percentage || 5);
-    }
-  }, [isDemoMode, demoQuestions, hasExistingSession, askAI, updateCoveredTopics, section]);
+  }, [isDemoMode, demoQuestions, hasExistingSession, askAI, updateCoveredTopics, section, completionPct]);
 
   const handleNext = useCallback(async () => {
     const userAnswer = currentQuestion?.question_type === "select" || currentQuestion?.question_type === "multi_select"
