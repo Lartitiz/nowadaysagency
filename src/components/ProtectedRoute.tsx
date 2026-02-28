@@ -31,7 +31,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
             .eq("user_id", user.id)
             .maybeSingle(),
         ]);
-        const done = profile?.onboarding_completed === true && config?.onboarding_completed === true;
+        const done = profile?.onboarding_completed === true || config?.onboarding_completed === true;
         setNeedsOnboarding(!done);
       } catch (e) {
         console.error("Onboarding check failed:", e);
