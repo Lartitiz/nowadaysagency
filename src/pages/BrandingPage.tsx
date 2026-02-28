@@ -371,6 +371,15 @@ export default function BrandingPage() {
     setTimeout(() => setImportPhaseNew("analyzing"), 1000);
 
     try {
+      // Validate at least one source is provided
+      const hasSource = data.website?.trim() || data.instagram?.trim() || data.linkedin?.trim() || (data.files && data.files.length > 0);
+      if (!hasSource) {
+        toast.error("Ajoute au moins un lien (site web, Instagram ou LinkedIn) pour lancer l'analyse.");
+        setImportAnalyzing(false);
+        setImportPhaseNew("form");
+        return;
+      }
+
       // Normalize website URL
       let normalizedWebsite = data.website?.trim() || null;
       if (normalizedWebsite && !normalizedWebsite.startsWith("http://") && !normalizedWebsite.startsWith("https://")) {
@@ -395,7 +404,18 @@ export default function BrandingPage() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Extract the actual error message from the response context
+        let detail = "";
+        try {
+          const ctx = (error as any)?.context;
+          if (ctx && typeof ctx.json === "function") {
+            const body = await ctx.json();
+            detail = body?.error || "";
+          }
+        } catch { /* ignore */ }
+        throw new Error(detail || error.message || "Analyse échouée");
+      }
       if (!result?.success) throw new Error(result?.error || "Analyse échouée");
 
       // Save autofill status
@@ -412,9 +432,12 @@ export default function BrandingPage() {
     } catch (e: any) {
       console.error("Analysis error:", e);
       const errorMsg = e?.message || "Erreur inconnue";
-      toast.error(`L'analyse a échoué : ${errorMsg}`);
+      const userMsg = errorMsg.includes("Aucune source")
+        ? "Aucune de tes sources n'a pu être analysée. Vérifie que tes liens sont accessibles publiquement et réessaie."
+        : `L'analyse a échoué : ${errorMsg}`;
+      toast.error(userMsg);
       setImportAnalyzing(false);
-      setAnalysisError(errorMsg);
+      setAnalysisError(userMsg);
       setImportPhaseNew("error");
     }
   };
