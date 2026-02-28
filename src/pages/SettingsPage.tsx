@@ -129,17 +129,32 @@ export default function SettingsPage() {
   const handleDeleteAccount = async () => {
     setDeleting(true);
     try {
+      console.log("[delete-account] Calling edge function...");
       const { data, error } = await supabase.functions.invoke("delete-account");
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      console.log("[delete-account] Response:", { data, error });
+
+      if (error) {
+        console.error("[delete-account] Edge function error:", error);
+        throw error;
+      }
+      if (data?.error) {
+        console.error("[delete-account] Data error:", data.error);
+        throw new Error(data.error);
+      }
+
+      if (data?.errors && data.errors.length > 0) {
+        console.warn("[delete-account] Partial errors:", data.errors);
+      }
+
+      console.log("[delete-account] Success, tables cleaned:", data?.tables_cleaned);
       await signOut();
       toast({ title: "Compte supprimé. À bientôt peut-être 💛" });
       window.location.href = "/";
-    } catch (e) {
-      console.error("Delete account error:", e);
+    } catch (e: any) {
+      console.error("[delete-account] Fatal error:", e);
       toast({
         title: "Erreur lors de la suppression",
-        description: "La suppression a rencontré un problème. Contacte laetitia@nowadaysagency.com pour qu'on règle ça.",
+        description: e?.message || "La suppression a rencontré un problème. Ouvre la console (F12) pour voir le détail.",
         variant: "destructive",
       });
     } finally {
