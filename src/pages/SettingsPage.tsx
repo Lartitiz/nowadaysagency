@@ -473,7 +473,10 @@ export default function SettingsPage() {
                       localStorage.removeItem("lac_onboarding_ts");
                       localStorage.removeItem("branding_skip_import");
 
-                      // 5. Force full page reload to clear React state and re-check onboarding
+                      // 5. Set reset flag so useOnboarding doesn't redirect back to dashboard
+                      localStorage.setItem("lac_onboarding_reset", "true");
+
+                      // 6. Force full page reload to clear React state and re-check onboarding
                       window.location.href = "/onboarding";
                     } catch (e) {
                       console.error("[reset] Fatal error:", e);
