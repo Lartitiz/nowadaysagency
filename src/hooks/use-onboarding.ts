@@ -39,15 +39,16 @@ function getStepName(step: number): string {
   const names: Record<number, string> = {
     0: "welcome",
     1: "prenom_activite",
-    2: "activity_type_product",
-    3: "links_docs",
-    4: "canaux_combined",
-    5: "objectif",
-    6: "blocage",
-    7: "temps",
-    8: "affinage_1",
-    9: "affinage_2",
-    10: "building_diagnostic",
+    2: "activity_type",
+    3: "product_or_service",
+    4: "links_docs",
+    5: "canaux_combined",
+    6: "objectif",
+    7: "blocage",
+    8: "temps",
+    9: "affinage_1",
+    10: "affinage_2",
+    11: "building_diagnostic",
   };
   return names[step] || "unknown_" + step;
 }
@@ -264,7 +265,7 @@ export function useOnboarding() {
   const auditsLaunched = useRef(false);
   useEffect(() => {
     if (isDemoMode || !user || auditsLaunched.current) return;
-    if (step < 7) return; // Start at affinage phase
+    if (step < 8) return; // Start at affinage phase
     auditsLaunched.current = true;
     setAuditResults(prev => ({ ...prev, isLoading: true }));
 
