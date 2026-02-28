@@ -218,7 +218,7 @@ export default function CoachingSessionManager({ program, sessions: initialSessi
         </section>
 
         {/* ── LIVRABLES ── */}
-        <section className="rounded-2xl border border-border bg-card p-5 mb-6">
+        <section id="livrables-section" className="rounded-2xl border border-border bg-card p-5 mb-6">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
             🎁 Livrables ({deliverables.filter(d => d.status === "delivered").length}/{deliverables.length} débloqués)
           </p>
@@ -276,7 +276,6 @@ export default function CoachingSessionManager({ program, sessions: initialSessi
             onUpdate={(id, u) => { updateSession(id, u); setEditingSession(prev => prev ? { ...prev, ...u } : null); }}
             onDelete={deleteSession} onClose={() => setEditingSession(null)}
             onAddAction={addAction} onDeleteAction={deleteAction} onToggleAction={toggleAction}
-            onUpdateDeliverable={updateDeliverable} onAddDeliverable={addDeliverable} onUploadFile={uploadFile}
           />
         )}
         <PauseDialog open={pauseDialogOpen} clientName={program.client_name || ""} onConfirm={async () => { await updateProgram("status", "paused"); setPauseDialogOpen(false); toast.success("Programme en pause"); }} onCancel={() => setPauseDialogOpen(false)} />
@@ -323,11 +322,10 @@ function SortableSessionRow({ session, onEdit, savedField }: { session: SessionD
 }
 
 /* ── Session Edit Dialog ── */
-function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate, onDelete, onClose, onAddAction, onDeleteAction, onToggleAction, onUpdateDeliverable, onAddDeliverable, onUploadFile }: {
+function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate, onDelete, onClose, onAddAction, onDeleteAction, onToggleAction }: {
   session: SessionData; sessions: SessionData[]; deliverables: DeliverableData[]; actions: ActionData[];
   onUpdate: (id: string, u: Record<string, any>) => void; onDelete: (id: string) => void; onClose: () => void;
   onAddAction: (sessionId?: string) => void; onDeleteAction: (id: string) => void; onToggleAction: (id: string, completed: boolean) => void;
-  onUpdateDeliverable: (id: string, updates: Record<string, any>) => void; onAddDeliverable: (sessionId?: string) => void; onUploadFile: (deliverableId: string, file: File) => void;
 }) {
   const [title, setTitle] = useState(session.title || "");
   const [sessionType, setSessionType] = useState(session.session_type || "focus");
@@ -344,7 +342,6 @@ function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate,
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const sessionDeliverables = deliverables.filter(d => d.assigned_session_id === session.id);
-  const unassignedDeliverables = deliverables.filter(d => !d.assigned_session_id);
   const sessionActions = actions.filter(a => a.session_id === session.id);
 
   const handleSave = () => {
@@ -420,21 +417,23 @@ function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate,
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes privées (PAS visible par la cliente)</p>
           <Textarea value={privateNotes} onChange={e => setPrivateNotes(e.target.value)} className="min-h-[60px] text-sm" placeholder="Penser à revoir sa bio..." />
 
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Livrables de cette session</p>
-          <div className="space-y-2">
-            {sessionDeliverables.map(d => (<SessionDeliverableRow key={d.id} deliverable={d} onUpdate={onUpdateDeliverable} onUpload={onUploadFile} />))}
-          </div>
-          {unassignedDeliverables.length > 0 && (
-            <div>
-              <p className="text-[11px] text-muted-foreground mb-1">Assigner un livrable existant :</p>
-              <div className="space-y-1">
-                {unassignedDeliverables.map(d => (
-                  <button key={d.id} onClick={() => onUpdateDeliverable(d.id, { assigned_session_id: session.id })} className="text-xs text-primary hover:underline block">+ {d.title}</button>
-                ))}
-              </div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Livrables liés</p>
+          {sessionDeliverables.length > 0 ? (
+            <div className="space-y-1">
+              {sessionDeliverables.map(d => (
+                <div key={d.id} className="flex items-center gap-2 text-sm">
+                  <span>{d.status === "delivered" ? "✅" : "🔒"}</span>
+                  <span className="text-foreground">{d.title}</span>
+                  {d.file_name && <span className="text-[10px] text-muted-foreground">📎 {d.file_name}</span>}
+                </div>
+              ))}
             </div>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">Aucun livrable assigné à cette session.</p>
           )}
-          <button onClick={() => onAddDeliverable(session.id)} className="text-xs text-primary font-semibold hover:underline">+ Ajouter un livrable personnalisé</button>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Pour ajouter ou modifier des livrables, utilise la section Livrables sur la page principale.
+          </p>
 
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Actions pour la cliente</p>
           <div className="space-y-1.5">
@@ -459,40 +458,6 @@ function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate,
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/* ── Session Deliverable Row (in dialog) ── */
-function SessionDeliverableRow({ deliverable, onUpdate, onUpload }: {
-  deliverable: DeliverableData; onUpdate: (id: string, updates: Record<string, any>) => void; onUpload: (id: string, file: File) => void;
-}) {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const isDelivered = deliverable.status === "delivered";
-  const [editTitle, setEditTitle] = useState(deliverable.title);
-
-  return (
-    <div className={`rounded-lg border p-2.5 space-y-1.5 ${isDelivered ? "border-green-300/50" : "border-border"}`}>
-      <div className="flex items-center gap-2">
-        <span className="text-sm">{isDelivered ? "✅" : "☐"}</span>
-        <input className="text-sm font-medium text-foreground flex-1 bg-transparent border-none focus:outline-none" value={editTitle} onChange={e => setEditTitle(e.target.value)} onBlur={() => { if (editTitle !== deliverable.title) onUpdate(deliverable.id, { title: editTitle }); }} />
-        {!isDelivered && (
-          <Button size="sm" variant="ghost" className="h-6 text-[11px] text-primary" onClick={() => onUpdate(deliverable.id, { status: "delivered", delivered_at: new Date().toISOString(), seen_by_client: false })}>
-            <Unlock className="h-3 w-3 mr-1" /> Débloquer
-          </Button>
-        )}
-      </div>
-      <div className="flex items-center gap-2 ml-5 text-xs">
-        {deliverable.route && <span className="text-muted-foreground">→ {deliverable.route}</span>}
-        {deliverable.file_url ? (
-          <span className="text-muted-foreground">📎 {deliverable.file_name}</span>
-        ) : (
-          <>
-            <input ref={fileRef} type="file" className="hidden" onChange={e => { if (e.target.files?.[0]) onUpload(deliverable.id, e.target.files[0]); }} />
-            <button onClick={() => fileRef.current?.click()} className="text-primary hover:underline flex items-center gap-1"><Upload className="h-3 w-3" /> Uploader</button>
-          </>
-        )}
-      </div>
-    </div>
   );
 }
 
