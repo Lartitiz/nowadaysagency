@@ -124,7 +124,7 @@ function buildRecommendation(
   // P4 – Branding < 3 sections
   if (sectionsFilled < 3) {
     const next = getNextEmptySection(bc);
-    const remaining = 6 - sectionsFilled;
+    const remaining = 7 - sectionsFilled;
     return {
       title: "Continue à structurer ta com'",
       explanation: `Tu avances bien, il te reste ${remaining} section${remaining > 1 ? "s" : ""}. Le truc c'est que chaque section nourrit les autres : ton persona influence ton ton, ton ton influence tes contenus... On continue ?`,
