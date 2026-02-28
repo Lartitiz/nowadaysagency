@@ -263,7 +263,6 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleNavigateToGenerator = (mode: "generate" | "regenerate" | "view") => {
-    handleSave();
     const calendarId = editingPost?.id;
     const params = new URLSearchParams();
     if (calendarId) params.set("calendar_id", calendarId);
@@ -287,6 +286,10 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     };
 
     const fmt = format || "post_carrousel";
+
+    // Save in background (don't await — navigate first to avoid dialog unmount blocking navigation)
+    handleSave();
+
     if (postCanal === "linkedin") {
       navigate(`/linkedin/post?${params.toString()}`, { state: { ...state, sujet: theme } });
     } else if (fmt === "post_carrousel" || fmt === "carousel") {
