@@ -51,7 +51,7 @@ export const PLAN_WEEKS: PlanWeek[] = [
     tasks: [
       { text: "Décider ta fréquence de publication réaliste : 1, 2 ou 3 fois/semaine", duration: "10 min" },
       { text: "Choisir tes jours de publication", duration: "10 min" },
-      { text: "Planifier tes 2 premiers posts dans le calendrier", duration: "20 min", link: { label: "Aller au calendrier", to: "/instagram/calendrier" } },
+      { text: "Planifier tes 2 premiers posts dans le calendrier", duration: "20 min", link: { label: "Aller au calendrier", to: "/calendrier?canal=instagram" } },
       { text: "Bloquer 1h dans ton agenda pour ta com' chaque semaine", duration: "5 min" },
     ],
   },
@@ -64,7 +64,7 @@ export const PLAN_WEEKS: PlanWeek[] = [
       { text: "Choisir une idée de contenu dans tes enregistrements ou l'atelier", duration: "5 min", link: { label: "Aller à l'atelier", to: "/instagram/idees" } },
       { text: "Lire le guide de production pour l'angle choisi", duration: "5 min" },
       { text: "Rédiger ton post", duration: "30 min" },
-      { text: "Le planifier dans le calendrier", duration: "5 min", link: { label: "Aller au calendrier", to: "/instagram/calendrier" } },
+      { text: "Le planifier dans le calendrier", duration: "5 min", link: { label: "Aller au calendrier", to: "/calendrier?canal=instagram" } },
       { text: "Le publier et le marquer 'Publié'", duration: "5 min" },
     ],
   },
@@ -77,7 +77,7 @@ export const PLAN_WEEKS: PlanWeek[] = [
       { text: "Identifier les 2-3 angles que tu n'as jamais testés", duration: "10 min" },
       { text: "Générer des idées avec un nouvel angle dans l'atelier", duration: "15 min", link: { label: "Aller à l'atelier", to: "/instagram/idees" } },
       { text: "Rédiger 1 post avec un angle nouveau pour toi", duration: "30 min" },
-      { text: "Planifier 2 posts cette semaine dans le calendrier", duration: "10 min", link: { label: "Aller au calendrier", to: "/instagram/calendrier" } },
+      { text: "Planifier 2 posts cette semaine dans le calendrier", duration: "10 min", link: { label: "Aller au calendrier", to: "/calendrier?canal=instagram" } },
     ],
   },
   {
@@ -88,7 +88,7 @@ export const PLAN_WEEKS: PlanWeek[] = [
     tasks: [
       { text: "Écrire 3 moments clés de ton parcours d'entrepreneuse", duration: "20 min" },
       { text: "Choisir 1 moment et le transformer en post storytelling", duration: "30 min", link: { label: "Aller à l'atelier", to: "/instagram/idees" } },
-      { text: "Planifier ce post + 1 autre post cette semaine", duration: "10 min", link: { label: "Aller au calendrier", to: "/instagram/calendrier" } },
+      { text: "Planifier ce post + 1 autre post cette semaine", duration: "10 min", link: { label: "Aller au calendrier", to: "/calendrier?canal=instagram" } },
       { text: "Observer les réactions : qu'est-ce qui a le plus touché ton audience ?", duration: "5 min" },
     ],
   },
@@ -101,7 +101,7 @@ export const PLAN_WEEKS: PlanWeek[] = [
       { text: "Lister 3 raisons pour lesquelles ta cliente a besoin de ce que tu proposes", duration: "15 min" },
       { text: "Créer 1 post qui parle de ton offre sans être en mode 'promo'", duration: "30 min" },
       { text: "Tester l'angle 'Histoire cliente' ou 'Before/After'", duration: "20 min", link: { label: "Aller à l'atelier", to: "/instagram/idees" } },
-      { text: "Planifier 2 posts cette semaine", duration: "10 min", link: { label: "Aller au calendrier", to: "/instagram/calendrier" } },
+      { text: "Planifier 2 posts cette semaine", duration: "10 min", link: { label: "Aller au calendrier", to: "/calendrier?canal=instagram" } },
     ],
   },
   {
@@ -113,7 +113,7 @@ export const PLAN_WEEKS: PlanWeek[] = [
       { text: "Relire tes posts des 4 dernières semaines : lequel a le mieux fonctionné ?", duration: "15 min" },
       { text: "Identifier 1 thématique ou angle qui plaît à ton audience", duration: "10 min" },
       { text: "Ajuster ta fréquence si besoin : plus ou moins ?", duration: "5 min" },
-      { text: "Planifier les 2 prochaines semaines dans le calendrier", duration: "20 min", link: { label: "Aller au calendrier", to: "/instagram/calendrier" } },
+      { text: "Planifier les 2 prochaines semaines dans le calendrier", duration: "20 min", link: { label: "Aller au calendrier", to: "/calendrier?canal=instagram" } },
     ],
   },
   {
@@ -124,7 +124,7 @@ export const PLAN_WEEKS: PlanWeek[] = [
     tasks: [
       { text: "Choisir un sujet qui te tient à cœur dans ton domaine", duration: "10 min" },
       { text: "Créer 1 post 'Coup de gueule' ou 'Mythe à déconstruire'", duration: "30 min", link: { label: "Aller à l'atelier", to: "/instagram/idees" } },
-      { text: "Planifier 2 posts cette semaine", duration: "10 min", link: { label: "Aller au calendrier", to: "/instagram/calendrier" } },
+      { text: "Planifier 2 posts cette semaine", duration: "10 min", link: { label: "Aller au calendrier", to: "/calendrier?canal=instagram" } },
       { text: "Lire ton post à voix haute avant de publier : ça te ressemble ?", duration: "5 min" },
     ],
   },
@@ -137,7 +137,7 @@ export const PLAN_WEEKS: PlanWeek[] = [
       { text: "Terminer chaque post de la semaine par une vraie question ouverte", duration: "10 min" },
       { text: "Répondre à chaque commentaire dans les 24h", duration: "15 min/jour" },
       { text: "Créer 1 post 'Regard philosophique' ou 'Enquête' qui invite au débat", duration: "30 min", link: { label: "Aller à l'atelier", to: "/instagram/idees" } },
-      { text: "Planifier 2 posts cette semaine", duration: "10 min", link: { label: "Aller au calendrier", to: "/instagram/calendrier" } },
+      { text: "Planifier 2 posts cette semaine", duration: "10 min", link: { label: "Aller au calendrier", to: "/calendrier?canal=instagram" } },
     ],
   },
   {
@@ -147,7 +147,7 @@ export const PLAN_WEEKS: PlanWeek[] = [
     phase: 3,
     tasks: [
       { text: "Générer 10 idées de contenu dans l'atelier", duration: "20 min", link: { label: "Aller à l'atelier", to: "/instagram/idees" } },
-      { text: "Sélectionner et planifier 4-6 posts pour le mois prochain", duration: "20 min", link: { label: "Aller au calendrier", to: "/instagram/calendrier" } },
+      { text: "Sélectionner et planifier 4-6 posts pour le mois prochain", duration: "20 min", link: { label: "Aller au calendrier", to: "/calendrier?canal=instagram" } },
       { text: "Varier les angles : vérifier que tu as au moins 3 angles différents", duration: "5 min" },
       { text: "Préparer les brouillons des 2 premiers posts", duration: "30 min" },
     ],
@@ -161,7 +161,7 @@ export const PLAN_WEEKS: PlanWeek[] = [
       { text: "Relire tes stats : combien de posts publiés en 12 semaines ?", duration: "5 min" },
       { text: "Identifier TON rituel com' : quel jour, quelle heure, quel format te convient le mieux", duration: "10 min" },
       { text: "Écrire 1 post sur ce que tu as appris en 12 semaines (le méta-post)", duration: "30 min" },
-      { text: "Planifier ton prochain mois en autonomie", duration: "20 min", link: { label: "Aller au calendrier", to: "/instagram/calendrier" } },
+      { text: "Planifier ton prochain mois en autonomie", duration: "20 min", link: { label: "Aller au calendrier", to: "/calendrier?canal=instagram" } },
       { text: "Te féliciter. Vraiment.", duration: "∞" },
     ],
   },

@@ -852,13 +852,13 @@ export default function ChatGuidePage() {
                           <button
                             key={i}
                             onClick={() => {
-                              const validRoutes = [
+                               const validRoutes = [
                                 "/creer", "/calendrier", "/branding", "/branding/storytelling",
-                                "/branding/persona", "/branding/proposition", "/branding/ton-style",
-                                "/branding/strategie", "/branding/charte",
-                                "/instagram/bio", "/instagram/carousel", "/instagram/reels",
+                                "/branding/persona", "/branding/proposition", "/branding/ton",
+                                "/branding/strategie", "/branding/charter",
+                                "/instagram/profil/bio", "/instagram/carousel", "/instagram/reels",
                                 "/instagram/stories", "/instagram/audit", "/instagram/stats",
-                                "/instagram/engagement", "/instagram/profil",
+                                "/instagram/routine", "/instagram/profil",
                                 "/linkedin", "/linkedin/post", "/linkedin/audit",
                                 "/plan", "/contacts", "/atelier", "/transformer",
                                 "/dashboard", "/profil", "/site", "/seo",
