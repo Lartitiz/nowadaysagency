@@ -354,7 +354,7 @@ function ChannelBar({ emoji, label, score }: { emoji: string; label: string; sco
       <div className="flex items-center gap-4">
         <span className="text-xl w-8">{emoji}</span>
         <span className="w-28 text-sm text-muted-foreground">{label}</span>
-        <span className="text-sm text-muted-foreground italic">Non analysé</span>
+        <span className="text-sm font-medium text-muted-foreground">À auditer</span>
       </div>
     );
   }
