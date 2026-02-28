@@ -17,7 +17,7 @@ serve(async (req) => {
   const timeout = setTimeout(() => controller.abort(), GLOBAL_TIMEOUT_MS);
 
   try {
-    const { userId, websiteUrl, instagramHandle, linkedinUrl, documentIds } = await req.json();
+    const { userId, websiteUrl, instagramHandle, linkedinUrl, documentIds, documentText } = await req.json();
 
     if (!userId) {
       return new Response(JSON.stringify({ error: "userId requis" }), {
@@ -99,7 +99,13 @@ serve(async (req) => {
       }
     }
 
-    // Check we have at least one source
+    // --- 5. PROCESS CLIENT-EXTRACTED TEXT ---
+    if (documentText && typeof documentText === "string" && documentText.trim().length > 0) {
+      scrapedContent.documents = documentText.slice(0, MAX_TEXT_PER_SOURCE * 2);
+      if (!sourcesUsed.includes("documents")) sourcesUsed.push("documents");
+    }
+
+
     if (sourcesUsed.length === 0) {
       clearTimeout(timeout);
       return new Response(
