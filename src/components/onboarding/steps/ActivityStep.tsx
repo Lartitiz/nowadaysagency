@@ -20,7 +20,7 @@ const PRODUCT_OPTIONS = [
 
 export default function ActivityStep({ value, detailValue, onChange, onDetailChange, productOrService, onProductChange, onNext }: ActivityStepProps) {
   const showDetail = value === "autre";
-  const activityReady = value && (value !== "autre" || detailValue.trim().length > 0);
+  const activityReady = value && (value !== "autre" || detailValue.trim().length >= 5);
   const canNext = activityReady && !!productOrService;
 
   return (
@@ -68,6 +68,7 @@ export default function ActivityStep({ value, detailValue, onChange, onDetailCha
               <input type="text" value={detailValue} onChange={e => onDetailChange(e.target.value)}
                 placeholder="Décris ton activité en quelques mots" autoFocus
                 className="w-full text-base p-3 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50" />
+              <p className="text-[11px] text-muted-foreground mt-1.5 italic">(au moins 5 caractères pour que je puisse comprendre ton activité)</p>
             </div>
           )}
         </div>
