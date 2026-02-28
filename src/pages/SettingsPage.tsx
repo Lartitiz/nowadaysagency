@@ -382,7 +382,7 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        {/* ─── Refaire l'onboarding ─── */}
+        {/* ─── Parcours initial ─── */}
         <Section icon={<RotateCcw className="h-4 w-4" />} title="Parcours initial">
           <p className="text-sm text-muted-foreground mb-4">
             Tu peux relancer le parcours d'onboarding pour repartir de zéro. Toutes tes données de branding seront supprimées.
@@ -396,9 +396,9 @@ export default function SettingsPage() {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Relancer le parcours initial ?</AlertDialogTitle>
+                <AlertDialogTitle>Repartir de zéro ?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Tu vas repartir de zéro : ton branding (storytelling, persona, ton, stratégie, offres, charte) sera supprimé et tu repasseras par l'onboarding. Ton compte et tes contenus générés seront conservés.
+                  Ton branding (storytelling, persona, ton, stratégie, offres, charte) sera supprimé et tu repasseras par l'onboarding. Ton compte et tes contenus générés seront conservés.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -410,110 +410,37 @@ export default function SettingsPage() {
                     if (!user) return;
                     setResettingOnboarding(true);
                     try {
-                      // 1. Delete branding data (order matters for FK constraints)
-                      const tablesToDelete = [
-                        "audit_recommendations",
-                        "branding_coaching_sessions",
-                        "branding_mirror_results",
-                        "branding_autofill",
-                        "branding_audits",
-                        "brand_charter",
-                        "brand_strategy",
-                        "brand_proposition",
-                        "brand_profile",
-                        "storytelling",
-                        "persona",
-                        "offers",
-                        "voice_profile",
-                      ];
+                      const { data, error } = await supabase.functions.invoke("reset-onboarding");
+                      console.log("[reset-onboarding] Response:", data, error);
 
-                      let deleted = 0;
-                      for (const table of tablesToDelete) {
-                        try {
-                          const { error } = await (supabase.from(table as any) as any).delete().eq("user_id", user.id);
-                          if (error) {
-                            console.warn(`[reset] ${table}: ${error.message}`);
-                          } else {
-                            deleted++;
-                          }
-                        } catch (e) {
-                          console.warn(`[reset] ${table} exception:`, e);
-                        }
-                      }
-                      console.log(`[reset] ${deleted}/${tablesToDelete.length} tables cleaned`);
+                      if (error) throw error;
+                      if (data?.error) throw new Error(data.error);
+                      if (!data?.success) throw new Error("Reset failed: onboarding still marked as completed");
 
-                      // 2. Reset onboarding in profiles
-                      const { error: profileError } = await supabase.from("profiles").update({
-                        onboarding_completed: false,
-                        onboarding_step: 0,
-                        canaux: null,
-                        main_blocker: null,
-                        main_goal: null,
-                        weekly_time: null,
-                        diagnostic_data: null,
-                      } as any).eq("user_id", user.id);
-                      if (profileError) console.error("[reset] profiles update failed:", profileError);
-
-                      // 3. Reset user_plan_config - CRITICAL: must succeed for ProtectedRoute
-                      // Try update first, then delete as fallback
-                      const { error: configError, count: configCount } = await (supabase
-                        .from("user_plan_config") as any)
-                        .update({ onboarding_completed: false, onboarding_completed_at: null, welcome_seen: false })
-                        .eq("user_id", user.id);
-
-                      if (configError || configCount === 0) {
-                        console.warn("[reset] user_plan_config update issue:", configError?.message, "count:", configCount);
-                        // Fallback: delete ALL rows for this user so ProtectedRoute sees no config
-                        await (supabase.from("user_plan_config") as any).delete().eq("user_id", user.id);
-                        console.log("[reset] user_plan_config deleted as fallback");
-                      } else {
-                        console.log("[reset] user_plan_config reset done, count:", configCount);
-                      }
-
-                      // 3b. Also delete diagnostic_results to ensure clean slate
-                      await (supabase.from("diagnostic_results") as any).delete().eq("user_id", user.id);
-
-                      // 4. Verify the reset actually took effect before navigating
-                      const { data: verifyProfile } = await supabase
-                        .from("profiles")
-                        .select("onboarding_completed")
-                        .eq("user_id", user.id)
-                        .maybeSingle();
-                      const { data: verifyConfig } = await (supabase
-                        .from("user_plan_config") as any)
-                        .select("onboarding_completed")
-                        .eq("user_id", user.id)
-                        .maybeSingle();
-
-                      const stillCompleted = verifyProfile?.onboarding_completed === true || verifyConfig?.onboarding_completed === true;
-                      if (stillCompleted) {
-                        console.error("[reset] CRITICAL: onboarding still marked as completed after reset!", { profile: verifyProfile, config: verifyConfig });
-                        toast({ title: "Erreur", description: "La réinitialisation a échoué. Réessaie ou contacte le support.", variant: "destructive" });
-                        setResettingOnboarding(false);
-                        return;
-                      }
-
-                      // 5. Clear localStorage
+                      // Clear all localStorage
                       localStorage.removeItem("lac_onboarding_step");
                       localStorage.removeItem("lac_onboarding_answers");
                       localStorage.removeItem("lac_onboarding_branding");
                       localStorage.removeItem("lac_onboarding_ts");
                       localStorage.removeItem("branding_skip_import");
+                      localStorage.removeItem("lac_onboarding_reset");
 
-                      // 6. Set reset flag so useOnboarding doesn't redirect back to dashboard
-                      localStorage.setItem("lac_onboarding_reset", "true");
-
-                      // 7. Force full page reload to clear React state and re-check onboarding
-                      window.location.href = "/onboarding";
-                    } catch (e) {
-                      console.error("[reset] Fatal error:", e);
-                      toast({ title: "Erreur", description: "Impossible de relancer l'onboarding. Ouvre la console (F12) pour voir le détail.", variant: "destructive" });
+                      // Sign out and redirect to login — cleanest way to avoid stale state
+                      await signOut();
+                      window.location.href = "/login";
+                    } catch (e: any) {
+                      console.error("[reset-onboarding] Error:", e);
+                      toast({
+                        title: "Erreur lors de la réinitialisation",
+                        description: e?.message || "Réessaie ou contacte le support.",
+                        variant: "destructive",
+                      });
                     } finally {
                       setResettingOnboarding(false);
                     }
                   }}
                 >
-                  Oui, relancer
+                  Oui, repartir de zéro
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
