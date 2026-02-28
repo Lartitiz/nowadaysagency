@@ -26,7 +26,7 @@ interface SectionConfig {
 const SECTIONS: SectionConfig[] = [
   { key: "storytelling", icon: "📖", title: "Mon histoire", editRoute: "/branding/section?section=story", coachingRoute: "/branding/coaching?section=storytelling" },
   { key: "persona", icon: "👩‍💻", title: "Mon·a client·e idéal·e", editRoute: "/branding/section?section=persona", coachingRoute: "/branding/coaching?section=persona" },
-  { key: "proposition", icon: "❤️", title: "Ma proposition de valeur", editRoute: "/branding/section?section=value_proposition", coachingRoute: "/branding/coaching?section=proposition" },
+  { key: "proposition", icon: "❤️", title: "Ma proposition de valeur", editRoute: "/branding/proposition/recap", coachingRoute: "/branding/coaching?section=proposition" },
   { key: "tone", icon: "🎨", title: "Ma voix & mes combats", editRoute: "/branding/section?section=tone_style", coachingRoute: "/branding/coaching?section=tone" },
   { key: "strategy", icon: "🍒", title: "Ma ligne éditoriale", editRoute: "/branding/section?section=content_strategy", coachingRoute: "/branding/coaching?section=strategy" },
   { key: "offers", icon: "🎁", title: "Mes offres", editRoute: "/branding/offres", coachingRoute: "/branding/coaching?section=offers" },
@@ -136,7 +136,7 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
             {proposition}
           </p>
           <button
-            onClick={() => navigate("/branding/section?section=value_proposition")}
+            onClick={() => navigate("/branding/proposition/recap")}
             className="font-mono-ui text-[12px] text-primary hover:underline mt-3 inline-flex items-center gap-1"
           >
             Modifier <ArrowRight className="h-3 w-3" />
@@ -148,7 +148,7 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
             <p className="text-sm font-medium text-foreground">❤️ Pas encore de proposition de valeur</p>
             <p className="text-[13px] text-muted-foreground mt-0.5">Dis ce que tu fais, pour qui, et pourquoi.</p>
           </div>
-          <Button size="sm" className="text-xs gap-1.5 shrink-0" onClick={() => navigate("/branding/simple/proposition")}>
+          <Button size="sm" className="text-xs gap-1.5 shrink-0" onClick={() => navigate("/branding/proposition/recap")}>
             Définir ma proposition <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </div>
