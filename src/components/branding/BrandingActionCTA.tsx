@@ -34,6 +34,11 @@ const ACTIONS: Record<string, ActionDef[]> = {
     { label: "Générer des idées de posts", route: "/creer" },
     { label: "Créer mon premier post", route: "/creer" },
   ],
+  offers: [
+    { label: "Écrire un post pour présenter mon offre", route: "/creer" },
+    { label: "Créer un carousel offre", route: "/creer" },
+    { label: "Planifier un lancement", route: "/calendrier" },
+  ],
 };
 
 interface BrandingActionCTAProps {
