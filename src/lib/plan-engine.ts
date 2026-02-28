@@ -310,6 +310,7 @@ export async function computePlan(
       duration: 30,
       route: "/pinterest",
       status: "todo",
+      comingSoon: true,
     });
   }
 
@@ -333,6 +334,7 @@ export async function computePlan(
       duration: 45,
       route: "/site",
       status: "todo",
+      comingSoon: true,
     });
   }
 
@@ -344,7 +346,7 @@ export async function computePlan(
       duration: 45,
       route: "/seo",
       status: "todo",
-      comingSoon: false,
+      comingSoon: true,
     });
   }
 
