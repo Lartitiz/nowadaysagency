@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Search, ChevronUp, ChevronDown, Eye, X, Sparkles, Calendar, UserRound, Download, Trash2, Loader2 } from "lucide-react";
+import { Search, ChevronUp, ChevronDown, Eye, X, Sparkles, Calendar, UserRound, Download, Trash2, Loader2, RotateCcw } from "lucide-react";
 import { DeleteClientDialog } from "@/components/admin/AdminSharedComponents";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -72,6 +72,7 @@ export default function AdminUsersTab() {
   const [switching, setSwitching] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [resettingUser, setResettingUser] = useState(false);
 
   useEffect(() => {
     async function fetchUsers() {
@@ -119,6 +120,27 @@ export default function AdminUsersTab() {
     if (sortKey !== col) return null;
     return sortAsc ? <ChevronUp className="inline w-3.5 h-3.5 ml-0.5" /> : <ChevronDown className="inline w-3.5 h-3.5 ml-0.5" />;
   }
+  async function resetUserOnboarding(targetUserId: string) {
+    if (!session?.access_token) return;
+    setResettingUser(true);
+    try {
+      const res = await supabase.functions.invoke("reset-onboarding", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: { targetUserId },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+
+      toast.success("Onboarding reset ! L'utilisatrice repartira de zéro à sa prochaine connexion.");
+      setSelectedUser(null);
+    } catch (e: any) {
+      console.error("Reset failed:", e);
+      toast.error("Erreur : " + (e.message || "reset échoué"));
+    } finally {
+      setResettingUser(false);
+    }
+  }
+
 
   async function openUserWorkspace(u: UserRow) {
     if (!user?.id) return;
@@ -374,6 +396,15 @@ export default function AdminUsersTab() {
                   >
                     <Eye className="w-4 h-4 mr-2" />
                     {switching ? "Ouverture..." : "Ouvrir son espace"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full text-amber-600 border-amber-200 hover:bg-amber-50"
+                    onClick={() => resetUserOnboarding(selectedUser.user_id)}
+                    disabled={resettingUser}
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    {resettingUser ? "Reset en cours..." : "Reset onboarding"}
                   </Button>
                   <Button variant="outline" className="w-full" onClick={() => setSelectedUser(null)}>
                     <X className="w-4 h-4 mr-2" /> Fermer

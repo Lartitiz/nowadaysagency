@@ -410,12 +410,15 @@ export default function SettingsPage() {
                     if (!user) return;
                     setResettingOnboarding(true);
                     try {
-                      const { data, error } = await supabase.functions.invoke("reset-onboarding");
-                      console.log("[reset-onboarding] Response:", data, error);
+                      const sessionData = await supabase.auth.getSession();
+                      const token = sessionData.data.session?.access_token;
+                      const res = await supabase.functions.invoke("reset-onboarding", {
+                        headers: { Authorization: `Bearer ${token}` },
+                        body: {},
+                      });
 
-                      if (error) throw error;
-                      if (data?.error) throw new Error(data.error);
-                      if (!data?.success) throw new Error("Reset failed: onboarding still marked as completed");
+                      if (res.error) throw res.error;
+                      if (res.data?.error) throw new Error(res.data.error);
 
                       // Clear all localStorage
                       localStorage.removeItem("lac_onboarding_step");
@@ -424,10 +427,17 @@ export default function SettingsPage() {
                       localStorage.removeItem("lac_onboarding_ts");
                       localStorage.removeItem("branding_skip_import");
                       localStorage.removeItem("lac_onboarding_reset");
+                      localStorage.removeItem("lac_welcome_seen");
 
-                      // Sign out and redirect to login — cleanest way to avoid stale state
-                      await signOut();
-                      window.location.href = "/login";
+                      toast({
+                        title: "✅ Reset effectué",
+                        description: "Tu vas être redirigée vers l'onboarding.",
+                      });
+
+                      // Hard redirect to clear all React state
+                      setTimeout(() => {
+                        window.location.href = "/onboarding";
+                      }, 500);
                     } catch (e: any) {
                       console.error("[reset-onboarding] Error:", e);
                       toast({

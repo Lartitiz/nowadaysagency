@@ -1,135 +1,171 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const anonClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!
-    );
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header");
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: authError } = await anonClient.auth.getUser(token);
-    if (authError || !userData.user) throw new Error("User not authenticated");
-    const userId = userData.user.id;
-    console.log("[reset] Starting reset for user:", userId);
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
+    const supabaseUser = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const {
+      data: { user: authUser },
+      error: authError,
+    } = await supabaseUser.auth.getUser();
+    if (authError || !authUser) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Determine target user
+    const body = await req.json().catch(() => ({}));
+    let targetUserId = authUser.id; // Default: self-reset
+
+    if (body.targetUserId) {
+      // Admin mode: reset another user
+      if (authUser.email !== ADMIN_EMAIL) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      targetUserId = body.targetUserId;
+      console.log(
+        `[reset-onboarding] ADMIN reset of user ${targetUserId} by ${authUser.email}`
+      );
+    } else {
+      console.log(`[reset-onboarding] Self-reset by ${authUser.email}`);
+    }
+
+    // Service role client (bypasses RLS)
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { persistSession: false } }
     );
 
-    const errors: string[] = [];
-    let cleaned = 0;
-
-    // 1. Delete branding data (dependencies first)
-    const brandingTables = [
+    // Phase 1: Delete branding & diagnostic data
+    const tablesToDelete = [
       "audit_recommendations",
+      "audit_validations",
+      "branding_suggestions",
+      "branding_summary",
       "branding_coaching_sessions",
       "branding_mirror_results",
       "branding_autofill",
-      "branding_suggestions",
-      "branding_summary",
       "branding_audits",
       "brand_charter",
       "brand_strategy",
       "brand_proposition",
       "brand_profile",
       "bio_versions",
-      "audit_validations",
       "storytelling",
       "persona",
       "offers",
       "voice_profile",
       "voice_guides",
       "shared_branding_links",
+      "dismissed_suggestions",
+      "instagram_audit",
+      "instagram_audit_posts",
+      "instagram_editorial_line",
+      "linkedin_audit",
+      "website_audit",
+      "content_scores",
+      "diagnostic_results",
     ];
 
-    for (const table of brandingTables) {
+    let tablesCleaned = 0;
+    const errors: string[] = [];
+
+    for (const table of tablesToDelete) {
       try {
-        const { error } = await admin.from(table).delete().eq("user_id", userId);
-        if (error && !error.message?.includes("does not exist")) {
+        const { error } = await admin
+          .from(table)
+          .delete()
+          .eq("user_id", targetUserId);
+        if (error) {
           errors.push(`${table}: ${error.message}`);
         } else {
-          cleaned++;
+          tablesCleaned++;
         }
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        if (!msg.includes("does not exist")) errors.push(`${table}: ${msg}`);
+      } catch (e: any) {
+        errors.push(`${table}: ${e.message}`);
       }
     }
 
-    // 2. Reset onboarding flags in profiles
-    const { error: profileError, count: profileCount } = await admin.from("profiles").update({
-      onboarding_completed: false,
-      onboarding_step: 0,
-      canaux: null,
-      main_blocker: null,
-      main_goal: null,
-      weekly_time: null,
-      diagnostic_data: null,
-    }).eq("user_id", userId);
-    console.log("[reset] profiles update:", JSON.stringify({ error: profileError?.message, count: profileCount }));
-
-    // 3. Reset or delete user_plan_config
-    const { error: configUpdateError } = await admin
-      .from("user_plan_config")
-      .update({ onboarding_completed: false, onboarding_completed_at: null, welcome_seen: false })
-      .eq("user_id", userId);
-
-    console.log("[reset] config update:", JSON.stringify({ error: configUpdateError?.message }));
-
-    if (configUpdateError) {
-      const { error: delErr } = await admin.from("user_plan_config").delete().eq("user_id", userId);
-      console.log("[reset] config delete fallback:", JSON.stringify({ error: delErr?.message }));
-    }
-
-    // 4. Delete diagnostic data
-    try {
-      await admin.from("diagnostic_results").delete().eq("user_id", userId);
-    } catch { /* ignore */ }
-
-    // 5. Verify
-    const { data: profile } = await admin
+    // Phase 2: Reset profile fields
+    const { error: profileErr } = await admin
       .from("profiles")
-      .select("onboarding_completed")
-      .eq("user_id", userId)
-      .maybeSingle();
+      .update({
+        onboarding_completed: false,
+        onboarding_completed_at: null,
+        onboarding_step: 0,
+        canaux: null,
+        main_blocker: null,
+        main_goal: null,
+        weekly_time: null,
+        diagnostic_data: null,
+        level: null,
+      })
+      .eq("user_id", targetUserId);
 
-    const { data: config } = await admin
+    if (profileErr) errors.push(`profiles update: ${profileErr.message}`);
+    else tablesCleaned++;
+
+    // Phase 3: Reset user_plan_config
+    const { error: configErr } = await admin
       .from("user_plan_config")
-      .select("onboarding_completed")
-      .eq("user_id", userId)
-      .maybeSingle();
+      .update({
+        onboarding_completed: false,
+        onboarding_completed_at: null,
+        welcome_seen: false,
+        main_goal: null,
+        weekly_time: null,
+      })
+      .eq("user_id", targetUserId);
 
-    const resetSuccess = profile?.onboarding_completed === false && config?.onboarding_completed === false;
-    console.log("[reset] verify:", JSON.stringify({ profile, config, resetSuccess }));
-    console.log("[reset] tables cleaned:", cleaned, "errors:", errors);
+    if (configErr) errors.push(`user_plan_config: ${configErr.message}`);
+    else tablesCleaned++;
+
+    console.log(
+      `[reset-onboarding] Done. Cleaned: ${tablesCleaned}, Errors: ${errors.length}`
+    );
 
     return new Response(
       JSON.stringify({
-        success: resetSuccess,
-        tables_cleaned: cleaned,
+        success: true,
+        tables_cleaned: tablesCleaned,
         errors: errors.length > 0 ? errors : undefined,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    return new Response(
-      JSON.stringify({ error: msg }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-    );
+  } catch (error: any) {
+    console.error("[reset-onboarding] Fatal:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: {
+        ...getCorsHeaders(req),
+        "Content-Type": "application/json",
+      },
+    });
   }
 });
