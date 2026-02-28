@@ -6443,6 +6443,41 @@ export type Database = {
           },
         ]
       }
+      suggested_contents: {
+        Row: {
+          contents: Json
+          generated_at: string
+          id: string
+          user_id: string
+          week_start: string
+          workspace_id: string | null
+        }
+        Insert: {
+          contents?: Json
+          generated_at?: string
+          id?: string
+          user_id: string
+          week_start: string
+          workspace_id?: string | null
+        }
+        Update: {
+          contents?: Json
+          generated_at?: string
+          id?: string
+          user_id?: string
+          week_start?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suggested_contents_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           completed_at: string | null
