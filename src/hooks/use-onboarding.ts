@@ -351,11 +351,11 @@ export function useOnboarding() {
     if (!user) return;
     setSaving(true);
     try {
-      // Deduce canaux from links provided
-      const canaux: string[] = [];
-      if (answers.instagram) canaux.push("instagram");
-      if (answers.website) canaux.push("website");
-      if (answers.linkedin) canaux.push("linkedin");
+      // Use canaux from answers (user selection), enriched with link-based channels
+      const canaux: string[] = [...answers.canaux];
+      if (answers.instagram && !canaux.includes("instagram")) canaux.push("instagram");
+      if (answers.website && !canaux.includes("website")) canaux.push("website");
+      if (answers.linkedin && !canaux.includes("linkedin")) canaux.push("linkedin");
 
       // 1. PROFILES
       const { data: existingProfile } = await supabase
@@ -415,6 +415,59 @@ export function useOnboarding() {
 
       // NOTE: brand_profile and persona are now filled by the deep-diagnostic edge function, not here.
 
+      // 3. BRAND_PROPOSITION — save positioning if available
+      if (brandingAnswers.positioning) {
+        const { data: existingProp } = await supabase
+          .from("brand_proposition").select("id").eq("user_id", user.id).maybeSingle();
+        const propData = { version_complete: brandingAnswers.positioning };
+        if (existingProp) {
+          await supabase.from("brand_proposition").update(propData).eq("user_id", user.id);
+        } else {
+          await supabase.from("brand_proposition").insert({
+            user_id: user.id,
+            workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+            ...propData,
+          } as any);
+        }
+      }
+
+      // 4. BRAND_STRATEGY — distill objectif & blocage into strategy
+      const strategyData: Record<string, unknown> = {};
+      const goalToPillar: Record<string, string> = {
+        system: "Organisation & régularité",
+        visibility: "Visibilité & notoriété",
+        sell: "Conversion & ventes",
+        zen: "Communication sereine",
+        expert: "Autorité & expertise",
+      };
+      if (answers.objectif) {
+        strategyData.pillar_major = goalToPillar[answers.objectif] || answers.objectif;
+      }
+      if (answers.blocage) {
+        const blockerToInsight: Record<string, string> = {
+          invisible: "Priorité : augmenter la découvrabilité et le reach",
+          lost: "Priorité : structurer un plan de com' simple et actionnable",
+          no_time: "Priorité : automatiser et batcher pour gagner du temps",
+          fear: "Priorité : trouver un ton authentique sans se surexposer",
+          no_structure: "Priorité : canaliser les idées dans un cadre éditorial",
+          boring: "Priorité : développer une voix distinctive et engageante",
+        };
+        strategyData.step_1_hidden_facets = blockerToInsight[answers.blocage] || null;
+      }
+      if (Object.keys(strategyData).length > 0) {
+        const { data: existingStrategy } = await supabase
+          .from("brand_strategy").select("id").eq("user_id", user.id).maybeSingle();
+        if (existingStrategy) {
+          await supabase.from("brand_strategy").update(strategyData).eq("user_id", user.id);
+        } else {
+          await supabase.from("brand_strategy").insert({
+            user_id: user.id,
+            workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+            ...strategyData,
+          } as any);
+        }
+      }
+
       localStorage.removeItem("lac_prenom");
       localStorage.removeItem("lac_activite");
       localStorage.removeItem("lac_onboarding_step");
@@ -466,7 +519,17 @@ export function useOnboarding() {
           temps_estime: p.time,
           position: i + 1,
         }));
-        await supabase.from("audit_recommendations").insert(recs);
+      await supabase.from("audit_recommendations").insert(recs);
+
+        // Save diagnostic as branding audit
+        await supabase.from("branding_audits").insert({
+          user_id: user.id,
+          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+          score_global: diagnosticData.totalScore,
+          synthese: `Diagnostic initial : score ${diagnosticData.totalScore}/100`,
+          points_forts: diagnosticData.strengths.map((s: string) => ({ titre: s, detail: s, source: "diagnostic" })),
+          points_faibles: diagnosticData.weaknesses.map((w: { title: string; why: string }) => ({ titre: w.title, detail: w.why, source: "diagnostic", priorite: "high" })),
+        } as any);
 
         await supabase.from("profiles").update({
           diagnostic_data: diagnosticData as any,
