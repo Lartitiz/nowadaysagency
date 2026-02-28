@@ -6,6 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Plus, Eye, Sparkles, Gift, Gem, Mic, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -13,6 +14,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
 import CoachingFlow from "@/components/CoachingFlow";
 import EmptyState from "@/components/EmptyState";
+import OffersSynthesisView from "@/components/branding/OffersSynthesisView";
 
 const TYPE_CONFIG = {
   paid: { label: "💎 Offres payantes", emoji: "💎", icon: Gem, color: "text-violet-600", badge: "bg-violet-50 text-violet-700" },
@@ -29,6 +31,7 @@ export default function OffersPage() {
   const [offers, setOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [coachingOpen, setCoachingOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("liste");
 
   useEffect(() => {
     if (isDemoMode) {
@@ -113,89 +116,102 @@ export default function OffersPage() {
           Formule tes offres de manière désirable. L'IA te coache à chaque étape pour que tes offres parlent à ta cliente idéale.
         </p>
 
-        {offers.length === 0 ? (
-          <EmptyState
-            icon="🎁"
-            title="Tu n'as pas encore d'offres"
-            body="C'est le moment de les formuler ! L'IA t'accompagne pour rendre chaque offre désirable et claire."
-            cta="✨ Créer ma première offre"
-            onAction={() => createOffer("paid")}
-          />
-        ) : (
-          (["paid", "free", "service"] as const).map((type) => {
-            const config = TYPE_CONFIG[type];
-            const items = grouped[type];
-            return (
-              <div key={type} className="mb-8">
-                <h2 className="font-display text-base font-bold text-foreground mb-3">{config.label}</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {items.map((offer) => {
-                    const pct = offer.completion_pct || 0;
-                    const isComplete = offer.completed || pct === 100;
-                    return (
-                      <div
-                        key={offer.id}
-                        className="rounded-2xl border-2 bg-card p-4 transition-all border-border hover:border-primary/30 hover:shadow-md cursor-pointer flex flex-col justify-between"
-                        style={{ maxHeight: 200 }}
-                        onClick={() => navigate(`/branding/offres/${offer.id}`)}
-                      >
-                        <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <h3 className="font-display text-sm font-bold text-foreground truncate flex-1">
-                              {config.emoji} {offer.name || "Sans nom"}
-                            </h3>
-                            {isComplete && <span className="text-xs ml-2 shrink-0">✅</span>}
-                          </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="w-full mb-6">
+            <TabsTrigger value="liste" className="flex-1 gap-2">📋 Mes offres</TabsTrigger>
+            <TabsTrigger value="synthese" className="flex-1 gap-2">✨ Synthèse</TabsTrigger>
+          </TabsList>
 
-                          {offer.price_text && (
-                            <p className="text-xs font-semibold text-primary mb-1">{offer.price_text}</p>
-                          )}
-
-                          {(offer.description_short || offer.promise) && (
-                            <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
-                              {(() => { const t = offer.description_short || offer.promise || ""; return t.length > 80 ? t.slice(0, 80) + "…" : t; })()}
-                            </p>
-                          )}
-                        </div>
-
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <Progress value={pct} className="h-1.5 flex-1" />
-                            <span className={`font-mono-ui text-[10px] font-semibold ${isComplete ? "text-emerald-600" : "text-muted-foreground"}`}>
-                              {isComplete ? "100%" : `${pct}%`}
-                            </span>
-                          </div>
-
-                          <Button
-                            size="sm"
-                            variant={isComplete ? "outline" : "default"}
-                            className="rounded-full text-xs w-full"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/branding/offres/${offer.id}`); }}
+          <TabsContent value="liste">
+            {offers.length === 0 ? (
+              <EmptyState
+                icon="🎁"
+                title="Tu n'as pas encore d'offres"
+                body="C'est le moment de les formuler ! L'IA t'accompagne pour rendre chaque offre désirable et claire."
+                cta="✨ Créer ma première offre"
+                onAction={() => createOffer("paid")}
+              />
+            ) : (
+              (["paid", "free", "service"] as const).map((type) => {
+                const config = TYPE_CONFIG[type];
+                const items = grouped[type];
+                return (
+                  <div key={type} className="mb-8">
+                    <h2 className="font-display text-base font-bold text-foreground mb-3">{config.label}</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {items.map((offer) => {
+                        const pct = offer.completion_pct || 0;
+                        const isComplete = offer.completed || pct === 100;
+                        return (
+                          <div
+                            key={offer.id}
+                            className="rounded-2xl border-2 bg-card p-4 transition-all border-border hover:border-primary/30 hover:shadow-md cursor-pointer flex flex-col justify-between"
+                            style={{ maxHeight: 200 }}
+                            onClick={() => navigate(`/branding/offres/${offer.id}`)}
                           >
-                            {isComplete ? (
-                              <><Eye className="h-3.5 w-3.5 mr-1" />Voir la fiche</>
-                            ) : pct > 0 ? (
-                              <>Continuer →</>
-                            ) : (
-                              <><Sparkles className="h-3.5 w-3.5 mr-1" />Commencer</>
-                            )}
-                          </Button>
-                        </div>
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <h3 className="font-display text-sm font-bold text-foreground truncate flex-1">
+                                  {config.emoji} {offer.name || "Sans nom"}
+                                </h3>
+                                {isComplete && <span className="text-xs ml-2 shrink-0">✅</span>}
+                              </div>
+                              {offer.price_text && (
+                                <p className="text-xs font-semibold text-primary mb-1">{offer.price_text}</p>
+                              )}
+                              {(offer.description_short || offer.promise) && (
+                                <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                                  {(() => { const t = offer.description_short || offer.promise || ""; return t.length > 80 ? t.slice(0, 80) + "…" : t; })()}
+                                </p>
+                              )}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <Progress value={pct} className="h-1.5 flex-1" />
+                                <span className={`font-mono-ui text-[10px] font-semibold ${isComplete ? "text-emerald-600" : "text-muted-foreground"}`}>
+                                  {isComplete ? "100%" : `${pct}%`}
+                                </span>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant={isComplete ? "outline" : "default"}
+                                className="rounded-full text-xs w-full"
+                                onClick={(e) => { e.stopPropagation(); navigate(isComplete ? `/branding/offres/${offer.id}?tab=synthese` : `/branding/offres/${offer.id}`); }}
+                              >
+                                {isComplete ? (
+                                  <><Eye className="h-3.5 w-3.5 mr-1" />Voir la fiche</>
+                                ) : pct > 0 ? (
+                                  <>Continuer →</>
+                                ) : (
+                                  <><Sparkles className="h-3.5 w-3.5 mr-1" />Commencer</>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div
+                        className="rounded-2xl border-2 border-dashed border-border bg-card/50 p-5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/30 transition-all min-h-[140px]"
+                        onClick={() => createOffer(type)}
+                      >
+                        <Plus className="h-6 w-6 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground font-medium">Ajouter</span>
                       </div>
-                    );
-                  })}
-                  <div
-                    className="rounded-2xl border-2 border-dashed border-border bg-card/50 p-5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/30 transition-all min-h-[140px]"
-                    onClick={() => createOffer(type)}
-                  >
-                    <Plus className="h-6 w-6 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground font-medium">Ajouter</span>
+                    </div>
                   </div>
-                </div>
-              </div>
-            );
-          })
-        )}
+                );
+              })
+            )}
+          </TabsContent>
+
+          <TabsContent value="synthese">
+            <OffersSynthesisView
+              offers={offers}
+              onNavigateToOffer={(id) => navigate(`/branding/offres/${id}?tab=synthese`)}
+              onNavigateToWorkshop={(id) => navigate(`/branding/offres/${id}`)}
+            />
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Coaching panel (slide-in) */}

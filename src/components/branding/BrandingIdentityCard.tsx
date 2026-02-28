@@ -301,7 +301,14 @@ function SectionDetail({ section, summaries, score }: { section: SectionConfig; 
     case "offers": {
       const o = summaries.offers;
       if (!o || o.count === 0) return <p className="text-sm text-muted-foreground italic">Aucune offre ajoutée.</p>;
-      return <p className="text-sm text-foreground">{o.count} offre{o.count > 1 ? "s" : ""}{o.mainName ? ` · ${o.mainName}` : ""}</p>;
+      return (
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">
+            {o.count} offre{o.count > 1 ? "s" : ""}
+          </p>
+          {o.mainName && <p className="text-xs text-muted-foreground">{o.mainName}</p>}
+        </div>
+      );
     }
     case "charter":
       return <p className="text-sm text-foreground">{summaries.charter?.summary || ""}</p>;
