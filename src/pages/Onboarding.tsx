@@ -28,17 +28,17 @@ const stepValidators: Record<number, { schema: z.ZodType<any>; getData: (a: Answ
     getData: (a) => ({ activity_type: a.activity_type }),
     message: "Choisis un type d'activité pour continuer",
   },
-  6: {
+  5: {
     schema: z.object({ objectif: z.string().min(1) }),
     getData: (a) => ({ objectif: a.objectif }),
     message: "Choisis un objectif pour continuer",
   },
-  7: {
+  6: {
     schema: z.object({ blocage: z.string().min(1) }),
     getData: (a) => ({ blocage: a.blocage }),
     message: "Choisis ton blocage principal pour continuer",
   },
-  8: {
+  7: {
     schema: z.object({ temps: z.string().min(1) }),
     getData: (a) => ({ temps: a.temps }),
     message: "Indique le temps que tu peux y consacrer",
@@ -70,7 +70,7 @@ export default function Onboarding() {
   const [hasSeenVoiceTip, setHasSeenVoiceTip] = useState(false);
 
   useEffect(() => {
-    if (step > 9 && !hasSeenVoiceTip) setHasSeenVoiceTip(true);
+    if (step > 8 && !hasSeenVoiceTip) setHasSeenVoiceTip(true);
   }, [step, hasSeenVoiceTip]);
 
   const validatedNext = useCallback(() => {
@@ -86,14 +86,14 @@ export default function Onboarding() {
     next();
   }, [step, answers, brandingAnswers, next, toast]);
 
-   // Auto-next after state has settled for steps 2, 6, 7, 8, 10
+   // Auto-next after state has settled for steps 2, 5, 6, 7, 9
   useEffect(() => {
     if (!pendingAutoNext) return;
     const field = step === 2 ? answers.activity_type
-      : step === 6 ? answers.objectif
-      : step === 7 ? answers.blocage
-      : step === 8 ? answers.temps
-      : step === 10 ? answers.product_or_service
+      : step === 5 ? answers.objectif
+      : step === 6 ? answers.blocage
+      : step === 7 ? answers.temps
+      : step === 9 ? answers.product_or_service
       : null;
     if (field) {
       if (step === 2 && field === "autre") {
@@ -130,7 +130,7 @@ export default function Onboarding() {
       )}
 
       {/* Progress bar */}
-      {step <= TOTAL_STEPS - 1 && step < 12 && (
+      {step <= TOTAL_STEPS - 1 && step < 11 && (
         <div className="fixed top-0 left-0 right-0 z-40 h-1 bg-border/30">
           <div
             className="h-full bg-primary transition-all duration-500 ease-out"
@@ -140,7 +140,7 @@ export default function Onboarding() {
       )}
 
       {/* Back button */}
-      {step > 0 && step < 12 && (
+      {step > 0 && step < 11 && (
         <button
           onClick={prev}
           className="fixed top-4 left-4 z-40 text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 transition-colors"
@@ -150,7 +150,7 @@ export default function Onboarding() {
       )}
 
       {/* Content */}
-      {step <= 12 ? (
+      {step <= 11 ? (
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="max-w-lg w-full flex-1 flex items-center">
             <div className="w-full">
@@ -163,7 +163,7 @@ export default function Onboarding() {
                 exit="exit"
                 transition={{ duration: 0.3, ease: "easeOut" }}
                >
-                {step >= 9 && step <= 11 && !hasSeenVoiceTip && (
+                {step >= 8 && step <= 10 && !hasSeenVoiceTip && (
                   <p className="text-xs text-muted-foreground text-center mb-2 animate-in fade-in">
                     💡 Tu vois l'icône 🎤 ? Clique dessus pour dicter ta réponse.
                   </p>
@@ -208,46 +208,26 @@ export default function Onboarding() {
                   />
                 )}
 
-                {/* Step 4: Canaux actuels */}
+                {/* Step 4: Canaux combined */}
                 {step === 4 && (
-                  <MultiSelectScreen
-                    title="Tu communiques déjà sur quels canaux ?"
-                    subtitle="coche tout ce qui te parle"
-                    options={CHANNELS}
-                    selected={answers.canaux}
-                    onChange={v => set("canaux", v)}
-                    onNext={next}
-                    preSelected={[
-                      ...(answers.instagram ? ["instagram"] : []),
-                      ...(answers.website ? ["website"] : []),
-                      ...(answers.linkedin ? ["linkedin"] : []),
-                    ]}
-                  />
-                )}
-
-                {/* Step 5: Canaux souhaités */}
-                {step === 5 && (
-                  <MultiSelectScreen
-                    title="Et tu aimerais te lancer sur quels canaux ?"
-                    subtitle="même si c'est juste une envie"
-                    options={DESIRED_CHANNELS.filter(c => !answers.canaux.includes(c.key))}
-                    selected={answers.desired_channels}
-                    onChange={v => set("desired_channels", v)}
+                  <CanauxCombinedScreen
+                    answers={answers}
+                    set={set}
                     onNext={next}
                   />
                 )}
 
-                {/* Step 6: Objectif */}
-                {step === 6 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}
+                {/* Step 5: Objectif */}
+                {step === 5 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}
 
-                {/* Step 7: Blocage */}
-                {step === 7 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
+                {/* Step 6: Blocage */}
+                {step === 6 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
 
-                {/* Step 8: Temps */}
-                {step === 8 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setPendingAutoNext(true); }} />}
+                {/* Step 7: Temps */}
+                {step === 7 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setPendingAutoNext(true); }} />}
 
-                {/* Step 9: Change priority */}
-                {step === 9 && (
+                {/* Step 8: Change priority */}
+                {step === 8 && (
                   <ChangeScreen
                     value={answers.change_priority}
                     onChange={v => set("change_priority", v)}
@@ -255,16 +235,16 @@ export default function Onboarding() {
                   />
                 )}
 
-                {/* Step 10: Product or service */}
-                {step === 10 && (
+                {/* Step 9: Product or service */}
+                {step === 9 && (
                   <ProductServiceScreen
                     value={answers.product_or_service}
                     onChange={v => { set("product_or_service", v); setPendingAutoNext(true); }}
                   />
                 )}
 
-                {/* Step 11: Uniqueness */}
-                {step === 11 && (
+                {/* Step 10: Uniqueness */}
+                {step === 10 && (
                   <UniquenessScreen
                     value={answers.uniqueness}
                     onChange={v => set("uniqueness", v)}
@@ -272,8 +252,8 @@ export default function Onboarding() {
                   />
                 )}
 
-                {/* Step 12: Diagnostic Loading */}
-                {step === 12 && (
+                {/* Step 11: Diagnostic Loading */}
+                {step === 11 && (
                   <DiagnosticLoading
                     hasInstagram={hasInstagram}
                     hasWebsite={hasWebsite}
@@ -284,7 +264,7 @@ export default function Onboarding() {
                     uploadedFileIds={uploadedFiles.map(f => f.id)}
                     onReady={(data) => {
                       setDiagnosticData(data);
-                      setStep(13);
+                      setStep(12);
                     }}
                   />
                 )}
@@ -294,7 +274,7 @@ export default function Onboarding() {
           </div>
 
           {/* Time remaining indicator */}
-          {step > 0 && step < 9 && (
+          {step > 0 && step < 8 && (
             <p className="text-center text-xs text-muted-foreground/60 pb-4 mt-2">
               {getTimeRemaining(step)}
             </p>
@@ -634,7 +614,90 @@ function TempsScreen({ value, onChange }: { value: string; onChange: (v: string)
 }
 
 /* ════════════════════════════════════════════════════════
-   MULTI-SELECT SCREEN (Steps 4-5)
+   CANAUX COMBINED SCREEN (Step 4)
+   ════════════════════════════════════════════════════════ */
+
+function CanauxCombinedScreen({ answers, set, onNext }: {
+  answers: Answers;
+  set: <K extends keyof Answers>(k: K, v: Answers[K]) => void;
+  onNext: () => void;
+}) {
+  // Pre-select channels based on links
+  useEffect(() => {
+    const preSelected = [
+      ...(answers.instagram ? ["instagram"] : []),
+      ...(answers.website ? ["website"] : []),
+      ...(answers.linkedin ? ["linkedin"] : []),
+    ];
+    if (preSelected.length > 0 && answers.canaux.length === 0) {
+      set("canaux", preSelected);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleCanal = (key: string) => {
+    if (key === "none") {
+      set("canaux", answers.canaux.includes("none") ? [] : ["none"]);
+      return;
+    }
+    const without = answers.canaux.filter(s => s !== "none");
+    set("canaux", without.includes(key) ? without.filter(s => s !== key) : [...without, key]);
+  };
+
+  const toggleDesired = (key: string) => {
+    const curr = answers.desired_channels;
+    set("desired_channels", curr.includes(key) ? curr.filter(s => s !== key) : [...curr, key]);
+  };
+
+  const filteredDesired = DESIRED_CHANNELS.filter(c => !answers.canaux.includes(c.key));
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+          Tes canaux de communication
+        </h1>
+        <p className="text-sm text-muted-foreground italic">
+          dis-moi où tu en es et où tu veux aller
+        </p>
+      </div>
+
+      {/* Section 1: Current channels */}
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold text-foreground">Tu communiques déjà sur...</h2>
+        <div className="space-y-2">
+          {CHANNELS.map(o => (
+            <ChoiceCard key={o.key} emoji={o.emoji} label={o.label} selected={answers.canaux.includes(o.key)} onClick={() => toggleCanal(o.key)} />
+          ))}
+        </div>
+      </div>
+
+      {/* Divider */}
+      {filteredDesired.length > 0 && (
+        <>
+          <div className="border-t border-border/50" />
+
+          {/* Section 2: Desired channels */}
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold text-foreground">Et tu aimerais te lancer sur...</h2>
+            <p className="text-xs text-muted-foreground italic mb-1">même si c'est juste une envie</p>
+            <div className="space-y-2">
+              {filteredDesired.map(o => (
+                <ChoiceCard key={o.key} emoji={o.emoji} label={o.label} selected={answers.desired_channels.includes(o.key)} onClick={() => toggleDesired(o.key)} />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="text-center">
+        <Button onClick={onNext} className="rounded-full px-8">Suivant →</Button>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════
+   MULTI-SELECT SCREEN (kept for reuse)
    ════════════════════════════════════════════════════════ */
 
 function MultiSelectScreen({ title, subtitle, options, selected, onChange, onNext, preSelected }: {
@@ -686,7 +749,7 @@ function MultiSelectScreen({ title, subtitle, options, selected, onChange, onNex
 }
 
 /* ════════════════════════════════════════════════════════
-   AFFINAGE SCREENS (Steps 9-11)
+   AFFINAGE SCREENS (Steps 8-10)
    ════════════════════════════════════════════════════════ */
 
 function ChangeScreen({ value, onChange, onNext }: { value: string; onChange: (v: string) => void; onNext: () => void }) {
