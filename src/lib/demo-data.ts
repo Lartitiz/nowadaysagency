@@ -41,7 +41,7 @@ export const DEMO_DATA = {
       ],
       frequency: "3 posts/semaine + stories quotidiennes",
     },
-    completion: 85,
+    completion: 79,
   },
 
   // ── PERSONA ──
