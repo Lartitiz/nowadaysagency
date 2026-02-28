@@ -41,13 +41,15 @@ function getStepName(step: number): string {
     1: "prenom_activite",
     2: "activity_type",
     3: "links_docs",
-    4: "objectif",
-    5: "blocage",
-    6: "temps",
-    7: "affinage_1",
-    8: "affinage_2",
-    9: "affinage_3",
-    10: "building_diagnostic",
+    4: "canaux_actuels",
+    5: "canaux_souhaites",
+    6: "objectif",
+    7: "blocage",
+    8: "temps",
+    9: "affinage_1",
+    10: "affinage_2",
+    11: "affinage_3",
+    12: "building_diagnostic",
   };
   return names[step] || "unknown_" + step;
 }
@@ -60,6 +62,7 @@ export interface Answers {
   activity_type: string;
   activity_detail: string;
   canaux: string[];
+  desired_channels: string[];
   blocage: string;
   objectif: string;
   temps: string;
@@ -123,6 +126,7 @@ export function useOnboarding() {
     activity_type: isDemoMode ? "art_design" : "",
     activity_detail: "",
     canaux: isDemoMode ? ["instagram", "website", "newsletter"] : [],
+    desired_channels: isDemoMode ? ["tiktok", "newsletter"] : [],
     blocage: isDemoMode ? "invisible" : "",
     objectif: isDemoMode ? "visibility" : "",
     temps: isDemoMode ? "2h" : "",
@@ -258,7 +262,7 @@ export function useOnboarding() {
   const auditsLaunched = useRef(false);
   useEffect(() => {
     if (isDemoMode || !user || auditsLaunched.current) return;
-    if (step < 7) return; // Start at affinage phase
+    if (step < 9) return; // Start at affinage phase
     auditsLaunched.current = true;
     setAuditResults(prev => ({ ...prev, isLoading: true }));
 
@@ -351,11 +355,18 @@ export function useOnboarding() {
     if (!user) return;
     setSaving(true);
     try {
-      // Use canaux from answers (user selection), enriched with link-based channels
-      const canaux: string[] = [...answers.canaux];
-      if (answers.instagram && !canaux.includes("instagram")) canaux.push("instagram");
-      if (answers.website && !canaux.includes("website")) canaux.push("website");
-      if (answers.linkedin && !canaux.includes("linkedin")) canaux.push("linkedin");
+      // Use canaux from answers (user selection), enriched with link-based channels + desired channels
+      const rawChannels: string[] = [...new Set([
+        ...answers.canaux.filter(c => c !== "none"),
+        ...answers.desired_channels,
+      ])];
+      if (answers.instagram && !rawChannels.includes("instagram")) rawChannels.push("instagram");
+      if (answers.website && !rawChannels.includes("website")) rawChannels.push("website");
+      if (answers.linkedin && !rawChannels.includes("linkedin")) rawChannels.push("linkedin");
+
+      // Map onboarding keys to dashboard ChannelId keys
+      const channelMapping: Record<string, string> = { "website": "site" };
+      const canaux = rawChannels.map(c => channelMapping[c] || c);
 
       // 1. PROFILES
       const { data: existingProfile } = await supabase

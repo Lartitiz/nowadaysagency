@@ -8,7 +8,7 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import DiagnosticLoading from "@/components/onboarding/DiagnosticLoading";
 import DiagnosticView from "@/components/onboarding/DiagnosticView";
 import {
-  BLOCKERS, OBJECTIVES, TIME_OPTIONS, TOTAL_STEPS,
+  BLOCKERS, OBJECTIVES, TIME_OPTIONS, CHANNELS, DESIRED_CHANNELS, TOTAL_STEPS,
 } from "@/lib/onboarding-constants";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import type { Answers, BrandingAnswers, UploadedFile } from "@/hooks/use-onboarding";
@@ -28,17 +28,17 @@ const stepValidators: Record<number, { schema: z.ZodType<any>; getData: (a: Answ
     getData: (a) => ({ activity_type: a.activity_type }),
     message: "Choisis un type d'activité pour continuer",
   },
-  4: {
+  6: {
     schema: z.object({ objectif: z.string().min(1) }),
     getData: (a) => ({ objectif: a.objectif }),
     message: "Choisis un objectif pour continuer",
   },
-  5: {
+  7: {
     schema: z.object({ blocage: z.string().min(1) }),
     getData: (a) => ({ blocage: a.blocage }),
     message: "Choisis ton blocage principal pour continuer",
   },
-  6: {
+  8: {
     schema: z.object({ temps: z.string().min(1) }),
     getData: (a) => ({ temps: a.temps }),
     message: "Indique le temps que tu peux y consacrer",
@@ -70,7 +70,7 @@ export default function Onboarding() {
   const [hasSeenVoiceTip, setHasSeenVoiceTip] = useState(false);
 
   useEffect(() => {
-    if (step > 7 && !hasSeenVoiceTip) setHasSeenVoiceTip(true);
+    if (step > 9 && !hasSeenVoiceTip) setHasSeenVoiceTip(true);
   }, [step, hasSeenVoiceTip]);
 
   const validatedNext = useCallback(() => {
@@ -86,14 +86,14 @@ export default function Onboarding() {
     next();
   }, [step, answers, brandingAnswers, next, toast]);
 
-   // Auto-next after state has settled for steps 2, 4, 5, 6, 8
+   // Auto-next after state has settled for steps 2, 6, 7, 8, 10
   useEffect(() => {
     if (!pendingAutoNext) return;
     const field = step === 2 ? answers.activity_type
-      : step === 4 ? answers.objectif
-      : step === 5 ? answers.blocage
-      : step === 6 ? answers.temps
-      : step === 8 ? answers.product_or_service
+      : step === 6 ? answers.objectif
+      : step === 7 ? answers.blocage
+      : step === 8 ? answers.temps
+      : step === 10 ? answers.product_or_service
       : null;
     if (field) {
       if (step === 2 && field === "autre") {
@@ -130,7 +130,7 @@ export default function Onboarding() {
       )}
 
       {/* Progress bar */}
-      {step <= TOTAL_STEPS - 1 && step < 10 && (
+      {step <= TOTAL_STEPS - 1 && step < 12 && (
         <div className="fixed top-0 left-0 right-0 z-40 h-1 bg-border/30">
           <div
             className="h-full bg-primary transition-all duration-500 ease-out"
@@ -140,7 +140,7 @@ export default function Onboarding() {
       )}
 
       {/* Back button */}
-      {step > 0 && step < 10 && (
+      {step > 0 && step < 12 && (
         <button
           onClick={prev}
           className="fixed top-4 left-4 z-40 text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 transition-colors"
@@ -150,7 +150,7 @@ export default function Onboarding() {
       )}
 
       {/* Content */}
-      {step <= 10 ? (
+      {step <= 12 ? (
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="max-w-lg w-full flex-1 flex items-center">
             <div className="w-full">
@@ -163,7 +163,7 @@ export default function Onboarding() {
                 exit="exit"
                 transition={{ duration: 0.3, ease: "easeOut" }}
                >
-                {step >= 7 && step <= 9 && !hasSeenVoiceTip && (
+                {step >= 9 && step <= 11 && !hasSeenVoiceTip && (
                   <p className="text-xs text-muted-foreground text-center mb-2 animate-in fade-in">
                     💡 Tu vois l'icône 🎤 ? Clique dessus pour dicter ta réponse.
                   </p>
@@ -208,17 +208,46 @@ export default function Onboarding() {
                   />
                 )}
 
-                {/* Step 4: Objectif */}
-                {step === 4 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}
+                {/* Step 4: Canaux actuels */}
+                {step === 4 && (
+                  <MultiSelectScreen
+                    title="Tu communiques déjà sur quels canaux ?"
+                    subtitle="coche tout ce qui te parle"
+                    options={CHANNELS}
+                    selected={answers.canaux}
+                    onChange={v => set("canaux", v)}
+                    onNext={next}
+                    preSelected={[
+                      ...(answers.instagram ? ["instagram"] : []),
+                      ...(answers.website ? ["website"] : []),
+                      ...(answers.linkedin ? ["linkedin"] : []),
+                    ]}
+                  />
+                )}
 
-                {/* Step 5: Blocage */}
-                {step === 5 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
+                {/* Step 5: Canaux souhaités */}
+                {step === 5 && (
+                  <MultiSelectScreen
+                    title="Et tu aimerais te lancer sur quels canaux ?"
+                    subtitle="même si c'est juste une envie"
+                    options={DESIRED_CHANNELS.filter(c => !answers.canaux.includes(c.key))}
+                    selected={answers.desired_channels}
+                    onChange={v => set("desired_channels", v)}
+                    onNext={next}
+                  />
+                )}
 
-                {/* Step 6: Temps */}
-                {step === 6 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setPendingAutoNext(true); }} />}
+                {/* Step 6: Objectif */}
+                {step === 6 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}
 
-                {/* Step 7: Change priority */}
-                {step === 7 && (
+                {/* Step 7: Blocage */}
+                {step === 7 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
+
+                {/* Step 8: Temps */}
+                {step === 8 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setPendingAutoNext(true); }} />}
+
+                {/* Step 9: Change priority */}
+                {step === 9 && (
                   <ChangeScreen
                     value={answers.change_priority}
                     onChange={v => set("change_priority", v)}
@@ -226,16 +255,16 @@ export default function Onboarding() {
                   />
                 )}
 
-                {/* Step 8: Product or service */}
-                {step === 8 && (
+                {/* Step 10: Product or service */}
+                {step === 10 && (
                   <ProductServiceScreen
                     value={answers.product_or_service}
                     onChange={v => { set("product_or_service", v); setPendingAutoNext(true); }}
                   />
                 )}
 
-                {/* Step 9: Uniqueness */}
-                {step === 9 && (
+                {/* Step 11: Uniqueness */}
+                {step === 11 && (
                   <UniquenessScreen
                     value={answers.uniqueness}
                     onChange={v => set("uniqueness", v)}
@@ -243,8 +272,8 @@ export default function Onboarding() {
                   />
                 )}
 
-                {/* Step 10: Diagnostic Loading */}
-                {step === 10 && (
+                {/* Step 12: Diagnostic Loading */}
+                {step === 12 && (
                   <DiagnosticLoading
                     hasInstagram={hasInstagram}
                     hasWebsite={hasWebsite}
@@ -255,7 +284,7 @@ export default function Onboarding() {
                     uploadedFileIds={uploadedFiles.map(f => f.id)}
                     onReady={(data) => {
                       setDiagnosticData(data);
-                      setStep(11);
+                      setStep(13);
                     }}
                   />
                 )}
@@ -265,7 +294,7 @@ export default function Onboarding() {
           </div>
 
           {/* Time remaining indicator */}
-          {step > 0 && step < 7 && (
+          {step > 0 && step < 9 && (
             <p className="text-center text-xs text-muted-foreground/60 pb-4 mt-2">
               {getTimeRemaining(step)}
             </p>
@@ -591,7 +620,59 @@ function TempsScreen({ value, onChange }: { value: string; onChange: (v: string)
 }
 
 /* ════════════════════════════════════════════════════════
-   AFFINAGE SCREENS (Steps 7-9)
+   MULTI-SELECT SCREEN (Steps 4-5)
+   ════════════════════════════════════════════════════════ */
+
+function MultiSelectScreen({ title, subtitle, options, selected, onChange, onNext, preSelected }: {
+  title: string;
+  subtitle: string;
+  options: { key: string; emoji: string; label: string }[];
+  selected: string[];
+  onChange: (v: string[]) => void;
+  onNext: () => void;
+  preSelected?: string[];
+}) {
+  // Pre-select channels on first render based on links
+  useEffect(() => {
+    if (preSelected && preSelected.length > 0 && selected.length === 0) {
+      const toAdd = preSelected.filter(p => !selected.includes(p));
+      if (toAdd.length > 0) onChange([...selected, ...toAdd]);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggle = (key: string) => {
+    if (key === "none") {
+      onChange(selected.includes("none") ? [] : ["none"]);
+      return;
+    }
+    const without = selected.filter(s => s !== "none");
+    onChange(without.includes(key) ? without.filter(s => s !== key) : [...without, key]);
+  };
+
+  const hasSelection = selected.length > 0 && !selected.includes("none");
+
+  return (
+    <div className="space-y-8">
+      <div className="text-center space-y-2">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">{title}</h1>
+        <p className="text-sm text-muted-foreground italic">{subtitle}</p>
+      </div>
+      <div className="space-y-3">
+        {options.map(o => (
+          <ChoiceCard key={o.key} emoji={o.emoji} label={o.label} selected={selected.includes(o.key)} onClick={() => toggle(o.key)} />
+        ))}
+      </div>
+      <div className="text-center">
+        <Button onClick={onNext} className="rounded-full px-8">
+          {hasSelection ? "Suivant →" : "Passer →"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════
+   AFFINAGE SCREENS (Steps 9-11)
    ════════════════════════════════════════════════════════ */
 
 function ChangeScreen({ value, onChange, onNext }: { value: string; onChange: (v: string) => void; onNext: () => void }) {
