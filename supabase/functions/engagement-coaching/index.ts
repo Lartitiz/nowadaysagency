@@ -28,7 +28,7 @@ serve(async (req) => {
     }
     const userId = claims.claims.sub as string;
 
-    const { post_text, objectif, ton_envie, platform } = await req.json();
+    const { post_text, objectif, ton_envie, platform, workspace_id } = await req.json();
 
     const missing = validateRequiredFields({ post_text, objectif, ton_envie, platform }, ["post_text", "objectif", "ton_envie", "platform"]);
     if (missing) return new Response(JSON.stringify({ error: missing }), { status: 400, headers: cors });
@@ -38,7 +38,7 @@ serve(async (req) => {
     if (limitCheck) return new Response(JSON.stringify({ error: limitCheck }), { status: 403, headers: cors });
 
     // Get user context
-    const context = await getUserContext(supabase, userId);
+    const context = await getUserContext(supabase, userId, workspace_id);
     const contextStr = formatContextForAI(context, CONTEXT_PRESETS.comments);
 
     const systemPrompt = `Tu es une experte en engagement sur les réseaux sociaux. Tu aides des solopreneuses créatives à écrire des commentaires stratégiques qui attirent l'attention des bonnes personnes.

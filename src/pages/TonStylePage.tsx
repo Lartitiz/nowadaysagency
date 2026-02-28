@@ -199,7 +199,7 @@ Sois concrète et spécifique :
 Réponds avec le texte seul, 3-4 phrases.`);
 
       const res = await supabase.functions.invoke("generate-content", {
-        body: { type: "raw", prompt: promptParts.join("\n") },
+        body: { type: "raw", prompt: promptParts.join("\n"), workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       });
       if (res.data?.content) {
         updateField("voice_description", res.data.content.trim());

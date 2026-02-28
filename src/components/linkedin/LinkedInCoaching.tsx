@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -53,6 +54,8 @@ interface Props {
 
 export default function LinkedInCoaching({ open, onOpenChange, initialModule, auditScore }: Props) {
   const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
+  const wsId = workspaceId !== user?.id ? workspaceId : undefined;
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [activeModule, setActiveModule] = useState<ModuleKey>(initialModule || "profil");
@@ -88,7 +91,7 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
   const loadQuestions = async (mod: ModuleKey) => {
     try {
       const { data, error } = await supabase.functions.invoke("linkedin-coaching", {
-        body: { phase: "questions", module: mod },
+        body: { phase: "questions", module: mod, workspace_id: wsId },
       });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
@@ -118,7 +121,7 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
         answer: answers[i] || "",
       }));
       const { data, error } = await supabase.functions.invoke("linkedin-coaching", {
-        body: { phase: "diagnostic", module: activeModule, answers: answersPayload },
+        body: { phase: "diagnostic", module: activeModule, answers: answersPayload, workspace_id: wsId },
       });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);

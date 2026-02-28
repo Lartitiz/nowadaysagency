@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { Link, useParams } from "react-router-dom";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ interface RecapSummary {
 export default function StorytellingRecapPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { id } = useParams();
   const { toast } = useToast();
   const [data, setData] = useState<any>(null);
@@ -93,7 +94,7 @@ export default function StorytellingRecapPage() {
     try {
       const profile = { ...(profileData || {}), ...(brandProfileData || {}) };
       const { data: fnData, error } = await supabase.functions.invoke("storytelling-ai", {
-        body: { type: "generate-recap", storytelling: story, profile },
+        body: { type: "generate-recap", storytelling: story, profile, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       });
       if (error) throw error;
       const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
