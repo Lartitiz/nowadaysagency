@@ -128,8 +128,13 @@ Deno.serve(async (req) => {
       })
       .eq("user_id", targetUserId);
 
-    if (profileErr) errors.push(`profiles update: ${profileErr.message}`);
-    else tablesCleaned++;
+    if (profileErr) {
+      console.error("[reset-onboarding] CRITICAL - profiles update failed:", profileErr.message);
+      errors.push(`profiles update: ${profileErr.message}`);
+    } else {
+      console.log("[reset-onboarding] profiles reset OK");
+      tablesCleaned++;
+    }
 
     // Phase 3: Reset user_plan_config
     const { error: configErr } = await admin
