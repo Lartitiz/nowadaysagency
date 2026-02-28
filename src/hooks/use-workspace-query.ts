@@ -83,3 +83,36 @@ export function useProfileFilter(): { column: "user_id"; value: string } {
   const profileUserId = useProfileUserId();
   return { column: "user_id", value: profileUserId };
 }
+
+/**
+ * Returns a dual filter: tries workspace_id first, then falls back to user_id.
+ * Use for tables that may have old rows without workspace_id.
+ */
+export function useWorkspaceFilterWithFallback(): {
+  column: string;
+  value: string;
+  fallbackColumn: string;
+  fallbackValue: string;
+} {
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
+  try {
+    const { activeWorkspace } = useWorkspace();
+    if (activeWorkspace?.id) {
+      return {
+        column: "workspace_id",
+        value: activeWorkspace.id,
+        fallbackColumn: "user_id",
+        fallbackValue: userId,
+      };
+    }
+  } catch {
+    // fallback
+  }
+  return {
+    column: "user_id",
+    value: userId,
+    fallbackColumn: "user_id",
+    fallbackValue: userId,
+  };
+}
