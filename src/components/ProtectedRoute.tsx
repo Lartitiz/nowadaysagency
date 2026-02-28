@@ -3,6 +3,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { Navigate, useLocation } from "react-router-dom";
 import { ReactNode, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import FloatingChatButton from "@/components/FloatingChatButton";
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -33,7 +34,6 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
         setNeedsOnboarding(!done);
       } catch (e) {
         console.error("Onboarding check failed:", e);
-        // On error, assume onboarding needed to prevent bypass
         setNeedsOnboarding(true);
       } finally {
         setCheckingOnboarding(false);
@@ -42,7 +42,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     check();
   }, [user?.id, isDemoMode, location.pathname]);
 
-  if (isDemoMode) return <>{children}</>;
+  if (isDemoMode) return <>{children}<FloatingChatButton /></>;
 
   if (loading || checkingOnboarding) {
     return (
@@ -62,5 +62,5 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     return <Navigate to="/onboarding" replace />;
   }
 
-  return <>{children}</>;
+  return <>{children}<FloatingChatButton /></>;
 }
