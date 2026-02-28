@@ -379,9 +379,11 @@ export function useOnboarding() {
       if (answers.linkedin) profileData.linkedin_url = answers.linkedin;
 
       if (existingProfile) {
-        await supabase.from("profiles").update(profileData).eq("user_id", user.id);
+        const { error: updateErr } = await supabase.from("profiles").update(profileData).eq("user_id", user.id);
+        if (updateErr) console.error("Failed to update profile:", updateErr);
       } else {
-        await supabase.from("profiles").insert({ user_id: user.id, ...profileData });
+        const { error: insertErr } = await supabase.from("profiles").insert({ user_id: user.id, ...profileData });
+        if (insertErr) console.error("Failed to insert profile:", insertErr);
       }
 
       // 2. user_plan_config — pre-configure plan from onboarding answers
@@ -408,9 +410,11 @@ export function useOnboarding() {
         onboarding_completed_at: new Date().toISOString(),
       };
       if (existingConfig) {
-        await supabase.from("user_plan_config").update(configData).eq("user_id", user.id);
+        const { error: updErr } = await supabase.from("user_plan_config").update(configData).eq("user_id", user.id);
+        if (updErr) console.error("Failed to update plan_config:", updErr);
       } else {
-        await supabase.from("user_plan_config").insert({ user_id: user.id, ...configData });
+        const { error: insErr } = await supabase.from("user_plan_config").insert({ user_id: user.id, ...configData });
+        if (insErr) console.error("Failed to insert plan_config:", insErr);
       }
 
       // NOTE: brand_profile and persona are now filled by the deep-diagnostic edge function, not here.
