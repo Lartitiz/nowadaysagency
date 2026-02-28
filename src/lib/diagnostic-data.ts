@@ -72,7 +72,7 @@ export function computeDiagnosticData(
   const hasNl = answers.canaux.includes("newsletter");
   const hasLi = answers.canaux.includes("linkedin");
 
-  const igScore = hasIg ? (answers.instagram ? 45 : 20) : null;
+  const igScore = hasIg ? (answers.instagram ? null : 0) : null;
   const webScore = hasWeb ? (answers.website ? 40 : 15) : null;
   const nlScore = hasNl ? 15 : null;
 
@@ -87,7 +87,9 @@ export function computeDiagnosticData(
   if (answers.canaux.length > 1 && !answers.canaux.includes("none")) strengths.push("Tu es présente sur plusieurs canaux");
 
   const weaknesses: DiagnosticWeakness[] = [];
-  if (hasIg && answers.instagram) weaknesses.push({ title: "Ton profil Instagram n'est pas encore optimisé", why: "Sans un profil travaillé, tu perds des visiteurs qui te découvrent." });
+  if (hasIg && answers.instagram) {
+    strengths.push("Tu as un compte Instagram actif — on pourra l'auditer en détail dans l'outil");
+  }
   if (!hasNl) weaknesses.push({ title: "Tu n'as pas de newsletter", why: "Ta liste email, c'est le seul endroit qu'Instagram ne peut pas te reprendre." });
   if (hasWeb && !answers.website) weaknesses.push({ title: "Ton site web n'est pas renseigné", why: "Sans site, tu dépends à 100% des réseaux sociaux." });
   if (!brandingAnswers.target_description?.trim()) weaknesses.push({ title: "Ta cible n'est pas assez définie", why: "Sans cible claire, tes contenus parlent à tout le monde (donc à personne)." });
