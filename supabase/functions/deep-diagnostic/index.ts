@@ -142,6 +142,11 @@ RÈGLES :
 - Utilise les MOTS de la personne. Tu as lu son contenu, parle comme elle.
 - Utilise l'écriture inclusive avec le point médian.
 - Tutoie.
+- Pour le branding_prefill, déduis un maximum d'éléments depuis le contenu scrappé. Si tu trouves des offres sur le site, liste-les. Si tu peux deviner l'histoire, résume-la. Si tu identifies des combats ou convictions, note-les. Mieux vaut proposer quelque chose que la personne modifiera plutôt que laisser vide.
+- Pour les offres, cherche : pages services, tarifs, accompagnements, formations, produits. Liste tout ce que tu trouves.
+- Pour le story_draft, utilise ce que tu sais : la page à propos, les réponses libres (uniqueness, positioning), la bio.
+- Pour les combats, identifie les causes défendues, les refus assumés, les convictions fortes visibles dans le contenu.
+- Pour les content_pillars, identifie les 3 grands thèmes récurrents du contenu de la personne.
 
 RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
 
@@ -164,12 +169,18 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
     { "title": "action concrète", "why": "pourquoi c'est prioritaire", "time": "durée estimée", "route": "route dans l'app", "impact": "high|medium" }
   ],
   "branding_prefill": {
-    "positioning": "phrase de positionnement déduite ou null",
-    "mission": "mission déduite ou null",
-    "target_description": "description de la cible déduite ou null",
-    "tone_keywords": [],
-    "values": [],
-    "offers": []
+    "positioning": "phrase de positionnement déduite. Ex : 'J'aide les solopreneuses créatives à être visibles sans se trahir.' ou null si pas assez d'info",
+    "mission": "mission déduite. Ex : 'Rendre la communication accessible et joyeuse pour les créatrices éthiques.' ou null",
+    "target_description": "description de la cible idéale déduite. Ex : 'Solopreneuse créative, 28-45 ans, engagée, qui veut communiquer sans se sentir vendue.' ou null",
+    "tone_keywords": ["mot-clé 1", "mot-clé 2", "mot-clé 3"],
+    "tone_style": "description du style de communication deviné en 1-2 phrases. Ex : 'Direct et chaleureux, oral assumé, avec humour discret et références pop.' ou null",
+    "combats": ["conviction/engagement 1", "conviction 2", "conviction 3"],
+    "values": ["valeur 1", "valeur 2", "valeur 3"],
+    "content_pillars": ["pilier éditorial 1", "pilier 2", "pilier 3"],
+    "story_draft": "2-4 phrases résumant l'histoire/parcours de la personne tel que deviné depuis son contenu. Le moment déclic, le pourquoi. ou null si pas assez d'info",
+    "offers": [
+      { "name": "nom de l'offre", "description": "description courte", "price": "prix si trouvé ou null" }
+    ]
   }
 }
 
@@ -206,6 +217,17 @@ Temps disponible/semaine : ${profile.weeklyTime || "non renseigné"}`);
 
     if (sourcesUsed.length === 0) {
       userParts.push("\n⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.");
+    }
+
+    // Warn about failed sources
+    if (sourcesFailed.length > 0) {
+      const failedLabels = sourcesFailed.map(s => {
+        if (s === "instagram") return `Instagram (@${instagramHandle})`;
+        if (s === "website") return `Site web (${websiteUrl})`;
+        if (s === "linkedin") return `LinkedIn`;
+        return s;
+      });
+      userParts.push(`\n⚠️ Sources non analysées (scraping échoué) : ${failedLabels.join(", ")}. NE PAS inventer de score pour ces sources. Mettre leur score à null dans "scores".`);
     }
 
     const userPrompt = userParts.join("\n\n");
@@ -262,7 +284,7 @@ Temps disponible/semaine : ${profile.weeklyTime || "non renseigné"}`);
 
       const { data: existingProfile } = await supabaseAdmin
         .from("brand_profile")
-        .select("id, positioning, mission, tone_keywords, values")
+        .select("id, positioning, mission, tone_keywords, tone_style, combats, values, content_pillars, content_editorial_line")
         .eq(filterCol, filterVal)
         .maybeSingle();
 
@@ -277,6 +299,15 @@ Temps disponible/semaine : ${profile.weeklyTime || "non renseigné"}`);
         if ((!existingProfile.values || (Array.isArray(existingProfile.values) && existingProfile.values.length === 0)) && prefill.values?.length) {
           updates.values = prefill.values;
         }
+        if (!existingProfile.tone_style && prefill.tone_style) {
+          updates.tone_style = prefill.tone_style;
+        }
+        if (!existingProfile.combats && prefill.combats?.length > 0) {
+          updates.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
+        }
+        if ((!existingProfile.content_pillars || (Array.isArray(existingProfile.content_pillars) && existingProfile.content_pillars.length === 0)) && prefill.content_pillars?.length > 0) {
+          updates.content_pillars = prefill.content_pillars;
+        }
 
         if (Object.keys(updates).length > 0) {
           await supabaseAdmin
@@ -284,9 +315,24 @@ Temps disponible/semaine : ${profile.weeklyTime || "non renseigné"}`);
             .update(updates)
             .eq("id", existingProfile.id);
         }
+      } else {
+        // Create brand_profile with all diagnostic data
+        const newProfile: Record<string, unknown> = {
+          user_id: userId,
+          workspace_id: workspaceId,
+        };
+        if (prefill.positioning) newProfile.positioning = prefill.positioning;
+        if (prefill.mission) newProfile.mission = prefill.mission;
+        if (prefill.tone_keywords?.length) newProfile.tone_keywords = prefill.tone_keywords;
+        if (prefill.tone_style) newProfile.tone_style = prefill.tone_style;
+        if (prefill.combats?.length) newProfile.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
+        if (prefill.values?.length) newProfile.values = prefill.values;
+        if (prefill.content_pillars?.length) newProfile.content_pillars = prefill.content_pillars;
+
+        await supabaseAdmin.from("brand_profile").insert(newProfile);
       }
 
-      // 3. Pre-fill persona description
+      // 3. Pre-fill persona
       if (prefill.target_description) {
         const { data: existingPersona } = await supabaseAdmin
           .from("persona")
@@ -301,11 +347,65 @@ Temps disponible/semaine : ${profile.weeklyTime || "non renseigné"}`);
             .from("persona")
             .update({ description: prefill.target_description })
             .eq("id", existingPersona.id);
+        } else if (!existingPersona) {
+          await supabaseAdmin.from("persona").insert({
+            user_id: userId,
+            workspace_id: workspaceId,
+            description: prefill.target_description,
+            is_primary: true,
+          });
+        }
+      }
+
+      // 4. Pre-fill offers
+      if (prefill.offers && Array.isArray(prefill.offers) && prefill.offers.length > 0) {
+        const { count: existingOffersCount } = await supabaseAdmin
+          .from("offers")
+          .select("id", { count: "exact", head: true })
+          .eq(filterCol, filterVal);
+
+        if ((existingOffersCount || 0) === 0) {
+          const offersToInsert = prefill.offers
+            .filter((o: any) => o.name || o.title)
+            .slice(0, 5)
+            .map((o: any, i: number) => ({
+              user_id: userId,
+              workspace_id: workspaceId,
+              name: o.name || o.title,
+              promise: o.description || o.promise || null,
+              price_text: o.price || null,
+              offer_type: "paid",
+              sort_order: i,
+            }));
+
+          if (offersToInsert.length > 0) {
+            await supabaseAdmin.from("offers").insert(offersToInsert);
+          }
+        }
+      }
+
+      // 5. Pre-fill storytelling draft
+      if (prefill.story_draft) {
+        const { data: existingStory } = await supabaseAdmin
+          .from("storytelling")
+          .select("id")
+          .eq(filterCol, filterVal)
+          .limit(1)
+          .maybeSingle();
+
+        if (!existingStory) {
+          await supabaseAdmin.from("storytelling").insert({
+            user_id: userId,
+            workspace_id: workspaceId,
+            imported_text: prefill.story_draft,
+            source: "diagnostic_prefill",
+            is_primary: true,
+          });
         }
       }
     }
 
-    // 4. Save priorities as audit_recommendations
+    // 6. Save priorities as audit_recommendations
     const priorities = (analysisResult as any).priorities;
     if (priorities && Array.isArray(priorities)) {
       const recsToInsert = priorities.map((p: any, i: number) => ({
@@ -325,7 +425,7 @@ Temps disponible/semaine : ${profile.weeklyTime || "non renseigné"}`);
       await supabaseAdmin.from("audit_recommendations").insert(recsToInsert);
     }
 
-    // 5. Log usage (3 credits for diagnostic)
+    // 7. Log usage (3 credits for diagnostic)
     for (let i = 0; i < 3; i++) {
       await logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-opus", workspaceId);
     }
