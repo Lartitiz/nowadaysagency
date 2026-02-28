@@ -157,7 +157,10 @@ export default function WeeklyProgressWidget({ animationDelay = 0, brandingCompl
           <Progress value={percentage} className={`h-2 rounded-xl ${progressClass}`} />
 
           {nextPost && (
-            <div className="mt-3 flex items-center justify-between gap-2 bg-muted/30 rounded-xl px-3 py-2">
+            <button
+              onClick={() => navigate(`/calendrier?date=${nextPost.date}&post=${nextPost.id}`)}
+              className="mt-3 flex items-center justify-between gap-2 bg-muted/30 rounded-xl px-3 py-2 w-full text-left hover:bg-muted/50 transition-colors"
+            >
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Prochain :</p>
                 <p className="text-sm text-foreground font-medium truncate">"{nextPost.theme}"</p>
@@ -168,12 +171,15 @@ export default function WeeklyProgressWidget({ animationDelay = 0, brandingCompl
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => markAsPublished(nextPost.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  markAsPublished(nextPost.id);
+                }}
                 className="text-xs shrink-0"
               >
                 Marquer publié
               </Button>
-            </div>
+            </button>
           )}
         </>
       )}

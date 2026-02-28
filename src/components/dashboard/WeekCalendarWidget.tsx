@@ -248,7 +248,10 @@ export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
 
           {/* Next post */}
           {nextPost && (
-            <div className="mt-3 flex items-center justify-between gap-2 bg-muted/30 rounded-xl px-3 py-2">
+            <button
+              onClick={() => navigate(`/calendrier?date=${nextPost.date}&post=${nextPost.id}`)}
+              className="mt-3 flex items-center justify-between gap-2 bg-muted/30 rounded-xl px-3 py-2 w-full text-left hover:bg-muted/50 transition-colors"
+            >
               <div className="min-w-0">
                 <p className="text-[10px] text-muted-foreground">Prochain :</p>
                 <p className="text-xs text-foreground font-medium truncate">
@@ -269,7 +272,7 @@ export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
               >
                 Marquer publié
               </Button>
-            </div>
+            </button>
           )}
         </>
       ) : (
