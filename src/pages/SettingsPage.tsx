@@ -15,6 +15,7 @@ import { enablePostHog, disablePostHog } from "@/lib/posthog";
 import { enableSentryReplays, disableSentryReplays } from "@/lib/sentry";
 import { STRIPE_PLANS } from "@/lib/stripe-config";
 import { useUserPlan } from "@/hooks/use-user-plan";
+import { MODULE_FLAGS } from "@/config/feature-flags";
 import PurchaseHistory from "@/components/settings/PurchaseHistory";
 import PromoCodeInput from "@/components/PromoCodeInput";
 import {
@@ -30,7 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function SettingsPage() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const { toast } = useToast();
   const { plan, isPaid, isStudio, refresh: refreshPlan } = useUserPlan();
 
@@ -438,6 +439,35 @@ export default function SettingsPage() {
             </AlertDialogContent>
           </AlertDialog>
         </div>
+
+        {/* ─── Feature flags (admin only) ─── */}
+        {isAdmin && (
+          <Section icon={<Shield className="h-5 w-5" />} title="Feature flags (admin)">
+            <p className="text-sm text-muted-foreground mb-4">
+              Modules masqués pour les utilisateur·ices. Active-les quand ils sont prêts.
+            </p>
+            <div className="space-y-2">
+              {MODULE_FLAGS.map(flag => (
+                <div key={flag.id} className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{flag.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Routes : {flag.routes.join(", ")}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={flag.enabled}
+                    disabled
+                    aria-label={`Toggle ${flag.label}`}
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground italic mt-3">
+              Pour activer un module : modifier <code className="bg-muted px-1 rounded">enabled</code> dans <code className="bg-muted px-1 rounded">src/config/feature-flags.ts</code> et redéployer.
+            </p>
+          </Section>
+        )}
       </main>
     </div>
   );
