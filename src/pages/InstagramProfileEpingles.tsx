@@ -75,6 +75,7 @@ export default function InstagramProfileEpingles() {
   const [slots, setSlots] = useState<PinnedSlot[]>(
     SLOTS.map((s) => ({ type: s.type, status: "todo", description: "" }))
   );
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -99,6 +100,7 @@ export default function InstagramProfileEpingles() {
           })
         );
       }
+      setLoading(false);
     };
     load();
   }, [user?.id]);
@@ -157,6 +159,8 @@ export default function InstagramProfileEpingles() {
   };
 
   const doneCount = slots.filter((s) => s.status === "done").length;
+
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
     <div className="min-h-screen bg-background">

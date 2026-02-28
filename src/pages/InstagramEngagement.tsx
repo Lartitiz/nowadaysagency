@@ -41,6 +41,7 @@ export default function InstagramEngagement() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const [showConfetti, setShowConfetti] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("engagement");
   const [coachingOpen, setCoachingOpen] = useState(false);
 
@@ -75,6 +76,7 @@ export default function InstagramEngagement() {
         notes: c.note,
         last_interaction: null,
       })));
+      setLoading(false);
       return;
     }
     if (!user) return;
@@ -135,6 +137,7 @@ export default function InstagramEngagement() {
         notes: c.notes,
         last_interaction: c.last_interaction,
       })));
+      setLoading(false);
     };
     load();
   }, [user?.id, today, monday, isDemoMode]);
@@ -258,6 +261,8 @@ export default function InstagramEngagement() {
     await supabase.from("engagement_contacts").update({ notes, updated_at: new Date().toISOString() }).eq("id", id);
     setContacts(prev => prev.map(c => c.id === id ? { ...c, notes } : c));
   };
+
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
     <div className="min-h-screen bg-background">

@@ -104,6 +104,7 @@ export default function ContactsPage() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [tab, setTab] = useState("network");
   const [showConfetti, setShowConfetti] = useState(false);
@@ -119,6 +120,7 @@ export default function ContactsPage() {
       .eq(column, value)
       .order("created_at", { ascending: false });
     if (data) setContacts(data as unknown as Contact[]);
+    setLoading(false);
   }, [user?.id]);
 
   useEffect(() => { loadContacts(); }, [loadContacts]);
@@ -160,6 +162,8 @@ export default function ContactsPage() {
   const pipelineValue = prospectContacts
     .filter(c => c.prospect_stage === "offer_proposed")
     .reduce((s, c) => s + (c.potential_value || 0), 0);
+
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
     <div className="min-h-screen bg-background">
