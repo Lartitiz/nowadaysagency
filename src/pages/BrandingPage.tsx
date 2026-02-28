@@ -91,7 +91,7 @@ export default function BrandingPage() {
   const { data: propositionHook } = useBrandProposition();
   const { data: storytellingHook } = useStorytelling();
   const queryClient = useQueryClient();
-  const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, charter: 0, total: 0 });
+  const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, offers: 0, charter: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [primaryStoryId, setPrimaryStoryId] = useState<string | null>(null);
   const [showSynthesis, setShowSynthesis] = useState(false);
@@ -176,7 +176,7 @@ export default function BrandingPage() {
 
   useEffect(() => {
     if (isDemoMode) {
-      setCompletion({ storytelling: 100, persona: 100, proposition: 100, tone: 80, strategy: 70, charter: 0, total: DEMO_DATA.branding.completion });
+      setCompletion({ storytelling: 100, persona: 100, proposition: 100, tone: 80, strategy: 70, offers: 0, charter: 0, total: DEMO_DATA.branding.completion });
       setPrimaryStoryId("demo-story");
       setHasEnoughData(true);
       setHasProposition(true);

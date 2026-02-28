@@ -25,7 +25,7 @@ export interface BrandingState {
 }
 
 const EMPTY_COMPLETION: BrandingCompletion = {
-  storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, charter: 0, total: 0,
+  storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, offers: 0, charter: 0, total: 0,
 };
 
 export function useBrandingState(): BrandingState {
@@ -60,7 +60,7 @@ export function useBrandingState(): BrandingState {
     if (isDemoMode) {
       setCompletion({
         storytelling: 100, persona: 100, proposition: 100,
-        tone: 80, strategy: 70, charter: 0, total: DEMO_DATA.branding.completion,
+        tone: 80, strategy: 70, offers: 0, charter: 0, total: DEMO_DATA.branding.completion,
       });
       setAutofillStatus("none");
       setLoading(false);

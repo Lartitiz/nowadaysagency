@@ -205,6 +205,7 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
           proposition: 80,
           tone: 70,
           strategy: 0,
+          offers: 0,
           charter: 0,
           total: 62,
         };
