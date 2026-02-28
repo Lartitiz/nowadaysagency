@@ -65,7 +65,7 @@ function StatusDot({ score }: { score: number }) {
 function getSummaryLine(key: string, summaries: SectionSummary): string {
   switch (key) {
     case "storytelling":
-      return summaries.storytelling?.firstLine || "Pas encore rédigée";
+      return summaries.storytelling?.firstLine || "En cours de rédaction…";
     case "persona": {
       const p = summaries.persona;
       if (!p?.prenom) return "Pas encore défini·e";

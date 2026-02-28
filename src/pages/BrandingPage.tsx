@@ -194,14 +194,19 @@ export default function BrandingPage() {
       const [personaFullRes, storyFullRes, stratFullRes, toneFullRes, offersFullRes] = await Promise.all([
         (supabase.from("persona") as any).select("portrait_prenom, description, pitch_short").eq(column, value).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         data.storytellingList && data.storytellingList.length > 0
-          ? (supabase.from("storytelling") as any).select("step_7_polished, imported_text, step_1_raw").eq("id", (data.storytellingList.find((s: any) => s.is_primary) || data.storytellingList[0]).id).maybeSingle()
+          ? (() => {
+              const primary = data.storytellingList.find((s: any) => s.is_primary);
+              const withContent = data.storytellingList.find((s: any) => s.step_7_polished || s.imported_text);
+              const target = primary || withContent || data.storytellingList[0];
+              return (supabase.from("storytelling") as any).select("step_7_polished, step_6_full_story, imported_text, pitch_short, step_1_raw").eq("id", target.id).maybeSingle();
+            })()
           : Promise.resolve({ data: null }),
         (supabase.from("brand_strategy") as any).select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq(column, value).maybeSingle(),
         (supabase.from("brand_profile") as any).select("tone_register, tone_level, tone_style, tone_humor, tone_engagement").eq(column, value).maybeSingle(),
         (supabase.from("offers") as any).select("name").eq(column, value).order("created_at", { ascending: true }),
       ]);
 
-      const storyText = storyFullRes.data?.step_7_polished || storyFullRes.data?.imported_text || storyFullRes.data?.step_1_raw || "";
+      const storyText = storyFullRes.data?.step_7_polished || storyFullRes.data?.step_6_full_story || storyFullRes.data?.imported_text || storyFullRes.data?.pitch_short || storyFullRes.data?.step_1_raw || "";
       const toneKw = toneFullRes.data ? [toneFullRes.data.tone_register, toneFullRes.data.tone_style, toneFullRes.data.tone_humor, toneFullRes.data.tone_level].filter(Boolean) : [];
       const pillars = stratFullRes.data ? [stratFullRes.data.pillar_major, stratFullRes.data.pillar_minor_1, stratFullRes.data.pillar_minor_2, stratFullRes.data.pillar_minor_3].filter(Boolean) : [];
       const charterParts: string[] = [];
