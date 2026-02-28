@@ -17,9 +17,10 @@ export default function WelcomeStep({ onNext }: WelcomeStepProps) {
         <p className="text-sm text-muted-foreground">
           Ça prend 5 minutes. Promis.
         </p>
-        <p className="text-xs text-muted-foreground/70 italic">
-          Tu peux répondre en tapant ou en vocal 🎤
-        </p>
+        <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm text-primary">
+          <span className="text-base">🎤</span>
+          <span>Dès que tu vois l'icône micro, tu peux dicter : c'est plus rapide !</span>
+        </div>
       </div>
       <Button onClick={onNext} size="lg" className="rounded-full px-8 gap-2">
         C'est parti →

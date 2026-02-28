@@ -67,6 +67,11 @@ export default function Onboarding() {
 
   const { toast } = useToast();
   const [pendingAutoNext, setPendingAutoNext] = useState(false);
+  const [hasSeenVoiceTip, setHasSeenVoiceTip] = useState(false);
+
+  useEffect(() => {
+    if (step > 7 && !hasSeenVoiceTip) setHasSeenVoiceTip(true);
+  }, [step, hasSeenVoiceTip]);
 
   const validatedNext = useCallback(() => {
     const validator = stepValidators[step];
@@ -157,7 +162,13 @@ export default function Onboarding() {
                 animate="center"
                 exit="exit"
                 transition={{ duration: 0.3, ease: "easeOut" }}
-              >
+               >
+                {step >= 7 && step <= 9 && !hasSeenVoiceTip && (
+                  <p className="text-xs text-muted-foreground text-center mb-2 animate-in fade-in">
+                    💡 Tu vois l'icône 🎤 ? Clique dessus pour dicter ta réponse.
+                  </p>
+                )}
+
                 {/* Step 0: Welcome */}
                 {step === 0 && <WelcomeStep onNext={next} />}
 
