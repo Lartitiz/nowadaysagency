@@ -187,9 +187,9 @@ export default function ClientsPage() {
     }
   };
 
-  // Gatekeeping: only studio, now_pilot, or users who manage a workspace
+  // Gatekeeping: only paid plans or users who already manage a workspace
   const hasManagerRole = workspaces.length > 0 && activeRole === "manager";
-  const canAccess = isAdmin || plan === "studio" || plan === "now_pilot" || isPilot || hasManagerRole;
+  const canAccess = isAdmin || plan === "studio" || plan === "now_pilot" || plan === "outil" || isPilot || hasManagerRole;
 
   if (!planLoading && !adminLoading && !canAccess) {
     return (
