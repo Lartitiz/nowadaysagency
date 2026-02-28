@@ -1,9 +1,6 @@
 import { useMemo } from "react";
 import { useGuideRecommendation } from "./use-guide-recommendation";
-import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter } from "./use-workspace-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useDemoContext } from "@/contexts/DemoContext";
 
 export type UserPhase = "construction" | "action" | "pilotage";
@@ -19,22 +16,38 @@ export interface UserPhaseResult {
   isLoading: boolean;
 }
 
+const FULL_TOOLS_KEY = "lac_full_tools_clicks";
+
+function getFullToolsClicks(): number {
+  try {
+    return parseInt(localStorage.getItem(FULL_TOOLS_KEY) || "0", 10) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function incrementFullToolsClicks(): void {
+  try {
+    const current = getFullToolsClicks();
+    localStorage.setItem(FULL_TOOLS_KEY, String(current + 1));
+  } catch {
+    // ignore
+  }
+}
+
 /**
  * Determines the user's internal phase and guidance speed.
  *
  * Phase logic:
- *   - "construction": branding total < 40% → identity still being built
- *   - "action": branding ≥ 40% but fewer than 8 calendar posts → content creation mode
- *   - "pilotage": branding ≥ 40% and ≥ 8 posts → autonomous cruise mode
+ *   - "construction": branding total < 40%
+ *   - "action": branding ≥ 40% but fewer than 8 calendar posts
+ *   - "pilotage": branding ≥ 40% and ≥ 8 posts
  *
- * Speed logic (level of hand-holding):
- *   1 "Fais pour moi"  → brand new user, < 2 branding sections filled
- *   2 "Fais avec moi"  → intermediate, 2-4 sections filled
- *   3 "Je gère"        → advanced, 5+ sections or pilotage phase
+ * Override: if localStorage lac_full_tools_clicks ≥ 3, bump phase up one level.
  */
 export function useUserPhase(): UserPhaseResult {
   const { user } = useAuth();
-  const { isDemoMode, demoData } = useDemoContext();
+  const { isDemoMode } = useDemoContext();
   const { profileSummary, isLoading: guideLoading } = useGuideRecommendation();
 
   const result = useMemo((): Omit<UserPhaseResult, "isLoading"> => {
@@ -42,10 +55,9 @@ export function useUserPhase(): UserPhaseResult {
       brandingTotal,
       brandingSections,
       calendarPosts,
-      onboardingComplete,
     } = profileSummary;
 
-    // --- Phase ---
+    // --- Base phase ---
     let phase: UserPhase;
     if (brandingTotal < 40) {
       phase = "construction";
@@ -53,6 +65,13 @@ export function useUserPhase(): UserPhaseResult {
       phase = "action";
     } else {
       phase = "pilotage";
+    }
+
+    // --- Override: user keeps clicking "Voir tous les outils" ---
+    const clicks = getFullToolsClicks();
+    if (clicks >= 3) {
+      if (phase === "construction") phase = "action";
+      else if (phase === "action") phase = "pilotage";
     }
 
     // --- Speed ---
@@ -68,12 +87,9 @@ export function useUserPhase(): UserPhaseResult {
     // --- Derived flags ---
     const showFullNav = phase !== "construction" || brandingSections >= 2;
     const showProTools = phase === "pilotage" || (phase === "action" && speed >= 2);
-
-    // Suggested daily actions: beginners get 1, intermediate 2, advanced 3
     const suggestedDailyActions = speed as number;
 
-    // Score = simple weighted composite (branding 60%, content regularity 40%)
-    const contentScore = Math.min(calendarPosts * 5, 100); // 20 posts = 100%
+    const contentScore = Math.min(calendarPosts * 5, 100);
     const score = Math.round(brandingTotal * 0.6 + contentScore * 0.4);
 
     return {
