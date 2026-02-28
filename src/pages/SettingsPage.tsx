@@ -410,11 +410,9 @@ export default function SettingsPage() {
                     if (!user) return;
                     setResettingOnboarding(true);
                     try {
-                      // 1. Delete all branding data
+                      // 1. Delete branding data (order matters for FK constraints)
                       const tablesToDelete = [
                         "audit_recommendations",
-                        "branding_suggestions",
-                        "branding_summary",
                         "branding_coaching_sessions",
                         "branding_mirror_results",
                         "branding_autofill",
@@ -423,46 +421,63 @@ export default function SettingsPage() {
                         "brand_strategy",
                         "brand_proposition",
                         "brand_profile",
-                        "bio_versions",
-                        "audit_validations",
                         "storytelling",
                         "persona",
                         "offers",
                         "voice_profile",
                       ];
+
+                      let deleted = 0;
                       for (const table of tablesToDelete) {
                         try {
-                          await (supabase.from(table as any) as any).delete().eq("user_id", user.id);
+                          const { error } = await (supabase.from(table as any) as any).delete().eq("user_id", user.id);
+                          if (error) {
+                            console.warn(`[reset] ${table}: ${error.message}`);
+                          } else {
+                            deleted++;
+                          }
                         } catch (e) {
-                          console.error(`Reset ${table} failed:`, e);
+                          console.warn(`[reset] ${table} exception:`, e);
                         }
                       }
+                      console.log(`[reset] ${deleted}/${tablesToDelete.length} tables cleaned`);
 
-                      // 2. Reset onboarding state
-                      await Promise.all([
-                        supabase.from("profiles").update({
-                          onboarding_completed: false,
-                          onboarding_step: 0,
-                          canaux: null,
-                          main_blocker: null,
-                          main_goal: null,
-                          weekly_time: null,
-                        }).eq("user_id", user.id),
-                        supabase.from("user_plan_config").update({ onboarding_completed: false }).eq("user_id", user.id),
-                      ]);
+                      // 2. Reset onboarding in profiles
+                      const { error: profileError } = await supabase.from("profiles").update({
+                        onboarding_completed: false,
+                        onboarding_step: 0,
+                        canaux: null,
+                        main_blocker: null,
+                        main_goal: null,
+                        weekly_time: null,
+                      }).eq("user_id", user.id);
+                      if (profileError) console.error("[reset] profiles update failed:", profileError);
 
-                      // 3. Clear localStorage
+                      // 3. Reset user_plan_config - CRITICAL: must succeed for ProtectedRoute
+                      const { error: configError } = await supabase
+                        .from("user_plan_config")
+                        .update({ onboarding_completed: false, onboarding_completed_at: null } as any)
+                        .eq("user_id", user.id);
+
+                      if (configError) {
+                        console.error("[reset] user_plan_config update failed:", configError);
+                        // Fallback: delete row so ProtectedRoute sees no config
+                        await (supabase.from("user_plan_config") as any).delete().eq("user_id", user.id);
+                      }
+                      console.log("[reset] user_plan_config reset done");
+
+                      // 4. Clear localStorage
                       localStorage.removeItem("lac_onboarding_step");
                       localStorage.removeItem("lac_onboarding_answers");
                       localStorage.removeItem("lac_onboarding_branding");
                       localStorage.removeItem("lac_onboarding_ts");
                       localStorage.removeItem("branding_skip_import");
 
-                      // 4. Navigate
-                      navigate("/onboarding", { replace: true });
+                      // 5. Force full page reload to clear React state and re-check onboarding
+                      window.location.href = "/onboarding";
                     } catch (e) {
-                      console.error("Reset onboarding error:", e);
-                      toast({ title: "Erreur", description: "Impossible de relancer l'onboarding.", variant: "destructive" });
+                      console.error("[reset] Fatal error:", e);
+                      toast({ title: "Erreur", description: "Impossible de relancer l'onboarding. Ouvre la console (F12) pour voir le détail.", variant: "destructive" });
                     } finally {
                       setResettingOnboarding(false);
                     }
