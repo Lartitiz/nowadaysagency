@@ -81,20 +81,36 @@ export default function CharterColorsSection({
   const handleGeneratePalettes = async () => {
     if (!selectedUniverse || selectedEmotions.length === 0) return;
     setIsGenerating(true);
+    toast.info("Appel à l'IA en cours…");
     try {
       const { data: result, error } = await supabase.functions.invoke("palette-ai", {
         body: { emotions: selectedEmotions, universe: selectedUniverse, styleAxes, userSector },
       });
-      if (error) throw error;
+      if (error) {
+        const name = (error as any)?.name || "Error";
+        const msg = (error as any)?.message || String(error);
+        console.error("palette-ai invoke error:", name, msg, error);
+        if (name === "FunctionsFetchError" || msg.includes("Failed to fetch")) {
+          throw new Error("La fonction IA n'est pas accessible. Vérifie ta connexion ou réessaie.");
+        }
+        if (msg.includes("402") || msg.includes("Payment Required")) {
+          throw new Error("Crédits IA insuffisants. Passe à un plan supérieur pour continuer.");
+        }
+        if (msg.includes("429") || msg.includes("Too Many Requests")) {
+          throw new Error("Trop de requêtes. Attends quelques secondes puis réessaie.");
+        }
+        throw new Error(`Erreur serveur (${name}): ${msg}`);
+      }
       if (result?.error) throw new Error(result.error);
       if (result?.palettes?.length) {
         setGeneratedPalettes(result.palettes);
         toast.success("Palettes générées par l'IA !");
       } else {
-        throw new Error("Aucune palette reçue");
+        console.error("palette-ai unexpected response:", result);
+        throw new Error("Aucune palette reçue de l'IA");
       }
     } catch (e: any) {
-      console.error("Palette generation error:", e);
+      console.error("Palette generation error:", e?.name, e?.message, e);
       toast.error(e.message || "Erreur lors de la génération. Réessaie.");
     } finally {
       setIsGenerating(false);
