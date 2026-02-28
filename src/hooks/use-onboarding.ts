@@ -509,11 +509,11 @@ export function useOnboarding() {
   const handleDiagnosticComplete = async () => {
     if (isDemoMode) {
       skipDemoOnboarding();
-      navigate("/dashboard", { replace: true });
+      navigate("/welcome", { replace: true });
       return;
     }
     if (!user) {
-      navigate("/dashboard", { replace: true });
+      navigate("/welcome", { replace: true });
       return;
     }
     try {
@@ -549,7 +549,7 @@ export function useOnboarding() {
     localStorage.removeItem("lac_onboarding_answers");
     localStorage.removeItem("lac_onboarding_branding");
     localStorage.removeItem("lac_onboarding_ts");
-    navigate("/dashboard", { replace: true });
+    navigate("/welcome", { replace: true });
   };
 
   const getPlaceholder = (field: string) => {
