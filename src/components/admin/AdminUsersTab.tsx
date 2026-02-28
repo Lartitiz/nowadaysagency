@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Search, ChevronUp, ChevronDown, Eye, X, Sparkles, Calendar, UserRound, Download } from "lucide-react";
+import { Search, ChevronUp, ChevronDown, Eye, X, Sparkles, Calendar, UserRound, Download, Trash2, Loader2 } from "lucide-react";
+import { DeleteClientDialog } from "@/components/admin/AdminSharedComponents";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -69,6 +70,8 @@ export default function AdminUsersTab() {
   const [sortAsc, setSortAsc] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
   const [switching, setSwitching] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function fetchUsers() {
@@ -375,12 +378,50 @@ export default function AdminUsersTab() {
                   <Button variant="outline" className="w-full" onClick={() => setSelectedUser(null)}>
                     <X className="w-4 h-4 mr-2" /> Fermer
                   </Button>
+                  <Button
+                    variant="destructive"
+                    className="w-full"
+                    onClick={() => setDeleteTarget(selectedUser)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" /> Supprimer le compte
+                  </Button>
                 </div>
               </div>
             </>
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Delete account dialog */}
+      <DeleteClientDialog
+        open={!!deleteTarget}
+        clientName={deleteTarget?.prenom || deleteTarget?.email || ""}
+        sessionCount={0}
+        deliverableCount={0}
+        actionCount={0}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={async () => {
+          if (!deleteTarget || !session?.access_token) return;
+          setDeleting(true);
+          try {
+            const res = await supabase.functions.invoke("delete-account", {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+              body: { targetUserId: deleteTarget.user_id },
+            });
+            if (res.error) throw new Error(res.error.message || "Erreur suppression");
+            if (res.data?.error) throw new Error(res.data.error);
+            toast.success(`Compte de ${deleteTarget.prenom || deleteTarget.email} supprimé`);
+            setUsers(prev => prev.filter(u => u.user_id !== deleteTarget.user_id));
+            setDeleteTarget(null);
+            setSelectedUser(null);
+          } catch (e: any) {
+            console.error("Delete error:", e);
+            toast.error(friendlyError(e));
+          } finally {
+            setDeleting(false);
+          }
+        }}
+      />
     </div>
   );
 }

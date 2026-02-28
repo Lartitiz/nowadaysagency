@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
+const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -23,7 +25,21 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: authError } = await anonClient.auth.getUser(token);
     if (authError || !userData.user) throw new Error("User not authenticated");
-    const userId = userData.user.id;
+
+    // Determine target user (self-delete vs admin-delete)
+    const body = await req.json().catch(() => ({}));
+    let userId = userData.user.id;
+
+    if (body.targetUserId) {
+      if (userData.user.email !== ADMIN_EMAIL) {
+        return new Response(
+          JSON.stringify({ error: "Forbidden" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+        );
+      }
+      userId = body.targetUserId;
+      console.log(`[delete-account] ADMIN deletion of user ${body.targetUserId} by ${userData.user.email}`);
+    }
 
     // Admin client for deletion
     const admin = createClient(
@@ -39,6 +55,7 @@ serve(async (req) => {
       "audit_validations",
       "beta_feedback",
       "bio_versions",
+      "branding_autofill",
       "branding_coaching_sessions",
       "branding_mirror_results",
       "branding_suggestions",
@@ -49,11 +66,14 @@ serve(async (req) => {
       "brand_strategy",
       "calendar_comments",
       "calendar_shares",
+      "chat_guide_messages",
+      "chat_guide_conversations",
       "coach_exercises",
       "coaching_actions",
       "coaching_deliverables",
       "coaching_sessions",
       "coaching_programs",
+      "communication_plans",
       "community_reactions",
       "community_comments",
       "community_posts",
@@ -192,6 +212,25 @@ serve(async (req) => {
     console.log(`[delete-account] Starting deletion for user ${userId}`);
     await deleteFromTables(phase1);
     await deleteFromTables(phase2);
+
+    // Phase 2.5 — Delete storage files
+    const buckets = [
+      "audit-screenshots", "linkedin-audit-screenshots", "inspiration-screenshots",
+      "deliverables", "onboarding-uploads", "audit-posts", "brand-assets",
+      "crosspost-uploads", "moodboards", "beta-feedback", "calendar-media",
+    ];
+    for (const bucket of buckets) {
+      try {
+        const { data: files } = await admin.storage.from(bucket).list(userId);
+        if (files && files.length > 0) {
+          const paths = files.map((f: any) => `${userId}/${f.name}`);
+          await admin.storage.from(bucket).remove(paths);
+          console.log(`[delete-account] Removed ${paths.length} files from ${bucket}`);
+        }
+      } catch (e) {
+        console.log(`[delete-account] Storage ${bucket} cleanup skipped:`, e instanceof Error ? e.message : String(e));
+      }
+    }
 
     // Phase 3 — Delete auth user
     console.log(`[delete-account] Deleting auth user ${userId}`);
