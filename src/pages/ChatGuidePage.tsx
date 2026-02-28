@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { LayoutGrid } from "lucide-react";
 import { useDemoContext } from "@/contexts/DemoContext";
 import AppHeader from "@/components/AppHeader";
+import SuggestedContents from "@/components/dashboard/SuggestedContents";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import { format, isAfter, subHours, startOfWeek as dateFnsStartOfWeek, endOfWeek as dateFnsEndOfWeek } from "date-fns";
@@ -195,7 +196,7 @@ export default function ChatGuidePage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { phase, isLoading: phaseLoading } = useUserPhase();
+  const { phase, speed, isLoading: phaseLoading } = useUserPhase();
   const { recommendation } = useGuideRecommendation();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -780,6 +781,12 @@ export default function ChatGuidePage() {
           </AnimatePresence>
 
           {isTyping && <TypingIndicator />}
+
+          {/* Suggested contents for construction/speed 1 users */}
+          {(phase === "construction" || speed === 1) && messages.length === 0 && (
+            <SuggestedContents />
+          )}
+
           <div ref={messagesEndRef} />
         </div>
 
