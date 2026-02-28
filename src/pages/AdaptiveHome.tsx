@@ -1,5 +1,7 @@
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
+import RoomTour from "@/components/RoomTour";
 import SuggestedContents from "@/components/dashboard/SuggestedContents";
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
 import { useUserPhase } from "@/hooks/use-user-phase";
@@ -79,6 +81,20 @@ export default function AdaptiveHome() {
   const { phase, speed, isLoading: phaseLoading } = useUserPhase();
   const { data: upcoming } = useUpcomingPosts();
 
+  const [showDashTour, setShowDashTour] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem("lac_tour_dashboard_seen")) {
+      const timer = setTimeout(() => setShowDashTour(true), 800);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleDashTourClose = () => {
+    setShowDashTour(false);
+    localStorage.setItem("lac_tour_dashboard_seen", "true");
+  };
+
   const handleNavigate = (route: string) => {
     if (route === "/creer" && profileSummary.brandingTotal < 50) {
       toast({
@@ -138,6 +154,8 @@ export default function AdaptiveHome() {
           <SuggestedContents />
         )}
       </main>
+
+      <RoomTour open={showDashTour} onClose={handleDashTourClose} variant="dashboard" />
     </div>
   );
 }
