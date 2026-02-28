@@ -3,8 +3,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Copy, RefreshCw, Loader2, Check } from "lucide-react";
+import { Sparkles, Copy, RefreshCw, Loader2, Check, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface PlaygroundAction {
   label: string;
@@ -41,10 +42,12 @@ interface Props {
 export default function ContentPlayground({ section }: Props) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const navigate = useNavigate();
   const [activeAction, setActiveAction] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const actions = PLAYGROUND_ACTIONS[section];
   if (!actions) return null;
@@ -93,6 +96,33 @@ export default function ContentPlayground({ section }: Props) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleSaveAsIdea = async () => {
+    if (!result || !user) return;
+    setSaving(true);
+    try {
+      const actionLabel = activeAction !== null ? actions[activeAction].label : "Contenu généré";
+      const insertData: Record<string, any> = {
+        user_id: user.id,
+        theme: actionLabel,
+        content_draft: result,
+        canal: "instagram",
+        status: "idea",
+        date: new Date().toISOString().split("T")[0],
+      };
+      if (column === "workspace_id") insertData.workspace_id = value;
+      const { error } = await (supabase.from("calendar_posts") as any).insert(insertData);
+      if (error) throw error;
+      toast.success("Sauvegardé en idée !", {
+        action: { label: "Voir", onClick: () => navigate("/idees") },
+      });
+    } catch (e: any) {
+      toast.error(e.message || "Erreur lors de la sauvegarde");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+
   return (
     <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 via-background to-accent/5 p-6 mt-8">
       <div className="flex items-center gap-2.5 mb-1">
@@ -135,7 +165,7 @@ export default function ContentPlayground({ section }: Props) {
           <div className="rounded-xl bg-card border border-border p-5">
             <pre className="text-sm text-foreground/80 whitespace-pre-wrap font-sans leading-relaxed">{result}</pre>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={handleCopy}>
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
               {copied ? "Copié !" : "Copier"}
@@ -146,6 +176,10 @@ export default function ContentPlayground({ section }: Props) {
                 Régénérer
               </Button>
             )}
+            <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={handleSaveAsIdea} disabled={saving}>
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarPlus className="h-3.5 w-3.5" />}
+              Sauver en idée
+            </Button>
           </div>
         </div>
       )}
