@@ -11,6 +11,7 @@ import {
   ClipboardList, BarChart3, Construction,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { computePlan, GOAL_LABELS, TIME_LABELS, type PlanData, type PlanConfig, type PlanPhase, type PlanStep, type StepStatus, type PlanStepOverride } from "@/lib/plan-engine";
 
 /* ═══════════════════════════════════════════════════════════════
@@ -250,10 +251,10 @@ function StepCard({ step, isOverridden, onToggleOverride }: { step: PlanStep; is
 }
 
 function PhaseSection({ phase, overrides, onToggleOverride }: { phase: PlanPhase; overrides: Set<string>; onToggleOverride: (stepId: string) => void }) {
-  const [open, setOpen] = useState(!phase.locked);
   const doneCount = phase.steps.filter((s) => s.status === "done").length;
   const total = phase.steps.length;
   const allDone = doneCount === total;
+  const [open, setOpen] = useState(!phase.locked && !allDone);
 
   const statusLabel = allDone
     ? "✅ Terminé"
@@ -262,6 +263,9 @@ function PhaseSection({ phase, overrides, onToggleOverride }: { phase: PlanPhase
     : doneCount > 0
     ? "🟡 En cours"
     : "🔲 À faire";
+
+  const todoSteps = phase.steps.filter(s => s.status !== "done");
+  const doneSteps = phase.steps.filter(s => s.status === "done");
 
   return (
     <section className="mb-6">
@@ -280,7 +284,7 @@ function PhaseSection({ phase, overrides, onToggleOverride }: { phase: PlanPhase
 
       {open && (
         <div className="mt-3 space-y-3 pl-2">
-          {phase.steps.map((step) => (
+          {todoSteps.map((step) => (
             <StepCard
               key={step.id}
               step={step}
@@ -288,6 +292,26 @@ function PhaseSection({ phase, overrides, onToggleOverride }: { phase: PlanPhase
               onToggleOverride={() => onToggleOverride(step.id)}
             />
           ))}
+
+          {doneSteps.length > 0 && (
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full py-2">
+                <Check className="h-3.5 w-3.5" />
+                {doneSteps.length} étape{doneSteps.length > 1 ? "s" : ""} terminée{doneSteps.length > 1 ? "s" : ""}
+                <ChevronDown className="h-3 w-3 ml-auto transition-transform [[data-state=open]>&]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 mt-1">
+                {doneSteps.map((step) => (
+                  <StepCard
+                    key={step.id}
+                    step={step}
+                    isOverridden={overrides.has(step.id)}
+                    onToggleOverride={() => onToggleOverride(step.id)}
+                  />
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
         </div>
       )}
     </section>
