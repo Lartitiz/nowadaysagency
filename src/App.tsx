@@ -29,7 +29,7 @@ const Onboarding = lazy(() => import("./pages/Onboarding"));
 const WelcomePage = lazy(() => import("./pages/WelcomePage"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AdaptiveHome = lazy(() => import("./pages/AdaptiveHome"));
-const GuideComHome = lazy(() => import("./pages/GuideComHome"));
+
 const ChatGuidePage = lazy(() => import("./pages/ChatGuidePage"));
 const IdeasPage = lazy(() => import("./pages/IdeasPage"));
 const Profile = lazy(() => import("./pages/Profile"));
