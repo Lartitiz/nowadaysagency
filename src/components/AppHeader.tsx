@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, LayoutGrid } from "lucide-react";
 
 import { useDemoContext } from "@/contexts/DemoContext";
+import { toast } from "sonner";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { useUserPhase, incrementFullToolsClicks } from "@/hooks/use-user-phase";
 import { Progress } from "@/components/ui/progress";
@@ -101,8 +102,11 @@ function AppHeaderInner() {
   const [coachingPhase, setCoachingPhase] = useState<string | null>(null);
 
   const handleAllToolsClick = useCallback(() => {
-    incrementFullToolsClicks();
-    navigate("/dashboard/complet");
+    const clicks = incrementFullToolsClicks();
+    if (clicks === 1) {
+      toast("Tu trouveras ici tous les outils avancés de l'Assistant Com'.", { duration: 4000 });
+    }
+    navigate("/dashboard/complet?from=guide");
   }, [navigate]);
 
   // Check if user has an active coaching program
