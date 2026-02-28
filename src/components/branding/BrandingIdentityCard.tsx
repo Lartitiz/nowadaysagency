@@ -40,6 +40,11 @@ interface Props {
   onReanalyze?: () => void;
   profileName?: string;
   profileActivity?: string;
+  onImport?: () => void;
+  onShowSynthesis?: () => void;
+  onRunMirror?: () => void;
+  lastAuditScore?: number;
+  canShowMirror?: boolean;
 }
 
 /* ─── Shared sub-components ─── */
@@ -99,7 +104,42 @@ function getSummaryLine(key: string, summaries: SectionSummary): string {
 
 const GRID_SECTIONS = SECTIONS.filter(s => s.key !== "proposition");
 
-function SynthesisView({ completion, summaries, onReanalyze, profileName, profileActivity }: Props) {
+function QuickActions({ onImport, onShowSynthesis, onRunMirror, lastAuditScore, canShowMirror, completion }: Pick<Props, "onImport" | "onShowSynthesis" | "onRunMirror" | "lastAuditScore" | "canShowMirror" | "completion">) {
+  const navigate = useNavigate();
+  const actions = [
+    onImport && { emoji: "📄", label: "Importer un document", desc: "Mets à jour ton branding avec tes notes, un brief, un texte…", onClick: onImport },
+    { emoji: "🔍", label: "Auditer mon branding", desc: "L'IA analyse ta cohérence et te donne un score.", onClick: () => navigate("/branding/audit"), badge: lastAuditScore !== undefined ? `Dernier : ${lastAuditScore}/100` : undefined },
+    completion.total >= 10 && onShowSynthesis && { emoji: "📋", label: "Ma fiche de synthèse", desc: "Tout ton branding résumé sur une page.", onClick: onShowSynthesis },
+    canShowMirror && onRunMirror && { emoji: "🪞", label: "Mon Branding Mirror", desc: "Regarde ta cohérence entre ce que tu dis et ce que tu fais.", onClick: onRunMirror },
+  ].filter(Boolean) as { emoji: string; label: string; desc: string; onClick: () => void; badge?: string }[];
+
+  if (actions.length === 0) return null;
+
+  return (
+    <div className={`grid grid-cols-1 ${actions.length >= 4 ? "sm:grid-cols-2" : actions.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3`}>
+      {actions.map((a) => (
+        <button
+          key={a.label}
+          onClick={a.onClick}
+          className="group relative rounded-2xl border border-border bg-card p-4 text-left transition-all hover:border-primary/30 hover:shadow-sm"
+        >
+          <div className="flex items-start gap-3">
+            <span className="text-xl">{a.emoji}</span>
+            <div>
+              <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{a.label}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{a.desc}</p>
+            </div>
+          </div>
+          {a.badge && (
+            <span className="absolute top-3 right-3 text-xs font-semibold text-muted-foreground">{a.badge}</span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SynthesisView({ completion, summaries, onReanalyze, profileName, profileActivity, onImport, onShowSynthesis, onRunMirror, lastAuditScore, canShowMirror }: Props) {
   const navigate = useNavigate();
   const proposition = summaries.proposition?.phrase;
   const hasProposition = !!proposition && completion.proposition > 0;
@@ -128,6 +168,8 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
           </button>
         )}
       </div>
+
+      <QuickActions onImport={onImport} onShowSynthesis={onShowSynthesis} onRunMirror={onRunMirror} lastAuditScore={lastAuditScore} canShowMirror={canShowMirror} completion={completion} />
 
       {/* Proposition de valeur — vedette */}
       {hasProposition ? (
@@ -268,7 +310,7 @@ function SectionDetail({ section, summaries, score }: { section: SectionConfig; 
   }
 }
 
-function ConstructionView({ completion, summaries, onReanalyze }: Props) {
+function ConstructionView({ completion, summaries, onReanalyze, onImport, onShowSynthesis, onRunMirror, lastAuditScore, canShowMirror }: Props) {
   const navigate = useNavigate();
   const [openSection, setOpenSection] = useState<string | null>(null);
 
@@ -294,6 +336,8 @@ function ConstructionView({ completion, summaries, onReanalyze }: Props) {
           </button>
         )}
       </div>
+
+      <QuickActions onImport={onImport} onShowSynthesis={onShowSynthesis} onRunMirror={onRunMirror} lastAuditScore={lastAuditScore} canShowMirror={canShowMirror} completion={completion} />
 
       {/* Progress banner */}
       <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 flex items-center justify-between gap-4 flex-wrap">
