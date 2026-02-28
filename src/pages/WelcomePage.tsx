@@ -75,6 +75,23 @@ interface Recommendation {
   position: number | null;
 }
 
+interface BrandingCard {
+  emoji: string;
+  title: string;
+  content: string;
+  route: string;
+}
+
+interface BrandProfileData {
+  positioning: string | null;
+  mission: string | null;
+  tone_keywords: string[] | null;
+  values: string[] | null;
+  content_pillars: { name: string }[] | null;
+  combats: string | null;
+  tone_style: string | null;
+}
+
 export default function WelcomePage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
@@ -84,6 +101,7 @@ export default function WelcomePage() {
   const [time, setTime] = useState("");
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [diagnosticSummary, setDiagnosticSummary] = useState("");
+  const [brandingCards, setBrandingCards] = useState<BrandingCard[]>([]);
   const [loading, setLoading] = useState(true);
 
   const prenom = (profileData as any)?.prenom || "";
@@ -92,7 +110,11 @@ export default function WelcomePage() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const { data: config } = await (supabase.from("user_plan_config") as any).select("main_goal, weekly_time, welcome_seen, onboarding_completed").eq(column, value).maybeSingle();
+      // Config
+      const { data: config } = await (supabase.from("user_plan_config") as any)
+        .select("main_goal, weekly_time, welcome_seen, onboarding_completed")
+        .eq(column, value)
+        .maybeSingle();
       if (!config?.onboarding_completed) {
         navigate("/onboarding", { replace: true });
         return;
@@ -102,32 +124,104 @@ export default function WelcomePage() {
         setTime(config.weekly_time || "");
       }
 
-      // Load recommendations
-      const { data: recs } = await (supabase
-        .from("audit_recommendations") as any)
-        .select("*")
-        .eq(column, value)
-        .order("position", { ascending: true })
-        .limit(3);
-      if (recs && recs.length > 0) {
-        setRecommendations(recs as Recommendation[]);
-      }
+      // Load all branding data in parallel
+      const [
+        brandProfileRes,
+        personaRes,
+        offersRes,
+        storyRes,
+        profileRes,
+        recsRes,
+      ] = await Promise.all([
+        (supabase.from("brand_profile") as any)
+          .select("positioning, mission, tone_keywords, values, content_pillars, combats, tone_style")
+          .eq(column, value)
+          .maybeSingle(),
+        (supabase.from("persona") as any)
+          .select("description")
+          .eq(column, value)
+          .eq("is_primary", true)
+          .maybeSingle(),
+        (supabase.from("offers") as any)
+          .select("name, promise, price_text")
+          .eq(column, value)
+          .order("sort_order")
+          .limit(5),
+        (supabase.from("storytelling") as any)
+          .select("imported_text")
+          .eq(column, value)
+          .eq("is_primary", true)
+          .maybeSingle(),
+        supabase.from("profiles")
+          .select("diagnostic_data")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        (supabase.from("audit_recommendations") as any)
+          .select("*")
+          .eq(column, value)
+          .order("position", { ascending: true })
+          .limit(3),
+      ]);
 
-      // Load diagnostic summary
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("diagnostic_data")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      const diagData = (profile as any)?.diagnostic_data;
+      // Diagnostic summary
+      const diagData = (profileRes.data as any)?.diagnostic_data;
       if (diagData?.summary) {
         setDiagnosticSummary(diagData.summary);
       }
 
+      // Recommendations
+      if (recsRes.data && recsRes.data.length > 0) {
+        setRecommendations(recsRes.data as Recommendation[]);
+      }
+
+      // Build branding cards
+      const cards: BrandingCard[] = [];
+      const bp = brandProfileRes.data as BrandProfileData | null;
+
+      if (bp?.positioning) {
+        cards.push({ emoji: "🎯", title: "Positionnement", content: bp.positioning, route: "/proposition" });
+      }
+      if (bp?.mission) {
+        cards.push({ emoji: "🚀", title: "Mission", content: bp.mission, route: "/branding" });
+      }
+      if (bp?.tone_style || (bp?.tone_keywords && bp.tone_keywords.length > 0)) {
+        const toneContent = bp.tone_style || (bp.tone_keywords || []).join(", ");
+        cards.push({ emoji: "💬", title: "Ton de voix", content: toneContent, route: "/ton-style" });
+      }
+      if (bp?.combats) {
+        cards.push({ emoji: "⚔️", title: "Combats", content: bp.combats, route: "/ton-style" });
+      }
+      if (bp?.values && bp.values.length > 0) {
+        cards.push({ emoji: "💎", title: "Valeurs", content: (bp.values as any[]).map(v => typeof v === "string" ? v : (v as any).name || v).join(", "), route: "/ton-style" });
+      }
+      if (bp?.content_pillars && bp.content_pillars.length > 0) {
+        const pillarsText = (bp.content_pillars as any[]).map(p => typeof p === "string" ? p : (p as any).name || p).join(", ");
+        cards.push({ emoji: "📝", title: "Piliers de contenu", content: pillarsText, route: "/strategie" });
+      }
+
+      const persona = personaRes.data as any;
+      if (persona?.description) {
+        cards.push({ emoji: "🎭", title: "Persona", content: persona.description, route: "/persona" });
+      }
+
+      const offers = offersRes.data as any[];
+      if (offers && offers.length > 0) {
+        const offersText = offers.map((o: any) => o.name).filter(Boolean).join(", ");
+        if (offersText) {
+          cards.push({ emoji: "🛍️", title: "Offres", content: offersText, route: "/offre" });
+        }
+      }
+
+      const story = storyRes.data as any;
+      if (story?.imported_text) {
+        cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/storytelling" });
+      }
+
+      setBrandingCards(cards);
       setLoading(false);
     };
     load();
-  }, [user?.id]);
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const markSeen = async (destination: string) => {
     if (!user) return;
@@ -136,27 +230,70 @@ export default function WelcomePage() {
   };
 
   const hasRecs = recommendations.length > 0;
+  const hasBranding = brandingCards.length > 0;
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-2xl animate-fade-in space-y-8">
-        {/* Header */}
+        {/* A) Header personnalisé */}
         <div className="text-center space-y-3">
-          <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
-            ✨ C'est parti {prenom} !
+          <h1 className="font-display text-2xl md:text-3xl text-foreground">
+            ✨ {prenom ? `${prenom}, voilà` : "Voilà"} ce que j'ai préparé pour toi
           </h1>
-          {diagnosticSummary && !loading ? (
-            <p className="text-sm text-muted-foreground italic leading-relaxed max-w-lg mx-auto">
-              {diagnosticSummary}
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Ton outil est prêt. Voici comment ça marche.
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground">
+            J'ai pré-rempli ton branding à partir de ce que j'ai trouvé. Vérifie, ajuste, et c'est parti.
+          </p>
         </div>
 
-        {/* Priorities / Steps */}
+        {/* B) Diagnostic summary */}
+        {diagnosticSummary && !loading && (
+          <div className="rounded-2xl bg-[hsl(var(--rose-pale))] border border-border p-5">
+            <p className="text-sm text-foreground italic leading-relaxed">
+              {diagnosticSummary}
+            </p>
+          </div>
+        )}
+
+        {/* C) Branding pré-rempli */}
+        {!loading && (
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Ton branding pré-rempli
+            </h2>
+            {hasBranding ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {brandingCards.map((card, i) => (
+                  <div key={i} className="bg-card border border-border rounded-xl p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{card.emoji}</span>
+                      <span className="text-sm font-semibold text-foreground">{card.title}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground line-clamp-3">
+                      {card.content}
+                    </p>
+                    <Link
+                      to={card.route}
+                      onClick={() => {
+                        if (user) (supabase.from("user_plan_config") as any).update({ welcome_seen: true }).eq(column, value);
+                      }}
+                      className="inline-block text-xs font-semibold text-primary hover:underline"
+                    >
+                      Voir et modifier →
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl bg-card border border-border p-5">
+                <p className="text-sm text-muted-foreground">
+                  Le diagnostic n'a pas pu pré-remplir ton branding cette fois. Pas de souci, on va le construire ensemble.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* D) Priorities / Steps */}
         <div className="rounded-2xl bg-card border border-border p-6 space-y-5">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
             {hasRecs ? "Tes priorités personnalisées" : "Ton parcours en 4 étapes"}
@@ -242,7 +379,7 @@ export default function WelcomePage() {
           )}
         </div>
 
-        {/* Config recap */}
+        {/* E) Config recap */}
         <div className="rounded-2xl bg-card border border-border p-6 space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
             Ton outil s'adapte
@@ -267,7 +404,7 @@ export default function WelcomePage() {
         </div>
 
         {/* Import suggestion */}
-        <div className="rounded-2xl bg-rose-pale border border-border p-5">
+        <div className="rounded-2xl bg-[hsl(var(--rose-pale))] border border-border p-5">
           <p className="text-sm text-foreground">
             💡 Tu as déjà un document stratégique (plan de com', brief, site web) ?
             Importe-le dans le Branding pour gagner du temps.
@@ -283,14 +420,14 @@ export default function WelcomePage() {
           </Link>
         </div>
 
-        {/* Actions */}
+        {/* F) CTAs */}
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
-            onClick={() => markSeen(hasRecs && recommendations[0]?.route ? recommendations[0].route : "/branding")}
+            onClick={() => markSeen("/branding")}
             className="flex-1 rounded-pill gap-2"
             size="lg"
           >
-            {hasRecs ? `🎯 ${recommendations[0]?.titre || "Commencer"} →` : "🎨 Commencer par le Branding →"}
+            🎯 Valider mon branding →
           </Button>
           <Button
             variant="outline"
