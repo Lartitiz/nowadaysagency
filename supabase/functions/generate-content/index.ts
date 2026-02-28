@@ -628,6 +628,12 @@ Reponds en JSON :
         systemPrompt = `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}\n\n${WRITING_RESOURCES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONTEXTE DU POST :\n- Thème/sujet : "${theme || "?"}"\n- Objectif : ${calObj || "non précisé"}\n- Angle : ${calAngle || "non précisé"}\n- ${formatInstruction}\n- Notes : "${calNotes || "aucune"}"\n${launchBlock}\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Le ton correspond au branding de l'utilisatrice\n- Utiliser ses expressions, son vocabulaire\n- PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, le contenu DOIT reproduire ce style. Réutilise les expressions signature. Reproduis les patterns de structure. Imite le rythme des exemples.\n- Ne JAMAIS utiliser les expressions listées comme interdites dans le profil de voix\n- Le contenu doit pouvoir être publié tel quel par l'utilisatrice sans qu'on sente que c'est écrit par une IA\n- Oral assumé mais pas surjoué\n- Phrases fluides et complètes\n- Le contenu a de la valeur même pour celles qui n'achètent pas\n- CTA conversationnel, jamais agressif\n\nGARDE-FOUS ÉTHIQUES :\n- Pas de fausse urgence\n- Pas de shaming\n- Pas de promesses de résultats garantis\n- Pas de FOMO artificiel\n\nGénère le contenu complet, prêt à copier-coller. Réponds avec le texte uniquement.`;
         userPrompt = `Rédige le contenu complet pour ce post sur "${theme || "?"}".`;
 
+      } else if (type === "caption") {
+        // Simple caption generation for a given theme/subject
+        const captionObjectif = objectif || "visibilite";
+        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONSIGNE :\nRédige une caption Instagram complète et prête à copier-coller sur le sujet donné.\n\nObjectif : ${captionObjectif}\n\nLa caption doit contenir :\n- Une accroche percutante (première ligne)\n- Un corps de texte engageant\n- Un appel à l'action naturel\n- 3-5 hashtags pertinents à la fin\n\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Ton direct et bienveillant\n- Le contenu doit pouvoir être publié tel quel\n\nRéponds avec le texte uniquement, prêt à copier-coller.`;
+        userPrompt = `Rédige une caption Instagram sur : "${sujet || "test de connexion"}"`;
+
       } else {
         return new Response(
           JSON.stringify({ error: "Type de requête non reconnu" }),

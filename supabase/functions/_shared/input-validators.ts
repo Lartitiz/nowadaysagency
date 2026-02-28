@@ -35,7 +35,7 @@ export const optionalUrl = z.string().url().max(2048).optional().nullable().or(z
 /* ─── generate-content ─── */
 
 export const GenerateContentSchema = z.object({
-  type: z.enum(["suggest", "ideas", "bio", "bio-audit", "bio-generator", "launch-ideas", "launch-plan", "raw", "playground", "redaction-structure", "redaction-accroches", "redaction-draft", "instagram-audit", "instagram-nom", "instagram-pinned", "instagram-edito", "instagram-edito-pillars", "instagram-edito-formats", "instagram-rhythm-adapt", "calendar-quick"]),
+  type: z.enum(["suggest", "ideas", "bio", "bio-audit", "bio-generator", "launch-ideas", "launch-plan", "raw", "playground", "redaction-structure", "redaction-accroches", "redaction-draft", "instagram-audit", "instagram-nom", "instagram-pinned", "instagram-edito", "instagram-edito-pillars", "instagram-edito-formats", "instagram-rhythm-adapt", "calendar-quick", "caption"]),
   format: shortText.optional().nullable(),
   sujet: shortText.optional().nullable(),
   profile: z.record(z.unknown()).optional().nullable(),
