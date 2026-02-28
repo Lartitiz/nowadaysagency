@@ -1,24 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useProfileFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export function useProfile() {
   const { user } = useAuth();
-  const { column, value } = useWorkspaceFilter();
+  const { column, value } = useProfileFilter();
 
   return useQuery({
     queryKey: ["profile", value],
     queryFn: async () => {
+      // profiles is user-scoped, use profileFilter (resolves owner user_id for client workspaces)
       const { data, error } = await (supabase.from("profiles") as any)
         .select("*")
         .eq(column, value)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
-    staleTime: 5 * 60 * 1000, // 5 min cache
+    enabled: !!user && !!value,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
