@@ -108,7 +108,7 @@ export async function computePlan(
     diagnosticRes,
   ] = await Promise.all([
     (supabase.from("brand_profile") as any).select("mission, voice_description, tone_register, offer").eq(filter.column, filter.value).maybeSingle(),
-    (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(filter.column, filter.value).maybeSingle(),
+    (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(filter.column, filter.value).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     (supabase.from("storytelling") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value),
     (supabase.from("offers") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value),
     (supabase.from("instagram_audit") as any).select("score_global").eq(filter.column, filter.value).order("created_at", { ascending: false }).limit(1).maybeSingle(),

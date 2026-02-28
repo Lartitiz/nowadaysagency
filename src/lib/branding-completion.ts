@@ -28,7 +28,7 @@ export async function fetchBrandingData(
   const runQueries = async (f: { column: string; value: string }) => {
     const [stRes, perRes, propRes, toneRes, stratRes, offersRes, charterRes] = await Promise.all([
       (supabase.from("storytelling") as any).select("id, is_primary, completed, step_7_polished, imported_text").eq(f.column, f.value),
-      (supabase.from("persona") as any).select("description, step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions").eq(f.column, f.value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      (supabase.from("persona") as any).select("description, step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions").eq(f.column, f.value).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       (supabase.from("brand_proposition") as any).select("step_1_what, step_2a_process, step_2b_values, step_3_for_whom, version_final, version_pitch_naturel").eq(f.column, f.value).maybeSingle(),
       (supabase.from("brand_profile") as any).select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels").eq(f.column, f.value).maybeSingle(),
       (supabase.from("brand_strategy") as any).select("step_1_hidden_facets, facet_1, pillar_major, creative_concept").eq(f.column, f.value).maybeSingle(),
