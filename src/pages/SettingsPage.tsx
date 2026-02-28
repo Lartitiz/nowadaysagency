@@ -47,7 +47,7 @@ export default function SettingsPage() {
 
   const [deleting, setDeleting] = useState(false);
   const [resettingOnboarding, setResettingOnboarding] = useState(false);
-  const [resettingBranding, setResettingBranding] = useState(false);
+  
   const navigate = useNavigate();
   const [cookieConsent, setCookieConsent] = useState(() => localStorage.getItem("cookie_consent"));
 
@@ -370,7 +370,7 @@ export default function SettingsPage() {
         {/* ─── Refaire l'onboarding ─── */}
         <Section icon={<RotateCcw className="h-4 w-4" />} title="Parcours initial">
           <p className="text-sm text-muted-foreground mb-4">
-            Tu peux relancer le parcours d'onboarding pour mettre à jour ton profil, ton activité et tes objectifs. Tes données de branding existantes ne seront pas supprimées.
+            Tu peux relancer le parcours d'onboarding pour repartir de zéro. Toutes tes données de branding seront supprimées.
           </p>
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -383,7 +383,7 @@ export default function SettingsPage() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Relancer le parcours initial ?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Tu vas repasser par les étapes d'onboarding pour mettre à jour ton profil. Tes contenus et ton branding existants seront conservés.
+                  Tu vas repartir de zéro : ton branding (storytelling, persona, ton, stratégie, offres, charte) sera supprimé et tu repasseras par l'onboarding. Ton compte et tes contenus générés seront conservés.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -395,58 +395,7 @@ export default function SettingsPage() {
                     if (!user) return;
                     setResettingOnboarding(true);
                     try {
-                      await Promise.all([
-                        supabase.from("profiles").update({ onboarding_completed: false, onboarding_step: 0 }).eq("user_id", user.id),
-                        supabase.from("user_plan_config").update({ onboarding_completed: false }).eq("user_id", user.id),
-                      ]);
-                      localStorage.removeItem("lac_onboarding_step");
-                      localStorage.removeItem("lac_onboarding_answers");
-                      localStorage.removeItem("lac_onboarding_branding");
-                      localStorage.removeItem("lac_onboarding_ts");
-                      navigate("/onboarding", { replace: true });
-                    } catch (e) {
-                      console.error("Reset onboarding error:", e);
-                      toast({ title: "Erreur", description: "Impossible de relancer l'onboarding.", variant: "destructive" });
-                    } finally {
-                      setResettingOnboarding(false);
-                    }
-                  }}
-                >
-                  Oui, relancer
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
-          <div className="border-t border-border/50 my-4" />
-
-          <p className="text-sm text-muted-foreground mb-4">
-            Tu peux aussi repartir de zéro sur ton branding uniquement (storytelling, persona, ton, stratégie, offres, charte). Ton profil et tes contenus seront conservés.
-          </p>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" className="rounded-full text-muted-foreground hover:text-destructive hover:border-destructive/30" disabled={resettingBranding}>
-                {resettingBranding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
-                Réinitialiser mon branding
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Réinitialiser ton branding ?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Toutes tes données de branding seront supprimées : storytelling, persona, proposition de valeur, ton & voix, stratégie, offres, charte graphique, audits et sessions de coaching. Cette action est irréversible. Ton profil, tes contenus et ton calendrier ne seront pas touchés.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="rounded-full">Annuler</AlertDialogCancel>
-                <AlertDialogAction
-                  className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  disabled={resettingBranding}
-                  onClick={async () => {
-                    if (!user) return;
-                    setResettingBranding(true);
-                    try {
-                      const userId = user.id;
+                      // 1. Delete all branding data
                       const tablesToDelete = [
                         "audit_recommendations",
                         "branding_suggestions",
@@ -466,35 +415,45 @@ export default function SettingsPage() {
                         "offers",
                         "voice_profile",
                       ];
-                      const errors: string[] = [];
                       for (const table of tablesToDelete) {
                         try {
-                          const { error } = await (supabase.from(table as any) as any).delete().eq("user_id", userId);
-                          if (error) {
-                            console.error(`Delete ${table} by user_id failed:`, error);
-                            errors.push(`${table}: ${error.message}`);
-                          }
-                        } catch (e: any) {
-                          errors.push(`${table}: ${e.message || e}`);
+                          await (supabase.from(table as any) as any).delete().eq("user_id", user.id);
+                        } catch (e) {
+                          console.error(`Reset ${table} failed:`, e);
                         }
                       }
-                      console.log(`Branding reset: ${tablesToDelete.length - errors.length} tables OK, ${errors.length} erreurs`, errors);
-                      if (errors.length > 0) {
-                        toast({ title: `⚠️ Reset partiel : ${errors.length} tables en erreur`, description: errors.join(", "), variant: "destructive" });
-                      } else {
-                        localStorage.removeItem("branding_skip_import");
-                        toast({ title: "✅ Ton branding a été réinitialisé. Tu peux repartir de zéro !" });
-                        navigate("/branding");
-                      }
+
+                      // 2. Reset onboarding state
+                      await Promise.all([
+                        supabase.from("profiles").update({
+                          onboarding_completed: false,
+                          onboarding_step: 0,
+                          canaux: null,
+                          main_blocker: null,
+                          main_goal: null,
+                          weekly_time: null,
+                        }).eq("user_id", user.id),
+                        supabase.from("user_plan_config").update({ onboarding_completed: false }).eq("user_id", user.id),
+                      ]);
+
+                      // 3. Clear localStorage
+                      localStorage.removeItem("lac_onboarding_step");
+                      localStorage.removeItem("lac_onboarding_answers");
+                      localStorage.removeItem("lac_onboarding_branding");
+                      localStorage.removeItem("lac_onboarding_ts");
+                      localStorage.removeItem("branding_skip_import");
+
+                      // 4. Navigate
+                      navigate("/onboarding", { replace: true });
                     } catch (e) {
-                      console.error("Reset branding error:", e);
-                      toast({ title: "Erreur", description: "Impossible de réinitialiser le branding.", variant: "destructive" });
+                      console.error("Reset onboarding error:", e);
+                      toast({ title: "Erreur", description: "Impossible de relancer l'onboarding.", variant: "destructive" });
                     } finally {
-                      setResettingBranding(false);
+                      setResettingOnboarding(false);
                     }
                   }}
                 >
-                  Oui, réinitialiser
+                  Oui, relancer
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
