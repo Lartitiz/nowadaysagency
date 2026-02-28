@@ -19,6 +19,7 @@ export default function LinkedInCommentStrategy() {
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const [loading, setLoading] = useState(true);
   const [strategyId, setStrategyId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<CommentAccount[]>([]);
   const [newName, setNewName] = useState("");
@@ -36,6 +37,7 @@ export default function LinkedInCommentStrategy() {
           setStrategyId(data.id);
           setAccounts((data.accounts as unknown as CommentAccount[]) || []);
         }
+        setLoading(false);
       });
   }, [user?.id]);
 
@@ -70,6 +72,8 @@ export default function LinkedInCommentStrategy() {
     setAccounts(updated);
     save(updated);
   };
+
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
     <div className="min-h-screen bg-background">

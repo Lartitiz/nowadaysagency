@@ -35,6 +35,7 @@ export default function LinkedInRecommandations() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { data: profileData } = useProfile();
+  const [loading, setLoading] = useState(true);
   const [recos, setRecos] = useState<Reco[]>(
     Array.from({ length: 5 }, () => ({ person_name: "", person_type: "client", request_sent: false, reco_received: false }))
   );
@@ -60,6 +61,7 @@ export default function LinkedInRecommandations() {
         while (loaded.length < 5) loaded.push({ person_name: "", person_type: "client", request_sent: false, reco_received: false });
         setRecos(loaded);
       }
+      setLoading(false);
     };
     load();
   }, [user?.id]);
@@ -137,6 +139,8 @@ ${prenom || "[Ton prénom]"}`;
 
   const requestedCount = recos.filter(r => r.request_sent).length;
   const receivedCount = recos.filter(r => r.reco_received).length;
+
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
     <div className="min-h-screen bg-background">
