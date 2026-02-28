@@ -50,9 +50,9 @@ interface FieldDef {
 
 const NEXT_SECTION: Record<string, { label: string; route: string }> = {
   story: { label: "ton client·e idéal·e", route: "/branding/section?section=persona" },
-  persona: { label: "ta proposition de valeur", route: "/branding/section?section=value_proposition" },
+  persona: { label: "ta proposition de valeur", route: "/branding/proposition/recap" },
   tone_style: { label: "ta ligne éditoriale", route: "/branding/section?section=content_strategy" },
-  content_strategy: { label: "ta charte graphique", route: "/branding/charter" },
+  content_strategy: { label: "tes offres", route: "/branding/offres" },
 };
 
 const SECTION_CONFIGS: Record<Section, SectionConfig> = {
