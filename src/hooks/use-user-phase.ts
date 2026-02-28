@@ -26,12 +26,14 @@ function getFullToolsClicks(): number {
   }
 }
 
-export function incrementFullToolsClicks(): void {
+export function incrementFullToolsClicks(): number {
   try {
     const current = getFullToolsClicks();
-    localStorage.setItem(FULL_TOOLS_KEY, String(current + 1));
+    const next = current + 1;
+    localStorage.setItem(FULL_TOOLS_KEY, String(next));
+    return next;
   } catch {
-    // ignore
+    return 0;
   }
 }
 

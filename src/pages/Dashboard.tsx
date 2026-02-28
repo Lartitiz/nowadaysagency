@@ -1,4 +1,8 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useUserPhase } from "@/hooks/use-user-phase";
+import { X, ArrowLeft } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -90,7 +94,72 @@ function getWelcomeMessage(): string {
   return WELCOME_MESSAGES[idx];
 }
 
-/* ── Main component ── */
+const BANNER_DISMISSED_KEY = "lac_full_tools_banner_dismissed";
+
+function GuideBanner() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const fromGuide = searchParams.get("from") === "guide";
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem(BANNER_DISMISSED_KEY) === "1"; } catch { return false; }
+  });
+
+  if (!fromGuide || dismissed) return null;
+
+  const dismiss = () => {
+    setDismissed(true);
+    try { localStorage.setItem(BANNER_DISMISSED_KEY, "1"); } catch {}
+  };
+
+  return (
+    <div className="flex items-center gap-3 bg-muted/40 border border-border/40 rounded-xl px-4 py-3 mb-4">
+      <p className="flex-1 text-[13px] text-muted-foreground" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+        C'est ici que tu retrouves tous les modules. Ton assistant reste disponible depuis le menu.
+      </p>
+      <button
+        onClick={() => navigate("/dashboard")}
+        className="text-xs text-primary hover:underline whitespace-nowrap flex items-center gap-1"
+        style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+      >
+        <ArrowLeft className="h-3 w-3" />
+        Retour à mon assistant
+      </button>
+      <button onClick={dismiss} className="text-muted-foreground hover:text-foreground p-1" aria-label="Fermer">
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+const PHASE_CONFIG = {
+  construction: { emoji: "🌱", label: "En construction", className: "bg-emerald-100 text-emerald-700" },
+  action: { emoji: "🚀", label: "En action", className: "bg-amber-100 text-amber-700" },
+  pilotage: { emoji: "⭐", label: "Pilotage", className: "bg-pink-100 text-pink-700" },
+} as const;
+
+function PhaseBadge() {
+  const { phase, isLoading } = useUserPhase();
+  if (isLoading) return <div />;
+  const cfg = PHASE_CONFIG[phase];
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-default ${cfg.className}`}
+            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+          >
+            {cfg.emoji} {cfg.label}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-[220px] text-xs">
+          Ton outil s'adapte à ton niveau. Plus tu avances, plus de fonctionnalités apparaissent.
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
@@ -316,8 +385,12 @@ export default function Dashboard() {
       
       <main id="main-content" role="main" className="mx-auto max-w-[1100px] px-4 sm:px-6 py-6 sm:py-8">
 
-        {/* ─── View toggle ─── */}
-        <div className="flex justify-end mb-4">
+        {/* ─── Guide banner (from=guide) ─── */}
+        <GuideBanner />
+
+        {/* ─── View toggle + Phase badge ─── */}
+        <div className="flex items-center justify-between mb-4">
+          <PhaseBadge />
           <DashboardViewToggle current="complete" />
         </div>
 
