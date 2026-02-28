@@ -13,6 +13,7 @@ export interface DashboardModule {
   component?: string;
   enabled: boolean;
   order: number;
+  moduleFlag?: string;
 }
 
 export const dashboardModules: DashboardModule[] = [
@@ -93,6 +94,7 @@ export const dashboardModules: DashboardModule[] = [
     section: "actions",
     enabled: true,
     order: 6,
+    moduleFlag: "seo",
   },
   {
     id: "write-homepage",
@@ -106,6 +108,7 @@ export const dashboardModules: DashboardModule[] = [
     section: "actions",
     enabled: true,
     order: 7,
+    moduleFlag: "site",
   },
 ];
 
@@ -120,6 +123,7 @@ export interface SpaceModule {
   external?: boolean;
   enabled: boolean;
   order: number;
+  moduleFlag?: string;
 }
 
 export const spaceModules: SpaceModule[] = [
@@ -152,6 +156,7 @@ export const spaceModules: SpaceModule[] = [
     route: "/site",
     enabled: true,
     order: 2,
+    moduleFlag: "site",
   },
   {
     id: "linkedin",
@@ -172,6 +177,7 @@ export const spaceModules: SpaceModule[] = [
     route: "/seo",
     enabled: true,
     order: 4,
+    moduleFlag: "seo",
   },
 ];
 
