@@ -7,7 +7,6 @@ import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Save, PenLine, ArrowLeft, CalendarDays, RefreshCw, Mic } from "lucide-react";
@@ -15,13 +14,9 @@ import { Link } from "react-router-dom";
 import CreativeFlow from "@/components/CreativeFlow";
 
 import DictationInput from "@/components/DictationInput";
-import {
-  OBJECTIFS, FORMATS, CANAUX,
-  getRecommendedFormats, formatIdToGuideKey,
-  RECO_EXPLAIN,
-} from "@/lib/atelier-data";
-import { getInstagramFormatReco } from "@/lib/production-guides";
+import { OBJECTIFS, FORMATS } from "@/lib/atelier-data";
 import BrandingPrompt from "@/components/BrandingPrompt";
+import ContentSetupForm from "@/components/ContentSetupForm";
 
 interface AccrocheItem {
   short: string;
@@ -83,9 +78,7 @@ export default function AtelierPage() {
   }, []);
 
 
-  const { recommended, others } = getRecommendedFormats(objectif);
   const selectedFormatLabel = FORMATS.find((f) => f.id === selectedFormat)?.label || "";
-  const formatReco = selectedFormat ? getInstagramFormatReco(formatIdToGuideKey(selectedFormat)) : null;
 
   // Build calendar context for CreativeFlow
   const calendarContext = fromCalendar
@@ -349,114 +342,19 @@ export default function AtelierPage() {
 
         {/* Hide selectors when coming from calendar (unless user wants to edit) */}
         {(fromCalendar || atelierMode === "create") && (!fromCalendar || showRecapEdit) && (
-          <>
-            {/* ── Canal selector ── */}
-            <div className="mb-6">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Canal</label>
-              <div className="flex flex-wrap gap-2">
-                {CANAUX.map((c) => (
-                  <button
-                    key={c.id}
-                    disabled={!c.enabled}
-                    onClick={() => c.enabled && setCanal(c.id)}
-                    className={`rounded-pill px-4 py-2 text-sm font-medium border transition-all ${
-                      canal === c.id
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : c.enabled
-                          ? "bg-card text-foreground border-border hover:border-primary/40"
-                          : "bg-muted text-muted-foreground border-border opacity-50 cursor-not-allowed"
-                    }`}
-                  >
-                    {c.label}
-                    {!c.enabled && <span className="ml-1 text-[10px]">(Bientôt)</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* ── Objectif selector ── */}
-            <div className="mb-6">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">
-                Tu veux quoi avec ce contenu ?
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {OBJECTIFS.map((o) => (
-                  <button
-                    key={o.id}
-                    onClick={() => setObjectif(objectif === o.id ? null : o.id)}
-                    className={`rounded-pill px-4 py-2 text-sm font-medium border transition-all ${
-                      objectif === o.id
-                        ? o.color + " border-current"
-                        : "bg-card text-foreground border-border hover:border-primary/40"
-                    }`}
-                  >
-                    {o.emoji} {o.label}
-                    <span className="ml-1 text-[10px] text-muted-foreground hidden sm:inline">({o.desc})</span>
-                  </button>
-                ))}
-              </div>
-              {objectif && RECO_EXPLAIN[objectif] && (
-                <p className="mt-2 text-xs text-muted-foreground italic animate-fade-in">
-                  💡 {RECO_EXPLAIN[objectif]}
-                </p>
-              )}
-            </div>
-
-            {/* ── Format selector ── */}
-            <div className="mb-6">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">
-                Format / angle
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {recommended.map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => setSelectedFormat(selectedFormat === f.id ? null : f.id)}
-                    className={`rounded-pill px-3 py-1.5 text-sm font-medium border transition-all ${
-                      selectedFormat === f.id
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-card text-foreground border-border hover:border-primary/40"
-                    }`}
-                  >
-                    {f.label}
-                    <span className="ml-1.5 text-[9px] font-bold bg-accent text-accent-foreground px-1.5 py-0.5 rounded-md">
-                      Recommandé
-                    </span>
-                  </button>
-                ))}
-                {others.map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => setSelectedFormat(selectedFormat === f.id ? null : f.id)}
-                    className={`rounded-pill px-3 py-1.5 text-sm font-medium border transition-all ${
-                      selectedFormat === f.id
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-card text-foreground border-border hover:border-primary/40"
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-              {formatReco && canal === "instagram" && (
-                <p className="mt-2 text-xs text-muted-foreground animate-fade-in">
-                  📐 {formatReco}
-                </p>
-              )}
-            </div>
-
-            {/* ── Sujet libre ── */}
-            <div className="mb-6">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">
-                Sujet libre (optionnel)
-              </label>
-              <Input
-                value={sujetLibre}
-                onChange={(e) => setSujetLibre(e.target.value)}
-                placeholder="Un mot-clé, un thème, une question..."
-              />
-            </div>
-          </>
+          <ContentSetupForm
+            initialCanal={canal}
+            initialObjectif={objectif}
+            initialFormat={selectedFormat}
+            initialSujet={sujetLibre}
+            onChange={({ canal: c, objectif: o, format: f, sujet: s }) => {
+              setCanal(c);
+              setObjectif(o);
+              setSelectedFormat(f);
+              setSujetLibre(s);
+            }}
+            hideSubmit
+          />
         )}
 
         {/* ── Creative Flow ── */}

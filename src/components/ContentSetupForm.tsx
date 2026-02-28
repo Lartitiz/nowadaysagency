@@ -14,13 +14,21 @@ interface ContentSetupFormProps {
   initialObjectif?: string | null;
   initialFormat?: string | null;
   initialSujet?: string;
-  onSubmit: (setup: {
+  onSubmit?: (setup: {
     canal: string;
     objectif: string | null;
     format: string | null;
     formatLabel: string;
     sujet: string;
   }) => void;
+  onChange?: (setup: {
+    canal: string;
+    objectif: string | null;
+    format: string | null;
+    formatLabel: string;
+    sujet: string;
+  }) => void;
+  hideSubmit?: boolean;
   submitLabel?: string;
   compact?: boolean;
 }
@@ -31,6 +39,8 @@ export default function ContentSetupForm({
   initialFormat,
   initialSujet,
   onSubmit,
+  onChange,
+  hideSubmit = false,
   submitLabel = "Créer ce contenu →",
   compact = false,
 }: ContentSetupFormProps) {
@@ -58,6 +68,17 @@ export default function ContentSetupForm({
   const { recommended, others } = getRecommendedFormats(objectif);
 
   const selectedFormatLabel = FORMATS.find((f) => f.id === selectedFormat)?.label || "";
+
+  // Notify parent of value changes
+  useEffect(() => {
+    onChange?.({
+      canal,
+      objectif,
+      format: selectedFormat,
+      formatLabel: selectedFormatLabel,
+      sujet: sujetLibre,
+    });
+  }, [canal, objectif, selectedFormat, sujetLibre]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const guideKey = selectedFormat ? formatIdToGuideKey(selectedFormat) : null;
   const formatReco = guideKey ? getInstagramFormatReco(guideKey) : null;
@@ -186,15 +207,17 @@ export default function ContentSetupForm({
       </div>
 
       {/* ── Submit ── */}
-      <Button
-        onClick={handleSubmit}
-        disabled={!selectedFormat}
-        className="w-full rounded-full gap-2"
-        size="lg"
-      >
-        <ArrowRight className="h-4 w-4" />
-        {submitLabel}
-      </Button>
+      {!hideSubmit && (
+        <Button
+          onClick={handleSubmit}
+          disabled={!selectedFormat}
+          className="w-full rounded-full gap-2"
+          size="lg"
+        >
+          <ArrowRight className="h-4 w-4" />
+          {submitLabel}
+        </Button>
+      )}
     </div>
   );
 }
