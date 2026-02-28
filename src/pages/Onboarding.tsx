@@ -24,9 +24,9 @@ const stepValidators: Record<number, { schema: z.ZodType<any>; getData: (a: Answ
     message: "Ton prénom et ton activité doivent faire au moins 2 caractères",
   },
   2: {
-    schema: z.object({ activity_type: z.string().min(1) }),
-    getData: (a) => ({ activity_type: a.activity_type }),
-    message: "Choisis un type d'activité pour continuer",
+    schema: z.object({ activity_type: z.string().min(1), product_or_service: z.string().min(1) }),
+    getData: (a) => ({ activity_type: a.activity_type, product_or_service: a.product_or_service }),
+    message: "Choisis un type d'activité et ce que tu vends pour continuer",
   },
   5: {
     schema: z.object({ objectif: z.string().min(1) }),
@@ -70,7 +70,7 @@ export default function Onboarding() {
   const [hasSeenVoiceTip, setHasSeenVoiceTip] = useState(false);
 
   useEffect(() => {
-    if (step > 8 && !hasSeenVoiceTip) setHasSeenVoiceTip(true);
+    if (step > 7 && !hasSeenVoiceTip) setHasSeenVoiceTip(true);
   }, [step, hasSeenVoiceTip]);
 
   const validatedNext = useCallback(() => {
@@ -86,27 +86,21 @@ export default function Onboarding() {
     next();
   }, [step, answers, brandingAnswers, next, toast]);
 
-   // Auto-next after state has settled for steps 2, 5, 6, 7, 9
+   // Auto-next after state has settled for steps 5, 6, 7
   useEffect(() => {
     if (!pendingAutoNext) return;
-    const field = step === 2 ? answers.activity_type
-      : step === 5 ? answers.objectif
+    const field = step === 5 ? answers.objectif
       : step === 6 ? answers.blocage
       : step === 7 ? answers.temps
-      : step === 9 ? answers.product_or_service
       : null;
     if (field) {
-      if (step === 2 && field === "autre") {
-        setPendingAutoNext(false);
-        return;
-      }
       const timer = setTimeout(() => {
         validatedNext();
         setPendingAutoNext(false);
       }, 400);
       return () => clearTimeout(timer);
     }
-  }, [pendingAutoNext, answers.activity_type, answers.objectif, answers.blocage, answers.temps, answers.product_or_service, step, validatedNext]);
+  }, [pendingAutoNext, answers.objectif, answers.blocage, answers.temps, step, validatedNext]);
 
   const isCurrentStep = step <= TOTAL_STEPS;
   // Deduce canaux for DiagnosticLoading
@@ -130,7 +124,7 @@ export default function Onboarding() {
       )}
 
       {/* Progress bar */}
-      {step <= TOTAL_STEPS - 1 && step < 11 && (
+      {step <= TOTAL_STEPS - 1 && step < 10 && (
         <div className="fixed top-0 left-0 right-0 z-40 h-1 bg-border/30">
           <div
             className="h-full bg-primary transition-all duration-500 ease-out"
@@ -140,7 +134,7 @@ export default function Onboarding() {
       )}
 
       {/* Back button */}
-      {step > 0 && step < 11 && (
+      {step > 0 && step < 10 && (
         <button
           onClick={prev}
           className="fixed top-4 left-4 z-40 text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 transition-colors"
@@ -150,7 +144,7 @@ export default function Onboarding() {
       )}
 
       {/* Content */}
-      {step <= 11 ? (
+      {step <= 10 ? (
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="max-w-lg w-full flex-1 flex items-center">
             <div className="w-full">
@@ -163,7 +157,7 @@ export default function Onboarding() {
                 exit="exit"
                 transition={{ duration: 0.3, ease: "easeOut" }}
                >
-                {step >= 8 && step <= 10 && !hasSeenVoiceTip && (
+                {step >= 8 && step <= 9 && !hasSeenVoiceTip && (
                   <p className="text-xs text-muted-foreground text-center mb-2 animate-in fade-in">
                     💡 Tu vois l'icône 🎤 ? Clique dessus pour dicter ta réponse.
                   </p>
@@ -183,13 +177,15 @@ export default function Onboarding() {
                   />
                 )}
 
-                {/* Step 2: Activity type */}
+                {/* Step 2: Activity type + product/service */}
                 {step === 2 && (
                   <ActivityStep
                     value={answers.activity_type}
                     detailValue={answers.activity_detail}
-                    onChange={v => { set("activity_type", v); if (v !== "autre") { set("activity_detail", ""); setPendingAutoNext(true); } }}
+                    onChange={v => { set("activity_type", v); if (v !== "autre") { set("activity_detail", ""); } }}
                     onDetailChange={v => set("activity_detail", v)}
+                    productOrService={answers.product_or_service}
+                    onProductChange={v => set("product_or_service", v)}
                     onNext={validatedNext}
                   />
                 )}
@@ -235,16 +231,8 @@ export default function Onboarding() {
                   />
                 )}
 
-                {/* Step 9: Product or service */}
+                {/* Step 9: Uniqueness */}
                 {step === 9 && (
-                  <ProductServiceScreen
-                    value={answers.product_or_service}
-                    onChange={v => { set("product_or_service", v); setPendingAutoNext(true); }}
-                  />
-                )}
-
-                {/* Step 10: Uniqueness */}
-                {step === 10 && (
                   <UniquenessScreen
                     value={answers.uniqueness}
                     onChange={v => set("uniqueness", v)}
@@ -252,8 +240,8 @@ export default function Onboarding() {
                   />
                 )}
 
-                {/* Step 11: Diagnostic Loading */}
-                {step === 11 && (
+                {/* Step 10: Diagnostic Loading */}
+                {step === 10 && (
                   <DiagnosticLoading
                     hasInstagram={hasInstagram}
                     hasWebsite={hasWebsite}
@@ -264,7 +252,7 @@ export default function Onboarding() {
                     uploadedFileIds={uploadedFiles.map(f => f.id)}
                     onReady={(data) => {
                       setDiagnosticData(data);
-                      setStep(12);
+                      setStep(11);
                     }}
                   />
                 )}
@@ -274,7 +262,7 @@ export default function Onboarding() {
           </div>
 
           {/* Time remaining indicator */}
-          {step > 0 && step < 8 && (
+          {step > 0 && step < 7 && (
             <p className="text-center text-xs text-muted-foreground/60 pb-4 mt-2">
               {getTimeRemaining(step)}
             </p>
@@ -749,7 +737,7 @@ function MultiSelectScreen({ title, subtitle, options, selected, onChange, onNex
 }
 
 /* ════════════════════════════════════════════════════════
-   AFFINAGE SCREENS (Steps 8-10)
+   AFFINAGE SCREENS (Steps 8-9)
    ════════════════════════════════════════════════════════ */
 
 function ChangeScreen({ value, onChange, onNext }: { value: string; onChange: (v: string) => void; onNext: () => void }) {
@@ -774,26 +762,6 @@ function ChangeScreen({ value, onChange, onNext }: { value: string; onChange: (v
   );
 }
 
-function ProductServiceScreen({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const options = [
-    { key: "produits", emoji: "🎁", label: "Des produits" },
-    { key: "services", emoji: "🤝", label: "Des services" },
-    { key: "les_deux", emoji: "✨", label: "Les deux" },
-  ];
-
-  return (
-    <div className="space-y-8">
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Tu vends plutôt...</h1>
-      </div>
-      <div className="space-y-3">
-        {options.map(o => (
-          <ChoiceCard key={o.key} emoji={o.emoji} label={o.label} selected={value === o.key} onClick={() => onChange(o.key)} />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function UniquenessScreen({ value, onChange, onNext }: { value: string; onChange: (v: string) => void; onNext: () => void }) {
   return (
