@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Copy, Check, Sparkles } from "lucide-react";
 
 interface Props {
@@ -55,11 +57,14 @@ export default function EngagementCoachingDialog({ open, onOpenChange, platform 
     onOpenChange(v);
   };
 
+  const workspaceId = useWorkspaceId();
+  const { user } = useAuth();
+
   const generate = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("engagement-coaching", {
-        body: { post_text: postText, objectif, ton_envie: ton, platform },
+        body: { post_text: postText, objectif, ton_envie: ton, platform, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       });
       if (error) throw error;
       setResult(data);

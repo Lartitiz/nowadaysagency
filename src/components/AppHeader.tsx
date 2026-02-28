@@ -450,6 +450,12 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
             <DropdownMenuSeparator />
           </>
         )}
+        {(hasCoaching || isPilot) && (
+          <DropdownMenuItem onClick={() => navigate("/clients")} className="gap-2 cursor-pointer">
+            <Users className="h-4 w-4" /> 👥 Mes client·es
+          </DropdownMenuItem>
+        )}
+        {(hasCoaching || isPilot) && <DropdownMenuSeparator />}
         <DropdownMenuItem onClick={() => navigate("/profil")} className="gap-2 cursor-pointer">
           <User className="h-4 w-4" /> Mon profil
         </DropdownMenuItem>
