@@ -19,18 +19,19 @@ interface SectionConfig {
   key: keyof Omit<BrandingCompletion, "total">;
   icon: string;
   title: string;
+  why?: string;
   editRoute: string;
   coachingRoute?: string;
 }
 
 const SECTIONS: SectionConfig[] = [
-  { key: "storytelling", icon: "📖", title: "Mon histoire", editRoute: "/branding/section?section=story", coachingRoute: "/branding/coaching?section=storytelling" },
-  { key: "persona", icon: "👩‍💻", title: "Mon·a client·e idéal·e", editRoute: "/branding/section?section=persona", coachingRoute: "/branding/coaching?section=persona" },
-  { key: "proposition", icon: "❤️", title: "Ma proposition de valeur", editRoute: "/branding/proposition/recap", coachingRoute: "/branding/coaching?section=proposition" },
-  { key: "tone", icon: "🎨", title: "Ma voix & mes combats", editRoute: "/branding/section?section=tone_style", coachingRoute: "/branding/coaching?section=tone" },
-  { key: "strategy", icon: "🍒", title: "Ma ligne éditoriale", editRoute: "/branding/section?section=content_strategy", coachingRoute: "/branding/coaching?section=strategy" },
-  { key: "offers", icon: "🎁", title: "Mes offres", editRoute: "/branding/offres", coachingRoute: "/branding/coaching?section=offers" },
-  { key: "charter", icon: "🎨", title: "Ma charte graphique", editRoute: "/branding/charter" },
+  { key: "storytelling", icon: "📖", title: "Mon histoire", why: "C'est ce qui te rend unique. Les gens achètent une personne avant un produit.", editRoute: "/branding/section?section=story", coachingRoute: "/branding/coaching?section=storytelling" },
+  { key: "persona", icon: "👩‍💻", title: "Mon·a client·e idéal·e", why: "Plus tu connais ta cible, plus tes contenus la touchent. C'est la base de tout.", editRoute: "/branding/section?section=persona", coachingRoute: "/branding/coaching?section=persona" },
+  { key: "proposition", icon: "❤️", title: "Ma proposition de valeur", why: "La phrase qu'on retient de toi. Celle qui fait cliquer.", editRoute: "/branding/proposition/recap", coachingRoute: "/branding/coaching?section=proposition" },
+  { key: "tone", icon: "🎨", title: "Ma voix & mes combats", why: "Ta façon de parler, c'est ta signature. Ce qui fait qu'on te reconnaît dans un feed.", editRoute: "/branding/section?section=tone_style", coachingRoute: "/branding/coaching?section=tone" },
+  { key: "strategy", icon: "🍒", title: "Ma ligne éditoriale", why: "Tes sujets de contenu. Pour ne plus jamais te demander « je poste quoi ? »", editRoute: "/branding/section?section=content_strategy", coachingRoute: "/branding/coaching?section=strategy" },
+  { key: "offers", icon: "🎁", title: "Mes offres", why: "Si c'est pas clair pour toi, c'est pas clair pour ta cible.", editRoute: "/branding/offres", coachingRoute: "/branding/coaching?section=offers" },
+  { key: "charter", icon: "🎨", title: "Ma charte graphique", why: "Tes visuels sont ta première impression. Ils doivent parler avant toi.", editRoute: "/branding/charter" },
 ];
 
 interface Props {
@@ -326,7 +327,9 @@ function ConstructionView({ completion, summaries, onReanalyze }: Props) {
                 <span className="text-xl shrink-0">{section.icon}</span>
                 <div className="flex-1 min-w-0">
                   <p className="font-display text-[15px] text-foreground">{section.title}</p>
-                  {hasTags && tags && tags.length > 0 && score > 0 ? (
+                  {score === 0 && section.why ? (
+                    <p className="text-[12px] text-muted-foreground italic mt-1">{section.why}</p>
+                  ) : hasTags && tags && tags.length > 0 && score > 0 ? (
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       {tags.slice(0, 4).map((t, i) => <TagChip key={i} label={t} />)}
                     </div>
