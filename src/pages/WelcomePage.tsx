@@ -21,6 +21,12 @@ const TIME_LABELS: Record<string, string> = {
   more_10h: "Plus de 10h",
 };
 
+const IMPACT_COLORS: Record<string, string> = {
+  high: "bg-destructive/10 text-destructive",
+  medium: "bg-primary/10 text-primary",
+  low: "bg-muted text-muted-foreground",
+};
+
 const STEPS = [
   {
     num: "1️⃣",
@@ -57,6 +63,18 @@ const STEPS = [
   },
 ];
 
+interface Recommendation {
+  id: string;
+  titre: string | null;
+  label: string;
+  detail: string | null;
+  module: string;
+  route: string;
+  priorite: string | null;
+  temps_estime: string | null;
+  position: number | null;
+}
+
 export default function WelcomePage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
@@ -64,6 +82,9 @@ export default function WelcomePage() {
   const { data: profileData } = useProfile();
   const [goal, setGoal] = useState("");
   const [time, setTime] = useState("");
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [diagnosticSummary, setDiagnosticSummary] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const prenom = (profileData as any)?.prenom || "";
   const channels: string[] = (profileData as any)?.canaux || [];
@@ -72,8 +93,6 @@ export default function WelcomePage() {
     if (!user) return;
     const load = async () => {
       const { data: config } = await (supabase.from("user_plan_config") as any).select("main_goal, weekly_time, welcome_seen, onboarding_completed").eq(column, value).maybeSingle();
-      // Don't redirect if user explicitly navigated here (e.g., "Revoir la page de bienvenue")
-      // Only redirect if they land here accidentally without completing onboarding
       if (!config?.onboarding_completed) {
         navigate("/onboarding", { replace: true });
         return;
@@ -82,6 +101,30 @@ export default function WelcomePage() {
         setGoal(config.main_goal || "");
         setTime(config.weekly_time || "");
       }
+
+      // Load recommendations
+      const { data: recs } = await (supabase
+        .from("audit_recommendations") as any)
+        .select("*")
+        .eq(column, value)
+        .order("position", { ascending: true })
+        .limit(3);
+      if (recs && recs.length > 0) {
+        setRecommendations(recs as Recommendation[]);
+      }
+
+      // Load diagnostic summary
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("diagnostic_data")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const diagData = (profile as any)?.diagnostic_data;
+      if (diagData?.summary) {
+        setDiagnosticSummary(diagData.summary);
+      }
+
+      setLoading(false);
     };
     load();
   }, [user?.id]);
@@ -92,6 +135,8 @@ export default function WelcomePage() {
     navigate(destination);
   };
 
+  const hasRecs = recommendations.length > 0;
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-2xl animate-fade-in space-y-8">
@@ -100,43 +145,101 @@ export default function WelcomePage() {
           <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
             ✨ C'est parti {prenom} !
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Ton outil est prêt. Voici comment ça marche.
-          </p>
+          {diagnosticSummary && !loading ? (
+            <p className="text-sm text-muted-foreground italic leading-relaxed max-w-lg mx-auto">
+              {diagnosticSummary}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Ton outil est prêt. Voici comment ça marche.
+            </p>
+          )}
         </div>
 
-        {/* 4 Steps */}
+        {/* Priorities / Steps */}
         <div className="rounded-2xl bg-card border border-border p-6 space-y-5">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Ton parcours en 4 étapes
+            {hasRecs ? "Tes priorités personnalisées" : "Ton parcours en 4 étapes"}
           </h2>
 
-          <div className="space-y-3">
-            {STEPS.map((s, i) => (
-              <div
-                key={i}
-                className={`rounded-xl border p-4 ${
-                  i === 0 ? "border-primary bg-secondary" : "border-border"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-lg">{s.emoji}</span>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-foreground">
-                      {s.num} {s.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {s.module} · {s.time}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">{s.desc}</p>
-                    {s.cta && (
-                      <p className="text-xs font-semibold text-primary mt-1">{s.cta}</p>
-                    )}
+          {loading ? (
+            <div className="flex justify-center py-8 gap-1.5">
+              {[0, 1, 2].map(i => (
+                <div key={i} className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: `${i * 0.16}s` }} />
+              ))}
+            </div>
+          ) : hasRecs ? (
+            <div className="space-y-3">
+              {recommendations.map((rec, i) => (
+                <div
+                  key={rec.id}
+                  className={`rounded-xl border p-4 transition-colors ${
+                    i === 0 ? "border-primary bg-secondary" : "border-border hover:border-primary/40"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-lg mt-0.5">{i === 0 ? "🎯" : i === 1 ? "📌" : "💡"}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold text-foreground">
+                          {rec.titre || rec.label}
+                        </p>
+                        {rec.priorite && (
+                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${IMPACT_COLORS[rec.priorite] || IMPACT_COLORS.medium}`}>
+                            {rec.priorite === "high" ? "prioritaire" : rec.priorite === "medium" ? "important" : "bonus"}
+                          </span>
+                        )}
+                      </div>
+                      {rec.detail && (
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{rec.detail}</p>
+                      )}
+                      <div className="flex items-center gap-3 mt-2">
+                        {rec.temps_estime && (
+                          <span className="text-[11px] text-muted-foreground">⏱️ {rec.temps_estime}</span>
+                        )}
+                        <Link
+                          to={rec.route}
+                          onClick={() => {
+                            if (user) (supabase.from("user_plan_config") as any).update({ welcome_seen: true }).eq(column, value);
+                          }}
+                          className="text-[11px] font-semibold text-primary hover:underline"
+                        >
+                          {i === 0 ? "👉 Commencer →" : "Voir →"}
+                        </Link>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {STEPS.map((s, i) => (
+                <div
+                  key={i}
+                  className={`rounded-xl border p-4 ${
+                    i === 0 ? "border-primary bg-secondary" : "border-border"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-lg">{s.emoji}</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-foreground">
+                        {s.num} {s.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {s.module} · {s.time}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">{s.desc}</p>
+                      {s.cta && (
+                        <p className="text-xs font-semibold text-primary mt-1">{s.cta}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Config recap */}
@@ -183,11 +286,11 @@ export default function WelcomePage() {
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
-            onClick={() => markSeen("/branding")}
+            onClick={() => markSeen(hasRecs && recommendations[0]?.route ? recommendations[0].route : "/branding")}
             className="flex-1 rounded-pill gap-2"
             size="lg"
           >
-            🎨 Commencer par le Branding →
+            {hasRecs ? `🎯 ${recommendations[0]?.titre || "Commencer"} →` : "🎨 Commencer par le Branding →"}
           </Button>
           <Button
             variant="outline"
