@@ -471,7 +471,7 @@ function AuditForm({
       </SourceToggle>
 
       <SourceToggle checked={useFreeText} onToggle={setUseFreeText} label="Du texte libre (notes, idées en vrac)">
-        <Textarea placeholder="Colle ici tout ce que tu veux…" value={freeText} onChange={(e: any) => setFreeText(e.target.value)} className="min-h-[80px]" />
+        <Textarea showVoiceTip placeholder="Colle ici tout ce que tu veux…" value={freeText} onChange={(e: any) => setFreeText(e.target.value)} className="min-h-[80px]" />
       </SourceToggle>
 
       <Button onClick={handleAudit} disabled={!hasSource} className="w-full gap-2 mt-6" size="lg">
