@@ -148,6 +148,7 @@ export default function SuggestedContents() {
   const navigate = useNavigate();
   const [selectedContent, setSelectedContent] = useState<SuggestedContent | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const weekStart = useMemo(() => {
     return format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
@@ -184,23 +185,81 @@ export default function SuggestedContents() {
     staleTime: 10 * 60 * 1000,
   });
 
-  // Generate & cache fallback contents if none exist for this week
+  // Generate AI-powered weekly suggestions
   useEffect(() => {
-    if (!user || cachedContents || !brandProfile) return;
+    if (!user || cachedContents || isGenerating) return;
+    if (!brandProfile) return;
 
-    const contents = buildFallbackContents(brandProfile);
-    if (contents.length === 0) return;
+    let cancelled = false;
+    setIsGenerating(true);
 
-    // TODO: Replace with AI-generated suggestions via generate-content edge function
-    (supabase.from("suggested_contents") as any)
-      .insert({
-        user_id: user.id,
-        workspace_id: workspaceId || null,
-        contents: JSON.stringify(contents),
-        week_start: weekStart,
-      })
-      .then(() => refetch());
-  }, [user, cachedContents, brandProfile, weekStart, workspaceId, refetch]);
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("generate-content", {
+          body: {
+            type: "weekly-suggestions",
+            canal: "instagram",
+            workspace_id: workspaceId || undefined,
+          },
+        });
+
+        if (cancelled) return;
+
+        if (error || !data?.suggestions || data.suggestions.length === 0) {
+          console.warn("AI suggestions failed, using fallback:", error);
+          const fallback = buildFallbackContents(brandProfile);
+          await saveSuggestions(fallback);
+          return;
+        }
+
+        const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
+        const dayMap: Record<string, number> = {
+          "Lundi": 0, "Mardi": 1, "Mercredi": 2, "Jeudi": 3,
+          "Vendredi": 4, "Samedi": 5, "Dimanche": 6,
+        };
+
+        const enrichedSuggestions: SuggestedContent[] = data.suggestions.map(
+          (s: any, i: number) => ({
+            id: `ai-${weekStart}-${i}`,
+            theme: s.theme || "Mon contenu",
+            accroche: s.accroche || "",
+            contentPreview: s.contentPreview || "",
+            fullContent: s.fullContent || "",
+            format: s.format || "post_photo",
+            canal: s.canal || "instagram",
+            objective: s.objective || "inspirer",
+            suggestedDate: format(
+              addDays(monday, dayMap[s.suggestedDay] ?? i * 2 + 1),
+              "yyyy-MM-dd"
+            ),
+          })
+        );
+
+        await saveSuggestions(enrichedSuggestions);
+      } catch (err) {
+        console.warn("Weekly suggestions error:", err);
+        if (!cancelled) {
+          const fallback = buildFallbackContents(brandProfile);
+          await saveSuggestions(fallback);
+        }
+      } finally {
+        if (!cancelled) setIsGenerating(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [user, cachedContents, brandProfile, weekStart, workspaceId]);
+
+  async function saveSuggestions(contents: SuggestedContent[]) {
+    if (!user || contents.length === 0) return;
+    await (supabase.from("suggested_contents") as any).insert({
+      user_id: user.id,
+      workspace_id: workspaceId || null,
+      contents: JSON.stringify(contents),
+      week_start: weekStart,
+    });
+    refetch();
+  }
 
   const contents: SuggestedContent[] = useMemo(() => {
     if (!cachedContents?.contents) return [];
@@ -240,6 +299,34 @@ export default function SuggestedContents() {
     setSelectedContent(content);
     setDrawerOpen(true);
   };
+
+  if (isGenerating) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="px-4 py-4 space-y-3"
+      >
+        <h3
+          className="text-base text-foreground"
+          style={{ fontFamily: "'Libre Baskerville', serif" }}
+        >
+          Tes contenus de la semaine
+        </h3>
+        <p
+          className="text-xs text-muted-foreground italic"
+          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+        >
+          Je prépare des contenus personnalisés pour toi...
+        </p>
+        <div className="flex gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="flex-shrink-0 w-[280px] sm:w-auto h-48 bg-muted/50 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      </motion.div>
+    );
+  }
 
   if (contents.length === 0) return null;
 
