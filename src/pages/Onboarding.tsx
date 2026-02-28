@@ -24,8 +24,8 @@ const stepValidators: Record<number, { schema: z.ZodType<any>; getData: (a: Answ
     message: "Ton prénom et ton activité doivent faire au moins 2 caractères",
   },
   2: {
-    schema: z.object({ activity_type: z.string().min(1), product_or_service: z.string().min(1) }),
-    getData: (a) => ({ activity_type: a.activity_type, product_or_service: a.product_or_service }),
+    schema: z.object({ activity_type: z.string().min(1), activity_detail: z.string(), product_or_service: z.string().min(1) }).refine(data => data.activity_type !== "autre" || data.activity_detail.trim().length >= 5, { message: "Décris ton activité en au moins 5 caractères" }),
+    getData: (a) => ({ activity_type: a.activity_type, activity_detail: a.activity_detail || "", product_or_service: a.product_or_service }),
     message: "Choisis un type d'activité et ce que tu vends pour continuer",
   },
   5: {
