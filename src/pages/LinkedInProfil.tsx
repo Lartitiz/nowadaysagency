@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast as sonnerToast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -81,9 +82,11 @@ export default function LinkedInProfil() {
       updated_at: new Date().toISOString() 
     };
     if (profileId) {
-      await supabase.from("linkedin_profile").update(payload).eq("id", profileId);
+      const { error } = await supabase.from("linkedin_profile").update(payload).eq("id", profileId);
+      if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
     } else {
-      const { data } = await supabase.from("linkedin_profile").insert(payload).select("id").single();
+      const { data, error } = await supabase.from("linkedin_profile").insert(payload).select("id").single();
+      if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
       if (data) setProfileId(data.id);
     }
     toast({ title: "✅ Profil sauvegardé !" });
