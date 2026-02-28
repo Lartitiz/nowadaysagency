@@ -84,6 +84,7 @@ export default function BrandingPage() {
     try { return localStorage.getItem("branding_skip_import") === "true"; } catch { return false; }
   });
   const [importAnalyzing, setImportAnalyzing] = useState(false);
+  const [forceImport, setForceImport] = useState(false);
   const [lastAudit, setLastAudit] = useState<any>(null);
   const [importPhaseNew, setImportPhaseNew] = useState<"form" | "analyzing" | "error" | "reviewing">("form");
   const [analysisSources, setAnalysisSources] = useState<{ website?: string; instagram?: string; linkedin?: string; hasDocuments?: boolean }>({});
@@ -435,6 +436,7 @@ export default function BrandingPage() {
   };
 
   const handleSkipImport = () => {
+    setForceImport(false);
     if (reanalyzeMode) {
       setReanalyzeMode(false);
       setImportPhaseNew("form");
@@ -468,7 +470,7 @@ export default function BrandingPage() {
     ? "loading"
     : (importPhaseNew === "reviewing" && analysisResult)
       ? "review"
-      : (showNewImport || showNewImportDemo)
+      : (showNewImport || showNewImportDemo || forceImport)
         ? "import"
         : "identity";
 
@@ -556,6 +558,7 @@ export default function BrandingPage() {
                   setAnalysisResult(null);
                   setSkipImport(true);
                   setReanalyzeMode(false);
+                  setForceImport(false);
                   localStorage.setItem("branding_skip_import", "true");
                   await reloadCompletion();
                 }}
@@ -599,18 +602,16 @@ export default function BrandingPage() {
                     onReanalyze={!isDemoMode && completion.total > 0 ? handleStartReanalyze : undefined}
                     profileName={hookProfile?.prenom || ""}
                     profileActivity={hookProfile?.activite || ""}
+                    onImport={() => {
+                      setForceImport(true);
+                      setImportPhaseNew("form");
+                      setImportAnalyzing(false);
+                    }}
+                    onShowSynthesis={() => setShowSynthesis(true)}
+                    onRunMirror={runMirror}
+                    lastAuditScore={lastAudit?.score_global}
+                    canShowMirror={canShowMirror}
                   />
-
-                  <div className="mt-6 flex flex-col sm:flex-row gap-2">
-                    {completion.total >= 10 && (
-                      <Button variant="outline" className="flex-1 gap-2 text-sm" onClick={() => setShowSynthesis(true)}>
-                        <ClipboardList className="h-4 w-4" /> 📋 Générer ma fiche de synthèse
-                      </Button>
-                    )}
-                    {canShowMirror && (
-                      <Button variant="outline" className="gap-2 text-sm sm:w-auto" onClick={runMirror}>🪞 Mon Mirror</Button>
-                    )}
-                  </div>
                 </>
               )}
             </motion.div>
