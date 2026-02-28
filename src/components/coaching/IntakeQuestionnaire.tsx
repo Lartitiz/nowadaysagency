@@ -1,5 +1,5 @@
 /**
- * Intake questionnaire for Now Pilot kick-off prep.
+ * Intake questionnaire for Binôme de com' kick-off prep.
  * Reuses the same full-screen coaching pattern as BrandingCoachingFlow.
  */
 import { useState, useEffect, useCallback } from "react";

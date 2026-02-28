@@ -253,7 +253,7 @@ export const DEMO_DATA = {
     ],
   },
 
-  // ── COACHING NOW PILOT ──
+  // ── COACHING BINÔME DE COM' ──
   coaching: {
     formula: "now_pilot",
     duration_months: 6,

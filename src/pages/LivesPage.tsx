@@ -162,7 +162,7 @@ export default function LivesPage() {
                   )}
                   {nextLive.live_type === "studio" && (
                     <Badge variant="secondary" className="gap-1">
-                      <Star className="h-3 w-3" /> Studio
+                      <Star className="h-3 w-3" /> Binôme
                     </Badge>
                   )}
                 </div>
@@ -230,7 +230,7 @@ export default function LivesPage() {
                     className="rounded-full"
                     onClick={() => setFilter(f)}
                   >
-                    {f === "all" ? "Tous" : f === "monthly" ? "Mensuels" : "🌟 Studio"}
+                    {f === "all" ? "Tous" : f === "monthly" ? "Mensuels" : "🌟 Binôme"}
                   </Button>
                 ))}
               </div>
@@ -259,8 +259,8 @@ export default function LivesPage() {
                                 </span>
                               )}
                               {isStudioLive && (
-                                <Badge variant="secondary" className="gap-1 text-xs">
-                                  <Star className="h-3 w-3" /> Studio
+                              <Badge variant="secondary" className="gap-1 text-xs">
+                                  <Star className="h-3 w-3" /> Binôme
                                 </Badge>
                               )}
                               {live.duration_minutes && (
@@ -274,8 +274,8 @@ export default function LivesPage() {
 
                           {locked ? (
                             <Button variant="outline" size="sm" className="rounded-full gap-1 shrink-0" asChild>
-                              <a href="/studio/discover">
-                                <Lock className="h-3 w-3" /> Studio
+                              <a href="/binome">
+                                <Lock className="h-3 w-3" /> Binôme
                               </a>
                             </Button>
                           ) : live.replay_url ? (

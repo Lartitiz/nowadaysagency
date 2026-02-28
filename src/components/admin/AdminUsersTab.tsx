@@ -32,7 +32,7 @@ interface UserRow {
 type SortKey = "prenom" | "email" | "plan" | "branding_score" | "ai_usage_count" | "last_sign_in" | "created_at";
 
 const PLAN_FILTERS = ["all", "free", "outil", "pro", "now_pilot"] as const;
-const PLAN_LABELS: Record<string, string> = { all: "Toutes", free: "Free", outil: "Outil", pro: "Pro", now_pilot: "Binôme" };
+const PLAN_LABELS: Record<string, string> = { all: "Toutes", free: "Free", outil: "Assistant Com'", pro: "Pro", now_pilot: "Binôme" };
 
 function planBadge(plan: string) {
   switch (plan) {
@@ -224,7 +224,7 @@ export default function AdminUsersTab() {
         </div>
         <span className="text-sm text-muted-foreground whitespace-nowrap">{filtered.length} utilisatrice{filtered.length > 1 ? "s" : ""}</span>
         <Button variant="outline" size="sm" onClick={() => {
-          const PLAN_CSV: Record<string, string> = { free: "Free", outil: "Outil", studio: "Binôme", now_pilot: "Now Pilot", pro: "Pro" };
+          const PLAN_CSV: Record<string, string> = { free: "Free", outil: "Assistant Com'", studio: "Binôme de com'", now_pilot: "Binôme de com'", pro: "Pro" };
           const header = "email;prenom;plan;activite;date_inscription;derniere_connexion";
           const rows = filtered.map((u) => {
             const di = u.created_at ? u.created_at.slice(0, 10) : "";
