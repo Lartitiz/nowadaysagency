@@ -134,11 +134,12 @@ Deno.serve(async (req) => {
     }
 
     // Instagram bio (from existing audit if available)
+    const sbService = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
     if (instagram_username) {
-      const sbService = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      );
       const { data: audit } = await sbService
         .from("instagram_audit")
         .select("resume, score_bio, score_global, details, content_analysis, editorial_recommendations")
@@ -151,7 +152,27 @@ Deno.serve(async (req) => {
         sources.instagram = `Résumé d'audit Instagram existant:\n${audit.resume || "Pas de résumé"}\nScore bio: ${audit.score_bio}/100\nScore global: ${audit.score_global}/100\nDétails: ${JSON.stringify(audit.details || {}).slice(0, 2000)}`;
         sourcesUsed.push("instagram");
       } else {
-        sources.instagram = `Compte Instagram : @${instagram_username.replace("@", "")} (pas d'audit détaillé disponible, analyse basée sur le nom de compte uniquement)`;
+        // No audit available — try to enrich from profiles table (onboarding data)
+        const { data: profileIG } = await sbService
+          .from("profiles")
+          .select("instagram_bio, instagram_display_name, instagram_highlights, instagram_pillars, instagram_feed_description, instagram_frequency, instagram_followers")
+          .eq(filterCol === "workspace_id" ? "workspace_id" : "user_id", filterVal)
+          .maybeSingle();
+
+        const parts: string[] = [];
+        if (profileIG?.instagram_display_name) parts.push(`Nom : ${profileIG.instagram_display_name}`);
+        if (profileIG?.instagram_bio) parts.push(`Bio : ${profileIG.instagram_bio}`);
+        if (profileIG?.instagram_followers) parts.push(`Followers : ${profileIG.instagram_followers}`);
+        if (profileIG?.instagram_feed_description) parts.push(`Description du feed : ${profileIG.instagram_feed_description}`);
+        if (profileIG?.instagram_frequency) parts.push(`Fréquence de publication : ${profileIG.instagram_frequency}`);
+        if (profileIG?.instagram_highlights) parts.push(`Highlights : ${JSON.stringify(profileIG.instagram_highlights)}`);
+        if (profileIG?.instagram_pillars) parts.push(`Piliers de contenu : ${JSON.stringify(profileIG.instagram_pillars)}`);
+
+        if (parts.length > 0) {
+          sources.instagram = `Profil Instagram @${instagram_username.replace("@", "")} :\n${parts.join("\n")}`;
+        } else {
+          sources.instagram = `Compte Instagram : @${instagram_username.replace("@", "")} (pas d'audit détaillé disponible, analyse basée sur le nom de compte uniquement)`;
+        }
         sourcesUsed.push("instagram");
       }
     }
@@ -161,6 +182,10 @@ Deno.serve(async (req) => {
       const linkedinText = await fetchPageText(linkedin_url);
       if (linkedinText.length > 50) {
         sources.linkedin = linkedinText.slice(0, 4000);
+        sourcesUsed.push("linkedin");
+      } else {
+        // LinkedIn blocks most server-side requests — provide honest fallback
+        sources.linkedin = `URL LinkedIn fournie : ${linkedin_url}\n(Le contenu LinkedIn n'a pas pu être récupéré automatiquement. L'analyse se base sur les autres sources disponibles.)`;
         sourcesUsed.push("linkedin");
       }
     }
@@ -198,6 +223,7 @@ RÈGLES :
 - Le score est réaliste (pas de 90/100 si c'est moyen)
 - Valorise ce qui existe avant de pointer ce qui manque
 - Si une source manque, ne pas inventer (marquer "non analysé")
+- Si le contenu d'une source est limité (ex: juste un nom Instagram sans posts, ou un profil LinkedIn inaccessible), analyse ce que tu peux et signale clairement ce qui manque pour un audit plus approfondi. Ne dis PAS "pas de contenu fourni" mais plutôt "Pour aller plus loin sur ce canal, je recommande de [faire un audit Instagram dédié / renseigner plus d'informations sur ton profil]".
 - Le plan d'action recommandé est ordonné par priorité
 - Écris en français, tutoie l'utilisatrice
 
@@ -299,11 +325,7 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
       });
     }
 
-    // Save to DB
-    const sbService = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    // Save to DB (reuse sbService from above)
     await sbService.from("branding_audits").insert({
       user_id: user.id,
       workspace_id: workspace_id || null,
