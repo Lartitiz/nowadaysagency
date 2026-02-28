@@ -321,6 +321,22 @@ export default function CalendarPage() {
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
+  // Open post dialog from ?post=ID query param
+  useEffect(() => {
+    const postId = searchParams.get("post");
+    if (!postId || postsLoading || posts.length === 0) return;
+    const target = posts.find((p) => p.id === postId);
+    if (target) {
+      setEditingPost(target);
+      setSelectedDate(target.date);
+      setDialogOpen(true);
+      // Clean up the param so reopening doesn't re-trigger
+      const next = new URLSearchParams(searchParams);
+      next.delete("post");
+      navigate({ search: next.toString() }, { replace: true });
+    }
+  }, [posts, postsLoading, searchParams]);
+
   const calendarDays = useMemo(() => {
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
