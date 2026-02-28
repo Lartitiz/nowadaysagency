@@ -10,29 +10,29 @@ interface ActionDef {
 
 const ACTIONS: Record<string, ActionDef[]> = {
   story: [
-    { label: "Écrire un post storytelling", route: "/studio/discover" },
-    { label: "Créer un carousel Mon Parcours", route: "/studio/discover" },
-    { label: "Générer une accroche newsletter", route: "/studio/discover" },
+    { label: "Écrire un post storytelling", route: "/creer" },
+    { label: "Créer un carousel Mon Parcours", route: "/instagram/carousel" },
+    { label: "Générer une accroche newsletter", route: "/creer" },
   ],
   persona: [
-    { label: "Écrire un post qui parle à ma cible", route: "/studio/discover" },
+    { label: "Écrire un post qui parle à ma cible", route: "/creer" },
     { label: "Générer un DM de prospection", route: "/instagram/routine" },
     { label: "Revoir ma bio Instagram", route: "/instagram/profil/bio" },
   ],
   value_proposition: [
     { label: "Générer ma bio Instagram", route: "/instagram/profil/bio" },
     { label: "Générer ma bio LinkedIn", route: "/linkedin/profil" },
-    { label: "Écrire un post offre", route: "/studio/discover" },
+    { label: "Écrire un post offre", route: "/creer" },
   ],
   tone_style: [
-    { label: "Tester mon ton sur un post", route: "/studio/discover" },
-    { label: "Reformuler un texte dans mon style", route: "/studio/discover" },
+    { label: "Tester mon ton sur un post", route: "/creer" },
+    { label: "Reformuler un texte dans mon style", route: "/creer" },
     { label: "Voir mon guide de voix", route: null },
   ],
   content_strategy: [
     { label: "Planifier ma semaine de contenu", route: "/calendrier" },
-    { label: "Générer des idées de posts", route: "/studio/discover" },
-    { label: "Créer mon premier post", route: "/studio/discover" },
+    { label: "Générer des idées de posts", route: "/creer" },
+    { label: "Créer mon premier post", route: "/creer" },
   ],
 };
 
