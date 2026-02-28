@@ -15,6 +15,7 @@ import ContactsSection, { type Contact } from "@/components/engagement/ContactsS
 import TipsSection from "@/components/engagement/TipsSection";
 import ProspectionSection from "@/components/prospection/ProspectionSection";
 import Confetti from "@/components/Confetti";
+import StoriesMetricsSection from "@/components/engagement/StoriesMetricsSection";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
 import { friendlyError } from "@/lib/error-messages";
@@ -53,6 +54,13 @@ export default function InstagramEngagement() {
 
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactFilter, setContactFilter] = useState("all");
+  const [storiesMetrics, setStoriesMetrics] = useState({
+    sequences_published: 0,
+    completion_rate: null as number | null,
+    dm_replies: 0,
+    best_story: "",
+    stickers_used: [] as string[],
+  });
 
   const today = useMemo(() => getTodayStr(), []);
   const todayIndex = useMemo(() => getDayIndex(), []);
@@ -299,6 +307,11 @@ export default function InstagramEngagement() {
               checked={checked}
               onToggle={toggleItem}
               threshold={threshold}
+            />
+            <StoriesMetricsSection
+              data={storiesMetrics}
+              onChange={setStoriesMetrics}
+              onSave={() => toast({ title: "📱 Stats stories sauvegardées !" })}
             />
             <TipsSection isLaunching={isLaunching} />
           </TabsContent>
