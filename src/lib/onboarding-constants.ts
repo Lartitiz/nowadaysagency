@@ -31,6 +31,17 @@ export const CHANNELS = [
   { key: "none", emoji: "🤷", label: "Rien pour l'instant" },
 ];
 
+export const DESIRED_CHANNELS = [
+  { key: "instagram", emoji: "📱", label: "Instagram" },
+  { key: "website", emoji: "🌐", label: "Site web / blog" },
+  { key: "newsletter", emoji: "✉️", label: "Newsletter" },
+  { key: "linkedin", emoji: "💼", label: "LinkedIn" },
+  { key: "pinterest", emoji: "📌", label: "Pinterest" },
+  { key: "tiktok", emoji: "🎵", label: "TikTok" },
+  { key: "podcast", emoji: "🎙️", label: "Podcast" },
+  { key: "youtube", emoji: "▶️", label: "YouTube" },
+];
+
 export const BLOCKERS = [
   { key: "invisible", emoji: "😶", label: "Je suis invisible malgré mes efforts" },
   { key: "lost", emoji: "😵", label: "Je sais pas par où commencer" },
@@ -73,4 +84,4 @@ export const VALUE_CHIPS = [
   "Beauté", "Transmission", "Inclusivité", "Audace",
 ];
 
-export const TOTAL_STEPS = 11; // 0=welcome, 1=prenom+activite, 2=activity_type, 3=links+docs, 4=objectif, 5=blocage, 6=temps, 7-9=affinage, 10=diagnostic_loading, (11=diagnostic_view via step>TOTAL_STEPS)
+export const TOTAL_STEPS = 13; // 0=welcome, 1=prenom+activite, 2=activity_type, 3=links+docs, 4=canaux_actuels, 5=canaux_souhaites, 6=objectif, 7=blocage, 8=temps, 9-11=affinage, 12=diagnostic_loading, (13=diagnostic_view via step>TOTAL_STEPS)
