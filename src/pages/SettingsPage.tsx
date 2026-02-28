@@ -335,6 +335,9 @@ export default function SettingsPage() {
             <Link to="/confidentialite" className="block text-primary text-sm font-medium hover:underline">
               Lire notre politique de confidentialité →
             </Link>
+            <Link to="/cgu-cgv" className="block text-primary text-sm font-medium hover:underline">
+              CGU / CGV →
+            </Link>
           </div>
         </Section>
 

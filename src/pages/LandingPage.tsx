@@ -143,6 +143,15 @@ function SignupForm({ compact = false }: { compact?: boolean }) {
           <PasswordStrengthIndicator password={watch("password") || ""} />
         </div>
       </div>
+      <label className="flex items-start gap-2 text-xs text-muted-foreground">
+        <input type="checkbox" required className="mt-0.5 accent-primary" />
+        <span>
+          J'accepte les{" "}
+          <a href="/cgu-cgv" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">CGU / CGV</a>
+          {" "}et la{" "}
+          <a href="/confidentialite" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">politique de confidentialité</a>.
+        </span>
+      </label>
       <Button type="submit" disabled={loading} className="w-full sm:w-auto h-12 rounded-pill px-10 text-base font-medium">
         {loading ? "Un instant..." : "🚀 Commencer gratuitement"}
       </Button>
@@ -729,7 +738,7 @@ export default function LandingPage() {
               <h4 className="font-semibold text-sm mb-3">Légal</h4>
               <nav className="flex flex-col gap-2 text-sm text-background/60">
                 <Link to="/mentions-legales" className="hover:text-background transition-colors">Mentions légales</Link>
-                <Link to="/legal-ia" className="hover:text-background transition-colors">CGV</Link>
+                <Link to="/cgu-cgv" className="hover:text-background transition-colors">CGU / CGV</Link>
                 <Link to="/confidentialite" className="hover:text-background transition-colors">Confidentialité</Link>
               </nav>
               <div className="flex items-center gap-3 mt-4">

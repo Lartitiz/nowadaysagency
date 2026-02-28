@@ -105,6 +105,7 @@ const SalesPageOptimizer = lazy(() => import("./pages/SalesPageOptimizer"));
 const LegalAiPage = lazy(() => import("./pages/LegalAiPage"));
 const MentionsLegalesPage = lazy(() => import("./pages/MentionsLegalesPage"));
 const ConfidentialitePage = lazy(() => import("./pages/ConfidentialitePage"));
+const CguCgvPage = lazy(() => import("./pages/CguCgvPage"));
 const PaymentSuccessPage = lazy(() => import("./pages/PaymentSuccessPage"));
 const ClientsPage = lazy(() => import("./pages/ClientsPage"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
@@ -256,6 +257,7 @@ function AnimatedRoutes() {
               <Route path="/legal-ia" element={<ProtectedRoute><LegalAiPage /></ProtectedRoute>} />
               <Route path="/mentions-legales" element={<MentionsLegalesPage />} />
               <Route path="/confidentialite" element={<ConfidentialitePage />} />
+              <Route path="/cgu-cgv" element={<CguCgvPage />} />
               <Route path="/checkout/binome" element={<CheckoutBinomePage />} />
               <Route path="/payment/success" element={<PaymentSuccessPage />} />
               <Route path="/invite/:token" element={<InvitePage />} />
