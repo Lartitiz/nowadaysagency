@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { Link, useParams } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -27,6 +28,11 @@ export default function StorytellingRecapPage() {
   const workspaceId = useWorkspaceId();
   const { id } = useParams();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const invalidateStorytelling = () => {
+    queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
+    queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
+  };
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -71,6 +77,7 @@ export default function StorytellingRecapPage() {
     for (let i = 0; i < path.length - 1; i++) obj = obj[path[i]];
     obj[path[path.length - 1]] = value;
     await supabase.from("storytelling").update({ recap_summary: updated } as any).eq("id", data.id);
+    invalidateStorytelling();
     setData({ ...data, recap_summary: updated });
   };
 
@@ -79,12 +86,14 @@ export default function StorytellingRecapPage() {
     const updated = JSON.parse(JSON.stringify(summary));
     updated[arrayKey][index] = value;
     await supabase.from("storytelling").update({ recap_summary: updated } as any).eq("id", data.id);
+    invalidateStorytelling();
     setData({ ...data, recap_summary: updated });
   };
 
   const saveDirectField = async (field: string, value: string) => {
     if (!data) return;
     await supabase.from("storytelling").update({ [field]: value } as any).eq("id", data.id);
+    invalidateStorytelling();
     setData({ ...data, [field]: value });
   };
 
@@ -100,6 +109,7 @@ export default function StorytellingRecapPage() {
       const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(raw);
       await supabase.from("storytelling").update({ recap_summary: parsed } as any).eq("id", data.id);
+      invalidateStorytelling();
       setData({ ...data, recap_summary: parsed });
       toast({ title: "Synthèse générée !" });
     } catch (e: any) {

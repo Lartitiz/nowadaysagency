@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useNavigate } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -26,6 +27,7 @@ export default function StorytellingImportPage() {
   const workspaceId = useWorkspaceId();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [storyType, setStoryType] = useState("fondatrice");
   const [title, setTitle] = useState("");
@@ -104,6 +106,9 @@ export default function StorytellingImportPage() {
       } as any).select("id").single();
 
       if (insertError) throw insertError;
+
+      queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
+      queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
 
       toast({ title: "Storytelling importé avec succès !" });
       navigate(`/branding/storytelling/${inserted.id}/recap`);

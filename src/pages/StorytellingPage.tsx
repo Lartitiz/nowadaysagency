@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useParams, useNavigate } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -61,6 +62,7 @@ export default function StorytellingPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [pitchTab, setPitchTab] = useState<"short" | "medium" | "long">("short");
+  const queryClient = useQueryClient();
   const { data: profileData } = useProfile();
   const { data: brandProfileData } = useBrandProfile();
   const profile = profileData ? { ...profileData, ...(brandProfileData || {}) } : null;
@@ -94,6 +96,8 @@ export default function StorytellingPage() {
     delete (payload as any).id;
     if (existingId) {
       await supabase.from("storytelling").update(payload as any).eq("id", existingId);
+      queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
+      queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
     } else {
       const { data: existingPrimary } = await (supabase
         .from("storytelling") as any)
@@ -110,9 +114,13 @@ export default function StorytellingPage() {
         story_type: "fondatrice",
         is_primary: isPrimary,
       } as any).select("id").single();
-      if (inserted) setExistingId(inserted.id);
+      if (inserted) {
+        setExistingId(inserted.id);
+        queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
+        queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
+      }
     }
-  }, [user, existingId]);
+  }, [user, existingId, queryClient]);
 
   const debouncedSave = useCallback((updated: StorytellingData) => {
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
