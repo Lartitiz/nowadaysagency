@@ -549,6 +549,17 @@ export function useOnboarding() {
     localStorage.removeItem("lac_onboarding_answers");
     localStorage.removeItem("lac_onboarding_branding");
     localStorage.removeItem("lac_onboarding_ts");
+
+    // Ensure user_plan_config.onboarding_completed is set
+    // (safety net in case handleFinish had a silent failure)
+    try {
+      await (supabase.from("user_plan_config") as any)
+        .update({ onboarding_completed: true })
+        .eq("user_id", user.id);
+    } catch (e) {
+      console.error("Failed to update user_plan_config:", e);
+    }
+
     navigate("/welcome", { replace: true });
   };
 
