@@ -1,27 +1,17 @@
 import { Button } from "@/components/ui/button";
 import { ACTIVITY_SECTIONS } from "@/lib/onboarding-constants";
-import type { Answers } from "@/hooks/use-onboarding";
 
 interface ActivityStepProps {
   value: string;
   detailValue: string;
   onChange: (v: string) => void;
   onDetailChange: (v: string) => void;
-  productOrService: string;
-  onProductChange: (v: string) => void;
   onNext: () => void;
 }
 
-const PRODUCT_OPTIONS = [
-  { key: "produits", emoji: "🎁", label: "Des produits" },
-  { key: "services", emoji: "🤝", label: "Des services" },
-  { key: "les_deux", emoji: "✨", label: "Les deux" },
-];
-
-export default function ActivityStep({ value, detailValue, onChange, onDetailChange, productOrService, onProductChange, onNext }: ActivityStepProps) {
+export default function ActivityStep({ value, detailValue, onChange, onDetailChange, onNext }: ActivityStepProps) {
   const showDetail = value === "autre";
-  const activityReady = value && (value !== "autre" || detailValue.trim().length >= 5);
-  const canNext = activityReady && !!productOrService;
+  const canNext = value && (value !== "autre" || detailValue.trim().length >= 5);
 
   return (
     <div className="space-y-6">
@@ -72,30 +62,8 @@ export default function ActivityStep({ value, detailValue, onChange, onDetailCha
             </div>
           )}
         </div>
-
-        {/* Product or service section — shown when activity is selected */}
-        {activityReady && (
-          <>
-            <div className="border-t border-border/50 mt-4 pt-4">
-              <p className="text-sm font-semibold text-foreground mb-3">Tu vends plutôt...</p>
-              <div className="space-y-2.5">
-                {PRODUCT_OPTIONS.map(o => (
-                  <button key={o.key} type="button" onClick={() => onProductChange(o.key)}
-                    className={`w-full text-left rounded-xl border-2 px-4 py-3.5 transition-all duration-200 flex items-center gap-3 ${
-                      productOrService === o.key ? "border-primary bg-secondary shadow-sm" : "border-border bg-card hover:border-primary/40 hover:bg-secondary/30"
-                    }`}>
-                    <span className="text-2xl">{o.emoji}</span>
-                    <span className="text-sm font-semibold text-foreground">{o.label}</span>
-                    {productOrService === o.key && <span className="ml-auto text-primary font-bold text-sm">✓</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
       </div>
 
-      {/* Next button only when both selections made */}
       {canNext && (
         <div className="text-center">
           <Button onClick={onNext} className="rounded-full px-8">Suivant →</Button>

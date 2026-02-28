@@ -15,6 +15,7 @@ import type { Answers, BrandingAnswers, UploadedFile } from "@/hooks/use-onboard
 import { useToast } from "@/hooks/use-toast";
 import WelcomeStep from "@/components/onboarding/steps/WelcomeStep";
 import ActivityStep from "@/components/onboarding/steps/ActivityStep";
+import ProductServiceScreen from "@/components/onboarding/steps/ProductServiceScreen";
 
 /* ─── Step validation schemas ─── */
 const stepValidators: Record<number, { schema: z.ZodType<any>; getData: (a: Answers, b: BrandingAnswers) => any; message: string }> = {
@@ -24,21 +25,21 @@ const stepValidators: Record<number, { schema: z.ZodType<any>; getData: (a: Answ
     message: "Ton prénom et ton activité doivent faire au moins 2 caractères",
   },
   2: {
-    schema: z.object({ activity_type: z.string().min(1), activity_detail: z.string(), product_or_service: z.string().min(1) }).refine(data => data.activity_type !== "autre" || data.activity_detail.trim().length >= 5, { message: "Décris ton activité en au moins 5 caractères" }),
-    getData: (a) => ({ activity_type: a.activity_type, activity_detail: a.activity_detail || "", product_or_service: a.product_or_service }),
-    message: "Choisis un type d'activité et ce que tu vends pour continuer",
+    schema: z.object({ activity_type: z.string().min(1), activity_detail: z.string() }).refine(data => data.activity_type !== "autre" || data.activity_detail.trim().length >= 5, { message: "Décris ton activité en au moins 5 caractères" }),
+    getData: (a) => ({ activity_type: a.activity_type, activity_detail: a.activity_detail || "" }),
+    message: "Choisis un type d'activité pour continuer",
   },
-  5: {
+  6: {
     schema: z.object({ objectif: z.string().min(1) }),
     getData: (a) => ({ objectif: a.objectif }),
     message: "Choisis un objectif pour continuer",
   },
-  6: {
+  7: {
     schema: z.object({ blocage: z.string().min(1) }),
     getData: (a) => ({ blocage: a.blocage }),
     message: "Choisis ton blocage principal pour continuer",
   },
-  7: {
+  8: {
     schema: z.object({ temps: z.string().min(1) }),
     getData: (a) => ({ temps: a.temps }),
     message: "Indique le temps que tu peux y consacrer",
@@ -70,7 +71,7 @@ export default function Onboarding() {
   const [hasSeenVoiceTip, setHasSeenVoiceTip] = useState(false);
 
   useEffect(() => {
-    if (step > 7 && !hasSeenVoiceTip) setHasSeenVoiceTip(true);
+    if (step > 8 && !hasSeenVoiceTip) setHasSeenVoiceTip(true);
   }, [step, hasSeenVoiceTip]);
 
   const validatedNext = useCallback(() => {
@@ -86,12 +87,13 @@ export default function Onboarding() {
     next();
   }, [step, answers, brandingAnswers, next, toast]);
 
-   // Auto-next after state has settled for steps 5, 6, 7
+   // Auto-next after state has settled for steps 3, 6, 7, 8
   useEffect(() => {
     if (!pendingAutoNext) return;
-    const field = step === 5 ? answers.objectif
-      : step === 6 ? answers.blocage
-      : step === 7 ? answers.temps
+    const field = step === 3 ? answers.product_or_service
+      : step === 6 ? answers.objectif
+      : step === 7 ? answers.blocage
+      : step === 8 ? answers.temps
       : null;
     if (field) {
       const timer = setTimeout(() => {
@@ -100,7 +102,7 @@ export default function Onboarding() {
       }, 400);
       return () => clearTimeout(timer);
     }
-  }, [pendingAutoNext, answers.objectif, answers.blocage, answers.temps, step, validatedNext]);
+  }, [pendingAutoNext, answers.product_or_service, answers.objectif, answers.blocage, answers.temps, step, validatedNext]);
 
   const isCurrentStep = step <= TOTAL_STEPS;
   // Deduce canaux for DiagnosticLoading
@@ -124,7 +126,7 @@ export default function Onboarding() {
       )}
 
       {/* Progress bar */}
-      {step <= TOTAL_STEPS - 1 && step < 10 && (
+      {step <= TOTAL_STEPS - 1 && step < 11 && (
         <div className="fixed top-0 left-0 right-0 z-40 h-1 bg-border/30">
           <div
             className="h-full bg-primary transition-all duration-500 ease-out"
@@ -134,7 +136,7 @@ export default function Onboarding() {
       )}
 
       {/* Back button */}
-      {step > 0 && step < 10 && (
+      {step > 0 && step < 11 && (
         <button
           onClick={prev}
           className="fixed top-4 left-4 z-40 text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 transition-colors"
@@ -144,7 +146,7 @@ export default function Onboarding() {
       )}
 
       {/* Content */}
-      {step <= 10 ? (
+      {step <= 11 ? (
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="max-w-lg w-full flex-1 flex items-center">
             <div className="w-full">
@@ -157,7 +159,7 @@ export default function Onboarding() {
                 exit="exit"
                 transition={{ duration: 0.3, ease: "easeOut" }}
                >
-                {step >= 8 && step <= 9 && !hasSeenVoiceTip && (
+                {step >= 9 && step <= 10 && !hasSeenVoiceTip && (
                   <p className="text-xs text-muted-foreground text-center mb-2 animate-in fade-in">
                     💡 Tu vois l'icône 🎤 ? Clique dessus pour dicter ta réponse.
                   </p>
@@ -177,21 +179,27 @@ export default function Onboarding() {
                   />
                 )}
 
-                {/* Step 2: Activity type + product/service */}
+                {/* Step 2: Activity type */}
                 {step === 2 && (
                   <ActivityStep
                     value={answers.activity_type}
                     detailValue={answers.activity_detail}
                     onChange={v => { set("activity_type", v); if (v !== "autre") { set("activity_detail", ""); } }}
                     onDetailChange={v => set("activity_detail", v)}
-                    productOrService={answers.product_or_service}
-                    onProductChange={v => set("product_or_service", v)}
                     onNext={validatedNext}
                   />
                 )}
 
-                {/* Step 3: Links + Documents */}
+                {/* Step 3: Product or service */}
                 {step === 3 && (
+                  <ProductServiceScreen
+                    value={answers.product_or_service}
+                    onChange={v => { set("product_or_service", v); setPendingAutoNext(true); }}
+                  />
+                )}
+
+                {/* Step 4: Links + Documents */}
+                {step === 4 && (
                   <LinksScreen
                     answers={answers}
                     set={set}
@@ -204,8 +212,8 @@ export default function Onboarding() {
                   />
                 )}
 
-                {/* Step 4: Canaux combined */}
-                {step === 4 && (
+                {/* Step 5: Canaux combined */}
+                {step === 5 && (
                   <CanauxCombinedScreen
                     answers={answers}
                     set={set}
@@ -213,17 +221,17 @@ export default function Onboarding() {
                   />
                 )}
 
-                {/* Step 5: Objectif */}
-                {step === 5 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}
+                {/* Step 6: Objectif */}
+                {step === 6 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}
 
-                {/* Step 6: Blocage */}
-                {step === 6 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
+                {/* Step 7: Blocage */}
+                {step === 7 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
 
-                {/* Step 7: Temps */}
-                {step === 7 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setPendingAutoNext(true); }} />}
+                {/* Step 8: Temps */}
+                {step === 8 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setPendingAutoNext(true); }} />}
 
-                {/* Step 8: Change priority */}
-                {step === 8 && (
+                {/* Step 9: Change priority */}
+                {step === 9 && (
                   <ChangeScreen
                     value={answers.change_priority}
                     onChange={v => set("change_priority", v)}
@@ -231,8 +239,8 @@ export default function Onboarding() {
                   />
                 )}
 
-                {/* Step 9: Uniqueness */}
-                {step === 9 && (
+                {/* Step 10: Uniqueness */}
+                {step === 10 && (
                   <UniquenessScreen
                     value={answers.uniqueness}
                     onChange={v => set("uniqueness", v)}
@@ -240,8 +248,8 @@ export default function Onboarding() {
                   />
                 )}
 
-                {/* Step 10: Diagnostic Loading */}
-                {step === 10 && (
+                {/* Step 11: Diagnostic Loading */}
+                {step === 11 && (
                   <DiagnosticLoading
                     hasInstagram={hasInstagram}
                     hasWebsite={hasWebsite}
@@ -252,7 +260,7 @@ export default function Onboarding() {
                     uploadedFileIds={uploadedFiles.map(f => f.id)}
                     onReady={(data) => {
                       setDiagnosticData(data);
-                      setStep(11);
+                      setStep(12);
                     }}
                   />
                 )}
@@ -262,7 +270,7 @@ export default function Onboarding() {
           </div>
 
           {/* Time remaining indicator */}
-          {step > 0 && step < 7 && (
+          {step > 0 && step < 9 && (
             <p className="text-center text-xs text-muted-foreground/60 pb-4 mt-2">
               {getTimeRemaining(step)}
             </p>
