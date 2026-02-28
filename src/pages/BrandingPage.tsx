@@ -25,6 +25,7 @@ import BrandingImportReview from "@/components/branding/BrandingImportReview";
 import BrandingReview, { type AnalysisResult } from "@/components/branding/BrandingReview";
 import CoachingFlow from "@/components/CoachingFlow";
 import type { BrandingExtraction } from "@/lib/branding-import-types";
+import { extractTextFromFile } from "@/lib/file-extractors";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -394,6 +395,31 @@ export default function BrandingPage() {
         }
       }
 
+      // Extract text from uploaded files (client-side)
+      let documentText: string | null = null;
+      if (data.files && data.files.length > 0) {
+        const parts: string[] = [];
+        for (const file of data.files) {
+          try {
+            const text = await extractTextFromFile(file);
+            if (text.trim().length > 0) parts.push(`[Document: ${file.name}]\n${text.trim()}`);
+          } catch (err) {
+            console.warn(`Impossible de lire ${file.name}:`, err);
+          }
+        }
+        if (parts.length > 0) {
+          documentText = parts.join("\n\n--- DOCUMENT SUIVANT ---\n\n");
+          if (documentText.length > 100000) {
+            documentText = documentText.slice(0, 100000);
+          }
+        } else if (!normalizedWebsite && !data.instagram && !data.linkedin) {
+          toast.error("Impossible d'extraire le texte de tes fichiers. Vérifie qu'ils ne sont pas des scans (images) et qu'ils sont bien au format PDF, Word ou texte.", { duration: 8000 });
+          setImportAnalyzing(false);
+          setImportPhaseNew("form");
+          return;
+        }
+      }
+
       const { data: result, error } = await supabase.functions.invoke("analyze-brand", {
         body: {
           userId: user?.id,
@@ -401,6 +427,7 @@ export default function BrandingPage() {
           instagramHandle: data.instagram || null,
           linkedinUrl: data.linkedin || null,
           documentIds: [],
+          documentText: documentText,
         },
       });
 
