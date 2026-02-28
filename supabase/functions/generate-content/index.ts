@@ -6,6 +6,9 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock 
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
+import { validateInput, GenerateContentSchema } from "../_shared/input-validators.ts";
+import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -285,7 +288,7 @@ DONNÉES DU LANCEMENT :
 - Période de vente : ${lp.launch_sale_start || "?"} → ${lp.launch_sale_end || "?"}
 - Contenus déjà prévus par l'utilisatrice : ${(lp.launch_selected_contents || []).join(", ") || "aucun"}
 
-${brandingContext}
+${fullContext}
 
 Génère un plan de lancement Instagram en 4 phases :
 
