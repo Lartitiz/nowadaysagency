@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
 import { Loader2, ArrowRight, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { isModuleVisible } from "@/config/feature-flags";
 import { useProfile } from "@/hooks/use-profile";
 
 import DictationInput from "@/components/DictationInput";
@@ -58,7 +59,7 @@ interface FormatSuggestion {
 
 export default function InstagramCreer() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   const { channels: activeChannels } = useActiveChannels();
   const { column, value } = useWorkspaceFilter();
@@ -261,7 +262,8 @@ export default function InstagramCreer() {
             pinterest: "📌 Pinterest",
             newsletter: "📧 Newsletter",
           };
-          const channelOrder = ["instagram", "linkedin", "pinterest", "newsletter"];
+          const channelOrder = ["instagram", "linkedin", "newsletter"]
+            .concat(isModuleVisible("pinterest", isAdmin) ? ["pinterest"] : []);
           const grouped = channelOrder
             .map(ch => ({ channel: ch, formats: FORMAT_OPTIONS.filter(f => f.channel === ch) }))
             .filter(g => g.formats.length > 0);
