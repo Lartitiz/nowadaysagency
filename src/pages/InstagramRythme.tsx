@@ -26,6 +26,7 @@ export default function InstagramRythme() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [existingId, setExistingId] = useState<string | null>(null);
 
@@ -53,6 +54,7 @@ export default function InstagramRythme() {
           setSelectedSlots(data.preferred_slots ? JSON.parse(data.preferred_slots) : []);
         } catch { setSelectedSlots([]); }
       }
+      setLoading(false);
     });
   }, [user?.id]);
 
@@ -106,6 +108,8 @@ export default function InstagramRythme() {
   };
 
   const formatMin = (m: number) => m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, "0") : ""}` : `${m} min`;
+
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
     <div className="min-h-screen bg-background">
