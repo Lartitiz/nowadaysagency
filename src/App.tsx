@@ -343,12 +343,19 @@ const App = () => {
     window.dispatchEvent(new Event('app-ready'));
   }, []);
 
+  function ScrollToTop() {
+    const { pathname } = useLocation();
+    useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+    return null;
+  }
+
   return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <ScrollToTop />
         <ErrorBoundary>
         <DemoProvider>
           <AuthProvider>
