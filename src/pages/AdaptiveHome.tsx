@@ -1,5 +1,6 @@
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
+import SuggestedContents from "@/components/dashboard/SuggestedContents";
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
 import { useUserPhase } from "@/hooks/use-user-phase";
 import { useToast } from "@/hooks/use-toast";
@@ -75,7 +76,7 @@ export default function AdaptiveHome() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { recommendation, profileSummary, isLoading } = useGuideRecommendation();
-  const { phase, isLoading: phaseLoading } = useUserPhase();
+  const { phase, speed, isLoading: phaseLoading } = useUserPhase();
   const { data: upcoming } = useUpcomingPosts();
 
   const handleNavigate = (route: string) => {
@@ -130,6 +131,11 @@ export default function AdaptiveHome() {
             postsThisWeek={upcoming?.weekCount ?? 0}
             nextPost={upcoming?.posts?.[0] || null}
           />
+        )}
+
+        {/* Suggested contents widget */}
+        {profileSummary.brandingTotal >= 30 && (speed === 1 || phase === "construction") && (
+          <SuggestedContents />
         )}
       </main>
     </div>
