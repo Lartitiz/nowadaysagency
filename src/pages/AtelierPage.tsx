@@ -8,6 +8,7 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Save, PenLine, ArrowLeft, CalendarDays, RefreshCw, Mic } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -177,7 +178,7 @@ export default function AtelierPage() {
     if (!user) return;
     setSavingIdx(idx);
     try {
-      await supabase.from("saved_ideas").insert({
+      const { error } = await supabase.from("saved_ideas").insert({
         user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         titre: idea.titre,
@@ -186,6 +187,7 @@ export default function AtelierPage() {
         canal,
         objectif: objectif || null,
       });
+      if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
       toast({ title: "Idée enregistrée !" });
     } catch {
       toast({ title: "Erreur", variant: "destructive" });

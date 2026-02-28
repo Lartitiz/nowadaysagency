@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { useToast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -196,9 +197,11 @@ export default function InstagramStats() {
     delete payload.id; delete payload.created_at;
     try {
       if (formId) {
-        await supabase.from("monthly_stats" as any).update(payload).eq("id", formId);
+        const { error } = await supabase.from("monthly_stats" as any).update(payload).eq("id", formId);
+        if (error) { sonnerToast.error("Erreur de sauvegarde"); setSaving(false); return; }
       } else {
-        const { data: ins } = await supabase.from("monthly_stats" as any).insert(payload).select("id").single();
+        const { data: ins, error } = await supabase.from("monthly_stats" as any).insert(payload).select("id").single();
+        if (error) { sonnerToast.error("Erreur de sauvegarde"); setSaving(false); return; }
         if (ins) setFormId((ins as any).id);
       }
       toast({ title: `✅ Stats de ${monthLabel(selectedMonth)} enregistrées.` });
@@ -221,9 +224,10 @@ export default function InstagramStats() {
       const insight = data?.insight || "";
       setAiAnalysis(insight);
       if (formId) {
-        await supabase.from("monthly_stats" as any).update({
+        const { error: updErr } = await supabase.from("monthly_stats" as any).update({
           ai_analysis: insight, ai_analyzed_at: new Date().toISOString(),
         }).eq("id", formId);
+        if (updErr) { sonnerToast.error("Erreur de sauvegarde de l'analyse"); }
       }
     } catch {
       toast({ title: "Erreur lors de l'analyse", variant: "destructive" });
@@ -236,9 +240,11 @@ export default function InstagramStats() {
     const payload = { ...cfg, user_id: user.id, updated_at: new Date().toISOString() } as any;
     delete payload.id;
     if (config?.id) {
-      await supabase.from("stats_config" as any).update(payload).eq("id", config.id);
+      const { error } = await supabase.from("stats_config" as any).update(payload).eq("id", config.id);
+      if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
     } else {
-      const { data } = await supabase.from("stats_config" as any).insert(payload).select("id").single();
+      const { data, error } = await supabase.from("stats_config" as any).insert(payload).select("id").single();
+      if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
       if (data) payload.id = (data as any).id;
     }
     setConfig({ ...cfg, id: config?.id || payload.id });
