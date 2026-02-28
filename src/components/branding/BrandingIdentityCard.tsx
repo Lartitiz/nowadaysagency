@@ -36,6 +36,8 @@ interface Props {
   completion: BrandingCompletion;
   summaries: SectionSummary;
   onReanalyze?: () => void;
+  profileName?: string;
+  profileActivity?: string;
 }
 
 function getSummaryLine(section: SectionConfig, summaries: SectionSummary): string {
