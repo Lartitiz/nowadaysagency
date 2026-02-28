@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { toast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 
 export default function CommPlanPage() {
   const { user } = useAuth();
@@ -149,9 +150,11 @@ export default function CommPlanPage() {
       };
 
       if (config) {
-        await (supabase.from("user_plan_config") as any).update(payload).eq(column, value);
+        const { error } = await (supabase.from("user_plan_config") as any).update(payload).eq(column, value);
+        if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
       } else {
-        await supabase.from("user_plan_config").insert(payload);
+        const { error } = await supabase.from("user_plan_config").insert(payload);
+        if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
       }
 
       setConfig(cfg);

@@ -81,10 +81,11 @@ export default function OfferWorkshopPage() {
   const autoSaveFn = useCallback(async () => {
     if (!id || !user) return;
     const fields = getDbFields();
-    await supabase.from("offers").update({
+    const { error } = await supabase.from("offers").update({
       ...fields,
       updated_at: new Date().toISOString(),
     }).eq("id", id);
+    if (error) { toast.error("Erreur de sauvegarde"); }
   }, [id, user, getDbFields]);
 
   const { saved, saving: autoSaving, triggerSave } = useAutoSave(autoSaveFn, 1000);
@@ -241,7 +242,8 @@ export default function OfferWorkshopPage() {
   const deleteOffer = async () => {
     if (!id) return;
     if (!confirm("Supprimer cette offre ?")) return;
-    await supabase.from("offers").delete().eq("id", id);
+    const { error } = await supabase.from("offers").delete().eq("id", id);
+    if (error) { toast.error("Erreur de suppression"); return; }
     navigate("/branding/offres");
   };
 
