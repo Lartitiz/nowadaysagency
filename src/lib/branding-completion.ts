@@ -62,7 +62,14 @@ export function calculateBrandingCompletion(data: BrandingRawData): BrandingComp
   ];
   const hasDescription = filled(per?.description);
   const personaFilled = personaFields.filter(filled).length;
-  const persona = hasDescription && personaFilled === 0 ? 40 : Math.round((personaFilled / 5) * 100);
+  let persona: number;
+  if (personaFilled > 0) {
+    persona = Math.round((personaFilled / 5) * 100);
+  } else if (hasDescription) {
+    persona = 50;
+  } else {
+    persona = 0;
+  }
 
   // PROPOSITION: 4 checkpoints
   const prop = data.proposition;
