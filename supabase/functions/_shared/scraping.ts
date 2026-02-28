@@ -162,6 +162,204 @@ export async function scrapeLinkedin(url: string, signal: AbortSignal): Promise<
   }
 }
 
+export function extractTextFromPdf(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let raw = "";
+  for (let i = 0; i < bytes.length; i++) raw += String.fromCharCode(bytes[i]);
+
+  const decodeEscapes = (s: string) =>
+    s.replace(/\\n/g, "\n").replace(/\\r/g, "\r").replace(/\\t/g, "\t")
+      .replace(/\\\(/g, "(").replace(/\\\)/g, ")").replace(/\\\\/g, "\\");
+
+  const lines: string[] = [];
+  const btRegex = /BT\s([\s\S]*?)ET/g;
+  let m: RegExpExecArray | null;
+  while ((m = btRegex.exec(raw)) !== null) {
+    const block = m[1];
+    // Tj - simple text
+    const tjRegex = /\(([^)]*)\)\s*Tj/g;
+    let tj: RegExpExecArray | null;
+    while ((tj = tjRegex.exec(block)) !== null) {
+      const t = decodeEscapes(tj[1]).trim();
+      if (t) lines.push(t);
+    }
+    // TJ - array with kerning
+    const tjArrRegex = /\[(.*?)\]\s*TJ/g;
+    let tja: RegExpExecArray | null;
+    while ((tja = tjArrRegex.exec(block)) !== null) {
+      const parts: string[] = [];
+      const itemRegex = /\(([^)]*)\)/g;
+      let item: RegExpExecArray | null;
+      while ((item = itemRegex.exec(tja[1])) !== null) {
+        parts.push(decodeEscapes(item[1]));
+      }
+      const joined = parts.join("").trim();
+      if (joined) lines.push(joined);
+    }
+    // Hex strings
+    const hexRegex = /<([0-9a-fA-F]+)>\s*Tj/g;
+    let hx: RegExpExecArray | null;
+    while ((hx = hexRegex.exec(block)) !== null) {
+      let txt = "";
+      for (let i = 0; i < hx[1].length; i += 2) {
+        txt += String.fromCharCode(parseInt(hx[1].substring(i, i + 2), 16));
+      }
+      if (txt.trim()) lines.push(txt.trim());
+    }
+  }
+
+  // Fallback: parse streams
+  if (lines.join("").length < 50) {
+    const streamRegex = /stream\r?\n([\s\S]*?)endstream/g;
+    let sm: RegExpExecArray | null;
+    while ((sm = streamRegex.exec(raw)) !== null) {
+      const readable = sm[1].replace(/[^\x20-\x7E\xC0-\xFF\n]/g, " ")
+        .replace(/ {3,}/g, "\n").trim();
+      if (readable.length > 20) lines.push(readable);
+    }
+  }
+
+  // Deduplicate consecutive identical lines
+  const deduped: string[] = [];
+  for (const line of lines) {
+    if (deduped.length === 0 || deduped[deduped.length - 1] !== line) {
+      deduped.push(line);
+    }
+  }
+
+  return deduped.join("\n");
+}
+
+function parseDocxXml(xmlText: string): string {
+  const paragraphs: string[] = [];
+  const pRegex = /<w:p[^>]*>([\s\S]*?)<\/w:p>/g;
+  let pm: RegExpExecArray | null;
+  while ((pm = pRegex.exec(xmlText)) !== null) {
+    const tRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
+    let tm: RegExpExecArray | null;
+    const parts: string[] = [];
+    while ((tm = tRegex.exec(pm[1])) !== null) {
+      parts.push(tm[1]);
+    }
+    const line = parts.join("").trim();
+    if (line) paragraphs.push(line);
+  }
+
+  if (paragraphs.length === 0) {
+    const fallbackRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
+    let fb: RegExpExecArray | null;
+    while ((fb = fallbackRegex.exec(xmlText)) !== null) {
+      const t = fb[1].trim();
+      if (t) paragraphs.push(t);
+    }
+  }
+
+  return paragraphs.join("\n");
+}
+
+async function decompressDeflateAsync(compressed: Uint8Array): Promise<Uint8Array> {
+  const ds = new DecompressionStream("raw");
+  const writer = ds.writable.getWriter();
+  writer.write(compressed);
+  writer.close();
+
+  const reader = ds.readable.getReader();
+  const chunks: Uint8Array[] = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+
+  let totalLen = 0;
+  for (const c of chunks) totalLen += c.length;
+  const result = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const c of chunks) {
+    result.set(c, offset);
+    offset += c.length;
+  }
+  return result;
+}
+
+async function extractFileFromZipAsync(data: Uint8Array, targetFile: string): Promise<Uint8Array | null> {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  let offset = 0;
+
+  while (offset + 30 <= data.length) {
+    // Check PK\x03\x04 signature
+    if (view.getUint32(offset, true) !== 0x04034b50) break;
+
+    const compressionMethod = view.getUint16(offset + 8, true);
+    const compressedSize = view.getUint32(offset + 18, true);
+    const fileNameLength = view.getUint16(offset + 26, true);
+    const extraFieldLength = view.getUint16(offset + 28, true);
+
+    const fileNameBytes = data.subarray(offset + 30, offset + 30 + fileNameLength);
+    const fileName = new TextDecoder().decode(fileNameBytes);
+
+    const dataStart = offset + 30 + fileNameLength + extraFieldLength;
+
+    if (fileName === targetFile) {
+      const fileData = data.subarray(dataStart, dataStart + compressedSize);
+      if (compressionMethod === 0) return fileData;
+      if (compressionMethod === 8) return await decompressDeflateAsync(fileData);
+      return null;
+    }
+
+    offset = dataStart + compressedSize;
+  }
+
+  return null;
+}
+
+export async function extractTextFromDocxAsync(buffer: ArrayBuffer): Promise<string> {
+  try {
+    const data = new Uint8Array(buffer);
+    const xmlBytes = await extractFileFromZipAsync(data, "word/document.xml");
+    if (!xmlBytes) return "";
+    const xmlText = new TextDecoder("utf-8").decode(xmlBytes);
+    return parseDocxXml(xmlText);
+  } catch {
+    return "";
+  }
+}
+
+export async function extractFromBlob(blob: Blob, fileName: string): Promise<string | null> {
+  const ext = fileName.split(".").pop()?.toLowerCase();
+
+  if (ext === "txt" || ext === "md") {
+    return await blob.text();
+  }
+
+  if (ext === "pdf") {
+    const buffer = await blob.arrayBuffer();
+    const text = extractTextFromPdf(buffer);
+    if (text.length < 50) {
+      return `[PDF scanné : le texte n'a pas pu être extrait. Seuls les PDF textuels sont pris en charge.]`;
+    }
+    return text;
+  }
+
+  if (ext === "docx" || ext === "doc") {
+    const buffer = await blob.arrayBuffer();
+    let text = await extractTextFromDocxAsync(buffer);
+    if (text.length < 20) {
+      // Fallback: raw text extraction
+      const rawText = await blob.text();
+      const words = rawText.match(/[a-zA-ZÀ-ÿ]{2,}/g);
+      text = words ? words.join(" ") : "";
+    }
+    return text || null;
+  }
+
+  if (["png", "jpg", "jpeg", "webp"].includes(ext || "")) {
+    return `[Image uploadée : contenu visuel, non extractible en texte]`;
+  }
+
+  return null;
+}
+
 export async function processDocuments(
   supabase: ReturnType<typeof createClient>,
   documentIds: string[],
@@ -170,36 +368,54 @@ export async function processDocuments(
 ): Promise<string | null> {
   const texts: string[] = [];
 
-  for (const _docId of documentIds.slice(0, 5)) {
+  const { data: docs, error: docsError } = await supabase
+    .from("user_documents")
+    .select("id, file_name, file_url, file_type")
+    .in("id", documentIds.slice(0, 5))
+    .eq("user_id", userId);
+
+  if (docsError || !docs || docs.length === 0) {
+    console.error("processDocuments: no docs found", docsError);
+    return null;
+  }
+
+  for (const doc of docs) {
     try {
-      const { data: files } = await supabase.storage
-        .from("onboarding-uploads")
-        .list(userId);
-
-      if (!files || files.length === 0) continue;
-
-      for (const file of files) {
-        const { data: fileData } = await supabase.storage
-          .from("onboarding-uploads")
-          .download(`${userId}/${file.name}`);
-
-        if (!fileData) continue;
-
-        const ext = file.name.split(".").pop()?.toLowerCase();
-
-        if (ext === "txt" || ext === "md") {
-          const text = await fileData.text();
-          texts.push(`[Document: ${file.name}]\n${text}`);
-        } else if (ext === "pdf" || ext === "docx") {
-          texts.push(`[Document uploadé: ${file.name} - contenu binaire non extractible directement]`);
-        } else if (["png", "jpg", "jpeg", "webp"].includes(ext || "")) {
-          texts.push(`[Image uploadée: ${file.name}]`);
-        }
-
-        if (texts.join("\n").length > maxTextLength) break;
+      // Build file path from file_url
+      let filePath = doc.file_url;
+      if (filePath && !filePath.startsWith(userId)) {
+        filePath = `${userId}/${filePath}`;
       }
+
+      let fileData: Blob | null = null;
+
+      // First attempt
+      const { data: dl1, error: err1 } = await supabase.storage
+        .from("onboarding-uploads")
+        .download(filePath);
+      if (!err1 && dl1) {
+        fileData = dl1;
+      } else {
+        // Fallback: try raw file_url
+        const { data: dl2, error: err2 } = await supabase.storage
+          .from("onboarding-uploads")
+          .download(doc.file_url);
+        if (!err2 && dl2) {
+          fileData = dl2;
+        } else {
+          console.error(`processDocuments: download failed for ${doc.file_name}`, err1, err2);
+          continue;
+        }
+      }
+
+      const extracted = await extractFromBlob(fileData, doc.file_name || "file.txt");
+      if (extracted) {
+        texts.push(`[Document: ${doc.file_name}]\n${extracted}`);
+      }
+
+      if (texts.join("\n").length > maxTextLength) break;
     } catch (e) {
-      console.error(`Error processing doc:`, e);
+      console.error(`processDocuments: error on ${doc.file_name}:`, e);
     }
   }
 
