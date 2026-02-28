@@ -178,7 +178,7 @@ export default function CalendarPage() {
   const isInstagramRoute = location.pathname.startsWith("/instagram/");
   const [searchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<"month" | "week" | "kanban" | "list">("week");
+  const [viewMode, setViewMode] = useState<"month" | "week" | "kanban" | "list">("month");
   const [kanbanPeriod, setKanbanPeriod] = useState<"week" | "month" | "all">("week");
   const [posts, setPosts] = useState<CalendarPost[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
