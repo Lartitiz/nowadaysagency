@@ -183,7 +183,7 @@ export default function DiagnosticLoading({
           },
         };
 
-        const { data, error } = await supabase.functions.invoke("deep-diagnostic", { body });
+        const { data, error } = await supabase.functions.invoke("deep-diagnostic", { body: { ...body, isOnboarding: true } });
 
         if (error || !data) {
           console.warn("Edge function failed, using fallback:", error);
