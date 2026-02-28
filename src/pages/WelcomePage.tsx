@@ -110,15 +110,18 @@ export default function WelcomePage() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      // Config
+      // Config - use user_id directly, not workspace filter, for auth check
       const { data: config } = await (supabase.from("user_plan_config") as any)
         .select("main_goal, weekly_time, welcome_seen, onboarding_completed")
-        .eq(column, value)
+        .eq("user_id", user.id)
         .maybeSingle();
-      if (!config?.onboarding_completed) {
-        navigate("/onboarding", { replace: true });
+      
+      // If welcome already seen, go to dashboard
+      if (config?.welcome_seen) {
+        navigate("/dashboard", { replace: true });
         return;
       }
+      
       if (config) {
         setGoal(config.main_goal || "");
         setTime(config.weekly_time || "");
