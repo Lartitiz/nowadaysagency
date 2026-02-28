@@ -149,6 +149,10 @@ export default function SuggestedContents() {
   const [selectedContent, setSelectedContent] = useState<SuggestedContent | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const regenCountKey = `lac_regen_${format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd")}`;
+  const [regenCount, setRegenCount] = useState(() => {
+    try { return parseInt(localStorage.getItem(regenCountKey) || "0", 10); } catch { return 0; }
+  });
 
   const weekStart = useMemo(() => {
     return format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
@@ -273,6 +277,25 @@ export default function SuggestedContents() {
     }
   }, [cachedContents]);
 
+  const handleRegenerate = async () => {
+    if (!user || isGenerating) return;
+    if (regenCount >= 3) {
+      toast("Tu as déjà régénéré 3 fois cette semaine. Les nouvelles suggestions arrivent lundi !");
+      return;
+    }
+
+    await (supabase.from("suggested_contents") as any)
+      .delete()
+      .eq("user_id", user.id)
+      .eq("week_start", weekStart);
+
+    const newCount = regenCount + 1;
+    setRegenCount(newCount);
+    localStorage.setItem(regenCountKey, String(newCount));
+
+    refetch();
+  };
+
   const handleSchedule = async (content: SuggestedContent) => {
     if (!user) return;
     try {
@@ -338,12 +361,24 @@ export default function SuggestedContents() {
       className="px-4 py-4"
     >
       {/* Header */}
-      <h3
-        className="text-base text-foreground mb-0.5"
-        style={{ fontFamily: "'Libre Baskerville', serif" }}
-      >
-        Tes contenus de la semaine
-      </h3>
+      <div className="flex items-center justify-between mb-0.5">
+        <h3
+          className="text-base text-foreground"
+          style={{ fontFamily: "'Libre Baskerville', serif" }}
+        >
+          Tes contenus de la semaine
+        </h3>
+        {regenCount < 3 && (
+          <button
+            onClick={handleRegenerate}
+            disabled={isGenerating}
+            className="text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+          >
+            {isGenerating ? "Génération..." : `🔄 Régénérer (${3 - regenCount})`}
+          </button>
+        )}
+      </div>
       <p
         className="text-[13px] text-muted-foreground mb-4"
         style={{ fontFamily: "'IBM Plex Mono', monospace" }}
