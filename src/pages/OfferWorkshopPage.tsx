@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Sparkles, Check, Pencil, Loader2, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAutoSave, SaveIndicator } from "@/hooks/use-auto-save";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
+import OfferSynthesisCard from "@/components/branding/OfferSynthesisCard";
 
 const STEPS = [
   { num: 1, label: "Bases" },
@@ -41,6 +43,9 @@ export default function OfferWorkshopPage() {
   const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") === "synthese" ? "synthese" : "workshop";
+  const [workshopTab, setWorkshopTab] = useState(initialTab);
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const [offer, setOffer] = useState<any>(null);
@@ -261,6 +266,50 @@ export default function OfferWorkshopPage() {
 
   const pct = Math.round((step / 7) * 100);
 
+  const renderWorkshop = () => (
+    <>
+      {/* Progress bar */}
+      <div className="mb-8">
+        <div className="flex items-center gap-1 mb-2 flex-wrap">
+          {STEPS.map((s) => (
+            <button
+              key={s.num}
+              onClick={() => { if (s.num <= (offer?.current_step || step)) { setStep(s.num); setAiResponse(null); } }}
+              className={`text-[11px] font-mono-ui font-semibold px-2 py-1 rounded-full transition-colors ${
+                s.num === step ? "bg-primary text-primary-foreground" :
+                s.num < step ? "bg-primary/20 text-primary cursor-pointer" :
+                "bg-muted text-muted-foreground"
+              }`}
+            >
+              {s.num}. {s.label}
+            </button>
+          ))}
+        </div>
+        <Progress value={pct} className="h-2" />
+        <p className="text-[11px] text-muted-foreground mt-1">Étape {step}/7</p>
+      </div>
+
+      {/* Step content */}
+      {step === 1 && <Step1 formData={formData} setFormData={updateFormData} saved={saved} autoSaving={autoSaving} />}
+      {step === 2 && <Step2 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(2, formData.problem_surface)} saved={saved} autoSaving={autoSaving} />}
+      {step === 3 && <Step3 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(3, formData.promise)} saved={saved} autoSaving={autoSaving} />}
+      {step === 4 && <Step4 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(4, formData.features_text)} saved={saved} autoSaving={autoSaving} />}
+      {step === 5 && <Step5 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(5, formData.target_ideal)} saved={saved} autoSaving={autoSaving} />}
+      {step === 6 && <Step6 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(6, formData.objections_text)} saved={saved} autoSaving={autoSaving} />}
+      {step === 7 && <Step7 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} offer={offer} onAskAI={() => askAI(7, "")} />}
+      {aiResponse && <AiGeneratedMention />}
+
+      {/* Navigation */}
+      <div className="flex items-center justify-between mt-8 pt-4 border-t border-border">
+        <Button variant="outline" onClick={goPrev} disabled={step === 1}>← Retour</Button>
+        <Button onClick={goNext} disabled={saving}>
+          {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+          {step === 7 ? "✅ Terminer" : "Suivant →"}
+        </Button>
+      </div>
+    </>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -272,45 +321,24 @@ export default function OfferWorkshopPage() {
           </Button>
         </div>
 
-        {/* Progress bar */}
-        <div className="mb-8">
-          <div className="flex items-center gap-1 mb-2 flex-wrap">
-            {STEPS.map((s) => (
-              <button
-                key={s.num}
-                onClick={() => { if (s.num <= (offer?.current_step || step)) { setStep(s.num); setAiResponse(null); } }}
-                className={`text-[11px] font-mono-ui font-semibold px-2 py-1 rounded-full transition-colors ${
-                  s.num === step ? "bg-primary text-primary-foreground" :
-                  s.num < step ? "bg-primary/20 text-primary cursor-pointer" :
-                  "bg-muted text-muted-foreground"
-                }`}
-              >
-                {s.num}. {s.label}
-              </button>
-            ))}
-          </div>
-          <Progress value={pct} className="h-2" />
-          <p className="text-[11px] text-muted-foreground mt-1">Étape {step}/7</p>
-        </div>
+        {offer?.completed ? (
+          <Tabs value={workshopTab} onValueChange={setWorkshopTab} className="mb-6">
+            <TabsList className="w-full mb-4">
+              <TabsTrigger value="synthese" className="flex-1 gap-2">✨ Fiche synthèse</TabsTrigger>
+              <TabsTrigger value="workshop" className="flex-1 gap-2">✏️ Modifier</TabsTrigger>
+            </TabsList>
 
-        {/* Step content */}
-        {step === 1 && <Step1 formData={formData} setFormData={updateFormData} saved={saved} autoSaving={autoSaving} />}
-        {step === 2 && <Step2 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(2, formData.problem_surface)} saved={saved} autoSaving={autoSaving} />}
-        {step === 3 && <Step3 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(3, formData.promise)} saved={saved} autoSaving={autoSaving} />}
-        {step === 4 && <Step4 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(4, formData.features_text)} saved={saved} autoSaving={autoSaving} />}
-        {step === 5 && <Step5 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(5, formData.target_ideal)} saved={saved} autoSaving={autoSaving} />}
-        {step === 6 && <Step6 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(6, formData.objections_text)} saved={saved} autoSaving={autoSaving} />}
-        {step === 7 && <Step7 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} offer={offer} onAskAI={() => askAI(7, "")} />}
-        {aiResponse && <AiGeneratedMention />}
+            <TabsContent value="synthese">
+              <OfferSynthesisCard offer={offer} onEdit={() => setWorkshopTab("workshop")} />
+            </TabsContent>
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between mt-8 pt-4 border-t border-border">
-          <Button variant="outline" onClick={goPrev} disabled={step === 1}>← Retour</Button>
-          <Button onClick={goNext} disabled={saving}>
-            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-            {step === 7 ? "✅ Terminer" : "Suivant →"}
-          </Button>
-        </div>
+            <TabsContent value="workshop">
+              {renderWorkshop()}
+            </TabsContent>
+          </Tabs>
+        ) : (
+          renderWorkshop()
+        )}
       </main>
     </div>
   );
