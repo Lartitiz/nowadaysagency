@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
         onboarding_completed: false,
         onboarding_completed_at: null,
         onboarding_step: 0,
-        canaux: null,
+        canaux: [],
         main_blocker: null,
         main_goal: null,
         weekly_time: null,
