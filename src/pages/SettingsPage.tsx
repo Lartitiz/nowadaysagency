@@ -450,33 +450,60 @@ export default function SettingsPage() {
                         main_blocker: null,
                         main_goal: null,
                         weekly_time: null,
-                      }).eq("user_id", user.id);
+                        diagnostic_data: null,
+                      } as any).eq("user_id", user.id);
                       if (profileError) console.error("[reset] profiles update failed:", profileError);
 
                       // 3. Reset user_plan_config - CRITICAL: must succeed for ProtectedRoute
-                      const { error: configError } = await supabase
-                        .from("user_plan_config")
-                        .update({ onboarding_completed: false, onboarding_completed_at: null } as any)
+                      // Try update first, then delete as fallback
+                      const { error: configError, count: configCount } = await (supabase
+                        .from("user_plan_config") as any)
+                        .update({ onboarding_completed: false, onboarding_completed_at: null, welcome_seen: false })
                         .eq("user_id", user.id);
 
-                      if (configError) {
-                        console.error("[reset] user_plan_config update failed:", configError);
-                        // Fallback: delete row so ProtectedRoute sees no config
+                      if (configError || configCount === 0) {
+                        console.warn("[reset] user_plan_config update issue:", configError?.message, "count:", configCount);
+                        // Fallback: delete ALL rows for this user so ProtectedRoute sees no config
                         await (supabase.from("user_plan_config") as any).delete().eq("user_id", user.id);
+                        console.log("[reset] user_plan_config deleted as fallback");
+                      } else {
+                        console.log("[reset] user_plan_config reset done, count:", configCount);
                       }
-                      console.log("[reset] user_plan_config reset done");
 
-                      // 4. Clear localStorage
+                      // 3b. Also delete diagnostic_results to ensure clean slate
+                      await (supabase.from("diagnostic_results") as any).delete().eq("user_id", user.id);
+
+                      // 4. Verify the reset actually took effect before navigating
+                      const { data: verifyProfile } = await supabase
+                        .from("profiles")
+                        .select("onboarding_completed")
+                        .eq("user_id", user.id)
+                        .maybeSingle();
+                      const { data: verifyConfig } = await (supabase
+                        .from("user_plan_config") as any)
+                        .select("onboarding_completed")
+                        .eq("user_id", user.id)
+                        .maybeSingle();
+
+                      const stillCompleted = verifyProfile?.onboarding_completed === true || verifyConfig?.onboarding_completed === true;
+                      if (stillCompleted) {
+                        console.error("[reset] CRITICAL: onboarding still marked as completed after reset!", { profile: verifyProfile, config: verifyConfig });
+                        toast({ title: "Erreur", description: "La réinitialisation a échoué. Réessaie ou contacte le support.", variant: "destructive" });
+                        setResettingOnboarding(false);
+                        return;
+                      }
+
+                      // 5. Clear localStorage
                       localStorage.removeItem("lac_onboarding_step");
                       localStorage.removeItem("lac_onboarding_answers");
                       localStorage.removeItem("lac_onboarding_branding");
                       localStorage.removeItem("lac_onboarding_ts");
                       localStorage.removeItem("branding_skip_import");
 
-                      // 5. Set reset flag so useOnboarding doesn't redirect back to dashboard
+                      // 6. Set reset flag so useOnboarding doesn't redirect back to dashboard
                       localStorage.setItem("lac_onboarding_reset", "true");
 
-                      // 6. Force full page reload to clear React state and re-check onboarding
+                      // 7. Force full page reload to clear React state and re-check onboarding
                       window.location.href = "/onboarding";
                     } catch (e) {
                       console.error("[reset] Fatal error:", e);
