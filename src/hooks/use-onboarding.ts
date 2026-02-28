@@ -194,8 +194,16 @@ export function useOnboarding() {
   }, [restoredFromSave]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Check if onboarding already completed
+  // Skip this check if we arrive from a reset (flagged in localStorage)
   useEffect(() => {
     if (isDemoMode || !user || step >= TOTAL_STEPS) return;
+
+    const isReset = localStorage.getItem("lac_onboarding_reset") === "true";
+    if (isReset) {
+      localStorage.removeItem("lac_onboarding_reset");
+      return;
+    }
+
     const check = async () => {
       const { data: profile } = await supabase
         .from("profiles")
@@ -209,7 +217,7 @@ export function useOnboarding() {
       const { data: config } = await (supabase
         .from("user_plan_config") as any)
         .select("onboarding_completed")
-        .eq(column, value)
+        .eq("user_id", user.id)
         .maybeSingle();
       if (config?.onboarding_completed) {
         navigate("/dashboard", { replace: true });
