@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, LayoutGrid } from "lucide-react";
+import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, LayoutGrid, Wrench } from "lucide-react";
 
 import { useDemoContext } from "@/contexts/DemoContext";
 import { toast } from "sonner";
@@ -487,6 +487,9 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/admin/audit")} className="gap-2 cursor-pointer">
               <Search className="h-4 w-4" /> 🔧 Audit app
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/admin/tools")} className="gap-2 cursor-pointer">
+              <Wrench className="h-4 w-4" /> 🛠️ Outils admin
             </DropdownMenuItem>
           </>
         )}
