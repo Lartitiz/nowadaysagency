@@ -24,6 +24,7 @@ export default function LinkedInProfil() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { data: propositionData } = useBrandProposition();
+  const [loading, setLoading] = useState(true);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [titleDone, setTitleDone] = useState(false);
@@ -59,6 +60,7 @@ export default function LinkedInProfil() {
       if (prop) {
         setPropValue(prop.version_short || prop.version_final || null);
       }
+      setLoading(false);
     };
     load();
   }, [user?.id, propositionData]);
@@ -112,6 +114,8 @@ export default function LinkedInProfil() {
 
   const titleCharCount = title.length;
   const titleOverLimit = titleCharCount > 220;
+
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
     <div className="min-h-screen bg-background">

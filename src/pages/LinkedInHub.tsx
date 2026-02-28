@@ -27,6 +27,7 @@ export default function LinkedInHub() {
   const { isDemoMode } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const [coachingOpen, setCoachingOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<ProgressData>({
     profileSteps: 0, summaryDone: false, experienceCount: 0,
     recoCount: 0, engagementWeekly: "À faire", ideasCount: 0, calendarCount: 0, commentAccountsCount: 0,
@@ -44,6 +45,7 @@ export default function LinkedInHub() {
         calendarCount: 3,
         commentAccountsCount: 12,
       });
+      setLoading(false);
       return;
     }
     if (!user) return;
@@ -86,6 +88,7 @@ export default function LinkedInHub() {
         calendarCount: calRes.count || 0,
         commentAccountsCount,
       });
+      setLoading(false);
     };
     fetch();
   }, [user?.id, column, value]);
@@ -100,6 +103,8 @@ export default function LinkedInHub() {
     "/linkedin/comment-strategy": `${progress.commentAccountsCount} compte${progress.commentAccountsCount !== 1 ? "s" : ""}`,
     "/calendrier?canal=linkedin": `${progress.calendarCount} post${progress.calendarCount !== 1 ? "s" : ""} ce mois`,
   };
+
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
     <div className="min-h-screen bg-background">

@@ -27,6 +27,7 @@ export default function LinkedInParcours() {
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const [loading, setLoading] = useState(true);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [generatingIdx, setGeneratingIdx] = useState<number | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
@@ -49,6 +50,7 @@ export default function LinkedInParcours() {
     if (!user) return;
     (supabase.from("linkedin_experiences") as any).select("*").eq(column, value).order("sort_order").then(({ data }: any) => {
       if (data && data.length > 0) setExperiences(data.map(d => ({ id: d.id, job_title: d.job_title || "", company: d.company || "", description_raw: d.description_raw || "", description_optimized: d.description_optimized || "" })));
+      setLoading(false);
     });
   }, [user?.id]);
 
@@ -133,6 +135,8 @@ export default function LinkedInParcours() {
     setTimeout(() => setCopied(null), 2000);
     toast({ title: "📋 Copié !" });
   };
+
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
     <div className="min-h-screen bg-background">
