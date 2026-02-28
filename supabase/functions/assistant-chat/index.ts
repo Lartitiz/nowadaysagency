@@ -177,7 +177,6 @@ async function executeActions(sb: any, userId: string, actions: any[], workspace
             await saveUndoLog(sb, userId, "update_strategy", "brand_strategy", before.id, before);
             const { error } = await sb.from("brand_strategy").update({ [action.field]: action.value }).eq(filterCol, filterVal);
             results.push({ action: action.type, field: action.field, success: !error, error: error?.message });
-            results.push({ action: action.type, field: action.field, success: !error, error: error?.message });
           }
           break;
         }
