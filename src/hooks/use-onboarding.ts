@@ -41,15 +41,14 @@ function getStepName(step: number): string {
     1: "prenom_activite",
     2: "activity_type",
     3: "links_docs",
-    4: "canaux_actuels",
-    5: "canaux_souhaites",
-    6: "objectif",
-    7: "blocage",
-    8: "temps",
-    9: "affinage_1",
-    10: "affinage_2",
-    11: "affinage_3",
-    12: "building_diagnostic",
+    4: "canaux_combined",
+    5: "objectif",
+    6: "blocage",
+    7: "temps",
+    8: "affinage_1",
+    9: "affinage_2",
+    10: "affinage_3",
+    11: "building_diagnostic",
   };
   return names[step] || "unknown_" + step;
 }
@@ -272,7 +271,7 @@ export function useOnboarding() {
   const auditsLaunched = useRef(false);
   useEffect(() => {
     if (isDemoMode || !user || auditsLaunched.current) return;
-    if (step < 9) return; // Start at affinage phase
+    if (step < 8) return; // Start at affinage phase
     auditsLaunched.current = true;
     setAuditResults(prev => ({ ...prev, isLoading: true }));
 
