@@ -101,7 +101,12 @@ serve(async (req) => {
       );
     }
 
-    if (linkedinUrl) {
+    // LinkedIn: prefer user-provided summary over scraping
+    const linkedinSummary = freeformAnswers?.linkedin_summary;
+    if (linkedinSummary && linkedinSummary.trim().length > 10) {
+      scrapedContent.linkedin = `Profil LinkedIn (résumé fourni par l'utilisatrice) :\n${linkedinSummary.trim()}`.slice(0, MAX_TEXT_PER_SOURCE);
+      sourcesUsed.push("linkedin");
+    } else if (linkedinUrl) {
       scrapePromises.push(
         scrapeLinkedin(linkedinUrl, controller.signal)
           .then((text) => {

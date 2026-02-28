@@ -179,6 +179,7 @@ export default function DiagnosticLoading({
             change_priority: answers.change_priority || "",
             product_or_service: answers.product_or_service || "",
             uniqueness: answers.uniqueness || "",
+            linkedin_summary: (answers as any).linkedin_summary || "",
           },
         };
 
