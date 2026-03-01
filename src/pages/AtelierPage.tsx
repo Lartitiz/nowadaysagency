@@ -226,6 +226,9 @@ export default function AtelierPage() {
       angle: idea.angle,
       ...(objectif ? { objectif } : {}),
     });
+    if (calendarData?.calendarPostId) {
+      params.set("calendar_id", calendarData.calendarPostId);
+    }
     navigate(`/atelier/rediger?${params.toString()}`);
   };
 

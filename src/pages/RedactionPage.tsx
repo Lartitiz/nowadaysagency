@@ -39,6 +39,7 @@ export default function RedactionPage() {
   const theme = searchParams.get("theme") || "";
   const angle = searchParams.get("angle") || "";
   const objectif = searchParams.get("objectif") || null;
+  const calendarPostId = searchParams.get("calendar_id") || null;
 
   const [step, setStep] = useState(1);
   const { profile, brandProfile, mergedProfile, isLoading: profileLoading } = useMergedProfile();
@@ -438,6 +439,7 @@ export default function RedactionPage() {
               theme={theme}
               objectif={objectif || ""}
               accroche={selectedAccroche || customAccroche}
+              calendarPostId={calendarPostId || undefined}
             />
 
             <Button variant="outline" onClick={() => setStep(4)} className="rounded-pill mt-2">Retour</Button>
