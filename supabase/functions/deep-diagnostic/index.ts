@@ -180,6 +180,14 @@ RÈGLE N°4 — PRIORITÉS ACTIONNABLES :
 - Pour les combats, identifie les causes défendues, les refus assumés, les convictions fortes visibles dans le contenu.
 - Pour les content_pillars, identifie les 3 grands thèmes récurrents du contenu de la personne.
 
+RÈGLE N°5 — PAS DE RECOMMANDATIONS GÉNÉRIQUES :
+
+- NE recommande PAS de "créer un lead magnet", "mettre en place une newsletter", ou "ajouter un parcours de conversion" SAUF si tu as des preuves CONCRÈTES dans le contenu scrappé que ça manque.
+- Si le scraping a trouvé des formulaires, des champs email, ou des CTAs d'inscription, alors le site A un mécanisme de capture. Ne dis pas qu'il n'en a pas.
+- Si tu n'as pas pu scrapper le site ou si le contenu est trop limité pour conclure, NE FAIS PAS de supposition sur ce qui manque. Dis plutôt : "Je n'ai pas pu analyser ton site en profondeur, utilise l'audit site de l'outil pour un diagnostic plus précis."
+- Chaque faiblesse doit être basée sur une OBSERVATION concrète, pas sur une absence d'information. "Je ne vois pas X" n'est pas la même chose que "X n'existe pas".
+- Priorise les recommandations SPÉCIFIQUES à la personne (basées sur son activité, ses réponses, son contenu réel) plutôt que les conseils qui s'appliquent à tout le monde.
+
 RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
 
 {
@@ -584,7 +592,7 @@ const ACTIVITY_INSIGHTS: Record<string, { strengths: string[]; tips: string[]; p
   formatrice: {
     strengths: ["Tu sais déjà transmettre : ton contenu peut naturellement être pédagogique"],
     tips: ["Les carrousels 'X étapes pour...' et les mini-formations gratuites attirent ton audience", "Montre des extraits de tes formations pour donner envie"],
-    priority: "Crée un lead magnet (checklist, mini-guide) autour de ton expertise",
+    priority: "Publie un extrait de ta méthode en contenu gratuit pour montrer ton expertise",
   },
   deco_interieur: {
     strengths: ["Les avant/après et les moodboards sont tes formats stars"],

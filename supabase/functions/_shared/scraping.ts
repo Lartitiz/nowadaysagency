@@ -5,11 +5,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
 
 export function extractTextFromHtml(html: string): string {
+  // Remove scripts and styles only — keep nav/footer for conversion signals
   let text = html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
-    .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "");
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
 
   const titleMatch = text.match(/<title[^>]*>(.*?)<\/title>/i);
   const title = titleMatch ? titleMatch[1].trim() : "";
@@ -18,10 +17,11 @@ export function extractTextFromHtml(html: string): string {
   const metaDesc = metaMatch ? metaMatch[1].trim() : "";
 
   const headings: string[] = [];
-  const hRegex = /<h[1-3][^>]*>(.*?)<\/h[1-3]>/gi;
+  const hRegex = /<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi;
   let match;
   while ((match = hRegex.exec(text)) !== null) {
-    headings.push(match[1].replace(/<[^>]+>/g, "").trim());
+    const h = match[1].replace(/<[^>]+>/g, "").trim();
+    if (h.length > 2) headings.push(h);
   }
 
   const paragraphs: string[] = [];
@@ -31,11 +31,44 @@ export function extractTextFromHtml(html: string): string {
     if (p.length > 20) paragraphs.push(p);
   }
 
+  // Capture conversion signals: forms, CTAs, buttons, inputs
+  const conversionSignals: string[] = [];
+
+  const formCount = (text.match(/<form/gi) || []).length;
+  if (formCount > 0) conversionSignals.push(`Formulaires détectés : ${formCount}`);
+
+  const emailInputs = text.match(/<input[^>]*type=["']email["'][^>]*/gi);
+  if (emailInputs) conversionSignals.push(`Champs email détectés : ${emailInputs.length}`);
+
+  const ctaRegex = /<(?:button|a)[^>]*>(.*?)<\/(?:button|a)>/gi;
+  const ctaTexts: string[] = [];
+  while ((match = ctaRegex.exec(text)) !== null) {
+    const ctaText = match[1].replace(/<[^>]+>/g, "").trim();
+    if (ctaText.length > 2 && ctaText.length < 80) ctaTexts.push(ctaText);
+  }
+  if (ctaTexts.length > 0) {
+    const conversionKeywords = /newsletter|s'inscrire|inscri|télécharger|download|gratuit|freebie|lead|email|abonne|recevoir|cadeau|offert|rejoindre|guide|checklist/i;
+    const conversionCtas = ctaTexts.filter(t => conversionKeywords.test(t));
+    if (conversionCtas.length > 0) {
+      conversionSignals.push(`CTAs de conversion : ${conversionCtas.join(" | ")}`);
+    }
+  }
+
+  // Capture footer content
+  const footerMatch = text.match(/<footer[^>]*>([\s\S]*?)<\/footer>/i);
+  let footerText = "";
+  if (footerMatch) {
+    footerText = footerMatch[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (footerText.length > 500) footerText = footerText.slice(0, 500);
+  }
+
   const parts = [];
   if (title) parts.push(`Titre: ${title}`);
   if (metaDesc) parts.push(`Description: ${metaDesc}`);
   if (headings.length) parts.push(`Titres: ${headings.join(" | ")}`);
   if (paragraphs.length) parts.push(`Contenu:\n${paragraphs.join("\n")}`);
+  if (conversionSignals.length > 0) parts.push(`Signaux de conversion:\n${conversionSignals.join("\n")}`);
+  if (footerText) parts.push(`Footer: ${footerText}`);
 
   return parts.join("\n\n");
 }
