@@ -199,7 +199,7 @@ export async function computePlan(
     {
       id: "branding",
       label: "Poser ton branding",
-      description: "Positionnement, mission, ton, proposition de valeur",
+      description: "C'est le socle de tout. Plus ton positionnement est clair, plus l'outil génère des contenus qui te ressemblent.",
       duration: 20,
       route: "/branding",
       status: s(brandingDone, brandingStarted),
@@ -208,7 +208,7 @@ export async function computePlan(
     {
       id: "persona",
       label: "Définir ta cible",
-      description: "Qui est ta cliente idéale, ses frustrations",
+      description: "Savoir exactement à qui tu parles, c'est ce qui rend ta communication percutante au lieu de parler dans le vide.",
       duration: 30,
       route: "/branding/persona",
       status: s(personaDone, personaStarted),
@@ -217,7 +217,7 @@ export async function computePlan(
     {
       id: "storytelling",
       label: "Écrire ton histoire",
-      description: "Ton storytelling de marque",
+      description: "Ton histoire, c'est ce qui te différencie. C'est elle qui crée la connexion avec tes futur·es client·es.",
       duration: 45,
       route: "/branding/storytelling",
       status: s(storyDone),
@@ -226,7 +226,7 @@ export async function computePlan(
     {
       id: "proposition",
       label: "Affiner ta proposition de valeur",
-      description: "Ce qui te rend unique pour tes clientes",
+      description: "La phrase qui fait que quelqu'un comprend en 10 secondes pourquoi toi et pas une autre.",
       duration: 30,
       route: "/branding/proposition",
       status: s(propDone, propStarted),
@@ -235,7 +235,7 @@ export async function computePlan(
     {
       id: "tone",
       label: "Définir ton style & tes combats",
-      description: "Ton registre, tes expressions, tes combats",
+      description: "Ton registre, tes expressions, ce que tu défends. C'est ce qui rend ta voix reconnaissable.",
       duration: 25,
       route: "/branding/ton",
       status: s(toneDone, toneStarted),
@@ -247,7 +247,7 @@ export async function computePlan(
     phase1Steps.push({
       id: "offers",
       label: "Définir tes offres",
-      description: "Atelier de positionnement d'offre",
+      description: "Clarifier ce que tu vends, à quel prix, et pourquoi ça vaut le coup. Indispensable pour convertir.",
       duration: 60,
       route: "/branding/offres",
       status: s(offersDone),
@@ -262,7 +262,7 @@ export async function computePlan(
     phase2Steps.push({
       id: "ig_audit",
       label: "Auditer ton Instagram",
-      description: "Analyse complète de ton profil",
+      description: "L'outil analyse ton profil et te dit exactement quoi améliorer pour attirer les bonnes personnes.",
       duration: 20,
       route: "/instagram/audit",
       status: s(igAuditDone),
@@ -272,7 +272,7 @@ export async function computePlan(
     phase2Steps.push({
       id: "ig_bio",
       label: "Optimiser ta bio Instagram",
-      description: "Bio, nom, photo de profil",
+      description: "Ta bio, c'est ta vitrine. 3 secondes pour convaincre quelqu'un de te suivre.",
       duration: 15,
       route: "/instagram/profil/bio",
       status: s(igBioDone),
@@ -285,7 +285,7 @@ export async function computePlan(
     phase2Steps.push({
       id: "li_audit",
       label: "Auditer ton LinkedIn",
-      description: "Analyse de ton profil LinkedIn",
+      description: "Ton profil LinkedIn, c'est ta crédibilité pro. On vérifie que tout est au bon endroit.",
       duration: 20,
       route: "/linkedin/audit",
       status: s(liAuditDone),
@@ -295,7 +295,7 @@ export async function computePlan(
     phase2Steps.push({
       id: "li_profil",
       label: "Optimiser ton profil LinkedIn",
-      description: "Titre, résumé, parcours",
+      description: "Titre, résumé, parcours : on optimise pour que les bonnes personnes te trouvent.",
       duration: 30,
       route: "/linkedin/profil",
       status: "todo",
@@ -355,7 +355,7 @@ export async function computePlan(
     {
       id: "strategy",
       label: "Définir ta stratégie de contenu",
-      description: "Piliers, facettes, twist créatif",
+      description: "Tes piliers de contenu, ton angle unique, ce qui fait qu'on te reconnaît dans un fil d'actu.",
       duration: 45,
       route: "/branding/strategie",
       status: s(stratDone, stratStarted),
@@ -367,7 +367,7 @@ export async function computePlan(
     phase3Steps.push({
       id: "edito",
       label: "Créer ta ligne éditoriale",
-      description: "Piliers de contenu, formats, fréquence",
+      description: "Tes formats, ta fréquence, tes thèmes récurrents. Le cadre qui rend la régularité possible.",
       duration: 45,
       route: "/instagram/profil/edito",
       status: s(editoDone),
@@ -378,7 +378,7 @@ export async function computePlan(
   phase3Steps.push({
     id: "calendar",
     label: "Planifier ton calendrier",
-    description: "Calendrier éditorial du mois",
+    description: "Visualise ton mois, anticipe tes publications. Fini le lundi matin en mode \"je poste quoi ?\".",
     duration: 60,
     route: "/calendrier",
     status: s(calendarDone),
@@ -392,7 +392,7 @@ export async function computePlan(
     phase4Steps.push({
       id: "engagement",
       label: "Mettre en place ta routine d'engagement",
-      description: "Contacts stratégiques + routine quotidienne",
+      description: "15 minutes par jour pour créer de vraies connexions. C'est ça qui fait grandir une communauté.",
       duration: 30,
       route: "/instagram/routine",
       status: s(contactsDone),
@@ -404,7 +404,7 @@ export async function computePlan(
     phase4Steps.push({
       id: "prospection",
       label: "Configurer ta prospection douce",
-      description: "Pipeline de prospects + DM",
+      description: "Identifier les bonnes personnes et engager la conversation. Sans forcer, sans spammer.",
       duration: 30,
       route: "/instagram/routine",
       status: s(prospectsDone),
@@ -415,7 +415,7 @@ export async function computePlan(
   phase4Steps.push({
     id: "first_content",
     label: "Créer ton premier contenu",
-    description: "Utiliser l'atelier créatif pour ton 1er post",
+    description: "Le meilleur moment pour poster, c'est maintenant. L'atelier t'accompagne de l'idée au texte final.",
     duration: 30,
     route: "/creer",
     status: s(calendarDone),
