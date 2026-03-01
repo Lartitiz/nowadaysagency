@@ -159,7 +159,7 @@ export default function SuggestedContents() {
   }, []);
 
   // Fetch cached suggestions for this week
-  const { data: cachedContents, refetch } = useQuery({
+  const { data: cachedContents, refetch, isLoading: isCacheLoading } = useQuery({
     queryKey: ["suggested-contents", user?.id, weekStart],
     queryFn: async () => {
       const { data } = await (supabase.from("suggested_contents") as any)
@@ -254,7 +254,7 @@ export default function SuggestedContents() {
     return () => { cancelled = true; };
   }, [user, cachedContents, brandProfile, weekStart, workspaceId]);
 
-  const waitingForBranding = !cachedContents && !brandProfile && !isGenerating;
+  const waitingForBranding = !isCacheLoading && !cachedContents && !brandProfile && !isGenerating;
 
   async function saveSuggestions(contents: SuggestedContent[]) {
     if (!user || contents.length === 0) return;
@@ -347,7 +347,7 @@ export default function SuggestedContents() {
     );
   }
 
-  if (isGenerating) {
+  if (isGenerating || isCacheLoading) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
