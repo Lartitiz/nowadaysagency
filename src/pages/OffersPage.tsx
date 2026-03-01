@@ -216,7 +216,7 @@ export default function OffersPage() {
 
       {/* Coaching panel (slide-in) */}
       {coachingOpen && (
-        <div className="fixed inset-0 z-50 flex">
+        <div className="fixed inset-0 z-50 flex overflow-y-auto">
           <div className="absolute inset-0 bg-black/40" onClick={() => setCoachingOpen(false)} />
           <div className="relative ml-auto w-full max-w-lg bg-background h-full overflow-y-auto shadow-xl animate-fade-in">
             <div className="p-6">
