@@ -310,36 +310,13 @@ export default function CommPlanPage() {
             initialConfig={config}
           />
         ) : (
-          <Tabs defaultValue="parcours" className="space-y-4">
-            <TabsList className="w-full grid grid-cols-2 h-11">
-              <TabsTrigger value="parcours" className="gap-1.5 text-xs sm:text-sm">
-                <ClipboardList className="h-3.5 w-3.5" />
-                Parcours
-              </TabsTrigger>
-              <TabsTrigger value="bilan" className="gap-1.5 text-xs sm:text-sm">
-                <BarChart3 className="h-3.5 w-3.5" />
-                Bilan
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="parcours">
-              <PlanView
-                plan={plan}
-                onEditConfig={() => setShowSetup(true)}
-                onToggleStep={handleToggleStep}
-              />
-            </TabsContent>
-
-            <TabsContent value="bilan">
-              <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
-                <Construction className="h-10 w-10 text-muted-foreground/40" />
-                <h3 className="font-display font-bold text-foreground">Bientôt disponible</h3>
-                <p className="text-sm text-muted-foreground max-w-sm">
-                  Le bilan hebdomadaire te permettra de suivre tes performances et ton évolution semaine après semaine.
-                </p>
-              </div>
-            </TabsContent>
-          </Tabs>
+          <div className="space-y-4">
+            <PlanView
+              plan={plan}
+              onEditConfig={() => setShowSetup(true)}
+              onToggleStep={handleToggleStep}
+            />
+          </div>
         )}
 
         {/* Coach Manager Dialog */}
