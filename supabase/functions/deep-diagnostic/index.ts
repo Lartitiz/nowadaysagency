@@ -233,14 +233,25 @@ Pour les routes, utilise : /storytelling, /persona, /proposition, /calendrier, /
     // Build user prompt
     const userParts: string[] = [];
 
+    // Context
+    userParts.push(`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com', un outil pour solopreneuses créatives et éthiques. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.`);
+
     // Profile info
     if (profile) {
-      userParts.push(`=== PROFIL ===
-Activité : ${profile.activity || "non renseignée"}
-Type : ${profile.activityType || "non renseigné"}
-Objectif principal : ${profile.objective || "non renseigné"}
-Blocage principal : ${profile.blocker || "non renseigné"}
-Temps disponible/semaine : ${profile.weeklyTime || "non renseigné"}`);
+      const profileLines = [
+        `=== PROFIL ===`,
+        `Activité : ${profile.activity || "non renseignée"}`,
+        `Type : ${profile.activityType || "non renseigné"}`,
+        `Objectif principal : ${profile.objective || "non renseigné"}`,
+        `Blocage principal : ${profile.blocker || "non renseigné"}`,
+        `Temps disponible/semaine : ${profile.weeklyTime || "non renseigné"}`,
+      ];
+      const channels = profile.channels || freeformAnswers?.canaux;
+      if (channels) profileLines.push(`Canaux actuels : ${Array.isArray(channels) ? channels.join(", ") : channels}`);
+      const desiredChannels = freeformAnswers?.desired_channels;
+      if (desiredChannels) profileLines.push(`Canaux souhaités : ${Array.isArray(desiredChannels) ? desiredChannels.join(", ") : desiredChannels}`);
+      userParts.push(profileLines.join("\n"));
     }
 
     // Freeform answers
@@ -249,6 +260,9 @@ Temps disponible/semaine : ${profile.weeklyTime || "non renseigné"}`);
       if (freeformAnswers.change_priority) freeformParts.push(`Priorité de changement : ${freeformAnswers.change_priority}`);
       if (freeformAnswers.product_or_service) freeformParts.push(`Produits ou services : ${freeformAnswers.product_or_service}`);
       if (freeformAnswers.uniqueness) freeformParts.push(`Ce qui te rend unique : ${freeformAnswers.uniqueness}`);
+      if (freeformAnswers.positioning) freeformParts.push(`Positionnement : ${freeformAnswers.positioning}`);
+      if (freeformAnswers.mission) freeformParts.push(`Mission : ${freeformAnswers.mission}`);
+      if (freeformAnswers.target_description) freeformParts.push(`Cible : ${freeformAnswers.target_description}`);
       userParts.push(freeformParts.join("\n"));
     }
 
@@ -271,6 +285,12 @@ Temps disponible/semaine : ${profile.weeklyTime || "non renseigné"}`);
       });
       userParts.push(`\n⚠️ Sources non analysées (scraping échoué) : ${failedLabels.join(", ")}. NE PAS inventer de score pour ces sources. Mettre leur score à null dans "scores".`);
     }
+
+    // Final instructions
+    userParts.push(`=== CONSIGNES FINALES ===
+- Le résumé (summary) doit faire 3-4 phrases et reprendre les mots de la personne.
+- Ne mets un score que pour les sources que tu as réellement analysées. Tout le reste : null.
+- Les forces et faiblesses doivent citer des éléments CONCRETS du contenu. Pas de phrases génériques.`);
 
     const userPrompt = userParts.join("\n\n");
 
