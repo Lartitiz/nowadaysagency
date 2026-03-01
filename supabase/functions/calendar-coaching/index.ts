@@ -121,13 +121,13 @@ Retourne UNIQUEMENT un JSON valide :
     }
 
     return new Response(JSON.stringify(parsed), {
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
     console.error("calendar-coaching error:", e);
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
