@@ -124,6 +124,14 @@ export default function CommPlanPage() {
     })();
   }, [user?.id, isDemoMode]);
 
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    if (!loading && plan && !localStorage.getItem("lac_plan_welcomed")) {
+      setShowWelcome(true);
+    }
+  }, [loading, plan]);
+
   // Recompute plan when coach data changes
   const recompute = useCallback(async (
     ov: PlanStepOverride[] = overrides,
@@ -219,6 +227,32 @@ export default function CommPlanPage() {
           parentTo="/dashboard"
           currentLabel="Mon plan"
         />
+
+        {showWelcome && !loading && plan && (
+          <div className="animate-fade-in text-center space-y-4 mb-8 py-6">
+            <div className="text-4xl">🎉</div>
+            <h2 className="font-display text-xl text-foreground">
+              Ton plan de com' est prêt
+            </h2>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              {plan.totalCount} étapes personnalisées, environ{" "}
+              {plan.totalMinutesRemaining >= 60
+                ? `${Math.floor(plan.totalMinutesRemaining / 60)}h`
+                : `${plan.totalMinutesRemaining} min`}{" "}
+              de travail au total. Pas besoin de tout faire d'un coup : avance à ton rythme.
+            </p>
+            <Button
+              variant="outline"
+              className="rounded-full text-sm"
+              onClick={() => {
+                setShowWelcome(false);
+                localStorage.setItem("lac_plan_welcomed", "true");
+              }}
+            >
+              C'est parti →
+            </Button>
+          </div>
+        )}
 
         {/* Coach mode banner */}
         {isCoachMode && plan && (

@@ -403,6 +403,26 @@ export default function SettingsPage() {
           </div>
         </Section>
 
+        {/* ─── Visite guidée ─── */}
+        <Section icon={<Map className="h-4 w-4" />} title="Visite guidée">
+          <p className="text-sm text-muted-foreground mb-4">
+            Envie de revoir la présentation de l'outil ?
+          </p>
+          <Button
+            variant="outline"
+            className="rounded-full text-sm"
+            onClick={() => {
+              localStorage.removeItem("lac_tour_seen");
+              localStorage.removeItem("lac_tour_branding_seen");
+              localStorage.removeItem("lac_plan_welcomed");
+              toast({ title: "Tour réactivé", description: "Tu verras la visite guidée à ta prochaine visite." });
+            }}
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Relancer la visite guidée
+          </Button>
+        </Section>
+
         {/* ─── Parcours initial ─── */}
         <Section icon={<RotateCcw className="h-4 w-4" />} title="Parcours initial">
           <p className="text-sm text-muted-foreground mb-4">
