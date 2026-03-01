@@ -40,58 +40,72 @@ export function extractTextFromHtml(html: string): string {
   return parts.join("\n\n");
 }
 
+async function jinaFetch(targetUrl: string, signal: AbortSignal): Promise<string | null> {
+  try {
+    const resp = await fetch(`https://r.jina.ai/${targetUrl}`, {
+      signal,
+      headers: {
+        "Accept": "application/json",
+        "X-No-Cache": "true",
+        "X-With-Links": "false",
+        "X-With-Images": "false",
+      },
+    });
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    const content = json?.data?.content;
+    return typeof content === "string" && content.length > 20 ? content : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<string | null> {
   let formattedUrl = url.trim();
   if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
 
-  const resp = await fetch(formattedUrl, {
-    signal,
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
-  });
-  if (!resp.ok) return null;
+  // Main page via Jina Reader
+  let mainText = await jinaFetch(formattedUrl, signal);
 
-  const html = await resp.text();
-  const mainText = extractTextFromHtml(html);
+  // Fallback to raw fetch if Jina fails
+  if (!mainText) {
+    try {
+      const resp = await fetch(formattedUrl, {
+        signal,
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+      });
+      if (resp.ok) {
+        const html = await resp.text();
+        mainText = extractTextFromHtml(html);
+      }
+    } catch {
+      // ignore
+    }
+  }
 
-  // Try about page
+  if (!mainText) return null;
+
+  // Try about page via Jina (parallel with offers)
   const aboutPaths = ["/about", "/a-propos", "/qui-suis-je", "/qui-sommes-nous", "/notre-histoire"];
-  let aboutText = "";
-  for (const path of aboutPaths) {
-    try {
-      const aboutUrl = new URL(path, formattedUrl).href;
-      const aboutResp = await fetch(aboutUrl, {
-        signal,
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
-      });
-      if (aboutResp.ok) {
-        const aboutHtml = await aboutResp.text();
-        aboutText = extractTextFromHtml(aboutHtml);
-        break;
-      }
-    } catch {
-      // continue
-    }
-  }
-
-  // Try offers/services page
   const offerPaths = ["/services", "/offres", "/shop", "/boutique", "/prestations", "/tarifs", "/pricing", "/nos-offres"];
-  let offersText = "";
-  for (const path of offerPaths) {
-    try {
-      const offersUrl = new URL(path, formattedUrl).href;
-      const offersResp = await fetch(offersUrl, {
-        signal,
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
-      });
-      if (offersResp.ok) {
-        const offersHtml = await offersResp.text();
-        offersText = extractTextFromHtml(offersHtml);
-        break;
+
+  const tryPaths = async (paths: string[]): Promise<string | null> => {
+    for (const path of paths) {
+      try {
+        const fullUrl = new URL(path, formattedUrl).href;
+        const text = await jinaFetch(fullUrl, signal);
+        if (text) return text;
+      } catch {
+        // continue
       }
-    } catch {
-      // continue
     }
-  }
+    return null;
+  };
+
+  const [aboutText, offersText] = await Promise.all([
+    tryPaths(aboutPaths),
+    tryPaths(offerPaths),
+  ]);
 
   const sections = [`=== PAGE D'ACCUEIL ===\n${mainText}`];
   if (aboutText) sections.push(`=== PAGE À PROPOS ===\n${aboutText}`);
