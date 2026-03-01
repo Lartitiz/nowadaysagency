@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { type DiagnosticData, computeDiagnosticData, DEMO_DIAGNOSTIC } from "@/lib/diagnostic-data";
+import { Progress } from "@/components/ui/progress";
 
 interface Props {
   hasInstagram: boolean;
@@ -15,6 +16,7 @@ interface Props {
     tone_keywords: string[]; offers: { name: string; price?: string; description?: string }[]; values: string[];
   };
   uploadedFileIds?: string[];
+  activityType?: string;
   onReady: (data: DiagnosticData) => void;
 }
 
@@ -24,7 +26,7 @@ interface LiveMessage {
   type: "scanning" | "insight" | "done";
 }
 
-function buildInitialMessages(hasInstagram: boolean, hasWebsite: boolean, hasDocuments: boolean): LiveMessage[] {
+function buildInitialMessages(hasWebsite: boolean, hasDocuments: boolean): LiveMessage[] {
   const msgs: LiveMessage[] = [];
   if (hasWebsite) msgs.push({ text: "Je lis ton site web...", type: "scanning" });
   if (hasDocuments) msgs.push({ text: "J'analyse ton profil Instagram...", type: "scanning" });
@@ -38,7 +40,6 @@ function buildRevealMessages(data: any, answers: Props["answers"]): LiveMessage[
   const msgs: LiveMessage[] = [];
   const analysis = data?.diagnostic || data?.analysis || data;
 
-  // Website insights
   if (analysis?.scores?.website != null) {
     msgs.push({ text: "Je lis ton site... ✓", type: "done" });
     if (analysis?.branding_prefill?.positioning) {
@@ -47,7 +48,6 @@ function buildRevealMessages(data: any, answers: Props["answers"]): LiveMessage[
     }
   }
 
-  // Instagram screenshot insights
   if (analysis?.scores?.instagram != null) {
     msgs.push({ text: "J'analyse ta capture Instagram... ✓", type: "done" });
     if (analysis.scores.instagram >= 60) {
@@ -57,24 +57,20 @@ function buildRevealMessages(data: any, answers: Props["answers"]): LiveMessage[
     }
   }
 
-  // Tone keywords (from website/profile analysis)
   if (analysis?.branding_prefill?.tone_keywords?.length >= 2) {
     const tones = analysis.branding_prefill.tone_keywords.slice(0, 3).join(", ");
     msgs.push({ text: `Ton ton est plutôt ${tones}. J'aime bien.`, type: "insight" });
   }
 
-  // LinkedIn insights  
   if (analysis?.scores?.linkedin != null) {
     msgs.push({ text: "Je parcours ton LinkedIn... ✓", type: "done" });
   }
 
-  // General insights from weaknesses
   const firstWeakness = (analysis?.weaknesses || [])[0];
   if (firstWeakness) {
     msgs.push({ text: `J'ai repéré un axe d'amélioration : ${firstWeakness.title.toLowerCase()}.`, type: "insight" });
   }
 
-  // Score reveal
   if (analysis?.scores?.total != null) {
     const score = analysis.scores.total;
     let comment = "";
@@ -88,9 +84,42 @@ function buildRevealMessages(data: any, answers: Props["answers"]): LiveMessage[
   return msgs;
 }
 
+// ─── Loading tips by activity type ───
+const LOADING_TIPS: Record<string, string[]> = {
+  artisane: [
+    "Le saviez-tu ? Les vidéos de processus de création génèrent 3x plus d'engagement.",
+    "Astuce : photographier tes créations sur fond neutre + en situation = combo gagnant.",
+  ],
+  mode_textile: [
+    "Le storytelling de marque est le premier levier de vente en mode éthique.",
+    "Les lookbooks en situation convertissent 2x mieux que les photos produit seules.",
+  ],
+  art_design: [
+    "Montrer ton processus créatif (pas juste le résultat) crée un lien fort avec ton audience.",
+    "Les carrousels avant/après sont le format star pour les créatif·ves.",
+  ],
+  beaute_cosmetiques: [
+    "Les tutoriels courts sont le format roi dans la beauté. 60 secondes, c'est l'idéal.",
+    "Les avis client·es en vidéo convertissent 5x plus que les avis texte.",
+  ],
+  bien_etre: [
+    "Les formats 'mythes vs réalités' fonctionnent incroyablement bien dans le bien-être.",
+    "Ta personnalité est ton principal différenciant. Montre-toi.",
+  ],
+  coach: [
+    "Un mini-coaching gratuit en stories peut générer plus de leads qu'une pub.",
+    "Les témoignages transformations sont tes meilleurs arguments de vente.",
+  ],
+  _default: [
+    "80% des solopreneuses sous-estiment la puissance de leur histoire personnelle.",
+    "La régularité bat la perfection. 2 posts par semaine > 1 post parfait par mois.",
+    "Ta bio est lue en moyenne 3 secondes. Chaque mot compte.",
+  ],
+};
+
 export default function DiagnosticLoading({
   hasInstagram, hasWebsite, hasDocuments, isDemoMode,
-  answers, brandingAnswers, uploadedFileIds, onReady,
+  answers, brandingAnswers, uploadedFileIds, activityType, onReady,
 }: Props) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<LiveMessage[]>([]);
@@ -99,13 +128,26 @@ export default function DiagnosticLoading({
   const [phase, setPhase] = useState<"loading" | "revealing" | "ready">("loading");
   const calledRef = useRef(false);
   const diagnosticDataRef = useRef<DiagnosticData | null>(null);
+  const [progressPercent, setProgressPercent] = useState(5);
+
+  // Tips
+  const tips = LOADING_TIPS[activityType || ""] || LOADING_TIPS._default;
+  const [currentTip, setCurrentTip] = useState(0);
+
+  useEffect(() => {
+    if (phase !== "loading") return;
+    const interval = setInterval(() => {
+      setCurrentTip(prev => (prev + 1) % tips.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [phase, tips.length]);
 
   // Initialize with loading messages
   useEffect(() => {
-    setMessages(buildInitialMessages(hasInstagram, hasWebsite, hasDocuments));
-  }, [hasInstagram, hasWebsite, hasDocuments]);
+    setMessages(buildInitialMessages(hasWebsite, hasDocuments));
+  }, [hasWebsite, hasDocuments]);
 
-  // Cycle through messages every 2.5s during loading phase
+  // Cycle through messages
   useEffect(() => {
     if (phase === "ready") return;
     const interval = setInterval(() => {
@@ -128,10 +170,37 @@ export default function DiagnosticLoading({
     return () => timers.forEach(clearTimeout);
   }, [phase, hasDocuments, hasWebsite, hasInstagram]);
 
+  // Progress bar logic
+  useEffect(() => {
+    if (phase === "ready") {
+      setProgressPercent(100);
+      return;
+    }
+    if (phase === "revealing") {
+      setProgressPercent(85 + (currentIdx / Math.max(messages.length - 1, 1)) * 15);
+      return;
+    }
+    // Loading phase: time-based increment
+    const timer = setInterval(() => {
+      setProgressPercent(prev => {
+        if (prev >= 75) return prev;
+        return prev + 0.5;
+      });
+    }, 500);
+    return () => clearInterval(timer);
+  }, [phase, currentIdx, messages.length]);
+
+  // Boost progress when checks complete
+  useEffect(() => {
+    const completed = [checks.docs, checks.web, checks.ig].filter(Boolean).length;
+    if (completed > 0) {
+      setProgressPercent(prev => Math.max(prev, 20 + completed * 15));
+    }
+  }, [checks]);
+
   // Handle reveal phase completion → call onReady
   useEffect(() => {
     if (phase === "revealing" && diagnosticDataRef.current) {
-      // Transition après max 3 messages OU quand on atteint la fin
       if (currentIdx >= Math.min(2, messages.length - 1)) {
         const timer = setTimeout(() => {
           setPhase("ready");
@@ -197,15 +266,12 @@ export default function DiagnosticLoading({
         diagnosticDataRef.current = result;
         setChecks({ ig: true, web: true, docs: true });
 
-        // Build reveal messages from real data
         const reveals = buildRevealMessages(data, answers);
         if (reveals.length > 1) {
-          // Switch to reveal phase — max 3 messages for speed
           setMessages(reveals.slice(0, 3));
           setCurrentIdx(0);
           setPhase("revealing");
         } else {
-          // Pas assez de données pour un reveal, on enchaîne
           setTimeout(() => onReady(result), 400);
         }
       } catch (err) {
@@ -230,15 +296,30 @@ export default function DiagnosticLoading({
 
   const currentMessage = messages[currentIdx] || messages[0];
 
+  const progressLabel = progressPercent < 30
+    ? "Lecture de tes sources..."
+    : progressPercent < 60
+    ? "Analyse en cours..."
+    : progressPercent < 85
+    ? "Rédaction de ton diagnostic..."
+    : "Dernières touches...";
+
   return (
-    <div className="text-center space-y-10">
+    <div className="text-center space-y-8">
       <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
         J'analyse ta communication...
       </h1>
 
+      {/* Progress bar */}
+      <div className="max-w-xs mx-auto space-y-2">
+        <Progress value={progressPercent} className="h-2" />
+        <p className="text-xs text-muted-foreground">{progressLabel}</p>
+      </div>
+
+      {/* Check lines */}
       <div className="space-y-3 text-left max-w-xs mx-auto">
-        <CheckLine emoji="🌐" label="Ton site web" status={getStatus("web", hasWebsite)} />
-        <CheckLine emoji="📱" label="Ton profil Instagram" status={getStatus("docs", hasDocuments)} />
+        {hasWebsite && <CheckLine emoji="🌐" label="Ton site web" status={getStatus("web", hasWebsite)} />}
+        {hasDocuments && <CheckLine emoji="📱" label="Ton profil Instagram" status={getStatus("docs", hasDocuments)} />}
       </div>
 
       {/* Live message area */}
@@ -266,15 +347,22 @@ export default function DiagnosticLoading({
         </AnimatePresence>
       </div>
 
-      <div className="flex justify-center gap-1.5">
-        {[0, 1, 2].map(i => (
-          <div
-            key={i}
-            className="h-2 w-2 rounded-full bg-primary animate-bounce"
-            style={{ animationDelay: `${i * 0.16}s` }}
-          />
-        ))}
-      </div>
+      {/* Tip during loading */}
+      {phase === "loading" && (
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentTip}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="max-w-sm mx-auto"
+          >
+            <p className="text-xs text-muted-foreground/70 italic">
+              💡 {tips[currentTip]}
+            </p>
+          </motion.div>
+        </AnimatePresence>
+      )}
     </div>
   );
 }

@@ -217,10 +217,10 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
 {
   "summary": "3-4 phrases qui résument ce que tu as compris de son projet. Elle doit se dire 'oui c'est exactement ça' en lisant.",
   "strengths": [
-    { "title": "titre court", "detail": "explication concrète avec un exemple réel tiré du contenu", "source": "instagram|website|linkedin|documents" }
+    { "title": "titre court", "detail": "explication concrète avec un exemple réel tiré du contenu", "source": "instagram|website|linkedin|documents|profile" }
   ],
   "weaknesses": [
-    { "title": "titre court", "detail": "explication concrète du problème avec données", "source": "instagram|website|linkedin|documents", "fix_hint": "une piste d'amélioration en une phrase" }
+    { "title": "titre court", "detail": "explication concrète du problème avec données", "source": "instagram|website|linkedin|documents|profile", "fix_hint": "une piste d'amélioration en une phrase" }
   ],
   "scores": {
     "total": 0,
@@ -231,21 +231,7 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
   },
   "priorities": [
     { "title": "action concrète", "why": "pourquoi c'est prioritaire", "time": "durée estimée", "route": "route dans l'app", "impact": "high|medium" }
-  ],
-  "branding_prefill": {
-    "positioning": "phrase de positionnement déduite. Ex : 'J'aide les solopreneuses créatives à être visibles sans se trahir.' ou null si pas assez d'info",
-    "mission": "mission déduite. Ex : 'Rendre la communication accessible et joyeuse pour les créatrices éthiques.' ou null",
-    "target_description": "description de la cible idéale déduite. Ex : 'Solopreneuse créative, 28-45 ans, engagée, qui veut communiquer sans se sentir vendue.' ou null",
-    "tone_keywords": ["mot-clé 1", "mot-clé 2", "mot-clé 3"],
-    "tone_style": "description du style de communication deviné en 1-2 phrases. Ex : 'Direct et chaleureux, oral assumé, avec humour discret et références pop.' ou null",
-    "combats": ["conviction/engagement 1", "conviction 2", "conviction 3"],
-    "values": ["valeur 1", "valeur 2", "valeur 3"],
-    "content_pillars": ["pilier éditorial 1", "pilier 2", "pilier 3"],
-    "story_draft": "2-4 phrases résumant l'histoire/parcours de la personne tel que deviné depuis son contenu. Le moment déclic, le pourquoi. ou null si pas assez d'info",
-    "offers": [
-      { "name": "nom de l'offre", "description": "description courte", "price": "prix si trouvé ou null" }
-    ]
-  }
+  ]
 }
 
 LIMITES : 3-4 forces max, 3-4 faiblesses max, 3 priorités max. Qualité > quantité.
@@ -316,11 +302,11 @@ Cette personne utilise L'Assistant Com', un outil pour solopreneuses créatives 
 
     const userPrompt = userParts.join("\n\n");
 
-    // ====== CALL CLAUDE ======
+    // ====== CALL CLAUDE — PHASE 1 : Diagnostic rapide (Sonnet) ======
     let analysisResult: Record<string, unknown>;
 
     try {
-      const model = getModelForAction("branding_audit");
+      const fastModel = getModelForAction("content"); // Sonnet — rapide
 
       // Build user message content blocks for vision support
       const userContentBlocks: any[] = [];
@@ -346,15 +332,15 @@ Cette personne utilise L'Assistant Com', un outil pour solopreneuses créatives 
       if (instagramScreenshots.length > 0) {
         // Use vision-capable call
         rawText = await callAnthropic({
-          model,
+          model: fastModel,
           system: systemPrompt,
           messages: [{ role: "user", content: userContentBlocks }],
           temperature: 0.6,
-          max_tokens: 6000,
+          max_tokens: 3000,
         });
       } else {
         // Simple text-only call
-        rawText = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.7, 4096);
+        rawText = await callAnthropicSimple(fastModel, systemPrompt, userPrompt, 0.7, 3000);
       }
 
       // Parse JSON
@@ -369,14 +355,11 @@ Cette personne utilise L'Assistant Com', un outil pour solopreneuses créatives 
         }
       }
     } catch (claudeError) {
-      console.error("Claude failed, using fallback:", claudeError);
-      // Fallback: basic diagnostic from profile only
+      console.error("Claude fast diagnostic failed, using fallback:", claudeError);
       analysisResult = buildFallbackDiagnostic(profile, freeformAnswers, sourcesUsed);
     }
 
-    // ====== SAVE TO DB (optimized: parallel saves) ======
-    
-    // 1. diagnostic_results — séquentiel car on a besoin du ID
+    // ====== SAVE TO DB (fast: only diagnostic essentials) ======
     const { data: savedDiag } = await supabaseAdmin
       .from("diagnostic_results")
       .insert({
@@ -387,7 +370,7 @@ Cette personne utilise L'Assistant Com', un outil pour solopreneuses créatives 
         weaknesses: (analysisResult as any).weaknesses || null,
         scores: (analysisResult as any).scores || null,
         priorities: (analysisResult as any).priorities || null,
-        branding_prefill: (analysisResult as any).branding_prefill || null,
+        branding_prefill: null, // sera rempli par phase 2
         sources_used: sourcesUsed,
         sources_failed: sourcesFailed,
         raw_analysis: analysisResult,
@@ -395,153 +378,165 @@ Cette personne utilise L'Assistant Com', un outil pour solopreneuses créatives 
       .select("id")
       .single();
 
-    // 2. Tout le reste en parallèle
-    const prefill = (analysisResult as any).branding_prefill;
+    // audit_recommendations + logUsage en parallèle
     const priorities = (analysisResult as any).priorities;
-    const parallelSaves: Promise<any>[] = [];
-    const filterCol = workspaceId ? "workspace_id" : "user_id";
-    const filterVal = workspaceId || userId;
+    const fastSaves: Promise<any>[] = [];
 
-    if (prefill) {
-      // brand_profile upsert
-      parallelSaves.push((async () => {
-        try {
-          const { data: existingProfile } = await supabaseAdmin
-            .from("brand_profile")
-            .select("id, positioning, mission, tone_keywords, tone_style, combats, values, content_pillars, content_editorial_line")
-            .eq(filterCol, filterVal)
-            .maybeSingle();
-
-          if (existingProfile) {
-            const updates: Record<string, unknown> = {};
-            if (!existingProfile.positioning && prefill.positioning) updates.positioning = prefill.positioning;
-            if (!existingProfile.mission && prefill.mission) updates.mission = prefill.mission;
-            if ((!existingProfile.tone_keywords || (Array.isArray(existingProfile.tone_keywords) && existingProfile.tone_keywords.length === 0)) && prefill.tone_keywords?.length) {
-              updates.tone_keywords = prefill.tone_keywords;
-            }
-            if ((!existingProfile.values || (Array.isArray(existingProfile.values) && existingProfile.values.length === 0)) && prefill.values?.length) {
-              updates.values = prefill.values;
-            }
-            if (!existingProfile.tone_style && prefill.tone_style) updates.tone_style = prefill.tone_style;
-            if (!existingProfile.combats && prefill.combats?.length > 0) {
-              updates.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
-            }
-            if ((!existingProfile.content_pillars || (Array.isArray(existingProfile.content_pillars) && existingProfile.content_pillars.length === 0)) && prefill.content_pillars?.length > 0) {
-              updates.content_pillars = prefill.content_pillars;
-            }
-            if (Object.keys(updates).length > 0) {
-              await supabaseAdmin.from("brand_profile").update(updates).eq("id", existingProfile.id);
-            }
-          } else {
-            const newProfile: Record<string, unknown> = { user_id: userId, workspace_id: workspaceId };
-            if (prefill.positioning) newProfile.positioning = prefill.positioning;
-            if (prefill.mission) newProfile.mission = prefill.mission;
-            if (prefill.tone_keywords?.length) newProfile.tone_keywords = prefill.tone_keywords;
-            if (prefill.tone_style) newProfile.tone_style = prefill.tone_style;
-            if (prefill.combats?.length) newProfile.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
-            if (prefill.values?.length) newProfile.values = prefill.values;
-            if (prefill.content_pillars?.length) newProfile.content_pillars = prefill.content_pillars;
-            await supabaseAdmin.from("brand_profile").insert(newProfile);
-          }
-        } catch (e) { console.error("Save brand_profile failed:", e); }
-      })());
-
-      // persona upsert
-      if (prefill.target_description) {
-        parallelSaves.push((async () => {
-          try {
-            const { data: existingPersona } = await supabaseAdmin
-              .from("persona")
-              .select("id, description")
-              .eq(filterCol, filterVal)
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
-            if (existingPersona && !existingPersona.description) {
-              await supabaseAdmin.from("persona").update({ description: prefill.target_description }).eq("id", existingPersona.id);
-            } else if (!existingPersona) {
-              await supabaseAdmin.from("persona").insert({
-                user_id: userId, workspace_id: workspaceId,
-                description: prefill.target_description, is_primary: true,
-              });
-            }
-          } catch (e) { console.error("Save persona failed:", e); }
-        })());
-      }
-
-      // offers insert
-      if (prefill.offers && Array.isArray(prefill.offers) && prefill.offers.length > 0) {
-        parallelSaves.push((async () => {
-          try {
-            const { count } = await supabaseAdmin
-              .from("offers").select("id", { count: "exact", head: true }).eq(filterCol, filterVal);
-            if ((count || 0) === 0) {
-              const offersToInsert = prefill.offers
-                .filter((o: any) => o.name || o.title).slice(0, 5)
-                .map((o: any, i: number) => ({
-                  user_id: userId, workspace_id: workspaceId,
-                  name: o.name || o.title, promise: o.description || o.promise || null,
-                  price_text: o.price || null, offer_type: "paid", sort_order: i,
-                }));
-              if (offersToInsert.length > 0) await supabaseAdmin.from("offers").insert(offersToInsert);
-            }
-          } catch (e) { console.error("Save offers failed:", e); }
-        })());
-      }
-
-      // storytelling insert
-      if (prefill.story_draft) {
-        parallelSaves.push((async () => {
-          try {
-            const { data: existingStory } = await supabaseAdmin
-              .from("storytelling").select("id").eq(filterCol, filterVal).limit(1).maybeSingle();
-            if (!existingStory) {
-              await supabaseAdmin.from("storytelling").insert({
-                user_id: userId, workspace_id: workspaceId,
-                imported_text: prefill.story_draft, source: "diagnostic_prefill", is_primary: true,
-              });
-            }
-          } catch (e) { console.error("Save storytelling failed:", e); }
-        })());
-      }
+    if (priorities?.length > 0) {
+      fastSaves.push(
+        supabaseAdmin.from("audit_recommendations").insert(
+          priorities.map((p: any, i: number) => ({
+            user_id: userId, workspace_id: workspaceId,
+            label: p.title, titre: p.title, module: "diagnostic",
+            route: p.route || "/dashboard", detail: p.why || null,
+            temps_estime: p.time || null, priorite: p.impact || "medium",
+            position: i + 1, completed: false,
+          }))
+        ).then(() => {}).catch(e => console.error("Save recommendations failed:", e))
+      );
     }
 
-    // audit_recommendations
-    if (priorities && Array.isArray(priorities)) {
-      parallelSaves.push((async () => {
-        try {
-          await supabaseAdmin.from("audit_recommendations").insert(
-            priorities.map((p: any, i: number) => ({
-              user_id: userId, workspace_id: workspaceId,
-              label: p.title, titre: p.title, module: "diagnostic",
-              route: p.route || "/dashboard", detail: p.why || null,
-              temps_estime: p.time || null, priorite: p.impact || "medium",
-              position: i + 1, completed: false,
-            }))
-          );
-        } catch (e) { console.error("Save recommendations failed:", e); }
-      })());
-    }
+    fastSaves.push(
+      Promise.all([
+        logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-sonnet", workspaceId),
+        logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-sonnet", workspaceId),
+        logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-sonnet", workspaceId),
+      ]).catch(e => console.error("logUsage failed:", e))
+    );
 
-    // logUsage — 3 calls en parallèle
-    parallelSaves.push((async () => {
+    await Promise.allSettled(fastSaves);
+
+    // ====== CALL CLAUDE — PHASE 2 : Enrichissement branding (Opus, fire-and-forget) ======
+    const enrichmentPromise = (async () => {
       try {
-        await Promise.all([
-          logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-opus", workspaceId),
-          logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-opus", workspaceId),
-          logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-opus", workspaceId),
-        ]);
-      } catch (e) { console.error("logUsage failed:", e); }
-    })());
+        const enrichmentSystemPrompt = `Tu es l'assistante com' de Nowadays Agency. Tu reçois le contenu scrappé du site web et les réponses d'onboarding d'une solopreneuse créative.
 
-    await Promise.allSettled(parallelSaves);
+Ta mission : déduire un maximum d'informations sur son branding à partir de ce contenu.
+
+- Utilise l'écriture inclusive avec le point médian.
+- Tutoie.
+- Pour le branding_prefill, déduis un maximum depuis le contenu scrappé. Si tu trouves des offres sur le site, liste-les. Si tu peux deviner l'histoire, résume-la. Si tu identifies des combats ou convictions, note-les. Mieux vaut proposer quelque chose que la personne modifiera plutôt que laisser vide.
+- Pour les offres, cherche : pages services, tarifs, accompagnements, formations, produits.
+- Pour le story_draft, utilise la page à propos, les réponses libres (uniqueness, positioning).
+- Pour les combats, identifie les causes défendues, les refus assumés, les convictions fortes.
+- Pour les content_pillars, identifie les 3 grands thèmes récurrents.
+
+RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
+
+{
+  "branding_prefill": {
+    "positioning": "phrase de positionnement déduite ou null",
+    "mission": "mission déduite ou null",
+    "target_description": "description de la cible idéale déduite ou null",
+    "tone_keywords": ["mot-clé 1", "mot-clé 2", "mot-clé 3"],
+    "tone_style": "description du style de communication ou null",
+    "combats": ["conviction 1", "conviction 2"],
+    "values": ["valeur 1", "valeur 2", "valeur 3"],
+    "content_pillars": ["pilier 1", "pilier 2", "pilier 3"],
+    "story_draft": "2-4 phrases résumant le parcours ou null",
+    "offers": [{ "name": "nom", "description": "description courte", "price": "prix ou null" }]
+  }
+}`;
+
+        const opusModel = getModelForAction("branding_audit"); // Opus
+        const enrichmentRaw = await callAnthropicSimple(opusModel, enrichmentSystemPrompt, userPrompt, 0.7, 4096);
+
+        let enrichmentResult: any;
+        try {
+          enrichmentResult = JSON.parse(enrichmentRaw);
+        } catch {
+          const jsonMatch = enrichmentRaw.match(/\{[\s\S]*\}/);
+          if (jsonMatch) enrichmentResult = JSON.parse(jsonMatch[0]);
+          else return;
+        }
+
+        const prefill = enrichmentResult?.branding_prefill;
+        if (!prefill) return;
+
+        const filterCol = workspaceId ? "workspace_id" : "user_id";
+        const filterVal = workspaceId || userId;
+
+        // Update diagnostic_results with branding_prefill
+        if (savedDiag?.id) {
+          await supabaseAdmin.from("diagnostic_results")
+            .update({ branding_prefill: prefill })
+            .eq("id", savedDiag.id);
+        }
+
+        // brand_profile upsert
+        const { data: existingProfile } = await supabaseAdmin
+          .from("brand_profile")
+          .select("id, positioning, mission, tone_keywords, tone_style, combats, values, content_pillars")
+          .eq(filterCol, filterVal)
+          .maybeSingle();
+
+        if (existingProfile) {
+          const updates: Record<string, unknown> = {};
+          if (!existingProfile.positioning && prefill.positioning) updates.positioning = prefill.positioning;
+          if (!existingProfile.mission && prefill.mission) updates.mission = prefill.mission;
+          if ((!existingProfile.tone_keywords || (Array.isArray(existingProfile.tone_keywords) && existingProfile.tone_keywords.length === 0)) && prefill.tone_keywords?.length) updates.tone_keywords = prefill.tone_keywords;
+          if ((!existingProfile.values || (Array.isArray(existingProfile.values) && existingProfile.values.length === 0)) && prefill.values?.length) updates.values = prefill.values;
+          if (!existingProfile.tone_style && prefill.tone_style) updates.tone_style = prefill.tone_style;
+          if (!existingProfile.combats && prefill.combats?.length > 0) updates.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
+          if ((!existingProfile.content_pillars || (Array.isArray(existingProfile.content_pillars) && existingProfile.content_pillars.length === 0)) && prefill.content_pillars?.length > 0) updates.content_pillars = prefill.content_pillars;
+          if (Object.keys(updates).length > 0) await supabaseAdmin.from("brand_profile").update(updates).eq("id", existingProfile.id);
+        } else {
+          const newProfile: Record<string, unknown> = { user_id: userId, workspace_id: workspaceId };
+          if (prefill.positioning) newProfile.positioning = prefill.positioning;
+          if (prefill.mission) newProfile.mission = prefill.mission;
+          if (prefill.tone_keywords?.length) newProfile.tone_keywords = prefill.tone_keywords;
+          if (prefill.tone_style) newProfile.tone_style = prefill.tone_style;
+          if (prefill.combats?.length) newProfile.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
+          if (prefill.values?.length) newProfile.values = prefill.values;
+          if (prefill.content_pillars?.length) newProfile.content_pillars = prefill.content_pillars;
+          await supabaseAdmin.from("brand_profile").insert(newProfile);
+        }
+
+        // persona
+        if (prefill.target_description) {
+          const { data: existingPersona } = await supabaseAdmin
+            .from("persona").select("id, description").eq(filterCol, filterVal)
+            .order("created_at", { ascending: false }).limit(1).maybeSingle();
+          if (existingPersona && !existingPersona.description) {
+            await supabaseAdmin.from("persona").update({ description: prefill.target_description }).eq("id", existingPersona.id);
+          } else if (!existingPersona) {
+            await supabaseAdmin.from("persona").insert({ user_id: userId, workspace_id: workspaceId, description: prefill.target_description, is_primary: true });
+          }
+        }
+
+        // offers
+        if (prefill.offers?.length > 0) {
+          const { count } = await supabaseAdmin.from("offers").select("id", { count: "exact", head: true }).eq(filterCol, filterVal);
+          if ((count || 0) === 0) {
+            const offersToInsert = prefill.offers.filter((o: any) => o.name || o.title).slice(0, 5)
+              .map((o: any, i: number) => ({ user_id: userId, workspace_id: workspaceId, name: o.name || o.title, promise: o.description || null, price_text: o.price || null, offer_type: "paid", sort_order: i }));
+            if (offersToInsert.length > 0) await supabaseAdmin.from("offers").insert(offersToInsert);
+          }
+        }
+
+        // storytelling
+        if (prefill.story_draft) {
+          const { data: existingStory } = await supabaseAdmin.from("storytelling").select("id").eq(filterCol, filterVal).limit(1).maybeSingle();
+          if (!existingStory) {
+            await supabaseAdmin.from("storytelling").insert({ user_id: userId, workspace_id: workspaceId, imported_text: prefill.story_draft, source: "diagnostic_prefill", is_primary: true });
+          }
+        }
+
+        console.log("Enrichment phase 2 completed successfully");
+      } catch (e) {
+        console.error("Enrichment phase 2 failed (non-blocking):", e);
+      }
+    })();
+
+    // Don't await enrichmentPromise — fire and forget
+    enrichmentPromise.catch(e => console.error("Background enrichment error:", e));
 
     clearTimeout(timeout);
     return new Response(
       JSON.stringify({
         success: true,
         id: savedDiag?.id,
-        diagnostic: analysisResult,
+        diagnostic: { ...analysisResult, branding_prefill: null },
         sources_used: sourcesUsed,
         sources_failed: sourcesFailed,
       }),
