@@ -60,11 +60,104 @@ async function jinaFetch(targetUrl: string, signal: AbortSignal): Promise<string
   }
 }
 
+// Keywords that indicate a relevant secondary page
+const RELEVANT_KEYWORDS = [
+  "offre", "service", "tarif", "prix", "pricing", "about", "propos", "histoire",
+  "mission", "accompagnement", "formation", "programme", "agence", "qui", "comment",
+  "blog", "actualit", "boutique", "shop", "prestation", "methode", "approche",
+  "parcours", "coaching", "atelier", "portfolio", "realisations", "expertise",
+];
+
+// Patterns to exclude from discovered links
+const EXCLUDED_PATTERNS = [
+  /^#/, /^mailto:/, /^tel:/, /^javascript:/,
+  /wp-content/i, /wp-includes/i, /\/images\//i, /\/assets\//i, /\/static\//i,
+  /instagram\.com/i, /facebook\.com/i, /twitter\.com/i, /x\.com/i, /linkedin\.com/i,
+  /youtube\.com/i, /tiktok\.com/i, /pinterest\.com/i,
+  /calendly\.com/i, /typeform\.com/i, /stripe\.com/i, /gumroad\.com/i,
+  /\.(jpg|jpeg|png|gif|svg|webp|pdf|zip|mp4|mp3)$/i,
+  /\/feed\/?$/i, /\/rss\/?$/i, /\/sitemap/i, /\/wp-login/i, /\/wp-admin/i,
+  /\/cart/i, /\/panier/i, /\/checkout/i, /\/mon-compte/i, /\/account/i,
+  /\/mentions-legales/i, /\/cgv/i, /\/cgu/i, /\/politique/i, /\/privacy/i, /\/legal/i,
+];
+
+interface JinaLink {
+  text?: string;
+  href?: string;
+}
+
+function isRelevantLink(href: string, baseHostname: string): boolean {
+  try {
+    const linkUrl = new URL(href);
+    // Must be same domain
+    if (linkUrl.hostname !== baseHostname) return false;
+    // Must not be the homepage itself
+    if (linkUrl.pathname === "/" || linkUrl.pathname === "") return false;
+    // Check exclusions
+    for (const pattern of EXCLUDED_PATTERNS) {
+      if (pattern.test(href) || pattern.test(linkUrl.pathname)) return false;
+    }
+    // Check if path contains relevant keywords
+    const pathLower = decodeURIComponent(linkUrl.pathname).toLowerCase();
+    return RELEVANT_KEYWORDS.some(kw => pathLower.includes(kw));
+  } catch {
+    return false;
+  }
+}
+
+async function discoverLinksFromHomepage(
+  formattedUrl: string,
+  signal: AbortSignal
+): Promise<string[]> {
+  try {
+    const resp = await fetch(`https://r.jina.ai/${formattedUrl}`, {
+      signal,
+      headers: {
+        "Accept": "application/json",
+        "X-No-Cache": "true",
+        "X-With-Links": "true",
+        "X-With-Images": "false",
+      },
+    });
+    if (!resp.ok) return [];
+    const json = await resp.json();
+    const links: JinaLink[] = json?.data?.links;
+    if (!Array.isArray(links)) return [];
+
+    const baseHostname = new URL(formattedUrl).hostname;
+    const seen = new Set<string>();
+    const relevant: string[] = [];
+
+    for (const link of links) {
+      if (!link.href) continue;
+      // Resolve relative URLs
+      let fullHref: string;
+      try {
+        fullHref = new URL(link.href, formattedUrl).href;
+      } catch {
+        continue;
+      }
+      // Deduplicate
+      const normalized = fullHref.replace(/\/$/, "");
+      if (seen.has(normalized)) continue;
+      seen.add(normalized);
+
+      if (isRelevantLink(fullHref, baseHostname)) {
+        relevant.push(fullHref);
+        if (relevant.length >= 3) break;
+      }
+    }
+    return relevant;
+  } catch {
+    return [];
+  }
+}
+
 export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<string | null> {
   let formattedUrl = url.trim();
   if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
 
-  // Main page via Jina Reader
+  // 1. Main page via Jina Reader (call 1)
   let mainText = await jinaFetch(formattedUrl, signal);
 
   // Fallback to raw fetch if Jina fails
@@ -85,31 +178,68 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
 
   if (!mainText) return null;
 
-  // Try about page via Jina (parallel with offers)
-  const aboutPaths = ["/about", "/a-propos", "/qui-suis-je", "/qui-sommes-nous", "/notre-histoire"];
-  const offerPaths = ["/services", "/offres", "/shop", "/boutique", "/prestations", "/tarifs", "/pricing", "/nos-offres"];
+  // 2. Discover links from homepage via Jina with X-With-Links (call 2)
+  const discoveredLinks = await discoverLinksFromHomepage(formattedUrl, signal);
 
-  const tryPaths = async (paths: string[]): Promise<string | null> => {
-    for (const path of paths) {
-      try {
-        const fullUrl = new URL(path, formattedUrl).href;
-        const text = await jinaFetch(fullUrl, signal);
-        if (text) return text;
-      } catch {
-        // continue
+  let secondaryPages: { title: string; content: string }[] = [];
+
+  if (discoveredLinks.length > 0) {
+    // 3. Scrape up to 2 discovered pages in parallel (calls 3-4)
+    const toScrape = discoveredLinks.slice(0, 2);
+    const results = await Promise.all(
+      toScrape.map(async (link) => {
+        const text = await jinaFetch(link, signal);
+        if (!text) return null;
+        // Extract page name from path for the section title
+        try {
+          const pathname = new URL(link).pathname;
+          const pageName = decodeURIComponent(pathname)
+            .replace(/^\//, "")
+            .replace(/\/$/, "")
+            .replace(/-/g, " ")
+            .replace(/\//g, " > ");
+          return { title: pageName.toUpperCase(), content: text };
+        } catch {
+          return { title: "PAGE SECONDAIRE", content: text };
+        }
+      })
+    );
+    secondaryPages = results.filter((r): r is { title: string; content: string } => r !== null);
+  }
+
+  // 4. Fallback: if no links discovered, try generic paths (same budget: 2 calls max)
+  if (secondaryPages.length === 0) {
+    const aboutPaths = ["/about", "/a-propos", "/qui-suis-je", "/qui-sommes-nous"];
+    const offerPaths = ["/services", "/offres", "/prestations", "/tarifs"];
+
+    const tryFirstValid = async (paths: string[]): Promise<{ title: string; content: string } | null> => {
+      for (const path of paths) {
+        try {
+          const fullUrl = new URL(path, formattedUrl).href;
+          const text = await jinaFetch(fullUrl, signal);
+          if (text) {
+            const name = path.replace(/^\//, "").toUpperCase();
+            return { title: name, content: text };
+          }
+        } catch {
+          // continue
+        }
       }
-    }
-    return null;
-  };
+      return null;
+    };
 
-  const [aboutText, offersText] = await Promise.all([
-    tryPaths(aboutPaths),
-    tryPaths(offerPaths),
-  ]);
+    const [aboutResult, offersResult] = await Promise.all([
+      tryFirstValid(aboutPaths),
+      tryFirstValid(offerPaths),
+    ]);
+    if (aboutResult) secondaryPages.push(aboutResult);
+    if (offersResult) secondaryPages.push(offersResult);
+  }
 
   const sections = [`=== PAGE D'ACCUEIL ===\n${mainText}`];
-  if (aboutText) sections.push(`=== PAGE À PROPOS ===\n${aboutText}`);
-  if (offersText) sections.push(`=== PAGE OFFRES/SERVICES ===\n${offersText}`);
+  for (const page of secondaryPages) {
+    sections.push(`=== ${page.title} ===\n${page.content}`);
+  }
 
   return sections.join("\n\n").trim();
 }
