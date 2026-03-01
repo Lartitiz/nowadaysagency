@@ -219,7 +219,7 @@ export async function computePlan(
       label: "Écrire ton histoire",
       description: "Ton histoire, c'est ce qui te différencie. C'est elle qui crée la connexion avec tes futur·es client·es.",
       duration: 45,
-      route: "/branding/storytelling",
+      route: "/branding/section?section=story",
       status: s(storyDone),
       debugInfo: debugInfo.storytelling,
     },

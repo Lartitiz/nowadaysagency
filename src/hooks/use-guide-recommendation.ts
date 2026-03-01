@@ -44,7 +44,7 @@ export interface UseGuideRecommendationResult {
 
 /* ── Section helpers ── */
 const SECTION_ORDER = [
-  { key: "storytelling" as const, label: "Ton histoire", route: "/branding/storytelling", routeNew: "/branding/coaching?section=story" },
+  { key: "storytelling" as const, label: "Ton histoire", route: "/branding/section?section=story", routeNew: "/branding/coaching?section=story" },
   { key: "persona" as const, label: "Ton·ta client·e idéal·e", route: "/branding/persona/recap", routeNew: "/branding/coaching?section=persona" },
   { key: "proposition" as const, label: "Ta proposition de valeur", route: "/branding/proposition/recap", routeNew: "/branding/proposition/recap" },
   { key: "tone" as const, label: "Ton & style", route: "/branding/ton/recap", routeNew: "/branding/coaching?section=tone_style" },

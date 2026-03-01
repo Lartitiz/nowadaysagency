@@ -12,8 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, FileText, ArrowLeft, FileDown } from "lucide-react";
 import ContentPlayground from "@/components/branding/ContentPlayground";
 import SynthesisRenderer from "@/components/branding/SynthesisRenderer";
-import EditableField from "@/components/branding/EditableField";
-import BrandingRecapRenderer from "@/components/branding/BrandingRecapRenderer";
 import BrandingFicheCards from "@/components/branding/BrandingFicheCards";
 import StoryFicheCards from "@/components/branding/StoryFicheCards";
 import BrandingSuggestionsCard from "@/components/branding/BrandingSuggestionsCard";

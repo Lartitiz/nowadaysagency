@@ -18,7 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
 import BrandingIdentityCard from "@/components/branding/BrandingIdentityCard";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
-import BrandingImportBlock from "@/components/branding/BrandingImportBlock";
+
 import BrandingImport from "@/components/branding/BrandingImport";
 import BrandingAnalysisLoader from "@/components/branding/BrandingAnalysisLoader";
 import BrandingImportReview from "@/components/branding/BrandingImportReview";

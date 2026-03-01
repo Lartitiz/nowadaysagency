@@ -76,7 +76,7 @@ function pickBrandingRoute(
   exclude?: string,
 ): string {
   const sections: { key: keyof BrandingCompletion; threshold: number; route: string }[] = [
-    { key: "storytelling", threshold: 100, route: "/branding/storytelling" },
+    { key: "storytelling", threshold: 100, route: "/branding/section?section=story" },
     { key: "persona", threshold: 50, route: "/branding/section?section=persona" },
     { key: "proposition", threshold: 50, route: "/branding/proposition/recap" },
     { key: "tone", threshold: 50, route: "/branding/section?section=tone_style" },

@@ -26,7 +26,7 @@ const PAGE_CONTEXT_MAP: Record<string, string> = {
   "/contenu": "generateur-contenu",
   "/branding": "branding",
   "/branding/charte": "charte-graphique",
-  "/branding/storytelling": "branding-storytelling",
+  "/branding/section?section=story": "branding-storytelling",
   "/branding/proposition/recap": "proposition-valeur",
   "/branding/section?section=persona": "persona-cible",
   "/branding/section?section=content_strategy": "strategie-contenu",
