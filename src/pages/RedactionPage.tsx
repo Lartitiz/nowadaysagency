@@ -192,7 +192,7 @@ export default function RedactionPage() {
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
         <ReturnToOrigin fallbackTo={`/atelier?canal=${canal}`} fallbackLabel="Atelier" />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground mb-1">✏️ Rédiger un contenu</h1>
+        <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground mb-1">✏️ Rédiger un contenu</h1>
         <BrandingPrompt section="tone" />
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mb-6">
           <span className="bg-rose-pale text-primary px-2 py-0.5 rounded-md font-semibold">{format}</span>

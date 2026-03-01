@@ -162,7 +162,7 @@ export default function VoiceGuidePage() {
         <SubPageHeader parentLabel="Ton style" parentTo="/branding/style" currentLabel="Guide de voix" />
 
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-          <h1 className="font-display text-[26px] font-bold text-foreground">🎤 Mon guide de voix</h1>
+          <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">🎤 Mon guide de voix</h1>
           {guide && (
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleCopy}>

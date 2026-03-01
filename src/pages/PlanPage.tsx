@@ -455,7 +455,7 @@ export default function PlanPage() {
       <main className="mx-auto max-w-[800px] px-6 py-8 max-md:px-4">
         {/* Header */}
         <div className="flex items-start justify-between mb-2">
-          <h1 className="font-display text-[26px] font-bold text-foreground">📋 Mon plan</h1>
+          <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">📋 Mon plan</h1>
           <Button
             variant="ghost"
             size="sm"

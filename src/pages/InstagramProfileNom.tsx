@@ -55,7 +55,7 @@ export default function InstagramProfileNom() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Mon nom" />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground">📝 Mon nom Instagram</h1>
+        <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">📝 Mon nom Instagram</h1>
         <p className="mt-2 text-sm text-muted-foreground mb-6">
           Ton nom de profil est ta première chance d'être trouvée en recherche. Ajoute un mot-clé lié à ton activité.
         </p>

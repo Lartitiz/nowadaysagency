@@ -97,7 +97,7 @@ export default function InstagramLaunchRecommendation() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Lancement" parentTo="/instagram/lancement" currentLabel="Recommandation" />
-        <h1 className="font-display text-[26px] font-bold text-foreground">🎯 On choisit ton modèle de lancement</h1>
+        <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">🎯 On choisit ton modèle de lancement</h1>
         <p className="mt-1 text-sm text-muted-foreground italic">
           Quelques questions pour te recommander le plan qui te correspond le mieux.
         </p>

@@ -663,7 +663,7 @@ export default function LinkedInAudit() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon LinkedIn" parentTo="/linkedin" currentLabel="Audit" useFromParam />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground mb-2">🔍 Audit de ton profil LinkedIn</h1>
+        <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground mb-2">🔍 Audit de ton profil LinkedIn</h1>
         <p className="text-sm text-muted-foreground mb-6">
           L'IA analyse ton profil, ton contenu, ta stratégie et ton réseau pour te donner un score et des priorités d'action.
         </p>

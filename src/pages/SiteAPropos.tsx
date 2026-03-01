@@ -269,7 +269,7 @@ export default function SiteAPropos() {
         <AppHeader />
         <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
-          <h1 className="font-display text-[26px] font-bold text-foreground mb-2">📖 Ma page À propos</h1>
+          <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground mb-2">📖 Ma page À propos</h1>
           <p className="text-[15px] text-muted-foreground mb-8">
             Raconte ton histoire pour créer du lien. L'IA t'aide à trouver les mots.
           </p>
@@ -354,7 +354,7 @@ export default function SiteAPropos() {
         <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
           <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
-          <h1 className="font-display text-[26px] font-bold text-foreground mb-2">✨ Rédiger ma page de zéro</h1>
+          <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground mb-2">✨ Rédiger ma page de zéro</h1>
           <p className="text-[15px] text-muted-foreground mb-4">
             L'IA rédige ta page à propos à partir de ton branding. Choisis un angle.
           </p>
@@ -417,7 +417,7 @@ export default function SiteAPropos() {
         <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
           <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
-          <h1 className="font-display text-[26px] font-bold text-foreground mb-2">🔧 Améliorer ma page existante</h1>
+          <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground mb-2">🔧 Améliorer ma page existante</h1>
           <p className="text-[15px] text-muted-foreground mb-6">
             Colle ton URL ou ton texte, l'IA l'analyse et te propose une version améliorée.
           </p>

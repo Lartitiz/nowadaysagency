@@ -311,7 +311,7 @@ export default function InstagramInspirer() {
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="M'inspirer" />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground">M'inspirer</h1>
+        <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">M'inspirer</h1>
         <p className="mt-1 text-sm italic text-muted-foreground">
           Colle un contenu qui t'a plu. L'IA décrypte pourquoi ça marche et t'en crée une version à toi.
         </p>
