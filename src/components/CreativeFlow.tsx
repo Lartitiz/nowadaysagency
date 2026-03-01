@@ -52,6 +52,7 @@ interface CalendarContext {
   notes?: string;
   postDate?: string;
   existingContent?: string;
+  existingAccroche?: string;
   launchId?: string;
   contentType?: string;
   contentTypeEmoji?: string;
@@ -206,6 +207,20 @@ export default function CreativeFlow({
       generateAngles();
     }
   }, [skipToQuestions, autoStarted]);
+
+  // Pre-fill content when coming from calendar with existing content
+  useEffect(() => {
+    if (calendarContext?.existingContent) {
+      const gen: GeneratedContent = {
+        content: calendarContext.existingContent,
+        accroche: calendarContext.existingAccroche || calendarContext.existingContent.split("\n")[0]?.slice(0, 200) || "",
+        format: calendarContext.format,
+        objectif: calendarContext.objectif,
+      };
+      setResult(gen);
+      setEditedContent(calendarContext.existingContent);
+    }
+  }, []);
 
   /* ── Step handlers ── */
   const generateAngles = async () => {
@@ -382,6 +397,31 @@ export default function CreativeFlow({
                 <span className="inline-flex items-center gap-1.5 border border-border text-foreground px-4 py-2 rounded-pill text-sm font-medium">
                   <Zap className="h-4 w-4" />
                   {quickModeLoading ? "Génération..." : "Générer direct"}
+                </span>
+              </div>
+            </button>
+          )}
+
+          {calendarContext?.existingContent && (
+            <button
+              onClick={() => {
+                setStep("result");
+              }}
+              className="flex-1 rounded-2xl border border-border bg-card p-5 text-left hover:border-primary/40 transition-all group"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <PenLine className="h-5 w-5 text-muted-foreground" />
+                <span className="font-display text-base font-bold text-foreground">
+                  Reprendre mon brouillon
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Tu as déjà un texte. Modifie-le, ajuste le ton, ou génère une nouvelle version.
+              </p>
+              <div className="mt-3">
+                <span className="inline-flex items-center gap-1.5 border border-border text-foreground px-4 py-2 rounded-pill text-sm font-medium">
+                  <PenLine className="h-4 w-4" />
+                  Reprendre le brouillon
                 </span>
               </div>
             </button>

@@ -101,6 +101,7 @@ export default function AtelierPage() {
         notes: calendarData.notes,
         postDate: calendarData.postDate,
         existingContent: calendarData.existingContent,
+        existingAccroche: calendarData.existingAccroche,
         // Launch
         launchId: calendarData.launchId,
         contentType: calendarData.contentType,
