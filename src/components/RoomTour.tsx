@@ -59,9 +59,10 @@ function renderText(text: string) {
 interface RoomTourProps {
   open: boolean;
   onClose: () => void;
+  onGeneratePlan?: () => void;
 }
 
-export default function RoomTour({ open, onClose }: RoomTourProps) {
+export default function RoomTour({ open, onClose, onGeneratePlan }: RoomTourProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const isLast = currentSlide === SLIDES.length - 1;
 
@@ -122,7 +123,7 @@ export default function RoomTour({ open, onClose }: RoomTourProps) {
             </Button>
           ) : (
             <Button
-              onClick={handleNext}
+              onClick={onGeneratePlan || handleNext}
               className="rounded-full px-8 py-3 text-sm font-medium"
               size="lg"
             >
