@@ -167,7 +167,7 @@ export default function IdeasPage() {
 
   const handleRediger = (idea: SavedIdea) => {
     // Navigate to atelier/rediger — the RedactionPage will pick up via query params
-    const params = new URLSearchParams({ titre: idea.titre, angle: idea.angle, format: idea.format, canal: idea.canal, objectif: idea.objectif || "", idea_id: idea.id });
+    const params = new URLSearchParams({ theme: idea.titre, angle: idea.angle, format: idea.format, canal: idea.canal, objectif: idea.objectif || "", idea_id: idea.id });
     navigate(`/atelier/rediger?${params.toString()}`);
   };
 
