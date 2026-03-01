@@ -984,7 +984,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
               <div className="mt-6 flex justify-center">
                 <Button
                   size="lg"
-                  className="rounded-pill min-w-[200px]"
+                  className="rounded-pill min-w-0 sm:min-w-[200px] w-full sm:w-auto"
                   onClick={handleNext}
                   disabled={!answer.trim() && selectedOptions.length === 0}
                 >
