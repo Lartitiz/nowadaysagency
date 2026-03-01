@@ -125,7 +125,7 @@ serve(async (req) => {
 
       } else if (type === "weekly-suggestions") {
         const ctx = await getUserContext(supabase, user.id, workspace_id);
-        const wFullContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
+        const wFullContext = formatContextForAI(ctx, CONTEXT_PRESETS.weeklySuggestions);
 
         systemPrompt = `${CORE_PRINCIPLES}
 
@@ -692,7 +692,8 @@ Reponds en JSON :
     systemPrompt = BASE_SYSTEM_RULES + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + systemPrompt;
 
     // Use getDefaultModel() for all content generation
-    const content = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt, 0.8, 4096);
+    const maxTokens = type === "weekly-suggestions" ? 2500 : 4096;
+    const content = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt, 0.8, maxTokens);
 
     if (type === "weekly-suggestions") {
       let suggestions;

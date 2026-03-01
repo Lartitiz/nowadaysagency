@@ -412,6 +412,9 @@ export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
   // Creative flow / content generation: full context
   content: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true, includeCharter: true, includeMirror: true },
 
+  // Weekly suggestions: lighter context for speed (no story, no mirror, no charter, no editorial)
+  weeklySuggestions: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: false, includeMirror: false },
+
   // Highlights: branding ✅, persona ✅, offers ✅, profile ✅
   highlights: { includeStory: false, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: true },
 
