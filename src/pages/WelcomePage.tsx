@@ -6,6 +6,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/use-profile";
 import RoomTour from "@/components/RoomTour";
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import EditableText from "@/components/EditableText";
 import { toast as sonnerToast } from "sonner";
 
@@ -300,28 +301,41 @@ export default function WelcomePage() {
               Ton branding pré-rempli
             </h2>
             {hasBranding ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {brandingCards.map((card, i) => (
-                  <div key={i} className="bg-card border border-border rounded-xl p-4 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{card.emoji}</span>
-                      <span className="text-sm font-semibold text-foreground">{card.title}</span>
-                    </div>
-                    {card.dbTable && card.dbField ? (
-                      <EditableText
-                        value={card.content}
-                        onSave={(v) => handleCardSave(i, v)}
-                        className="text-sm text-muted-foreground"
-                        placeholder="Cliquer pour modifier"
-                      />
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        {card.content}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <Carousel opts={{ align: "center", loop: false }} className="w-full">
+                <CarouselContent>
+                  {brandingCards.map((card, i) => (
+                    <CarouselItem key={i}>
+                      <div className="bg-card border border-border rounded-2xl p-5 space-y-3 min-h-[160px]">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{card.emoji}</span>
+                            <span className="text-sm font-semibold text-foreground">{card.title}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {i + 1}/{brandingCards.length}
+                          </span>
+                        </div>
+                        {card.dbTable && card.dbField ? (
+                          <EditableText
+                            value={card.content}
+                            onSave={(v) => handleCardSave(i, v)}
+                            className="text-sm text-muted-foreground leading-relaxed"
+                            placeholder="Cliquer pour modifier"
+                          />
+                        ) : (
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            {card.content}
+                          </p>
+                        )}
+                      </div>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <div className="flex items-center justify-center gap-2 mt-4">
+                  <CarouselPrevious />
+                  <CarouselNext />
+                </div>
+              </Carousel>
             ) : (
               <div className="rounded-xl bg-card border border-border p-5">
                 <p className="text-sm text-muted-foreground">
