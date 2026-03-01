@@ -20,7 +20,7 @@ const SLIDES = [
   {
     emoji: "🧭",
     title: "Et surtout, tu sais toujours quoi faire",
-    text: "Fini le \"bon, je poste quoi aujourd'hui\u00a0?\". L'outil te dit\u00a0: voilà tes prochaines étapes, voilà ce qui va avoir le plus d'impact pour te rendre visible et attirer tes client·es, en fonction de ton objectif. Tu es guidée. Tu as un plan. Tu avances. Même quand t'as que 30 minutes devant toi.",
+    text: "Fini le \"bon, je poste quoi aujourd'hui\u00a0?\". L'outil te dit\u00a0: voilà tes prochaines étapes, voilà ce qui va avoir le plus d'impact pour te rendre visible et attirer tes client·es.\nTu es guidée. Tu as un plan. Tu avances. Même quand t'as que 30 minutes devant toi.",
   },
   {
     emoji: "🗂️",
