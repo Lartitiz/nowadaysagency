@@ -13,10 +13,10 @@ const SECTION_ALIAS: Record<string, string> = {
 };
 
 const RECAP_ROUTES: Record<Section, string> = {
-  story: "/branding/section?section=story&tab=fiche",
-  persona: "/branding/section?section=persona&tab=fiche",
-  tone_style: "/branding/section?section=tone_style&tab=fiche",
-  content_strategy: "/branding/section?section=content_strategy&tab=fiche",
+  story: "/branding/section?section=story&tab=synthese",
+  persona: "/branding/section?section=persona&tab=synthese",
+  tone_style: "/branding/section?section=tone_style&tab=synthese",
+  content_strategy: "/branding/section?section=content_strategy&tab=synthese",
   offers: "/branding/offres",
   charter: "/branding/charter",
 };
