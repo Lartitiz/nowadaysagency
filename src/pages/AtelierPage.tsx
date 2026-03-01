@@ -85,6 +85,17 @@ export default function AtelierPage() {
       setSujetLibre(calendarData.dictatedText);
       setAtelierMode("create");
     }
+    // Handle pinned posts redirect
+    if (calendarData?.fromPinnedPosts) {
+      if (calendarData.objectif) setObjectif(calendarData.objectif);
+      if (calendarData.notes) setSujetLibre(calendarData.notes);
+      if (calendarData.angle) {
+        const matchedFormat = FORMATS.find(
+          (f) => f.id === calendarData.angle || f.label.toLowerCase() === calendarData.angle?.toLowerCase()
+        );
+        if (matchedFormat) setSelectedFormat(matchedFormat.id);
+      }
+    }
   }, []);
 
   // Handle suggested content redirect
