@@ -458,8 +458,9 @@ function LinksScreen({ answers, set, files, uploading, onUpload, onRemove, onNex
           {!isDemoMode && files.length < 3 && (
             <div
               onClick={() => inputRef.current?.click()}
-              onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
-              onDrop={e => { e.preventDefault(); e.stopPropagation(); onUpload(e.dataTransfer.files); }}
+              onDragEnter={e => { e.preventDefault(); e.stopPropagation(); }}
+              onDragOver={e => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "copy"; }}
+              onDrop={e => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.files?.length) onUpload(e.dataTransfer.files); }}
               className="border-2 border-dashed border-border rounded-xl p-5 text-center cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-colors"
             >
               <Upload className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
