@@ -529,7 +529,13 @@ export default function SuggestedContents() {
                 <button
                   onClick={() => {
                     setDrawerOpen(false);
-                    navigate("/creer");
+                    navigate("/creer", {
+                      state: {
+                        fromSuggested: true,
+                        theme: selectedContent.theme,
+                        notes: selectedContent.fullContent,
+                      },
+                    });
                   }}
                   className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-border/60 text-foreground hover:bg-muted/40 transition-colors"
                   style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
