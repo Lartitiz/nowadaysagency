@@ -43,7 +43,7 @@ export default function NowPilotPage() {
     <div className="min-h-screen bg-background">
       {/* Hero */}
       <div className="bg-gradient-to-b from-rose-pale to-background">
-        <div className="mx-auto max-w-3xl px-6 py-16 text-center">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-16 text-center">
           <span className="text-sm font-semibold text-primary uppercase tracking-wide">🤝 Accompagnement</span>
           <h1 className="font-display text-3xl sm:text-4xl font-bold text-foreground mt-3 mb-4">
             Ta binôme de com
@@ -63,7 +63,7 @@ export default function NowPilotPage() {
       </div>
 
       {/* Phases */}
-      <div className="mx-auto max-w-3xl px-6 py-12">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 py-12">
         <h2 className="font-display text-2xl font-bold text-foreground text-center mb-8">Le programme en 2 phases</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {PHASES.map(phase => (
@@ -84,7 +84,7 @@ export default function NowPilotPage() {
 
       {/* Deliverables */}
       <div className="bg-rose-pale py-12">
-        <div className="mx-auto max-w-3xl px-6">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
           <h2 className="font-display text-2xl font-bold text-foreground text-center mb-6">Tes livrables</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {DELIVERABLES.map(d => (
@@ -97,7 +97,7 @@ export default function NowPilotPage() {
       </div>
 
       {/* Pricing */}
-      <div className="mx-auto max-w-3xl px-6 py-12 text-center">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 py-12 text-center">
         <h2 className="font-display text-2xl font-bold text-foreground mb-2">250€/mois × 6 mois</h2>
         <p className="text-muted-foreground mb-2">L'Assistant Com' Premium inclus · 6 sessions visio 2h · Support WhatsApp jours ouvrés</p>
         <p className="text-sm text-muted-foreground mb-6">L'outil complet + un regard humain expert sur ta communication.</p>

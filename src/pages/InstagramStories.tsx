@@ -239,7 +239,7 @@ export default function InstagramStories() {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
-        <main className="mx-auto max-w-3xl px-6 py-16 text-center">
+        <main className="mx-auto max-w-3xl px-4 sm:px-6 py-16 text-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">L'IA imagine ta séquence de stories...</p>
         </main>
