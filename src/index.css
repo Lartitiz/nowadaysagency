@@ -242,7 +242,7 @@
 /* Mobile bottom tab bar spacing — add padding so content isn't hidden behind fixed tab bar */
 @media (max-width: 1023px) {
   body {
-    padding-bottom: 3.5rem; /* matches h-14 tab bar */
+    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
   }
 }
 
