@@ -497,12 +497,38 @@ export async function extractTextFromDocxAsync(buffer: ArrayBuffer): Promise<str
 export async function extractFromBlob(blob: Blob, fileName: string, signal?: AbortSignal): Promise<string | null> {
   const ext = fileName.split(".").pop()?.toLowerCase();
 
+  // Detect by magic bytes first (handles double extensions like .docx.pdf)
+  const buffer = await blob.arrayBuffer();
+  const header = new Uint8Array(buffer.slice(0, 5));
+
+  const isPKZip = header[0] === 0x50 && header[1] === 0x4B && header[2] === 0x03 && header[3] === 0x04;
+  const isPDF = header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46;
+
+  if (isPKZip) {
+    // ZIP-based format (docx, xlsx, etc.)
+    let text = await extractTextFromDocxAsync(buffer);
+    if (text.length < 20) {
+      const rawText = await blob.text();
+      const words = rawText.match(/[a-zA-ZÀ-ÿ]{2,}/g);
+      text = words ? words.join(" ") : "";
+    }
+    return text || null;
+  }
+
+  if (isPDF) {
+    const text = await extractTextFromPdf(buffer, signal);
+    if (text.length < 50) {
+      return `[PDF scanné : le texte n'a pas pu être extrait. Seuls les PDF textuels sont pris en charge.]`;
+    }
+    return text;
+  }
+
+  // Fallback to extension-based detection
   if (ext === "txt" || ext === "md") {
     return await blob.text();
   }
 
   if (ext === "pdf") {
-    const buffer = await blob.arrayBuffer();
     const text = await extractTextFromPdf(buffer, signal);
     if (text.length < 50) {
       return `[PDF scanné : le texte n'a pas pu être extrait. Seuls les PDF textuels sont pris en charge.]`;
@@ -511,7 +537,6 @@ export async function extractFromBlob(blob: Blob, fileName: string, signal?: Abo
   }
 
   if (ext === "docx" || ext === "doc") {
-    const buffer = await blob.arrayBuffer();
     let text = await extractTextFromDocxAsync(buffer);
     if (text.length < 20) {
       const rawText = await blob.text();
