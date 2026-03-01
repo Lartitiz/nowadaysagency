@@ -173,12 +173,6 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
     { label: "Branding", path: "/branding" },
     { label: "Audit" },
   ]],
-  ["/branding/ton/recap", [
-    { label: "Accueil", path: "/dashboard" },
-    { label: "Branding", path: "/branding" },
-    { label: "Ton & style", path: "/branding/section?section=tone_style" },
-    { label: "Récap" },
-  ]],
   ["/branding/section?section=tone_style", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
@@ -195,12 +189,6 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
     { label: "Mon histoire", path: "/branding/section?section=story" },
     { label: "Détail" },
   ]],
-  ["/branding/persona/recap", [
-    { label: "Accueil", path: "/dashboard" },
-    { label: "Branding", path: "/branding" },
-    { label: "Ma cible", path: "/branding/section?section=persona" },
-    { label: "Récap" },
-  ]],
   ["/branding/section?section=persona", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
@@ -210,12 +198,6 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
     { label: "Proposition de valeur" },
-  ]],
-  ["/branding/strategie/recap", [
-    { label: "Accueil", path: "/dashboard" },
-    { label: "Branding", path: "/branding" },
-    { label: "Stratégie", path: "/branding/section?section=content_strategy" },
-    { label: "Récap" },
   ]],
   ["/branding/section?section=content_strategy", [
     { label: "Accueil", path: "/dashboard" },

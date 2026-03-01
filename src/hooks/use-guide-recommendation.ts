@@ -45,10 +45,10 @@ export interface UseGuideRecommendationResult {
 /* ── Section helpers ── */
 const SECTION_ORDER = [
   { key: "storytelling" as const, label: "Ton histoire", route: "/branding/section?section=story", routeNew: "/branding/coaching?section=story" },
-  { key: "persona" as const, label: "Ton·ta client·e idéal·e", route: "/branding/persona/recap", routeNew: "/branding/coaching?section=persona" },
+  { key: "persona" as const, label: "Ton·ta client·e idéal·e", route: "/branding/section?section=persona&tab=synthese", routeNew: "/branding/coaching?section=persona" },
   { key: "proposition" as const, label: "Ta proposition de valeur", route: "/branding/proposition/recap", routeNew: "/branding/proposition/recap" },
-  { key: "tone" as const, label: "Ton & style", route: "/branding/ton/recap", routeNew: "/branding/coaching?section=tone_style" },
-  { key: "strategy" as const, label: "Ta stratégie de contenu", route: "/branding/strategie/recap", routeNew: "/branding/coaching?section=content_strategy" },
+  { key: "tone" as const, label: "Ton & style", route: "/branding/section?section=tone_style&tab=synthese", routeNew: "/branding/coaching?section=tone_style" },
+  { key: "strategy" as const, label: "Ta stratégie de contenu", route: "/branding/section?section=content_strategy&tab=synthese", routeNew: "/branding/coaching?section=content_strategy" },
   { key: "offers" as const, label: "Tes offres", route: "/branding/offres", routeNew: "/branding/offres" },
   { key: "charter" as const, label: "Ta charte visuelle", route: "/branding/charter", routeNew: "/branding/charter" },
 ] as const;
@@ -112,7 +112,7 @@ function buildRecommendation(
       explanation:
         "Ton histoire est posée, bravo ! Mais là il faut qu'on parle de l'essentiel : à qui tu t'adresses. Parce que parler à tout le monde, c'est parler à personne. *(Oui, je sais, on te l'a déjà dit. Mais cette fois, on le fait pour de vrai.)*",
       ctaLabel: "C'est parti !",
-      ctaRoute: bc.persona > 0 ? "/branding/persona/recap" : "/branding/section?section=persona",
+      ctaRoute: bc.persona > 0 ? "/branding/section?section=persona&tab=synthese" : "/branding/section?section=persona",
       icon: "Users",
       alternatives: [
         { title: "Créer ton premier post", route: "/creer", icon: "PenLine" },
