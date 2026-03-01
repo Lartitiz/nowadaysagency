@@ -412,23 +412,6 @@ export default function WelcomePage() {
           </div>
         </div>
 
-        {/* Import suggestion */}
-        <div className="rounded-2xl bg-[hsl(var(--rose-pale))] border border-border p-5">
-          <p className="text-sm text-foreground">
-            💡 Tu as déjà un document stratégique (plan de com', brief, site web) ?
-            Importe-le dans le Branding pour gagner du temps.
-          </p>
-          <Link
-            to="/branding"
-            onClick={() => {
-              if (user) (supabase.from("user_plan_config") as any).update({ welcome_seen: true }).eq(column, value);
-            }}
-            className="inline-flex items-center gap-1 text-sm font-semibold text-primary mt-2 hover:underline"
-          >
-            📄 Importer un document →
-          </Link>
-        </div>
-
         {/* F) CTAs */}
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
