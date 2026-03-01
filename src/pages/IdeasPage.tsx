@@ -195,7 +195,7 @@ export default function IdeasPage() {
         {/* Header */}
         <div className="flex items-start justify-between mb-2">
           <div>
-            <h1 className="font-display text-[26px] font-bold text-foreground">Ma boîte à idées</h1>
+            <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">Ma boîte à idées</h1>
             <p className="text-[15px] text-muted-foreground mt-1">Tout ce que tu as généré, sauvegardé, commencé. Rien ne se perd.</p>
           </div>
           <Link to="/atelier">

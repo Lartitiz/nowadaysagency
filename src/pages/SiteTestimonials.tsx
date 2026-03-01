@@ -65,7 +65,7 @@ export default function SiteTestimonials() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Témoignages" />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground mb-2">💬 Récolter des témoignages qui convertissent</h1>
+        <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground mb-2">💬 Récolter des témoignages qui convertissent</h1>
         <p className="text-sm text-muted-foreground mb-8">Un bon témoignage = prénom + contexte + résultat concret. Le problème c'est que les gens ne savent pas quoi écrire. Envoie-leur ces questions.</p>
 
         {/* Message template */}

@@ -287,7 +287,7 @@ export default function InstagramHighlights() {
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Stories à la une" />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground">⭐ Tes stories à la une</h1>
+        <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">⭐ Tes stories à la une</h1>
         <p className="mt-2 text-[15px] text-muted-foreground italic mb-6">
           Les highlights sont ta vitrine permanente. C'est la 2ème chose qu'un·e visiteur·se regarde après ta bio. L'ordre compte.
         </p>
