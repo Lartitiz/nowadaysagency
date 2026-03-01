@@ -10,11 +10,15 @@ const LS_KEY = "lac_welcome_seen";
 /* ─── Label helpers ─── */
 function goalLabel(goal: string): string {
   const map: Record<string, string> = {
-    visibility: "Gagner en visibilité",
+    visibility: "Être visible et attirer des client·es",
     clients: "Trouver des client·es",
     credibility: "Renforcer ta crédibilité",
     community: "Créer une communauté",
     launch: "Lancer un produit/service",
+    system: "Avoir un système de com' clair et tenable",
+    sell: "Vendre régulièrement sans me forcer",
+    zen: "Communiquer sans stress ni culpabilité",
+    expert: "Être reconnue comme experte dans mon domaine",
   };
   return map[goal] || goal;
 }
