@@ -25,7 +25,7 @@ const SLIDES = [
   {
     emoji: "🗂️",
     title: "Tout est organisé, au même endroit",
-    text: "Ton calendrier éditorial pour voir ton mois d'un coup d'œil. Ton atelier pour stocker tes idées. (Même celles de 2h du mat'.) Tes espaces pour bosser sur Instagram, ton site ou LinkedIn sans te disperser. Un seul endroit. Fini les 12 onglets, les post-it et les Google Docs oubliés.",
+    text: "Ton calendrier éditorial pour voir ton mois d'un coup d'œil. Ton atelier pour stocker tes idées. (Même celles de 2h du mat'.) Tes espaces pour bosser sur Instagram, ton site ou LinkedIn sans te disperser.\nFini les 12 onglets, les post-it et les Google Docs oubliés.",
   },
   {
     emoji: "🚀",
