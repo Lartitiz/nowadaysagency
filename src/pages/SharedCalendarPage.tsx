@@ -920,7 +920,7 @@ export default function SharedCalendarPage() {
         </Sheet>
       ) : (
         selectedPost && (
-          <div className="fixed top-0 right-0 bottom-0 w-[420px] bg-white border-l border-gray-200 shadow-xl z-50 flex flex-col">
+          <div className="fixed top-0 right-0 bottom-0 w-full sm:w-[420px] bg-white border-l border-gray-200 shadow-xl z-50 flex flex-col">
             {commentPanelContent}
           </div>
         )
