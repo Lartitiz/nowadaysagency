@@ -488,7 +488,7 @@ export default function InstagramProfileEdito() {
   if (!loaded) return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="mx-auto max-w-3xl px-6 py-8 flex items-center justify-center">
+      <main className="mx-auto max-w-3xl px-4 sm:px-6 py-8 flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </main>
     </div>
