@@ -631,7 +631,6 @@ export async function processDocuments(
 
   for (const doc of docs) {
     try {
-      // Build file path from file_url
       let filePath = doc.file_url;
       if (filePath && !filePath.startsWith(userId)) {
         filePath = `${userId}/${filePath}`;
@@ -639,14 +638,12 @@ export async function processDocuments(
 
       let fileData: Blob | null = null;
 
-      // First attempt
       const { data: dl1, error: err1 } = await supabase.storage
         .from("onboarding-uploads")
         .download(filePath);
       if (!err1 && dl1) {
         fileData = dl1;
       } else {
-        // Fallback: try raw file_url
         const { data: dl2, error: err2 } = await supabase.storage
           .from("onboarding-uploads")
           .download(doc.file_url);
@@ -670,4 +667,70 @@ export async function processDocuments(
   }
 
   return texts.length > 0 ? texts.join("\n\n") : null;
+}
+
+export async function processScreenshots(
+  supabase: ReturnType<typeof createClient>,
+  documentIds: string[],
+  userId: string,
+): Promise<{ base64: string; mediaType: string }[]> {
+  const images: { base64: string; mediaType: string }[] = [];
+
+  const { data: docs, error } = await supabase
+    .from("user_documents")
+    .select("id, file_name, file_url, file_type")
+    .in("id", documentIds.slice(0, 3))
+    .eq("user_id", userId);
+
+  if (error || !docs || docs.length === 0) {
+    console.error("processScreenshots: no docs found", error);
+    return [];
+  }
+
+  for (const doc of docs) {
+    try {
+      const ext = doc.file_type?.toLowerCase() || doc.file_name?.split(".").pop()?.toLowerCase();
+      if (!["png", "jpg", "jpeg", "webp"].includes(ext || "")) continue;
+
+      let filePath = doc.file_url;
+      if (filePath && !filePath.startsWith(userId)) {
+        filePath = `${userId}/${filePath}`;
+      }
+
+      let fileData: Blob | null = null;
+      const { data: dl1, error: err1 } = await supabase.storage
+        .from("onboarding-uploads")
+        .download(filePath);
+      if (!err1 && dl1) {
+        fileData = dl1;
+      } else {
+        const { data: dl2, error: err2 } = await supabase.storage
+          .from("onboarding-uploads")
+          .download(doc.file_url);
+        if (!err2 && dl2) {
+          fileData = dl2;
+        } else {
+          console.error(`processScreenshots: download failed for ${doc.file_name}`, err1, err2);
+          continue;
+        }
+      }
+
+      const buffer = await fileData.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64 = btoa(binary);
+      const mediaType = ext === "png" ? "image/png" 
+        : ext === "webp" ? "image/webp" 
+        : "image/jpeg";
+
+      images.push({ base64, mediaType });
+    } catch (e) {
+      console.error(`processScreenshots: error on ${doc.file_name}:`, e);
+    }
+  }
+
+  return images;
 }

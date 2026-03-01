@@ -106,7 +106,9 @@ export default function Onboarding() {
 
   const isCurrentStep = step <= TOTAL_STEPS;
   // Deduce canaux for DiagnosticLoading
-  const hasInstagram = !!answers.instagram;
+  const hasInstagram = uploadedFiles.some(f => 
+    ['png', 'jpg', 'jpeg', 'webp'].includes(f.name.split('.').pop()?.toLowerCase() || '')
+  );
   const hasWebsite = !!answers.website;
 
   return (
@@ -203,7 +205,7 @@ export default function Onboarding() {
                   <LinksScreen
                     answers={answers}
                     set={set}
-                    files={isDemoMode ? [{ id: "demo-file", name: "Brief_Lea_Portraits.pdf", url: "" }] : uploadedFiles}
+                    files={isDemoMode ? [{ id: "demo-file", name: "profil_instagram_lea.png", url: "" }] : uploadedFiles}
                     uploading={uploading}
                     onUpload={isDemoMode ? () => {} : handleFileUpload}
                     onRemove={isDemoMode ? () => {} : removeFile}
@@ -391,15 +393,16 @@ function LinksScreen({ answers, set, files, uploading, onUpload, onRemove, onNex
   isDemoMode?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const hasAnyLink = !!(answers.instagram || answers.website || answers.linkedin);
+  const hasAnyLink = !!(answers.website || answers.linkedin);
   const hasAnything = hasAnyLink || files.length > 0;
-
 
   const webStatus: "valid" | "warn" | "none" = !answers.website ? "none"
     : isValidUrl(answers.website) ? "valid" : "warn";
 
-  const liStatus: "valid" | "warn" | "none" = !answers.linkedin ? "none"
-    : answers.linkedin.includes("linkedin.com") ? "valid" : "warn";
+  const isImageFile = (name: string) => {
+    const ext = name.split('.').pop()?.toLowerCase() || '';
+    return ['png', 'jpg', 'jpeg', 'webp'].includes(ext);
+  };
 
   return (
     <div className="space-y-6">
@@ -430,7 +433,6 @@ function LinksScreen({ answers, set, files, uploading, onUpload, onRemove, onNex
           </div>
         </div>
 
-
         {/* LinkedIn Summary */}
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">💼 Ton résumé LinkedIn</label>
@@ -445,12 +447,14 @@ function LinksScreen({ answers, set, files, uploading, onUpload, onRemove, onNex
           />
         </div>
 
-        {/* Document upload */}
+        {/* Instagram screenshot upload */}
         <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">📄 Tes documents</label>
-          <p className="text-xs text-muted-foreground/70 mb-2 italic">Un brief, un PDF, un moodboard... tout ce qui m'aide à te connaître.</p>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">📱 Ton profil Instagram</label>
+          <p className="text-xs text-muted-foreground/70 mb-2 italic">
+            Fais une capture d'écran de ton profil Instagram (la page avec ta bio, tes abonnés et ta grille) et dépose-la ici. C'est le moyen le plus fiable pour que je puisse analyser ton compte.
+          </p>
 
-          {!isDemoMode && (
+          {!isDemoMode && files.length < 3 && (
             <div
               onClick={() => inputRef.current?.click()}
               onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
@@ -458,13 +462,13 @@ function LinksScreen({ answers, set, files, uploading, onUpload, onRemove, onNex
               className="border-2 border-dashed border-border rounded-xl p-5 text-center cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-colors"
             >
               <Upload className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
-              <p className="text-xs font-medium text-foreground">📎 Glisse tes fichiers ici</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">PDF, Word, PNG, JPG · Max 5 fichiers</p>
+              <p className="text-xs font-medium text-foreground">📱 Glisse ta capture ici</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">PNG, JPG, WebP · Max 3 images</p>
               <input
                 ref={inputRef}
                 type="file"
                 multiple
-                accept=".pdf,.docx,.doc,.txt,.md,.png,.jpg,.jpeg,.webp"
+                accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
                 onChange={e => onUpload(e.target.files)}
                 className="hidden"
               />
@@ -476,14 +480,28 @@ function LinksScreen({ answers, set, files, uploading, onUpload, onRemove, onNex
           )}
 
           {files.length > 0 && (
-            <div className="space-y-2 mt-2">
+            <div className="grid grid-cols-3 gap-2 mt-2">
               {files.map(f => (
-                <div key={f.id} className="flex items-center gap-3 bg-card rounded-xl border border-border px-4 py-2.5">
-                  <span className="text-sm">📄</span>
-                  <span className="text-sm text-foreground flex-1 truncate">{f.name}</span>
-                  <button onClick={() => onRemove(f.id)} className="text-muted-foreground hover:text-destructive transition-colors">
-                    <X className="h-4 w-4" />
+                <div key={f.id} className="relative group rounded-xl border border-border overflow-hidden bg-card aspect-square">
+                  {isImageFile(f.name) && f.url ? (
+                    <img
+                      src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/onboarding-uploads/${f.url}`}
+                      alt={f.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-2xl">📱</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => onRemove(f.id)}
+                    className="absolute top-1 right-1 bg-background/80 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-3.5 w-3.5" />
                   </button>
+                  <p className="absolute bottom-0 left-0 right-0 bg-background/70 text-[10px] text-foreground truncate px-1.5 py-0.5">{f.name}</p>
                 </div>
               ))}
             </div>
