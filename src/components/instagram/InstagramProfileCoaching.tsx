@@ -183,7 +183,7 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={isMobile ? "bottom" : "right"}
-        className={`${isMobile ? "h-[95vh] rounded-t-2xl" : "w-[500px] sm:w-[540px] sm:max-w-[50vw]"} overflow-y-auto p-0`}
+        className={`${isMobile ? "h-[95dvh] rounded-t-2xl" : "w-[500px] sm:w-[540px] sm:max-w-[50vw]"} overflow-y-auto p-0`}
       >
         {/* Header with module tabs */}
         <div className="sticky top-0 z-10 bg-[hsl(var(--rose-pale))] border-b border-primary/10">
