@@ -27,7 +27,7 @@ interface LiveMessage {
 function buildInitialMessages(hasInstagram: boolean, hasWebsite: boolean, hasDocuments: boolean): LiveMessage[] {
   const msgs: LiveMessage[] = [];
   if (hasWebsite) msgs.push({ text: "Je lis ton site web...", type: "scanning" });
-  if (hasDocuments) msgs.push({ text: "Je parcours tes documents...", type: "scanning" });
+  if (hasDocuments) msgs.push({ text: "J'analyse ton profil Instagram...", type: "scanning" });
   msgs.push({ text: "J'analyse les informations...", type: "scanning" });
   msgs.push({ text: "Je prépare quelque chose de personnalisé...", type: "scanning" });
   return msgs;
@@ -47,7 +47,15 @@ function buildRevealMessages(data: any, answers: Props["answers"]): LiveMessage[
     }
   }
 
-  // Instagram insights removed — diagnostic no longer analyzes Instagram
+  // Instagram screenshot insights
+  if (analysis?.scores?.instagram != null) {
+    msgs.push({ text: "J'analyse ta capture Instagram... ✓", type: "done" });
+    if (analysis.scores.instagram >= 60) {
+      msgs.push({ text: "Ton profil Instagram a de bonnes bases. Il y a des choses à optimiser, mais la direction est là.", type: "insight" });
+    } else {
+      msgs.push({ text: "Ton profil Instagram a du potentiel, mais il manque quelques éléments clés.", type: "insight" });
+    }
+  }
 
   // Tone keywords (from website/profile analysis)
   if (analysis?.branding_prefill?.tone_keywords?.length >= 2) {
@@ -227,7 +235,7 @@ export default function DiagnosticLoading({
 
       <div className="space-y-3 text-left max-w-xs mx-auto">
         <CheckLine emoji="🌐" label="Ton site web" status={getStatus("web", hasWebsite)} />
-        <CheckLine emoji="📄" label="Tes documents" status={getStatus("docs", hasDocuments)} />
+        <CheckLine emoji="📱" label="Ton profil Instagram" status={getStatus("docs", hasDocuments)} />
       </div>
 
       {/* Live message area */}

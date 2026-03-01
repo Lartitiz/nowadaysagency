@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments } from "../_shared/scraping.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments, processScreenshots } from "../_shared/scraping.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 
 const MAX_TEXT_PER_SOURCE = 5000;
@@ -112,18 +112,20 @@ serve(async (req) => {
       );
     }
 
+    // Process Instagram screenshots from uploads
+    let instagramScreenshots: { base64: string; mediaType: string }[] = [];
     if (documentIds && documentIds.length > 0) {
       scrapePromises.push(
-        processDocuments(supabaseAdmin, documentIds, userId, MAX_TEXT_PER_SOURCE)
-          .then((text) => {
-            if (text) {
-              scrapedContent.documents = text.slice(0, MAX_TEXT_PER_SOURCE);
-              sourcesUsed.push("documents");
+        processScreenshots(supabaseAdmin, documentIds, userId)
+          .then((screenshots) => {
+            instagramScreenshots = screenshots;
+            if (screenshots.length > 0) {
+              sourcesUsed.push("instagram_screenshot");
             } else {
-              sourcesFailed.push("documents");
+              sourcesFailed.push("instagram_screenshot");
             }
           })
-          .catch(() => { sourcesFailed.push("documents"); })
+          .catch(() => { sourcesFailed.push("instagram_screenshot"); })
       );
     }
 
@@ -132,7 +134,7 @@ serve(async (req) => {
     // ====== BUILD PROMPT ======
     const systemPrompt = `Tu es l'assistante com' de Nowadays Agency. Tu reçois le contenu du site web et les réponses d'une solopreneuse créative. Ta mission : faire un diagnostic de communication honnête, concret et personnalisé.
 
-Tu n'as PAS accès aux données Instagram de la personne. Ne fais AUCUNE recommandation spécifique à Instagram basée sur des données que tu n'as pas. Tu peux recommander d'utiliser l'audit Instagram de l'outil pour aller plus loin.
+Si une capture d'écran du profil Instagram est fournie, analyse : la bio (clarté, mots-clés, appel à l'action), le nombre d'abonnés/abonnements (ratio), la cohérence visuelle du feed (couleurs, style), le nom affiché (optimisé ou non), le lien dans la bio. Donne un score Instagram basé sur ces éléments visibles. Si aucune capture n'est fournie, ne fais AUCUNE recommandation spécifique à Instagram.
 
 RÈGLE N°1 — LE RÉSUMÉ DOIT LUI RESSEMBLER :
 
@@ -287,7 +289,41 @@ Cette personne utilise L'Assistant Com', un outil pour solopreneuses créatives 
 
     try {
       const model = getModelForAction("branding_audit");
-      const rawText = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.7, 4096);
+
+      // Build user message content blocks for vision support
+      const userContentBlocks: any[] = [];
+      userContentBlocks.push({ type: "text", text: userPrompt });
+
+      // Add Instagram screenshots as vision
+      for (const screenshot of instagramScreenshots) {
+        userContentBlocks.push({
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: screenshot.mediaType,
+            data: screenshot.base64,
+          },
+        });
+        userContentBlocks.push({
+          type: "text",
+          text: "Ci-dessus : capture d'écran du profil Instagram de cette personne. Analyse la bio, le nombre d'abonnés, la cohérence visuelle du feed, le nom affiché, et tout élément visible.",
+        });
+      }
+
+      let rawText: string;
+      if (instagramScreenshots.length > 0) {
+        // Use vision-capable call
+        rawText = await callAnthropic({
+          model,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userContentBlocks }],
+          temperature: 0.6,
+          max_tokens: 6000,
+        });
+      } else {
+        // Simple text-only call
+        rawText = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.7, 4096);
+      }
 
       // Parse JSON
       try {

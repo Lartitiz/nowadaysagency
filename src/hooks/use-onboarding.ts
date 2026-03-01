@@ -296,9 +296,9 @@ export function useOnboarding() {
     if (!files || !user) return;
     setUploading(true);
     try {
-      for (const file of Array.from(files).slice(0, 5 - uploadedFiles.length)) {
+      for (const file of Array.from(files).slice(0, 3 - uploadedFiles.length)) {
         const ext = file.name.split(".").pop()?.toLowerCase();
-        const allowed = ["pdf", "docx", "doc", "txt", "md", "png", "jpg", "jpeg", "webp"];
+        const allowed = ["png", "jpg", "jpeg", "webp"];
         if (!ext || !allowed.includes(ext)) {
           toast({ title: "Format non supporté", description: `${file.name} ignoré`, variant: "destructive" });
           continue;
