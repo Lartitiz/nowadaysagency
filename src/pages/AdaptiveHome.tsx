@@ -15,33 +15,33 @@ import { Progress } from "@/components/ui/progress";
 import Confetti from "@/components/Confetti";
 
 /* ── Icon resolver ── */
-function RecommendationIcon({ name }: { name: string }) {
+function RecommendationIcon({ name }: {name: string;}) {
   const iconMap: Record<string, string> = {
     BookOpen: "📖", Users: "👥", Layers: "📚", CalendarPlus: "📅",
     CalendarDays: "📅", BarChart3: "📊", Sparkles: "✨", PenLine: "✏️",
     Palette: "🎨", Search: "🔍", ClipboardCheck: "📋", LayoutGrid: "📱",
-    Lightbulb: "💡",
+    Lightbulb: "💡"
   };
   return <span className="text-xl">{iconMap[name] || "📌"}</span>;
 }
 
 /* ── Chip ── */
-function Chip({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+function Chip({ children, onClick }: {children: React.ReactNode;onClick: () => void;}) {
   return (
     <button
       onClick={onClick}
-      className="px-4 py-2 text-sm rounded-full bg-card border border-[hsl(var(--primary)/0.3)] text-foreground hover:border-primary hover:bg-secondary/30 transition-colors"
-    >
+      className="px-4 py-2 text-sm rounded-full bg-card border border-[hsl(var(--primary)/0.3)] text-foreground hover:border-primary hover:bg-secondary/30 transition-colors">
+
       {children}
-    </button>
-  );
+    </button>);
+
 }
 
 /* ── Collapsible missions ── */
 const COLLAPSED_KEY = "lac_missions_collapsed";
 const FIRST_SEEN_KEY = "lac_missions_first_seen";
 
-function CollapsibleMissions({ onNavigate }: { onNavigate: (route: string) => void }) {
+function CollapsibleMissions({ onNavigate }: {onNavigate: (route: string) => void;}) {
   const { missions, completedCount, allDone, nextMission, dismissed, dismiss, isLoading } = useOnboardingMissions();
 
   const [collapsed, setCollapsed] = useState(() => {
@@ -75,8 +75,8 @@ function CollapsibleMissions({ onNavigate }: { onNavigate: (route: string) => vo
         <button onClick={dismiss} className="mt-3 text-sm font-medium text-primary hover:underline">
           Fermer →
         </button>
-      </div>
-    );
+      </div>);
+
   }
 
   return (
@@ -88,41 +88,41 @@ function CollapsibleMissions({ onNavigate }: { onNavigate: (route: string) => vo
         <span className="text-xs font-medium text-primary bg-primary/10 rounded-full px-2 py-0.5">
           {completedCount}/5
         </span>
-        <Progress value={(completedCount / 5) * 100} className="h-1.5 flex-1 max-w-[80px]" />
+        <Progress value={completedCount / 5 * 100} className="h-1.5 flex-1 max-w-[80px]" />
         <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${collapsed ? "" : "rotate-180"}`} />
       </button>
 
       {/* Mission list */}
-      {!collapsed && (
-        <div className="mt-4 space-y-2">
-          {missions.map((mission) => (
-            <MissionRow
-              key={mission.id}
-              mission={mission}
-              isNext={nextMission?.id === mission.id}
-              onClick={() => onNavigate(mission.route)}
-            />
-          ))}
+      {!collapsed &&
+      <div className="mt-4 space-y-2">
+          {missions.map((mission) =>
+        <MissionRow
+          key={mission.id}
+          mission={mission}
+          isNext={nextMission?.id === mission.id}
+          onClick={() => onNavigate(mission.route)} />
+
+        )}
         </div>
-      )}
-    </div>
-  );
+      }
+    </div>);
+
 }
 
-function MissionRow({ mission, isNext, onClick }: { mission: OnboardingMission; isNext: boolean; onClick: () => void }) {
+function MissionRow({ mission, isNext, onClick }: {mission: OnboardingMission;isNext: boolean;onClick: () => void;}) {
   const isCompleted = mission.completed;
 
   return (
     <button
       onClick={onClick}
       className={`w-full text-left rounded-xl border p-3 flex items-start gap-3 transition-all ${
-        isCompleted
-          ? "border-green-200 bg-green-50/50 opacity-70"
-          : isNext
-          ? "border-primary bg-primary/5"
-          : "border-border bg-card hover:border-primary/30"
-      }`}
-    >
+      isCompleted ?
+      "border-green-200 bg-green-50/50 opacity-70" :
+      isNext ?
+      "border-primary bg-primary/5" :
+      "border-border bg-card hover:border-primary/30"}`
+      }>
+
       <span className="text-lg mt-0.5">{isCompleted ? "✅" : mission.emoji}</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-foreground">{mission.title}</p>
@@ -132,23 +132,23 @@ function MissionRow({ mission, isNext, onClick }: { mission: OnboardingMission; 
           {mission.time}
         </span>
       </div>
-      {isNext && !isCompleted && (
-        <span className="text-xs font-medium text-primary animate-pulse shrink-0 mt-1">
+      {isNext && !isCompleted &&
+      <span className="text-xs font-medium text-primary animate-pulse shrink-0 mt-1">
           Commencer →
         </span>
-      )}
-    </button>
-  );
+      }
+    </button>);
+
 }
 
 /* ── Tour steps ── */
 const TOUR_STEPS = [
-  { target: "card-next-step", title: "Ta prochaine étape", text: "L'outil analyse où tu en es et te recommande l'action qui aura le plus d'impact. Tu n'as qu'à suivre.", position: "bottom" as const },
-  { target: "nav-branding", title: "Ta marque", text: "Tout ton branding est ici : positionnement, cible, ton, storytelling. C'est le socle de tout ce que l'outil génère pour toi.", position: "bottom" as const },
-  { target: "nav-creer", title: "Créer du contenu", text: "Posts Instagram, carrousels, newsletters, posts LinkedIn : l'outil connaît ta marque et te propose des textes avec les bonnes structures.", position: "bottom" as const },
-  { target: "card-assistant", title: "Ton coach com' IA", text: "Tu peux lui poser n'importe quelle question sur ta communication. Il connaît ton branding et te répond de façon personnalisée.", position: "top" as const },
-  { target: "nav-mon-plan", title: "Ton plan de com' personnalisé", text: "C'est ici que tout se rejoint. Un parcours étape par étape, adapté à ton objectif et au temps que tu as.", position: "bottom" as const },
-];
+{ target: "card-next-step", title: "Ta prochaine étape", text: "L'outil analyse où tu en es et te recommande l'action qui aura le plus d'impact. Tu n'as qu'à suivre.", position: "bottom" as const },
+{ target: "nav-branding", title: "Ta marque", text: "Tout ton branding est ici : positionnement, cible, ton, storytelling. C'est le socle de tout ce que l'outil génère pour toi.", position: "bottom" as const },
+{ target: "nav-creer", title: "Créer du contenu", text: "Posts Instagram, carrousels, newsletters, posts LinkedIn : l'outil connaît ta marque et te propose des textes avec les bonnes structures.", position: "bottom" as const },
+{ target: "card-assistant", title: "Ton coach com' IA", text: "Tu peux lui poser n'importe quelle question sur ta communication. Il connaît ton branding et te répond de façon personnalisée.", position: "top" as const },
+{ target: "nav-mon-plan", title: "Ton plan de com' personnalisé", text: "C'est ici que tout se rejoint. Un parcours étape par étape, adapté à ton objectif et au temps que tu as.", position: "bottom" as const }];
+
 
 /* ── Main ── */
 export default function AdaptiveHome() {
@@ -183,8 +183,8 @@ export default function AdaptiveHome() {
             <div className="h-40 bg-muted rounded-2xl mt-6" />
           </div>
         </main>
-      </div>
-    );
+      </div>);
+
   }
 
   return (
@@ -218,11 +218,11 @@ export default function AdaptiveHome() {
         {/* C. Alternatives */}
         <div className="flex flex-wrap gap-2">
           <p className="w-full text-xs text-muted-foreground mb-1">Tu veux faire autre chose ?</p>
-          {recommendation.alternatives.map((alt) => (
-            <Chip key={alt.route} onClick={() => handleNavigate(alt.route)}>
+          {recommendation.alternatives.map((alt) =>
+          <Chip key={alt.route} onClick={() => handleNavigate(alt.route)}>
               {alt.icon && <RecommendationIcon name={alt.icon} />} {alt.title}
             </Chip>
-          ))}
+          )}
         </div>
 
         {/* D. Collapsible missions */}
@@ -232,14 +232,14 @@ export default function AdaptiveHome() {
         <Card
           data-tour="card-assistant"
           className="p-4 cursor-pointer transition bg-gradient-to-br from-primary/5 to-card rounded-2xl border border-primary/20 hover:border-primary/40"
-          onClick={() => handleNavigate("/dashboard/guide")}
-        >
+          onClick={() => handleNavigate("/dashboard/guide")}>
+
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
               <span className="text-lg">🧠</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm text-foreground">Ton coach com' IA</p>
+              <p className="font-medium text-sm text-foreground">Ta coach de com'</p>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Pose-lui n'importe quelle question sur ta com', ta stratégie, tes contenus. Il connaît ta marque et s'adapte à toi.
               </p>
@@ -254,14 +254,14 @@ export default function AdaptiveHome() {
         {/* G. WelcomeOverlay + GuidedTour */}
         <WelcomeOverlay prenom={profileSummary.firstName} />
 
-        {!tourDone && !isLoading && welcomeDone && (
-          <GuidedTour
-            steps={TOUR_STEPS}
-            storageKey="lac_dashboard_tour_seen"
-            onComplete={() => setTourDone(true)}
-          />
-        )}
+        {!tourDone && !isLoading && welcomeDone &&
+        <GuidedTour
+          steps={TOUR_STEPS}
+          storageKey="lac_dashboard_tour_seen"
+          onComplete={() => setTourDone(true)} />
+
+        }
       </main>
-    </div>
-  );
+    </div>);
+
 }
