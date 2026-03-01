@@ -233,10 +233,17 @@ export default function WelcomePage() {
     load();
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const markSeen = async (destination: string) => {
+  const markSeen = (destination: string) => {
     if (!user) return;
-    await (supabase.from("user_plan_config") as any).update({ welcome_seen: true }).eq(column, value);
+    // Navigate immediately, don't wait for the update
     navigate(destination);
+    // Fire-and-forget: update welcome_seen in background
+    (supabase.from("user_plan_config") as any)
+      .update({ welcome_seen: true })
+      .eq("user_id", user.id)
+      .then(({ error }: any) => {
+        if (error) console.error("markSeen error:", error);
+      });
   };
 
   const handleCardSave = useCallback(async (cardIndex: number, newValue: string) => {
