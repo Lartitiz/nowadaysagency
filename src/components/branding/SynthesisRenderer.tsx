@@ -744,6 +744,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
   const canGenerate = section === "story" ? !!(localData?.step_7_polished || localData?.imported_text || localData?.step_6_full_story) :
     section === "persona" ? !!(localData?.step_1_frustrations && localData?.step_2_transformation) :
     section === "content_strategy" ? !!(localData?.pillar_major || localData?.step_1_hidden_facets) :
+    section === "tone_style" ? !!(localData?.voice_description || localData?.combat_cause || localData?.tone_register) :
     false;
 
   const generateSynthesis = async () => {
@@ -787,6 +788,38 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         const parsed = JSON.parse(raw);
         await supabase.from("brand_strategy").update({ recap_summary: parsed } as any).eq("id", localData.id);
         queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
+        setLocalData({ ...localData, recap_summary: parsed });
+      } else if (section === "tone_style") {
+        const { data: stratData } = await (supabase.from("brand_strategy") as any)
+          .select("creative_concept")
+          .eq(column, value)
+          .maybeSingle();
+        const { data: fnData, error } = await supabase.functions.invoke("niche-ai", {
+          body: {
+            type: "generate-tone-recap",
+            tone_data: {
+              voice_description: localData.voice_description,
+              tone_register: localData.tone_register,
+              tone_level: localData.tone_level,
+              tone_style: localData.tone_style,
+              tone_humor: localData.tone_humor,
+              tone_engagement: localData.tone_engagement,
+              key_expressions: localData.key_expressions,
+              things_to_avoid: localData.things_to_avoid,
+              target_verbatims: localData.target_verbatims,
+              combat_cause: localData.combat_cause,
+              combat_fights: localData.combat_fights,
+              combat_refusals: localData.combat_refusals,
+              combat_alternative: localData.combat_alternative,
+            },
+            creative_concept: stratData?.creative_concept || "",
+          },
+        });
+        if (error) throw error;
+        const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        const parsed = JSON.parse(raw);
+        await (supabase.from("brand_profile") as any).update({ recap_summary: parsed }).eq("id", localData.id);
+        queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
         setLocalData({ ...localData, recap_summary: parsed });
       }
       setIsStale(false);
