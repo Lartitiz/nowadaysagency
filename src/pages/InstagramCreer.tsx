@@ -122,11 +122,13 @@ export default function InstagramCreer() {
     if (!suggestion) return;
     const fmt = FORMAT_OPTIONS.find(f => f.id === suggestion.format);
     if (fmt && !fmt.comingSoon) {
-      // For post, pass pre-filled data
+      const suggestedState = calendarState?.notes ? { fromSuggested: true, existingContent: calendarState.notes, theme: calendarState.theme } : undefined;
       if (suggestion.format === "post") {
-        navigate(`/atelier?canal=instagram&objectif=${suggestion.objective}&sujet=${encodeURIComponent(ideaText)}`);
+        navigate(`/atelier?canal=instagram&objectif=${suggestion.objective}&sujet=${encodeURIComponent(ideaText)}`, {
+          state: suggestedState,
+        });
       } else {
-        navigate(fmt.route);
+        navigate(fmt.route, { state: suggestedState });
       }
     }
   };
@@ -254,7 +256,9 @@ export default function InstagramCreer() {
                   if (objectif) params.set("objectif", objectif);
                   if (sujet) params.set("sujet", encodeURIComponent(sujet));
                   if (format) params.set("format", format);
-                  navigate(`/atelier?${params.toString()}`);
+                  navigate(`/atelier?${params.toString()}`, {
+                    state: calendarState?.notes ? { fromSuggested: true, existingContent: calendarState.notes, theme: calendarState.theme } : undefined,
+                  });
                 }}
               />
             </div>

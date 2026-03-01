@@ -87,10 +87,18 @@ export default function AtelierPage() {
     }
   }, []);
 
+  // Handle suggested content redirect
+  useEffect(() => {
+    if (calendarData?.fromSuggested && calendarData?.existingContent) {
+      setSujetLibre(calendarData.theme || "");
+    }
+  }, []);
 
   const selectedFormatLabel = FORMATS.find((f) => f.id === selectedFormat)?.label || "";
 
   // Build calendar context for CreativeFlow
+  const suggestedContent = calendarData?.fromSuggested ? calendarData.existingContent : undefined;
+
   const calendarContext = fromCalendar
     ? {
         calendarPostId: calendarData.calendarPostId,
@@ -113,7 +121,9 @@ export default function AtelierPage() {
         chapterLabel: calendarData.chapterLabel,
         audiencePhase: calendarData.audiencePhase,
       }
-    : undefined;
+    : suggestedContent
+      ? { existingContent: suggestedContent, theme: calendarData?.theme }
+      : undefined;
 
   // Save generated content back to calendar
   const handleSaveToCalendar = async (content: string, meta: any) => {
