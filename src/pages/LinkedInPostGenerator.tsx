@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -81,6 +81,8 @@ export default function LinkedInPostGenerator() {
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<PostResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [suggestedTemplate, setSuggestedTemplate] = useState<{ id: string; reason: string } | null>(null);
+  const [suggestingTemplate, setSuggestingTemplate] = useState(false);
 
   // Improve mode state
   const [existingPost, setExistingPost] = useState("");
@@ -91,6 +93,36 @@ export default function LinkedInPostGenerator() {
   const [ideasContent, setIdeasContent] = useState("");
 
   // Random tip
+  // Auto-suggest template when subject is pre-filled
+  const suggestTemplate = useCallback(async (text: string) => {
+    if (!text.trim() || suggestingTemplate) return;
+    setSuggestingTemplate(true);
+    setSuggestedTemplate(null);
+    try {
+      const res = await supabase.functions.invoke("linkedin-ai", {
+        body: { action: "suggest-template", sujet: text, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
+      });
+      if (res.error) throw res.error;
+      const raw = res.data?.content || "{}";
+      const parsed = typeof raw === "string" ? JSON.parse(raw.replace(/```json?\n?/g, "").replace(/```/g, "").trim()) : raw;
+      if (parsed?.template_id) {
+        setSuggestedTemplate({ id: parsed.template_id, reason: parsed.reason || "" });
+        if (!template) setTemplate(parsed.template_id);
+      }
+    } catch (e) {
+      console.warn("Template suggestion failed:", e);
+    } finally {
+      setSuggestingTemplate(false);
+    }
+  }, [suggestingTemplate, template, workspaceId, user?.id]);
+
+  // Auto-trigger suggestion when subject is pre-filled from navigation
+  useEffect(() => {
+    if (sujet.trim() && (calendarState?.fromCalendar || calendarState?.sujet || calendarState?.theme)) {
+      suggestTemplate(sujet);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [tipIdx] = useState(() => Math.floor(Math.random() * LINKEDIN_TIPS.length));
   const tip = LINKEDIN_TIPS[tipIdx];
 
@@ -271,7 +303,33 @@ export default function LinkedInPostGenerator() {
 
             {/* Template */}
             <div>
-              <p className="text-sm font-medium text-foreground mb-2">Quel type de post ?</p>
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-sm font-medium text-foreground">Quel type de post ?</p>
+                {!suggestedTemplate && !suggestingTemplate && sujet.trim() && (
+                  <button
+                    onClick={() => suggestTemplate(sujet)}
+                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                  >
+                    <Lightbulb className="h-3 w-3" /> L'IA recommande
+                  </button>
+                )}
+                {suggestingTemplate && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Analyse en cours…
+                  </span>
+                )}
+              </div>
+              {suggestedTemplate && (
+                <div className="mb-3 rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-xs text-foreground flex items-start gap-2">
+                  <Lightbulb className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                  <span>
+                    <span className="font-medium">Recommandé :</span>{" "}
+                    {LINKEDIN_TEMPLATES_UI.find(t => t.id === suggestedTemplate.id)?.emoji}{" "}
+                    {LINKEDIN_TEMPLATES_UI.find(t => t.id === suggestedTemplate.id)?.label}
+                    {suggestedTemplate.reason && <span className="text-muted-foreground"> — {suggestedTemplate.reason}</span>}
+                  </span>
+                </div>
+              )}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {LINKEDIN_TEMPLATES_UI.map((t) => (
                   <button

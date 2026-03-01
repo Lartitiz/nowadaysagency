@@ -55,6 +55,7 @@ serve(async (req) => {
       "improve-post": "content",
       "adapt-instagram": "adaptation",
       "crosspost": "adaptation",
+      "suggest-template": "content",
       "title": "bio_profile",
       "summary": "bio_profile",
       "optimize-experience": "bio_profile",
@@ -195,6 +196,45 @@ serve(async (req) => {
       const { postContent } = params;
       systemPrompt = `${LINKEDIN_PRINCIPLES}\n\n${ANTI_BROETRY}${context}\n\n${qualityBlocks}\n\nANALYSE ce post LinkedIn et propose une version améliorée.\n\nPOST ORIGINAL :\n"""\n${postContent}\n"""\n\nCRITÈRES D'ANALYSE :\n1. ACCROCHE (210 premiers car.) : intrigue-t-elle ? Donne-t-elle envie de cliquer "voir plus" ?\n2. STRUCTURE : paragraphes courts ? Espacement ? Lisibilité ?\n3. LONGUEUR : dans le sweet spot 1300-1900 car. ?\n4. OPINION : le point de vue de l'auteur·ice est-il visible ?\n5. CONCRET : y a-t-il des exemples, des preuves, du vécu ?\n6. CTA : y a-t-il un appel à l'action ou une question ?\n7. TON : est-ce incarné ou ça pourrait être écrit par n'importe qui ?\n8. HASHTAGS : 0-2 max ? Pertinents ?\n9. EMOJIS : 0-2 max ? Pas excessifs ?\n10. ÉCRITURE INCLUSIVE : point médian utilisé ?\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks :\n{\n  "score": 65,\n  "points_forts": ["...", "..."],\n  "points_faibles": ["...", "..."],\n  "accroche_analysis": "Les 210 premiers caractères sont... parce que...",\n  "improved_version": "Le post complet amélioré",\n  "hook_alternatives": ["Variante 1 d'accroche", "Variante 2 d'accroche"],\n  "character_count": 1450,\n  "checklist": [\n    { "item": "Accroche efficace", "ok": true },\n    { "item": "Structure aérée", "ok": true },\n    { "item": "Longueur sweet spot", "ok": true },\n    { "item": "Opinion visible", "ok": true },\n    { "item": "Exemples concrets", "ok": true },\n    { "item": "CTA présent", "ok": true },\n    { "item": "Ton incarné", "ok": true },\n    { "item": "Hashtags ok", "ok": true },\n    { "item": "Emojis ok", "ok": true },\n    { "item": "Écriture inclusive", "ok": true }\n  ]\n}`;
       userPrompt = "Analyse et améliore ce post LinkedIn.";
+
+    } else if (action === "suggest-template") {
+      const { sujet: suggestSujet } = params;
+      const templateList = [
+        { id: "enquete_decryptage", label: "Enquête / Décryptage", desc: "Analyse d'une tendance, investigation", objectif: "crédibilité" },
+        { id: "test_grandeur_nature", label: "Test grandeur nature", desc: "J'ai testé X, voici mon verdict", objectif: "confiance" },
+        { id: "coup_de_gueule", label: "Coup de gueule engagé", desc: "Ce qui t'énerve + ton alternative", objectif: "visibilité" },
+        { id: "mythe_deconstruire", label: "Mythe à déconstruire", desc: "Idée reçue à exploser", objectif: "crédibilité" },
+        { id: "storytelling_lecon", label: "Storytelling + leçon", desc: "Histoire perso + apprentissage", objectif: "confiance" },
+        { id: "histoire_cliente", label: "Histoire cliente", desc: "Étude de cas, avant/après", objectif: "vente" },
+        { id: "surf_actu", label: "Surf sur l'actu", desc: "Actu + ton angle expert", objectif: "visibilité" },
+        { id: "regard_philosophique", label: "Regard philosophique", desc: "Réflexion profonde", objectif: "confiance" },
+        { id: "conseil_contre_intuitif", label: "Conseil contre-intuitif", desc: "Le contraire de ce qu'on croit", objectif: "crédibilité" },
+        { id: "before_after", label: "Before / After", desc: "Transformation concrète", objectif: "vente" },
+        { id: "build_in_public", label: "Build in public", desc: "Coulisses, vrais chiffres, doutes", objectif: "confiance" },
+        { id: "identification_quotidien", label: "Identification / Quotidien", desc: "Scène que tout le monde reconnaît", objectif: "engagement" },
+        { id: "contenu_lancement", label: "Contenu de lancement", desc: "Annonce d'offre ou nouveauté", objectif: "vente" },
+      ];
+
+      // Use Gemini Flash for speed (classification task)
+      const geminiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}` },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-lite",
+          messages: [
+            { role: "system", content: `Tu es un expert LinkedIn. Voici les templates disponibles :\n${templateList.map(t => `- ${t.id}: ${t.label} (${t.desc}) [objectif: ${t.objectif}]`).join("\n")}\n\nPour le sujet donné, choisis LE meilleur template et explique pourquoi en 1 phrase.\nRéponds UNIQUEMENT en JSON sans backticks :\n{"template_id": "...", "reason": "..."}` },
+            { role: "user", content: `Sujet : "${suggestSujet}"` },
+          ],
+          max_tokens: 200,
+          temperature: 0.3,
+        }),
+      });
+      const geminiData = await geminiRes.json();
+      const rawContent = geminiData?.choices?.[0]?.message?.content || "{}";
+      // Don't log usage for this lightweight action
+      return new Response(JSON.stringify({ content: rawContent }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
 
     } else {
       return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
