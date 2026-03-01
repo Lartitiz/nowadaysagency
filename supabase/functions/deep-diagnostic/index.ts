@@ -89,20 +89,8 @@ serve(async (req) => {
       );
     }
 
-    if (instagramHandle) {
-      scrapePromises.push(
-        scrapeInstagram(instagramHandle, controller.signal)
-          .then((text) => {
-            if (text) {
-              scrapedContent.instagram = text.slice(0, MAX_TEXT_PER_SOURCE);
-              sourcesUsed.push("instagram");
-            } else {
-              sourcesFailed.push("instagram");
-            }
-          })
-          .catch(() => { sourcesFailed.push("instagram"); })
-      );
-    }
+    // Instagram scraping disabled — handle is kept for audit tool, not used in diagnostic
+    // if (instagramHandle) { ... }
 
     // LinkedIn: prefer user-provided summary over scraping
     const linkedinSummary = freeformAnswers?.linkedin_summary;
@@ -144,6 +132,8 @@ serve(async (req) => {
     // ====== BUILD PROMPT ======
     const systemPrompt = `Tu es l'assistante com' de Nowadays Agency. Tu reçois le contenu du site web et les réponses d'une solopreneuse créative. Ta mission : faire un diagnostic de communication honnête, concret et personnalisé.
 
+Tu n'as PAS accès aux données Instagram de la personne. Ne fais AUCUNE recommandation spécifique à Instagram basée sur des données que tu n'as pas. Tu peux recommander d'utiliser l'audit Instagram de l'outil pour aller plus loin.
+
 RÈGLE N°1 — LE RÉSUMÉ DOIT LUI RESSEMBLER :
 
 Le champ "summary" est le moment le plus important. La personne doit se dire "oui, c'est exactement moi". Pour ça :
@@ -161,8 +151,6 @@ RÈGLE N°2 — NE JAMAIS INVENTER :
 - Si tu n'as pas d'exemple concret pour une force ou une faiblesse, NE L'INCLUS PAS. Mieux vaut 2 forces solides que 4 forces vagues.
 
 - Si le scraping du site a échoué, dis-le clairement dans le summary : 'Je n'ai pas pu lire ton site en détail, donc je me base sur ce que tu m'as partagé.'
-
-- Ne cite JAMAIS un extrait de caption Instagram, un hashtag, ou un post si tu n'as pas reçu de données Instagram dans le contexte.
 
 RÈGLE N°3 — FORCES ET FAIBLESSES CONCRÈTES :
 

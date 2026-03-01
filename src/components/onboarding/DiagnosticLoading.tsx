@@ -27,7 +27,6 @@ interface LiveMessage {
 function buildInitialMessages(hasInstagram: boolean, hasWebsite: boolean, hasDocuments: boolean): LiveMessage[] {
   const msgs: LiveMessage[] = [];
   if (hasWebsite) msgs.push({ text: "Je lis ton site web...", type: "scanning" });
-  if (hasInstagram) msgs.push({ text: "Je regarde ton Instagram...", type: "scanning" });
   if (hasDocuments) msgs.push({ text: "Je parcours tes documents...", type: "scanning" });
   msgs.push({ text: "J'analyse les informations...", type: "scanning" });
   msgs.push({ text: "Je prépare quelque chose de personnalisé...", type: "scanning" });
@@ -48,20 +47,12 @@ function buildRevealMessages(data: any, answers: Props["answers"]): LiveMessage[
     }
   }
 
-  // Instagram insights
-  if (analysis?.scores?.instagram != null) {
-    msgs.push({ text: "Je regarde ton Instagram... ✓", type: "done" });
-    // Extract tone from strengths/weaknesses mentioning instagram
-    const igStrength = (analysis?.strengths || []).find((s: any) => s.source === "instagram");
-    if (igStrength) {
-      msgs.push({ text: `${igStrength.title}. J'ai bien noté.`, type: "insight" });
-    }
+  // Instagram insights removed — diagnostic no longer analyzes Instagram
 
-    // Tone keywords
-    if (analysis?.branding_prefill?.tone_keywords?.length >= 2) {
-      const tones = analysis.branding_prefill.tone_keywords.slice(0, 3).join(", ");
-      msgs.push({ text: `Ton ton est plutôt ${tones}. J'aime bien.`, type: "insight" });
-    }
+  // Tone keywords (from website/profile analysis)
+  if (analysis?.branding_prefill?.tone_keywords?.length >= 2) {
+    const tones = analysis.branding_prefill.tone_keywords.slice(0, 3).join(", ");
+    msgs.push({ text: `Ton ton est plutôt ${tones}. J'aime bien.`, type: "insight" });
   }
 
   // LinkedIn insights  
@@ -235,7 +226,6 @@ export default function DiagnosticLoading({
       </h1>
 
       <div className="space-y-3 text-left max-w-xs mx-auto">
-        <CheckLine emoji="📱" label="Ton Instagram" status={getStatus("ig", hasInstagram)} />
         <CheckLine emoji="🌐" label="Ton site web" status={getStatus("web", hasWebsite)} />
         <CheckLine emoji="📄" label="Tes documents" status={getStatus("docs", hasDocuments)} />
       </div>
