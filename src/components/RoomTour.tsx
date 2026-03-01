@@ -10,7 +10,7 @@ const SLIDES = [
   {
     emoji: "⚡",
     title: "Ça change quoi pour toi ?",
-    text: "Ça veut dire qu'à chaque fois que tu crées un contenu ici, tu ne repars pas de zéro. L'outil sait à qui tu parles, comment tu parles, ce que tu vends. Il te propose des textes qui te ressemblent, avec les bonnes structures, les bons formats. Toi, tu ajustes. C'est tout. Ce qui te prenait une heure t'en prend vingt.",
+    text: "Ça veut dire qu'à chaque fois que tu crées un contenu ici, tu ne repars pas de zéro. L'outil connaît ton projet. Il te propose des textes qui te ressemblent, avec les bonnes structures et les bons formats.\nCe qui te prenait une heure t'en prend vingt.",
   },
   {
     emoji: "🧠",
