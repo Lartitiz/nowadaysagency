@@ -35,6 +35,8 @@ export interface DiagnosticData {
   }[];
   channelScores: { emoji: string; label: string; score: number | null }[];
   scores?: DiagnosticScores;
+  sources_used?: string[];
+  sources_failed?: string[];
   branding_prefill?: {
     positioning?: string | null;
     mission?: string | null;
