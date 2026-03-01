@@ -80,7 +80,7 @@ function TypingIndicator() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       className="flex items-start gap-3 mb-3"
-      aria-label="L'assistant rédige une réponse"
+      aria-label="Le coach rédige une réponse"
       role="status"
     >
       <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold" style={{ backgroundColor: "#fb3d80", fontFamily: "'IBM Plex Sans', sans-serif" }}>
@@ -318,7 +318,7 @@ export default function ChatGuidePage() {
       return {
         id: "welcome",
         role: "assistant",
-        content: `${greeting} ${firstName} ! 👋\n\nOn continue à poser les bases de ta com'. Voici ce que je te propose :`,
+        content: `${greeting} ${firstName} ! 👋\n\nJe connais ta marque, ton audience et tes objectifs. Pose-moi n'importe quelle question sur ta com' et je t'aide concrètement.`,
         suggestions: [mainSuggestion],
         created_at: new Date().toISOString(),
       };
@@ -341,7 +341,7 @@ export default function ChatGuidePage() {
       return {
         id: "welcome",
         role: "assistant",
-        content: `${greeting} ${firstName} ! 👋\n\nQu'est-ce qu'on crée aujourd'hui ?`,
+        content: `${greeting} ${firstName} ! 👋\n\nJe connais ta marque et ton audience. Qu'est-ce qu'on crée aujourd'hui ?`,
         suggestions: finalSuggestions,
         created_at: new Date().toISOString(),
       };
@@ -743,16 +743,15 @@ export default function ChatGuidePage() {
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 bg-primary"
-              style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0 bg-primary/15"
             >
-              AC
+              🧠
             </div>
             <span
               className="text-base font-semibold text-foreground"
               style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 16 }}
             >
-              Ton Assistant Com'
+              Ton coach com' IA
             </span>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
