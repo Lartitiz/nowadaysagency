@@ -15,7 +15,7 @@ const SLIDES = [
   {
     emoji: "🧠",
     title: "Derrière, il y a une vraie méthode",
-    text: "C'est pas un ChatGPT qui écrit du texte générique. Chaque contenu est basé sur des structures qui fonctionnent\u00a0: les bons déclencheurs, les bons enchaînements, les bons formats selon ton canal. Tu n'as pas besoin de maîtriser tout ça. L'outil le fait pour toi, pour que toi tu restes concentrée sur ton métier.",
+    text: "C'est pas un ChatGPT qui écrit du texte générique. Chaque contenu est basé sur des structures qui fonctionnent (testées et approuvées ✅). Tu n'as pas besoin de maîtriser tout ça.\nPour que toi tu restes concentrée sur ton métier.",
   },
   {
     emoji: "🧭",
