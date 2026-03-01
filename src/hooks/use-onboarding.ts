@@ -309,6 +309,18 @@ export function useOnboarding() {
   }, [step, isDemoMode, user?.id, uploadedFiles]);
 
   /* ── file upload ── */
+  function sanitizeFileName(name: string): string {
+    const ext = name.split(".").pop()?.toLowerCase() || "png";
+    const base = name.replace(/\.[^.]+$/, "");
+    const clean = base
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9_-]/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_|_$/g, "")
+      .slice(0, 50);
+    return `${clean || "screenshot"}.${ext}`;
+  }
+
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || !user) return;
     setUploading(true);
@@ -321,7 +333,8 @@ export function useOnboarding() {
           continue;
         }
 
-        const filePath = `${user.id}/onboarding/${Date.now()}_${file.name}`;
+        const safeName = sanitizeFileName(file.name);
+        const filePath = `${user.id}/onboarding/${Date.now()}_${safeName}`;
         const { error: uploadError } = await supabase.storage
           .from("onboarding-uploads")
           .upload(filePath, file);
