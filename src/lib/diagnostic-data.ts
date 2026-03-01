@@ -72,12 +72,13 @@ export function computeDiagnosticData(
   const hasNl = answers.canaux.includes("newsletter");
   const hasLi = answers.canaux.includes("linkedin");
 
-  const igScore = hasIg ? (answers.instagram ? null : 0) : null;
-  const webScore = hasWeb ? (answers.website ? 40 : 15) : null;
-  const nlScore = hasNl ? 15 : null;
+  // No fake scores — these channels are analyzed by deep-diagnostic, not here
+  const igScore: number | null = null;
+  const webScore: number | null = null;
+  const nlScore: number | null = null;
 
-  const all = [brandingScore, igScore, webScore, nlScore].filter((s): s is number => s !== null);
-  const totalScore = all.length > 0 ? Math.round(all.reduce((a, b) => a + b, 0) / all.length) : brandingScore;
+  // totalScore based only on branding (the only reliable local data)
+  const totalScore = brandingScore;
 
   const strengths: string[] = [];
   if (brandingAnswers.positioning?.trim()) strengths.push("Ton positionnement est clair et défini");
