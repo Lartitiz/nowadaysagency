@@ -319,15 +319,6 @@ export default function WelcomePage() {
                         {card.content}
                       </p>
                     )}
-                    <Link
-                      to={card.route}
-                      onClick={() => {
-                        if (user) (supabase.from("user_plan_config") as any).update({ welcome_seen: true }).eq(column, value);
-                      }}
-                      className="inline-block text-xs font-semibold text-primary hover:underline"
-                    >
-                      Voir et modifier →
-                    </Link>
                   </div>
                 ))}
               </div>
