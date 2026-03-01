@@ -5,7 +5,6 @@ import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/use-profile";
-import RoomTour from "@/components/RoomTour";
 
 const GOAL_LABELS: Record<string, string> = {
   start: "🌱 Poser les bases",
@@ -104,8 +103,6 @@ export default function WelcomePage() {
   const [diagnosticSummary, setDiagnosticSummary] = useState("");
   const [brandingCards, setBrandingCards] = useState<BrandingCard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showTour, setShowTour] = useState(false);
-  const [tourDestination, setTourDestination] = useState("/branding");
 
   const prenom = (profileData as any)?.prenom || "";
   const channels: string[] = (profileData as any)?.canaux || [];
@@ -232,19 +229,7 @@ export default function WelcomePage() {
   const markSeen = async (destination: string) => {
     if (!user) return;
     await (supabase.from("user_plan_config") as any).update({ welcome_seen: true }).eq(column, value);
-
-    if (destination === "/branding" && !localStorage.getItem("lac_tour_branding_seen")) {
-      setTourDestination(destination);
-      setShowTour(true);
-      return;
-    }
     navigate(destination);
-  };
-
-  const handleTourClose = () => {
-    setShowTour(false);
-    localStorage.setItem("lac_tour_branding_seen", "true");
-    navigate(tourDestination);
   };
 
   const hasRecs = recommendations.length > 0;
@@ -415,11 +400,11 @@ export default function WelcomePage() {
         {/* F) CTAs */}
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
-            onClick={() => markSeen("/branding")}
+            onClick={() => markSeen("/dashboard")}
             className="flex-1 rounded-pill gap-2"
             size="lg"
           >
-            🎯 Valider mon branding →
+            ✨ Explorer l'outil →
           </Button>
           <Button
             variant="outline"
@@ -431,16 +416,6 @@ export default function WelcomePage() {
           </Button>
         </div>
       </div>
-
-      <RoomTour
-        open={showTour}
-        onClose={handleTourClose}
-        onGeneratePlan={() => {
-          setShowTour(false);
-          localStorage.setItem("lac_tour_branding_seen", "true");
-          navigate("/mon-plan");
-        }}
-      />
     </div>
   );
 }
