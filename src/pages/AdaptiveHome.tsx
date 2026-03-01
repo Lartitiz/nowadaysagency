@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import GuidedTour from "@/components/GuidedTour";
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
-import RoomTour from "@/components/RoomTour";
+
 import SuggestedContents from "@/components/dashboard/SuggestedContents";
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
 import { useUserPhase } from "@/hooks/use-user-phase";
@@ -109,28 +109,9 @@ export default function AdaptiveHome() {
   const { phase, speed, isLoading: phaseLoading } = useUserPhase();
   const { data: upcoming } = useUpcomingPosts();
 
-  const [showDashTour, setShowDashTour] = useState(false);
   const [tourDone, setTourDone] = useState(() =>
-    !!localStorage.getItem("lac_dashboard_tour_seen") || !localStorage.getItem("lac_tour_dashboard_seen")
+    !!localStorage.getItem("lac_dashboard_tour_seen")
   );
-
-  useEffect(() => {
-    if (!localStorage.getItem("lac_tour_dashboard_seen")) {
-      const timer = setTimeout(() => setShowDashTour(true), 800);
-      return () => clearTimeout(timer);
-    }
-  }, []);
-
-  const handleDashTourClose = () => {
-    setShowDashTour(false);
-    localStorage.setItem("lac_tour_dashboard_seen", "true");
-  };
-
-  const handleGeneratePlan = () => {
-    setShowDashTour(false);
-    localStorage.setItem("lac_tour_dashboard_seen", "true");
-    navigate("/mon-plan");
-  };
 
   const handleNavigate = (route: string) => {
     if (route === "/creer" && profileSummary.brandingTotal < 50) {
@@ -191,7 +172,7 @@ export default function AdaptiveHome() {
           <SuggestedContents />
         )}
 
-        {!tourDone && !isLoading && !phaseLoading && !showDashTour && (
+        {!tourDone && !isLoading && !phaseLoading && (
           <GuidedTour
             steps={TOUR_STEPS}
             storageKey="lac_dashboard_tour_seen"
@@ -200,7 +181,7 @@ export default function AdaptiveHome() {
         )}
       </main>
 
-      <RoomTour open={showDashTour} onClose={handleDashTourClose} onGeneratePlan={handleGeneratePlan} />
+      
     </div>
   );
 }
