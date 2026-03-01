@@ -172,20 +172,21 @@ function AppHeaderInner() {
           </div>
 
           <div className="flex items-center gap-2">
-            <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1 flex-nowrap overflow-hidden">
+            <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1 flex-nowrap overflow-x-auto scrollbar-hide min-w-0">
               {desktopNav.map((item) => (
                 <Link
                   key={item.to}
                   to={item.to}
                   data-tour={`nav-${item.to.replace(/\//g, "") || "dashboard"}`}
-                  className={`flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-sm font-semibold transition-all duration-200 whitespace-nowrap ${
+                  className={`flex items-center gap-1.5 rounded-pill px-2.5 py-1.5 text-[13px] font-semibold transition-all duration-200 whitespace-nowrap shrink-0 ${
                     isActive(item)
                       ? "bg-card text-primary shadow-[0_2px_8px_hsl(338_96%_61%/0.1)]"
                       : "text-muted-foreground hover:bg-secondary"
                   }`}
                 >
-                  <item.icon className="h-3.5 w-3.5" />
-                  {item.label}
+                  <item.icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="hidden xl:inline">{item.label}</span>
+                  <span className="xl:hidden">{item.label.replace("Mon Assistant", "Assistant").replace("Accompagnement", "Accom.").replace("Calendrier", "Agenda").replace("Ma marque", "Marque")}</span>
                 </Link>
               ))}
             </nav>
