@@ -1,13 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, LayoutGrid, Wrench } from "lucide-react";
 
 import { useDemoContext } from "@/contexts/DemoContext";
-import { toast } from "sonner";
 import { useUserPlan } from "@/hooks/use-user-plan";
-import { useUserPhase, incrementFullToolsClicks } from "@/hooks/use-user-phase";
 import { Progress } from "@/components/ui/progress";
 import NotificationBell from "@/components/NotificationBell";
 import AiCreditsCounter from "@/components/AiCreditsCounter";
@@ -20,73 +18,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-/* ─── Phase-aware nav items ─── */
+/* ─── Unified nav items ─── */
 
-const NAV_CONSTRUCTION = [
+const NAV_ITEMS = [
   { to: "/dashboard", label: "Mon Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
   { to: "/branding", label: "Ma marque", icon: Palette, matchExact: false },
-  { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
-  { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
-];
-
-const NAV_ACTION = [
-  { to: "/dashboard", label: "Mon Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
   { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
-  { to: "/branding", label: "Ma marque", icon: Palette, matchExact: false },
-  { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
-];
-
-const NAV_PILOTAGE = [
-  { to: "/dashboard", label: "Mon Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
-  { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
-  { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
-  { to: "/branding", label: "Ma marque", icon: Palette, matchExact: false },
   { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
 ];
 
 const ACCOMPAGNEMENT_ITEM = { to: "/accompagnement", label: "Accompagnement", icon: HeartHandshake, matchExact: false };
 
-function getPhaseDesktopNav(phase: string, isPilot: boolean) {
-  let items;
-  if (phase === "construction") items = [...NAV_CONSTRUCTION];
-  else if (phase === "action") items = [...NAV_ACTION];
-  else items = [...NAV_PILOTAGE];
-  if (isPilot) items.push(ACCOMPAGNEMENT_ITEM);
-  return items;
-}
-
-const MOBILE_CONSTRUCTION = [
+const MOBILE_NAV = [
   { to: "/dashboard", label: "Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
   { to: "/branding", label: "Ma marque", icon: Palette, matchExact: false },
   { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
-  { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
-];
-
-const MOBILE_ACTION = [
-  { to: "/dashboard", label: "Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
-  { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
-  { to: "/branding", label: "Marque", icon: Palette, matchExact: false },
   { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
 ];
-
-const MOBILE_PILOTAGE = [
-  { to: "/dashboard", label: "Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
-  { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
-  { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
-  { to: "/branding", label: "Marque", icon: Palette, matchExact: false },
-  { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
-];
-
-function getPhaseMobileNav(phase: string, isPilot: boolean) {
-  let items;
-  if (phase === "construction") items = [...MOBILE_CONSTRUCTION];
-  else if (phase === "action") items = [...MOBILE_ACTION];
-  else items = [...MOBILE_PILOTAGE];
-  if (isPilot) items.push({ to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false });
-  return items;
-}
 
 export default function AppHeader() {
   const { isActive: sessionActive } = useSession();
@@ -100,20 +50,11 @@ function AppHeaderInner() {
   const location = useLocation();
   const navigate = useNavigate();
   const { plan, usage, isPilot, isPaid } = useUserPlan();
-  const { phase, isLoading: phaseLoading } = useUserPhase();
   const { activateDemo } = useDemoContext();
   const handleDemoClick = () => { activateDemo(); navigate("/onboarding"); };
   const [hasCoaching, setHasCoaching] = useState(false);
   const [coachingMonth, setCoachingMonth] = useState<number | null>(null);
   const [coachingPhase, setCoachingPhase] = useState<string | null>(null);
-
-  const handleAllToolsClick = useCallback(() => {
-    const clicks = incrementFullToolsClicks();
-    if (clicks === 1) {
-      toast("Tu trouveras ici tous les outils avancés de l'Assistant Com'.", { duration: 4000 });
-    }
-    navigate("/dashboard/complet?from=guide");
-  }, [navigate]);
 
   // Check if user has an active coaching program
   useEffect(() => {
@@ -134,12 +75,8 @@ function AppHeaderInner() {
     });
   }, [user?.id]);
 
-  // Use "construction" as default during loading (fewer items = less confusion)
-  const effectivePhase = phaseLoading ? "construction" : phase;
-  const showAllToolsLink = effectivePhase !== "pilotage";
-
-  const desktopNav = getPhaseDesktopNav(effectivePhase, isPilot);
-  const mobileNav = getPhaseMobileNav(effectivePhase, isPilot);
+  const desktopNav = isPilot ? [...NAV_ITEMS, ACCOMPAGNEMENT_ITEM] : NAV_ITEMS;
+  const mobileNav = isPilot ? [...MOBILE_NAV, { to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false }] : MOBILE_NAV;
 
   const isActive = (item: { to: string; matchExact: boolean }) =>
     item.matchExact ? location.pathname === item.to : location.pathname.startsWith(item.to);
@@ -189,14 +126,6 @@ function AppHeaderInner() {
                 </Link>
               ))}
             </nav>
-            {showAllToolsLink && (
-              <button
-                onClick={handleAllToolsClick}
-                className="font-mono-ui text-[12px] text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
-              >
-                Tous les outils →
-              </button>
-            )}
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -251,15 +180,6 @@ function AppHeaderInner() {
                 </Link>
               ))}
             </nav>
-            {showAllToolsLink && (
-              <button
-                onClick={handleAllToolsClick}
-                className="font-mono-ui text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                title="Voir tous les outils"
-              >
-                +
-              </button>
-            )}
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -339,15 +259,6 @@ function AppHeaderInner() {
               </Link>
             );
           })}
-          {showAllToolsLink && (
-            <button
-              onClick={handleAllToolsClick}
-              className="flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold text-muted-foreground"
-            >
-              <LayoutGrid className="h-5 w-5" />
-              Plus
-            </button>
-          )}
         </div>
       </nav>
 
