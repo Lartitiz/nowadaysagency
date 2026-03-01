@@ -120,7 +120,8 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
         canal: "instagram",
         status: "draft",
         objectif: item.objective,
-        notes: `Accroche : ${item.hook_idea}\nPilier : ${item.pillar}`,
+        accroche: item.hook_idea,
+        notes: `Pilier : ${item.pillar}`,
       } as any);
       setAddedItems(prev => new Set(prev).add(index));
       toast.success(`📅 "${item.subject}" ajouté au ${item.day}`);
