@@ -177,7 +177,7 @@ function ConstructionPhase({
       </h1>
       <p className="text-muted-foreground mt-2">Ta prochaine étape :</p>
 
-      <Card className="mt-6 p-6 border-2 border-primary/20 bg-card rounded-2xl">
+      <Card data-tour="card-next-step" className="mt-6 p-6 border-2 border-primary/20 bg-card rounded-2xl">
         <div className="flex items-start gap-4">
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
             <RecommendationIcon name={recommendation.icon} />
@@ -211,6 +211,7 @@ function ConstructionPhase({
       </div>
 
       <Card
+        data-tour="card-assistant"
         className="mt-6 p-4 cursor-pointer hover:border-primary/30 transition bg-card rounded-2xl border border-dashed border-primary/20"
         onClick={() => onNavigate("/dashboard/guide")}
       >
@@ -278,6 +279,7 @@ function ActionPhase({
       </div>
 
       <Card
+        data-tour="card-assistant"
         className="mt-6 p-4 cursor-pointer hover:border-primary/30 transition bg-card rounded-2xl border border-dashed border-primary/20"
         onClick={() => onNavigate("/dashboard/guide")}
       >
@@ -376,6 +378,7 @@ function PilotagePhase({
       </div>
 
       <Card
+        data-tour="card-assistant"
         className="mt-6 p-4 cursor-pointer hover:border-primary/30 transition bg-card rounded-2xl border border-dashed border-primary/20"
         onClick={() => onNavigate("/dashboard/guide")}
       >

@@ -173,6 +173,7 @@ function AppHeaderInner() {
                 <Link
                   key={item.to}
                   to={item.to}
+                  data-tour={`nav-${item.to.replace(/\//g, "") || "dashboard"}`}
                   className={`flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-sm font-semibold transition-all duration-200 whitespace-nowrap ${
                     isActive(item)
                       ? "bg-card text-primary shadow-[0_2px_8px_hsl(338_96%_61%/0.1)]"
