@@ -1,49 +1,31 @@
 import { useState, useEffect } from "react";
-import GuidedTour from "@/components/GuidedTour";
-import { useNavigate, Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ArrowRight, ChevronDown, Clock } from "lucide-react";
 
-import SuggestedContents from "@/components/dashboard/SuggestedContents";
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
-import { useUserPhase } from "@/hooks/use-user-phase";
+import { useOnboardingMissions, OnboardingMission } from "@/hooks/use-onboarding-missions";
+import SuggestedContents from "@/components/dashboard/SuggestedContents";
 import WelcomeOverlay from "@/components/dashboard/WelcomeOverlay";
-import { useToast } from "@/hooks/use-toast";
+import GuidedTour from "@/components/GuidedTour";
 import AppHeader from "@/components/AppHeader";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { Progress } from "@/components/ui/progress";
+import Confetti from "@/components/Confetti";
 
-/* ── Upcoming posts hook ── */
-function useUpcomingPosts() {
-  const { user } = useAuth();
-  const { column, value } = useWorkspaceFilter();
-
-  return useQuery({
-    queryKey: ["upcoming-posts", user?.id, column, value],
-    queryFn: async () => {
-      const today = new Date();
-      const endOfWeek = new Date(today);
-      endOfWeek.setDate(today.getDate() + 7);
-
-      const { data, count } = await (supabase.from("calendar_posts") as any)
-        .select("id, theme, date, canal, status", { count: "exact" })
-        .eq(column, value)
-        .gte("date", today.toISOString().split("T")[0])
-        .lte("date", endOfWeek.toISOString().split("T")[0])
-        .order("date", { ascending: true })
-        .limit(3);
-
-      return { posts: data || [], weekCount: count ?? 0 };
-    },
-    enabled: !!user,
-    staleTime: 2 * 60 * 1000,
-  });
+/* ── Icon resolver ── */
+function RecommendationIcon({ name }: { name: string }) {
+  const iconMap: Record<string, string> = {
+    BookOpen: "📖", Users: "👥", Layers: "📚", CalendarPlus: "📅",
+    CalendarDays: "📅", BarChart3: "📊", Sparkles: "✨", PenLine: "✏️",
+    Palette: "🎨", Search: "🔍", ClipboardCheck: "📋", LayoutGrid: "📱",
+    Lightbulb: "💡",
+  };
+  return <span className="text-xl">{iconMap[name] || "📌"}</span>;
 }
 
-/* ── Chip component ── */
+/* ── Chip ── */
 function Chip({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
     <button
@@ -55,57 +37,119 @@ function Chip({ children, onClick }: { children: React.ReactNode; onClick: () =>
   );
 }
 
-/* ── Icon resolver ── */
-function RecommendationIcon({ name }: { name: string }) {
-  const iconMap: Record<string, string> = {
-    BookOpen: "📖",
-    Users: "👥",
-    Layers: "📚",
-    CalendarPlus: "📅",
-    CalendarDays: "📅",
-    BarChart3: "📊",
-    Sparkles: "✨",
-    PenLine: "✏️",
-    Palette: "🎨",
-    Search: "🔍",
-    ClipboardCheck: "📋",
-    LayoutGrid: "📱",
-    Lightbulb: "💡",
+/* ── Collapsible missions ── */
+const COLLAPSED_KEY = "lac_missions_collapsed";
+const FIRST_SEEN_KEY = "lac_missions_first_seen";
+
+function CollapsibleMissions({ onNavigate }: { onNavigate: (route: string) => void }) {
+  const { missions, completedCount, allDone, nextMission, dismissed, dismiss, isLoading } = useOnboardingMissions();
+
+  const [collapsed, setCollapsed] = useState(() => {
+    const firstSeen = localStorage.getItem(FIRST_SEEN_KEY);
+    if (!firstSeen) return false; // first time → open
+    return localStorage.getItem(COLLAPSED_KEY) === "true";
+  });
+
+  useEffect(() => {
+    if (!localStorage.getItem(FIRST_SEEN_KEY)) {
+      localStorage.setItem(FIRST_SEEN_KEY, "true");
+    }
+  }, []);
+
+  const toggle = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem(COLLAPSED_KEY, String(next));
   };
-  return <span className="text-xl">{iconMap[name] || "📌"}</span>;
+
+  if (dismissed || isLoading) return null;
+
+  if (allDone) {
+    return (
+      <div className="rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 p-5 shadow-sm">
+        <Confetti />
+        <p className="font-heading font-bold text-foreground">
+          Bravo ! Tu as posé tes fondations 🎉
+        </p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Tu connais les bases de l'outil. Maintenant, explore librement.
+        </p>
+        <button onClick={dismiss} className="mt-3 text-sm font-medium text-primary hover:underline">
+          Fermer →
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      {/* Toggle header */}
+      <button onClick={toggle} className="w-full flex items-center gap-3">
+        <span className="text-base">🚀</span>
+        <span className="font-heading text-sm font-bold text-foreground">Tes missions</span>
+        <span className="text-xs font-medium text-primary bg-primary/10 rounded-full px-2 py-0.5">
+          {completedCount}/5
+        </span>
+        <Progress value={(completedCount / 5) * 100} className="h-1.5 flex-1 max-w-[80px]" />
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${collapsed ? "" : "rotate-180"}`} />
+      </button>
+
+      {/* Mission list */}
+      {!collapsed && (
+        <div className="mt-4 space-y-2">
+          {missions.map((mission) => (
+            <MissionRow
+              key={mission.id}
+              mission={mission}
+              isNext={nextMission?.id === mission.id}
+              onClick={() => onNavigate(mission.route)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
+function MissionRow({ mission, isNext, onClick }: { mission: OnboardingMission; isNext: boolean; onClick: () => void }) {
+  const isCompleted = mission.completed;
+
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full text-left rounded-xl border p-3 flex items-start gap-3 transition-all ${
+        isCompleted
+          ? "border-green-200 bg-green-50/50 opacity-70"
+          : isNext
+          ? "border-primary bg-primary/5"
+          : "border-border bg-card hover:border-primary/30"
+      }`}
+    >
+      <span className="text-lg mt-0.5">{isCompleted ? "✅" : mission.emoji}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-foreground">{mission.title}</p>
+        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{mission.description}</p>
+        <span className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+          <Clock className="h-3 w-3" />
+          {mission.time}
+        </span>
+      </div>
+      {isNext && !isCompleted && (
+        <span className="text-xs font-medium text-primary animate-pulse shrink-0 mt-1">
+          Commencer →
+        </span>
+      )}
+    </button>
+  );
+}
+
+/* ── Tour steps ── */
 const TOUR_STEPS = [
-  {
-    target: "card-next-step",
-    title: "Ta prochaine étape",
-    text: "L'outil analyse où tu en es et te recommande l'action qui aura le plus d'impact. Tu n'as qu'à suivre.",
-    position: "bottom" as const,
-  },
-  {
-    target: "nav-branding",
-    title: "Ta marque",
-    text: "Tout ton branding est ici : positionnement, cible, ton, storytelling. C'est le socle de tout ce que l'outil génère pour toi.",
-    position: "bottom" as const,
-  },
-  {
-    target: "nav-creer",
-    title: "Créer du contenu",
-    text: "Posts Instagram, carrousels, newsletters, posts LinkedIn : l'outil connaît ta marque et te propose des textes avec les bonnes structures.",
-    position: "bottom" as const,
-  },
-  {
-    target: "card-assistant",
-    title: "Ton assistant com'",
-    text: "Tu peux lui poser n'importe quelle question sur ta communication. Il connaît ton branding et te répond de façon personnalisée.",
-    position: "top" as const,
-  },
-  {
-    target: "nav-mon-plan",
-    title: "Ton plan de com' personnalisé",
-    text: "C'est ici que tout se rejoint. Un parcours étape par étape, adapté à ton objectif et au temps que tu as. Clique ici pour le découvrir quand tu es prête.",
-    position: "bottom" as const,
-  },
+  { target: "card-next-step", title: "Ta prochaine étape", text: "L'outil analyse où tu en es et te recommande l'action qui aura le plus d'impact. Tu n'as qu'à suivre.", position: "bottom" as const },
+  { target: "nav-branding", title: "Ta marque", text: "Tout ton branding est ici : positionnement, cible, ton, storytelling. C'est le socle de tout ce que l'outil génère pour toi.", position: "bottom" as const },
+  { target: "nav-creer", title: "Créer du contenu", text: "Posts Instagram, carrousels, newsletters, posts LinkedIn : l'outil connaît ta marque et te propose des textes avec les bonnes structures.", position: "bottom" as const },
+  { target: "card-assistant", title: "Ton coach com' IA", text: "Tu peux lui poser n'importe quelle question sur ta communication. Il connaît ton branding et te répond de façon personnalisée.", position: "top" as const },
+  { target: "nav-mon-plan", title: "Ton plan de com' personnalisé", text: "C'est ici que tout se rejoint. Un parcours étape par étape, adapté à ton objectif et au temps que tu as.", position: "bottom" as const },
 ];
 
 /* ── Main ── */
@@ -113,15 +157,9 @@ export default function AdaptiveHome() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { recommendation, profileSummary, isLoading } = useGuideRecommendation();
-  const { phase, speed, isLoading: phaseLoading } = useUserPhase();
-  const { data: upcoming } = useUpcomingPosts();
 
-  const [tourDone, setTourDone] = useState(() =>
-    !!localStorage.getItem("lac_dashboard_tour_seen")
-  );
-  const [welcomeDone, setWelcomeDone] = useState(() =>
-    localStorage.getItem("lac_welcome_seen") === "true"
-  );
+  const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
+  const [welcomeDone, setWelcomeDone] = useState(() => localStorage.getItem("lac_welcome_seen") === "true");
 
   useEffect(() => {
     const check = () => setWelcomeDone(localStorage.getItem("lac_welcome_seen") === "true");
@@ -131,14 +169,12 @@ export default function AdaptiveHome() {
 
   const handleNavigate = (route: string) => {
     if (route === "/creer" && profileSummary.brandingTotal < 50) {
-      toast({
-        title: "Tes contenus seront plus personnalisés une fois que tu auras posé tes bases 💡",
-      });
+      toast({ title: "Tes contenus seront plus personnalisés une fois que tu auras posé tes bases 💡" });
     }
     navigate(route);
   };
 
-  if (isLoading || phaseLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
@@ -156,41 +192,71 @@ export default function AdaptiveHome() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="max-w-[640px] mx-auto px-4 py-8">
-        {phase === "construction" && (
-          <ConstructionPhase
-            firstName={profileSummary.firstName}
-            recommendation={recommendation}
-            onNavigate={handleNavigate}
-          />
-        )}
+      <main className="max-w-[640px] mx-auto px-4 py-8 space-y-6">
+        {/* A. Header */}
+        <div>
+          <h1 className="font-display text-2xl text-foreground">
+            Salut {profileSummary.firstName} !
+          </h1>
+          <p className="text-muted-foreground mt-2">Ta prochaine étape :</p>
+        </div>
 
-        {phase === "action" && (
-          <ActionPhase
-            firstName={profileSummary.firstName}
-            recommendation={recommendation}
-            onNavigate={handleNavigate}
-          />
-        )}
+        {/* B. Recommendation */}
+        <Card data-tour="card-next-step" className="p-6 border-2 border-primary/20 bg-card rounded-2xl">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <RecommendationIcon name={recommendation.icon} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="font-display text-lg text-foreground">{recommendation.title}</h2>
+              <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{recommendation.explanation}</p>
+            </div>
+          </div>
+          <Button className="w-full mt-4 rounded-xl" onClick={() => handleNavigate(recommendation.ctaRoute)}>
+            {recommendation.ctaLabel}
+          </Button>
+        </Card>
 
-        {phase === "pilotage" && (
-          <PilotagePhase
-            firstName={profileSummary.firstName}
-            recommendation={recommendation}
-            onNavigate={handleNavigate}
-            postsThisWeek={upcoming?.weekCount ?? 0}
-            nextPost={upcoming?.posts?.[0] || null}
-          />
-        )}
+        {/* C. Alternatives */}
+        <div className="flex flex-wrap gap-2">
+          <p className="w-full text-xs text-muted-foreground mb-1">Tu veux faire autre chose ?</p>
+          {recommendation.alternatives.map((alt) => (
+            <Chip key={alt.route} onClick={() => handleNavigate(alt.route)}>
+              {alt.icon && <RecommendationIcon name={alt.icon} />} {alt.title}
+            </Chip>
+          ))}
+        </div>
 
-        {/* Suggested contents widget */}
-        {profileSummary.brandingTotal >= 30 && (speed === 1 || phase === "construction") && (
-          <SuggestedContents />
-        )}
+        {/* D. Collapsible missions */}
+        <CollapsibleMissions onNavigate={handleNavigate} />
 
+        {/* E. Coach IA */}
+        <Card
+          data-tour="card-assistant"
+          className="p-4 cursor-pointer transition bg-gradient-to-br from-primary/5 to-card rounded-2xl border border-primary/20 hover:border-primary/40"
+          onClick={() => handleNavigate("/dashboard/guide")}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+              <span className="text-lg">🧠</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm text-foreground">Ton coach com' IA</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Pose-lui n'importe quelle question sur ta com', ta stratégie, tes contenus. Il connaît ta marque et s'adapte à toi.
+              </p>
+            </div>
+            <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
+          </div>
+        </Card>
+
+        {/* F. Suggested contents */}
+        {profileSummary.brandingTotal >= 30 && <SuggestedContents />}
+
+        {/* G. WelcomeOverlay + GuidedTour */}
         <WelcomeOverlay prenom={profileSummary.firstName} />
 
-        {!tourDone && !isLoading && !phaseLoading && welcomeDone && (
+        {!tourDone && !isLoading && welcomeDone && (
           <GuidedTour
             steps={TOUR_STEPS}
             storageKey="lac_dashboard_tour_seen"
@@ -198,252 +264,6 @@ export default function AdaptiveHome() {
           />
         )}
       </main>
-
-      
     </div>
-  );
-}
-
-/* ═══════ Phase Construction ═══════ */
-function ConstructionPhase({
-  firstName,
-  recommendation,
-  onNavigate,
-}: {
-  firstName: string;
-  recommendation: ReturnType<typeof useGuideRecommendation>["recommendation"];
-  onNavigate: (route: string) => void;
-}) {
-  return (
-    <>
-      <h1 className="font-display text-2xl text-foreground">
-        Salut {firstName} !
-      </h1>
-      <p className="text-muted-foreground mt-2">Ta prochaine étape :</p>
-
-      <Card data-tour="card-next-step" className="mt-6 p-6 border-2 border-primary/20 bg-card rounded-2xl">
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <RecommendationIcon name={recommendation.icon} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="font-display text-lg text-foreground">
-              {recommendation.title}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-              {recommendation.explanation}
-            </p>
-          </div>
-        </div>
-        <Button
-          className="w-full mt-4 rounded-xl"
-          onClick={() => onNavigate(recommendation.ctaRoute)}
-        >
-          {recommendation.ctaLabel}
-        </Button>
-      </Card>
-
-      <div className="mt-6 flex flex-wrap gap-2">
-        <p className="w-full text-xs text-muted-foreground mb-1">
-          Tu veux faire autre chose ?
-        </p>
-        {recommendation.alternatives.map((alt) => (
-          <Chip key={alt.route} onClick={() => onNavigate(alt.route)}>
-            {alt.icon && <RecommendationIcon name={alt.icon} />} {alt.title}
-          </Chip>
-        ))}
-      </div>
-
-      <Card
-        data-tour="card-assistant"
-        className="mt-6 p-4 cursor-pointer hover:border-primary/30 transition bg-card rounded-2xl border border-dashed border-primary/20"
-        onClick={() => onNavigate("/dashboard/guide")}
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <span className="text-lg">💬</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm text-foreground">Discuter avec mon assistant</p>
-            <p className="text-xs text-muted-foreground">Pose n'importe quelle question sur ta com'</p>
-          </div>
-          <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
-        </div>
-      </Card>
-    </>
-  );
-}
-
-/* ═══════ Phase Action ═══════ */
-function ActionPhase({
-  firstName,
-  recommendation,
-  onNavigate,
-}: {
-  firstName: string;
-  recommendation: ReturnType<typeof useGuideRecommendation>["recommendation"];
-  onNavigate: (route: string) => void;
-}) {
-  const suggestions = [
-    { emoji: recommendation.icon, title: recommendation.title, subtitle: recommendation.explanation, route: recommendation.ctaRoute },
-    ...recommendation.alternatives.map((a) => ({
-      emoji: a.icon,
-      title: a.title,
-      subtitle: "",
-      route: a.route,
-    })),
-  ];
-
-  return (
-    <>
-      <h1 className="font-display text-2xl text-foreground">
-        Salut {firstName} !
-      </h1>
-      <p className="text-muted-foreground mt-2">Qu'est-ce qu'on fait cette semaine ?</p>
-
-      <div className="space-y-3 mt-6">
-        {suggestions.map((s) => (
-          <Card
-            key={s.route}
-            className="p-4 cursor-pointer hover:border-primary/30 transition bg-card rounded-2xl"
-            onClick={() => onNavigate(s.route)}
-          >
-            <div className="flex items-center gap-3">
-              <RecommendationIcon name={s.emoji} />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm text-foreground">{s.title}</p>
-                {s.subtitle && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">{s.subtitle}</p>
-                )}
-              </div>
-              <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      <Card
-        data-tour="card-assistant"
-        className="mt-6 p-4 cursor-pointer hover:border-primary/30 transition bg-card rounded-2xl border border-dashed border-primary/20"
-        onClick={() => onNavigate("/dashboard/guide")}
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <span className="text-lg">💬</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm text-foreground">Discuter avec mon assistant</p>
-            <p className="text-xs text-muted-foreground">Pose n'importe quelle question sur ta com'</p>
-          </div>
-          <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
-        </div>
-      </Card>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Chip onClick={() => onNavigate("/dashboard/complet")}>Voir tous mes outils →</Chip>
-      </div>
-    </>
-  );
-}
-
-/* ═══════ Phase Pilotage ═══════ */
-function PilotagePhase({
-  firstName,
-  recommendation,
-  onNavigate,
-  postsThisWeek,
-  nextPost,
-}: {
-  firstName: string;
-  recommendation: ReturnType<typeof useGuideRecommendation>["recommendation"];
-  onNavigate: (route: string) => void;
-  postsThisWeek: number;
-  nextPost: { id: string; theme: string; date: string; canal: string; status: string } | null;
-}) {
-  const suggestions = [
-    { emoji: recommendation.icon, title: recommendation.title, subtitle: recommendation.explanation, route: recommendation.ctaRoute },
-    ...recommendation.alternatives.map((a) => ({
-      emoji: a.icon,
-      title: a.title,
-      subtitle: "",
-      route: a.route,
-    })),
-  ];
-
-  return (
-    <>
-      <h1 className="font-display text-2xl text-foreground">
-        Salut {firstName} !
-      </h1>
-      <p className="text-muted-foreground mt-2">
-        Cette semaine : {postsThisWeek} contenu{postsThisWeek > 1 ? "s" : ""} planifié{postsThisWeek > 1 ? "s" : ""}.
-      </p>
-
-      {nextPost && (
-        <Card className="mt-4 p-4 bg-card rounded-2xl border border-border">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground">Ton prochain post</p>
-              <p className="text-sm font-medium text-foreground truncate mt-0.5">
-                « {nextPost.theme} »
-              </p>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="rounded-xl shrink-0"
-              onClick={() => onNavigate(`/calendrier?post=${nextPost.id}`)}
-            >
-              Finaliser
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      <div className="space-y-3 mt-6">
-        {suggestions.map((s) => (
-          <Card
-            key={s.route}
-            className="p-4 cursor-pointer hover:border-primary/30 transition bg-card rounded-2xl"
-            onClick={() => onNavigate(s.route)}
-          >
-            <div className="flex items-center gap-3">
-              <RecommendationIcon name={s.emoji} />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm text-foreground">{s.title}</p>
-                {s.subtitle && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">{s.subtitle}</p>
-                )}
-              </div>
-              <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      <Card
-        data-tour="card-assistant"
-        className="mt-6 p-4 cursor-pointer hover:border-primary/30 transition bg-card rounded-2xl border border-dashed border-primary/20"
-        onClick={() => onNavigate("/dashboard/guide")}
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <span className="text-lg">💬</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm text-foreground">Discuter avec mon assistant</p>
-            <p className="text-xs text-muted-foreground">Pose n'importe quelle question sur ta com'</p>
-          </div>
-          <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
-        </div>
-      </Card>
-
-      <Link
-        to="/dashboard/complet"
-        className="text-xs text-muted-foreground underline mt-8 block text-center"
-      >
-        Voir tous mes outils →
-      </Link>
-    </>
   );
 }
