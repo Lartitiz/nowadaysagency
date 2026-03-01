@@ -6001,6 +6001,33 @@ export type Database = {
           },
         ]
       }
+      scrape_cache: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          id: string
+          source_type: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          source_type?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          source_type?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       shared_branding_links: {
         Row: {
           created_at: string | null
