@@ -64,7 +64,7 @@ export default function InstagramCreer() {
   const { toast } = useToast();
   const { channels: activeChannels } = useActiveChannels();
   const { column, value } = useWorkspaceFilter();
-  const calendarState = location.state as { fromCalendar?: boolean; theme?: string; notes?: string; objectif?: string } | null;
+  const calendarState = location.state as { fromCalendar?: boolean; fromSuggested?: boolean; theme?: string; notes?: string; objectif?: string } | null;
   const [ideaText, setIdeaText] = useState("");
   const [suggesting, setSuggesting] = useState(false);
   const [suggestion, setSuggestion] = useState<FormatSuggestion | null>(null);
@@ -74,9 +74,9 @@ export default function InstagramCreer() {
   const [contentCoachingOpen, setContentCoachingOpen] = useState(false);
   const { data: profile } = useProfile();
 
-  // Pre-fill from calendar (theme + notes)
+  // Pre-fill from calendar or suggested contents
   useEffect(() => {
-    if (calendarState?.fromCalendar) {
+    if (calendarState?.fromCalendar || calendarState?.fromSuggested) {
       const parts: string[] = [];
       if (calendarState.theme) parts.push(calendarState.theme);
       if (calendarState.notes) parts.push(calendarState.notes);
