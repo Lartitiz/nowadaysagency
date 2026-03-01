@@ -298,6 +298,7 @@ export default function PricingPage() {
           <h2 className="font-display text-2xl font-bold text-center mb-8">
             Comparatif détaillé
           </h2>
+          <p className="text-xs text-muted-foreground text-center sm:hidden mb-2">👉 Fais défiler pour voir toutes les colonnes</p>
           <div className="overflow-x-auto -mx-4 px-4">
             <table className="w-full min-w-[600px]">
               <thead>
