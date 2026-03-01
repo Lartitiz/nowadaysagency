@@ -77,10 +77,10 @@ function pickBrandingRoute(
 ): string {
   const sections: { key: keyof BrandingCompletion; threshold: number; route: string }[] = [
     { key: "storytelling", threshold: 100, route: "/branding/storytelling" },
-    { key: "persona", threshold: 50, route: "/branding/persona" },
-    { key: "proposition", threshold: 50, route: "/branding/proposition" },
-    { key: "tone", threshold: 50, route: "/branding/ton" },
-    { key: "strategy", threshold: 50, route: "/branding/strategie" },
+    { key: "persona", threshold: 50, route: "/branding/section?section=persona" },
+    { key: "proposition", threshold: 50, route: "/branding/proposition/recap" },
+    { key: "tone", threshold: 50, route: "/branding/section?section=tone_style" },
+    { key: "strategy", threshold: 50, route: "/branding/section?section=content_strategy" },
     { key: "offers", threshold: 50, route: "/branding/offres" },
   ];
 

@@ -208,7 +208,7 @@ export function getCategoryRecommendations(
           effort: "rapide",
           recommendation:
             "Renforce ta différenciation : qu'est-ce qui te rend unique par rapport aux autres ?",
-          link: "/branding/proposition",
+          link: "/branding/proposition/recap",
           linkLabel: "Affiner ma proposition",
         });
       } else if (pct === 100) {

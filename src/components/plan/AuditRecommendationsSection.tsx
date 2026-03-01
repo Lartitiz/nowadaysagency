@@ -65,14 +65,14 @@ export default function AuditRecommendationsSection() {
   // Map stored routes (which may be incomplete) to actual app routes
   const resolveRoute = (rec: Recommendation): string => {
     const routeMap: Record<string, string> = {
-      "/persona": "/branding/persona",
+      "/persona": "/branding/section?section=persona",
       "/instagram/bio": "/instagram/profil/bio",
       "/instagram/highlights": "/instagram/profil/stories",
       "/creer": "/creer",
-      "/strategie": "/branding/strategie",
+      "/strategie": "/branding/section?section=content_strategy",
       "/storytelling": "/branding/storytelling",
-      "/ton": "/branding/ton",
-      "/proposition": "/branding/proposition",
+      "/ton": "/branding/section?section=tone_style",
+      "/proposition": "/branding/proposition/recap",
       "/offres": "/branding/offres",
     };
     return routeMap[rec.route] || rec.route;

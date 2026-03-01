@@ -43,7 +43,7 @@ export default function BrandingPrompt({ section = "global", message, linkText, 
     tone: {
       msg: "✨ L'IA peut écrire dans ton style exact si tu remplis la section 'Mon ton & style'.",
       link: "Définir mon style →",
-      to: "/branding/ton",
+      to: "/branding/section?section=tone_style",
     },
     proposition: {
       msg: "❤️ Ta bio sera plus percutante avec ta proposition de valeur.",
@@ -53,7 +53,7 @@ export default function BrandingPrompt({ section = "global", message, linkText, 
     strategie: {
       msg: "🍒 L'équilibre recommandé sera personnalisé quand tu auras posé ta stratégie de contenu.",
       link: "Poser ma stratégie →",
-      to: "/branding/strategie",
+      to: "/branding/section?section=content_strategy",
     },
   };
 

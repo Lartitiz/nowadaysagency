@@ -179,7 +179,7 @@ export default function TonStyleRecapPage() {
         <SubPageHeader breadcrumbs={[{ label: "Mon identité", to: "/branding" }, { label: "Mon ton & style", to: "/branding/section?section=tone_style" }]} currentLabel="Récap" />
         <div className="rounded-2xl bg-[hsl(var(--rose-pale))] border border-border p-6 text-center">
           <p className="text-foreground text-[15px] mb-4">🎨 Complète d'abord ton ton & tes combats pour voir ta fiche récap.</p>
-          <Link to="/branding/ton"><Button className="rounded-pill">Commencer →</Button></Link>
+          <Link to="/branding/coaching?section=tone_style"><Button className="rounded-pill">Commencer →</Button></Link>
         </div>
       </main>
     </div>
@@ -194,7 +194,7 @@ export default function TonStyleRecapPage() {
         {/* Action bar */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <Link to="/branding/ton">
+            <Link to="/branding/coaching?section=tone_style">
               <Button variant="outline" size="sm" className="rounded-pill text-xs">
                 <Pencil className="h-3 w-3 mr-1" /> Modifier
               </Button>

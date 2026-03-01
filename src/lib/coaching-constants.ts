@@ -56,9 +56,9 @@ export const FIXED_SESSIONS = [
 export const DEFAULT_DELIVERABLES = [
   { title: "Audit de communication", type: "audit", route: "/branding/audit" },
   { title: "Branding complet", type: "branding", route: "/branding" },
-  { title: "Portrait cible", type: "persona", route: "/branding/persona" },
+  { title: "Portrait cible", type: "persona", route: "/branding/section?section=persona" },
   { title: "Offres reformulées", type: "offers", route: "/branding/offres" },
-  { title: "Ligne éditoriale", type: "editorial", route: "/branding/strategie" },
+  { title: "Ligne éditoriale", type: "editorial", route: "/branding/section?section=content_strategy" },
   { title: "Calendrier 3 mois", type: "calendar", route: "/calendrier" },
   { title: "Bio optimisée", type: "bio", route: "/instagram/profil/bio" },
   { title: "10-15 contenus prêts", type: "content", route: "/calendrier" },
