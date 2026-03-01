@@ -348,20 +348,11 @@ export default function WelcomePage() {
                       {rec.detail && (
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{rec.detail}</p>
                       )}
-                      <div className="flex items-center gap-3 mt-2">
-                        {rec.temps_estime && (
+                      {rec.temps_estime && (
+                        <div className="mt-2">
                           <span className="text-[11px] text-muted-foreground">⏱️ {rec.temps_estime}</span>
-                        )}
-                        <Link
-                          to={rec.route}
-                          onClick={() => {
-                            if (user) (supabase.from("user_plan_config") as any).update({ welcome_seen: true }).eq(column, value);
-                          }}
-                          className="text-[11px] font-semibold text-primary hover:underline"
-                        >
-                          {i === 0 ? "👉 Commencer →" : "Voir →"}
-                        </Link>
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
