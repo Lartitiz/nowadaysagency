@@ -51,7 +51,7 @@ export default function WelcomeOverlay({ prenom }: WelcomeOverlayProps) {
   const { user } = useAuth();
   const { data: profileData } = useProfile();
   const [visible, setVisible] = useState(false);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
   useEffect(() => {
     if (!user || !profileData) return;
@@ -74,14 +74,16 @@ export default function WelcomeOverlay({ prenom }: WelcomeOverlayProps) {
         {step === 1 ? (
           <StepOne prenom={prenom} profile={profileData} onNext={() => setStep(2)} />
         ) : step === 2 ? (
-          <StepTwo onNext={() => setStep(3)} />
+          <StepMethod onNext={() => setStep(3)} />
+        ) : step === 3 ? (
+          <StepTwo onNext={() => setStep(4)} />
         ) : (
           <StepThree onClose={close} />
         )}
 
         {/* Progress dots */}
         <div className="flex justify-center gap-2 mt-8">
-          {[1, 2, 3].map((s) => (
+          {[1, 2, 3, 4].map((s) => (
             <div
               key={s}
               className={`h-2 rounded-full transition-all ${
@@ -162,7 +164,49 @@ function StepOne({ prenom, profile, onNext }: { prenom?: string; profile: any; o
   );
 }
 
-/* ─── Step 2 : Les 4 super-pouvoirs ─── */
+/* ─── Step 2 : Ce qui change pour toi (fusionné du RoomTour) ─── */
+function StepMethod({ onNext }: { onNext: () => void }) {
+  return (
+    <div className="text-center max-w-lg mx-auto">
+      <p className="text-4xl mb-4">🧠</p>
+      <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-6">
+        Concrètement, ça change quoi pour toi ?
+      </h2>
+
+      <div className="space-y-4 text-left mb-8">
+        <div className="flex items-start gap-3">
+          <span className="text-lg shrink-0">⚡</span>
+          <div>
+            <p className="text-sm font-medium text-foreground">Tu ne repars plus de zéro</p>
+            <p className="text-sm text-muted-foreground">L'outil sait à qui tu parles, comment tu parles, ce que tu vends. Ce qui te prenait une heure t'en prend vingt.</p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-3">
+          <span className="text-lg shrink-0">🎯</span>
+          <div>
+            <p className="text-sm font-medium text-foreground">C'est pas du ChatGPT générique</p>
+            <p className="text-sm text-muted-foreground">Chaque contenu est basé sur des structures testées et approuvées. Tu n'as pas besoin de maîtriser tout ça : l'outil le fait pour toi.</p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-3">
+          <span className="text-lg shrink-0">🧭</span>
+          <div>
+            <p className="text-sm font-medium text-foreground">Tu sais toujours quoi faire</p>
+            <p className="text-sm text-muted-foreground">Fini le "bon, je poste quoi aujourd'hui ?". Tu es guidée. Tu as un plan. Tu avances. Même quand t'as que 30 minutes devant toi.</p>
+          </div>
+        </div>
+      </div>
+
+      <Button onClick={onNext} size="lg" className="rounded-full px-8">
+        Voir les super-pouvoirs →
+      </Button>
+    </div>
+  );
+}
+
+/* ─── Step 3 : Les 4 super-pouvoirs ─── */
 function StepTwo({ onNext }: { onNext: () => void }) {
   const features = [
     {
