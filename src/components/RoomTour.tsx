@@ -1,136 +1,134 @@
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 
-type Variant = "branding" | "dashboard";
+const SLIDES = [
+  {
+    emoji: "✨",
+    title: "Bienvenue dans ton outil de com'",
+    text: "Tu viens de répondre à plein de questions sur toi, ton activité, ta cible, tes canaux. Et pendant ce temps, l'outil a bossé en coulisses. Il a analysé tout ça. Du coup maintenant, il te connaît. Et c'est ça qui change tout.",
+  },
+  {
+    emoji: "⚡",
+    title: "Ça change quoi pour toi ?",
+    text: "Ça veut dire qu'à chaque fois que tu crées un contenu ici, tu ne repars pas de zéro. L'outil sait à qui tu parles, comment tu parles, ce que tu vends. Il te propose des textes qui te ressemblent, avec les bonnes structures, les bons formats. Toi, tu ajustes. C'est tout. Ce qui te prenait une heure t'en prend vingt.",
+  },
+  {
+    emoji: "🧠",
+    title: "Derrière, il y a une vraie méthode",
+    text: "C'est pas un ChatGPT qui écrit du texte générique. Chaque contenu est basé sur des structures qui fonctionnent\u00a0: les bons déclencheurs, les bons enchaînements, les bons formats selon ton canal. Tu n'as pas besoin de maîtriser tout ça. L'outil le fait pour toi, pour que toi tu restes concentrée sur ton métier.",
+  },
+  {
+    emoji: "🧭",
+    title: "Et surtout, tu sais toujours quoi faire",
+    text: "Fini le \"bon, je poste quoi aujourd'hui\u00a0?\". L'outil te dit\u00a0: voilà tes prochaines étapes, voilà ce qui va avoir le plus d'impact pour te rendre visible et attirer tes client·es, en fonction de ton objectif. Tu es guidée. Tu as un plan. Tu avances. Même quand t'as que 30 minutes devant toi.",
+  },
+  {
+    emoji: "🗂️",
+    title: "Tout est organisé, au même endroit",
+    text: "Ton calendrier éditorial pour voir ton mois d'un coup d'œil. Ton atelier pour stocker tes idées. (Même celles de 2h du mat'.) Tes espaces pour bosser sur Instagram, ton site ou LinkedIn sans te disperser. Un seul endroit. Fini les 12 onglets, les post-it et les Google Docs oubliés.",
+  },
+  {
+    emoji: "🚀",
+    title: "On y va ?",
+    text: "On va maintenant générer ton plan de com' personnalisé à partir de tout ce que tu m'as dit. Tes priorités, tes premiers contenus, ton calendrier\u00a0: tout se met en place.",
+  },
+];
 
-interface Slide {
-  emoji: string;
-  title: string;
-  text: string;
+function renderText(text: string) {
+  // Split on parenthetical asides and quoted phrases to wrap them in <em>
+  const parts: (string | JSX.Element)[] = [];
+  // Match (…) or "…" segments
+  const regex = /(\([^)]+\)|"[^"]+\??")/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    parts.push(<em key={key++} className="not-italic text-muted-foreground/70">{match[0]}</em>);
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts;
 }
-
-const SLIDES: Record<Variant, Slide[]> = {
-  branding: [
-    {
-      emoji: "🎨",
-      title: "Ton branding, c'est ta boussole",
-      text: "Tout ce que l'outil génère s'appuie sur ton positionnement, ton ton de voix, ta cible. Plus tu remplis, plus les résultats sont justes.",
-    },
-    {
-      emoji: "✨",
-      title: "L'IA propose, tu décides",
-      text: "Chaque contenu généré est une base. Tu ajustes, tu personnalises, tu gardes ta voix. L'outil ne parle jamais à ta place.",
-    },
-    {
-      emoji: "🔗",
-      title: "Tout est connecté",
-      text: "Tu changes ton positionnement ? L'outil te propose de mettre à jour tes contenus. Ton branding reste vivant et cohérent.",
-    },
-    {
-      emoji: "📝",
-      title: "Commence par vérifier ton branding",
-      text: "J'ai pré-rempli tes fiches à partir du diagnostic. Parcours-les, ajuste ce qui ne te ressemble pas, et valide.",
-    },
-  ],
-  dashboard: [
-    {
-      emoji: "🏠",
-      title: "Bienvenue dans ton espace",
-      text: "Ton dashboard te montre où tu en es, ce qu'il te reste à faire, et te guide vers les bonnes actions au bon moment.",
-    },
-    {
-      emoji: "📱",
-      title: "Un espace par canal",
-      text: "Instagram, LinkedIn, Pinterest, Site web, Newsletter : chaque canal a son espace dédié avec des outils spécifiques.",
-    },
-    {
-      emoji: "💡",
-      title: "Tes idées ne se perdent plus",
-      text: "L'atelier créatif stocke tes idées. Tu les transformes en contenus quand tu es prête, et tu les envoies au calendrier.",
-    },
-    {
-      emoji: "📅",
-      title: "Ton calendrier éditorial",
-      text: "Planifie tes publications, visualise ton mois, et crée directement depuis le calendrier. Fini les post-it volants.",
-    },
-    {
-      emoji: "🔍",
-      title: "Des audits pour progresser",
-      text: "Audite ton Instagram, ton site, ton LinkedIn. L'outil analyse et te donne des actions concrètes à mettre en place.",
-    },
-    {
-      emoji: "🚀",
-      title: "C'est ton outil. Explore.",
-      text: "Pas besoin de tout faire d'un coup. Commence par ce qui t'inspire. Le reste viendra.",
-    },
-  ],
-};
 
 interface RoomTourProps {
   open: boolean;
   onClose: () => void;
-  variant: Variant;
 }
 
-export default function RoomTour({ open, onClose, variant }: RoomTourProps) {
-  const [current, setCurrent] = useState(0);
-  const slides = SLIDES[variant];
-  const isLast = current === slides.length - 1;
+export default function RoomTour({ open, onClose }: RoomTourProps) {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const isLast = currentSlide === SLIDES.length - 1;
 
   const handleNext = useCallback(() => {
     if (isLast) {
-      setCurrent(0);
+      setCurrentSlide(0);
       onClose();
     } else {
-      setCurrent((c) => c + 1);
+      setCurrentSlide((s) => s + 1);
     }
   }, [isLast, onClose]);
 
   const handleSkip = useCallback(() => {
-    setCurrent(0);
+    setCurrentSlide(0);
     onClose();
   }, [onClose]);
 
   if (!open) return null;
 
-  const slide = slides[current];
+  const slide = SLIDES[currentSlide];
 
   return (
     <div className="fixed inset-0 z-[100] bg-background/98 backdrop-blur-md flex items-center justify-center px-4">
-      <div className="w-full max-w-lg text-center space-y-6">
-        {/* Slide content with animation */}
+      <div className="w-full max-w-lg space-y-8">
+        {/* Slide content */}
         <div
-          key={current}
-          className="animate-fade-in space-y-4"
+          key={currentSlide}
+          className="animate-fade-in space-y-4 text-center"
         >
           <span className="text-5xl block">{slide.emoji}</span>
           <h2 className="font-display text-xl text-foreground">{slide.title}</h2>
-          <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
-            {slide.text}
+          <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto font-sans">
+            {renderText(slide.text)}
           </p>
         </div>
 
         {/* Dots */}
         <div className="flex items-center justify-center gap-2">
-          {slides.map((_, i) => (
+          {SLIDES.map((_, i) => (
             <span
               key={i}
               className={`h-2 w-2 rounded-full transition-colors duration-300 ${
-                i === current ? "bg-primary" : "bg-border"
+                i === currentSlide ? "bg-primary" : "bg-border"
               }`}
             />
           ))}
         </div>
 
         {/* CTA */}
-        <div className="space-y-2">
-          <Button
-            onClick={handleNext}
-            className="rounded-full px-8 py-3"
-            size="lg"
-          >
-            {isLast ? "C'est parti ! 🚀" : "Suivant →"}
-          </Button>
+        <div className="space-y-2 text-center">
+          {!isLast ? (
+            <Button
+              onClick={handleNext}
+              className="rounded-full px-8 py-3 text-sm font-medium"
+              size="lg"
+            >
+              Suivant →
+            </Button>
+          ) : (
+            <Button
+              onClick={handleNext}
+              className="rounded-full px-8 py-3 text-sm font-medium"
+              size="lg"
+            >
+              Générer mon plan de com' →
+            </Button>
+          )}
           <button
             onClick={handleSkip}
             className="block mx-auto text-xs text-muted-foreground hover:text-foreground transition-colors"

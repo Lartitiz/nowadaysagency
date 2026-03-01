@@ -155,7 +155,7 @@ export default function AdaptiveHome() {
         )}
       </main>
 
-      <RoomTour open={showDashTour} onClose={handleDashTourClose} variant="dashboard" />
+      <RoomTour open={showDashTour} onClose={handleDashTourClose} />
     </div>
   );
 }
