@@ -260,6 +260,7 @@ export default function Onboarding() {
                     answers={answers}
                     brandingAnswers={brandingAnswers}
                     uploadedFileIds={uploadedFiles.map(f => f.id)}
+                    activityType={answers.activity_type}
                     onReady={(data) => {
                       setDiagnosticData(data);
                       setStep(12);
