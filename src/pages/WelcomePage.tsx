@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
@@ -6,6 +6,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/use-profile";
 import RoomTour from "@/components/RoomTour";
+import EditableText from "@/components/EditableText";
+import { toast as sonnerToast } from "sonner";
 
 const GOAL_LABELS: Record<string, string> = {
   start: "🌱 Poser les bases",
@@ -81,6 +83,8 @@ interface BrandingCard {
   title: string;
   content: string;
   route: string;
+  dbTable?: string;
+  dbField?: string;
 }
 
 interface BrandProfileData {
@@ -184,17 +188,17 @@ export default function WelcomePage() {
       const bp = brandProfileRes.data as BrandProfileData | null;
 
       if (bp?.positioning) {
-        cards.push({ emoji: "🎯", title: "Positionnement", content: bp.positioning, route: "/branding/proposition/recap" });
+        cards.push({ emoji: "🎯", title: "Positionnement", content: bp.positioning, route: "/branding/proposition/recap", dbTable: "brand_profile", dbField: "positioning" });
       }
       if (bp?.mission) {
-        cards.push({ emoji: "🚀", title: "Mission", content: bp.mission, route: "/branding" });
+        cards.push({ emoji: "🚀", title: "Mission", content: bp.mission, route: "/branding", dbTable: "brand_profile", dbField: "mission" });
       }
       if (bp?.tone_style || (bp?.tone_keywords && bp.tone_keywords.length > 0)) {
         const toneContent = bp.tone_style || (bp.tone_keywords || []).join(", ");
-        cards.push({ emoji: "💬", title: "Ton de voix", content: toneContent, route: "/branding/section?section=tone_style" });
+        cards.push({ emoji: "💬", title: "Ton de voix", content: toneContent, route: "/branding/section?section=tone_style", dbTable: bp.tone_style ? "brand_profile" : undefined, dbField: bp.tone_style ? "tone_style" : undefined });
       }
       if (bp?.combats) {
-        cards.push({ emoji: "⚔️", title: "Combats", content: bp.combats, route: "/branding/section?section=tone_style" });
+        cards.push({ emoji: "⚔️", title: "Combats", content: bp.combats, route: "/branding/section?section=tone_style", dbTable: "brand_profile", dbField: "combats" });
       }
       if (bp?.values && bp.values.length > 0) {
         cards.push({ emoji: "💎", title: "Valeurs", content: (bp.values as any[]).map(v => typeof v === "string" ? v : (v as any).name || v).join(", "), route: "/branding/section?section=tone_style" });
@@ -206,7 +210,7 @@ export default function WelcomePage() {
 
       const persona = personaRes.data as any;
       if (persona?.description) {
-        cards.push({ emoji: "🎭", title: "Persona", content: persona.description, route: "/branding/section?section=persona" });
+        cards.push({ emoji: "🎭", title: "Persona", content: persona.description, route: "/branding/section?section=persona", dbTable: "persona", dbField: "description" });
       }
 
       const offers = offersRes.data as any[];
@@ -219,7 +223,7 @@ export default function WelcomePage() {
 
       const story = storyRes.data as any;
       if (story?.imported_text) {
-        cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/branding/section?section=story" });
+        cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/branding/section?section=story", dbTable: "storytelling", dbField: "imported_text" });
       }
 
       setBrandingCards(cards);
@@ -233,6 +237,36 @@ export default function WelcomePage() {
     await (supabase.from("user_plan_config") as any).update({ welcome_seen: true }).eq(column, value);
     navigate(destination);
   };
+
+  const handleCardSave = useCallback(async (cardIndex: number, newValue: string) => {
+    const card = brandingCards[cardIndex];
+    if (!card.dbTable || !card.dbField || !user) return;
+
+    const filterCol = card.dbTable === "persona" || card.dbTable === "storytelling"
+      ? column : column;
+    const extraFilter = card.dbTable === "persona"
+      ? { is_primary: true }
+      : card.dbTable === "storytelling"
+        ? { is_primary: true }
+        : {};
+
+    let query = (supabase.from(card.dbTable as any) as any)
+      .update({ [card.dbField]: newValue })
+      .eq(filterCol, value);
+
+    for (const [k, v] of Object.entries(extraFilter)) {
+      query = query.eq(k, v);
+    }
+
+    const { error } = await query;
+    if (error) {
+      console.error("Save error:", error);
+      sonnerToast.error("Erreur de sauvegarde");
+      throw error;
+    }
+
+    setBrandingCards(prev => prev.map((c, i) => i === cardIndex ? { ...c, content: newValue } : c));
+  }, [brandingCards, user, column, value]);
 
   const hasRecs = recommendations.length > 0;
   const hasBranding = brandingCards.length > 0;
@@ -273,9 +307,18 @@ export default function WelcomePage() {
                       <span className="text-lg">{card.emoji}</span>
                       <span className="text-sm font-semibold text-foreground">{card.title}</span>
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-3">
-                      {card.content}
-                    </p>
+                    {card.dbTable && card.dbField ? (
+                      <EditableText
+                        value={card.content}
+                        onSave={(v) => handleCardSave(i, v)}
+                        className="text-sm text-muted-foreground"
+                        placeholder="Cliquer pour modifier"
+                      />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        {card.content}
+                      </p>
+                    )}
                     <Link
                       to={card.route}
                       onClick={() => {
