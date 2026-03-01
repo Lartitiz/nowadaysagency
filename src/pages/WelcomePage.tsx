@@ -5,7 +5,7 @@ import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/use-profile";
-import RoomTour from "@/components/RoomTour";
+
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import EditableText from "@/components/EditableText";
 import { toast as sonnerToast } from "sonner";
@@ -109,7 +109,7 @@ export default function WelcomePage() {
   const [diagnosticSummary, setDiagnosticSummary] = useState("");
   const [brandingCards, setBrandingCards] = useState<BrandingCard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showTour, setShowTour] = useState(false);
+  
 
   const prenom = (profileData as any)?.prenom || "";
   const channels: string[] = (profileData as any)?.canaux || [];
@@ -450,28 +450,13 @@ export default function WelcomePage() {
         {/* F) CTAs */}
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
-            onClick={() => setShowTour(true)}
+            onClick={() => markSeen("/dashboard")}
             className="flex-1 rounded-pill gap-2"
             size="lg"
           >
             ✨ Explorer l'outil →
           </Button>
         </div>
-
-        <RoomTour
-          open={showTour}
-          onClose={async () => {
-            setShowTour(false);
-            await markSeen("/dashboard");
-          }}
-          onGeneratePlan={async () => {
-            setShowTour(false);
-            if (user) {
-              await (supabase.from("user_plan_config") as any).update({ welcome_seen: true }).eq(column, value);
-            }
-            navigate("/mon-plan");
-          }}
-        />
       </div>
     </div>
   );

@@ -26,6 +26,7 @@ const NAV_CONSTRUCTION = [
   { to: "/dashboard", label: "Mon Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
   { to: "/branding", label: "Ma marque", icon: Palette, matchExact: false },
   { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
+  { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
 ];
 
 const NAV_ACTION = [
@@ -33,6 +34,7 @@ const NAV_ACTION = [
   { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
   { to: "/branding", label: "Ma marque", icon: Palette, matchExact: false },
+  { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
 ];
 
 const NAV_PILOTAGE = [
@@ -58,6 +60,7 @@ const MOBILE_CONSTRUCTION = [
   { to: "/dashboard", label: "Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
   { to: "/branding", label: "Ma marque", icon: Palette, matchExact: false },
   { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
+  { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
 ];
 
 const MOBILE_ACTION = [
@@ -65,6 +68,7 @@ const MOBILE_ACTION = [
   { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
   { to: "/branding", label: "Marque", icon: Palette, matchExact: false },
+  { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
 ];
 
 const MOBILE_PILOTAGE = [

@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react";
 import SuggestedContents from "@/components/dashboard/SuggestedContents";
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
 import { useUserPhase } from "@/hooks/use-user-phase";
+import WelcomeOverlay from "@/components/dashboard/WelcomeOverlay";
 import { useToast } from "@/hooks/use-toast";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -99,6 +100,12 @@ const TOUR_STEPS = [
     text: "Tu peux lui poser n'importe quelle question sur ta communication. Il connaît ton branding et te répond de façon personnalisée.",
     position: "top" as const,
   },
+  {
+    target: "nav-mon-plan",
+    title: "Ton plan de com' personnalisé",
+    text: "C'est ici que tout se rejoint. Un parcours étape par étape, adapté à ton objectif et au temps que tu as. Clique ici pour le découvrir quand tu es prête.",
+    position: "bottom" as const,
+  },
 ];
 
 /* ── Main ── */
@@ -112,6 +119,15 @@ export default function AdaptiveHome() {
   const [tourDone, setTourDone] = useState(() =>
     !!localStorage.getItem("lac_dashboard_tour_seen")
   );
+  const [welcomeDone, setWelcomeDone] = useState(() =>
+    localStorage.getItem("lac_welcome_seen") === "true"
+  );
+
+  useEffect(() => {
+    const check = () => setWelcomeDone(localStorage.getItem("lac_welcome_seen") === "true");
+    const interval = setInterval(check, 500);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleNavigate = (route: string) => {
     if (route === "/creer" && profileSummary.brandingTotal < 50) {
@@ -172,7 +188,9 @@ export default function AdaptiveHome() {
           <SuggestedContents />
         )}
 
-        {!tourDone && !isLoading && !phaseLoading && (
+        <WelcomeOverlay prenom={profileSummary.firstName} />
+
+        {!tourDone && !isLoading && !phaseLoading && welcomeDone && (
           <GuidedTour
             steps={TOUR_STEPS}
             storageKey="lac_dashboard_tour_seen"
