@@ -691,11 +691,54 @@ Reponds en JSON :
     // Prepend voice priority instruction
     systemPrompt = BASE_SYSTEM_RULES + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + systemPrompt;
 
-    // Use getDefaultModel() for all content generation
-    const maxTokens = type === "weekly-suggestions" ? 2500 : 4096;
+    // Use Gemini Flash for weekly-suggestions (much faster), Anthropic for the rest
+    if (type === "weekly-suggestions") {
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+      const geminiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.8,
+          max_tokens: 2500,
+        }),
+      });
+
+      if (!geminiResponse.ok) {
+        const errText = await geminiResponse.text();
+        console.error("Gemini gateway error:", geminiResponse.status, errText);
+        throw new Error("Erreur lors de la génération IA");
+      }
+
+      const geminiData = await geminiResponse.json();
+      const rawContent = geminiData.choices?.[0]?.message?.content || "";
+
+      let suggestions;
+      try {
+        const cleaned = rawContent.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+        suggestions = JSON.parse(cleaned);
+      } catch {
+        suggestions = [];
+      }
+      return new Response(
+        JSON.stringify({ suggestions, type: "weekly-suggestions" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const maxTokens = 4096;
     const content = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt, 0.8, maxTokens);
 
-    if (type === "weekly-suggestions") {
+    if (false) { // dead code guard — weekly-suggestions handled above
       let suggestions;
       try {
         const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
