@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ContentSetupForm from "@/components/ContentSetupForm";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -59,10 +59,12 @@ interface FormatSuggestion {
 
 export default function InstagramCreer() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   const { channels: activeChannels } = useActiveChannels();
   const { column, value } = useWorkspaceFilter();
+  const calendarState = location.state as { fromCalendar?: boolean; theme?: string; notes?: string; objectif?: string } | null;
   const [ideaText, setIdeaText] = useState("");
   const [suggesting, setSuggesting] = useState(false);
   const [suggestion, setSuggestion] = useState<FormatSuggestion | null>(null);
@@ -71,6 +73,16 @@ export default function InstagramCreer() {
   const [secondaryMode, setSecondaryMode] = useState<"none" | "dictate">("none");
   const [contentCoachingOpen, setContentCoachingOpen] = useState(false);
   const { data: profile } = useProfile();
+
+  // Pre-fill from calendar (theme + notes)
+  useEffect(() => {
+    if (calendarState?.fromCalendar) {
+      const parts: string[] = [];
+      if (calendarState.theme) parts.push(calendarState.theme);
+      if (calendarState.notes) parts.push(calendarState.notes);
+      if (parts.length > 0) setIdeaText(parts.join("\n\n"));
+    }
+  }, []);
 
   const handleFormatClick = (format: FormatOption) => {
     if (format.comingSoon) return;
