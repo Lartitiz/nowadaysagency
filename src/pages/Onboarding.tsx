@@ -394,8 +394,6 @@ function LinksScreen({ answers, set, files, uploading, onUpload, onRemove, onNex
   const hasAnyLink = !!(answers.instagram || answers.website || answers.linkedin);
   const hasAnything = hasAnyLink || files.length > 0;
 
-  const igStatus: "valid" | "warn" | "none" = !answers.instagram ? "none"
-    : /^[a-zA-Z0-9_.]+$/.test(answers.instagram) ? "valid" : "warn";
 
   const webStatus: "valid" | "warn" | "none" = !answers.website ? "none"
     : isValidUrl(answers.website) ? "valid" : "warn";
@@ -415,22 +413,6 @@ function LinksScreen({ answers, set, files, uploading, onUpload, onRemove, onNex
       </div>
 
       <div className="space-y-4">
-        {/* Instagram */}
-        <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">📱 Ton @ Instagram</label>
-          <div className="relative">
-            <input
-              type="text"
-              value={answers.instagram}
-              onChange={e => set("instagram", normalizeInstagramHandle(e.target.value))}
-              placeholder="@tonpseudo"
-              aria-label="Ton @ Instagram"
-              className="w-full text-base p-3 pr-10 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50"
-            />
-            <InputIndicator status={igStatus} />
-          </div>
-        </div>
-
         {/* Website */}
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">🌐 Ton site web</label>
