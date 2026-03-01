@@ -259,7 +259,7 @@ export default function StorytellingRecapPage() {
         )}
 
         <div className="mt-6">
-          <Link to="/branding/storytelling" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">← Retour à Mes storytellings</Link>
+          <Link to="/branding/section?section=story" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">← Retour à Mes storytellings</Link>
         </div>
       </main>
     </div>

@@ -21,7 +21,7 @@ const MISSIONS_META = [
     title: "Raconte ton histoire",
     emoji: "📖",
     time: "15 min",
-    route: "/branding/storytelling/new",
+    route: "/branding/coaching?section=story",
     description: "Écris pourquoi tu fais ce que tu fais. C'est la base de ta marque.",
   },
   {
@@ -29,7 +29,7 @@ const MISSIONS_META = [
     title: "Dessine ta cliente idéale",
     emoji: "🎯",
     time: "15 min",
-    route: "/branding/persona",
+    route: "/branding/section?section=persona",
     description: "Comprends qui tu veux toucher. L'outil crée ta fiche persona automatiquement.",
   },
   {

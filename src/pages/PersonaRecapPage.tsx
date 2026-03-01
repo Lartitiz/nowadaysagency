@@ -333,13 +333,13 @@ export default function PersonaRecapPage() {
                 L'assistant m'aide à la définir
               </Button>
             ) : (
-              <Button onClick={() => navigate("/branding/persona")} className="rounded-pill gap-2">
+              <Button onClick={() => navigate("/branding/coaching?section=persona")} className="rounded-pill gap-2">
                 <Sparkles className="h-4 w-4" /> L'assistant m'aide à la définir
               </Button>
             )}
             <Button variant="outline" onClick={() => {
               if (canGenerate) generatePortrait();
-              else navigate("/branding/persona");
+              else navigate("/branding/coaching?section=persona");
             }} className="rounded-pill gap-2">
               <Pencil className="h-4 w-4" /> Je remplis moi-même
             </Button>

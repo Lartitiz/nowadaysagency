@@ -179,22 +179,15 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
     { label: "Ton & style", path: "/branding/section?section=tone_style" },
     { label: "Récap" },
   ]],
-  ["/branding/ton", [
+  ["/branding/section?section=tone_style", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
     { label: "Ton & style" },
   ]],
-  ["/branding/storytelling/import", [
+  ["/branding/section?section=story", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
-    { label: "Mon histoire", path: "/branding/section?section=story" },
-    { label: "Import" },
-  ]],
-  ["/branding/storytelling/new", [
-    { label: "Accueil", path: "/dashboard" },
-    { label: "Branding", path: "/branding" },
-    { label: "Mon histoire", path: "/branding/section?section=story" },
-    { label: "Nouvelle histoire" },
+    { label: "Mon histoire" },
   ]],
   ["/branding/storytelling/", [
     { label: "Accueil", path: "/dashboard" },
@@ -202,29 +195,18 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
     { label: "Mon histoire", path: "/branding/section?section=story" },
     { label: "Détail" },
   ]],
-  ["/branding/storytelling", [
-    { label: "Accueil", path: "/dashboard" },
-    { label: "Branding", path: "/branding" },
-    { label: "Mon histoire" },
-  ]],
   ["/branding/persona/recap", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
     { label: "Ma cible", path: "/branding/section?section=persona" },
     { label: "Récap" },
   ]],
-  ["/branding/persona", [
+  ["/branding/section?section=persona", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
     { label: "Ma cible" },
   ]],
   ["/branding/proposition/recap", [
-    { label: "Accueil", path: "/dashboard" },
-    { label: "Branding", path: "/branding" },
-    { label: "Proposition de valeur", path: "/branding/section?section=value_proposition" },
-    { label: "Récap" },
-  ]],
-  ["/branding/proposition", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
     { label: "Proposition de valeur" },
@@ -235,7 +217,7 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
     { label: "Stratégie", path: "/branding/section?section=content_strategy" },
     { label: "Récap" },
   ]],
-  ["/branding/strategie", [
+  ["/branding/section?section=content_strategy", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Branding", path: "/branding" },
     { label: "Stratégie" },

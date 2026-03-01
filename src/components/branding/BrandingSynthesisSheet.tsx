@@ -677,7 +677,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             })()}
           </div>
         ) : (
-          <EmptySection message="Tu n'as pas encore défini ton positionnement." linkLabel="Définir mon positionnement →" link="/branding/proposition" />
+          <EmptySection message="Tu n'as pas encore défini ton positionnement." linkLabel="Définir mon positionnement →" link="/branding/proposition/recap" />
         )}
 
         {/* ═══ LEVEL 2 — MA CIBLE (card) ═══ */}
@@ -753,7 +753,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
                 <CollapsibleText text={persona.step_2_transformation} />
               </div>
             )}
-            <p className="text-xs text-muted-foreground">Certaines infos manquent. <span className="text-primary cursor-pointer" onClick={() => navigate("/branding/persona")}>Compléter →</span></p>
+            <p className="text-xs text-muted-foreground">Certaines infos manquent. <span className="text-primary cursor-pointer" onClick={() => navigate("/branding/section?section=persona")}>Compléter →</span></p>
           </SectionCard>
         ) : (
           <>
@@ -763,7 +763,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             <EmptySection
               message="Tu n'as pas encore défini ta cible."
               linkLabel="Définir ma cible →"
-              link="/branding/persona"
+              link="/branding/section?section=persona"
             />
           </>
         )}
@@ -860,7 +860,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             )}
           </div>
         ) : (
-          <EmptySection message="Tu n'as pas encore défini ton ton et tes combats." linkLabel="Définir mon ton →" link="/branding/ton" />
+          <EmptySection message="Tu n'as pas encore défini ton ton et tes combats." linkLabel="Définir mon ton →" link="/branding/section?section=tone_style" />
         )}
 
         {/* ═══ MON HISTOIRE ═══ */}
@@ -1026,7 +1026,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             </div>
           </div>
         ) : (
-          <EmptySection message="Tu n'as pas encore défini ta ligne éditoriale." linkLabel="Créer ma ligne →" link="/branding/strategie" />
+          <EmptySection message="Tu n'as pas encore défini ta ligne éditoriale." linkLabel="Créer ma ligne →" link="/branding/section?section=content_strategy" />
         )}
 
         {/* ═══ LEVEL 3 — MES CANAUX (light) ═══ */}

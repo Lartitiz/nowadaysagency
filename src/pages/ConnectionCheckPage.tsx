@@ -165,7 +165,7 @@ export default function ConnectionCheckPage() {
       sugs.push({ title: "Instagram renseigné mais pas d'audit", action: "Lancer un audit Instagram", route: "/instagram/audit" });
     }
     if (brand?.positioning && !propositionHookData) {
-      sugs.push({ title: "Positionnement défini mais pas de proposition", action: "Le branding est incomplet sans proposition de valeur", route: "/branding/proposition" });
+      sugs.push({ title: "Positionnement défini mais pas de proposition", action: "Le branding est incomplet sans proposition de valeur", route: "/branding/proposition/recap" });
     }
     if (audit && posts && !posts.some(p => p.status === "published")) {
       sugs.push({ title: "Audit fait mais aucun contenu publié", action: "Les recommandations ne sont pas encore appliquées", route: "/creer" });

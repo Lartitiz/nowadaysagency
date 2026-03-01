@@ -26,11 +26,11 @@ interface CoachPlanManagerProps {
 
 const ROUTE_OPTIONS = [
   { value: "/branding", label: "Mon identité" },
-  { value: "/branding/persona", label: "Persona" },
+  { value: "/branding/section?section=persona", label: "Persona" },
   { value: "/branding/storytelling", label: "Storytelling" },
-  { value: "/branding/proposition", label: "Proposition de valeur" },
-  { value: "/branding/ton", label: "Ton & style" },
-  { value: "/branding/strategie", label: "Stratégie de contenu" },
+  { value: "/branding/proposition/recap", label: "Proposition de valeur" },
+  { value: "/branding/section?section=tone_style", label: "Ton & style" },
+  { value: "/branding/section?section=content_strategy", label: "Stratégie de contenu" },
   { value: "/branding/offres", label: "Offres" },
   { value: "/instagram/audit", label: "Audit Instagram" },
   { value: "/instagram/profil/bio", label: "Bio Instagram" },

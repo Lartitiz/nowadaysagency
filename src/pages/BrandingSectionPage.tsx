@@ -429,7 +429,7 @@ export default function BrandingSectionPage() {
             }}
             onCreateNew={() => {
               // Navigate to persona stepper with new=true to force insert
-              navigate("/branding/persona?new=true");
+              navigate("/branding/coaching?section=persona");
             }}
           />
         )}

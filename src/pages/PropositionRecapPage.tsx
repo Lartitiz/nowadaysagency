@@ -143,7 +143,7 @@ export default function PropositionRecapPage() {
         <SubPageHeader parentLabel="Mon identité" parentTo="/branding" currentLabel="Ma proposition de valeur" />
         <div className="rounded-2xl bg-[hsl(var(--rose-pale))] border border-border p-6 text-center">
           <p className="text-foreground text-[15px] mb-4">💎 Complète d'abord ta proposition de valeur pour voir ta fiche récap.</p>
-          <Link to="/branding/proposition"><Button className="rounded-pill">Commencer →</Button></Link>
+          <Link to="/branding/proposition/recap"><Button className="rounded-pill">Commencer →</Button></Link>
         </div>
       </main>
     </div>
@@ -167,7 +167,7 @@ export default function PropositionRecapPage() {
         {/* Action bar */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <Link to="/branding/proposition">
+            <Link to="/branding/proposition/recap">
               <Button variant="outline" size="sm" className="rounded-pill text-xs">
                 <Pencil className="h-3 w-3 mr-1" /> Modifier
               </Button>

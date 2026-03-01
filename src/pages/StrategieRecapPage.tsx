@@ -149,7 +149,7 @@ export default function StrategieRecapPage() {
     <div className="min-h-screen bg-background"><AppHeader />
       <main className="mx-auto max-w-[640px] px-6 py-8">
         <p className="text-muted-foreground">Aucune stratégie enregistrée.</p>
-        <Link to="/branding/strategie" className="text-primary hover:underline mt-4 block">Commencer →</Link>
+        <Link to="/branding/coaching?section=content_strategy" className="text-primary hover:underline mt-4 block">Commencer →</Link>
       </main>
     </div>
   );

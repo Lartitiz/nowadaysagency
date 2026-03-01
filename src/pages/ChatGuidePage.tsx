@@ -853,9 +853,9 @@ export default function ChatGuidePage() {
                             key={i}
                             onClick={() => {
                                const validRoutes = [
-                                "/creer", "/calendrier", "/branding", "/branding/storytelling",
-                                "/branding/persona", "/branding/proposition", "/branding/ton",
-                                "/branding/strategie", "/branding/charter",
+                                 "/creer", "/calendrier", "/branding", "/branding/section",
+                                "/branding/coaching", "/branding/proposition/recap",
+                                "/branding/charter",
                                 "/instagram/profil/bio", "/instagram/carousel", "/instagram/reels",
                                 "/instagram/stories", "/instagram/audit", "/instagram/stats",
                                 "/instagram/routine", "/instagram/profil",

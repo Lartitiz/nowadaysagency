@@ -38,12 +38,8 @@ const Calendar = lazy(() => import("./pages/Calendar"));
 const CommPlanPage = lazy(() => import("./pages/CommPlanPage"));
 const PlanPage = lazy(() => import("./pages/PlanPage"));
 const BrandingPage = lazy(() => import("./pages/BrandingPage"));
-const TonStylePage = lazy(() => import("./pages/TonStylePage"));
 const TonStyleRecapPage = lazy(() => import("./pages/TonStyleRecapPage"));
-const StorytellingPage = lazy(() => import("./pages/StorytellingPage"));
 const StorytellingRecapPage = lazy(() => import("./pages/StorytellingRecapPage"));
-const StorytellingListPage = lazy(() => import("./pages/StorytellingListPage"));
-const StorytellingImportPage = lazy(() => import("./pages/StorytellingImportPage"));
 const StorytellingEditPage = lazy(() => import("./pages/StorytellingEditPage"));
 const InstagramHub = lazy(() => import("./pages/InstagramHub"));
 const InstagramProfile = lazy(() => import("./pages/InstagramProfile"));
@@ -68,11 +64,8 @@ const InstagramCarousel = lazy(() => import("./pages/InstagramCarousel"));
 const TransformContentPage = lazy(() => import("./pages/TransformContentPage"));
 const AtelierPage = lazy(() => import("./pages/AtelierPage"));
 const RedactionPage = lazy(() => import("./pages/RedactionPage"));
-const PersonaPage = lazy(() => import("./pages/PersonaPage"));
 const PersonaRecapPage = lazy(() => import("./pages/PersonaRecapPage"));
-const PropositionPage = lazy(() => import("./pages/PropositionPage"));
 const PropositionRecapPage = lazy(() => import("./pages/PropositionRecapPage"));
-const StrategiePage = lazy(() => import("./pages/StrategiePage"));
 const StrategieRecapPage = lazy(() => import("./pages/StrategieRecapPage"));
 const OffersPage = lazy(() => import("./pages/OffersPage"));
 const ConnectionCheckPage = lazy(() => import("./pages/ConnectionCheckPage"));
@@ -196,22 +189,22 @@ function AnimatedRoutes() {
                 <Route path="/branding" element={<ProtectedRoute><BrandingPage /></ProtectedRoute>} />
                 <Route path="/branding/audit" element={<ProtectedRoute><BrandingAuditPage /></ProtectedRoute>} />
                 <Route path="/branding/audit/:id" element={<ProtectedRoute><BrandingAuditResultPage /></ProtectedRoute>} />
-                <Route path="/branding/ton" element={<ProtectedRoute><TonStylePage /></ProtectedRoute>} />
+                <Route path="/branding/ton" element={<Navigate to="/branding/section?section=tone_style" replace />} />
                 <Route path="/branding/ton/recap" element={<ProtectedRoute><TonStyleRecapPage /></ProtectedRoute>} />
-                <Route path="/branding/storytelling" element={<ProtectedRoute><StorytellingListPage /></ProtectedRoute>} />
-                <Route path="/branding/storytelling/new" element={<ProtectedRoute><StorytellingPage /></ProtectedRoute>} />
-                <Route path="/branding/storytelling/import" element={<ProtectedRoute><StorytellingImportPage /></ProtectedRoute>} />
-                <Route path="/branding/storytelling/:id" element={<ProtectedRoute><StorytellingPage /></ProtectedRoute>} />
+                <Route path="/branding/storytelling" element={<Navigate to="/branding/section?section=story" replace />} />
+                <Route path="/branding/storytelling/new" element={<Navigate to="/branding/coaching?section=story" replace />} />
+                <Route path="/branding/storytelling/import" element={<Navigate to="/branding/section?section=story" replace />} />
+                <Route path="/branding/storytelling/:id" element={<Navigate to="/branding/section?section=story" replace />} />
                 <Route path="/branding/storytelling/:id/recap" element={<ProtectedRoute><StorytellingRecapPage /></ProtectedRoute>} />
                 <Route path="/branding/storytelling/:id/edit" element={<ProtectedRoute><StorytellingEditPage /></ProtectedRoute>} />
                 <Route path="/branding/storytelling/recap" element={<ProtectedRoute><StorytellingRecapPage /></ProtectedRoute>} />
-                <Route path="/branding/persona" element={<ProtectedRoute><PersonaPage /></ProtectedRoute>} />
+                <Route path="/branding/persona" element={<Navigate to="/branding/section?section=persona" replace />} />
                 <Route path="/branding/persona/recap" element={<ProtectedRoute><PersonaRecapPage /></ProtectedRoute>} />
-                <Route path="/branding/proposition" element={<ProtectedRoute><PropositionPage /></ProtectedRoute>} />
+                <Route path="/branding/proposition" element={<Navigate to="/branding/proposition/recap" replace />} />
                 <Route path="/branding/proposition/recap" element={<ProtectedRoute><PropositionRecapPage /></ProtectedRoute>} />
-                <Route path="/branding/niche" element={<Navigate to="/branding/ton" replace />} />
-                <Route path="/branding/niche/recap" element={<Navigate to="/branding/ton" replace />} />
-                <Route path="/branding/strategie" element={<ProtectedRoute><StrategiePage /></ProtectedRoute>} />
+                <Route path="/branding/niche" element={<Navigate to="/branding/section?section=tone_style" replace />} />
+                <Route path="/branding/niche/recap" element={<Navigate to="/branding/section?section=tone_style" replace />} />
+                <Route path="/branding/strategie" element={<Navigate to="/branding/section?section=content_strategy" replace />} />
                 <Route path="/branding/strategie/recap" element={<ProtectedRoute><StrategieRecapPage /></ProtectedRoute>} />
                 <Route path="/branding/offres" element={<ProtectedRoute><OffersPage /></ProtectedRoute>} />
                 <Route path="/branding/offres/:id" element={<ProtectedRoute><OfferWorkshopPage /></ProtectedRoute>} />
