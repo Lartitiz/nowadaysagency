@@ -458,7 +458,7 @@ export default function WelcomePage() {
         </div>
       </div>
 
-      <RoomTour open={showTour} onClose={handleTourClose} variant="branding" />
+      <RoomTour open={showTour} onClose={handleTourClose} />
     </div>
   );
 }
