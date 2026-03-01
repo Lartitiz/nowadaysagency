@@ -18,6 +18,7 @@ import AppHeader from "@/components/AppHeader";
 import SuggestedContents from "@/components/dashboard/SuggestedContents";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
+import { MarkdownText } from "@/components/ui/markdown-text";
 import { format, isAfter, subHours, startOfWeek as dateFnsStartOfWeek, endOfWeek as dateFnsEndOfWeek } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -749,7 +750,7 @@ export default function ChatGuidePage() {
                         lineHeight: "1.55",
                       }}
                     >
-                      {msg.content}
+                      {msg.role === "assistant" ? <MarkdownText content={msg.content} className="space-y-1.5" /> : msg.content}
                     </div>
 
                     {/* Action links */}
