@@ -170,7 +170,7 @@ function StickyCTA() {
   }, []);
   if (!visible) return null;
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-card/90 backdrop-blur-md border-t border-border lg:hidden animate-reveal-up">
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] bg-card/90 backdrop-blur-md border-t border-border lg:hidden animate-reveal-up">
       <a href="#signup-section" onClick={(e) => { e.preventDefault(); document.getElementById("signup-section")?.scrollIntoView({ behavior: "smooth" }); }}
         className="block w-full text-center rounded-pill bg-primary text-primary-foreground py-3 font-medium shadow-cta">
         🚀 Accéder gratuitement
@@ -301,7 +301,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background font-body text-foreground overflow-x-hidden">
+    <div className="min-h-screen bg-background font-body text-foreground overflow-x-hidden pb-20 lg:pb-0">
       <StickyCTA />
 
       {/* ═══ NAVBAR ═══ */}
