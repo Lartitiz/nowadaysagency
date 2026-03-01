@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import GuidedTour from "@/components/GuidedTour";
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import RoomTour from "@/components/RoomTour";
@@ -73,6 +74,33 @@ function RecommendationIcon({ name }: { name: string }) {
   return <span className="text-xl">{iconMap[name] || "📌"}</span>;
 }
 
+const TOUR_STEPS = [
+  {
+    target: "card-next-step",
+    title: "Ta prochaine étape",
+    text: "L'outil analyse où tu en es et te recommande l'action qui aura le plus d'impact. Tu n'as qu'à suivre.",
+    position: "bottom" as const,
+  },
+  {
+    target: "nav-branding",
+    title: "Ta marque",
+    text: "Tout ton branding est ici : positionnement, cible, ton, storytelling. C'est le socle de tout ce que l'outil génère pour toi.",
+    position: "bottom" as const,
+  },
+  {
+    target: "nav-creer",
+    title: "Créer du contenu",
+    text: "Posts Instagram, carrousels, newsletters, posts LinkedIn : l'outil connaît ta marque et te propose des textes avec les bonnes structures.",
+    position: "bottom" as const,
+  },
+  {
+    target: "card-assistant",
+    title: "Ton assistant com'",
+    text: "Tu peux lui poser n'importe quelle question sur ta communication. Il connaît ton branding et te répond de façon personnalisée.",
+    position: "top" as const,
+  },
+];
+
 /* ── Main ── */
 export default function AdaptiveHome() {
   const navigate = useNavigate();
@@ -82,6 +110,7 @@ export default function AdaptiveHome() {
   const { data: upcoming } = useUpcomingPosts();
 
   const [showDashTour, setShowDashTour] = useState(false);
+  const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
 
   useEffect(() => {
     if (!localStorage.getItem("lac_tour_dashboard_seen")) {
@@ -152,6 +181,14 @@ export default function AdaptiveHome() {
         {/* Suggested contents widget */}
         {profileSummary.brandingTotal >= 30 && (speed === 1 || phase === "construction") && (
           <SuggestedContents />
+        )}
+
+        {!tourDone && !isLoading && !phaseLoading && (
+          <GuidedTour
+            steps={TOUR_STEPS}
+            storageKey="lac_dashboard_tour_seen"
+            onComplete={() => setTourDone(true)}
+          />
         )}
       </main>
 
