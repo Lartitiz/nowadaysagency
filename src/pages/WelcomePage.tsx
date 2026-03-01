@@ -185,42 +185,42 @@ export default function WelcomePage() {
       const bp = brandProfileRes.data as BrandProfileData | null;
 
       if (bp?.positioning) {
-        cards.push({ emoji: "🎯", title: "Positionnement", content: bp.positioning, route: "/proposition" });
+        cards.push({ emoji: "🎯", title: "Positionnement", content: bp.positioning, route: "/branding/proposition/recap" });
       }
       if (bp?.mission) {
         cards.push({ emoji: "🚀", title: "Mission", content: bp.mission, route: "/branding" });
       }
       if (bp?.tone_style || (bp?.tone_keywords && bp.tone_keywords.length > 0)) {
         const toneContent = bp.tone_style || (bp.tone_keywords || []).join(", ");
-        cards.push({ emoji: "💬", title: "Ton de voix", content: toneContent, route: "/ton-style" });
+        cards.push({ emoji: "💬", title: "Ton de voix", content: toneContent, route: "/branding/section?section=tone_style" });
       }
       if (bp?.combats) {
-        cards.push({ emoji: "⚔️", title: "Combats", content: bp.combats, route: "/ton-style" });
+        cards.push({ emoji: "⚔️", title: "Combats", content: bp.combats, route: "/branding/section?section=tone_style" });
       }
       if (bp?.values && bp.values.length > 0) {
-        cards.push({ emoji: "💎", title: "Valeurs", content: (bp.values as any[]).map(v => typeof v === "string" ? v : (v as any).name || v).join(", "), route: "/ton-style" });
+        cards.push({ emoji: "💎", title: "Valeurs", content: (bp.values as any[]).map(v => typeof v === "string" ? v : (v as any).name || v).join(", "), route: "/branding/section?section=tone_style" });
       }
       if (bp?.content_pillars && bp.content_pillars.length > 0) {
         const pillarsText = (bp.content_pillars as any[]).map(p => typeof p === "string" ? p : (p as any).name || p).join(", ");
-        cards.push({ emoji: "📝", title: "Piliers de contenu", content: pillarsText, route: "/strategie" });
+        cards.push({ emoji: "📝", title: "Piliers de contenu", content: pillarsText, route: "/branding/section?section=content_strategy" });
       }
 
       const persona = personaRes.data as any;
       if (persona?.description) {
-        cards.push({ emoji: "🎭", title: "Persona", content: persona.description, route: "/persona" });
+        cards.push({ emoji: "🎭", title: "Persona", content: persona.description, route: "/branding/section?section=persona" });
       }
 
       const offers = offersRes.data as any[];
       if (offers && offers.length > 0) {
         const offersText = offers.map((o: any) => o.name).filter(Boolean).join(", ");
         if (offersText) {
-          cards.push({ emoji: "🛍️", title: "Offres", content: offersText, route: "/offre" });
+          cards.push({ emoji: "🛍️", title: "Offres", content: offersText, route: "/branding/offres" });
         }
       }
 
       const story = storyRes.data as any;
       if (story?.imported_text) {
-        cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/storytelling" });
+        cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/branding/section?section=story" });
       }
 
       setBrandingCards(cards);
