@@ -145,15 +145,14 @@ const SOURCE_LABELS: Record<string, { emoji: string; label: string }> = {
   documents: { emoji: "📄", label: "Documents" },
 };
 
-function AccrocheSection({ prenom, hasInstagram, hasWebsite, sourcesUsed = [], sourcesFailed = [] }: { prenom: string; hasInstagram?: boolean; hasWebsite?: boolean; sourcesUsed?: string[]; sourcesFailed?: string[] }) {
-  // Build list of all relevant sources to display
+function AccrocheSection({ prenom, hasWebsite, sourcesUsed = [], sourcesFailed = [] }: { prenom: string; hasInstagram?: boolean; hasWebsite?: boolean; sourcesUsed?: string[]; sourcesFailed?: string[] }) {
+  // Build list of all relevant sources to display (exclude instagram from diagnostic display)
   const allSources = new Set<string>();
-  sourcesUsed.forEach(s => allSources.add(s));
-  sourcesFailed.forEach(s => allSources.add(s));
+  sourcesUsed.filter(s => s !== "instagram").forEach(s => allSources.add(s));
+  sourcesFailed.filter(s => s !== "instagram").forEach(s => allSources.add(s));
   // Add from legacy props if no sourcesUsed/Failed provided
   if (allSources.size === 0) {
     if (hasWebsite) allSources.add("website");
-    if (hasInstagram) allSources.add("instagram");
   }
 
   const analyzedLabels = sourcesUsed
