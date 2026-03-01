@@ -176,7 +176,7 @@ export async function scrapeLinkedin(url: string, signal: AbortSignal): Promise<
   }
 }
 
-export function extractTextFromPdf(buffer: ArrayBuffer): string {
+export function extractTextFromPdfRegex(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let raw = "";
   for (let i = 0; i < bytes.length; i++) raw += String.fromCharCode(bytes[i]);
@@ -190,14 +190,12 @@ export function extractTextFromPdf(buffer: ArrayBuffer): string {
   let m: RegExpExecArray | null;
   while ((m = btRegex.exec(raw)) !== null) {
     const block = m[1];
-    // Tj - simple text
     const tjRegex = /\(([^)]*)\)\s*Tj/g;
     let tj: RegExpExecArray | null;
     while ((tj = tjRegex.exec(block)) !== null) {
       const t = decodeEscapes(tj[1]).trim();
       if (t) lines.push(t);
     }
-    // TJ - array with kerning
     const tjArrRegex = /\[(.*?)\]\s*TJ/g;
     let tja: RegExpExecArray | null;
     while ((tja = tjArrRegex.exec(block)) !== null) {
@@ -210,7 +208,6 @@ export function extractTextFromPdf(buffer: ArrayBuffer): string {
       const joined = parts.join("").trim();
       if (joined) lines.push(joined);
     }
-    // Hex strings
     const hexRegex = /<([0-9a-fA-F]+)>\s*Tj/g;
     let hx: RegExpExecArray | null;
     while ((hx = hexRegex.exec(block)) !== null) {
@@ -222,7 +219,6 @@ export function extractTextFromPdf(buffer: ArrayBuffer): string {
     }
   }
 
-  // Fallback: parse streams
   if (lines.join("").length < 50) {
     const streamRegex = /stream\r?\n([\s\S]*?)endstream/g;
     let sm: RegExpExecArray | null;
@@ -233,7 +229,6 @@ export function extractTextFromPdf(buffer: ArrayBuffer): string {
     }
   }
 
-  // Deduplicate consecutive identical lines
   const deduped: string[] = [];
   for (const line of lines) {
     if (deduped.length === 0 || deduped[deduped.length - 1] !== line) {
@@ -242,6 +237,36 @@ export function extractTextFromPdf(buffer: ArrayBuffer): string {
   }
 
   return deduped.join("\n");
+}
+
+export async function extractTextFromPdf(buffer: ArrayBuffer, signal?: AbortSignal): Promise<string> {
+  // Try Jina Reader first (handles modern PDFs with compression, encoded fonts, etc.)
+  try {
+    const resp = await fetch("https://r.jina.ai/", {
+      method: "POST",
+      signal,
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/pdf",
+        "X-No-Cache": "true",
+        "X-With-Links": "false",
+        "X-With-Images": "false",
+      },
+      body: new Uint8Array(buffer),
+    });
+    if (resp.ok) {
+      const json = await resp.json();
+      const content = json?.data?.content;
+      if (typeof content === "string" && content.length > 50) {
+        return content;
+      }
+    }
+  } catch {
+    // Jina failed, fall through to regex
+  }
+
+  // Fallback: regex-based extraction
+  return extractTextFromPdfRegex(buffer);
 }
 
 function parseDocxXml(xmlText: string): string {
@@ -339,7 +364,7 @@ export async function extractTextFromDocxAsync(buffer: ArrayBuffer): Promise<str
   }
 }
 
-export async function extractFromBlob(blob: Blob, fileName: string): Promise<string | null> {
+export async function extractFromBlob(blob: Blob, fileName: string, signal?: AbortSignal): Promise<string | null> {
   const ext = fileName.split(".").pop()?.toLowerCase();
 
   if (ext === "txt" || ext === "md") {
@@ -348,7 +373,7 @@ export async function extractFromBlob(blob: Blob, fileName: string): Promise<str
 
   if (ext === "pdf") {
     const buffer = await blob.arrayBuffer();
-    const text = extractTextFromPdf(buffer);
+    const text = await extractTextFromPdf(buffer, signal);
     if (text.length < 50) {
       return `[PDF scanné : le texte n'a pas pu être extrait. Seuls les PDF textuels sont pris en charge.]`;
     }
@@ -359,7 +384,6 @@ export async function extractFromBlob(blob: Blob, fileName: string): Promise<str
     const buffer = await blob.arrayBuffer();
     let text = await extractTextFromDocxAsync(buffer);
     if (text.length < 20) {
-      // Fallback: raw text extraction
       const rawText = await blob.text();
       const words = rawText.match(/[a-zA-ZÀ-ÿ]{2,}/g);
       text = words ? words.join(" ") : "";
@@ -378,7 +402,8 @@ export async function processDocuments(
   supabase: ReturnType<typeof createClient>,
   documentIds: string[],
   userId: string,
-  maxTextLength = 5000
+  maxTextLength = 5000,
+  signal?: AbortSignal
 ): Promise<string | null> {
   const texts: string[] = [];
 
@@ -422,7 +447,7 @@ export async function processDocuments(
         }
       }
 
-      const extracted = await extractFromBlob(fileData, doc.file_name || "file.txt");
+      const extracted = await extractFromBlob(fileData, doc.file_name || "file.txt", signal);
       if (extracted) {
         texts.push(`[Document: ${doc.file_name}]\n${extracted}`);
       }
