@@ -254,6 +254,8 @@ export default function SuggestedContents() {
     return () => { cancelled = true; };
   }, [user, cachedContents, brandProfile, weekStart, workspaceId]);
 
+  const waitingForBranding = !cachedContents && !brandProfile && !isGenerating;
+
   async function saveSuggestions(contents: SuggestedContent[]) {
     if (!user || contents.length === 0) return;
     await (supabase.from("suggested_contents") as any).insert({
@@ -322,6 +324,28 @@ export default function SuggestedContents() {
     setSelectedContent(content);
     setDrawerOpen(true);
   };
+
+  if (waitingForBranding) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="px-4 py-4 space-y-3"
+      >
+        <h3
+          className="text-base text-foreground"
+          style={{ fontFamily: "'Libre Baskerville', serif" }}
+        >
+          Tes contenus de la semaine
+        </h3>
+        <div className="rounded-xl bg-card border border-border p-5">
+          <p className="text-sm text-muted-foreground">
+            Complète ton branding pour que je puisse te proposer des contenus personnalisés chaque semaine. 💡
+          </p>
+        </div>
+      </motion.div>
+    );
+  }
 
   if (isGenerating) {
     return (
