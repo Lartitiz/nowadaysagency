@@ -19,17 +19,19 @@ interface Props {
   onComplete: () => void;
   hasInstagram?: boolean;
   hasWebsite?: boolean;
+  sourcesUsed?: string[];
+  sourcesFailed?: string[];
 }
 
-export default function DiagnosticView({ data, prenom, onComplete, hasInstagram, hasWebsite }: Props) {
+export default function DiagnosticView({ data, prenom, onComplete, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
   const isMobile = useIsMobile();
   return isMobile
-    ? <MobileSlides data={data} prenom={prenom} onComplete={onComplete} hasInstagram={hasInstagram} hasWebsite={hasWebsite} />
-    : <DesktopScroll data={data} prenom={prenom} onComplete={onComplete} hasInstagram={hasInstagram} hasWebsite={hasWebsite} />;
+    ? <MobileSlides data={data} prenom={prenom} onComplete={onComplete} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />
+    : <DesktopScroll data={data} prenom={prenom} onComplete={onComplete} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />;
 }
 
 /* ═══ MOBILE: Slide-by-slide ═══ */
-function MobileSlides({ data, prenom, onComplete, hasInstagram, hasWebsite }: Props) {
+function MobileSlides({ data, prenom, onComplete, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
   const [slide, setSlide] = useState(0);
   const [touchStart, setTouchStart] = useState(0);
   const hasSummary = !!data.summary;
@@ -45,7 +47,7 @@ function MobileSlides({ data, prenom, onComplete, hasInstagram, hasWebsite }: Pr
   };
 
   const sections: ReactNode[] = [
-    <AccrocheSection key="a" prenom={prenom} hasInstagram={hasInstagram} hasWebsite={hasWebsite} />,
+    <AccrocheSection key="a" prenom={prenom} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />,
   ];
   if (hasSummary) sections.push(<SummarySection key="sum" summary={data.summary!} />);
   sections.push(
@@ -103,11 +105,11 @@ function MobileSlides({ data, prenom, onComplete, hasInstagram, hasWebsite }: Pr
 }
 
 /* ═══ DESKTOP: Scroll with animations ═══ */
-function DesktopScroll({ data, prenom, onComplete, hasInstagram, hasWebsite }: Props) {
+function DesktopScroll({ data, prenom, onComplete, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-[640px] mx-auto px-6 py-16 space-y-24">
-        <AnimatedSection><AccrocheSection prenom={prenom} hasInstagram={hasInstagram} hasWebsite={hasWebsite} /></AnimatedSection>
+        <AnimatedSection><AccrocheSection prenom={prenom} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} /></AnimatedSection>
         {data.summary && <AnimatedSection><SummarySection summary={data.summary} /></AnimatedSection>}
         <AnimatedSection><ScoreSection score={data.totalScore} /></AnimatedSection>
         <AnimatedSection><StrengthsSection strengths={data.strengths} /></AnimatedSection>
@@ -136,19 +138,58 @@ function AnimatedSection({ children }: { children: ReactNode }) {
 }
 
 /* ═══ Section: Accroche ═══ */
-function AccrocheSection({ prenom, hasInstagram, hasWebsite }: { prenom: string; hasInstagram?: boolean; hasWebsite?: boolean }) {
-  let analyzed = "ce que tu m'as partagé sur ta marque";
-  if (hasInstagram && hasWebsite) analyzed = "ton Instagram, ton site, et ce que tu m'as partagé";
-  else if (hasInstagram) analyzed = "ton Instagram et ce que tu m'as partagé";
-  else if (hasWebsite) analyzed = "ton site et ce que tu m'as partagé";
+const SOURCE_LABELS: Record<string, { emoji: string; label: string }> = {
+  website: { emoji: "🌐", label: "Site web" },
+  instagram: { emoji: "📱", label: "Instagram" },
+  linkedin: { emoji: "💼", label: "LinkedIn" },
+  documents: { emoji: "📄", label: "Documents" },
+};
+
+function AccrocheSection({ prenom, hasInstagram, hasWebsite, sourcesUsed = [], sourcesFailed = [] }: { prenom: string; hasInstagram?: boolean; hasWebsite?: boolean; sourcesUsed?: string[]; sourcesFailed?: string[] }) {
+  // Build list of all relevant sources to display
+  const allSources = new Set<string>();
+  sourcesUsed.forEach(s => allSources.add(s));
+  sourcesFailed.forEach(s => allSources.add(s));
+  // Add from legacy props if no sourcesUsed/Failed provided
+  if (allSources.size === 0) {
+    if (hasWebsite) allSources.add("website");
+    if (hasInstagram) allSources.add("instagram");
+  }
+
+  const analyzedLabels = sourcesUsed
+    .filter(s => SOURCE_LABELS[s])
+    .map(s => SOURCE_LABELS[s].label.toLowerCase());
+  const baseText = analyzedLabels.length > 0
+    ? `Mon diagnostic se base sur ${analyzedLabels.join(", ")} + ce que tu m'as partagé.`
+    : "Mon diagnostic se base sur ce que tu m'as partagé.";
 
   return (
-    <div className="text-center space-y-4">
+    <div className="text-center space-y-5">
       <h1 className="text-[28px] md:text-[32px] font-display font-bold text-foreground leading-tight">
         {prenom}, voilà ce que je vois.
       </h1>
-      <p className="text-base text-muted-foreground">J'ai regardé {analyzed}.</p>
-      <p className="text-base text-muted-foreground">Voilà ton point de départ.</p>
+      {allSources.size > 0 && (
+        <div className="flex flex-wrap justify-center gap-2">
+          {Array.from(allSources).map(source => {
+            const meta = SOURCE_LABELS[source];
+            if (!meta) return null;
+            const isAnalyzed = sourcesUsed.includes(source);
+            return (
+              <span
+                key={source}
+                className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full ${
+                  isAnalyzed
+                    ? "bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800"
+                    : "bg-muted text-muted-foreground border border-border"
+                }`}
+              >
+                {isAnalyzed ? "✅" : meta.emoji} {meta.label}{!isAnalyzed && " : à auditer"}
+              </span>
+            );
+          })}
+        </div>
+      )}
+      <p className="text-sm text-muted-foreground">{baseText}</p>
     </div>
   );
 }

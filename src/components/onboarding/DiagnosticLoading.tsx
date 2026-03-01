@@ -323,6 +323,8 @@ function mapEdgeResponseToDiagnostic(data: any): DiagnosticData {
     channelScores,
     scores,
     branding_prefill: analysis.branding_prefill || undefined,
+    sources_used: data.sources_used || [],
+    sources_failed: data.sources_failed || [],
   };
 }
 

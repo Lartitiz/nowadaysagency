@@ -283,6 +283,8 @@ export default function Onboarding() {
           onComplete={handleDiagnosticComplete}
           hasInstagram={hasInstagram}
           hasWebsite={hasWebsite}
+          sourcesUsed={diagnosticData.sources_used}
+          sourcesFailed={diagnosticData.sources_failed}
         />
       ) : null}
     </div>
