@@ -752,13 +752,16 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
   if (phase === "intro") {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        {isDemoMode && (
-          <div className="absolute top-4 right-4">
+        <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+          <button onClick={onBack || (() => navigate("/branding"))} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="h-4 w-4" /> Retour
+          </button>
+          {isDemoMode && (
             <button onClick={() => navigate("/dashboard")} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
               Skip → Voir l'outil rempli
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="flex-1 flex flex-col items-center justify-center px-6 max-w-lg mx-auto text-center">
           <span className="text-5xl mb-6">{meta.emoji}</span>
@@ -791,6 +794,11 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
     return (
       <div className="min-h-screen bg-background flex flex-col">
         {showConfetti && <Confetti />}
+        <div className="px-4 pt-4 pb-2">
+          <button onClick={onBack || (() => navigate("/branding"))} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="h-4 w-4" /> Retour
+          </button>
+        </div>
         <div className="flex-1 flex flex-col items-center justify-center px-6 max-w-lg mx-auto text-center">
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 200, damping: 15 }}>
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
