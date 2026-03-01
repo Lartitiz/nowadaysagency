@@ -450,6 +450,12 @@ export default function SettingsPage() {
                       localStorage.removeItem("branding_skip_import");
                       localStorage.removeItem("lac_onboarding_reset");
                       localStorage.removeItem("lac_welcome_seen");
+                      localStorage.removeItem("lac_dashboard_tour_seen");
+                      localStorage.removeItem("lac_missions_collapsed");
+                      localStorage.removeItem("lac_missions_first_seen");
+                      localStorage.removeItem("lac_missions_dismissed");
+                      localStorage.removeItem("lac_plan_welcomed");
+                      localStorage.removeItem("lac_plan_tour_seen");
 
                       toast({
                         title: "✅ Reset effectué",
