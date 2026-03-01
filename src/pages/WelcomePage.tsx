@@ -449,7 +449,15 @@ export default function WelcomePage() {
         </div>
       </div>
 
-      <RoomTour open={showTour} onClose={handleTourClose} />
+      <RoomTour
+        open={showTour}
+        onClose={handleTourClose}
+        onGeneratePlan={() => {
+          setShowTour(false);
+          localStorage.setItem("lac_tour_branding_seen", "true");
+          navigate("/mon-plan");
+        }}
+      />
     </div>
   );
 }
