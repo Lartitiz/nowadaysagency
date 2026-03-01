@@ -184,9 +184,8 @@ function AppHeaderInner() {
                       : "text-muted-foreground hover:bg-secondary"
                   }`}
                 >
-                  <item.icon className="h-3.5 w-3.5 shrink-0" />
+                  <item.icon className="h-4 w-4 shrink-0" />
                   <span className="hidden xl:inline">{item.label}</span>
-                  <span className="xl:hidden">{item.label.replace("Mon Assistant", "Assistant").replace("Accompagnement", "Accom.").replace("Calendrier", "Agenda").replace("Ma marque", "Marque")}</span>
                 </Link>
               ))}
             </nav>
