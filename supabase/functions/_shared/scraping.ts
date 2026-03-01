@@ -60,12 +60,21 @@ async function jinaFetch(targetUrl: string, signal: AbortSignal): Promise<string
   }
 }
 
-// Keywords that indicate a relevant secondary page
-const RELEVANT_KEYWORDS = [
-  "offre", "service", "tarif", "prix", "pricing", "about", "propos", "histoire",
-  "mission", "accompagnement", "formation", "programme", "agence", "qui", "comment",
-  "blog", "actualit", "boutique", "shop", "prestation", "methode", "approche",
-  "parcours", "coaching", "atelier", "portfolio", "realisations", "expertise",
+// Scoring keywords for URL relevance
+const SCORE_HIGH: string[] = [
+  "offre", "service", "tarif", "prix", "pricing", "accompagnement", "formation",
+  "programme", "shop", "boutique", "prestation",
+];
+const SCORE_MEDIUM: string[] = [
+  "about", "propos", "histoire", "mission", "qui", "manifeste", "equipe", "fondatrice",
+];
+const SCORE_LOW: string[] = [
+  "blog", "article", "actualit", "ressource", "template", "guide",
+];
+const SCORE_NEGATIVE: string[] = [
+  "mentions-legales", "confidentialite", "cgv", "cgu", "politique", "cart", "checkout",
+  "login", "tag", "category", "author", "privacy", "legal", "wp-admin", "wp-login",
+  "feed", "rss", "sitemap",
 ];
 
 // Patterns to exclude from discovered links
@@ -76,9 +85,6 @@ const EXCLUDED_PATTERNS = [
   /youtube\.com/i, /tiktok\.com/i, /pinterest\.com/i,
   /calendly\.com/i, /typeform\.com/i, /stripe\.com/i, /gumroad\.com/i,
   /\.(jpg|jpeg|png|gif|svg|webp|pdf|zip|mp4|mp3)$/i,
-  /\/feed\/?$/i, /\/rss\/?$/i, /\/sitemap/i, /\/wp-login/i, /\/wp-admin/i,
-  /\/cart/i, /\/panier/i, /\/checkout/i, /\/mon-compte/i, /\/account/i,
-  /\/mentions-legales/i, /\/cgv/i, /\/cgu/i, /\/politique/i, /\/privacy/i, /\/legal/i,
 ];
 
 interface JinaLink {
@@ -86,29 +92,63 @@ interface JinaLink {
   href?: string;
 }
 
-function isRelevantLink(href: string, baseHostname: string): boolean {
+const MAX_TEXT_PER_SOURCE = 8000;
+
+function scoreUrl(href: string, baseHostname: string): number {
   try {
     const linkUrl = new URL(href);
     // Must be same domain
-    if (linkUrl.hostname !== baseHostname) return false;
+    if (linkUrl.hostname !== baseHostname) return -10;
     // Must not be the homepage itself
-    if (linkUrl.pathname === "/" || linkUrl.pathname === "") return false;
-    // Check exclusions
+    if (linkUrl.pathname === "/" || linkUrl.pathname === "") return -10;
+    // Check exclusion patterns
     for (const pattern of EXCLUDED_PATTERNS) {
-      if (pattern.test(href) || pattern.test(linkUrl.pathname)) return false;
+      if (pattern.test(href) || pattern.test(linkUrl.pathname)) return -10;
     }
-    // Check if path contains relevant keywords
     const pathLower = decodeURIComponent(linkUrl.pathname).toLowerCase();
-    return RELEVANT_KEYWORDS.some(kw => pathLower.includes(kw));
+    let score = 0;
+    if (SCORE_NEGATIVE.some(kw => pathLower.includes(kw))) return -5;
+    if (SCORE_HIGH.some(kw => pathLower.includes(kw))) score += 3;
+    if (SCORE_MEDIUM.some(kw => pathLower.includes(kw))) score += 2;
+    if (SCORE_LOW.some(kw => pathLower.includes(kw))) score += 1;
+    return score;
   } catch {
-    return false;
+    return -10;
+  }
+}
+
+async function fetchSitemapUrls(baseUrl: string, signal: AbortSignal): Promise<string[]> {
+  try {
+    const sitemapUrl = new URL("/sitemap.xml", baseUrl).href;
+    const resp = await fetch(sitemapUrl, {
+      signal,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+    });
+    if (!resp.ok) return [];
+    const xml = await resp.text();
+    if (!xml.includes("<urlset") && !xml.includes("<sitemapindex")) return [];
+
+    const baseHostname = new URL(baseUrl).hostname;
+    const locRegex = /<loc>\s*(.*?)\s*<\/loc>/g;
+    const scored: { url: string; score: number }[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = locRegex.exec(xml)) !== null) {
+      const loc = m[1].trim();
+      const s = scoreUrl(loc, baseHostname);
+      if (s > 0) scored.push({ url: loc, score: s });
+    }
+    // Sort by score descending, take top 3
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, 3).map(s => s.url);
+  } catch {
+    return [];
   }
 }
 
 async function discoverLinksFromHomepage(
   formattedUrl: string,
   signal: AbortSignal
-): Promise<string[]> {
+): Promise<{ links: string[]; homepageContent: string | null }> {
   try {
     const resp = await fetch(`https://r.jina.ai/${formattedUrl}`, {
       signal,
@@ -119,37 +159,40 @@ async function discoverLinksFromHomepage(
         "X-With-Images": "false",
       },
     });
-    if (!resp.ok) return [];
+    if (!resp.ok) return { links: [], homepageContent: null };
     const json = await resp.json();
+
+    // Extract homepage content from same call
+    const content = json?.data?.content;
+    const homepageContent = typeof content === "string" && content.length > 20 ? content : null;
+
     const links: JinaLink[] = json?.data?.links;
-    if (!Array.isArray(links)) return [];
+    if (!Array.isArray(links)) return { links: [], homepageContent };
 
     const baseHostname = new URL(formattedUrl).hostname;
     const seen = new Set<string>();
-    const relevant: string[] = [];
+    const scored: { url: string; score: number }[] = [];
 
     for (const link of links) {
       if (!link.href) continue;
-      // Resolve relative URLs
       let fullHref: string;
       try {
         fullHref = new URL(link.href, formattedUrl).href;
       } catch {
         continue;
       }
-      // Deduplicate
       const normalized = fullHref.replace(/\/$/, "");
       if (seen.has(normalized)) continue;
       seen.add(normalized);
 
-      if (isRelevantLink(fullHref, baseHostname)) {
-        relevant.push(fullHref);
-        if (relevant.length >= 3) break;
-      }
+      const s = scoreUrl(fullHref, baseHostname);
+      if (s > 0) scored.push({ url: fullHref, score: s });
     }
-    return relevant;
+
+    scored.sort((a, b) => b.score - a.score);
+    return { links: scored.slice(0, 3).map(s => s.url), homepageContent };
   } catch {
-    return [];
+    return { links: [], homepageContent: null };
   }
 }
 
@@ -157,10 +200,27 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
   let formattedUrl = url.trim();
   if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
 
-  // 1. Main page via Jina Reader (call 1)
-  let mainText = await jinaFetch(formattedUrl, signal);
+  let mainText: string | null = null;
+  let secondaryUrls: string[] = [];
+  let jinaCallsUsed = 0;
 
-  // Fallback to raw fetch if Jina fails
+  // ÉTAPE 1 : Try sitemap first (1 fetch, not a Jina call)
+  const sitemapUrls = await fetchSitemapUrls(formattedUrl, signal);
+
+  if (sitemapUrls.length > 0) {
+    // Sitemap found! Scrape homepage via Jina (call 1)
+    mainText = await jinaFetch(formattedUrl, signal);
+    jinaCallsUsed++;
+    secondaryUrls = sitemapUrls.slice(0, 2); // max 2 secondary
+  } else {
+    // ÉTAPE 2 : No sitemap → discover links from homepage via Jina with X-With-Links (call 1)
+    const { links, homepageContent } = await discoverLinksFromHomepage(formattedUrl, signal);
+    jinaCallsUsed++;
+    mainText = homepageContent;
+    secondaryUrls = links.slice(0, 2);
+  }
+
+  // Fallback for main text if Jina failed
   if (!mainText) {
     try {
       const resp = await fetch(formattedUrl, {
@@ -178,19 +238,15 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
 
   if (!mainText) return null;
 
-  // 2. Discover links from homepage via Jina with X-With-Links (call 2)
-  const discoveredLinks = await discoverLinksFromHomepage(formattedUrl, signal);
-
+  // Scrape secondary pages in parallel (calls 2-3)
   let secondaryPages: { title: string; content: string }[] = [];
 
-  if (discoveredLinks.length > 0) {
-    // 3. Scrape up to 2 discovered pages in parallel (calls 3-4)
-    const toScrape = discoveredLinks.slice(0, 2);
+  if (secondaryUrls.length > 0) {
+    const maxPerPage = Math.floor(MAX_TEXT_PER_SOURCE / 2);
     const results = await Promise.all(
-      toScrape.map(async (link) => {
+      secondaryUrls.map(async (link) => {
         const text = await jinaFetch(link, signal);
         if (!text) return null;
-        // Extract page name from path for the section title
         try {
           const pathname = new URL(link).pathname;
           const pageName = decodeURIComponent(pathname)
@@ -198,17 +254,17 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
             .replace(/\/$/, "")
             .replace(/-/g, " ")
             .replace(/\//g, " > ");
-          return { title: pageName.toUpperCase(), content: text };
+          return { title: pageName.toUpperCase(), content: text.slice(0, maxPerPage) };
         } catch {
-          return { title: "PAGE SECONDAIRE", content: text };
+          return { title: "PAGE SECONDAIRE", content: text.slice(0, maxPerPage) };
         }
       })
     );
     secondaryPages = results.filter((r): r is { title: string; content: string } => r !== null);
   }
 
-  // 4. Fallback: if no links discovered, try generic paths (same budget: 2 calls max)
-  if (secondaryPages.length === 0) {
+  // Fallback: if nothing found, try generic paths (max 2 calls)
+  if (secondaryPages.length === 0 && secondaryUrls.length === 0) {
     const aboutPaths = ["/about", "/a-propos", "/qui-suis-je", "/qui-sommes-nous"];
     const offerPaths = ["/services", "/offres", "/prestations", "/tarifs"];
 
@@ -219,7 +275,7 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
           const text = await jinaFetch(fullUrl, signal);
           if (text) {
             const name = path.replace(/^\//, "").toUpperCase();
-            return { title: name, content: text };
+            return { title: name, content: text.slice(0, Math.floor(MAX_TEXT_PER_SOURCE / 2)) };
           }
         } catch {
           // continue
