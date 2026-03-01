@@ -415,6 +415,7 @@ export default function SettingsPage() {
               localStorage.removeItem("lac_tour_seen");
               localStorage.removeItem("lac_tour_branding_seen");
               localStorage.removeItem("lac_plan_welcomed");
+              localStorage.removeItem("lac_dashboard_tour_seen");
               toast({ title: "Tour réactivé", description: "Tu verras la visite guidée à ta prochaine visite." });
             }}
           >
