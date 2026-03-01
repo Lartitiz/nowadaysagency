@@ -432,14 +432,14 @@ export default function InstagramStories() {
             <div className="flex flex-wrap gap-3 mb-8">
               <button
                 onClick={() => handleGenerate(true)}
-                className="flex-1 min-w-[200px] rounded-2xl border border-dashed border-primary/30 bg-rose-pale p-4 text-left hover:border-primary transition-colors"
+                className="flex-1 min-w-0 rounded-2xl border border-dashed border-primary/30 bg-rose-pale p-4 text-left hover:border-primary transition-colors"
               >
                 <p className="font-display text-sm font-bold text-primary">🆘 Pas d'inspi aujourd'hui ?</p>
                 <p className="text-xs text-muted-foreground mt-0.5">5 stories du quotidien en 1 clic</p>
               </button>
               <button
                 onClick={() => setShowStickerGuide(true)}
-                className="flex-1 min-w-[200px] rounded-2xl border border-dashed border-primary/30 bg-rose-pale p-4 text-left hover:border-primary transition-colors"
+                className="flex-1 min-w-0 rounded-2xl border border-dashed border-primary/30 bg-rose-pale p-4 text-left hover:border-primary transition-colors"
               >
                 <p className="font-display text-sm font-bold text-primary">🎯 Quel sticker utiliser ?</p>
                 <p className="text-xs text-muted-foreground mt-0.5">Guide interactif par objectif</p>

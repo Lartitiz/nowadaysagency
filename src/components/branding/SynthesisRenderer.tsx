@@ -311,13 +311,13 @@ function PersonaSynthesis({ data, onSavePortrait }: {
             )}
             <div className="flex gap-4 flex-wrap">
               {portrait.ses_mots?.length > 0 && (
-                <div className="flex-1 min-w-[200px]">
+                <div className="flex-1 min-w-0 sm:min-w-[200px]">
                   <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-1">✅ Mots qui résonnent</p>
                   <TagsList items={portrait.ses_mots} variant="green" />
                 </div>
               )}
               {portrait.comment_parler.fuir?.length > 0 && (
-                <div className="flex-1 min-w-[200px]">
+                <div className="flex-1 min-w-0 sm:min-w-[200px]">
                   <p className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-1">🚫 Mots à éviter</p>
                   <TagsList items={portrait.comment_parler.fuir} variant="red" />
                 </div>
