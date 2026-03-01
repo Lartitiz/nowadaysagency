@@ -430,22 +430,6 @@ function LinksScreen({ answers, set, files, uploading, onUpload, onRemove, onNex
           </div>
         </div>
 
-        {/* LinkedIn */}
-        <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">💼 URL de ton profil LinkedIn (optionnel)</label>
-          <div className="relative">
-            <input
-              type="text"
-              value={answers.linkedin}
-              onChange={e => set("linkedin", e.target.value)}
-              onBlur={() => { if (answers.linkedin) set("linkedin", addHttpsIfNeeded(answers.linkedin)); }}
-              placeholder="https://linkedin.com/in/..."
-              aria-label="URL de ton profil LinkedIn"
-              className="w-full text-sm p-2.5 pr-10 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50"
-            />
-            <InputIndicator status={liStatus} />
-          </div>
-        </div>
 
         {/* LinkedIn Summary */}
         <div>
