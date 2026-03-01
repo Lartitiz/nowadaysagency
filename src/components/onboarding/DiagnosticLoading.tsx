@@ -113,7 +113,7 @@ export default function DiagnosticLoading({
         const max = messages.length - 1;
         return prev < max ? prev + 1 : max;
       });
-    }, phase === "revealing" ? 2000 : 3000);
+    }, phase === "revealing" ? 1200 : 2800);
     return () => clearInterval(interval);
   }, [messages.length, phase]);
 
@@ -121,21 +121,24 @@ export default function DiagnosticLoading({
   useEffect(() => {
     if (phase !== "loading") return;
     const timers = [
-      setTimeout(() => hasDocuments && setChecks(c => ({ ...c, docs: true })), 3000),
-      setTimeout(() => hasWebsite && setChecks(c => ({ ...c, web: true })), 6000),
-      setTimeout(() => hasInstagram && setChecks(c => ({ ...c, ig: true })), 9000),
+      setTimeout(() => hasDocuments && setChecks(c => ({ ...c, docs: true })), 1500),
+      setTimeout(() => hasWebsite && setChecks(c => ({ ...c, web: true })), 3000),
+      setTimeout(() => hasInstagram && setChecks(c => ({ ...c, ig: true })), 4500),
     ];
     return () => timers.forEach(clearTimeout);
   }, [phase, hasDocuments, hasWebsite, hasInstagram]);
 
   // Handle reveal phase completion → call onReady
   useEffect(() => {
-    if (phase === "revealing" && currentIdx >= messages.length - 1 && diagnosticDataRef.current) {
-      const timer = setTimeout(() => {
-        setPhase("ready");
-        onReady(diagnosticDataRef.current!);
-      }, 1500);
-      return () => clearTimeout(timer);
+    if (phase === "revealing" && diagnosticDataRef.current) {
+      // Transition après max 3 messages OU quand on atteint la fin
+      if (currentIdx >= Math.min(2, messages.length - 1)) {
+        const timer = setTimeout(() => {
+          setPhase("ready");
+          onReady(diagnosticDataRef.current!);
+        }, 600);
+        return () => clearTimeout(timer);
+      }
     }
   }, [phase, currentIdx, messages.length, onReady]);
 
@@ -196,14 +199,14 @@ export default function DiagnosticLoading({
 
         // Build reveal messages from real data
         const reveals = buildRevealMessages(data, answers);
-        if (reveals.length > 2) {
-          // Switch to reveal phase with personalized messages
-          setMessages(reveals);
+        if (reveals.length > 1) {
+          // Switch to reveal phase — max 3 messages for speed
+          setMessages(reveals.slice(0, 3));
           setCurrentIdx(0);
           setPhase("revealing");
         } else {
-          // Not enough data for reveals, just finish
-          setTimeout(() => onReady(result), 800);
+          // Pas assez de données pour un reveal, on enchaîne
+          setTimeout(() => onReady(result), 400);
         }
       } catch (err) {
         console.warn("Deep diagnostic error, using fallback:", err);
@@ -215,7 +218,7 @@ export default function DiagnosticLoading({
       const data = computeDiagnosticData(answers, brandingAnswers);
       diagnosticDataRef.current = data;
       setChecks({ ig: true, web: true, docs: true });
-      setTimeout(() => onReady(data), 1000);
+      setTimeout(() => onReady(data), 500);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
