@@ -22,7 +22,6 @@ import {
 
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Mon Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
-  { to: "/branding", label: "Ma marque", icon: Palette, matchExact: false },
   { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
   { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
@@ -32,7 +31,6 @@ const ACCOMPAGNEMENT_ITEM = { to: "/accompagnement", label: "Accompagnement", ic
 
 const MOBILE_NAV = [
   { to: "/dashboard", label: "Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
-  { to: "/branding", label: "Ma marque", icon: Palette, matchExact: false },
   { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
   { to: "/mon-plan", label: "Mon plan", icon: ClipboardList, matchExact: false },
