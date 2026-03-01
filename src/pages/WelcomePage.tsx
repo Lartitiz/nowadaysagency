@@ -5,6 +5,7 @@ import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/use-profile";
+import RoomTour from "@/components/RoomTour";
 
 const GOAL_LABELS: Record<string, string> = {
   start: "🌱 Poser les bases",
@@ -103,6 +104,7 @@ export default function WelcomePage() {
   const [diagnosticSummary, setDiagnosticSummary] = useState("");
   const [brandingCards, setBrandingCards] = useState<BrandingCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showTour, setShowTour] = useState(false);
 
   const prenom = (profileData as any)?.prenom || "";
   const channels: string[] = (profileData as any)?.canaux || [];
@@ -400,7 +402,7 @@ export default function WelcomePage() {
         {/* F) CTAs */}
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
-            onClick={() => markSeen("/dashboard")}
+            onClick={() => setShowTour(true)}
             className="flex-1 rounded-pill gap-2"
             size="lg"
           >
@@ -415,6 +417,21 @@ export default function WelcomePage() {
             📊 Aller au Dashboard →
           </Button>
         </div>
+
+        <RoomTour
+          open={showTour}
+          onClose={async () => {
+            setShowTour(false);
+            await markSeen("/dashboard");
+          }}
+          onGeneratePlan={async () => {
+            setShowTour(false);
+            if (user) {
+              await (supabase.from("user_plan_config") as any).update({ welcome_seen: true }).eq(column, value);
+            }
+            navigate("/mon-plan");
+          }}
+        />
       </div>
     </div>
   );
