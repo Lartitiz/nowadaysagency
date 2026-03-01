@@ -9,21 +9,19 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ClipboardList, MessageSquare, Sparkles, History, FileText, ArrowLeft, FileDown } from "lucide-react";
+import { Sparkles, FileText, ArrowLeft, FileDown } from "lucide-react";
 import ContentPlayground from "@/components/branding/ContentPlayground";
 import SynthesisRenderer from "@/components/branding/SynthesisRenderer";
 import EditableField from "@/components/branding/EditableField";
-import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import BrandingRecapRenderer from "@/components/branding/BrandingRecapRenderer";
 import BrandingFicheCards from "@/components/branding/BrandingFicheCards";
 import StoryFicheCards from "@/components/branding/StoryFicheCards";
-import BrandingCoachingHistory from "@/components/branding/BrandingCoachingHistory";
 import BrandingSuggestionsCard from "@/components/branding/BrandingSuggestionsCard";
 import BrandingSpark from "@/components/branding/BrandingSpark";
 import BrandingActionCTA from "@/components/branding/BrandingActionCTA";
 import { useBrandingSuggestions } from "@/hooks/use-branding-suggestions";
 import { DEMO_DATA } from "@/lib/demo-data";
+import { safeParseJson } from "@/lib/branding-utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -198,14 +196,13 @@ export default function BrandingSectionPage() {
   const { isDemoMode } = useDemoContext();
 
   const section = (searchParams.get("section") || "story") as Section;
-  const defaultTab = searchParams.get("tab") || "fiche";
+  const defaultTab = searchParams.get("tab") || "synthese";
   const config = SECTION_CONFIGS[section];
   const { column, value } = useWorkspaceFilter();
 
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [data, setData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
-  const [showHistory, setShowHistory] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [lastCoachingUpdate, setLastCoachingUpdate] = useState<string | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -339,6 +336,22 @@ export default function BrandingSectionPage() {
     checkAndRedirect();
   }, [loading, data, section, isDemoMode, redirectChecked]);
 
+  // Determine if synthesis data exists
+  const hasRecap = (() => {
+    if (section === "story") return !!safeParseJson(data?.recap_summary);
+    if (section === "persona") return !!safeParseJson(data?.portrait);
+    if (section === "content_strategy") return !!(safeParseJson(data?.recap_summary) || data?.pillar_major);
+    if (section === "tone_style") return !!(data?.tone_register || data?.voice_description || data?.combat_cause);
+    return false;
+  })();
+
+  // Force fiche view when no recap available
+  useEffect(() => {
+    if (!loading && !hasRecap && activeTab === "synthese") {
+      setActiveTab("fiche");
+    }
+  }, [loading, hasRecap, activeTab]);
+
   if (!config) return null;
 
   const filledCount = config.fields.filter(f => {
@@ -357,7 +370,20 @@ export default function BrandingSectionPage() {
     }
   };
 
-  const switchToCoaching = () => setActiveTab("coaching");
+  const reloadData = () => {
+    if (!isDemoMode && user) {
+      if (isPersonaSection && selectedPersonaId) {
+        loadPersonaById(selectedPersonaId);
+      } else {
+        const cols = "*";
+        let q = (supabase.from(config.table as any) as any).select(cols).eq(column, value);
+        if (config.table === "storytelling") q = q.eq("is_primary", true);
+        q.maybeSingle().then(({ data: row }: any) => {
+          if (row) { setData(row); setLastUpdated(row.updated_at || null); }
+        });
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -373,6 +399,69 @@ export default function BrandingSectionPage() {
       </div>
     );
   }
+
+  /* ─── Shared fiche content ─── */
+  const ficheContent = (
+    <>
+      {section !== "story" && (
+        <div className="flex justify-end mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 text-xs"
+            onClick={() => setShowImportDialog(true)}
+          >
+            <FileDown className="h-3.5 w-3.5" />
+            📄 Importer mes données
+          </Button>
+        </div>
+      )}
+
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="mb-6">
+          <BrandingSuggestionsCard
+            suggestions={suggestions}
+            triggerField=""
+            suggestionId={suggestionId}
+            onDismiss={dismissSuggestions}
+          />
+        </div>
+      )}
+
+      {section === "story" ? (
+        <StoryFicheCards />
+      ) : (
+        <BrandingFicheCards
+          section={section}
+          fields={config.fields}
+          data={data}
+        />
+      )}
+
+      {section !== "story" && (
+        <BrandingImportDialog
+          open={showImportDialog}
+          onOpenChange={setShowImportDialog}
+          sectionTitle={config.title}
+          sectionTable={config.table}
+          fields={config.fields}
+          existingData={data}
+          filterColumn={column}
+          filterValue={value}
+          onImportDone={(updated) => {
+            setData(updated);
+            setLastUpdated(new Date().toISOString());
+          }}
+        />
+      )}
+
+      {lastUpdated && (
+        <p className="text-xs text-muted-foreground mt-4">
+          Dernière modification : {format(new Date(lastUpdated), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+        </p>
+      )}
+    </>
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -428,102 +517,75 @@ export default function BrandingSectionPage() {
               }
             }}
             onCreateNew={() => {
-              // Navigate to persona stepper with new=true to force insert
               navigate("/branding/coaching?section=persona");
             }}
           />
         )}
 
-        <Tabs value={activeTab} onValueChange={(v) => {
-          setActiveTab(v);
-          // When switching to synthese tab, reload data from DB
-          if (v === "synthese" && !isDemoMode && user) {
-            if (isPersonaSection && selectedPersonaId) {
-              loadPersonaById(selectedPersonaId);
-            } else {
-              const table = config.table;
-              const cols = "*";
-              let q = (supabase.from(table as any) as any).select(cols).eq(column, value);
-              if (table === "storytelling") q = q.eq("is_primary", true);
-              q.maybeSingle().then(({ data: row }: any) => {
-                if (row) { setData(row); setLastUpdated(row.updated_at || null); }
-              });
-            }
-          }
-        }} className="w-full">
-          <TabsList className="w-full mb-6">
-            <TabsTrigger value="fiche" className="flex-1 gap-2">
-              <ClipboardList className="h-4 w-4" />
-              Ma fiche
-            </TabsTrigger>
-            <TabsTrigger value="coaching" className="flex-1 gap-2">
-              <MessageSquare className="h-4 w-4" />
-              Coaching
-            </TabsTrigger>
-            <TabsTrigger value="synthese" className="flex-1 gap-2">
-              <FileText className="h-4 w-4" />
-              ✨ Synthèse
-            </TabsTrigger>
-          </TabsList>
-
-          {/* FICHE TAB */}
-          <TabsContent value="fiche">
-            {section !== "story" && (
-              <div className="flex justify-end mb-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 text-xs"
-                  onClick={() => setShowImportDialog(true)}
+        {/* ─── VIEW: Synthèse + Fiche toggle (when recap exists) ─── */}
+        {hasRecap ? (
+          <div>
+            {/* Toggle bar */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-1 bg-muted rounded-full p-1">
+                <button
+                  onClick={() => {
+                    setActiveTab("synthese");
+                    reloadData();
+                  }}
+                  className={`text-sm font-medium px-3 py-1.5 rounded-full transition-colors ${
+                    activeTab === "synthese"
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
                 >
-                  <FileDown className="h-3.5 w-3.5" />
-                  📄 Importer mes données
-                </Button>
+                  ✨ Synthèse
+                </button>
+                <button
+                  onClick={() => setActiveTab("fiche")}
+                  className={`text-sm font-medium px-3 py-1.5 rounded-full transition-colors ${
+                    activeTab === "fiche"
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  📝 Modifier les champs
+                </button>
               </div>
-            )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-xs rounded-full"
+                onClick={() => navigate(`/branding/coaching?section=${section}`)}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Affiner avec l'IA
+              </Button>
+            </div>
 
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="mb-6">
-                <BrandingSuggestionsCard
-                  suggestions={suggestions}
-                  triggerField=""
-                  suggestionId={suggestionId}
-                  onDismiss={dismissSuggestions}
+            {activeTab === "synthese" ? (
+              <div>
+                <SynthesisRenderer
+                  section={section}
+                  data={data}
+                  table={config.table}
+                  lastCoachingUpdate={lastCoachingUpdate}
+                  onSynthesisGenerated={() => setLastCoachingUpdate(null)}
                 />
+                {lastUpdated && (
+                  <p className="text-xs text-muted-foreground mt-4">
+                    Dernière modification : {format(new Date(lastUpdated), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                  </p>
+                )}
               </div>
-            )}
-            {section === "story" ? (
-              <StoryFicheCards />
             ) : (
-              <BrandingFicheCards
-                section={section}
-                fields={config.fields}
-                data={data}
-              />
+              <div>{ficheContent}</div>
             )}
-
-            {section !== "story" && (
-              <BrandingImportDialog
-                open={showImportDialog}
-                onOpenChange={setShowImportDialog}
-                sectionTitle={config.title}
-                sectionTable={config.table}
-                fields={config.fields}
-                existingData={data}
-                filterColumn={column}
-                filterValue={value}
-                onImportDone={(updated) => {
-                  setData(updated);
-                  setLastUpdated(new Date().toISOString());
-                }}
-              />
-            )}
-
-            {lastUpdated && (
-              <p className="text-xs text-muted-foreground mt-4">
-                Dernière modification : {format(new Date(lastUpdated), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
-              </p>
-            )}
+          </div>
+        ) : (
+          <div>
+            {/* No recap: show fiche + coaching CTA */}
+            {ficheContent}
 
             <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-5 mt-6 text-center space-y-3">
               <p className="font-display text-base font-bold text-foreground">
@@ -542,88 +604,8 @@ export default function BrandingSectionPage() {
                 {filledCount > 0 ? "Affiner avec l'IA →" : "Lancer le coaching IA →"}
               </Button>
             </div>
-          </TabsContent>
-
-          {/* COACHING TAB */}
-          <TabsContent value="coaching">
-            {showHistory ? (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2">
-                    <History className="h-4 w-4" /> Historique du coaching
-                  </h3>
-                  <Button variant="ghost" size="sm" onClick={() => setShowHistory(false)} className="text-xs">
-                    ← Retour au coaching
-                  </Button>
-                </div>
-                <BrandingCoachingHistory section={section} />
-                <Button className="w-full mt-6" onClick={() => setShowHistory(false)}>
-                  <Sparkles className="h-4 w-4 mr-2" /> Continuer le coaching →
-                </Button>
-              </div>
-            ) : (
-              <div>
-                <div className="flex justify-end mb-4">
-                  <Button variant="ghost" size="sm" onClick={() => setShowHistory(true)} className="text-xs gap-1.5">
-                    <History className="h-3.5 w-3.5" /> Voir l'historique
-                  </Button>
-                </div>
-                <BrandingCoachingFlow
-                  section={section}
-                  onComplete={() => {
-                    setLastCoachingUpdate(new Date().toISOString());
-                    const next = NEXT_SECTION[section];
-                    if (next) {
-                      toast.success(`✨ Ta fiche ${config.title} a été mise à jour !`, {
-                        description: `Prochaine étape : ${next.label}`,
-                        action: {
-                          label: "Y aller →",
-                          onClick: () => navigate(next.route),
-                        },
-                        duration: 6000,
-                      });
-                    } else {
-                      toast.success(`✨ Ta fiche ${config.title} a été mise à jour !`);
-                    }
-                    setActiveTab("fiche");
-                    if (!isDemoMode && user) {
-                      if (isPersonaSection && selectedPersonaId) {
-                        loadPersonaById(selectedPersonaId);
-                        refetchPersonas();
-                      } else {
-                        const cols = "*";
-                        let query = (supabase.from(config.table as any) as any)
-                          .select(cols)
-                          .eq(column, value);
-                        if (config.table === "storytelling") {
-                          query = query.eq("is_primary", true);
-                        }
-                        query.maybeSingle().then(({ data: row }: any) => {
-                          if (row) {
-                            setData(row);
-                            setLastUpdated(row.updated_at || null);
-                          }
-                        });
-                      }
-                    }
-                  }}
-                  onBack={() => setActiveTab("fiche")}
-                />
-              </div>
-            )}
-          </TabsContent>
-
-          {/* SYNTHESE TAB */}
-          <TabsContent value="synthese">
-            <SynthesisRenderer
-              section={section}
-              data={data}
-              table={config.table}
-              lastCoachingUpdate={lastCoachingUpdate}
-              onSynthesisGenerated={() => setLastCoachingUpdate(null)}
-            />
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
 
         {completionPct >= 80 && (
           <>
