@@ -151,18 +151,19 @@ export default function CommPlanPage() {
     try {
       const payload = {
         user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+        workspace_id: workspaceId !== user.id ? workspaceId : null,
         weekly_time: cfg.weekly_time,
         channels: cfg.channels,
         main_goal: cfg.main_goal,
       };
 
-      if (config) {
-        const { error } = await (supabase.from("user_plan_config") as any).update(payload).eq(column, value);
-        if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
-      } else {
-        const { error } = await supabase.from("user_plan_config").insert(payload);
-        if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
+      // Toujours utiliser upsert pour éviter les conflits avec la row créée par l'onboarding
+      const { error } = await (supabase.from("user_plan_config") as any)
+        .upsert(payload, { onConflict: "user_id" });
+      if (error) {
+        console.error("Plan config save error:", error);
+        sonnerToast.error("Erreur de sauvegarde");
+        return;
       }
 
       setConfig(cfg);
