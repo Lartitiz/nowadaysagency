@@ -1,16 +1,24 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 
-type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers";
+type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers" | "charter";
 
-const VALID_SECTIONS: Section[] = ["story", "persona", "tone_style", "content_strategy", "offers"];
+const VALID_SECTIONS: Section[] = ["story", "persona", "tone_style", "content_strategy", "offers", "charter"];
+
+const SECTION_ALIAS: Record<string, string> = {
+  storytelling: "story",
+  tone: "tone_style",
+  strategy: "content_strategy",
+  proposition: "value_proposition",
+};
 
 const RECAP_ROUTES: Record<Section, string> = {
-  story: "/branding/storytelling",
-  persona: "/branding/persona/recap",
-  tone_style: "/branding/ton/recap",
-  content_strategy: "/branding/strategie/recap",
+  story: "/branding/section?section=story&tab=fiche",
+  persona: "/branding/section?section=persona&tab=fiche",
+  tone_style: "/branding/section?section=tone_style&tab=fiche",
+  content_strategy: "/branding/section?section=content_strategy&tab=fiche",
   offers: "/branding/offres",
+  charter: "/branding/charter",
 };
 
 export default function BrandingCoachingPage() {
@@ -18,13 +26,16 @@ export default function BrandingCoachingPage() {
   const navigate = useNavigate();
   const rawSection = searchParams.get("section");
 
+  // Resolve aliases
+  const resolved = SECTION_ALIAS[rawSection || ""] || rawSection;
+
   // Redirect value_proposition to its recap page
-  if (rawSection === "value_proposition") {
+  if (resolved === "value_proposition") {
     navigate("/branding/proposition/recap", { replace: true });
     return null;
   }
 
-  const section = rawSection as Section;
+  const section = resolved as Section;
 
   if (!section || !VALID_SECTIONS.includes(section)) {
     navigate("/branding");

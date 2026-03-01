@@ -209,6 +209,7 @@ export default function BrandingSectionPage() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [lastCoachingUpdate, setLastCoachingUpdate] = useState<string | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [redirectChecked, setRedirectChecked] = useState(false);
   const [sparkDismissed, setSparkDismissed] = useState(() => {
     try { return localStorage.getItem(`spark_dismissed_${section}`) === "1"; } catch { return false; }
   });
@@ -304,6 +305,40 @@ export default function BrandingSectionPage() {
     load();
   }, [user?.id, section, isDemoMode]);
 
+  const workspaceId = useWorkspaceId();
+  const { suggestions, suggestionId, showSuggestions, checkImpact, dismissSuggestions } = useBrandingSuggestions(workspaceId);
+
+  // Auto-redirect to coaching if section is mostly empty and coaching not done
+  useEffect(() => {
+    if (loading || isDemoMode || redirectChecked || !config) return;
+    const explicitTab = searchParams.get("tab");
+    if (explicitTab) { setRedirectChecked(true); return; }
+
+    // Compute completion inline
+    const filled = config.fields.filter(f => {
+      const v = data[f.key];
+      return v && typeof v === "string" && v.trim().length > 0;
+    }).length;
+    const pct = Math.round((filled / config.fields.length) * 100);
+
+    const checkAndRedirect = async () => {
+      const { data: session } = await (supabase
+        .from("branding_coaching_sessions") as any)
+        .select("is_complete")
+        .eq(column, value)
+        .eq("section", section)
+        .maybeSingle();
+
+      const coachingDone = session?.is_complete === true;
+
+      if (pct < 50 && !coachingDone) {
+        navigate(`/branding/coaching?section=${section}`, { replace: true });
+      }
+      setRedirectChecked(true);
+    };
+    checkAndRedirect();
+  }, [loading, data, section, isDemoMode, redirectChecked]);
+
   if (!config) return null;
 
   const filledCount = config.fields.filter(f => {
@@ -314,13 +349,9 @@ export default function BrandingSectionPage() {
   const completionPct = Math.round((filledCount / totalFields) * 100);
   const emptyCount = totalFields - filledCount;
 
-  const workspaceId = useWorkspaceId();
-  const { suggestions, suggestionId, showSuggestions, checkImpact, dismissSuggestions } = useBrandingSuggestions(workspaceId);
-
   const handleFieldUpdate = (field: string, value: string, oldValue?: string) => {
     setData(prev => ({ ...prev, [field]: value }));
     setLastUpdated(new Date().toISOString());
-    // Check cross-module impact for structural fields
     if (oldValue && oldValue !== value) {
       checkImpact(field, oldValue, value);
     }
@@ -494,14 +525,23 @@ export default function BrandingSectionPage() {
               </p>
             )}
 
-            <Button
-              variant="outline"
-              className="w-full mt-6 gap-2"
-              onClick={switchToCoaching}
-            >
-              <Sparkles className="h-4 w-4" />
-              {filledCount > 0 ? "Continuer le coaching →" : "Commencer le coaching →"}
-            </Button>
+            <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-5 mt-6 text-center space-y-3">
+              <p className="font-display text-base font-bold text-foreground">
+                {filledCount > 0 ? "Envie d'aller plus loin ?" : "Tu ne sais pas quoi écrire ?"}
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
+                {filledCount > 0
+                  ? "L'IA te pose des questions ciblées pour enrichir et affiner cette section. Tes réponses mettent à jour ta fiche automatiquement."
+                  : "Pas de panique : l'IA te guide question par question. Tu réponds, elle remplit ta fiche. Simple."}
+              </p>
+              <Button
+                className="rounded-full gap-2"
+                onClick={() => navigate(`/branding/coaching?section=${section}`)}
+              >
+                <Sparkles className="h-4 w-4" />
+                {filledCount > 0 ? "Affiner avec l'IA →" : "Lancer le coaching IA →"}
+              </Button>
+            </div>
           </TabsContent>
 
           {/* COACHING TAB */}

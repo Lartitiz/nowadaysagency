@@ -41,12 +41,12 @@ interface AIResponse {
 }
 
 const SECTION_META: Record<Section, { emoji: string; title: string; description: string; duration: string }> = {
-  story: { emoji: "📖", title: "Mon histoire", description: "On va écrire ton histoire ensemble. Je te pose des questions, tu me racontes.", duration: "~5 min" },
-  persona: { emoji: "👩‍💻", title: "Mon client·e idéal·e", description: "On va dresser le portrait de ta cliente idéale ensemble.", duration: "~5 min" },
-  tone_style: { emoji: "🎨", title: "Ma voix & mes combats", description: "On va définir ta voix. Comment tu parles, ce que tu défends, tes limites.", duration: "~5 min" },
-  content_strategy: { emoji: "🍒", title: "Ma ligne éditoriale", description: "On va poser tes piliers de contenu et ta ligne éditoriale.", duration: "~4 min" },
-  offers: { emoji: "🎁", title: "Mes offres", description: "On va formuler tes offres de manière désirable.", duration: "~5 min" },
-  charter: { emoji: "🎨", title: "Ma charte graphique", description: "On va définir ton identité visuelle : couleurs, typos, style, ambiance.", duration: "~4 min" },
+  story: { emoji: "📖", title: "Mon histoire", description: "Je vais te poser des questions sur ton parcours, ton déclic, tes galères. Tu me racontes à l'oral ou à l'écrit, et à la fin, ta fiche storytelling sera remplie automatiquement. Tu n'as rien à structurer toute seule.", duration: "~5 min" },
+  persona: { emoji: "👩‍💻", title: "Mon·a client·e idéal·e", description: "On va dresser le portrait de ta cliente idéale ensemble. Je te pose les bonnes questions, tu me décris la personne que tu veux aider. Ta fiche persona se remplit au fur et à mesure.", duration: "~5 min" },
+  tone_style: { emoji: "🎨", title: "Ma voix & mes combats", description: "Comment tu parles, ce que tu défends, tes limites. Je te guide question par question, et ta fiche ton se construit toute seule.", duration: "~5 min" },
+  content_strategy: { emoji: "🍒", title: "Ma ligne éditoriale", description: "On va poser tes piliers de contenu et ton concept créatif. Réponds à mes questions, et ta ligne éditoriale prend forme automatiquement.", duration: "~4 min" },
+  offers: { emoji: "🎁", title: "Mes offres", description: "On va formuler tes offres pour qu'elles donnent envie. Je te pose les bonnes questions, ta fiche offres se remplit.", duration: "~5 min" },
+  charter: { emoji: "🎨", title: "Ma charte graphique", description: "On va définir ton identité visuelle ensemble : couleurs, typos, style, ambiance. Je te guide pas à pas.", duration: "~4 min" },
 };
 
 const LOADING_PHRASES = [

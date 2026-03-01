@@ -21,16 +21,15 @@ interface SectionConfig {
   title: string;
   why?: string;
   editRoute: string;
-  coachingRoute?: string;
 }
 
 const SECTIONS: SectionConfig[] = [
-  { key: "storytelling", icon: "📖", title: "Mon histoire", why: "C'est ce qui te rend unique. Les gens achètent une personne avant un produit.", editRoute: "/branding/section?section=story", coachingRoute: "/branding/coaching?section=storytelling" },
-  { key: "persona", icon: "👩‍💻", title: "Mon·a client·e idéal·e", why: "Plus tu connais ta cible, plus tes contenus la touchent. C'est la base de tout.", editRoute: "/branding/section?section=persona", coachingRoute: "/branding/coaching?section=persona" },
-  { key: "proposition", icon: "❤️", title: "Ma proposition de valeur", why: "La phrase qu'on retient de toi. Celle qui fait cliquer.", editRoute: "/branding/proposition/recap", coachingRoute: "/branding/coaching?section=proposition" },
-  { key: "tone", icon: "🎨", title: "Ma voix & mes combats", why: "Ta façon de parler, c'est ta signature. Ce qui fait qu'on te reconnaît dans un feed.", editRoute: "/branding/section?section=tone_style", coachingRoute: "/branding/coaching?section=tone" },
-  { key: "strategy", icon: "🍒", title: "Ma ligne éditoriale", why: "Tes sujets de contenu. Pour ne plus jamais te demander « je poste quoi ? »", editRoute: "/branding/section?section=content_strategy", coachingRoute: "/branding/coaching?section=strategy" },
-  { key: "offers", icon: "🎁", title: "Mes offres", why: "Si c'est pas clair pour toi, c'est pas clair pour ta cible.", editRoute: "/branding/offres", coachingRoute: "/branding/coaching?section=offers" },
+  { key: "storytelling", icon: "📖", title: "Mon histoire", why: "C'est ce qui te rend unique. Les gens achètent une personne avant un produit.", editRoute: "/branding/section?section=story" },
+  { key: "persona", icon: "👩‍💻", title: "Mon·a client·e idéal·e", why: "Plus tu connais ta cible, plus tes contenus la touchent. C'est la base de tout.", editRoute: "/branding/section?section=persona" },
+  { key: "proposition", icon: "❤️", title: "Ma proposition de valeur", why: "La phrase qu'on retient de toi. Celle qui fait cliquer.", editRoute: "/branding/proposition/recap" },
+  { key: "tone", icon: "🎨", title: "Ma voix & mes combats", why: "Ta façon de parler, c'est ta signature. Ce qui fait qu'on te reconnaît dans un feed.", editRoute: "/branding/section?section=tone_style" },
+  { key: "strategy", icon: "🍒", title: "Ma ligne éditoriale", why: "Tes sujets de contenu. Pour ne plus jamais te demander « je poste quoi ? »", editRoute: "/branding/section?section=content_strategy" },
+  { key: "offers", icon: "🎁", title: "Mes offres", why: "Si c'est pas clair pour toi, c'est pas clair pour ta cible.", editRoute: "/branding/offres" },
   { key: "charter", icon: "🎨", title: "Ma charte graphique", why: "Tes visuels sont ta première impression. Ils doivent parler avant toi.", editRoute: "/branding/charter" },
 ];
 
@@ -425,14 +424,9 @@ function ConstructionView({ completion, summaries, onReanalyze, onImport, onShow
                     <div className="px-5 pb-5 pt-1 border-t border-border/50">
                       <SectionDetail section={section} summaries={summaries} score={score} />
                       <div className="flex items-center gap-2 mt-4">
-                        <Button size="sm" variant="outline" className="text-xs gap-1.5" onClick={() => navigate(section.editRoute)}>
-                          <Pencil className="h-3.5 w-3.5" /> Modifier
+                        <Button size="sm" className="text-xs gap-1.5" onClick={() => navigate(section.editRoute)}>
+                          {score > 0 ? <><Pencil className="h-3.5 w-3.5" /> Modifier</> : <><Sparkles className="h-3.5 w-3.5" /> Commencer</>}
                         </Button>
-                        {section.coachingRoute && (
-                          <Button size="sm" variant="ghost" className="text-xs gap-1.5 text-primary hover:text-primary" onClick={() => navigate(section.coachingRoute!)}>
-                            <Sparkles className="h-3.5 w-3.5" /> Affiner avec l'IA
-                          </Button>
-                        )}
                       </div>
                     </div>
                   </motion.div>
