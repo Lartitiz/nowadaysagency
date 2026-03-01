@@ -38,7 +38,7 @@ export default function PlanView({ plan, onEditConfig, onToggleStep }: PlanViewP
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-card border border-border rounded-2xl p-5">
+      <div data-tour="plan-progress" className="bg-card border border-border rounded-2xl p-5">
         <div className="flex items-start justify-between mb-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -73,8 +73,10 @@ export default function PlanView({ plan, onEditConfig, onToggleStep }: PlanViewP
       <AuditRecommendationsSection />
 
       {/* Phases */}
-      {plan.phases.map(phase => (
-        <PhaseSection key={phase.id} phase={phase} navigate={navigate} onToggleStep={onToggleStep} />
+      {plan.phases.map((phase, index) => (
+        <div key={phase.id} data-tour={index === 0 ? "plan-first-phase" : undefined}>
+          <PhaseSection phase={phase} navigate={navigate} onToggleStep={onToggleStep} />
+        </div>
       ))}
     </div>
   );
