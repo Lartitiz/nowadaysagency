@@ -408,14 +408,6 @@ export default function WelcomePage() {
           >
             ✨ Explorer l'outil →
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => markSeen("/dashboard")}
-            className="rounded-pill"
-            size="lg"
-          >
-            📊 Aller au Dashboard →
-          </Button>
         </div>
 
         <RoomTour
