@@ -914,7 +914,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             )}
           </div>
         ) : (
-          <EmptySection message="Tu n'as pas encore écrit ton histoire." linkLabel="Écrire mon histoire →" link="/branding/storytelling" />
+          <EmptySection message="Tu n'as pas encore écrit ton histoire." linkLabel="Écrire mon histoire →" link="/branding/section?section=story" />
         )}
 
         {/* ═══ MES OFFRES ═══ */}

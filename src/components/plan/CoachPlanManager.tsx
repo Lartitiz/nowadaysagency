@@ -27,7 +27,7 @@ interface CoachPlanManagerProps {
 const ROUTE_OPTIONS = [
   { value: "/branding", label: "Mon identité" },
   { value: "/branding/section?section=persona", label: "Persona" },
-  { value: "/branding/storytelling", label: "Storytelling" },
+  { value: "/branding/section?section=story", label: "Storytelling" },
   { value: "/branding/proposition/recap", label: "Proposition de valeur" },
   { value: "/branding/section?section=tone_style", label: "Ton & style" },
   { value: "/branding/section?section=content_strategy", label: "Stratégie de contenu" },

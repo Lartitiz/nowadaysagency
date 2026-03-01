@@ -70,7 +70,7 @@ export default function AuditRecommendationsSection() {
       "/instagram/highlights": "/instagram/profil/stories",
       "/creer": "/creer",
       "/strategie": "/branding/section?section=content_strategy",
-      "/storytelling": "/branding/storytelling",
+      "/storytelling": "/branding/section?section=story",
       "/ton": "/branding/section?section=tone_style",
       "/proposition": "/branding/proposition/recap",
       "/offres": "/branding/offres",

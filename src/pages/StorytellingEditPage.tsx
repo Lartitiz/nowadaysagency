@@ -42,7 +42,7 @@ export default function StorytellingEditPage() {
     queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
     toast({ title: "Modifications enregistrées !" });
     setSaving(false);
-    navigate("/branding/storytelling");
+    navigate("/branding/section?section=story");
   };
 
   if (loading) return (
