@@ -9,7 +9,7 @@ import { useWorkspaceId, useWorkspaceFilter } from "@/hooks/use-workspace-query"
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useUserPhase } from "@/hooks/use-user-phase";
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
-import { useCoachingFlow, TONE_OPTIONS, shouldActivateCoaching } from "@/hooks/use-coaching-flow";
+// useCoachingFlow removed — all interactions now go through the AI edge function
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { LayoutGrid } from "lucide-react";
@@ -28,7 +28,6 @@ interface ChatMessage {
   content: string;
   suggestions?: Suggestion[];
   actions?: ActionLink[];
-  toneButtons?: boolean; // special flag for tone selection step
   created_at: string;
 }
 
@@ -202,8 +201,7 @@ export default function ChatGuidePage() {
   const { recommendation, profileSummary } = useGuideRecommendation();
   const queryClient = useQueryClient();
 
-  // Coaching flow
-  const coaching = useCoachingFlow(phaseLoading ? "construction" : phase, profileSummary.brandingTotal);
+  // Coaching flow removed — all interactions go through AI edge function
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -296,30 +294,26 @@ export default function ChatGuidePage() {
 
     const effectivePhase = phaseLoading ? "construction" : phase;
 
-    // ─── Coaching mode welcome ───
-    if (coaching.isActive && coaching.step === 0 && !coaching.completed) {
-      return {
-        id: "welcome",
-        role: "assistant",
-        content: `${greeting} ${firstName} ! 👋\n\nBravo, ton diagnostic est prêt ! Maintenant j'aimerais te connaître un peu mieux pour personnaliser tout ce que l'outil va créer pour toi. Ça prend 5 minutes et ça va TOUT changer.\n\nOn y va ? 💪`,
-        suggestions: [{ icon: "Sparkles", label: "C'est parti !" }],
-        created_at: new Date().toISOString(),
-      };
-    }
-
     if (effectivePhase === "construction") {
-      // Single priority suggestion from guide recommendation
-      const mainSuggestion: Suggestion = {
+      const suggestions: Suggestion[] = [];
+
+      // Suggestion principale basée sur la recommandation
+      suggestions.push({
         icon: guessIconForSuggestion(recommendation.ctaLabel),
         label: recommendation.ctaLabel.replace(" →", ""),
-      };
-      recentSuggestionsRef.current = [mainSuggestion.label];
+      });
+
+      // Suggestion "C'est quoi ma prochaine étape"
+      suggestions.push({ icon: "Sparkles", label: "C'est quoi ma prochaine étape ?" });
+
+      // Suggestion déblocage
+      suggestions.push({ icon: "Lightbulb", label: "J'ai une question sur ma com'" });
 
       return {
         id: "welcome",
         role: "assistant",
-        content: `${greeting} ${firstName} ! 👋\n\nJe connais ta marque, ton audience et tes objectifs. Pose-moi n'importe quelle question sur ta com' et je t'aide concrètement.`,
-        suggestions: [mainSuggestion],
+        content: `${greeting} ${firstName} ! 👋\n\nJe connais ta marque, ton audience et tes objectifs. Dis-moi sur quoi tu veux avancer et je te guide vers la bonne action.`,
+        suggestions,
         created_at: new Date().toISOString(),
       };
     }
@@ -381,49 +375,9 @@ export default function ChatGuidePage() {
       suggestions: pilotSuggestions,
       created_at: new Date().toISOString(),
     };
-  }, [firstName, isDemoMode, profile, phase, phaseLoading, recommendation, weekPostsData, pendingPostsData, coaching.isActive, coaching.step, coaching.completed]);
+  }, [firstName, isDemoMode, profile, phase, phaseLoading, recommendation, weekPostsData, pendingPostsData]);
 
-  // ─── Coaching question generator ───
-  const getCoachingQuestion = useCallback((step: number): ChatMessage => {
-    const base = { id: `coaching-q-${step}`, role: "assistant" as const, created_at: new Date().toISOString() };
-
-    switch (step) {
-      case 1:
-        return {
-          ...base,
-          content: `Raconte-moi : pourquoi tu fais ce métier ? Qu'est-ce qui t'a donné envie de te lancer ?\n\n*(Pas besoin d'être long·ue, parle comme tu parlerais à une amie.)*`,
-        };
-      case 2:
-        return {
-          ...base,
-          content: `Super ! Et ta cliente idéale, elle ressemble à quoi ? Qu'est-ce qui la frustre ? Qu'est-ce qu'elle cherche ?`,
-        };
-      case 3:
-        return {
-          ...base,
-          content: `Quand tu parles de ton travail, tu es plutôt :`,
-          toneButtons: true,
-        };
-      case 4:
-        return {
-          ...base,
-          content: `Et concrètement, c'est quoi TON objectif numéro 1 pour les 3 prochains mois ? Vendre plus ? Te faire connaître ? Lancer un nouveau truc ?`,
-        };
-      case 5: {
-        const newScore = Math.min(100, Math.round(coaching.initialScore + 25));
-        return {
-          ...base,
-          content: `Nickel ${firstName} ! J'ai tout ce qu'il me faut pour te proposer des contenus qui TE ressemblent. 🎉\n\nTon branding est passé de ${coaching.initialScore}% à ~${newScore}%.\n\nTu veux qu'on crée ton premier contenu ensemble, ou tu préfères que je te prépare des idées pour la semaine ?`,
-          suggestions: [
-            { icon: "PenLine", label: "Créer mon premier contenu" },
-            { icon: "Lightbulb", label: "Prépare-moi des idées" },
-          ],
-        };
-      }
-      default:
-        return { ...base, content: "C'est parti !" };
-    }
-  }, [firstName, coaching.initialScore]);
+  // getCoachingQuestion removed — all interactions go through AI
 
   // Load latest conversation (skip in demo)
   useEffect(() => {
@@ -540,53 +494,7 @@ export default function ChatGuidePage() {
       textareaRef.current.style.height = "auto";
     }
 
-    // ─── Coaching mode handling ───
-    if (coaching.isActive && !coaching.completed && coaching.step <= 4) {
-      // "C'est parti !" triggers step 1
-      if (coaching.step === 0) {
-        coaching.markStarted();
-        coaching.setStep(1);
-        setIsTyping(true);
-        await new Promise(r => setTimeout(r, 600));
-        setIsTyping(false);
-        const q = getCoachingQuestion(1);
-        setMessages(prev => [...prev, q]);
-        await saveMessage({ role: "user", content: userMsg.content });
-        await saveMessage({ role: "assistant", content: q.content });
-        return;
-      }
-
-      // Process the answer for current step, then ask next question
-      setIsTyping(true);
-      await saveMessage({ role: "user", content: userMsg.content });
-
-      try {
-        await coaching.processAnswer(userMsg.content);
-      } catch (e) {
-        console.warn("Coaching save error (non-blocking):", e);
-        coaching.advance();
-      }
-
-      // Invalidate branding queries for fresh data
-      queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
-      queryClient.invalidateQueries({ queryKey: ["persona"] });
-      queryClient.invalidateQueries({ queryKey: ["storytelling"] });
-
-      await new Promise(r => setTimeout(r, 500 + Math.random() * 400));
-      setIsTyping(false);
-
-      const nextStep = coaching.step; // already advanced by processAnswer
-      const q = getCoachingQuestion(nextStep);
-      setMessages(prev => [...prev, q]);
-      await saveMessage({ role: "assistant", content: q.content });
-
-      // If step 5 (conclusion), mark complete
-      if (nextStep >= 5) {
-        coaching.markComplete();
-        queryClient.invalidateQueries({ queryKey: ["guide-recommendation"] });
-      }
-      return;
-    }
+    // All interactions go through AI edge function (coaching flow removed)
 
     // Demo mode: mock response
     if (isDemoMode) {
@@ -663,7 +571,7 @@ export default function ChatGuidePage() {
       };
       setMessages((prev) => [...prev, fallbackMsg]);
     }
-  }, [saveMessage, messages, workspaceId, user, updateConversationTitle, isDemoMode, getDemoResponse, coaching, getCoachingQuestion, queryClient]);
+  }, [saveMessage, messages, workspaceId, user, updateConversationTitle, isDemoMode, getDemoResponse, queryClient]);
 
   // Handle keyboard
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -854,13 +762,14 @@ export default function ChatGuidePage() {
                                const validRoutes = [
                                  "/creer", "/calendrier", "/branding", "/branding/section",
                                 "/branding/coaching", "/branding/proposition/recap",
-                                "/branding/charter",
+                                "/branding/charter", "/branding/offres",
                                 "/instagram/profil/bio", "/instagram/carousel", "/instagram/reels",
                                 "/instagram/stories", "/instagram/audit", "/instagram/stats",
                                 "/instagram/routine", "/instagram/profil",
                                 "/linkedin", "/linkedin/post", "/linkedin/audit",
                                 "/plan", "/contacts", "/atelier", "/transformer",
-                                "/dashboard", "/profil", "/site", "/seo",
+                                "/dashboard", "/profil", "/site", "/site/accueil",
+                                "/site/optimiser", "/site/audit", "/seo", "/pricing",
                               ];
                               const baseRoute = action.route.split("?")[0];
                               if (validRoutes.includes(baseRoute) || validRoutes.some(r => baseRoute.startsWith(r + "/"))) {
@@ -881,25 +790,7 @@ export default function ChatGuidePage() {
                       </div>
                     )}
 
-                    {/* Tone buttons (coaching step 3) */}
-                    {msg.toneButtons && (
-                      <div className="flex flex-col gap-2 mt-3">
-                        {TONE_OPTIONS.map((tone, i) => (
-                          <motion.button
-                            key={i}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.2, delay: i * 0.08 }}
-                            onClick={() => sendMessage(`${tone.emoji} ${tone.label}`)}
-                            className="flex items-center gap-3 bg-background border border-primary/20 rounded-xl px-4 py-3 text-sm transition-all hover:border-primary/50 hover:shadow-sm hover:-translate-y-0.5 text-left focus:outline-none focus:ring-2 focus:ring-primary/30"
-                            style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
-                          >
-                            <span className="text-lg">{tone.emoji}</span>
-                            <span className="text-foreground">{tone.label}</span>
-                          </motion.button>
-                        ))}
-                      </div>
-                    )}
+                    {/* Tone buttons removed — coaching now handled by AI */}
 
                     {/* Suggestions */}
                     {msg.suggestions && (msg.id.startsWith("welcome") ? suggestionsVisible : true) && (
