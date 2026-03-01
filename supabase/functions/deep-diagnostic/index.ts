@@ -75,18 +75,42 @@ serve(async (req) => {
     const scrapePromises: Promise<void>[] = [];
 
     if (websiteUrl) {
-      scrapePromises.push(
-        scrapeWebsite(websiteUrl, controller.signal)
-          .then((text) => {
-            if (text) {
-              scrapedContent.website = text.slice(0, MAX_TEXT_PER_SOURCE);
-              sourcesUsed.push("website");
-            } else {
-              sourcesFailed.push("website");
-            }
-          })
-          .catch(() => { sourcesFailed.push("website"); })
-      );
+      scrapePromises.push((async () => {
+        // 1. Check pre-scrape cache first
+        try {
+          const { data: cached } = await supabaseAdmin
+            .from("scrape_cache")
+            .select("content")
+            .eq("user_id", userId)
+            .eq("url", websiteUrl)
+            .gte("created_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (cached?.content) {
+            scrapedContent.website = cached.content.slice(0, MAX_TEXT_PER_SOURCE);
+            sourcesUsed.push("website");
+            console.log("Website content loaded from pre-scrape cache");
+            return;
+          }
+        } catch (e) {
+          console.warn("Cache lookup failed, falling back to live scrape:", e);
+        }
+
+        // 2. Fallback : scrape en direct
+        try {
+          const text = await scrapeWebsite(websiteUrl, controller.signal);
+          if (text) {
+            scrapedContent.website = text.slice(0, MAX_TEXT_PER_SOURCE);
+            sourcesUsed.push("website");
+          } else {
+            sourcesFailed.push("website");
+          }
+        } catch {
+          sourcesFailed.push("website");
+        }
+      })());
     }
 
     // Instagram scraping disabled — handle is kept for audit tool, not used in diagnostic

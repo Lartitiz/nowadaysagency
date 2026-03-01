@@ -1,0 +1,70 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { scrapeWebsite } from "../_shared/scraping.ts";
+
+serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { userId, websiteUrl } = await req.json();
+    if (!userId || !websiteUrl) {
+      return new Response(JSON.stringify({ error: "userId et websiteUrl requis" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // Check si déjà en cache (moins de 30 min)
+    const { data: cached } = await supabaseAdmin
+      .from("scrape_cache")
+      .select("id, content")
+      .eq("user_id", userId)
+      .eq("url", websiteUrl)
+      .gte("created_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (cached?.content) {
+      return new Response(JSON.stringify({ success: true, cached: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Scrape
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+
+    const content = await scrapeWebsite(websiteUrl, controller.signal);
+    clearTimeout(timeout);
+
+    if (content) {
+      // Upsert dans le cache
+      await supabaseAdmin.from("scrape_cache").upsert({
+        user_id: userId,
+        url: websiteUrl,
+        source_type: "website",
+        content: content.slice(0, 10000),
+      }, { onConflict: "user_id,url" });
+    }
+
+    return new Response(JSON.stringify({ success: true, cached: false, hasContent: !!content }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    console.error("pre-scrape error:", e);
+    return new Response(JSON.stringify({ error: "scrape failed" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
