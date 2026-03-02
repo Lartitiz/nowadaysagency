@@ -50,7 +50,7 @@ serve(async (req) => {
     const { type, workspace_id } = body;
 
     const category = (type === "suggest_topics" || type === "suggest_angles") ? "suggestion" : "content";
-    const quotaCheck = await checkQuota(user.id, category);
+    const quotaCheck = await checkQuota(user.id, category, workspace_id);
     if (!quotaCheck.allowed) {
       return new Response(
         JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0, category: quotaCheck.reason }),
