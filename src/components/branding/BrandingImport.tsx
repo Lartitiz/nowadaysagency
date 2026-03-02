@@ -1,18 +1,16 @@
 import { useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Globe, Instagram, Linkedin, Upload, FileText, X } from "lucide-react";
+import { Globe, Upload, FileText, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 
 interface BrandingImportProps {
-  onAnalyze: (data: { website?: string; instagram?: string; linkedin?: string; files: File[] }) => void;
+  onAnalyze: (data: { website?: string; files: File[] }) => void;
   onSkip: () => void;
   loading?: boolean;
   initialWebsite?: string;
-  initialInstagram?: string;
-  initialLinkedin?: string;
   reanalyzeWarning?: boolean;
 }
 
@@ -20,16 +18,14 @@ const MAX_FILES = 5;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ACCEPTED_EXTENSIONS = ".pdf,.docx,.doc,.txt,.md,.png,.jpg,.jpeg";
 
-export default function BrandingImport({ onAnalyze, onSkip, loading = false, initialWebsite = "", initialInstagram = "", initialLinkedin = "", reanalyzeWarning = false }: BrandingImportProps) {
+export default function BrandingImport({ onAnalyze, onSkip, loading = false, initialWebsite = "", reanalyzeWarning = false }: BrandingImportProps) {
   const [website, setWebsite] = useState(initialWebsite);
-  const [instagram, setInstagram] = useState(initialInstagram);
-  const [linkedin, setLinkedin] = useState(initialLinkedin);
   const [files, setFiles] = useState<File[]>([]);
   const [docsOpen, setDocsOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const hasAnyInput = website.trim() || instagram.trim() || linkedin.trim() || files.length > 0;
+  const hasAnyInput = website.trim() || files.length > 0;
 
   const handleFiles = useCallback((newFiles: FileList | File[]) => {
     const accepted: File[] = [];
@@ -53,7 +49,7 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
 
   const handleSubmit = () => {
     if (!hasAnyInput) return;
-    onAnalyze({ website: website.trim() || undefined, instagram: instagram.trim() || undefined, linkedin: linkedin.trim() || undefined, files });
+    onAnalyze({ website: website.trim() || undefined, files });
   };
 
   const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.1 } } };
@@ -89,20 +85,6 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
                 <Globe className="h-5 w-5 text-primary" /> Ton site web
               </label>
               <Input type="url" placeholder="https://monsite.fr" value={website} onChange={(e) => setWebsite(e.target.value)} disabled={loading} />
-              <p className="text-[11px] text-muted-foreground mt-1">Optionnel</p>
-            </motion.div>
-            <motion.div variants={fadeUp}>
-              <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-1.5">
-                <Instagram className="h-5 w-5 text-primary" /> Ton Instagram
-              </label>
-              <Input type="text" placeholder="@moncompte ou URL" value={instagram} onChange={(e) => setInstagram(e.target.value)} disabled={loading} />
-              <p className="text-[11px] text-muted-foreground mt-1">Optionnel</p>
-            </motion.div>
-            <motion.div variants={fadeUp}>
-              <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-1.5">
-                <Linkedin className="h-5 w-5 text-primary" /> Ton LinkedIn
-              </label>
-              <Input type="url" placeholder="URL de ton profil ou ta page" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} disabled={loading} />
               <p className="text-[11px] text-muted-foreground mt-1">Optionnel</p>
             </motion.div>
           </motion.div>
