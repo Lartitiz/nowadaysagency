@@ -71,6 +71,7 @@ Deno.serve(async (req) => {
       engage: "Engagé et provocateur (opinion forte, prise de position)",
     };
     const CONTENT_TYPE_LABELS: Record<string, string> = {
+      // Legacy content types
       mythe_realite: "Mythe vs Réalité",
       liste_tips: "Liste / Tips",
       tutoriel: "Tutoriel pas à pas",
@@ -91,6 +92,19 @@ Deno.serve(async (req) => {
       teasing: "Teasing",
       qna: "Q&A / Boîte à questions",
       quotidien: "Tranche de vie",
+      // Angles éditoriaux
+      "enquete": "Enquête / Décryptage (analyser un phénomène avec un angle inédit)",
+      "test": "Test grandeur nature (tester un conseil et donner son verdict)",
+      "coup-de-gueule": "Coup de gueule (prise de position sur une frustration partagée)",
+      "mythe": "Mythe à déconstruire (démonter une croyance répandue)",
+      "histoire-cliente": "Histoire cliente (illustrer un blocage commun via un cas réel, social proof)",
+      "surf-actu": "Surf sur l'actu (rebondir sur une actualité avec ton analyse)",
+      "regard-philo": "Regard philosophique / sociétal (prendre de la hauteur, France Culture)",
+      "conseil-contre-intuitif": "Conseil contre-intuitif (aller à contre-courant des conseils mainstream)",
+      "before-after": "Before / After (montrer une évolution concrète pour inspirer)",
+      "identification": "Identification / Quotidien (contenus où l'audience se reconnaît)",
+      "build-in-public": "Build in public (partager objectifs, échecs, pivots en transparence)",
+      "analyse-profondeur": "Analyse en profondeur (décortiquer un sujet avec des données)",
     };
 
     const objectifLabel = OBJECTIF_LABELS[objectif] || objectif;
