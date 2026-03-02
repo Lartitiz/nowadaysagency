@@ -539,11 +539,11 @@ export default function InstagramCarousel() {
 
               <div className="space-y-4">
                 {visualSlides.map((vs, idx) => (
-                  <div key={idx} className="rounded-xl border border-border overflow-hidden bg-card">
+                  <div key={idx} className="rounded-xl border border-border overflow-hidden bg-card inline-block w-full max-w-[380px] mx-auto">
                     <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 border-b border-border">
                       <span className="text-xs font-medium text-muted-foreground">Slide {vs.slide_number}</span>
                     </div>
-                    <div className="relative" style={{ width: "100%", paddingBottom: "125%", overflow: "hidden" }}>
+                    <div className="relative overflow-hidden" style={{ width: "378px", height: "472px" }}>
                       <div
                         style={{ transform: "scale(0.35)", transformOrigin: "top left", width: "1080px", height: "1350px", position: "absolute", top: 0, left: 0 }}
                       >
