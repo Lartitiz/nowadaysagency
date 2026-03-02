@@ -7,7 +7,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Loader2, ArrowLeft, ArrowRight, Rocket } from "lucide-react";
 import { toast } from "sonner";
 
-type Step = 1 | 2 | 3 | 4 | 5 | "loading" | "result";
+type Step = 1 | 2 | 3 | 4 | 5 | 6 | "loading" | "result";
 
 interface ContentResult {
   recommended_subject: string;
@@ -49,6 +49,39 @@ const FORMATS_BY_CANAL: Record<string, { id: string; emoji: string; label: strin
   ],
 };
 
+const CONTENT_TYPES_BY_FORMAT: Record<string, { id: string; emoji: string; label: string }[]> = {
+  carrousel: [
+    { id: "mythe_realite", emoji: "🔍", label: "Mythe vs Réalité" },
+    { id: "liste_tips", emoji: "📋", label: "Liste / Tips" },
+    { id: "tutoriel", emoji: "🛠️", label: "Tutoriel pas à pas" },
+    { id: "avant_apres", emoji: "✨", label: "Avant / Après" },
+    { id: "storytelling", emoji: "📖", label: "Storytelling" },
+    { id: "checklist", emoji: "✅", label: "Checklist" },
+  ],
+  post_texte: [
+    { id: "storytelling", emoji: "📖", label: "Storytelling" },
+    { id: "opinion", emoji: "🔥", label: "Opinion / Prise de position" },
+    { id: "conseil", emoji: "💡", label: "Conseil actionnable" },
+    { id: "temoignage", emoji: "💬", label: "Témoignage client" },
+    { id: "coulisses", emoji: "🎬", label: "Coulisses" },
+    { id: "lecon_apprise", emoji: "🎓", label: "Leçon apprise" },
+  ],
+  reel: [
+    { id: "tutoriel_rapide", emoji: "⚡", label: "Tutoriel rapide" },
+    { id: "behind_scenes", emoji: "🎬", label: "Behind the scenes" },
+    { id: "trend", emoji: "🎵", label: "Tendance / Trend" },
+    { id: "faq", emoji: "❓", label: "FAQ / Question récurrente" },
+    { id: "transition", emoji: "✨", label: "Transition avant/après" },
+  ],
+  story: [
+    { id: "sondage", emoji: "📊", label: "Sondage / Quiz" },
+    { id: "behind_scenes", emoji: "🎬", label: "Behind the scenes" },
+    { id: "teasing", emoji: "👀", label: "Teasing" },
+    { id: "qna", emoji: "💬", label: "Q&A / Boîte à questions" },
+    { id: "quotidien", emoji: "☀️", label: "Tranche de vie" },
+  ],
+};
+
 const TONS = [
   { id: "intime", emoji: "💛", label: "Intime et personnel" },
   { id: "expert", emoji: "🧠", label: "Expert et informatif" },
@@ -63,6 +96,7 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
   const [sujet, setSujet] = useState("");
   const [canal, setCanal] = useState("");
   const [format, setFormat] = useState("");
+  const [contentType, setContentType] = useState("");
   const [tonEnvie, setTonEnvie] = useState("");
   const [result, setResult] = useState<ContentResult | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
@@ -74,6 +108,7 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
     setSujet("");
     setCanal("");
     setFormat("");
+    setContentType("");
     setTonEnvie("");
     setResult(null);
     setSelectedSubject(null);
@@ -101,13 +136,26 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
 
   const handleCanalSelect = (id: string) => {
     setCanal(id);
-    setFormat(""); // reset format when canal changes
+    setFormat("");
+    setContentType("");
     setStep(4);
   };
 
   const handleFormatSelect = (id: string) => {
     setFormat(id);
-    setStep(5);
+    setContentType("");
+    // If content types exist for this format, go to step 5, else skip to step 6 (ton)
+    const types = CONTENT_TYPES_BY_FORMAT[id];
+    if (types?.length) {
+      setStep(5);
+    } else {
+      setStep(6);
+    }
+  };
+
+  const handleContentTypeSelect = (id: string) => {
+    setContentType(id);
+    setStep(6);
   };
 
   const handleTonSelect = async (id: string) => {
@@ -122,6 +170,7 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
             sujet: hasSujet ? sujet : null,
             canal,
             format,
+            content_type: contentType || null,
             ton_envie: id,
           },
         },
@@ -132,7 +181,7 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
       setStep("result");
     } catch (e: any) {
       toast.error(e.message || "Erreur lors de l'analyse");
-      setStep(4);
+      setStep(6);
     }
   };
 
@@ -152,6 +201,8 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
   };
 
   const isEducatif = objectif === "eduquer";
+  const currentContentTypes = CONTENT_TYPES_BY_FORMAT[format] || [];
+  const totalSteps = currentContentTypes.length > 0 ? 6 : 5;
 
   return (
     <CoachingShell
@@ -166,7 +217,7 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
           {/* Step indicators */}
           {typeof step === "number" && (
             <div className="flex gap-1 mb-5">
-              {[1, 2, 3, 4, 5].map(s => (
+              {Array.from({ length: totalSteps }, (_, i) => i + 1).map(s => (
                 <div key={s} className={`h-1.5 rounded-full flex-1 transition-colors ${
                   s < step ? "bg-primary" : s === step ? "bg-primary/60" : "bg-muted"
                 }`} />
@@ -293,8 +344,30 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
             </div>
           )}
 
-          {/* Step 5: Ton */}
-          {step === 5 && (
+          {/* Step 5: Content Type */}
+          {step === 5 && currentContentTypes.length > 0 && (
+            <div className="space-y-3 animate-fade-in">
+              <p className="text-sm font-medium text-foreground">Quel type de contenu ?</p>
+              <div className="grid grid-cols-2 gap-2">
+                {currentContentTypes.map(ct => (
+                  <button
+                    key={ct.id}
+                    onClick={() => handleContentTypeSelect(ct.id)}
+                    className="rounded-xl border-2 border-border bg-card p-3 text-center hover:border-primary hover:shadow-sm transition-all group"
+                  >
+                    <span className="text-xl block mb-0.5">{ct.emoji}</span>
+                    <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">{ct.label}</span>
+                  </button>
+                ))}
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setStep(4)} className="gap-1">
+                <ArrowLeft className="h-3.5 w-3.5" /> Retour
+              </Button>
+            </div>
+          )}
+
+          {/* Step 6: Ton */}
+          {step === 6 && (
             <div className="space-y-3 animate-fade-in">
               <p className="text-sm font-medium text-foreground">Quel ton pour ce contenu ?</p>
               <div className="space-y-2">
@@ -309,7 +382,7 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
                   </button>
                 ))}
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setStep(4)} className="gap-1">
+              <Button variant="ghost" size="sm" onClick={() => setStep(currentContentTypes.length > 0 ? 5 : 4)} className="gap-1">
                 <ArrowLeft className="h-3.5 w-3.5" /> Retour
               </Button>
             </div>

@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { answers, workspace_id } = body;
-    const { objectif, sujet, canal, format, ton_envie } = answers || {};
+    const { objectif, sujet, canal, format, content_type, ton_envie } = answers || {};
 
     if (!objectif || !format || !ton_envie) {
       return new Response(JSON.stringify({ error: "Réponses incomplètes" }), {
@@ -70,11 +70,34 @@ Deno.serve(async (req) => {
       expert: "Expert et informatif (crédibilité, pédagogie)",
       engage: "Engagé et provocateur (opinion forte, prise de position)",
     };
+    const CONTENT_TYPE_LABELS: Record<string, string> = {
+      mythe_realite: "Mythe vs Réalité",
+      liste_tips: "Liste / Tips",
+      tutoriel: "Tutoriel pas à pas",
+      avant_apres: "Avant / Après",
+      storytelling: "Storytelling",
+      checklist: "Checklist",
+      opinion: "Opinion / Prise de position",
+      conseil: "Conseil actionnable",
+      temoignage: "Témoignage client",
+      coulisses: "Coulisses",
+      lecon_apprise: "Leçon apprise",
+      tutoriel_rapide: "Tutoriel rapide",
+      behind_scenes: "Behind the scenes",
+      trend: "Tendance / Trend",
+      faq: "FAQ / Question récurrente",
+      transition: "Transition avant/après",
+      sondage: "Sondage / Quiz",
+      teasing: "Teasing",
+      qna: "Q&A / Boîte à questions",
+      quotidien: "Tranche de vie",
+    };
 
     const objectifLabel = OBJECTIF_LABELS[objectif] || objectif;
     const formatLabel = FORMAT_LABELS[format] || format;
     const canalLabel = CANAL_LABELS[canal] || canal || "Instagram";
     const tonLabel = TON_LABELS[ton_envie] || ton_envie;
+    const contentTypeLabel = content_type ? (CONTENT_TYPE_LABELS[content_type] || content_type) : null;
 
     const sbService = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -124,7 +147,7 @@ RÉPONSES DE L'UTILISATRICE :
 - Canal : ${canalLabel}
 - Objectif : ${objectifLabel}
 - Sujet : ${sujet || "PAS DE SUJET → l'utilisatrice a besoin d'idées concrètes"}
-- Format préféré : ${formatLabel}
+- Format préféré : ${formatLabel}${contentTypeLabel ? `\n- Type de contenu : ${contentTypeLabel}` : ""}
 - Ton souhaité : ${tonLabel}
 
 ${!sujet ? `L'UTILISATRICE N'A PAS DE SUJET :
@@ -143,7 +166,7 @@ LinkedIn :
 - Carrousel → /linkedin/carousel
 
 Le canal choisi est ${canalLabel}. Utilise UNIQUEMENT les routes de ce canal.
-Le format recommandé DOIT correspondre au format choisi par l'utilisatrice (${formatLabel}), sauf si tu as une raison TRÈS forte de proposer autre chose (dans ce cas, explique pourquoi).
+Le format recommandé DOIT correspondre au format choisi par l'utilisatrice (${formatLabel}), sauf si tu as une raison TRÈS forte de proposer autre chose (dans ce cas, explique pourquoi).${contentTypeLabel ? `\nLe type de contenu choisi est "${contentTypeLabel}". Le brief et les sujets DOIVENT être structurés selon ce type (ex: si "Mythe vs Réalité", propose des mythes concrets à déconstruire ; si "Tutoriel pas à pas", propose des étapes précises).` : ""}
 
 Retourne UNIQUEMENT un JSON :
 {
