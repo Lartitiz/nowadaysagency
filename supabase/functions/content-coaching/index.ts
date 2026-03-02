@@ -154,7 +154,7 @@ QUALITÉ DU BRIEF :
 Sois directe et concrète. Tutoiement. Pas de jargon.`;
 
     const raw = await callAnthropicSimple(
-      getModelForAction("coaching_light"),
+      getModelForAction("coaching"),
       systemPrompt + "\n\n" + ANTI_SLOP,
       "Génère le plan d'action contenu.",
       0.5,
