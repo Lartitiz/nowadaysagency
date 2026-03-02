@@ -301,7 +301,8 @@ export default function InstagramCarousel() {
   }, [user?.id, searchParams]);
 
   const typeObj = CAROUSEL_TYPES.find(t => t.id === carouselType);
-  const questions = dynamicQuestions || DEEPENING_QUESTIONS[carouselType] || DEFAULT_QUESTIONS;
+  // Only show static fallback if dynamic questions failed to load (not while loading)
+  const questions = dynamicQuestions || (loadingQuestions ? [] : (DEEPENING_QUESTIONS[carouselType] || DEFAULT_QUESTIONS));
 
   // Pre-fill from URL params (force override — URL params take priority)
   const fromCarouselType = searchParams.get("carousel_type");
