@@ -308,7 +308,7 @@ Deno.serve(async (req) => {
     );
 
     // Quota check
-    const quota = await checkQuota(userId, "suggestion", workspaceId);
+    const quota = await checkQuota(userId, "coach", workspaceId);
     if (!quota.allowed) {
       return new Response(JSON.stringify({
         reply: "Tu as utilisé tous tes crédits IA ce mois-ci. Tu peux passer en premium pour en avoir 300/mois, ou attendre le mois prochain !",
@@ -426,7 +426,7 @@ Règles pour les suggestions :
     });
 
     // Log usage
-    await logUsage(userId, "suggestion", "chat_guide", undefined, model, workspaceId);
+    await logUsage(userId, "coach", "chat_guide", undefined, model, workspaceId);
 
     // Parse action links
     const { cleanText: textAfterActions, actions } = parseActionLinks(rawReply);
