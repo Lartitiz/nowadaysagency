@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
+import { getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
@@ -64,7 +64,7 @@ function parseSuggestions(text: string): { cleanText: string; suggestions: strin
   return { cleanText, suggestions };
 }
 
-/** Safely stringify any value (handles jsonb objects, strings, null) */
+/** Safely stringify any value */
 function safeStr(val: any, maxLen = 80): string {
   if (!val) return "";
   if (typeof val === "string") return val.slice(0, maxLen);
@@ -97,18 +97,15 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
     sb.from("calendar_posts").select("theme, date, canal, format").eq(col, val).gte("date", new Date().toISOString().slice(0, 10)).order("date", { ascending: true }).limit(5),
   ]);
 
-  // Fallback: if workspace filter returned nothing for persona/story, retry with user_id
   let persona = personaRes.data;
   let story = storyRes.data;
   if (!persona && workspaceId) {
     const fallback = await sb.from("persona").select("portrait_prenom, portrait, description, frustrations_detail, desires").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle();
     persona = fallback.data;
-    if (persona) console.log("[chat-guide] Persona found via user_id fallback");
   }
   if (!story && workspaceId) {
     const fallback = await sb.from("storytelling").select("step_7_polished, step_6_full_story, title").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle();
     story = fallback.data;
-    if (story) console.log("[chat-guide] Story found via user_id fallback");
   }
 
   const profile = profileRes.data;
@@ -124,19 +121,8 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   const recentDrafts = contentDraftsRes.data || [];
   const upcomingPosts = upcomingPostsRes.data || [];
 
-  // Debug logging
-  console.log("=== DIAGNOSTIC BRANDING ===");
-  console.log("Filter:", col, "=", val, "(userId:", userId, ")");
-  console.log("Story raw:", JSON.stringify(story));
-  console.log("Persona raw:", JSON.stringify(persona));
-  console.log("Proposition raw:", JSON.stringify(prop));
-  console.log("Tone raw:", JSON.stringify(tone));
-  console.log("Strategy raw:", JSON.stringify(strat));
-  console.log("Offers raw:", JSON.stringify(offers));
-
   const lines: string[] = [];
 
-  // ── Project & objectives ──
   lines.push("PROJET ET OBJECTIFS :");
   lines.push(`- Prénom : ${profile?.prenom || "?"}`);
   lines.push(`- Activité : ${profile?.activite || "Non renseigné"} (${profile?.type_activite || "?"})`);
@@ -144,14 +130,12 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   lines.push(`- Problème principal : ${profile?.probleme_principal || "Non renseigné"}`);
   lines.push(`- Canaux : ${(profile?.channels || []).join(", ") || "Non renseignés"}`);
 
-  // Offers
   if (offers && offers.length > 0) {
     lines.push(`- Offres : ${offers.map((o: any) => o.name).join(", ")}`);
   } else {
     lines.push("- Offres : ❌ Aucune définie");
   }
 
-  // Content pillars
   const pillars: string[] = [];
   if (profile?.piliers && Array.isArray(profile.piliers) && profile.piliers.length > 0) {
     pillars.push(...profile.piliers);
@@ -165,40 +149,28 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   const uniquePillars = [...new Set(pillars)].slice(0, 5);
   lines.push(`- Piliers de contenu : ${uniquePillars.length > 0 ? uniquePillars.join(", ") : "❌ Non définis"}`);
 
-  // Tons
   if (profile?.tons && Array.isArray(profile.tons) && profile.tons.length > 0) {
     lines.push(`- Tons : ${profile.tons.join(", ")}`);
   }
 
-  // ── Branding status ──
   lines.push("\nÉTAT DU BRANDING :");
   const sections: Record<string, string> = {};
-
-  // Story: use step_7_polished or step_6_full_story (story_final doesn't exist)
   const storyText = story?.step_7_polished || story?.step_6_full_story;
   sections["Histoire"] = storyText ? safeStr(storyText, 100) + "..." : "❌ Vide";
-
-  // Persona: portrait is JSONB, must use safeStr
   const personaFilled = persona?.portrait_prenom || persona?.description || persona?.frustrations_detail || persona?.desires;
   sections["Persona"] = personaFilled
     ? `${persona.portrait_prenom || "Sans prénom"} : ${safeStr(persona.portrait || persona.description, 80)}...`
     : "❌ Vide";
-
   sections["Proposition de valeur"] = prop?.version_one_liner || "❌ Vide";
   sections["Ton & style"] = tone?.tone_style || (tone?.tone_keywords ? safeStr(tone.tone_keywords, 80) : "❌ Vide");
   sections["Stratégie contenu"] = strat?.pillar_major || "❌ Vide";
   sections["Offres"] = offers && offers.length > 0 ? offers.map((o: any) => o.name).join(", ") : "❌ Vide";
 
-  console.log("=== BRANDING STATUS ===");
   for (const [name, v] of Object.entries(sections)) {
-    console.log(`${name}: ${v.startsWith("❌") ? "VIDE" : "REMPLIE"}`);
     lines.push(`- ${name} : ${v}`);
   }
 
-  // ── Recent history ──
   lines.push("\nHISTORIQUE RÉCENT :");
-
-  // Coaching sessions
   if (coachingSessions.length > 0) {
     lines.push("- Derniers coachings IA :");
     for (const s of coachingSessions) {
@@ -209,7 +181,6 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
     lines.push("- Derniers coachings IA : aucun");
   }
 
-  // Recent drafts
   if (recentDrafts.length > 0) {
     lines.push("- Derniers contenus créés :");
     for (const d of recentDrafts) {
@@ -219,7 +190,6 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
     lines.push("- Derniers contenus créés : aucun");
   }
 
-  // Upcoming posts
   if (upcomingPosts.length > 0) {
     lines.push("- Prochains posts planifiés :");
     for (const p of upcomingPosts) {
@@ -229,14 +199,12 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
     lines.push("- Prochains posts planifiés : aucun (calendrier vide)");
   }
 
-  // Stats
   lines.push(`\nPosts dans le calendrier : ${calCount}`);
   if (audit) {
     lines.push(`Dernier audit : score ${audit.score_global}/100 (${new Date(audit.created_at).toLocaleDateString("fr-FR")})`);
   }
   lines.push(`Générations IA ce mois : ${aiUsage}`);
 
-  // Current month/season for seasonal suggestions
   const now = new Date();
   const months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
   lines.push(`\nDate du jour : ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`);
@@ -244,31 +212,54 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   return lines.join("\n").slice(0, 2500);
 }
 
-/** Generate fallback suggestions from context when AI doesn't return any */
+/** Generate fallback suggestions */
 function generateFallbackSuggestions(contextBlock: string, profile: any, strat: any): string[] {
   const suggestions: string[] = [];
-
-  if (contextBlock.includes("Histoire : ❌")) {
-    suggestions.push("Raconter mon histoire de marque");
-  }
-  if (contextBlock.includes("Persona : ❌")) {
-    suggestions.push("Définir ma cliente idéale");
-  }
-  if (contextBlock.includes("Proposition de valeur : ❌")) {
-    suggestions.push("Formuler ma proposition de valeur");
-  }
+  if (contextBlock.includes("Histoire : ❌")) suggestions.push("Raconter mon histoire de marque");
+  if (contextBlock.includes("Persona : ❌")) suggestions.push("Définir ma cliente idéale");
+  if (contextBlock.includes("Proposition de valeur : ❌")) suggestions.push("Formuler ma proposition de valeur");
   if (contextBlock.includes("calendrier vide")) {
     const activity = profile?.activite || profile?.type_activite;
     suggestions.push(activity ? `Planifier un post sur ${activity}` : "Planifier mes posts de la semaine");
   }
-  if (suggestions.length < 3 && profile?.activite) {
-    suggestions.push(`Créer un post sur mon métier de ${profile.activite}`);
-  }
-  if (suggestions.length < 3) {
-    suggestions.push("J'ai une question sur ma com'");
+  if (suggestions.length < 3 && profile?.activite) suggestions.push(`Créer un post sur mon métier de ${profile.activite}`);
+  if (suggestions.length < 3) suggestions.push("J'ai une question sur ma com'");
+  return suggestions.slice(0, 3);
+}
+
+/** Stream Anthropic response as SSE */
+async function streamAnthropicSSE(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  messages: Array<{ role: string; content: string }>,
+  temperature: number,
+  maxTokens: number,
+): Promise<ReadableStream> {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-beta": "prompt-caching-2024-07-31",
+    },
+    body: JSON.stringify({
+      model,
+      system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Anthropic API error ${response.status}: ${errorText}`);
   }
 
-  return suggestions.slice(0, 3);
+  return response.body!;
 }
 
 Deno.serve(async (req) => {
@@ -301,7 +292,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Message invalide" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
     }
 
-    // Service client for context & quota
+    // Service client
     const sbService = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -319,13 +310,12 @@ Deno.serve(async (req) => {
       }), { status: 200, headers: { ...cors, "Content-Type": "application/json" } });
     }
 
-    // Build context (best-effort)
+    // Build context
     let contextBlock = "";
     let profileData: any = null;
     let stratData: any = null;
     try {
       contextBlock = await buildContext(sbService, userId, workspaceId);
-      // Also fetch profile & strat for fallback suggestions
       const col = workspaceId ? "workspace_id" : "user_id";
       const val = workspaceId || userId;
       const [pRes, sRes] = await Promise.all([
@@ -339,7 +329,7 @@ Deno.serve(async (req) => {
       contextBlock = "Contexte non disponible.";
     }
 
-    // System prompt
+    // System prompt (same as before)
     const systemPrompt = `Tu es l'Assistant Com' de Nowadays Agency. Tu es la binôme de communication de l'utilisatrice. Tu la connais déjà grâce à son profil.
 
 CONTEXTE DU COMPTE :
@@ -419,44 +409,111 @@ Règles pour les suggestions :
 
     // Build messages
     const history = Array.isArray(conversationHistory) ? conversationHistory.slice(-10) : [];
-    const messages = [
+    const aiMessages = [
       ...history.map((m: any) => ({ role: m.role as "user" | "assistant", content: String(m.content || "") })),
       { role: "user" as const, content: message },
     ];
 
-    // Call Claude
+    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
+
     const model = getModelForAction("suggestion");
-    const rawReply = await callAnthropic({
-      model,
-      system: systemPrompt,
-      messages,
-      temperature: 0.7,
-      max_tokens: 600,
+
+    // Stream the response as SSE
+    const anthropicStream = await streamAnthropicSSE(
+      apiKey, model, systemPrompt, aiMessages, 0.7, 600,
+    );
+
+    // Transform Anthropic SSE into our own SSE format
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    let fullText = "";
+    let buffer = "";
+
+    const outputStream = new ReadableStream({
+      async start(controller) {
+        const reader = anthropicStream.getReader();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+
+            // Process line by line
+            let newlineIdx: number;
+            while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
+              const line = buffer.slice(0, newlineIdx).trim();
+              buffer = buffer.slice(newlineIdx + 1);
+
+              if (!line.startsWith("data: ")) continue;
+              const jsonStr = line.slice(6);
+              if (jsonStr === "[DONE]") continue;
+
+              try {
+                const event = JSON.parse(jsonStr);
+
+                // content_block_delta contains the text tokens
+                if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
+                  const text = event.delta.text;
+                  fullText += text;
+                  // Send delta to client
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text })}\n\n`));
+                }
+
+                // message_stop means we're done
+                if (event.type === "message_stop") {
+                  break;
+                }
+              } catch {
+                // Ignore malformed JSON lines
+              }
+            }
+          }
+
+          // Parse action links and suggestions from full text
+          const { cleanText: textAfterActions, actions } = parseActionLinks(fullText);
+          const { cleanText, suggestions: aiSuggestions } = parseSuggestions(textAfterActions);
+
+          let finalSuggestions: string[];
+          if (aiSuggestions.length >= 2) {
+            finalSuggestions = aiSuggestions.slice(0, 3);
+          } else {
+            finalSuggestions = generateFallbackSuggestions(contextBlock, profileData, stratData);
+          }
+
+          // Send final event with parsed data
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            type: "done",
+            cleanText,
+            actions,
+            suggestions: finalSuggestions,
+            creditsUsed: 1,
+          })}\n\n`));
+
+          controller.close();
+        } catch (err) {
+          console.error("Stream processing error:", err);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            type: "error",
+            error: "Erreur pendant la génération",
+          })}\n\n`));
+          controller.close();
+        }
+      },
     });
 
-    // Log usage
-    await logUsage(userId, "coach", "chat_guide", undefined, model, workspaceId);
+    // Log usage (fire and forget)
+    logUsage(userId, "coach", "chat_guide", undefined, model, workspaceId).catch(console.error);
 
-    // Parse action links
-    const { cleanText: textAfterActions, actions } = parseActionLinks(rawReply);
-    
-    // Parse suggestions from AI response
-    const { cleanText, suggestions: aiSuggestions } = parseSuggestions(textAfterActions);
-
-    // Use AI suggestions if available, otherwise fallback
-    let finalSuggestions: string[];
-    if (aiSuggestions.length >= 2) {
-      finalSuggestions = aiSuggestions.slice(0, 3);
-    } else {
-      finalSuggestions = generateFallbackSuggestions(contextBlock, profileData, stratData);
-    }
-
-    return new Response(JSON.stringify({
-      reply: cleanText,
-      actions,
-      suggestions: finalSuggestions,
-      creditsUsed: 1,
-    }), { status: 200, headers: { ...cors, "Content-Type": "application/json" } });
+    return new Response(outputStream, {
+      headers: {
+        ...cors,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+      },
+    });
 
   } catch (err: any) {
     console.error("chat-guide error:", err);
