@@ -1,10 +1,12 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 interface ChecklistItem {
   id: string;
   label: string;
   tip: string;
+  route?: string;
 }
 
 interface DailyChecklistProps {
@@ -20,16 +22,16 @@ const CRUISE_ITEMS: ChecklistItem[] = [
   { id: "reply_comments", label: "Répondre à tous mes commentaires du jour", tip: "Les réponses dans l'heure boostent ta visibilité" },
   { id: "reply_dm", label: "Répondre à tous mes DM", tip: "Les DM sont le signal n°1 pour l'algorithme" },
   { id: "comment_others", label: "Commenter 5-10 comptes de ma liste stratégique", tip: "Des commentaires de +4 mots, pas juste des emojis" },
-  { id: "story_interactive", label: "Publier 1 story interactive (sondage, question, quiz)", tip: "Les stickers interactifs boostent tes vues de 15-25%" },
+  { id: "story_interactive", label: "Publier 1 story interactive (sondage, question, quiz)", tip: "Les stickers interactifs boostent tes vues de 15-25%", route: "/instagram/stories" },
   { id: "dm_outreach", label: "Envoyer 2-3 DM à des personnes qui ont interagi", tip: "\"J'ai vu que tu avais répondu à mon sondage, merci !\"" },
 ];
 
 const LAUNCH_ITEMS: ChecklistItem[] = [
   { id: "reply_dm_urgent", label: "Répondre à TOUS les DM (dans l'heure si possible)", tip: "40-60% des ventes passent par les DM pendant un lancement" },
   { id: "reply_comments", label: "Répondre à tous les commentaires", tip: "Chaque commentaire booste la portée de ton post" },
-  { id: "publish_stories", label: "Publier ma séquence de stories du jour", tip: "Les stories sont le format n°1 de conversion" },
+  { id: "publish_stories", label: "Publier ma séquence de stories du jour", tip: "Les stories sont le format n°1 de conversion", route: "/instagram/stories" },
   { id: "dm_prospects", label: "Envoyer 5-10 DM personnalisés aux personnes intéressées", tip: "Celles qui votent \"oui\" à tes sondages sont chaudes" },
-  { id: "story_interactive", label: "1 story interactive (sondage ou question)", tip: "\"Tu veux que je t'envoie les détails en DM ?\"" },
+  { id: "story_interactive", label: "1 story interactive (sondage ou question)", tip: "\"Tu veux que je t'envoie les détails en DM ?\"", route: "/instagram/stories" },
   { id: "check_stats", label: "Checker les stats du post du jour (10 min)", tip: "Note le reach et les saves, compare avec hier" },
 ];
 
@@ -39,6 +41,7 @@ export function getDefaultItems(isLaunching: boolean): ChecklistItem[] {
 
 export default function DailyChecklist({ date, isLaunching, items, checked, onToggle, threshold }: DailyChecklistProps) {
   const checkedCount = checked.length;
+  const navigate = useNavigate();
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 space-y-4">
@@ -63,6 +66,14 @@ export default function DailyChecklist({ date, isLaunching, items, checked, onTo
             <div className="flex-1">
               <p className={`text-sm font-medium transition-colors ${checked.includes(item.id) ? "text-muted-foreground line-through" : "text-foreground"}`}>
                 {item.label}
+                {item.route && !checked.includes(item.id) && (
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(item.route!); }}
+                    className="ml-1.5 text-primary hover:underline text-xs font-medium"
+                  >
+                    → Créer
+                  </button>
+                )}
               </p>
               <p className="text-[11px] text-muted-foreground italic mt-0.5">💡 {item.tip}</p>
             </div>
