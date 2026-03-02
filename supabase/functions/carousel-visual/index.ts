@@ -41,7 +41,7 @@ serve(async (req) => {
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {
         status: 429,
-        headers: { ...cors, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -69,15 +69,15 @@ serve(async (req) => {
     }
 
     const ch = {
-      color_primary: charter.color_primary || "#E91E8C",
-      color_secondary: charter.color_secondary || "#1A1A2E",
+      color_primary: charter.color_primary || "#FB3D80",
+      color_secondary: charter.color_secondary || "#91014b",
       color_accent: charter.color_accent || "#FFE561",
-      color_background: charter.color_background || "#FFFFFF",
+      color_background: charter.color_background || "#FFF4F8",
       color_text: charter.color_text || "#1A1A2E",
-      font_title: charter.font_title || "Inter",
-      font_body: charter.font_body || "Inter",
-      mood_keywords: Array.isArray(charter.mood_keywords) ? charter.mood_keywords.join(", ") : (charter.mood_keywords || "professionnel"),
-      border_radius: charter.border_radius || "rounded",
+      font_title: charter.font_title || "Libre Baskerville",
+      font_body: charter.font_body || "IBM Plex Mono",
+      mood_keywords: Array.isArray(charter.mood_keywords) ? charter.mood_keywords.join(", ") : (charter.mood_keywords || "pop, joyeux, audacieux, art contemporain"),
+      border_radius: charter.border_radius || "12px",
     };
 
     const style = template_style || "clean";
@@ -98,52 +98,168 @@ Tu dois ANALYSER L'IMAGE du template fourni et REPRODUIRE FIDÈLEMENT :
 IMPORTANT : Tu ne copies PAS le contenu du template, tu copies SON DESIGN. Applique ce design aux nouvelles slides avec le contenu fourni.
 Utilise les couleurs de la charte graphique ci-dessous mais en respectant les proportions et contrastes du template de référence.`;
     } else {
-      styleInstructions = `STYLE DE TEMPLATE : ${style}
-- 'clean' : fond uni, texte centré, séparateur fin, beaucoup d'espace blanc
-- 'bold' : fond couleur primaire, gros titre blanc, impact visuel fort
-- 'gradient' : fond dégradé entre primaire et secondaire, texte blanc
-- 'quote' : guillemets décoratifs grands, texte centré, style citation
-- 'numbered' : gros numéro de slide en couleur accent, titre à côté, style éducatif
-- 'split' : slide divisée en 2 zones (bande colorée + zone texte)
-- 'photo' : placeholder pour image de fond avec overlay sombre et texte blanc
-- 'story' : fond doux/crème, typo élégante, ambiance intime`;
+      styleInstructions = `STYLE DE TEMPLATE DEMANDÉ : ${style}
+Adapte le design system ci-dessus au style "${style}". Le style influence l'ambiance mais les règles de design (padding, fonts, badges, barres latérales) restent les mêmes.`;
     }
 
-    const systemPrompt = `Tu es une directrice artistique experte en design de carrousels Instagram. Tu génères du HTML/CSS pur pour des slides au format 1080x1350px.
+    const systemPrompt = `Tu es une directrice artistique experte en design de carrousels Instagram. Tu génères du HTML/CSS inline pour des slides au format 1080×1350px.
 
-RÈGLES STRICTES :
-- Chaque slide est un <div> de exactement 1080px × 1350px
-- Utilise UNIQUEMENT du HTML et du CSS inline (pas de classes, pas de fichier CSS externe)
-- Les polices Google Fonts sont chargées via @import dans une balise <style> en haut
-- Le HTML doit être COMPLET et AUTONOME (rendable tel quel dans un navigateur)
+Tu dois produire des slides qui ressemblent à du design professionnel fait sur Figma ou Canva Pro, PAS à du texte centré sur un fond de couleur.
+
+═══ RÈGLES HTML/CSS STRICTES ═══
+- Chaque slide = un <div> EXACTEMENT 1080px × 1350px
+- CSS 100% inline (pas de classes CSS)
+- CHAQUE slide commence par une balise @import Google Fonts :
+  <style>@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(ch.font_title)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(ch.font_body)}:wght@400;500;600;700&display=swap');</style>
+- HTML complet et autonome (chaque slide rendable seule dans un navigateur)
 - Pas de JavaScript
-- Pas de cercles ni de ronds en fond
-- Texte lisible : contraste suffisant entre texte et fond
-- Hiérarchie visuelle claire : titre plus gros que body
-- Le design doit être PROFESSIONNEL, pas amateur
+- JAMAIS de cercle, rond, ou border-radius: 50% en élément décoratif de fond
 
-CHARTE GRAPHIQUE :
-- Couleur principale : ${ch.color_primary}
-- Couleur secondaire : ${ch.color_secondary}
-- Couleur accent : ${ch.color_accent}
+═══ CHARTE GRAPHIQUE ═══
+Couleur principale : ${ch.color_primary}
+Couleur secondaire (titres foncés) : ${ch.color_secondary}
+Couleur accent (highlights) : ${ch.color_accent}
+Fond par défaut : ${ch.color_background}
+Texte : ${ch.color_text}
+Police titres : ${ch.font_title} (JAMAIS en font-weight bold, toujours normal/400)
+Police corps : ${ch.font_body}
+Ambiance : ${ch.mood_keywords}
+Border-radius : ${ch.border_radius}
+
+═══ DESIGN SYSTEM — VALEURS CSS CONCRÈTES ═══
+
+PADDING : 80px sur les côtés, 60px en haut et en bas. JAMAIS de texte collé aux bords.
+
+TITRES (headlines) :
+- Font : ${ch.font_title}, font-weight: normal (JAMAIS bold), font-style: normal
+- Taille : 52-64px pour le hook (slide 1), 42-52px pour les autres slides
+- Couleur : ${ch.color_secondary} ou ${ch.color_text}
+- Line-height : 1.25
+- Certains MOTS-CLÉS en couleur accent ${ch.color_primary} et font-style: italic pour créer du contraste
+
+CORPS DE TEXTE :
+- Font : ${ch.font_body}, font-weight: 400
+- Taille : 28-32px
+- Couleur : ${ch.color_text}
+- Line-height : 1.6
+- Opacity: 0.85 pour le texte secondaire
+
+BADGES "PILULES" (élément signature) :
+- Display: inline-block
+- Background : ${ch.color_primary}
+- Color: white, font-family: ${ch.font_body}, font-weight: 600
+- Font-size: 18-22px, text-transform: uppercase, letter-spacing: 2px
+- Padding: 8px 24px
+- Border-radius: 100px (pilule)
+- Utilise-les pour : numéro de slide, catégorie, label de section
+
+CARTES BLANCHES (pour les blocs de contenu) :
+- Background: #FFFFFF
+- Border-radius: ${ch.border_radius}
+- Box-shadow: 0 4px 24px rgba(0,0,0,0.06)
+- Padding: 40px
+- Optionnel : border-left: 4px solid [couleur accent] pour une barre latérale colorée
+
+BORDURES POINTILLÉES (pour les encadrés, citations, analogies) :
+- Border: 2px dashed ${ch.color_primary}40 (avec transparence)
+- Border-radius: ${ch.border_radius}
+- Padding: 30px
+
+ÉLÉMENTS DÉCORATIFS AUTORISÉS :
+- Rectangles arrondis (border-radius: ${ch.border_radius}), lignes, traits
+- Petites vagues/zigzags en SVG inline
+- Flèches → en ${ch.color_primary}
+- Soulignements colorés sous les mots-clés (border-bottom ou background linear-gradient)
+- Emojis comme éléments visuels (taille 48-64px)
+- JAMAIS de cercles/ronds comme décoration de fond
+
+ESPACEMENT VERTICAL :
+- Titre → corps : 32px de gap
+- Entre les blocs : 40px
+- Le texte doit être centré VERTICALEMENT dans la slide (utilise display:flex; align-items:center; justify-content:center sur le conteneur principal)
+
+═══ DESIGN PAR RÔLE DE SLIDE ═══
+
+HOOK (slide 1) — Design le plus fort, stoppe le scroll :
+- Fond : ${ch.color_background} ou blanc
+- Grande carte blanche centrée avec ombre douce, coins arrondis
+- Titre très grand (60-68px) à l'intérieur de la carte
+- 1-2 mots-clés en ${ch.color_primary} italic pour créer le contraste
+- Petit badge pilule en haut de la carte avec le thème ou le numéro
+- Beaucoup d'espace vide autour de la carte (la carte ne prend que ~70% de la slide)
+- Optionnel : motif décoratif subtil en fond (lignes, zigzag, pas de ronds)
+
+CONTEXTE / STORYTELLING (slide 2) — Personnel, immersif :
+- Fond : blanc ou ${ch.color_background}
+- Titre en ${ch.font_title} (42-48px)
+- Corps en ${ch.font_body} avec un ton intime
+- Optionnel : bordure pointillée autour du bloc de texte
+- Optionnel : petit emoji en grand (48px) comme élément visuel
+
+TIPS / CONTENU PÉDAGOGIQUE (slides du milieu) — Clair, structuré :
+- Fond : blanc
+- Badge pilule en haut à gauche avec le numéro ou label ("Astuce 1", "Le piège", etc.)
+- Titre headline en ${ch.font_title} (42-48px), couleur ${ch.color_secondary}
+- Corps du tip en ${ch.font_body} (28-30px)
+- Barre accent latérale colorée (4px solid) à gauche du bloc de texte
+- Un mot-clé souligné en ${ch.color_accent} (soulignement jaune type highlighter)
+- Alterner les couleurs d'accent entre les slides pour la variété : ${ch.color_primary}, bleu #3498db, vert #27AE60, orange #E67E22, violet #9B59B6
+
+SLIDE SÉPARATEUR (optionnelle, entre les blocs) — Rupture visuelle :
+- Fond : ${ch.color_primary} (rose vif, plein)
+- Titre en BLANC, ${ch.font_title}, 56px, centré
+- Pas de body, juste le titre
+- Optionnel : numéro de bloc en très grand (200px) coupé en bas de slide, opacity 0.15
+
+DARK BOX (pour les punchlines fortes) :
+- Fond : #1A1A1A
+- Texte blanc en ${ch.font_title} (48px)
+- Un mot en ${ch.color_accent} (jaune) pour le contraste
+- Padding généreux (80px)
+
+CTA (dernière slide) — Douce, invitante :
 - Fond : ${ch.color_background}
-- Texte : ${ch.color_text}
-- Police titres : ${ch.font_title}
-- Police corps : ${ch.font_body}
-- Style : ${ch.mood_keywords}
-- Coins : ${ch.border_radius}
+- Carte blanche centrée
+- Texte du CTA en ${ch.font_title} (38-44px), couleur ${ch.color_primary}
+- Badge pilule dessous avec "lien en bio" ou le CTA court
+- Ambiance chaleureuse, pas commerciale
+- Optionnel : petits badges de compétences/thèmes dispersés autour de la carte principale
+
+═══ COHÉRENCE ENTRE LES SLIDES ═══
+- TOUTES les slides utilisent les MÊMES fonts (${ch.font_title} pour les titres, ${ch.font_body} pour le corps)
+- Le padding latéral est IDENTIQUE sur toutes les slides (80px)
+- Les badges pilules ont le MÊME style partout
+- Le fond ALTERNE entre : blanc, ${ch.color_background}, et ponctuellement ${ch.color_primary} (max 1-2 slides en fond coloré plein)
+- La hiérarchie titre/corps est CONSTANTE : le titre est toujours plus grand, toujours en ${ch.font_title}
+- Les éléments décoratifs (barres, soulignements) utilisent une palette cohérente
+
+═══ ANTI-PATTERNS — CE QUE TU NE FAIS JAMAIS ═══
+- ❌ Texte centré nu sur un fond de couleur uni (c'est un PowerPoint 2003, pas du design)
+- ❌ Toutes les slides avec le même layout (il faut de la variété visuelle)
+- ❌ Texte trop petit (<26px) ou trop gros (>72px sauf numéros décoratifs)
+- ❌ Pas de padding (texte qui touche les bords)
+- ❌ Cercles ou ronds comme éléments décoratifs
+- ❌ Font-weight bold sur ${ch.font_title} (toujours normal)
+- ❌ Couleurs qui ne sont pas dans la charte
+- ❌ Plus de 3 couleurs de fond différentes dans tout le carrousel
 
 ${styleInstructions}
 
 Retourne un JSON :
 {
   "slides_html": [
-    { "slide_number": 1, "html": "<div style=\\"width:1080px;height:1350px;...\\">...</div>" },
+    { "slide_number": 1, "html": "<style>@import url(...);</style><div style=\\"width:1080px;height:1350px;...\\">...</div>" },
     { "slide_number": 2, "html": "..." }
   ]
 }
 
-IMPORTANT : le HTML de chaque slide doit inclure la balise <style> avec l'import Google Fonts AU DÉBUT. Chaque slide est autonome.`;
+IMPORTANT : le HTML de chaque slide doit inclure la balise @import au début
+- Varie le design selon le RÔLE de chaque slide (hook, context, tip, separator, cta, etc.)
+- Crée une continuité visuelle : mêmes fonts, même padding, palette cohérente
+- Intègre les éléments décoratifs : badges pilules, barres latérales, soulignements, emojis
+- Le résultat doit ressembler à du design Canva Pro, PAS à du HTML basique
+
+Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
     let overrideNote = "";
     if (custom_overrides) {
@@ -157,14 +273,17 @@ IMPORTANT : le HTML de chaque slide doit inclure la balise <style> avec l'import
       .map((s: any) => `- Slide ${s.slide_number}: ${s.visual_suggestion}`)
       .join("\n");
     const visualHintsBlock = visualHints
-      ? `\n\nINDICATIONS VISUELLES PAR SLIDE (l'IA rédactrice a suggéré ces directions artistiques, intègre-les) :\n${visualHints}`
+      ? `\n\nINDICATIONS VISUELLES PAR SLIDE — PRIORITAIRES, l'IA rédactrice a suggéré ces directions artistiques. Tu DOIS les intégrer dans le design de chaque slide correspondante :\n${visualHints}`
       : "";
 
-    const userPrompt = `Génère les slides HTML pour ce carrousel :
+    const userPrompt = `Génère les slides HTML pour ce carrousel.
 
-${JSON.stringify(slides)}
+CONTENU DES SLIDES :
+${JSON.stringify(slides, null, 2)}
 
-Template : ${style}${overrideNote}${visualHintsBlock}
+Template demandé : ${style}${overrideNote}${visualHintsBlock}
+
+RAPPEL : Chaque slide doit avoir un design DIFFÉRENT adapté à son rôle (hook, context, tip, separator, cta). Utilise les éléments du design system : badges pilules, cartes blanches, barres latérales, soulignements colorés, emojis décoratifs.
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
@@ -209,7 +328,7 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
       system: systemPrompt,
       messages,
       temperature: 0.5,
-      max_tokens: 8192,
+      max_tokens: 16000,
     });
 
     let result: any;
