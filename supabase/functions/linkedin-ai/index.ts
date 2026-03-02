@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, LINKEDIN_HOOK_TYPES_PROMPTS, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS } from "../_shared/copywriting-prompts.ts";
+import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, LINKEDIN_HOOK_TYPES_PROMPTS, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
@@ -46,6 +46,8 @@ serve(async (req) => {
       postContent: z.string().max(10000).optional().nullable(),
       sourceContent: z.string().max(10000).optional().nullable(),
       existing_resume: z.string().max(5000).optional().nullable(),
+      editorial_angle: z.string().max(100).optional().nullable(),
+      content_structure: z.string().max(5000).optional().nullable(),
     }).passthrough());
     const { action, workspace_id, ...params } = reqBody;
 
@@ -94,7 +96,7 @@ serve(async (req) => {
       userPrompt = "Génère 6 versions de résumé LinkedIn.";
 
     } else if (action === "generate-post") {
-      const { template, audience, sujet, anecdote, emotion, conviction, hook_type } = params;
+      const { template, audience, sujet, anecdote, emotion, conviction, hook_type, editorial_angle, content_structure } = params;
       const templateContent = (LINKEDIN_TEMPLATES as any)[template] || "";
       
       let personalBlock = "";
@@ -106,7 +108,12 @@ serve(async (req) => {
         ? `\n\nTYPE D'ACCROCHE DEMANDÉ :\n${LINKEDIN_HOOK_TYPES_PROMPTS[hook_type]}\nUtilise CE type d'accroche pour les 210 premiers caractères.`
         : "";
 
-      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${ANTI_BROETRY}${context}\n\n${qualityBlocks}\n\nAUDIENCE : ${audience || "tu"}\n${audience === "vous" ? "Utilise le vouvoiement chaleureux et professionnel." : audience === "mixte" ? "Utilise un ton mixte, principalement tutoiement avec vouvoiement quand c'est plus pro." : "Utilise le tutoiement."}\n\n${templateContent}\n${personalBlock}\n${hookInstruction}\n\nEn plus du hook principal, génère 2 accroches alternatives pour le même post. Chaque accroche doit utiliser un ANGLE DIFFÉRENT (pas juste une reformulation). Ajoute-les dans le champ "hook_alternatives".\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks :\n{\n  "hook": "Les 210 premiers caractères",\n  "body": "Le corps complet avec sauts de ligne",\n  "cta": "La question ou invitation finale",\n  "full_text": "Le post complet prêt à copier",\n  "character_count": 1247,\n  "hashtags": [],\n  "hook_alternatives": ["Variante 2 d'accroche (angle différent)", "Variante 3 d'accroche (angle différent)"],\n  "template_used": "${template}",\n  "hook_type_used": "${hook_type || "auto"}",\n  "checklist": [\n    { "item": "Accroche < 210 car.", "ok": true },\n    { "item": "Paragraphes courts (1-3 lignes)", "ok": true },\n    { "item": "Opinion/expertise visible", "ok": true },\n    { "item": "Exemple concret ou storytelling", "ok": true },\n    { "item": "0-2 emojis", "ok": true },\n    { "item": "3-5 hashtags de niche", "ok": true },\n    { "item": "Pas de lien dans le corps", "ok": true },\n    { "item": "CTA question ouverte", "ok": true },\n    { "item": "Écriture inclusive", "ok": true },\n    { "item": "Pas de tiret cadratin", "ok": true },\n    { "item": "1300-1900 caractères", "ok": true },\n    { "item": "Bucket brigades / rythme", "ok": true }\n  ]\n}`;
+      let editorialAngleBlock = "";
+      if (editorial_angle && content_structure) {
+        editorialAngleBlock = `\n\nANGLE ÉDITORIAL IMPOSÉ : ${editorial_angle}\n\nSTRUCTURE À SUIVRE :\n${content_structure}\n\nLe post LinkedIn DOIT suivre cette structure. Adapte le ton (légèrement plus pro) et la longueur (1300-2000 caractères) mais garde la structure narrative.\n\n${EDITORIAL_ANGLES_REFERENCE}`;
+      }
+
+      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${ANTI_BROETRY}${context}\n\n${qualityBlocks}\n\nAUDIENCE : ${audience || "tu"}\n${audience === "vous" ? "Utilise le vouvoiement chaleureux et professionnel." : audience === "mixte" ? "Utilise un ton mixte, principalement tutoiement avec vouvoiement quand c'est plus pro." : "Utilise le tutoiement."}\n\n${templateContent}\n${personalBlock}\n${hookInstruction}\n${editorialAngleBlock}\n\nEn plus du hook principal, génère 2 accroches alternatives pour le même post. Chaque accroche doit utiliser un ANGLE DIFFÉRENT (pas juste une reformulation). Ajoute-les dans le champ "hook_alternatives".\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks :\n{\n  "hook": "Les 210 premiers caractères",\n  "body": "Le corps complet avec sauts de ligne",\n  "cta": "La question ou invitation finale",\n  "full_text": "Le post complet prêt à copier",\n  "character_count": 1247,\n  "hashtags": [],\n  "hook_alternatives": ["Variante 2 d'accroche (angle différent)", "Variante 3 d'accroche (angle différent)"],\n  "template_used": "${template}",\n  "hook_type_used": "${hook_type || "auto"}",\n  "editorial_angle_used": "${editorial_angle || "auto"}",\n  "checklist": [\n    { "item": "Accroche < 210 car.", "ok": true },\n    { "item": "Paragraphes courts (1-3 lignes)", "ok": true },\n    { "item": "Opinion/expertise visible", "ok": true },\n    { "item": "Exemple concret ou storytelling", "ok": true },\n    { "item": "0-2 emojis", "ok": true },\n    { "item": "3-5 hashtags de niche", "ok": true },\n    { "item": "Pas de lien dans le corps", "ok": true },\n    { "item": "CTA question ouverte", "ok": true },\n    { "item": "Écriture inclusive", "ok": true },\n    { "item": "Pas de tiret cadratin", "ok": true },\n    { "item": "1300-1900 caractères", "ok": true },\n    { "item": "Bucket brigades / rythme", "ok": true }\n  ]\n}`;
       userPrompt = `Rédige un post LinkedIn sur ce sujet : "${sujet || "sujet libre"}"`;
 
 
