@@ -77,19 +77,6 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
           </motion.div>
         )}
 
-        {/* Links card */}
-        <motion.div variants={fadeUp} className="bg-card rounded-[20px] border border-border shadow-card p-6 sm:p-8 mb-4">
-          <motion.div variants={stagger} className="space-y-4">
-            <motion.div variants={fadeUp}>
-              <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-1.5">
-                <Globe className="h-5 w-5 text-primary" /> Ton site web
-              </label>
-              <Input type="url" placeholder="https://monsite.fr" value={website} onChange={(e) => setWebsite(e.target.value)} disabled={loading} />
-              <p className="text-[11px] text-muted-foreground mt-1">Optionnel</p>
-            </motion.div>
-          </motion.div>
-          <p className="text-[13px] text-muted-foreground text-center mt-5 italic">Même un seul lien suffit pour commencer !</p>
-        </motion.div>
 
         {/* Document upload */}
         <motion.div variants={fadeUp} className="mb-6">
