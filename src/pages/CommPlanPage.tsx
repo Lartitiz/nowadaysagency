@@ -43,7 +43,7 @@ const PLAN_TOUR_STEPS = [
   },
 ];
 
-export default function CommPlanPage() {
+export default function CommPlanPage({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -249,6 +249,48 @@ export default function CommPlanPage() {
     setHiddenSteps(newVis);
     await recompute(overrides, coachExercises, newVis);
   }, [overrides, coachExercises, recompute]);
+
+  if (embedded) {
+    return (
+      <div className="max-w-[700px]">
+        {showWelcome && !loading && plan && (
+          <div className="animate-fade-in text-center space-y-4 mb-8 py-6">
+            <div className="text-4xl">🎉</div>
+            <h2 className="font-display text-xl text-foreground">Ton plan de com' est prêt</h2>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              {plan.totalCount} étapes personnalisées, environ{" "}
+              {plan.totalMinutesRemaining >= 60 ? `${Math.floor(plan.totalMinutesRemaining / 60)}h` : `${plan.totalMinutesRemaining} min`}{" "}
+              de travail au total. Pas besoin de tout faire d'un coup : avance à ton rythme.
+            </p>
+            <Button variant="outline" className="rounded-full text-sm" onClick={() => { setShowWelcome(false); localStorage.setItem("lac_plan_welcomed", "true"); }}>
+              C'est parti →
+            </Button>
+          </div>
+        )}
+        {isCoachMode && plan && (
+          <div className="flex items-center justify-between gap-3 mb-4 px-4 py-3 rounded-xl border border-primary/20 bg-primary/5">
+            <p className="text-sm text-foreground">👩‍🏫 <span className="font-medium">Mode coach</span> — tu peux personnaliser ce plan</p>
+            <Button variant="outline" size="sm" className="gap-1.5 flex-shrink-0" onClick={() => setShowCoachManager(true)}>
+              <Settings2 className="h-3.5 w-3.5" /> Personnaliser
+            </Button>
+          </div>
+        )}
+        {loading ? (
+          <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+        ) : showSetup || !plan ? (
+          <PlanSetup onSubmit={handleSaveConfig} saving={saving} initialConfig={config} />
+        ) : (
+          <div className="space-y-4"><PlanView plan={plan} onEditConfig={() => setShowSetup(true)} onToggleStep={handleToggleStep} /></div>
+        )}
+        {isCoachMode && fullPlan && (
+          <CoachPlanManager open={showCoachManager} onOpenChange={setShowCoachManager} workspaceId={workspaceId} plan={fullPlan} exercises={coachExercises} hiddenSteps={hiddenSteps} onExercisesChange={handleExercisesChange} onVisibilityChange={handleVisibilityChange} />
+        )}
+        {!planTourDone && !loading && plan && !showSetup && !showWelcome && (
+          <GuidedTour steps={PLAN_TOUR_STEPS} storageKey="lac_plan_tour_seen" onComplete={() => { setPlanTourDone(true); localStorage.setItem("lac_dashboard_tour_seen", "true"); }} />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

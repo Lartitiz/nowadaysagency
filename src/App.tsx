@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useSearchParams, Outlet } from "react-router-dom";
 
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
@@ -31,12 +31,10 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AdaptiveHome = lazy(() => import("./pages/AdaptiveHome"));
 
 const ChatGuidePage = lazy(() => import("./pages/ChatGuidePage"));
-const IdeasPage = lazy(() => import("./pages/IdeasPage"));
+
 const Profile = lazy(() => import("./pages/Profile"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
-const Calendar = lazy(() => import("./pages/Calendar"));
-const CommPlanPage = lazy(() => import("./pages/CommPlanPage"));
-const PlanPage = lazy(() => import("./pages/PlanPage"));
+const OrganizationHub = lazy(() => import("./pages/OrganizationHub"));
 const BrandingPage = lazy(() => import("./pages/BrandingPage"));
 const StorytellingEditPage = lazy(() => import("./pages/StorytellingEditPage"));
 const InstagramHub = lazy(() => import("./pages/InstagramHub"));
@@ -151,6 +149,17 @@ const SuspenseFallback = () => (
 
 const ErrorBoundaryLayout = () => <ErrorBoundary><Outlet /></ErrorBoundary>;
 
+/** Redirect preserving existing query params and merging new ones */
+function RedirectWithParams({ to, mergeParams }: { to: string; mergeParams?: Record<string, string> }) {
+  const [searchParams] = useSearchParams();
+  const [basePath, baseQuery] = to.split("?");
+  const merged = new URLSearchParams(baseQuery || "");
+  if (mergeParams) Object.entries(mergeParams).forEach(([k, v]) => merged.set(k, v));
+  searchParams.forEach((v, k) => { if (!merged.has(k)) merged.set(k, v); });
+  const qs = merged.toString();
+  return <Navigate to={qs ? `${basePath}?${qs}` : basePath} replace />;
+}
+
 const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilot", "/binome", "/pricing", "/services", "/studio/discover", "/share/branding", "/checkout/binome"];
 
 function AnimatedRoutes() {
@@ -180,7 +189,7 @@ function AnimatedRoutes() {
               <Route path="/dashboard" element={<ProtectedRoute><AdaptiveHome /></ProtectedRoute>} />
               <Route path="/dashboard/guide" element={<ProtectedRoute><ChatGuidePage /></ProtectedRoute>} />
               <Route path="/dashboard/complet" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/idees" element={<ProtectedRoute><IdeasPage /></ProtectedRoute>} />
+              <Route path="/idees" element={<RedirectWithParams to="/calendrier" mergeParams={{ tab: "idees" }} />} />
               <Route element={<ErrorBoundaryLayout />}>
                 <Route path="/branding" element={<ProtectedRoute><BrandingPage /></ProtectedRoute>} />
                 <Route path="/branding/audit" element={<ProtectedRoute><BrandingAuditPage /></ProtectedRoute>} />
@@ -210,8 +219,8 @@ function AnimatedRoutes() {
                 <Route path="/branding/charter" element={<ProtectedRoute><BrandCharterPage /></ProtectedRoute>} />
               </Route>
               <Route path="/intake" element={<IntakePage />} />
-              <Route path="/plan" element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />
-              <Route path="/mon-plan" element={<ProtectedRoute><CommPlanPage /></ProtectedRoute>} />
+              <Route path="/plan" element={<RedirectWithParams to="/calendrier" mergeParams={{ tab: "strategie" }} />} />
+              <Route path="/mon-plan" element={<RedirectWithParams to="/calendrier" mergeParams={{ tab: "strategie" }} />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/studio" element={<ProtectedRoute><StudioDashboard /></ProtectedRoute>} />
               <Route path="/studio/discover" element={<Navigate to="/binome" replace />} />
@@ -293,7 +302,7 @@ function AnimatedRoutes() {
               <Route path="/pinterest/epingles" element={<ProtectedRoute><PinterestEpingles /></ProtectedRoute>} />
               <Route path="/pinterest/routine" element={<ProtectedRoute><PinterestRoutine /></ProtectedRoute>} />
               <Route element={<ErrorBoundaryLayout />}>
-                <Route path="/calendrier" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+                <Route path="/calendrier" element={<ProtectedRoute><OrganizationHub /></ProtectedRoute>} />
               </Route>
               {/* Site Web module */}
               <Route path="/site" element={<ProtectedRoute><SiteHub /></ProtectedRoute>} />
@@ -309,7 +318,7 @@ function AnimatedRoutes() {
               <Route path="/site/inspirations/:sectionType" element={<ProtectedRoute><SiteInspirationGeneratorPage /></ProtectedRoute>} />
               <Route path="/site/optimiser" element={<ProtectedRoute><SalesPageOptimizer /></ProtectedRoute>} />
               {/* Redirects from old routes */}
-              <Route path="/instagram/idees" element={<Navigate to="/idees?canal=instagram" replace />} />
+              <Route path="/instagram/idees" element={<RedirectWithParams to="/calendrier" mergeParams={{ tab: "idees", canal: "instagram" }} />} />
               <Route path="/instagram/calendrier" element={<Navigate to="/calendrier?canal=instagram" replace />} />
               <Route path="/instagram/atelier" element={<Navigate to="/atelier?canal=instagram" replace />} />
               <Route path="*" element={<NotFound />} />
