@@ -65,7 +65,7 @@ serve(async (req) => {
       "analyze-resume": "bio_profile",
     };
     const category = categoryMap[action] || "content";
-    const quotaCheck = await checkQuota(user.id, category);
+    const quotaCheck = await checkQuota(user.id, category, workspace_id);
     if (!quotaCheck.allowed) {
       return new Response(
         JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0, category: quotaCheck.reason }),
@@ -158,7 +158,7 @@ serve(async (req) => {
           max_tokens: 4096,
         });
 
-        await logUsage(user.id, category, `linkedin_crosspost_files`);
+        await logUsage(user.id, category, `linkedin_crosspost_files`, undefined, undefined, workspace_id);
 
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -243,7 +243,7 @@ serve(async (req) => {
     systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + systemPrompt;
     const content = await callAnthropicSimple(getModelForAction("linkedin_post"), systemPrompt, userPrompt, 0.8);
 
-    await logUsage(user.id, category, `linkedin_${action}`);
+    await logUsage(user.id, category, `linkedin_${action}`, undefined, undefined, workspace_id);
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
