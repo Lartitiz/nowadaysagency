@@ -165,14 +165,14 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
     await logUsage(user.id, "content", "carousel_visual", undefined, model, workspaceId);
 
     return new Response(JSON.stringify({ result, remaining: quota.remaining }), {
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
     console.error("carousel-visual error:", err);
     const status = err.message === "Non autorisé" ? 401 : 500;
     return new Response(JSON.stringify({ error: err.message }), {
       status,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
