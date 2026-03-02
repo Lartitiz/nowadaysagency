@@ -107,6 +107,7 @@ function QuickActions({ onImport, onShowSynthesis, onRunMirror, lastAuditScore, 
   const navigate = useNavigate();
   const actions = [
     onImport && { emoji: "📄", label: "Importer un document", desc: "Mets à jour ton branding avec tes notes, un brief, un texte…", onClick: onImport },
+    onImport && { emoji: "🌐", label: "Analyser mon site web", desc: "Scanne ton site pour compléter les champs manquants de ton branding.", onClick: onImport },
     { emoji: "🔍", label: "Auditer mon branding", desc: "L'IA analyse ta cohérence et te donne un score.", onClick: () => navigate("/branding/audit"), badge: lastAuditScore !== undefined ? `Dernier : ${lastAuditScore}/100` : undefined },
     completion.total >= 10 && onShowSynthesis && { emoji: "📋", label: "Ma fiche de synthèse", desc: "Tout ton branding résumé sur une page.", onClick: onShowSynthesis },
     canShowMirror && onRunMirror && { emoji: "🪞", label: "Mon Branding Mirror", desc: "Regarde ta cohérence entre ce que tu dis et ce que tu fais.", onClick: onRunMirror },
