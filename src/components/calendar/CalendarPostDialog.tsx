@@ -561,6 +561,80 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+
+            {/* Actions: Approfondir + Changer de format */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/50">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-pill text-xs gap-1.5 text-primary hover:bg-primary/10"
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (theme) params.set("sujet", theme);
+                  if (objectif) params.set("objectif", objectif);
+                  if (editingPost?.id) params.set("calendar_id", editingPost.id);
+                  params.set("from", "/calendrier");
+                  navigate(`/creer?${params.toString()}`);
+                }}
+              >
+                <Sparkles className="h-3 w-3" /> Approfondir avec l'IA
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="rounded-pill text-xs gap-1.5 text-muted-foreground hover:text-foreground">
+                    <RefreshCw className="h-3 w-3" /> Changer de format
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {postCanal === "instagram" && (
+                    <>
+                      <DropdownMenuItem onClick={() => {
+                        const params = new URLSearchParams();
+                        if (theme) params.set("sujet", theme);
+                        if (objectif) params.set("objectif", objectif);
+                        if (editingPost?.id) params.set("calendar_id", editingPost.id);
+                        params.set("from", "/calendrier");
+                        navigate(`/instagram/carousel?${params.toString()}`);
+                      }}>
+                        📑 Transformer en carrousel
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        const params = new URLSearchParams();
+                        params.set("sujet", theme || "");
+                        if (editingPost?.id) params.set("calendar_id", editingPost.id);
+                        params.set("from", "/calendrier");
+                        navigate(`/instagram/reels?${params.toString()}`);
+                      }}>
+                        🎬 Transformer en reel
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        const params = new URLSearchParams();
+                        params.set("sujet", theme || "");
+                        if (editingPost?.id) params.set("calendar_id", editingPost.id);
+                        params.set("from", "/calendrier");
+                        navigate(`/instagram/stories?${params.toString()}`);
+                      }}>
+                        📱 Transformer en stories
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {postCanal === "linkedin" && (
+                    <DropdownMenuItem onClick={() => {
+                      const params = new URLSearchParams();
+                      params.set("sujet", theme || "");
+                      if (editingPost?.id) params.set("calendar_id", editingPost.id);
+                      params.set("from", "/calendrier");
+                      navigate(`/linkedin/post?${params.toString()}`);
+                    }}>
+                      📝 Transformer en post LinkedIn
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => navigate("/transformer")}>
+                    🔄 Recycler (crosspost)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
         ) : hasContent ? (
@@ -596,6 +670,80 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => { setContentDraft(null); setAccroche(null); }} className="text-destructive">
                     🗑️ Supprimer le contenu
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Actions: Approfondir + Changer de format */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/50">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-pill text-xs gap-1.5 text-primary hover:bg-primary/10"
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (theme) params.set("sujet", theme);
+                  if (objectif) params.set("objectif", objectif);
+                  if (editingPost?.id) params.set("calendar_id", editingPost.id);
+                  params.set("from", "/calendrier");
+                  navigate(`/creer?${params.toString()}`);
+                }}
+              >
+                <Sparkles className="h-3 w-3" /> Approfondir avec l'IA
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="rounded-pill text-xs gap-1.5 text-muted-foreground hover:text-foreground">
+                    <RefreshCw className="h-3 w-3" /> Changer de format
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {postCanal === "instagram" && (
+                    <>
+                      <DropdownMenuItem onClick={() => {
+                        const params = new URLSearchParams();
+                        if (theme) params.set("sujet", theme);
+                        if (objectif) params.set("objectif", objectif);
+                        if (editingPost?.id) params.set("calendar_id", editingPost.id);
+                        params.set("from", "/calendrier");
+                        navigate(`/instagram/carousel?${params.toString()}`);
+                      }}>
+                        📑 Transformer en carrousel
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        const params = new URLSearchParams();
+                        params.set("sujet", theme || "");
+                        if (editingPost?.id) params.set("calendar_id", editingPost.id);
+                        params.set("from", "/calendrier");
+                        navigate(`/instagram/reels?${params.toString()}`);
+                      }}>
+                        🎬 Transformer en reel
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        const params = new URLSearchParams();
+                        params.set("sujet", theme || "");
+                        if (editingPost?.id) params.set("calendar_id", editingPost.id);
+                        params.set("from", "/calendrier");
+                        navigate(`/instagram/stories?${params.toString()}`);
+                      }}>
+                        📱 Transformer en stories
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {postCanal === "linkedin" && (
+                    <DropdownMenuItem onClick={() => {
+                      const params = new URLSearchParams();
+                      params.set("sujet", theme || "");
+                      if (editingPost?.id) params.set("calendar_id", editingPost.id);
+                      params.set("from", "/calendrier");
+                      navigate(`/linkedin/post?${params.toString()}`);
+                    }}>
+                      📝 Transformer en post LinkedIn
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => navigate("/transformer")}>
+                    🔄 Recycler (crosspost)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
