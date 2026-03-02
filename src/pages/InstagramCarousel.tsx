@@ -486,7 +486,7 @@ export default function InstagramCarousel() {
 
       const { data, error } = await supabase.functions.invoke("carousel-visual", {
         body: {
-          slides: slides.map(s => ({ slide_number: s.slide_number, role: s.role, title: s.title, body: s.body })),
+          slides: slides.map(s => ({ slide_number: s.slide_number, role: s.role, title: s.title, body: s.body, visual_suggestion: s.visual_suggestion })),
           template_style: effectiveStyle,
           charter: charterData || undefined,
           template_reference_urls: templateReferenceUrls,

@@ -151,11 +151,20 @@ IMPORTANT : le HTML de chaque slide doit inclure la balise <style> avec l'import
       if (custom_overrides.text_size) overrideNote += `\nTaille du texte : ${custom_overrides.text_size}`;
     }
 
+    // Build visual hints from visual_suggestion fields
+    const visualHints = slides
+      .filter((s: any) => s.visual_suggestion)
+      .map((s: any) => `- Slide ${s.slide_number}: ${s.visual_suggestion}`)
+      .join("\n");
+    const visualHintsBlock = visualHints
+      ? `\n\nINDICATIONS VISUELLES PAR SLIDE (l'IA rédactrice a suggéré ces directions artistiques, intègre-les) :\n${visualHints}`
+      : "";
+
     const userPrompt = `Génère les slides HTML pour ce carrousel :
 
 ${JSON.stringify(slides)}
 
-Template : ${style}${overrideNote}
+Template : ${style}${overrideNote}${visualHintsBlock}
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
