@@ -426,53 +426,6 @@ export default function InstagramCreer() {
               )}
             </div>
 
-            {/* Format grid */}
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-              Ou choisis directement un format
-            </p>
-
-            {(() => {
-              const channelLabels: Record<string, string> = {
-                instagram: "📱 Instagram", linkedin: "💼 LinkedIn",
-                pinterest: "📌 Pinterest", newsletter: "📧 Newsletter",
-              };
-              const channelOrder = ["instagram", "linkedin", "newsletter"]
-                .concat(isModuleVisible("pinterest", isAdmin) ? ["pinterest"] : []);
-              const grouped = channelOrder
-                .map(ch => ({ channel: ch, formats: visibleFormats.filter(f => f.channel === ch) }))
-                .filter(g => g.formats.length > 0);
-
-              return grouped.map(g => (
-                <div key={g.channel} className="mb-5">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                    {channelLabels[g.channel] || g.channel}
-                  </p>
-                  <div className={`grid gap-2 ${g.channel === "instagram" ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2"}`}>
-                    {g.formats.map((f) => (
-                      <button
-                        key={f.id}
-                        onClick={() => handleFormatClick(f)}
-                        disabled={f.generatorType === "coming_soon"}
-                        className={`relative rounded-2xl border-2 p-4 text-center transition-all ${
-                          f.generatorType === "coming_soon"
-                            ? "border-border bg-muted/50 opacity-60 cursor-not-allowed"
-                            : selectedFormat === f.id
-                              ? "border-primary bg-primary/5 shadow-md"
-                              : "border-border bg-card hover:border-primary hover:shadow-md group"
-                        }`}
-                      >
-                        {f.generatorType === "coming_soon" && (
-                          <span className="absolute top-2 right-2 text-[9px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">🔜</span>
-                        )}
-                        <span className="text-2xl block mb-1">{f.emoji}</span>
-                        <p className="font-display font-bold text-sm text-foreground group-hover:text-primary transition-colors">{f.label}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{f.desc}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ));
-            })()}
 
             {/* Dictation */}
             <div className="space-y-3 mt-4">
