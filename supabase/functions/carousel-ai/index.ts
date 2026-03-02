@@ -75,7 +75,7 @@ serve(async (req) => {
     } else if (type === "suggest_angles") {
       userPrompt = buildSuggestAnglesPrompt(body);
     } else if (type === "deepening_questions") {
-      userPrompt = buildDeepeningQuestionsPrompt(body);
+      userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext);
     } else {
       return new Response(JSON.stringify({ error: "Type invalide" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -407,7 +407,7 @@ Slide 10: CTA doux "Ta photo préférée ? Dis-le moi."
   return guides[type] || guides.tips;
 }
 
-function buildDeepeningQuestionsPrompt(body: any): string {
+function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string): string {
   const { carousel_type, subject, objective } = body;
 
   const CAROUSEL_TYPE_LABELS: Record<string, string> = {
@@ -421,16 +421,21 @@ function buildDeepeningQuestionsPrompt(body: any): string {
     saves: "Engagement (saves)", shares: "Portée (partages)", conversion: "Conversion", community: "Communauté (lien)",
   };
 
+  const brandingBlock = brandingContext
+    ? `\n\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n\nUtilise ce contexte pour personnaliser tes questions : mentionne son domaine d'activité, sa cible, ses offres ou son positionnement quand c'est pertinent. Les questions doivent montrer que tu connais son univers.`
+    : "";
+
   return `Tu dois générer exactement 3 questions d'approfondissement pour aider à créer un carrousel ${CAROUSEL_TYPE_LABELS[carousel_type] || carousel_type}.
 
 SUJET du carrousel : "${subject || "non précisé"}"
-OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}
+OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}${brandingBlock}
 
 TON RÔLE : Tu es une coach com' qui aide une solopreneuse/créatrice à extraire son vécu, ses opinions et son expertise PERSONNELLE pour que le contenu ne soit pas générique.
 
 RÈGLES pour les questions :
 - Chaque question doit être liée SPÉCIFIQUEMENT au sujet "${subject}" et au format ${CAROUSEL_TYPE_LABELS[carousel_type] || carousel_type}
 - Les questions doivent faire émerger du vécu, des anecdotes, des opinions tranchées, des exemples concrets
+- Si tu as le contexte branding, adapte les questions à son activité et sa cible (ex : "Quand une de tes clientes [cible] te dit..." plutôt que "Quand quelqu'un te dit...")
 - Tutoie l'utilisatrice, sois directe et chaleureuse
 - Chaque question fait 1-2 phrases max
 - Le placeholder est un court exemple de réponse attendue (5-8 mots)
