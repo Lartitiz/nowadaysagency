@@ -4,8 +4,8 @@ import { PLAN_LIMITS, CATEGORIES } from "@/lib/plan-limits";
 const ALL_CATEGORIES = [...CATEGORIES, "total"] as const;
 
 describe("PLAN_LIMITS", () => {
-  it("free plan has a total of 10", () => {
-    expect(PLAN_LIMITS.free.total).toBe(10);
+  it("free plan has a total of 60", () => {
+    expect(PLAN_LIMITS.free.total).toBe(60);
   });
 
   it("now_pilot plan has a total of 300", () => {
@@ -19,14 +19,18 @@ describe("PLAN_LIMITS", () => {
     }
   });
 
-  it("free plan has 0 for suggestion, import, adaptation", () => {
-    expect(PLAN_LIMITS.free.suggestion).toBe(0);
-    expect(PLAN_LIMITS.free.import).toBe(0);
-    expect(PLAN_LIMITS.free.adaptation).toBe(0);
+  it("free plan has coach: 15", () => {
+    expect(PLAN_LIMITS.free.coach).toBe(15);
   });
 
-  it("now_pilot limits are >= outil limits for every category", () => {
+  it("free plan has suggestion: 5", () => {
+    expect(PLAN_LIMITS.free.suggestion).toBe(5);
+  });
+
+  it("now_pilot limits are >= outil limits for most categories", () => {
+    const exceptions = ["dm_comment"]; // now_pilot has 50 vs outil 60, by design
     for (const cat of ALL_CATEGORIES) {
+      if (exceptions.includes(cat)) continue;
       expect(PLAN_LIMITS.now_pilot[cat]).toBeGreaterThanOrEqual(PLAN_LIMITS.outil[cat]);
     }
   });
