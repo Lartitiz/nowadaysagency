@@ -211,9 +211,10 @@ export function useContentGenerator() {
         case "linkedin": {
           const res = await supabase.functions.invoke("linkedin-ai", {
             body: {
-              type: "generate",
-              subject,
-              objective: objective || null,
+              action: "generate-post",
+              sujet: subject,
+              template: "expert_insight",
+              audience: "tu",
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
               workspace_id: workspaceId || null,
@@ -260,7 +261,9 @@ export function useContentGenerator() {
       if (invokeError) throw new Error(invokeError.message || "Erreur edge function");
       if (data?.error) throw new Error(data.error);
 
-      const parsed = parseAIJson(data);
+      // Edge functions wrap response in { content: "..." } — unwrap before parsing
+      const rawContent = data?.content ?? data;
+      const parsed = parseAIJson(rawContent);
       if (!parsed) throw new Error("Impossible de parser la réponse IA");
 
       const normalized: ContentResult = {
@@ -307,6 +310,25 @@ export function useContentGenerator() {
           data = res.data;
           invokeError = res.error;
         } else {
+          // Build angle context for creative-flow questions
+          let angleObj: { title: string; structure: string[]; tone: string };
+          if (editorialAngle) {
+            const found = EDITORIAL_ANGLES.find((a) => a.id === editorialAngle);
+            const structId = getStructureForCombo(format, editorialAngle);
+            const struct = structId ? CONTENT_STRUCTURES[structId] : null;
+            angleObj = {
+              title: found?.label || editorialAngle,
+              structure: struct?.steps.map((s) => s.label) || [],
+              tone: "direct, chaleureux, oral assumé",
+            };
+          } else {
+            angleObj = {
+              title: "libre",
+              structure: [],
+              tone: "direct, chaleureux, oral assumé",
+            };
+          }
+
           const res = await supabase.functions.invoke("creative-flow", {
             body: {
               step: "questions",
@@ -317,6 +339,7 @@ export function useContentGenerator() {
                   ? "newsletter"
                   : "instagram_post",
               context: subject,
+              angle: angleObj,
             },
           });
           data = res.data;
