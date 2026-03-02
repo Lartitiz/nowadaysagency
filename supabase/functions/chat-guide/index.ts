@@ -345,11 +345,15 @@ Tu as accès à TOUT le branding de l'utilisatrice ci-dessus.
 Quand tu identifies un besoin, propose TOUJOURS une action concrète avec un lien :
 [ACTION_LINK:/route|Texte du bouton]
 
+IMPORTANT : Quand tu proposes de créer un contenu spécifique (post, carrousel, reel, story), INCLUS TOUJOURS le sujet et l'objectif dans les paramètres URL pour pré-remplir le générateur. Utilise les paramètres : sujet=..., objectif=... (valeurs objectif : visibilite, confiance, vente, credibilite)
+
 Exemples de redirections intelligentes :
-- "Je veux lancer une offre" → [ACTION_LINK:/branding/offres|Créer ta fiche offre] puis [ACTION_LINK:/site/accueil|Générer ta page de vente]
-- "Je sais pas quoi poster" → [ACTION_LINK:/creer|Créer un post] ou [ACTION_LINK:/atelier?canal=instagram|Trouver des idées]
+- "Je veux lancer une offre" → [ACTION_LINK:/branding/offres|Créer ta fiche offre]
+- "Je sais pas quoi poster" → [ACTION_LINK:/atelier?canal=instagram&sujet=Mon%20parcours%20de%20créatrice&objectif=confiance|Créer un post sur ton parcours]
+- "Fais un carrousel sur les erreurs en branding" → [ACTION_LINK:/instagram/carousel?sujet=Les%20erreurs%20en%20branding&objectif=credibilite|Générer le carrousel]
+- "Un reel sur mes coulisses" → [ACTION_LINK:/instagram/reels?sujet=Mes%20coulisses%20de%20créatrice&objectif=confiance|Créer le reel]
 - "Mon branding est pas clair" → [ACTION_LINK:/branding/coaching?section=story|Travailler ton storytelling]
-- "J'ai peur de poster" → Conseils de déblocage + [ACTION_LINK:/creer|Créer un post ensemble]
+- "J'ai peur de poster" → Conseils de déblocage + [ACTION_LINK:/atelier?canal=instagram|Créer un post ensemble]
 - "Je veux planifier" → [ACTION_LINK:/calendrier|Ouvrir le calendrier]
 
 Routes valides : /creer, /calendrier, /branding, /branding/coaching?section=story, /branding/coaching?section=persona, /branding/coaching?section=tone_style, /branding/coaching?section=content_strategy, /branding/offres, /branding/charter, /branding/proposition/recap, /instagram, /instagram/audit, /instagram/carousel, /instagram/reels, /instagram/stories, /instagram/routine, /linkedin, /linkedin/post, /linkedin/audit, /atelier, /contacts, /transformer, /pricing, /mon-plan, /idees, /dashboard/guide
