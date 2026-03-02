@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -9,7 +10,7 @@ import { useBrandCharter } from "@/hooks/use-branding";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { toast } from "sonner";
-import { Loader2, Download, RefreshCw, Sparkles } from "lucide-react";
+import { Loader2, Download, RefreshCw, Sparkles, Upload, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AppHeader from "@/components/AppHeader";
 import ContentProgressBar from "@/components/ContentProgressBar";
@@ -172,6 +173,9 @@ export default function InstagramCarousel() {
   const [visualLoading, setVisualLoading] = useState(false);
   const [charterData, setCharterData] = useState<any>(null);
   const [charterLoaded, setCharterLoaded] = useState(false);
+  const [templateUploading, setTemplateUploading] = useState(false);
+  const templateInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   // Speech recognition
   const { isListening, toggle } = useSpeechRecognition((text) => {
@@ -410,6 +414,45 @@ export default function InstagramCarousel() {
     }
   }, [charterHookData, charterLoaded]);
 
+  // Upload template directly from carousel page → saves to charter
+  const handleInlineTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !user) return;
+    setTemplateUploading(true);
+    try {
+      const existing: { url: string; name: string }[] =
+        (charterData?.uploaded_templates as any[]) || [];
+      if (existing.length + files.length > 20) {
+        toast.error("Maximum 20 templates");
+        return;
+      }
+      const newTemplates = [...existing];
+      for (const file of Array.from(files)) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `${user.id}/templates/${Date.now()}-${safeName}`;
+        const { error } = await supabase.storage.from("brand-assets").upload(path, file, { cacheControl: '3600', upsert: false });
+        if (error) throw error;
+        const { data: urlData } = supabase.storage.from("brand-assets").getPublicUrl(path);
+        newTemplates.push({ url: urlData.publicUrl, name: file.name });
+      }
+      // Save to brand_charter
+      const { error: saveError } = await (supabase
+        .from("brand_charter") as any)
+        .update({ uploaded_templates: newTemplates })
+        .eq(column, value);
+      if (saveError) throw saveError;
+      setCharterData((prev: any) => ({ ...prev, uploaded_templates: newTemplates }));
+      queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
+      toast.success("Template(s) ajouté(s) !");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || "Erreur lors de l'upload");
+    } finally {
+      setTemplateUploading(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+
   // Visual generation handler
   const handleGenerateVisual = async (style: string) => {
     if (!user || slides.length === 0) return;
@@ -518,46 +561,73 @@ export default function InstagramCarousel() {
 
           {!visualLoading && visualSlides.length === 0 && (
             <div className="space-y-6 mb-6">
+              {/* Hidden file input for inline upload */}
+              <input
+                ref={templateInputRef}
+                type="file"
+                accept="image/*,.pdf"
+                multiple
+                className="hidden"
+                onChange={handleInlineTemplateUpload}
+                disabled={templateUploading}
+              />
+
               {/* Mes templates (from charter) */}
-              {hasCharterTemplates && (
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                    📐 Mes templates
-                  </p>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                    {charterTemplates.map((t, idx) => {
-                      const isPdf = t.name?.toLowerCase().endsWith('.pdf') || t.url?.toLowerCase().includes('.pdf');
-                      return (
-                        <button
-                          key={idx}
-                          onClick={() => handleGenerateVisual(`charter_template_${idx}`)}
-                          className="group rounded-xl border-2 border-primary/30 hover:border-primary bg-card overflow-hidden transition-all hover:shadow-lg"
-                        >
-                          <div className="relative aspect-[4/5] overflow-hidden">
-                            {isPdf ? (
-                              <div className="w-full h-full flex flex-col items-center justify-center bg-muted/40 gap-2">
-                                <svg className="h-10 w-10 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                <span className="text-[10px] text-muted-foreground font-medium">PDF</span>
-                              </div>
-                            ) : (
-                              <img
-                                src={t.url}
-                                alt={t.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                              />
-                            )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
-                          <p className="text-[10px] text-muted-foreground p-2 truncate text-center">{t.name}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-2 italic">
-                    L'IA analysera ton template et reproduira son style sur tes slides.
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  📐 Mes templates
+                </p>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                  {charterTemplates.map((t, idx) => {
+                    const isPdf = t.name?.toLowerCase().endsWith('.pdf') || t.url?.toLowerCase().includes('.pdf');
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => handleGenerateVisual(`charter_template_${idx}`)}
+                        className="group rounded-xl border-2 border-primary/30 hover:border-primary bg-card overflow-hidden transition-all hover:shadow-lg"
+                      >
+                        <div className="relative aspect-[4/5] overflow-hidden">
+                          {isPdf ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-muted/40 gap-2">
+                              <svg className="h-10 w-10 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                              <span className="text-[10px] text-muted-foreground font-medium">PDF</span>
+                            </div>
+                          ) : (
+                            <img
+                              src={t.url}
+                              alt={t.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground p-2 truncate text-center">{t.name}</p>
+                      </button>
+                    );
+                  })}
+
+                  {/* Add template button */}
+                  {charterTemplates.length < 20 && (
+                    <button
+                      onClick={() => templateInputRef.current?.click()}
+                      disabled={templateUploading}
+                      className="rounded-xl border-2 border-dashed border-border hover:border-primary/40 bg-card flex flex-col items-center justify-center aspect-[4/5] transition-all hover:shadow-md gap-2"
+                    >
+                      {templateUploading ? (
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      ) : (
+                        <Plus className="h-6 w-6 text-muted-foreground" />
+                      )}
+                      <span className="text-[10px] text-muted-foreground font-medium">
+                        {templateUploading ? "Upload..." : "Ajouter"}
+                      </span>
+                    </button>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-2 italic">
+                  L'IA analysera ton template et reproduira son style sur tes slides.
                   </p>
                 </div>
-              )}
 
               {/* Styles prédéfinis */}
               <div>
@@ -581,13 +651,6 @@ export default function InstagramCarousel() {
                 </div>
               </div>
 
-              {!hasCharterTemplates && (
-                <p className="text-[10px] text-muted-foreground text-center">
-                  💡 Tu peux{" "}
-                  <a href="/branding/charter" className="text-primary hover:underline">uploader tes propres templates dans ta charte</a>
-                  {" "}pour que l'IA s'en inspire.
-                </p>
-              )}
             </div>
           )}
 
