@@ -667,7 +667,16 @@ export default function InstagramCarousel() {
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-foreground">Aperçu ({visualSlides.length} slides)</p>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => exportCarouselPptx(slides, subject || "carrousel", visualSlides)} className="text-xs gap-1.5">
+                  <Button variant="outline" size="sm" onClick={async () => {
+                    toast.info("Export PPTX en cours…");
+                    try {
+                      await exportCarouselPptx(slides, subject || "carrousel", visualSlides);
+                      toast.success("PPTX téléchargé !");
+                    } catch (err: any) {
+                      console.error("PPTX export error:", err);
+                      toast.error("Erreur lors de l'export PPTX : " + (err?.message || "inconnue"));
+                    }
+                  }} className="text-xs gap-1.5">
                     <Download className="h-3.5 w-3.5" /> PPTX
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => setVisualSlides([])} className="text-xs gap-1.5">
