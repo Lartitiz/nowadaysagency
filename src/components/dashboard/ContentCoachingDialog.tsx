@@ -7,7 +7,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Loader2, ArrowLeft, ArrowRight, Rocket } from "lucide-react";
 import { toast } from "sonner";
 
-type Step = 1 | 2 | 3 | 4 | "loading" | "result";
+type Step = 1 | 2 | 3 | 4 | 5 | "loading" | "result";
 
 interface ContentResult {
   recommended_subject: string;
@@ -31,12 +31,23 @@ const OBJECTIFS = [
   { id: "creer_du_lien", emoji: "💬", label: "Créer du lien" },
 ];
 
-const FORMATS = [
-  { id: "post_texte", emoji: "📝", label: "Post texte" },
-  { id: "carrousel", emoji: "🎠", label: "Carrousel" },
-  { id: "reel", emoji: "🎬", label: "Reel" },
-  { id: "story", emoji: "📱", label: "Story" },
+const CANAUX = [
+  { id: "instagram", emoji: "📸", label: "Instagram" },
+  { id: "linkedin", emoji: "💼", label: "LinkedIn" },
 ];
+
+const FORMATS_BY_CANAL: Record<string, { id: string; emoji: string; label: string }[]> = {
+  instagram: [
+    { id: "post_texte", emoji: "📝", label: "Post texte" },
+    { id: "carrousel", emoji: "🎠", label: "Carrousel" },
+    { id: "reel", emoji: "🎬", label: "Reel" },
+    { id: "story", emoji: "📱", label: "Story" },
+  ],
+  linkedin: [
+    { id: "post_texte", emoji: "📝", label: "Post texte" },
+    { id: "carrousel", emoji: "🎠", label: "Carrousel" },
+  ],
+};
 
 const TONS = [
   { id: "intime", emoji: "💛", label: "Intime et personnel" },
@@ -50,6 +61,7 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
   const [objectif, setObjectif] = useState("");
   const [hasSujet, setHasSujet] = useState<boolean | null>(null);
   const [sujet, setSujet] = useState("");
+  const [canal, setCanal] = useState("");
   const [format, setFormat] = useState("");
   const [tonEnvie, setTonEnvie] = useState("");
   const [result, setResult] = useState<ContentResult | null>(null);
@@ -60,6 +72,7 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
     setObjectif("");
     setHasSujet(null);
     setSujet("");
+    setCanal("");
     setFormat("");
     setTonEnvie("");
     setResult(null);
@@ -86,9 +99,15 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
     setStep(3);
   };
 
+  const handleCanalSelect = (id: string) => {
+    setCanal(id);
+    setFormat(""); // reset format when canal changes
+    setStep(4);
+  };
+
   const handleFormatSelect = (id: string) => {
     setFormat(id);
-    setStep(4);
+    setStep(5);
   };
 
   const handleTonSelect = async (id: string) => {
@@ -101,6 +120,7 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
           answers: {
             objectif,
             sujet: hasSujet ? sujet : null,
+            canal,
             format,
             ton_envie: id,
           },
@@ -146,7 +166,7 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
           {/* Step indicators */}
           {typeof step === "number" && (
             <div className="flex gap-1 mb-5">
-              {[1, 2, 3, 4].map(s => (
+              {[1, 2, 3, 4, 5].map(s => (
                 <div key={s} className={`h-1.5 rounded-full flex-1 transition-colors ${
                   s < step ? "bg-primary" : s === step ? "bg-primary/60" : "bg-muted"
                 }`} />
@@ -224,8 +244,30 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
             </div>
           )}
 
-          {/* Step 3: Format */}
+          {/* Step 3: Canal */}
           {step === 3 && (
+            <div className="space-y-3 animate-fade-in">
+              <p className="text-sm font-medium text-foreground">Sur quel canal tu veux publier ?</p>
+              <div className="grid grid-cols-2 gap-2">
+                {CANAUX.map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => handleCanalSelect(c.id)}
+                    className="rounded-xl border-2 border-border bg-card p-4 text-center hover:border-primary hover:shadow-sm transition-all group"
+                  >
+                    <span className="text-2xl block mb-1">{c.emoji}</span>
+                    <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{c.label}</span>
+                  </button>
+                ))}
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setStep(2)} className="gap-1">
+                <ArrowLeft className="h-3.5 w-3.5" /> Retour
+              </Button>
+            </div>
+          )}
+
+          {/* Step 4: Format */}
+          {step === 4 && (
             <div className="space-y-3 animate-fade-in">
               <p className="text-sm font-medium text-foreground">Quel format tu sens le mieux aujourd'hui ?</p>
               {isEducatif && (
@@ -234,7 +276,7 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
                 </p>
               )}
               <div className="grid grid-cols-2 gap-2">
-                {FORMATS.map(f => (
+                {(FORMATS_BY_CANAL[canal] || []).map(f => (
                   <button
                     key={f.id}
                     onClick={() => handleFormatSelect(f.id)}
@@ -245,14 +287,14 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
                   </button>
                 ))}
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setStep(2)} className="gap-1">
+              <Button variant="ghost" size="sm" onClick={() => setStep(3)} className="gap-1">
                 <ArrowLeft className="h-3.5 w-3.5" /> Retour
               </Button>
             </div>
           )}
 
-          {/* Step 4: Ton */}
-          {step === 4 && (
+          {/* Step 5: Ton */}
+          {step === 5 && (
             <div className="space-y-3 animate-fade-in">
               <p className="text-sm font-medium text-foreground">Quel ton pour ce contenu ?</p>
               <div className="space-y-2">
@@ -267,7 +309,7 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
                   </button>
                 ))}
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setStep(3)} className="gap-1">
+              <Button variant="ghost" size="sm" onClick={() => setStep(4)} className="gap-1">
                 <ArrowLeft className="h-3.5 w-3.5" /> Retour
               </Button>
             </div>
