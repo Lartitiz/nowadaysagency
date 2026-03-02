@@ -3,7 +3,7 @@ const ERROR_PATTERNS: { test: RegExp; message: string }[] = [
   { test: /fetch|network|Failed to fetch|ERR_NETWORK/i, message: "Problème de connexion. Vérifie ton Wi-Fi et réessaie." },
   { test: /timeout|timed out|504|524/i, message: "La requête a pris trop de temps. Réessaie dans quelques secondes." },
   { test: /429|rate.?limit|too many/i, message: "Trop de requêtes en même temps. Attends quelques secondes et réessaie." },
-  { test: /quota|crédit|limit.*atteint/i, message: "Tu as utilisé tous tes crédits IA ce mois-ci. Ils reviennent le 1er du mois, ou tu peux ajouter un pack de crédits." },
+  { test: /quota|crédit|limit.*atteint|limit_reached/i, message: "Tu as utilisé tous tes crédits IA ce mois-ci. Ils reviennent le 1er du mois, ou tu peux ajouter un pack de crédits." },
   { test: /401|non.?authentifi|not.?authenticated/i, message: "Ta session a expiré. Rafraîchis la page pour te reconnecter." },
   { test: /403|interdit|forbidden/i, message: "Tu n'as pas accès à cette fonctionnalité avec ton plan actuel." },
   { test: /500|internal.?server|erreur.?serveur/i, message: "Oups, un problème côté serveur. Réessaie dans un instant." },

@@ -36,7 +36,7 @@ const NOW_PILOT_FEATURES: Feature[] = [
 ];
 
 
-export type AiCategory = "content" | "audit" | "dm_comment" | "bio_profile" | "suggestion" | "import" | "adaptation";
+export type AiCategory = "content" | "audit" | "dm_comment" | "bio_profile" | "suggestion" | "coach" | "import" | "adaptation" | "deep_research";
 
 export interface CategoryUsage {
   used: number;

@@ -18,6 +18,8 @@ import DictationInput from "@/components/DictationInput";
 import { OBJECTIFS, FORMATS } from "@/lib/atelier-data";
 import BrandingPrompt from "@/components/BrandingPrompt";
 import ContentSetupForm from "@/components/ContentSetupForm";
+import { useUserPlan } from "@/hooks/use-user-plan";
+import CreditWarning from "@/components/CreditWarning";
 
 interface AccrocheItem {
   short: string;
@@ -61,6 +63,8 @@ export default function AtelierPage() {
   });
   const [sujetLibre, setSujetLibre] = useState(urlSujet ? decodeURIComponent(urlSujet) : "");
   const [generating, setGenerating] = useState(false);
+  const { canGenerate, remainingTotal } = useUserPlan();
+  const quotaBlocked = !canGenerate("content");
   const [ideas, setIdeas] = useState<IdeaResult[]>([]);
   const { profile, brandProfile, mergedProfile, isLoading: profileLoading } = useMergedProfile();
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
@@ -393,6 +397,9 @@ export default function AtelierPage() {
           />
         )}
 
+        {/* ── Credit Warning ── */}
+        <CreditWarning remaining={remainingTotal()} className="mb-4" />
+
         {/* ── Creative Flow ── */}
         <CreativeFlow
           contentType={`post_${canal}`}
@@ -404,9 +411,9 @@ export default function AtelierPage() {
           profile={mergedProfile || undefined}
           calendarContext={calendarContext}
           skipToQuestions={fromCalendar && !!calendarData?.objectif && !!calendarData?.angle}
-          showQuickMode={!fromCalendar}
+          showQuickMode={!fromCalendar && !quotaBlocked}
           quickModeLabel="Générer 5 idées"
-          quickModeAction={handleGenerate}
+          quickModeAction={quotaBlocked ? undefined : handleGenerate}
           quickModeLoading={generating}
           onSaveToIdeas={(content, meta) => {
             if (!user) return;

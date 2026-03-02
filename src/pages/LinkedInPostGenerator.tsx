@@ -16,6 +16,8 @@ import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import BaseReminder from "@/components/BaseReminder";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import { useUserPlan } from "@/hooks/use-user-plan";
+import CreditWarning from "@/components/CreditWarning";
 import LinkedInPreview from "@/components/linkedin/LinkedInPreview";
 import CharacterCounter from "@/components/linkedin/CharacterCounter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -79,6 +81,8 @@ export default function LinkedInPostGenerator() {
   const [conviction, setConviction] = useState("");
   const [hookType, setHookType] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const { canGenerate, remainingTotal } = useUserPlan();
+  const quotaBlocked = !canGenerate("content");
   const [result, setResult] = useState<PostResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [suggestedTemplate, setSuggestedTemplate] = useState<{ id: string; reason: string } | null>(null);
@@ -417,7 +421,8 @@ export default function LinkedInPostGenerator() {
             </details>
 
             {/* Generate button */}
-            <Button onClick={generate} disabled={generating || !template || !sujet.trim()} className="rounded-full gap-2">
+            <CreditWarning remaining={remainingTotal()} className="mb-3" />
+            <Button onClick={generate} disabled={generating || !template || !sujet.trim() || quotaBlocked} className="rounded-full gap-2">
               {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {generating ? "Rédaction en cours..." : "✨ Rédiger mon post LinkedIn"}
             </Button>

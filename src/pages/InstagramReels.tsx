@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandProfile } from "@/hooks/use-profile";
+import { useUserPlan } from "@/hooks/use-user-plan";
+import CreditWarning from "@/components/CreditWarning";
 import { useBrandProposition, useBrandStrategy, useEditorialLine } from "@/hooks/use-branding";
 import BaseReminder from "@/components/BaseReminder";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
@@ -197,6 +199,8 @@ export default function InstagramReels() {
   const [scriptResult, setScriptResult] = useState<ScriptResult | null>(null);
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
+  const { canGenerate, remainingTotal } = useUserPlan();
+  const quotaBlocked = !canGenerate("content");
   const [showDurationGuide, setShowDurationGuide] = useState(false);
   const [inspirationAnalysis, setInspirationAnalysis] = useState<any>(null);
   const [cachedBrandingCtx, setCachedBrandingCtx] = useState<string>("");
@@ -669,6 +673,7 @@ export default function InstagramReels() {
 
         <h1 className="font-display text-2xl font-bold text-foreground mb-2">🎬 Générateur de Scripts Reels</h1>
         <p className="text-sm text-muted-foreground mb-6">Flow guidé → 3 hooks au choix → script complet prêt à filmer.</p>
+        <CreditWarning remaining={remainingTotal()} className="mb-4" />
 
         {/* Tip rotatif */}
         <div className="mb-8 rounded-2xl border border-dashed border-primary/30 bg-rose-pale p-4">
@@ -795,7 +800,8 @@ export default function InstagramReels() {
               </button>
             </div>
 
-            <Button className="mt-6 w-full" size="lg" onClick={handleGenerateHooks} disabled={!objective || !faceCam || !timeAvailable}>
+            <CreditWarning remaining={remainingTotal()} className="mb-3" />
+            <Button className="mt-3 w-full" size="lg" onClick={handleGenerateHooks} disabled={!objective || !faceCam || !timeAvailable || quotaBlocked}>
               ✨ Générer mes hooks
             </Button>
             {(!objective || !faceCam || !timeAvailable) && (

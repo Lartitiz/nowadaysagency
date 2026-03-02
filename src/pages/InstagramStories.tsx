@@ -4,6 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrandProfile } from "@/hooks/use-profile";
+import { useUserPlan } from "@/hooks/use-user-plan";
+import CreditWarning from "@/components/CreditWarning";
 import AppHeader from "@/components/AppHeader";
 import ContentProgressBar from "@/components/ContentProgressBar";
 import ContentActions from "@/components/ContentActions";
@@ -137,6 +139,8 @@ export default function InstagramStories() {
   // Results
   const [sequenceResult, setSequenceResult] = useState<SequenceResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const { canGenerate, remainingTotal } = useUserPlan();
+  const quotaBlocked = !canGenerate("content");
 
   // Pre-fill from calendar
   useEffect(() => {
@@ -407,6 +411,7 @@ export default function InstagramStories() {
             L'IA structure tes stories pour engager ta communauté sans y passer des heures.
           </p>
         </div>
+        <CreditWarning remaining={remainingTotal()} className="mb-4" />
 
         {draftRestored && (
           <DraftRestoredBanner
@@ -431,8 +436,9 @@ export default function InstagramStories() {
             {/* Quick buttons row */}
             <div className="flex flex-wrap gap-3 mb-8">
               <button
-                onClick={() => handleGenerate(true)}
-                className="flex-1 min-w-0 rounded-2xl border border-dashed border-primary/30 bg-rose-pale p-4 text-left hover:border-primary transition-colors"
+                onClick={() => !quotaBlocked && handleGenerate(true)}
+                disabled={quotaBlocked}
+                className="flex-1 min-w-0 rounded-2xl border border-dashed border-primary/30 bg-rose-pale p-4 text-left hover:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <p className="font-display text-sm font-bold text-primary">🆘 Pas d'inspi aujourd'hui ?</p>
                 <p className="text-xs text-muted-foreground mt-0.5">5 stories du quotidien en 1 clic</p>
@@ -616,11 +622,12 @@ export default function InstagramStories() {
               </div>
             </div>
 
-            <div className="flex gap-3 mt-5">
-              <Button onClick={() => handleGenerate(false)} className="flex-1">
+            <CreditWarning remaining={remainingTotal()} className="mb-3" />
+            <div className="flex gap-3 mt-3">
+              <Button onClick={() => handleGenerate(false)} disabled={quotaBlocked} className="flex-1">
                 <Sparkles className="h-4 w-4" /> Générer avec mes réponses
               </Button>
-              <Button variant="outline" onClick={() => { setPreGenVecu(""); setPreGenEnergy(""); setPreGenMessage(""); handleGenerate(false); }}>
+              <Button variant="outline" onClick={() => { setPreGenVecu(""); setPreGenEnergy(""); setPreGenMessage(""); handleGenerate(false); }} disabled={quotaBlocked}>
                 ⏭️ Passer
               </Button>
             </div>
