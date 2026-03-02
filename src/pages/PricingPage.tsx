@@ -160,6 +160,14 @@ export default function PricingPage() {
         </header>
       )}
 
+      {/* Bandeau béta */}
+      <div className="bg-primary/10 border-b border-primary/20 px-4 py-3 text-center">
+        <p className="text-sm text-foreground">
+          🧪 <strong>Béta en cours</strong> : tu testes l'outil gratuitement avec 60 crédits IA/mois.
+          Les abonnements premium ouvriront après la béta.
+        </p>
+      </div>
+
       <main className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
         {/* ── Header ── */}
         <div className="text-center mb-12">
