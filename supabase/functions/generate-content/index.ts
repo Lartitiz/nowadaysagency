@@ -686,36 +686,15 @@ Reponds en JSON :
     // Prepend voice priority instruction
     systemPrompt = BASE_SYSTEM_RULES + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + systemPrompt;
 
-    // Use Gemini Flash for weekly-suggestions (much faster), Anthropic for the rest
+    // Use Claude Sonnet for weekly-suggestions (better quality ideas)
     if (type === "weekly-suggestions") {
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
-      const geminiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.85,
-          max_tokens: 500,
-        }),
-      });
-
-      if (!geminiResponse.ok) {
-        const errText = await geminiResponse.text();
-        console.error("Gemini gateway error:", geminiResponse.status, errText);
-        throw new Error("Erreur lors de la génération IA");
-      }
-
-      const geminiData = await geminiResponse.json();
-      const rawContent = geminiData.choices?.[0]?.message?.content || "";
+      const rawContent = await callAnthropicSimple(
+        getModelForAction("content"),
+        systemPrompt,
+        userPrompt,
+        0.85,
+        500
+      );
 
       let suggestions;
       try {
