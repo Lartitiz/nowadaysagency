@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useMergedProfile } from "@/hooks/use-profile";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -33,6 +33,8 @@ export default function RedactionPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const navState = location.state as { expressDraft?: boolean; content_draft?: string; accroche?: string; hashtags?: string[] } | null;
 
   const canal = searchParams.get("canal") || "instagram";
   const format = searchParams.get("format") || "";
@@ -42,7 +44,7 @@ export default function RedactionPage() {
   const calendarPostId = searchParams.get("calendar_id") || null;
   const ideaId = searchParams.get("idea_id") || null;
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(navState?.expressDraft ? 4 : 1);
   const { profile, brandProfile, mergedProfile, isLoading: profileLoading } = useMergedProfile();
 
   // Step 1: Structure
@@ -51,16 +53,16 @@ export default function RedactionPage() {
 
   // Step 2: Accroches
   const [accroches, setAccroches] = useState<string[]>([]);
-  const [selectedAccroche, setSelectedAccroche] = useState<string>("");
+  const [selectedAccroche, setSelectedAccroche] = useState<string>(navState?.accroche || "");
   const [customAccroche, setCustomAccroche] = useState("");
   const [loadingAccroches, setLoadingAccroches] = useState(false);
 
   // Step 3: Draft
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(navState?.content_draft || "");
   const [loadingDraft, setLoadingDraft] = useState(false);
 
   // Step 4: Edited content
-  const [editedContent, setEditedContent] = useState("");
+  const [editedContent, setEditedContent] = useState(navState?.content_draft || "");
 
   // Step 5: Checklist
   const [checkedItems, setCheckedItems] = useState<boolean[]>(QUALITY_CHECKLIST.map(() => false));
@@ -100,7 +102,7 @@ export default function RedactionPage() {
   };
 
   useEffect(() => {
-    if (mergedProfile) loadStructure();
+    if (mergedProfile && !navState?.expressDraft) loadStructure();
   }, [mergedProfile]);
 
   // Update idea status to "drafting" when opening from ideas bank

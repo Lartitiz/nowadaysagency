@@ -669,6 +669,27 @@ Reponds en JSON :
         systemPrompt = `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}\n\n${WRITING_RESOURCES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONTEXTE DU POST :\n- Thème/sujet : "${theme || "?"}"\n- Objectif : ${calObj || "non précisé"}\n- Angle : ${calAngle || "non précisé"}\n- ${formatInstruction}\n- Notes : "${calNotes || "aucune"}"\n${launchBlock}\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Le ton correspond au branding de l'utilisatrice\n- Utiliser ses expressions, son vocabulaire\n- PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, le contenu DOIT reproduire ce style. Réutilise les expressions signature. Reproduis les patterns de structure. Imite le rythme des exemples.\n- Ne JAMAIS utiliser les expressions listées comme interdites dans le profil de voix\n- Le contenu doit pouvoir être publié tel quel par l'utilisatrice sans qu'on sente que c'est écrit par une IA\n- Oral assumé mais pas surjoué\n- Phrases fluides et complètes\n- Le contenu a de la valeur même pour celles qui n'achètent pas\n- CTA conversationnel, jamais agressif\n\nGARDE-FOUS ÉTHIQUES :\n- Pas de fausse urgence\n- Pas de shaming\n- Pas de promesses de résultats garantis\n- Pas de FOMO artificiel\n\nGénère le contenu complet, prêt à copier-coller. Réponds avec le texte uniquement.`;
         userPrompt = `Rédige le contenu complet pour ce post sur "${theme || "?"}".`;
 
+      } else if (type === "express-draft") {
+        const { sujet: expressSujet, objectif: expressObj, format: expressFormat } = body;
+        const formatMap: Record<string, string> = {
+          post: "Post Instagram (texte de légende complet)",
+          post_photo: "Post photo (texte de légende complet)",
+          post_texte: "Post texte (texte complet)",
+          carousel: "Carrousel (texte structuré slide par slide : Slide 1, Slide 2, etc.)",
+          post_carrousel: "Carrousel (texte structuré slide par slide : Slide 1, Slide 2, etc.)",
+          carrousel: "Carrousel (texte structuré slide par slide : Slide 1, Slide 2, etc.)",
+          reel: "Reel (script avec timing : 0-3 sec, 3-10 sec, etc.)",
+          story: "Story (1 story unique)",
+          stories: "Stories (séquence story par story)",
+          newsletter: "Newsletter (sujet + contenu complet)",
+          article: "Article de blog (structuré avec titres)",
+          linkedin: "Post LinkedIn (texte complet)",
+        };
+        const formatInstruction = expressFormat ? `FORMAT : ${formatMap[expressFormat] || expressFormat}` : "FORMAT : Post Instagram par défaut";
+
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}\n\n${WRITING_RESOURCES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONTEXTE :\n- Sujet : "${expressSujet || "?"}"\n- Objectif : ${expressObj || "non précisé"}\n- ${formatInstruction}\n\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Le ton correspond au branding de l'utilisatrice\n- Utiliser ses expressions, son vocabulaire\n- PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, le contenu DOIT reproduire ce style\n- Ne JAMAIS utiliser les expressions listées comme interdites dans le profil de voix\n- Le contenu doit pouvoir être publié tel quel\n- Oral assumé mais pas surjoué\n- CTA conversationnel, jamais agressif\n\nGARDE-FOUS ÉTHIQUES :\n- Pas de fausse urgence ni de shaming\n- Pas de promesses de résultats garantis\n\nRéponds en JSON avec ce format exact :\n{"accroche": "L'accroche du post (première ligne percutante)", "content": "Le contenu complet prêt à copier-coller (inclus l'accroche au début)", "hashtags": ["3 à 5 hashtags pertinents"]}`;
+        userPrompt = `Rédige un contenu complet, engageant et prêt à publier sur : "${expressSujet || "?"}"`;
+
       } else if (type === "caption") {
         // Simple caption generation for a given theme/subject
         const captionObjectif = objectif || "visibilite";
