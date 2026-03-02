@@ -73,9 +73,8 @@ export default function CreerUnifie() {
     if (paramFormat) setSelectedFormat(paramFormat);
 
     if (paramFormat && subject.trim()) {
-      // Both format AND subject provided (e.g. from coaching or calendar)
-      // → skip straight to questions
-      handleFormatNext(paramFormat);
+      // Both format AND subject provided — pass subject directly to avoid stale state
+      handleFormatNext(paramFormat, undefined, subject);
     } else if (locState.fromCalendar && subject) {
       setStep("format");
     } else if (paramFormat) {
@@ -118,9 +117,11 @@ export default function CreerUnifie() {
     setStep("format");
   };
 
-  const handleFormatNext = async (format: string, angle?: string) => {
+  const handleFormatNext = async (format: string, angle?: string, overrideSubject?: string) => {
     setSelectedFormat(format);
     setEditorialAngle(angle || null);
+
+    const subjectToUse = overrideSubject || ideaText;
 
     // Special launch mode
     if (angle === "lancement") {
@@ -131,7 +132,7 @@ export default function CreerUnifie() {
 
     // Load questions
     setStep("questions");
-    await generateQuestions({ format, subject: ideaText, editorialAngle: angle });
+    await generateQuestions({ format, subject: subjectToUse, editorialAngle: angle });
   };
 
   const handleQuestionsNext = async (ans: Record<string, string>) => {
