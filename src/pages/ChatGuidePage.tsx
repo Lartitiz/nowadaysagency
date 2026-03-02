@@ -768,9 +768,9 @@ export default function ChatGuidePage() {
                                 "/instagram/stories", "/instagram/audit", "/instagram/stats",
                                 "/instagram/routine", "/instagram/profil",
                                 "/linkedin", "/linkedin/post", "/linkedin/audit",
-                                "/plan", "/contacts", "/atelier", "/transformer",
-                                "/dashboard", "/profil", "/site", "/site/accueil",
-                                "/site/optimiser", "/site/audit", "/seo", "/pricing",
+                                "/plan", "/mon-plan", "/contacts", "/atelier", "/transformer",
+                                "/dashboard", "/dashboard/guide", "/profil",
+                                "/idees", "/pricing", "/abonnement",
                               ];
                               const baseRoute = action.route.split("?")[0];
                               if (validRoutes.includes(baseRoute) || validRoutes.some(r => baseRoute.startsWith(r + "/"))) {
