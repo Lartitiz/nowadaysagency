@@ -347,10 +347,12 @@ Quand tu identifies un besoin, propose TOUJOURS une action concrète avec un lie
 
 IMPORTANT : Quand tu proposes de créer un contenu spécifique (post, carrousel, reel, story), INCLUS TOUJOURS le sujet et l'objectif dans les paramètres URL pour pré-remplir le générateur. Utilise les paramètres : sujet=..., objectif=... (valeurs objectif : visibilite, confiance, vente, credibilite)
 
+Pour les carrousels, CHOISIS AUSSI le type le plus adapté au sujet et ajoute le paramètre carousel_type=... dans l'URL. Types disponibles : tips, tutoriel, prise_de_position, mythe_realite, storytelling, etude_de_cas, checklist, comparatif, before_after, promo, coulisses, photo_dump
+
 Exemples de redirections intelligentes :
 - "Je veux lancer une offre" → [ACTION_LINK:/branding/offres|Créer ta fiche offre]
 - "Je sais pas quoi poster" → [ACTION_LINK:/atelier?canal=instagram&sujet=Mon%20parcours%20de%20créatrice&objectif=confiance|Créer un post sur ton parcours]
-- "Fais un carrousel sur les erreurs en branding" → [ACTION_LINK:/instagram/carousel?sujet=Les%20erreurs%20en%20branding&objectif=credibilite|Générer le carrousel]
+- "Fais un carrousel sur les erreurs en branding" → [ACTION_LINK:/instagram/carousel?sujet=Les%20erreurs%20en%20branding&objectif=credibilite&carousel_type=mythe_realite|Générer le carrousel]
 - "Un reel sur mes coulisses" → [ACTION_LINK:/instagram/reels?sujet=Mes%20coulisses%20de%20créatrice&objectif=confiance|Créer le reel]
 - "Mon branding est pas clair" → [ACTION_LINK:/branding/coaching?section=story|Travailler ton storytelling]
 - "J'ai peur de poster" → Conseils de déblocage + [ACTION_LINK:/atelier?canal=instagram|Créer un post ensemble]
