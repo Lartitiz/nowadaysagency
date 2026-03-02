@@ -525,23 +525,33 @@ export default function InstagramCarousel() {
                     📐 Mes templates
                   </p>
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                    {charterTemplates.map((t, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleGenerateVisual(`charter_template_${idx}`)}
-                        className="group rounded-xl border-2 border-primary/30 hover:border-primary bg-card overflow-hidden transition-all hover:shadow-lg"
-                      >
-                        <div className="relative aspect-[4/5] overflow-hidden">
-                          <img
-                            src={t.url}
-                            alt={t.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                        <p className="text-[10px] text-muted-foreground p-2 truncate text-center">{t.name}</p>
-                      </button>
-                    ))}
+                    {charterTemplates.map((t, idx) => {
+                      const isPdf = t.name?.toLowerCase().endsWith('.pdf') || t.url?.toLowerCase().includes('.pdf');
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => handleGenerateVisual(`charter_template_${idx}`)}
+                          className="group rounded-xl border-2 border-primary/30 hover:border-primary bg-card overflow-hidden transition-all hover:shadow-lg"
+                        >
+                          <div className="relative aspect-[4/5] overflow-hidden">
+                            {isPdf ? (
+                              <div className="w-full h-full flex flex-col items-center justify-center bg-muted/40 gap-2">
+                                <svg className="h-10 w-10 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                <span className="text-[10px] text-muted-foreground font-medium">PDF</span>
+                              </div>
+                            ) : (
+                              <img
+                                src={t.url}
+                                alt={t.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              />
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground p-2 truncate text-center">{t.name}</p>
+                        </button>
+                      );
+                    })}
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-2 italic">
                     L'IA analysera ton template et reproduira son style sur tes slides.

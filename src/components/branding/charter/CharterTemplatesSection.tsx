@@ -39,8 +39,8 @@ export default function CharterTemplatesSection({
     }
     const authUserId = user.id;
 
-    if (data.uploaded_templates.length + files.length > 10) {
-      toast.error("Maximum 10 templates");
+    if (data.uploaded_templates.length + files.length > 20) {
+      toast.error("Maximum 20 templates");
       return;
     }
     setTemplatesUploading(true);
@@ -81,26 +81,36 @@ export default function CharterTemplatesSection({
 
       {data.uploaded_templates.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-4">
-          {data.uploaded_templates.map((t: { url: string; name: string }, idx: number) => (
-            <div key={idx} className="relative group">
-              <img
-                src={t.url}
-                alt={t.name}
-                className="w-full aspect-square object-cover rounded-xl border border-border"
-              />
-              <button
-                onClick={() => removeTemplate(idx)}
-                className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X className="h-3 w-3" />
-              </button>
-              <p className="text-[10px] text-muted-foreground mt-1 truncate">{t.name}</p>
-            </div>
-          ))}
+          {data.uploaded_templates.map((t: { url: string; name: string }, idx: number) => {
+            const isPdf = t.name?.toLowerCase().endsWith('.pdf') || t.url?.toLowerCase().includes('.pdf');
+            return (
+              <div key={idx} className="relative group">
+                {isPdf ? (
+                  <div className="w-full aspect-square rounded-xl border border-border bg-muted/40 flex flex-col items-center justify-center gap-1">
+                    <svg className="h-8 w-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    <span className="text-[9px] text-muted-foreground font-medium">PDF</span>
+                  </div>
+                ) : (
+                  <img
+                    src={t.url}
+                    alt={t.name}
+                    className="w-full aspect-square object-cover rounded-xl border border-border"
+                  />
+                )}
+                <button
+                  onClick={() => removeTemplate(idx)}
+                  className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+                <p className="text-[10px] text-muted-foreground mt-1 truncate">{t.name}</p>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {data.uploaded_templates.length < 10 && (
+      {data.uploaded_templates.length < 20 && (
         <label className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors p-6">
           <Upload className="h-6 w-6 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">
