@@ -177,7 +177,7 @@ export default function InstagramCreer() {
               size="sm"
             >
               {suggesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-              L'IA me guide →
+              L'outil me guide →
             </Button>
             <button
               onClick={() => setContentCoachingOpen(true)}
