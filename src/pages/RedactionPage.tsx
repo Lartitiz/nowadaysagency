@@ -40,6 +40,7 @@ export default function RedactionPage() {
   const angle = searchParams.get("angle") || "";
   const objectif = searchParams.get("objectif") || null;
   const calendarPostId = searchParams.get("calendar_id") || null;
+  const ideaId = searchParams.get("idea_id") || null;
 
   const [step, setStep] = useState(1);
   const { profile, brandProfile, mergedProfile, isLoading: profileLoading } = useMergedProfile();
@@ -101,6 +102,16 @@ export default function RedactionPage() {
   useEffect(() => {
     if (mergedProfile) loadStructure();
   }, [mergedProfile]);
+
+  // Update idea status to "drafting" when opening from ideas bank
+  useEffect(() => {
+    if (ideaId && user) {
+      supabase.from("saved_ideas")
+        .update({ status: "drafting" } as any)
+        .eq("id", ideaId)
+        .then(() => {});
+    }
+  }, [ideaId, user?.id]);
 
   // ── Step 2: Generate accroches ──
   const generateAccroches = async () => {
@@ -176,6 +187,14 @@ export default function RedactionPage() {
         status: "draft",
       });
       toast({ title: "Brouillon enregistré !" });
+
+      // Update idea status to "ready" if coming from ideas bank
+      if (ideaId) {
+        supabase.from("saved_ideas")
+          .update({ status: "ready" } as any)
+          .eq("id", ideaId)
+          .then(() => {});
+      }
     } catch {
       toast({ title: "Erreur", variant: "destructive" });
     } finally {
