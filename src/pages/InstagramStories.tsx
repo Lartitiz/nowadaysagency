@@ -176,6 +176,9 @@ export default function InstagramStories() {
     { key: "edit", label: "Édition" },
   ];
   const currentStepKey = step === 5 ? "edit" : "setup";
+  const handleStepClick = (key: string) => {
+    if (key === "setup" && step > 1) setStep(1);
+  };
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "stories-form",
@@ -258,7 +261,7 @@ export default function InstagramStories() {
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
           <ReturnToOrigin />
-          <ContentProgressBar steps={STORIES_STEPS} currentStep={currentStepKey} />
+          <ContentProgressBar steps={STORIES_STEPS} currentStep={currentStepKey} onStepClick={handleStepClick} />
 
           <div className="mb-6">
             <h1 className="font-display text-2xl font-bold text-foreground">📱 Ta séquence Stories</h1>
@@ -405,7 +408,7 @@ export default function InstagramStories() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <div className="mb-8">
           <ReturnToOrigin />
-          <ContentProgressBar steps={STORIES_STEPS} currentStep={currentStepKey} />
+          <ContentProgressBar steps={STORIES_STEPS} currentStep={currentStepKey} onStepClick={handleStepClick} />
           <h1 className="font-display text-3xl font-bold text-foreground">Créer une séquence de Stories</h1>
           <p className="text-muted-foreground mt-2">
             L'IA structure tes stories pour engager ta communauté sans y passer des heures.

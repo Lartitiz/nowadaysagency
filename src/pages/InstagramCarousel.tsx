@@ -309,7 +309,12 @@ export default function InstagramCarousel() {
     { key: "visual", label: "Visuel" },
   ];
   const stepKeyMap: Record<number, string> = { 1: "setup", 2: "questions", 3: "result", 4: "visual" };
+  const reverseStepKeyMap: Record<string, number> = { setup: 1, questions: 2, result: 3, visual: 4 };
   const currentStepKey = stepKeyMap[step] || "setup";
+  const handleStepClick = (key: string) => {
+    const target = reverseStepKeyMap[key];
+    if (target && target < step) setStep(target);
+  };
 
   // ── Generate carousel (express_full with deepening answers) ──
   const handleGenerateCarousel = async () => {
@@ -535,7 +540,7 @@ export default function InstagramCarousel() {
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 animate-fade-in">
           <ReturnToOrigin />
-          <ContentProgressBar steps={CAROUSEL_STEPS} currentStep={currentStepKey} />
+          <ContentProgressBar steps={CAROUSEL_STEPS} currentStep={currentStepKey} onStepClick={handleStepClick} />
 
           <h1 className="font-display text-2xl font-bold text-foreground mb-2">✨ Visuel du carrousel</h1>
           <p className="text-sm text-muted-foreground mb-6">
@@ -739,7 +744,7 @@ export default function InstagramCarousel() {
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 animate-fade-in">
           <ReturnToOrigin />
-          <ContentProgressBar steps={CAROUSEL_STEPS} currentStep={currentStepKey} />
+          <ContentProgressBar steps={CAROUSEL_STEPS} currentStep={currentStepKey} onStepClick={handleStepClick} />
 
           {chosenAngle && (
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 mb-4">
@@ -819,7 +824,7 @@ export default function InstagramCarousel() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 animate-fade-in">
         <ReturnToOrigin />
-        <ContentProgressBar steps={CAROUSEL_STEPS} currentStep={currentStepKey} />
+        <ContentProgressBar steps={CAROUSEL_STEPS} currentStep={currentStepKey} onStepClick={handleStepClick} />
         <CreditWarning remaining={remainingTotal()} className="mb-4" />
 
         {step === 1 && (

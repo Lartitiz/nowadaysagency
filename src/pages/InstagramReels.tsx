@@ -191,6 +191,11 @@ export default function InstagramReels() {
   ];
   const stepKeyMap: Record<number, string> = { 1: "setup", 2: "setup", 3: "setup", 4: "setup", 5: "setup" };
   const currentStepKey = step === 7 ? "script" : step === 6.5 ? "questions" : step === 6 ? "hooks" : stepKeyMap[step] || "setup";
+  const handleStepClick = (key: string) => {
+    const targetMap: Record<string, number> = { setup: 1, hooks: 6, questions: 6.5, script: 7 };
+    const target = targetMap[key];
+    if (target != null && target < step) setStep(target);
+  };
 
   // Results
   const [hooks, setHooks] = useState<Hook[]>([]);
@@ -368,7 +373,7 @@ export default function InstagramReels() {
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
           <ReturnToOrigin />
-          <ContentProgressBar steps={REEL_STEPS} currentStep={currentStepKey} />
+          <ContentProgressBar steps={REEL_STEPS} currentStep={currentStepKey} onStepClick={handleStepClick} />
 
           <div className="mb-6">
             <h1 className="font-display text-2xl font-bold text-foreground">🎬 Ton script Reel</h1>
@@ -669,7 +674,7 @@ export default function InstagramReels() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <ReturnToOrigin />
-        <ContentProgressBar steps={REEL_STEPS} currentStep={currentStepKey} />
+        <ContentProgressBar steps={REEL_STEPS} currentStep={currentStepKey} onStepClick={handleStepClick} />
 
         <h1 className="font-display text-2xl font-bold text-foreground mb-2">🎬 Générateur de Scripts Reels</h1>
         <p className="text-sm text-muted-foreground mb-6">Flow guidé → 3 hooks au choix → script complet prêt à filmer.</p>
