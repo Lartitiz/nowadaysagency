@@ -572,10 +572,13 @@ export default function InstagramCarousel() {
                 onRegenerate={() => handleGenerateVisual(templateStyle)}
                 regenerateLabel="Régénérer le visuel"
                 calendarData={{
-                  storySequenceDetail: { type: "carousel", carousel_type: carouselType, slides, caption, quality_check: qualityCheck },
+                  storySequenceDetail: {
+                    type: "carousel", carousel_type: carouselType, slides, caption, quality_check: qualityCheck,
+                    ...(visualSlides.length > 0 ? { visual_html: visualSlides.map(vs => ({ slide_number: vs.slide_number, html: vs.html })), template_style: templateStyle } : {}),
+                  },
                   accroche: customHook.trim() || selectedHook,
                 }}
-                ideasData={{ slides, caption, qualityCheck }}
+                ideasData={{ slides, caption, qualityCheck, ...(visualSlides.length > 0 ? { visual_html: visualSlides.map(vs => ({ slide_number: vs.slide_number, html: vs.html })), template_style: templateStyle } : {}) }}
                 ideasContentType="post_instagram"
                 className="mt-4"
               />

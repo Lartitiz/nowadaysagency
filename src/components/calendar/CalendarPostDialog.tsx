@@ -804,6 +804,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               username={igUsername || ownerName}
               displayName={ownerName}
               mediaUrls={mediaUrls}
+              visualHtml={(editingPost?.story_sequence_detail as any)?.visual_html || null}
               onNavigateToGenerator={() => handleNavigateToGenerator("generate")}
               hasAngle={!!angle}
               hasTheme={!!theme.trim()}
@@ -963,7 +964,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
 // ── Preview Tab ──
 
-function PreviewTab({ canal, format, caption, theme, username, displayName, mediaUrls, onNavigateToGenerator, hasAngle, hasTheme }: {
+function PreviewTab({ canal, format, caption, theme, username, displayName, mediaUrls, visualHtml, onNavigateToGenerator, hasAngle, hasTheme }: {
   canal: string;
   format: string | null;
   caption: string | null;
@@ -971,6 +972,7 @@ function PreviewTab({ canal, format, caption, theme, username, displayName, medi
   username: string;
   displayName: string;
   mediaUrls?: string[];
+  visualHtml?: { slide_number: number; html: string }[] | null;
   onNavigateToGenerator: () => void;
   hasAngle: boolean;
   hasTheme: boolean;
@@ -992,6 +994,34 @@ function PreviewTab({ canal, format, caption, theme, username, displayName, medi
             Remplis le thème et l'angle dans l'onglet Éditer.
           </p>
         )}
+      </div>
+    );
+  }
+
+  // Visual HTML slides from carousel generator
+  if (visualHtml && visualHtml.length > 0) {
+    return (
+      <div className="py-2 space-y-4 overflow-y-auto max-h-[60vh]">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">✨ Visuels générés ({visualHtml.length} slides)</p>
+        {visualHtml.map((vs, idx) => (
+          <div key={idx} className="rounded-xl border border-border overflow-hidden bg-card inline-block w-full max-w-[320px] mx-auto block">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 border-b border-border">
+              <span className="text-xs font-medium text-muted-foreground">Slide {vs.slide_number}</span>
+            </div>
+            <div className="relative overflow-hidden" style={{ width: "320px", height: "400px" }}>
+              <div style={{ transform: "scale(0.296)", transformOrigin: "top left", width: "1080px", height: "1350px", position: "absolute", top: 0, left: 0 }}>
+                <iframe
+                  srcDoc={vs.html}
+                  title={`Slide ${vs.slide_number}`}
+                  width="1080"
+                  height="1350"
+                  style={{ border: "none", pointerEvents: "none" }}
+                  sandbox="allow-same-origin"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
