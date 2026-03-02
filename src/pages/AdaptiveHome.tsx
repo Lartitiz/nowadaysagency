@@ -64,20 +64,7 @@ function CollapsibleMissions({ onNavigate }: {onNavigate: (route: string) => voi
   if (dismissed || isLoading) return null;
 
   if (allDone) {
-    return (
-      <div className="rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 p-5 shadow-sm">
-        <Confetti />
-        <p className="font-heading font-bold text-foreground">
-          Bravo ! Tu as posé tes fondations 🎉
-        </p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Tu connais les bases de l'outil. Maintenant, explore librement.
-        </p>
-        <button onClick={dismiss} className="mt-3 text-sm font-medium text-primary hover:underline">
-          Fermer →
-        </button>
-      </div>);
-
+    return null;
   }
 
   return (
