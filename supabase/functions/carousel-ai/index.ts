@@ -451,17 +451,27 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour :
 }
 
 function buildExpressFullPrompt(body: any): string {
-  const { subject, carousel_type, objective, slide_count } = body;
+  const { subject, carousel_type, objective, slide_count, deepening_answers, selected_offer } = body;
   const type = carousel_type || "tips";
   const structureGuide = getStructureGuide(type);
 
-  return `DEMANDE : Génère un carrousel Instagram COMPLET en une seule fois. Tu dois choisir le meilleur hook, puis rédiger toutes les slides et la caption.
+  let deepeningCtx = "";
+  if (deepening_answers) {
+    const answers = Object.entries(deepening_answers)
+      .filter(([, v]) => v && (v as string).trim())
+      .map(([k, v]) => `- ${k}: ${v}`)
+      .join("\n");
+    if (answers) deepeningCtx = `\nRÉPONSES DE L'UTILISATRICE (intègre son vécu, ses mots, ses exemples) :\n${answers}\n\nINTÉGRATION DES RÉPONSES :\n- Les réponses de l'utilisatrice sont du contenu AUTHENTIQUE. Utilise ses mots exacts.\n- Son vécu et ses expressions doivent apparaître naturellement dans les slides.\n- Si elle a donné une anecdote, elle peut devenir le hook ou l'exemple concret.\n`;
+  }
+
+  return `DEMANDE : Génère un carrousel Instagram COMPLET en une seule fois. Tu dois d'abord choisir le meilleur angle éditorial, puis le meilleur hook, puis rédiger toutes les slides et la caption.
 
 Sujet : "${subject || "non précisé"}"
 Type de carrousel : ${type}
 Objectif : ${objective || "engagement"}
 Nombre de slides : ${slide_count || 7}
-
+${selected_offer ? `Offre à mentionner : ${selected_offer}` : "Pas d'offre à mentionner."}
+${deepeningCtx}
 STRUCTURE RECOMMANDÉE :
 ${structureGuide}
 
@@ -474,10 +484,15 @@ RÈGLES :
 - Caption différente du hook slide 1
 - Hashtags : 3-8, mix large + niche
 - Le contenu doit sonner humain, pas IA
+${deepeningCtx ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}
 
 Retourne ce JSON exact :
 {
   "carousel_type": "${type}",
+  "chosen_angle": {
+    "title": "Titre court de l'angle choisi (3-5 mots)",
+    "description": "Pourquoi cet angle est le plus pertinent"
+  },
   "slides": [
     {
       "slide_number": 1,

@@ -1,61 +1,51 @@
 import { useState, useEffect, useRef } from "react";
-import { parseAIResponse } from "@/lib/parse-ai-response";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useBrandCharter } from "@/hooks/use-branding";
 import { useUserPlan } from "@/hooks/use-user-plan";
-import CreditWarning from "@/components/CreditWarning";
-import AppHeader from "@/components/AppHeader";
-import ContentProgressBar from "@/components/ContentProgressBar";
-import ContentActions from "@/components/ContentActions";
-import ReturnToOrigin from "@/components/ReturnToOrigin";
-import BaseReminder from "@/components/BaseReminder";
-import AiGeneratedMention from "@/components/AiGeneratedMention";
-import { Loader2, RefreshCw, Sparkles, Download } from "lucide-react";
-import { exportCarouselPptx } from "@/lib/export-carousel-pptx";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { useSearchParams } from "react-router-dom";
 import { useFormPersist } from "@/hooks/use-form-persist";
+import { useBrandCharter } from "@/hooks/use-branding";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
+import { toast } from "sonner";
+import { Loader2, Download, RefreshCw, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import AppHeader from "@/components/AppHeader";
+import ContentProgressBar from "@/components/ContentProgressBar";
 import CarouselPreview from "@/components/carousel/CarouselPreview";
+import ContentActions from "@/components/ContentActions";
+import CreditWarning from "@/components/CreditWarning";
+import ReturnToOrigin from "@/components/ReturnToOrigin";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import AiGeneratedMention from "@/components/AiGeneratedMention";
+import BaseReminder from "@/components/BaseReminder";
+import { exportCarouselPptx } from "@/lib/export-carousel-pptx";
 import {
-  CarouselTypeStep, CarouselContextStep, CarouselQuestionsStep,
-  CarouselAnglesStep, CarouselHooksStep,
-  CAROUSEL_TYPES, OBJECTIVES,
+  CarouselTypeSubjectStep,
+  CarouselQuestionsStep,
+  CAROUSEL_TYPES,
+  OBJECTIVES,
 } from "@/components/carousel/CarouselForm";
 
-// ── Types ──
-interface Hook {
-  id: string; text: string; word_count: number; style: string;
+interface Slide { slide_number: number; role: string; title: string; body: string; visual_suggestion: string; word_count: number; }
+interface Caption { hook: string; body: string; cta: string; hashtags: string[]; }
+interface QualityCheck { hook_word_count: number; hook_ok: boolean; all_slides_under_50_words: boolean; single_cta: boolean; caption_different_from_hook: boolean; slide_2_works_as_standalone_hook: boolean; score: number; }
+interface TopicSuggestion { subject: string; why_now: string; angle: string; }
+
+function parseAIResponse(raw: string): any {
+  try {
+    if (typeof raw === "object") return raw;
+    const clean = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+    return JSON.parse(clean);
+  } catch {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) { try { return JSON.parse(match[0]); } catch { return {}; } }
+    return {};
+  }
 }
 
-interface Slide {
-  slide_number: number; role: string; title: string; body: string; visual_suggestion: string; word_count: number;
-}
-
-interface Caption {
-  hook: string; body: string; cta: string; hashtags: string[];
-}
-
-interface QualityCheck {
-  hook_word_count: number; hook_ok: boolean; all_slides_under_50_words: boolean;
-  single_cta: boolean; caption_different_from_hook: boolean; slide_2_works_as_standalone_hook: boolean; score: number;
-}
-
-interface TopicSuggestion {
-  subject: string; why_now: string; angle: string;
-}
-
-interface AngleSuggestion {
-  id: string; emoji: string; title: string; description: string;
-}
-
-// ── Deepening questions per carousel type ──
+// ── Deepening questions per carousel type (fallback) ──
 const DEEPENING_QUESTIONS: Record<string, { question: string; placeholder: string }[]> = {
   prise_de_position: [
     { question: "C'est quoi le truc qui t'énerve ou que tu veux déconstruire sur ce sujet ? Le mythe, l'idée reçue, le cliché que tu veux combattre.", placeholder: "Le mythe, l'idée reçue, le cliché..." },
@@ -126,6 +116,7 @@ const DEFAULT_QUESTIONS = [
 export default function InstagramCarousel() {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -146,8 +137,8 @@ export default function InstagramCarousel() {
     objective?: string;
   } | null;
 
-  // Flow: 1=type, 2=context, 3=deepening questions, 4=angles, 5=hooks+structure, 6=slides+caption
-  const [step, setStep] = useState(navState?.expressCarousel ? 6 : 1);
+  // Simplified flow: 1=type+subject, 2=questions, 3=result, 4=visual
+  const [step, setStep] = useState(navState?.expressCarousel ? 3 : 1);
   const [carouselType, setCarouselType] = useState(navState?.carouselType || "");
   const [objective, setObjective] = useState(navState?.objective || "");
   const [subject, setSubject] = useState(navState?.subject || "");
@@ -161,14 +152,8 @@ export default function InstagramCarousel() {
   const [dynamicQuestions, setDynamicQuestions] = useState<{ question: string; placeholder: string }[] | null>(null);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   
-  // Angles state
-  const [angles, setAngles] = useState<AngleSuggestion[]>([]);
-  const [chosenAngle, setChosenAngle] = useState<AngleSuggestion | null>(null);
-  
-  // Hooks & slides state
-  const [hooks, setHooks] = useState<Hook[]>([]);
-  const [selectedHook, setSelectedHook] = useState("");
-  const [customHook, setCustomHook] = useState("");
+  // Result state
+  const [chosenAngle, setChosenAngle] = useState<{ emoji: string; title: string; description?: string } | null>(null);
   const [slides, setSlides] = useState<Slide[]>(navState?.slides || []);
   const [caption, setCaption] = useState<Caption | null>(navState?.caption || null);
   const [qualityCheck, setQualityCheck] = useState<QualityCheck | null>(navState?.qualityCheck || null);
@@ -188,7 +173,7 @@ export default function InstagramCarousel() {
   const [charterData, setCharterData] = useState<any>(null);
   const [charterLoaded, setCharterLoaded] = useState(false);
 
-  // Speech recognition for deepening questions
+  // Speech recognition
   const { isListening, toggle } = useSpeechRecognition((text) => {
     if (activeMicField) {
       setDeepeningAnswers(prev => ({
@@ -213,22 +198,21 @@ export default function InstagramCarousel() {
     "carousel-form",
     { step, carouselType, objective, subject, selectedOffer, slideCount },
     (saved) => {
-      if (navState?.expressCarousel) return; // Don't restore draft in express mode
+      if (navState?.expressCarousel) return;
       if (searchParams.get("calendar_id") || searchParams.get("sujet")) return;
       if (saved.carouselType) setCarouselType(saved.carouselType);
       if (saved.objective) setObjective(saved.objective);
       if (saved.subject) setSubject(saved.subject);
       if (saved.selectedOffer) setSelectedOffer(saved.selectedOffer);
       if (saved.slideCount) setSlideCount(saved.slideCount);
-      if (saved.step && saved.step > 1 && saved.step < 4) setStep(saved.step);
+      // Don't restore beyond step 1 in simplified flow
     }
   );
 
-  // ── Persist generated results (steps 3-6) to sessionStorage so tab switch doesn't lose them ──
+  // ── Persist generated results to sessionStorage ──
   const GENERATED_KEY = "carousel_generated";
   const generatedRestoredRef = useRef(false);
 
-  // Restore on mount
   useEffect(() => {
     if (generatedRestoredRef.current || navState?.expressCarousel) return;
     generatedRestoredRef.current = true;
@@ -238,31 +222,25 @@ export default function InstagramCarousel() {
       const saved = JSON.parse(raw);
       if (saved.dynamicQuestions) setDynamicQuestions(saved.dynamicQuestions);
       if (saved.deepeningAnswers && Object.keys(saved.deepeningAnswers).length) setDeepeningAnswers(saved.deepeningAnswers);
-      if (saved.angles?.length) setAngles(saved.angles);
       if (saved.chosenAngle) setChosenAngle(saved.chosenAngle);
-      if (saved.hooks?.length) setHooks(saved.hooks);
-      if (saved.selectedHook) setSelectedHook(saved.selectedHook);
-      if (saved.customHook) setCustomHook(saved.customHook);
       if (saved.slides?.length) setSlides(saved.slides);
       if (saved.caption) setCaption(saved.caption);
       if (saved.qualityCheck) setQualityCheck(saved.qualityCheck);
       if (saved.publishingTip) setPublishingTip(saved.publishingTip);
       if (saved.currentQuestion != null) setCurrentQuestion(saved.currentQuestion);
-      // Restore step (including steps > 3)
       if (saved.step && saved.step > 1) setStep(saved.step);
     } catch { /* corrupt — ignore */ }
   }, []);
 
-  // Save whenever generated state changes
   useEffect(() => {
-    if (step <= 1) return; // nothing to persist yet
+    if (step <= 1) return;
     try {
       sessionStorage.setItem(GENERATED_KEY, JSON.stringify({
-        step, dynamicQuestions, deepeningAnswers, angles, chosenAngle,
-        hooks, selectedHook, customHook, slides, caption, qualityCheck, publishingTip, currentQuestion,
+        step, dynamicQuestions, deepeningAnswers, chosenAngle,
+        slides, caption, qualityCheck, publishingTip, currentQuestion,
       }));
     } catch { /* quota — ignore */ }
-  }, [step, dynamicQuestions, deepeningAnswers, angles, chosenAngle, hooks, selectedHook, customHook, slides, caption, qualityCheck, publishingTip, currentQuestion]);
+  }, [step, dynamicQuestions, deepeningAnswers, chosenAngle, slides, caption, qualityCheck, publishingTip, currentQuestion]);
 
   const clearDraft = () => {
     clearFormDraft();
@@ -286,28 +264,19 @@ export default function InstagramCarousel() {
       if (post.theme) setSubject(post.theme);
       if (post.objectif && OBJECTIF_TO_CAROUSEL[post.objectif]) setObjective(OBJECTIF_TO_CAROUSEL[post.objectif]);
       const carouselTypeParam = searchParams.get("carousel_type");
-      if (carouselTypeParam) { setCarouselType(carouselTypeParam); setStep(2); }
-      else if (post.angle) {
-        const ANGLE_MAP: Record<string, string> = {
-          "Storytelling": "storytelling", "Mythe à déconstruire": "mythe_realite", "Coup de gueule": "prise_de_position",
-          "Enquête / décryptage": "prise_de_position", "Conseil contre-intuitif": "tips", "Test grandeur nature": "etude_de_cas",
-          "Before / After": "before_after", "Histoire cliente": "etude_de_cas", "Regard philosophique": "prise_de_position", "Surf sur l'actu": "prise_de_position",
-        };
-        if (ANGLE_MAP[post.angle]) { setCarouselType(ANGLE_MAP[post.angle]); setStep(2); }
-      }
+      if (carouselTypeParam) setCarouselType(carouselTypeParam);
       if (!post.theme && post.notes) setSubject(post.notes);
     };
     loadCalendarPost();
   }, [user?.id, searchParams]);
 
   const typeObj = CAROUSEL_TYPES.find(t => t.id === carouselType);
-  // Only show static fallback if dynamic questions failed to load (not while loading)
   const questions = dynamicQuestions || (loadingQuestions ? [] : (DEEPENING_QUESTIONS[carouselType] || DEFAULT_QUESTIONS));
 
-  // Pre-fill from URL params (force override — URL params take priority)
+  // Pre-fill from URL params
   const fromCarouselType = searchParams.get("carousel_type");
   useEffect(() => {
-    if (navState?.expressCarousel) return; // Skip URL param overrides in express mode
+    if (navState?.expressCarousel) return;
     if (fromObjectif) {
       const objMap: Record<string, string> = { visibilite: "shares", confiance: "community", vente: "conversion", credibilite: "saves" };
       if (objMap[fromObjectif]) setObjective(objMap[fromObjectif]);
@@ -315,78 +284,34 @@ export default function InstagramCarousel() {
     if (fromSujet) setSubject(fromSujet);
     if (fromCarouselType && CAROUSEL_TYPES.some(t => t.id === fromCarouselType)) {
       setCarouselType(fromCarouselType);
-      setStep(2);
     }
   }, [fromObjectif, fromSujet, fromCarouselType]);
 
+  // Simplified step labels
   const CAROUSEL_STEPS = [
-    { key: "type", label: "Type" },
-    { key: "context", label: "Contexte" },
+    { key: "setup", label: "Type & Sujet" },
     { key: "questions", label: "Questions" },
-    { key: "angle", label: "Angle" },
-    { key: "hooks", label: "Accroche" },
-    { key: "result", label: "Texte" },
+    { key: "result", label: "Résultat" },
     { key: "visual", label: "Visuel" },
   ];
-  const stepKeyMap: Record<number, string> = { 1: "type", 2: "context", 3: "questions", 4: "angle", 5: "hooks", 6: "result", 7: "visual" };
-  const currentStepKey = stepKeyMap[step] || "type";
+  const stepKeyMap: Record<number, string> = { 1: "setup", 2: "questions", 3: "result", 4: "visual" };
+  const currentStepKey = stepKeyMap[step] || "setup";
 
-  // ── API calls ──
-  const handleGenerateAngles = async () => {
+  // ── Generate carousel (express_full with deepening answers) ──
+  const handleGenerateCarousel = async () => {
     if (!user || quotaBlocked) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("carousel-ai", {
-        body: { type: "suggest_angles", carousel_type: carouselType, subject, objective, deepening_answers: deepeningAnswers, workspace_id: workspaceId },
-      });
-      if (error) throw error;
-      const parsed = parseAIResponse(data?.content || "");
-      setAngles(parsed.angles || []);
-      setStep(4);
-    } catch (e: any) {
-      console.error(e);
-      toast.error("Erreur lors de la suggestion d'angles.");
-    }
-    setLoading(false);
-  };
-
-  const handleGenerateHooks = async () => {
-    if (!user || !subject.trim()) return;
-    setLoading(true);
-    try {
+      const offerCtx = selectedOffer && selectedOffer !== "none" ? offers.find(o => o.id === selectedOffer) : null;
       const { data, error } = await supabase.functions.invoke("carousel-ai", {
         body: {
-          type: "hooks", carousel_type: carouselType, subject, objective, slide_count: slideCount,
+          type: "express_full",
+          carousel_type: carouselType || "tips",
+          subject,
+          objective: objective || "saves",
+          slide_count: slideCount,
           deepening_answers: Object.values(deepeningAnswers).some(v => v.trim()) ? deepeningAnswers : undefined,
-          chosen_angle: chosenAngle || undefined,
-          workspace_id: workspaceId,
-        },
-      });
-      if (error) throw error;
-      const parsed = parseAIResponse(data?.content || "");
-      setHooks(parsed.hooks || []);
-      setStep(5);
-    } catch (e: any) {
-      console.error(e);
-      toast.error("Erreur lors de la génération des accroches.");
-    }
-    setLoading(false);
-  };
-
-  const handleGenerateSlides = async () => {
-    if (!user) return;
-    const hookText = customHook.trim() || selectedHook;
-    if (!hookText) { toast.error("Choisis ou écris une accroche."); return; }
-    setLoading(true);
-    try {
-      const offerCtx = selectedOffer ? offers.find(o => o.id === selectedOffer) : null;
-      const { data, error } = await supabase.functions.invoke("carousel-ai", {
-        body: {
-          type: "slides", carousel_type: carouselType, subject, objective,
-          selected_hook: hookText, slide_count: slideCount,
-          selected_offer: offerCtx ? `${offerCtx.name} (${offerCtx.price_text || "gratuit"})` : null,
-          deepening_answers: Object.values(deepeningAnswers).some(v => v.trim()) ? deepeningAnswers : undefined,
-          chosen_angle: chosenAngle || undefined,
+          selected_offer: offerCtx ? `${offerCtx.name} (${offerCtx.price_text || "gratuit"})` : undefined,
           workspace_id: workspaceId,
         },
       });
@@ -396,7 +321,10 @@ export default function InstagramCarousel() {
       setCaption(parsed.caption || null);
       setQualityCheck(parsed.quality_check || null);
       setPublishingTip(parsed.publishing_tip || "");
+      if (parsed.chosen_angle) setChosenAngle({ emoji: "🎯", ...parsed.chosen_angle });
 
+      // Save to DB
+      const hookText = parsed.slides?.[0]?.title || "";
       const insertRes = await supabase.from("generated_carousels" as any).insert({
         user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, carousel_type: carouselType, subject, objective,
         hook_text: hookText, slide_count: slideCount,
@@ -416,7 +344,7 @@ export default function InstagramCarousel() {
         }).eq("id", calendarPostId);
       }
 
-      setStep(6);
+      setStep(3);
       clearDraft();
     } catch (e: any) {
       console.error(e);
@@ -431,7 +359,7 @@ export default function InstagramCarousel() {
     try {
       const { data: recentPosts } = await (supabase.from("calendar_posts") as any)
         .select("theme").eq(column, value).order("created_at", { ascending: false }).limit(10);
-      const recentStr = recentPosts?.map(p => p.theme).join(", ") || "";
+      const recentStr = recentPosts?.map((p: any) => p.theme).join(", ") || "";
       const { data, error } = await supabase.functions.invoke("carousel-ai", {
         body: { type: "suggest_topics", carousel_type: carouselType, objective, recent_posts: recentStr, workspace_id: workspaceId },
       });
@@ -445,26 +373,24 @@ export default function InstagramCarousel() {
     setLoadingTopics(false);
   };
 
-  const handleSkipQuestions = () => handleGenerateHooks();
+  const handleSkipQuestions = () => handleGenerateCarousel();
 
   const handleNextQuestion = () => {
     if (currentQuestion < questions.length - 1) setCurrentQuestion(prev => prev + 1);
-    else handleGenerateAngles();
+    else handleGenerateCarousel();
   };
 
-  const updateSlide = (index: number, field: "title" | "body", value: string) => {
+  const updateSlide = (index: number, field: "title" | "body", val: string) => {
     const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
     const updated = [...slides];
-    updated[index] = { ...updated[index], [field]: value, word_count: countWords(`${field === "title" ? value : updated[index].title} ${field === "body" ? value : updated[index].body}`) };
+    updated[index] = { ...updated[index], [field]: val, word_count: countWords(`${field === "title" ? val : updated[index].title} ${field === "body" ? val : updated[index].body}`) };
     setSlides(updated);
   };
 
-  const updateCaption = (field: keyof Caption, value: any) => {
+  const updateCaption = (field: keyof Caption, val: any) => {
     if (!caption) return;
-    setCaption({ ...caption, [field]: value });
+    setCaption({ ...caption, [field]: val });
   };
-
-  const totalSteps = 7;
 
   // Load charter data for visual step
   useEffect(() => {
@@ -504,25 +430,20 @@ export default function InstagramCarousel() {
 
   // ── Loading state ──
   if (loading) {
-    const loadingMessages: Record<number, string> = {
-      3: "L'outil analyse tes réponses et propose des angles...",
-      4: "L'outil prépare tes accroches...",
-      5: "L'outil rédige ton carrousel...",
-    };
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-4 sm:px-6 py-16 text-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">{loadingMessages[step] || "L'outil travaille..."}</p>
-          <p className="text-xs text-muted-foreground mt-2">✨ Ça peut prendre quelques secondes.</p>
+          <p className="text-muted-foreground">L'outil rédige ton carrousel complet...</p>
+          <p className="text-xs text-muted-foreground mt-2">✨ Hook, slides, caption : tout arrive d'un coup.</p>
         </main>
       </div>
     );
   }
 
-  // ═══ STEP 7: VISUAL ═══
-  if (step === 7 && slides.length > 0) {
+  // ═══ STEP 4: VISUAL ═══
+  if (step === 4 && slides.length > 0) {
     const TEMPLATE_OPTIONS = [
       { id: "clean", label: "Clean", icon: "—", desc: "Épuré, aéré" },
       { id: "bold", label: "Bold", icon: "B", desc: "Impact fort" },
@@ -544,7 +465,6 @@ export default function InstagramCarousel() {
           <h1 className="font-display text-2xl font-bold text-foreground mb-2">✨ Visuel du carrousel</h1>
           <p className="text-sm text-muted-foreground mb-6">Choisis un style de template pour générer les visuels de tes slides.</p>
 
-          {/* Charter warning */}
           {charterLoaded && !charterData && (
             <div className="rounded-xl border border-border bg-amber-50 dark:bg-amber-950/20 p-4 mb-6">
               <p className="text-sm text-foreground">Tu n'as pas encore de charte graphique. L'outil va utiliser des couleurs par défaut.</p>
@@ -555,7 +475,6 @@ export default function InstagramCarousel() {
             </div>
           )}
 
-          {/* Visual loading */}
           {visualLoading && (
             <div className="text-center py-16">
               <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
@@ -564,7 +483,6 @@ export default function InstagramCarousel() {
             </div>
           )}
 
-          {/* Template selector (show if no visual yet or to regenerate) */}
           {!visualLoading && visualSlides.length === 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
               {TEMPLATE_OPTIONS.map(t => (
@@ -581,7 +499,6 @@ export default function InstagramCarousel() {
             </div>
           )}
 
-          {/* Visual preview */}
           {!visualLoading && visualSlides.length > 0 && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
@@ -606,9 +523,7 @@ export default function InstagramCarousel() {
                       <span className="text-xs font-medium text-muted-foreground">Slide {vs.slide_number}</span>
                     </div>
                     <div className="relative overflow-hidden" style={{ width: "378px", height: "472px" }}>
-                      <div
-                        style={{ transform: "scale(0.35)", transformOrigin: "top left", width: "1080px", height: "1350px", position: "absolute", top: 0, left: 0 }}
-                      >
+                      <div style={{ transform: "scale(0.35)", transformOrigin: "top left", width: "1080px", height: "1350px", position: "absolute", top: 0, left: 0 }}>
                         <iframe
                           srcDoc={vs.html}
                           title={`Slide ${vs.slide_number}`}
@@ -623,7 +538,6 @@ export default function InstagramCarousel() {
                 ))}
               </div>
 
-              {/* Actions */}
               <ContentActions
                 content={slides.map(s => `--- SLIDE ${s.slide_number} (${s.role}) ---\n${s.title}${s.body ? `\n${s.body}` : ""}`).join("\n\n") + (caption ? `\n\n--- CAPTION ---\n${caption.hook}\n\n${caption.body}\n\n${caption.cta}\n\n${caption.hashtags.map(h => `#${h}`).join(" ")}` : "")}
                 canal="instagram"
@@ -638,21 +552,20 @@ export default function InstagramCarousel() {
                     type: "carousel", carousel_type: carouselType, slides, caption, quality_check: qualityCheck,
                     ...(visualSlides.length > 0 ? { visual_html: visualSlides.map(vs => ({ slide_number: vs.slide_number, html: vs.html })), template_style: templateStyle } : {}),
                   },
-                  accroche: customHook.trim() || selectedHook,
+                  accroche: slides[0]?.title || "",
                 }}
                 ideasData={{ slides, caption, qualityCheck, ...(visualSlides.length > 0 ? { visual_html: visualSlides.map(vs => ({ slide_number: vs.slide_number, html: vs.html })), template_style: templateStyle } : {}) }}
                 ideasContentType="post_instagram"
                 className="mt-4"
               />
-              <Button size="sm" variant="outline" onClick={() => { setStep(6); setVisualSlides([]); }} className="rounded-full gap-1.5 text-xs mt-2">
+              <Button size="sm" variant="outline" onClick={() => { setStep(3); setVisualSlides([]); }} className="rounded-full gap-1.5 text-xs mt-2">
                 ← Modifier le texte
               </Button>
             </div>
           )}
 
-          {/* Back to text */}
           {!visualLoading && visualSlides.length === 0 && (
-            <Button variant="ghost" size="sm" onClick={() => setStep(6)} className="text-xs text-muted-foreground mt-4">
+            <Button variant="ghost" size="sm" onClick={() => setStep(3)} className="text-xs text-muted-foreground mt-4">
               ← Retour au texte
             </Button>
           )}
@@ -661,13 +574,22 @@ export default function InstagramCarousel() {
     );
   }
 
-  // ═══ STEP 6: RESULT ═══
-  if (step >= 6 && slides.length > 0) {
+  // ═══ STEP 3: RESULT ═══
+  if (step >= 3 && slides.length > 0) {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 animate-fade-in">
           <ReturnToOrigin />
+          <ContentProgressBar steps={CAROUSEL_STEPS} currentStep={currentStepKey} />
+
+          {chosenAngle && (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 mb-4">
+              <p className="text-xs text-muted-foreground">Angle choisi par l'IA</p>
+              <p className="text-sm font-medium text-foreground">{chosenAngle.title}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{chosenAngle.description}</p>
+            </div>
+          )}
 
           <CarouselPreview
             slides={slides}
@@ -680,8 +602,8 @@ export default function InstagramCarousel() {
             chosenAngle={chosenAngle}
             onUpdateSlide={updateSlide}
             onUpdateCaption={updateCaption}
-            onRegenerate={() => { setStep(5); setSlides([]); setCaption(null); }}
-            onNew={() => { setStep(1); setSlides([]); setHooks([]); setCaption(null); setAngles([]); setChosenAngle(null); setDeepeningAnswers({}); setCurrentQuestion(0); setVisualSlides([]); setTemplateStyle(""); }}
+            onRegenerate={() => { setSlides([]); setCaption(null); handleGenerateCarousel(); }}
+            onNew={() => { setStep(1); setSlides([]); setCaption(null); setChosenAngle(null); setDeepeningAnswers({}); setCurrentQuestion(0); setVisualSlides([]); setTemplateStyle(""); }}
           />
 
           <ContentActions
@@ -691,18 +613,17 @@ export default function InstagramCarousel() {
             theme={subject || typeObj?.label || "Carrousel"}
             objectif={objective}
             calendarPostId={calendarPostId || undefined}
-            onRegenerate={() => { setStep(5); setSlides([]); setCaption(null); }}
+            onRegenerate={() => { setSlides([]); setCaption(null); handleGenerateCarousel(); }}
             regenerateLabel="Régénérer le texte"
             calendarData={{
               storySequenceDetail: { type: "carousel", carousel_type: carouselType, slides, caption, quality_check: qualityCheck },
-              accroche: customHook.trim() || selectedHook,
+              accroche: slides[0]?.title || "",
             }}
             ideasData={{ slides, caption, qualityCheck }}
             ideasContentType="post_instagram"
             className="mt-4"
           />
 
-          {/* Red flags checker on caption */}
           {caption && (
             <div className="mt-6">
               <RedFlagsChecker
@@ -720,10 +641,9 @@ export default function InstagramCarousel() {
             </div>
           )}
 
-          {/* Generate visual button */}
           <div className="mt-6 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-5 text-center">
             <p className="text-sm font-medium text-foreground mb-2">Ton texte est prêt ? Passe aux visuels !</p>
-            <Button onClick={() => { setStep(7); setVisualSlides([]); }} className="gap-2">
+            <Button onClick={() => { setStep(4); setVisualSlides([]); }} className="gap-2">
               <Sparkles className="h-4 w-4" /> Générer le visuel
             </Button>
           </div>
@@ -735,7 +655,7 @@ export default function InstagramCarousel() {
     );
   }
 
-  // ═══ STEPS 1-5 ═══
+  // ═══ STEPS 1-2 ═══
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -745,17 +665,9 @@ export default function InstagramCarousel() {
         <CreditWarning remaining={remainingTotal()} className="mb-4" />
 
         {step === 1 && (
-          <CarouselTypeStep
+          <CarouselTypeSubjectStep
             carouselType={carouselType}
-            onSelectType={(id) => { setCarouselType(id); setStep(2); }}
-            draftRestored={draftRestored}
-            onDiscardDraft={() => { clearDraft(); setStep(1); setCarouselType(""); setObjective(""); setSubject(""); setSelectedOffer(""); setSlideCount(7); }}
-          />
-        )}
-
-        {step === 2 && (
-          <CarouselContextStep
-            typeObj={typeObj}
+            onSelectType={setCarouselType}
             objective={objective}
             setObjective={setObjective}
             subject={subject}
@@ -766,12 +678,10 @@ export default function InstagramCarousel() {
             topics={topics}
             loadingTopics={loadingTopics}
             onSuggestTopics={handleSuggestTopics}
-            onBack={() => setStep(1)}
             onNext={() => { 
-              setStep(3); 
+              setStep(2); 
               setCurrentQuestion(0);
               setDynamicQuestions(null);
-              // Generate dynamic questions
               if (subject.trim()) {
                 setLoadingQuestions(true);
                 supabase.functions.invoke("carousel-ai", {
@@ -791,47 +701,22 @@ export default function InstagramCarousel() {
               }
             }}
             subjectPlaceholder={`Ex : "${activityExamples.post_examples[0]}"`}
+            draftRestored={draftRestored}
+            onDiscardDraft={() => { clearDraft(); setStep(1); setCarouselType(""); setObjective(""); setSubject(""); setSelectedOffer(""); setSlideCount(7); }}
           />
         )}
 
-        {step === 3 && (
+        {step === 2 && (
           <CarouselQuestionsStep
             typeObj={typeObj}
             questions={questions}
             currentQuestion={currentQuestion}
             deepeningAnswers={deepeningAnswers}
-            onAnswerChange={(key, value) => setDeepeningAnswers(prev => ({ ...prev, [key]: value }))}
-            onPrevQuestion={() => { if (currentQuestion > 0) setCurrentQuestion(prev => prev - 1); else setStep(2); }}
+            onAnswerChange={(key, val) => setDeepeningAnswers(prev => ({ ...prev, [key]: val }))}
+            onPrevQuestion={() => { if (currentQuestion > 0) setCurrentQuestion(prev => prev - 1); else setStep(1); }}
             onNextQuestion={handleNextQuestion}
             onSkip={handleSkipQuestions}
-            step={step}
-            totalSteps={totalSteps}
             loadingQuestions={loadingQuestions}
-          />
-        )}
-
-        {step === 4 && (
-          <CarouselAnglesStep
-            angles={angles}
-            onSelectAngle={(angle) => { setChosenAngle(angle); handleGenerateHooks(); }}
-            onRefreshAngles={handleGenerateAngles}
-            onBack={() => { setStep(3); setCurrentQuestion(0); }}
-          />
-        )}
-
-        {step === 5 && (
-          <CarouselHooksStep
-            typeObj={typeObj}
-            hooks={hooks}
-            selectedHook={selectedHook}
-            customHook={customHook}
-            slideCount={slideCount}
-            onSelectHook={(text) => { setSelectedHook(text); setCustomHook(""); }}
-            onCustomHookChange={(v) => { setCustomHook(v); setSelectedHook(""); }}
-            onSlideCountChange={setSlideCount}
-            onBack={() => setStep(chosenAngle ? 4 : 2)}
-            onGenerate={handleGenerateSlides}
-            hasAngle={!!chosenAngle}
           />
         )}
       </main>
