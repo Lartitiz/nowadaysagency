@@ -9,14 +9,24 @@ import { toast } from "sonner";
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | "loading" | "result";
 
+interface ContentIdea {
+  subject: string;
+  hook: string;
+  angle: string;
+  objective_tag: string;
+  why_it_works: string;
+  brief: string;
+}
+
 interface ContentResult {
-  recommended_subject: string;
-  subject_alternatives: string[];
+  ideas?: ContentIdea[];
   recommended_format: string;
   format_reason: string;
   redirect_route: string;
-  redirect_params: { subject: string; objective: string };
-  quick_brief: string;
+  recommended_subject?: string;
+  subject_alternatives?: string[];
+  redirect_params?: { subject: string; objective: string };
+  quick_brief?: string;
 }
 
 interface Props {
@@ -100,6 +110,7 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
   const [tonEnvie, setTonEnvie] = useState("");
   const [result, setResult] = useState<ContentResult | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [selectedIdea, setSelectedIdea] = useState<ContentIdea | null>(null);
 
   const reset = () => {
     setStep(1);
@@ -112,6 +123,7 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
     setTonEnvie("");
     setResult(null);
     setSelectedSubject(null);
+    setSelectedIdea(null);
   };
 
   const handleOpenChange = (v: boolean) => {
@@ -187,13 +199,31 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
 
   const handleGo = () => {
     if (!result) return;
-    const finalSubject = selectedSubject || result.recommended_subject;
+
+    let finalSubject: string;
+    let finalObjective: string;
+    let route: string;
+
+    if (selectedIdea) {
+      finalSubject = selectedIdea.subject;
+      finalObjective = selectedIdea.objective_tag || objectif;
+      route = result.redirect_route || "/creer";
+    } else if (result.ideas?.length) {
+      finalSubject = result.ideas[0].subject;
+      finalObjective = result.ideas[0].objective_tag || objectif;
+      route = result.redirect_route || "/creer";
+    } else {
+      finalSubject = selectedSubject || result.recommended_subject || "";
+      finalObjective = result.redirect_params?.objective || objectif;
+      route = result.redirect_route || "/creer";
+    }
+
     const params = new URLSearchParams({
       subject: finalSubject,
-      objective: result.redirect_params?.objective || objectif,
+      objective: finalObjective,
     });
     onOpenChange(false);
-    navigate(`${result.redirect_route}?${params.toString()}`);
+    navigate(`${route}?${params.toString()}`);
   };
 
   const handleSelectAlternative = (alt: string) => {
@@ -400,49 +430,106 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
           {/* Result */}
           {step === "result" && result && (
             <div className="space-y-4 animate-fade-in">
-              {/* Subject */}
-              <div className="rounded-xl border border-primary/20 bg-[hsl(var(--rose-pale))] p-4 space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sujet recommandé</p>
-                <p className="text-sm font-bold text-foreground">{selectedSubject || result.recommended_subject}</p>
-              </div>
-
-              {/* Alternatives (if no subject was provided) */}
-              {!hasSujet && result.subject_alternatives?.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-muted-foreground">Autres idées :</p>
-                  {[result.recommended_subject, ...result.subject_alternatives].map((alt, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleSelectAlternative(alt)}
-                      className={`w-full text-left rounded-lg border p-2.5 text-sm transition-all ${
-                        (selectedSubject || result.recommended_subject) === alt
-                          ? "border-primary bg-primary/5 font-medium text-foreground"
-                          : "border-border bg-card text-muted-foreground hover:border-primary/50"
-                      }`}
-                    >
-                      {alt}
-                    </button>
-                  ))}
-                </div>
+              {/* Ideas grid */}
+              {result.ideas?.length ? (
+                <>
+                  <p className="text-sm font-medium text-foreground">6 idées pour toi. Choisis celle qui te fait vibrer :</p>
+                  <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+                    {result.ideas.map((idea, i) => {
+                      const isSelected = selectedIdea === idea;
+                      const objectiveEmojis: Record<string, string> = {
+                        visibilite: "👀",
+                        engagement: "🤝",
+                        vente: "💰",
+                        credibilite: "🎓",
+                      };
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setSelectedIdea(isSelected ? null : idea)}
+                          className={`w-full text-left rounded-xl border-2 p-3.5 transition-all ${
+                            isSelected
+                              ? "border-primary bg-primary/5 shadow-sm"
+                              : "border-border bg-card hover:border-primary/40"
+                          }`}
+                        >
+                          <p className={`text-sm font-bold leading-snug ${isSelected ? "text-primary" : "text-foreground"}`}>
+                            « {idea.hook} »
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                            {idea.subject}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                              {idea.angle}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {objectiveEmojis[idea.objective_tag] || "✨"} {idea.objective_tag}
+                            </span>
+                          </div>
+                          {isSelected && (
+                            <div className="mt-3 pt-3 border-t border-border/50 space-y-2 animate-fade-in">
+                              <p className="text-xs text-foreground leading-relaxed">{idea.brief}</p>
+                              <p className="text-[11px] text-muted-foreground italic">{idea.why_it_works}</p>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                /* Fallback : ancien format */
+                <>
+                  <div className="rounded-xl border border-primary/20 bg-[hsl(var(--rose-pale))] p-4 space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sujet recommandé</p>
+                    <p className="text-sm font-bold text-foreground">{selectedSubject || result.recommended_subject}</p>
+                  </div>
+                  {!hasSujet && result.subject_alternatives && result.subject_alternatives.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-semibold text-muted-foreground">Autres idées :</p>
+                      {[result.recommended_subject, ...result.subject_alternatives].map((alt, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSelectAlternative(alt!)}
+                          className={`w-full text-left rounded-lg border p-2.5 text-sm transition-all ${
+                            (selectedSubject || result.recommended_subject) === alt
+                              ? "border-primary bg-primary/5 font-medium text-foreground"
+                              : "border-border bg-card text-muted-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          {alt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {result.quick_brief && (
+                    <div className="rounded-xl border border-border bg-card p-3 space-y-1">
+                      <p className="text-xs font-semibold text-muted-foreground">Mini-brief</p>
+                      <p className="text-sm text-foreground leading-relaxed">{result.quick_brief}</p>
+                    </div>
+                  )}
+                </>
               )}
 
-              {/* Format */}
+              {/* Format info */}
               <div className="rounded-xl border border-border bg-card p-3 space-y-1">
                 <p className="text-xs font-semibold text-muted-foreground">Format recommandé</p>
                 <p className="text-sm font-bold text-foreground">{result.recommended_format}</p>
                 <p className="text-xs text-muted-foreground italic">{result.format_reason}</p>
               </div>
 
-              {/* Brief */}
-              <div className="rounded-xl border border-border bg-card p-3 space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground">Mini-brief</p>
-                <p className="text-sm text-foreground leading-relaxed">{result.quick_brief}</p>
-              </div>
-
               {/* CTA */}
-              <Button onClick={handleGo} className="w-full gap-2 text-base h-12">
+              <Button
+                onClick={handleGo}
+                disabled={!!(result.ideas?.length && !selectedIdea)}
+                className="w-full gap-2 text-base h-12"
+              >
                 <Rocket className="h-5 w-5" /> C'est parti, on crée !
               </Button>
+              {result.ideas?.length && !selectedIdea && (
+                <p className="text-xs text-center text-muted-foreground">Choisis une idée pour continuer</p>
+              )}
             </div>
           )}
         </div>
