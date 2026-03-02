@@ -12,6 +12,7 @@ import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
 // useCoachingFlow removed — all interactions now go through the AI edge function
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { parseAIResponse } from "@/lib/parse-ai-response";
 import { LayoutGrid } from "lucide-react";
 import { useDemoContext } from "@/contexts/DemoContext";
 import AppHeader from "@/components/AppHeader";
@@ -213,6 +214,7 @@ export default function ChatGuidePage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [showOldDivider, setShowOldDivider] = useState(false);
+  const [expressLoading, setExpressLoading] = useState<string | null>(null);
 
   const firstName = isDemoMode ? "Léa" : ((profile as any)?.prenom || "toi");
 
@@ -839,8 +841,10 @@ export default function ChatGuidePage() {
                         {msg.actions.map((action, i) => (
                           <button
                             key={i}
-                            onClick={() => {
-                               const validRoutes = [
+                            disabled={!!expressLoading}
+                            onClick={async () => {
+                              const baseRoute = action.route.split("?")[0];
+                              const validRoutes = [
                                  "/creer", "/calendrier", "/branding", "/branding/section",
                                 "/branding/coaching", "/branding/proposition/recap",
                                 "/branding/charter", "/branding/offres",
@@ -852,7 +856,51 @@ export default function ChatGuidePage() {
                                 "/dashboard", "/dashboard/guide", "/profil",
                                 "/idees", "/pricing", "/abonnement",
                               ];
-                              const baseRoute = action.route.split("?")[0];
+
+                              // Express carousel generation
+                              if (baseRoute === "/instagram/carousel") {
+                                const params = new URLSearchParams(action.route.split("?")[1] || "");
+                                const sujet = params.get("sujet") || "";
+                                const carouselType = params.get("carousel_type") || "tips";
+                                const objectif = params.get("objectif") || "saves";
+
+                                setExpressLoading(action.route);
+                                toast.info("⚡ Génération express du carrousel...");
+                                try {
+                                  const { data, error } = await supabase.functions.invoke("carousel-ai", {
+                                    body: {
+                                      type: "express_full",
+                                      carousel_type: carouselType,
+                                      subject: sujet,
+                                      objective: objectif,
+                                      slide_count: 7,
+                                      workspace_id: workspaceId,
+                                    },
+                                  });
+                                  if (error) throw error;
+                                  const parsed = parseAIResponse(data?.content || "");
+                                  navigate("/instagram/carousel", {
+                                    state: {
+                                      expressCarousel: true,
+                                      slides: parsed.slides,
+                                      caption: parsed.caption,
+                                      qualityCheck: parsed.quality_check,
+                                      publishingTip: parsed.publishing_tip,
+                                      carouselType: parsed.carousel_type || carouselType,
+                                      subject: sujet,
+                                      objective: objectif,
+                                    },
+                                  });
+                                } catch (e) {
+                                  console.error("Express carousel error:", e);
+                                  toast.error("Erreur lors de la génération express. On t'envoie vers le mode guidé.");
+                                  navigate(action.route);
+                                } finally {
+                                  setExpressLoading(null);
+                                }
+                                return;
+                              }
+
                               if (validRoutes.includes(baseRoute) || validRoutes.some(r => baseRoute.startsWith(r + "/"))) {
                                 navigate(action.route);
                               } else {
@@ -864,8 +912,17 @@ export default function ChatGuidePage() {
                             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all bg-primary/10 text-primary hover:bg-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30"
                             style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
                           >
-                            {getIcon(action.icon, "h-4 w-4")}
-                            {action.label}
+                            {expressLoading === action.route ? (
+                              <span className="flex items-center gap-2">
+                                <span className="h-3.5 w-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                Génération...
+                              </span>
+                            ) : (
+                              <>
+                                {getIcon(action.icon, "h-4 w-4")}
+                                {action.label}
+                              </>
+                            )}
                           </button>
                         ))}
                       </div>
