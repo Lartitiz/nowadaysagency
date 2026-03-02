@@ -174,13 +174,23 @@ export default function CarouselResult({
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Aperçu des visuels ({visualSlides.length} slides)
           </p>
-          <div className="grid grid-cols-2 gap-2">
-            {visualSlides.map((vs, idx) => (
-              <div
-                key={idx}
-                className="rounded-lg border border-border overflow-hidden aspect-square"
-                dangerouslySetInnerHTML={{ __html: vs.html }}
-              />
+          <div className="grid grid-cols-2 gap-3">
+            {visualSlides.map((vs) => (
+              <div key={vs.slide_number} className="space-y-1">
+                <p className="text-[10px] font-mono text-muted-foreground text-center">
+                  Slide {vs.slide_number}
+                </p>
+                <div className="relative overflow-hidden rounded-lg border border-border" style={{ aspectRatio: "4/5" }}>
+                  <div style={{ position: "absolute", top: 0, left: 0, width: "1080px", height: "1350px", transform: "scale(0.35)", transformOrigin: "top left" }}>
+                    <iframe
+                      srcDoc={vs.html}
+                      title={`Slide ${vs.slide_number}`}
+                      sandbox="allow-same-origin"
+                      style={{ width: "1080px", height: "1350px", border: "none", pointerEvents: "none" }}
+                    />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         </div>
