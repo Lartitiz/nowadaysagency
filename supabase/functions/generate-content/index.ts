@@ -133,36 +133,31 @@ PROFIL DE L'UTILISATRICE :
 ${wFullContext}
 
 CONSIGNE :
-Tu es l'assistant com' de cette utilisatrice. Génère exactement 3 contenus COMPLETS et prêts à publier pour sa semaine sur Instagram.
+Tu es l'assistant com' de cette utilisatrice. Génère exactement 3 IDÉES DE SUJETS courtes et percutantes pour sa semaine sur Instagram.
 
 IMPORTANT :
-- Chaque contenu doit être COMPLET : accroche + corps + CTA. Pas juste une idée, un VRAI post qu'elle peut copier-coller.
-- Le ton doit correspondre EXACTEMENT à sa voix de marque (ses expressions, son style, son niveau de langage).
-- Varie les objectifs : 1 contenu "inspirer", 1 contenu "éduquer", 1 contenu "engager" ou "vendre".
-- Varie les formats : au moins 1 carrousel et 1 post photo ou reel.
-- Les accroches doivent être percutantes et spécifiques à son activité (pas des accroches génériques).
-- Chaque contenu fait entre 100 et 300 mots.
-- Pas d'emojis dans les accroches. Les emojis dans le corps sont OK mais avec parcimonie.
-- Utilise les piliers de contenu de l'utilisatrice si disponibles.
-- Si elle a un persona défini, adresse-toi à cette cible spécifique.
+- Chaque idée = UNE PHRASE COURTE (max 12 mots), formulée comme un sujet de post concret et spécifique.
+- PAS de post complet, PAS de corps de texte, PAS de CTA. Juste le sujet.
+- Les idées doivent être ULTRA-SPÉCIFIQUES à son activité, sa cible, ses piliers. Pas de sujets génériques comme "Partage ton parcours".
+- Inspire-toi de ses piliers de contenu, de son combat, de sa cible, de son offre.
+- Varie les objectifs : 1 idée "inspirer", 1 idée "éduquer", 1 idée "engager" ou "vendre".
+- Suggère le format le plus adapté à chaque idée.
+- Formule chaque idée comme si tu disais à une copine "Tiens, tu devrais parler de…"
 
 STRUCTURE DE RÉPONSE (JSON strict) :
 [
   {
-    "theme": "Le sujet en une phrase courte",
-    "accroche": "La première phrase qui accroche (max 20 mots, percutante)",
-    "fullContent": "Le contenu complet du post (accroche incluse + corps + CTA)",
-    "contentPreview": "Les 2-3 premières lignes après l'accroche (pour la preview)",
-    "format": "post_carrousel" | "reel" | "post_photo" | "story_serie",
-    "canal": "instagram",
+    "idea": "Le sujet en une phrase courte et percutante (max 12 mots)",
+    "format": "post" | "carousel" | "reel" | "story",
     "objective": "inspirer" | "eduquer" | "vendre" | "engager",
-    "suggestedDay": "Mardi" | "Jeudi" | "Samedi" (répartis dans la semaine)
+    "pillar": "Le pilier de contenu associé (si applicable, sinon null)"
   }
 ]
 
 Réponds UNIQUEMENT avec le JSON, sans markdown, sans backticks, sans explication.`;
 
-        userPrompt = "Génère mes 3 contenus de la semaine.";
+        userPrompt = "Génère mes 3 idées de sujets de la semaine.";
+
 
       } else if (type === "ideas") {
         // SECTION 1 (principes) + SECTION 2 (frameworks pour les accroches)
@@ -703,13 +698,13 @@ Reponds en JSON :
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-2.5-flash-lite",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          temperature: 0.8,
-          max_tokens: 2500,
+          temperature: 0.85,
+          max_tokens: 500,
         }),
       });
 
