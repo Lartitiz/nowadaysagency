@@ -179,11 +179,13 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
       const profile = profileData || {};
 
+      const validObjectifs = ["visibilite", "confiance", "vente", "credibilite"];
+      const safeObjectif = objectif && validObjectifs.includes(objectif) ? objectif : null;
       const res = await supabase.functions.invoke("generate-content", {
         body: {
           type: "calendar-quick",
           theme,
-          objectif,
+          objectif: safeObjectif,
           angle,
           format: format || "post_carrousel",
           notes,
