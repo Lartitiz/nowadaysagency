@@ -168,14 +168,71 @@ export default function CreerUnifie() {
   };
 
   const handleEdit = () => {
-    // Extract text content from result for editing
     const r = result?.raw || result;
     let text = "";
-    if (r?.content) text = r.content;
-    else if (r?.post) text = r.post;
-    else if (r?.text) text = r.text;
-    else if (r?.hook && r?.body) text = [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
-    else text = JSON.stringify(r, null, 2);
+
+    if (selectedFormat === "carousel" && r?.slides) {
+      const slidesText = (r.slides as any[])
+        .map((s: any) => {
+          const header = `--- SLIDE ${s.slide_number} (${s.role || ""}) ---`;
+          const parts = [s.title, s.body].filter(Boolean);
+          return `${header}\n${parts.join("\n")}`;
+        })
+        .join("\n\n");
+      const captionParts: string[] = [];
+      if (r.caption?.hook) captionParts.push(r.caption.hook);
+      if (r.caption?.body) captionParts.push(r.caption.body);
+      if (r.caption?.cta) captionParts.push(r.caption.cta);
+      const captionText = captionParts.length > 0
+        ? `\n\n--- CAPTION ---\n${captionParts.join("\n\n")}`
+        : "";
+      const hashtagsText = r.caption?.hashtags?.length > 0
+        ? `\n\n${(r.caption.hashtags as string[]).map((h: string) => `#${h.replace(/^#/, "")}`).join(" ")}`
+        : "";
+      text = slidesText + captionText + hashtagsText;
+
+    } else if (selectedFormat === "reel" && r?.sections) {
+      text = (r.sections as any[])
+        .map((s: any) => {
+          const header = `--- ${s.label || s.section_label || `Section ${s.section_number || ""}`} (${s.timing || ""}) ---`;
+          const parts = [s.texte_parle, s.texte_overlay, s.action].filter(Boolean);
+          return `${header}\n${parts.join("\n")}`;
+        })
+        .join("\n\n");
+
+    } else if (selectedFormat === "story" && (r?.stories || r?.sequences || r?.slides)) {
+      const stories = r.stories || r.sequences || r.slides || [];
+      text = (stories as any[])
+        .map((s: any, i: number) => {
+          const header = `--- STORY ${s.number || i + 1} (${s.type || s.format || ""}) ---`;
+          const content = s.text || s.texte || s.content || s.instruction || "";
+          const sticker = s.sticker ? `\n🏷️ Sticker : ${s.sticker}` : "";
+          return `${header}\n${content}${sticker}`;
+        })
+        .join("\n\n");
+
+    } else if (selectedFormat === "linkedin" && (r?.hook || r?.full_text)) {
+      if (r.full_text) {
+        text = r.full_text;
+      } else {
+        text = [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
+      }
+      if (r.hashtags?.length > 0) {
+        text += `\n\n${(r.hashtags as string[]).join(" ")}`;
+      }
+
+    } else if (r?.content) {
+      text = r.content;
+    } else if (r?.post) {
+      text = r.post;
+    } else if (r?.text) {
+      text = r.text;
+    } else if (r?.hook && r?.body) {
+      text = [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
+    } else {
+      text = JSON.stringify(r, null, 2);
+    }
+
     setEditContent(text);
     setStep("edit");
   };
