@@ -459,16 +459,16 @@ export default function InstagramCarousel() {
   // ── Loading state ──
   if (loading) {
     const loadingMessages: Record<number, string> = {
-      3: "L'IA analyse tes réponses et propose des angles...",
-      4: "L'IA prépare tes accroches...",
-      5: "L'IA rédige ton carrousel...",
+      3: "L'outil analyse tes réponses et propose des angles...",
+      4: "L'outil prépare tes accroches...",
+      5: "L'outil rédige ton carrousel...",
     };
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="mx-auto max-w-3xl px-4 sm:px-6 py-16 text-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">{loadingMessages[step] || "L'IA travaille..."}</p>
+          <p className="text-muted-foreground">{loadingMessages[step] || "L'outil travaille..."}</p>
           <p className="text-xs text-muted-foreground mt-2">✨ Ça peut prendre quelques secondes.</p>
         </main>
       </div>
@@ -501,7 +501,7 @@ export default function InstagramCarousel() {
           {/* Charter warning */}
           {charterLoaded && !charterData && (
             <div className="rounded-xl border border-border bg-amber-50 dark:bg-amber-950/20 p-4 mb-6">
-              <p className="text-sm text-foreground">Tu n'as pas encore de charte graphique. L'IA va utiliser des couleurs par défaut.</p>
+              <p className="text-sm text-foreground">Tu n'as pas encore de charte graphique. L'outil va utiliser des couleurs par défaut.</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Pour des visuels vraiment à ton image,{" "}
                 <a href="/branding/charter" className="text-primary hover:underline">remplis ta charte graphique</a>.
@@ -513,7 +513,7 @@ export default function InstagramCarousel() {
           {visualLoading && (
             <div className="text-center py-16">
               <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
-              <p className="text-muted-foreground">L'IA dessine ton carrousel...</p>
+              <p className="text-muted-foreground">L'outil dessine ton carrousel...</p>
               <p className="text-xs text-muted-foreground mt-2">✨ Ça peut prendre 15-30 secondes.</p>
             </div>
           )}
