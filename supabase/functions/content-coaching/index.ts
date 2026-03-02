@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { answers, workspace_id } = body;
-    const { objectif, sujet, format, ton_envie } = answers || {};
+    const { objectif, sujet, canal, format, ton_envie } = answers || {};
 
     if (!objectif || !format || !ton_envie) {
       return new Response(JSON.stringify({ error: "Réponses incomplètes" }), {
@@ -57,9 +57,13 @@ Deno.serve(async (req) => {
     };
     const FORMAT_LABELS: Record<string, string> = {
       post_texte: "Post texte (légende Instagram ou post LinkedIn)",
-      carrousel: "Carrousel Instagram",
+      carrousel: "Carrousel",
       reel: "Reel vidéo court",
       story: "Story Instagram",
+    };
+    const CANAL_LABELS: Record<string, string> = {
+      instagram: "Instagram",
+      linkedin: "LinkedIn",
     };
     const TON_LABELS: Record<string, string> = {
       intime: "Intime et personnel (vulnérabilité, authenticité)",
@@ -69,6 +73,7 @@ Deno.serve(async (req) => {
 
     const objectifLabel = OBJECTIF_LABELS[objectif] || objectif;
     const formatLabel = FORMAT_LABELS[format] || format;
+    const canalLabel = CANAL_LABELS[canal] || canal || "Instagram";
     const tonLabel = TON_LABELS[ton_envie] || ton_envie;
 
     const sbService = createClient(
@@ -116,6 +121,7 @@ DERNIERS POSTS (pour ne pas répéter) :
 ${recentPosts}
 
 RÉPONSES DE L'UTILISATRICE :
+- Canal : ${canalLabel}
 - Objectif : ${objectifLabel}
 - Sujet : ${sujet || "PAS DE SUJET → l'utilisatrice a besoin d'idées concrètes"}
 - Format préféré : ${formatLabel}
@@ -126,12 +132,17 @@ ${!sujet ? `L'UTILISATRICE N'A PAS DE SUJET :
 - ÉVITE les sujets déjà traités dans les derniers posts
 - Chaque idée doit être un angle précis, pas un thème vague (ex: "Les 3 erreurs que je vois sur 90% des sites de photographes" plutôt que "Parler de ton expertise")` : ""}
 
-FORMATS DISPONIBLES ET ROUTES :
+FORMATS DISPONIBLES ET ROUTES PAR CANAL :
+Instagram :
 - Post texte → /instagram/creer
 - Carrousel → /instagram/carousel
 - Reel → /instagram/reels
 - Story → /instagram/stories
+LinkedIn :
+- Post texte → /linkedin/creer
+- Carrousel → /linkedin/carousel
 
+Le canal choisi est ${canalLabel}. Utilise UNIQUEMENT les routes de ce canal.
 Le format recommandé DOIT correspondre au format choisi par l'utilisatrice (${formatLabel}), sauf si tu as une raison TRÈS forte de proposer autre chose (dans ce cas, explique pourquoi).
 
 Retourne UNIQUEMENT un JSON :
