@@ -56,6 +56,7 @@ const InstagramStats = lazy(() => import("./pages/InstagramStats"));
 const InstagramStories = lazy(() => import("./pages/InstagramStories"));
 const InstagramReels = lazy(() => import("./pages/InstagramReels"));
 const InstagramCreer = lazy(() => import("./pages/InstagramCreer"));
+const CreerUnifie = lazy(() => import("./pages/CreerUnifie"));
 const InstagramCarousel = lazy(() => import("./pages/InstagramCarousel"));
 const TransformContentPage = lazy(() => import("./pages/TransformContentPage"));
 const AtelierPage = lazy(() => import("./pages/AtelierPage"));
@@ -262,27 +263,28 @@ function AnimatedRoutes() {
                 <Route path="/instagram/profil/epingles" element={<ProtectedRoute><InstagramProfileEpingles /></ProtectedRoute>} />
                 <Route path="/instagram/profil/feed" element={<ProtectedRoute><InstagramProfileFeed /></ProtectedRoute>} />
                 <Route path="/instagram/profil/edito" element={<ProtectedRoute><InstagramProfileEdito /></ProtectedRoute>} />
-                <Route path="/instagram/inspirer" element={<ProtectedRoute><InstagramInspirer /></ProtectedRoute>} />
+                <Route path="/instagram/inspirer" element={<Navigate to="/creer?mode=transform" replace />} />
                 <Route path="/instagram/lancement" element={<ProtectedRoute><InstagramLaunch /></ProtectedRoute>} />
                 <Route path="/instagram/lancement/plan" element={<ProtectedRoute><InstagramLaunchPlan /></ProtectedRoute>} />
                 <Route path="/instagram/lancement/recommandation" element={<ProtectedRoute><InstagramLaunchRecommendation /></ProtectedRoute>} />
                 <Route path="/instagram/rythme" element={<ProtectedRoute><InstagramRythme /></ProtectedRoute>} />
                 <Route path="/instagram/routine" element={<ProtectedRoute><InstagramEngagement /></ProtectedRoute>} />
                 <Route path="/instagram/engagement" element={<Navigate to="/instagram/routine" replace />} />
-                <Route path="/instagram/stories" element={<ProtectedRoute><InstagramStories /></ProtectedRoute>} />
-                <Route path="/instagram/reels" element={<ProtectedRoute><InstagramReels /></ProtectedRoute>} />
-                <Route path="/transformer" element={<ProtectedRoute><TransformContentPage /></ProtectedRoute>} />
-                <Route path="/creer" element={<ProtectedRoute><InstagramCreer /></ProtectedRoute>} />
+                <Route path="/instagram/stories" element={<Navigate to="/creer?format=story" replace />} />
+                <Route path="/instagram/reels" element={<Navigate to="/creer?format=reel" replace />} />
+                <Route path="/transformer" element={<Navigate to="/creer?mode=transform" replace />} />
+                <Route path="/creer" element={<ProtectedRoute><CreerUnifie /></ProtectedRoute>} />
+                <Route path="/creer-legacy" element={<ProtectedRoute><InstagramCreer /></ProtectedRoute>} />
                 <Route path="/instagram/creer" element={<Navigate to="/creer" replace />} />
-                <Route path="/instagram/carousel" element={<ProtectedRoute><InstagramCarousel /></ProtectedRoute>} />
+                <Route path="/instagram/carousel" element={<Navigate to="/creer?format=carousel" replace />} />
                 {/* Redirects from old routes */}
                 <Route path="/instagram/bio" element={<Navigate to="/instagram/profil/bio" replace />} />
                 <Route path="/instagram/highlights" element={<Navigate to="/instagram/profil/stories" replace />} />
                 <Route path="/instagram/inspiration" element={<Navigate to="/instagram/inspirer" replace />} />
               </Route>
               {/* Transversal routes */}
-              <Route path="/atelier" element={<ProtectedRoute><AtelierPage /></ProtectedRoute>} />
-              <Route path="/atelier/rediger" element={<ProtectedRoute><RedactionPage /></ProtectedRoute>} />
+              <Route path="/atelier" element={<Navigate to="/creer" replace />} />
+              <Route path="/atelier/rediger" element={<Navigate to="/creer" replace />} />
               {/* LinkedIn module */}
               <Route path="/linkedin" element={<ProtectedRoute><LinkedInHub /></ProtectedRoute>} />
               <Route path="/linkedin/audit" element={<ProtectedRoute><LinkedInAudit /></ProtectedRoute>} />
