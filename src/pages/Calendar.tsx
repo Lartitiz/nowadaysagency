@@ -166,7 +166,7 @@ function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen }: {
   );
 }
 
-export default function CalendarPage() {
+export default function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -760,6 +760,45 @@ export default function CalendarPage() {
       )}
     </>
   );
+
+  if (embedded) {
+    return (
+      <div>
+        <AuditRecommendationBanner />
+        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} />
+        {isMobile && (
+          <div className="flex rounded-full border border-border overflow-hidden mb-4">
+            <button onClick={() => setMobileTab("calendar")} className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>📅 Calendrier</button>
+            <button onClick={() => setMobileTab("ideas")} className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "ideas" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>💡 Mes idées</button>
+          </div>
+        )}
+        {isMobile ? (
+          mobileTab === "calendar" ? calendarContent : <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile />
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <div className="flex gap-6">
+              <div className="flex-1 min-w-0">{calendarContent}</div>
+              <div className="w-[280px] shrink-0">
+                <div className="sticky top-24 border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
+                  <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} />
+                </div>
+              </div>
+            </div>
+            <DragOverlay>
+              {activeDragItem ? (
+                <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg text-xs font-medium max-w-[180px]">
+                  <span className="truncate block">{activeDragItem.type === "idea" ? `💡 ${activeDragItem.idea.titre}` : `${activeDragItem.post?.content_type_emoji || ""} ${activeDragItem.post?.theme}`}</span>
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        )}
+        <CalendarPostDialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setPrefillData(null); }} editingPost={editingPost} selectedDate={selectedDate} defaultCanal={canalFilter} onSave={handleSave} onDelete={handleDelete} onUnplan={editingPost ? handleUnplan : undefined} onDateChange={(postId, newDate) => { handleMovePost(postId, newDate); setSelectedDate(newDate); if (editingPost) setEditingPost({ ...editingPost, date: newDate }); }} prefillData={prefillData} />
+        <IdeaDetailSheet idea={selectedIdea} open={ideaDetailOpen} onOpenChange={setIdeaDetailOpen} onUpdated={handleIdeaUpdated} onPlanned={handleIdeaPlannedFromSheet} />
+        <CalendarCoachingDialog open={coachingOpen} onOpenChange={setCoachingOpen} onPostAdded={fetchPosts} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

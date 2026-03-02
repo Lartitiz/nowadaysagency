@@ -76,7 +76,7 @@ const SORT_OPTIONS = [
   { id: "by_status", label: "Par statut" },
 ];
 
-export default function IdeasPage() {
+export default function IdeasPage({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -188,22 +188,20 @@ export default function IdeasPage() {
     return OBJECTIF_OPTIONS.find((o) => o.id === objectif);
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-2">
-          <div>
-            <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">Ma boîte à idées</h1>
-            <p className="text-[15px] text-muted-foreground mt-1">Tout ce que tu as généré, sauvegardé, commencé. Rien ne se perd.</p>
-          </div>
-          <Link to="/atelier">
-            <Button className="rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux shrink-0">
-              💡 Nouvelle idée
-            </Button>
-          </Link>
+  const mainContent = (
+    <>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-2">
+        <div>
+          <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">Ma boîte à idées</h1>
+          <p className="text-[15px] text-muted-foreground mt-1">Tout ce que tu as généré, sauvegardé, commencé. Rien ne se perd.</p>
         </div>
+        <Link to="/atelier">
+          <Button className="rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux shrink-0">
+            💡 Nouvelle idée
+          </Button>
+        </Link>
+      </div>
         <p className="font-mono-ui text-[12px] text-muted-foreground mb-4">{filtered.length} idée{filtered.length !== 1 ? "s" : ""}{statusFilter !== "all" || objectifFilter !== "all" || canalFilter !== "all" || typeFilter !== "all" ? " filtrées" : " au total"}</p>
 
         {/* Filters */}
@@ -489,6 +487,18 @@ export default function IdeasPage() {
             )}
           </SheetContent>
         </Sheet>
+      </>
+    );
+
+  if (embedded) {
+    return <div className="max-w-[900px]">{mainContent}</div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <AppHeader />
+      <main className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
+        {mainContent}
       </main>
     </div>
   );
