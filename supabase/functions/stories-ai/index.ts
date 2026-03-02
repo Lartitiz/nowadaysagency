@@ -118,24 +118,6 @@ Réponds UNIQUEMENT avec le JSON.`;
 
     // Suggest subjects (no idea path)
     if (type === "suggest_subjects") {
-      const systemPrompt = STORIES_PREFIX + `\n\nPropose 5 sujets de séquences stories pertinents pour cette utilisatrice, basés sur son contexte de marque.
-
-Chaque sujet doit être :
-- Spécifique (pas "parle de ton offre" mais "les 3 erreurs que tes clientes font avant de te contacter")
-- Formulé de façon engageante et concrète
-- Varié : mélange connexion, éducation, engagement
-
-RETOURNE un JSON strict :
-{ "suggestions": ["sujet 1", "sujet 2", "sujet 3", "sujet 4", "sujet 5"] }
-Réponds UNIQUEMENT avec le JSON.`;
-      const response = await callAnthropicSimple(getModelForAction("stories"), systemPrompt, "Propose-moi 5 sujets de stories.");
-      return new Response(JSON.stringify({ content: response }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Suggest subjects (no idea path)
-    if (type === "suggest_subjects") {
       const systemPrompt = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
 - Reproduis fidèlement le style décrit
 - Réutilise les expressions signature naturellement dans le texte
@@ -147,19 +129,33 @@ Tu es experte en stories Instagram pour solopreneuses créatives.
 
 ${ANTI_SLOP}
 
-${branding_context || ""}
+CONTEXTE DE MARQUE DE L'UTILISATRICE :
+${branding_context || "(aucun contexte fourni)"}
 
-Propose 5 sujets de séquences stories pertinents pour cette utilisatrice, basés sur son contexte de marque.
+Propose 5 sujets de séquences stories ULTRA SPÉCIFIQUES pour cette utilisatrice.
 
-Chaque sujet doit être :
-- Spécifique (pas "parle de ton offre" mais "les 3 erreurs que tes clientes font avant de te contacter")
-- Formulé de façon engageante et concrète
-- Varié : mélange connexion, éducation, engagement
+RÈGLES CRITIQUES :
+- Chaque sujet doit mentionner un élément concret de SON activité, SA cible ou SES combats
+- PAS de sujets génériques applicables à n'importe qui ("comment se démarquer", "les erreurs à éviter")
+- Formule chaque sujet comme un TEASER qui donne envie de regarder la story
+- Le sujet doit être une phrase accrocheuse, pas un titre académique
+- Varie les angles : coulisses perso, conseil actionnable, prise de position, témoignage client, behind-the-scenes
+
+EXEMPLES DE BONS SUJETS (si l'utilisatrice est coach en nutrition) :
+✅ "Ce que j'ai répondu à ma cliente qui voulait supprimer les glucides"
+✅ "Mon organisation meal prep du dimanche en 3 stories"
+✅ "Pourquoi je refuse de parler de calories avec mes clientes"
+
+EXEMPLES DE MAUVAIS SUJETS :
+❌ "Comment mieux manger" (trop vague)
+❌ "Les 5 erreurs alimentaires" (générique, clickbait)
+❌ "L'importance de la nutrition" (ennuyeux, pas de story)
 
 RETOURNE un JSON strict :
 { "suggestions": ["sujet 1", "sujet 2", "sujet 3", "sujet 4", "sujet 5"] }
 Réponds UNIQUEMENT avec le JSON.`;
-      const response = await callAnthropicSimple(getModelForAction("stories"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Propose-moi 5 sujets de stories.");
+      const model = "claude-opus-4-6";
+      const response = await callAnthropicSimple(model, BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Propose-moi 5 sujets de stories.");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
