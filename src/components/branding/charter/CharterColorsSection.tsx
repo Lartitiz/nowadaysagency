@@ -219,29 +219,29 @@ export default function CharterColorsSection({
           {/* Q2: Universe */}
           <div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {[
-              { id: "warm" as Universe, label: "Tons chauds", desc: "terracotta, miel, rouille", swatches: ["#C4724E", "#D4A574", "#8B6F47", "#F5F0EB", "#3D2E24"] },
-              { id: "cool" as Universe, label: "Tons froids", desc: "bleu, vert sauge, gris", swatches: ["#6B8FA3", "#8B9E7E", "#B8CDD6", "#F8FAFB", "#2C3E4A"] },
-              { id: "pop" as Universe, label: "Pop & coloré", desc: "rose, jaune, bleu électrique", swatches: ["#E91E8C", "#FFE561", "#6C63FF", "#FFFFFF", "#1A1A2E"] },
-              { id: "minimal" as Universe, label: "Minimaliste & neutre", desc: "noir, blanc, beige", swatches: ["#2C2C2C", "#E8E8E8", "#C4956A", "#FFFFFF", "#1A1A1A"] },
-              { id: "nature" as Universe, label: "Nature & organique", desc: "vert forêt, brun, crème", swatches: ["#5C7A6E", "#8B6F47", "#A8C5B8", "#F5FAF7", "#2D3E36"] }].
-              map((opt) =>
-              <button
-                key={opt.id}
-                onClick={() => setSelectedUniverse(opt.id)}
-                className={`text-left rounded-xl border p-3 transition-all ${selectedUniverse === opt.id ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border hover:border-primary/40"}`}>
-                
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    {opt.swatches.map((c, i) =>
-                  <div key={i} className="w-4 h-4 rounded-md border border-border" style={{ backgroundColor: c }} />
-                  )}
-                  </div>
-                  <p className="text-xs font-medium text-foreground">{opt.label}</p>
-                  <p className="text-[10px] text-muted-foreground">{opt.desc}</p>
-                </button>
-              )}
-            </div>
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            
           </div>
 
           {/* Q3: Style sliders */}
