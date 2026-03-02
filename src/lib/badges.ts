@@ -138,12 +138,16 @@ export function getConsecutiveStreaks(weeklyData: WeekStreakStatus[]): number {
 }
 
 /* ── Badge stats fetcher ── */
-export async function getUserBadgeStats(filter: { column: string; value: string }): Promise<BadgeStats> {
+export async function getUserBadgeStats(filter: { column: string; value: string }, userId?: string): Promise<BadgeStats> {
+  // For tables without workspace_id (audit_validations), use user_id directly
+  const userIdForLegacy = userId || (filter.column === "user_id" ? filter.value : "");
+
   const [publishedRes, carouselRes, reelRes, bioRes, auditRes] = await Promise.all([
     (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value).eq("status", "published"),
     (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value).eq("status", "published").in("format", ["carousel", "post_carrousel"]),
     (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value).eq("status", "published").eq("format", "reel"),
-    (supabase.from("audit_validations") as any).select("id").eq(filter.column, filter.value).eq("section", "bio").eq("status", "validated").maybeSingle(),
+    // audit_validations has no workspace_id column — always filter by user_id
+    (supabase.from("audit_validations") as any).select("id").eq("user_id", userIdForLegacy).eq("section", "bio").eq("status", "validated").maybeSingle(),
     (supabase.from("instagram_audit") as any).select("score_global").eq(filter.column, filter.value).order("created_at", { ascending: false }).limit(2),
   ]);
 
@@ -190,7 +194,7 @@ export async function getUserBadgeStats(filter: { column: string; value: string 
 
 /* ── Check and unlock new badges ── */
 export async function checkBadges(filter: { column: string; value: string }, userId: string, brandingCompletion: number = 0): Promise<void> {
-  const stats = await getUserBadgeStats(filter);
+  const stats = await getUserBadgeStats(filter, userId);
   stats.branding_completion = brandingCompletion;
 
   const { data: existing } = await (supabase.from("user_badges") as any)
@@ -205,8 +209,9 @@ export async function checkBadges(filter: { column: string; value: string }, use
 
   if (newBadges.length === 0) return;
 
-  await supabase.from("user_badges").insert(
-    newBadges.map((b) => ({ user_id: userId, badge_id: b.id }))
+  await (supabase.from("user_badges") as any).upsert(
+    newBadges.map((b) => ({ user_id: userId, badge_id: b.id, [filter.column]: filter.value })),
+    { onConflict: "user_id,badge_id", ignoreDuplicates: true }
   );
 
   newBadges.forEach((badge) => {
