@@ -60,37 +60,27 @@ const FORMATS_BY_CANAL: Record<string, { id: string; emoji: string; label: strin
   ],
 };
 
-const CONTENT_TYPES_BY_FORMAT: Record<string, { id: string; emoji: string; label: string }[]> = {
-  carrousel: [
-    { id: "mythe_realite", emoji: "🔍", label: "Mythe vs Réalité" },
-    { id: "liste_tips", emoji: "📋", label: "Liste / Tips" },
-    { id: "tutoriel", emoji: "🛠️", label: "Tutoriel pas à pas" },
-    { id: "avant_apres", emoji: "✨", label: "Avant / Après" },
-    { id: "storytelling", emoji: "📖", label: "Storytelling" },
-    { id: "checklist", emoji: "✅", label: "Checklist" },
-  ],
-  post_texte: [
-    { id: "storytelling", emoji: "📖", label: "Storytelling" },
-    { id: "opinion", emoji: "🔥", label: "Opinion / Prise de position" },
-    { id: "conseil", emoji: "💡", label: "Conseil actionnable" },
-    { id: "temoignage", emoji: "💬", label: "Témoignage client" },
-    { id: "coulisses", emoji: "🎬", label: "Coulisses" },
-    { id: "lecon_apprise", emoji: "🎓", label: "Leçon apprise" },
-  ],
-  reel: [
-    { id: "tutoriel_rapide", emoji: "⚡", label: "Tutoriel rapide" },
-    { id: "behind_scenes", emoji: "🎬", label: "Behind the scenes" },
-    { id: "trend", emoji: "🎵", label: "Tendance / Trend" },
-    { id: "faq", emoji: "❓", label: "FAQ / Question récurrente" },
-    { id: "transition", emoji: "✨", label: "Transition avant/après" },
-  ],
-  story: [
-    { id: "sondage", emoji: "📊", label: "Sondage / Quiz" },
-    { id: "behind_scenes", emoji: "🎬", label: "Behind the scenes" },
-    { id: "teasing", emoji: "👀", label: "Teasing" },
-    { id: "qna", emoji: "💬", label: "Q&A / Boîte à questions" },
-    { id: "quotidien", emoji: "☀️", label: "Tranche de vie" },
-  ],
+const EDITORIAL_ANGLES = [
+  { id: "enquete", emoji: "🔎", label: "Enquête / Décryptage", desc: "Analyser un phénomène avec un angle inédit" },
+  { id: "test", emoji: "🧪", label: "Test grandeur nature", desc: "Tester un conseil et donner ton verdict" },
+  { id: "coup-de-gueule", emoji: "🔥", label: "Coup de gueule", desc: "Taper sur une frustration partagée" },
+  { id: "mythe", emoji: "💥", label: "Mythe à déconstruire", desc: "Démonter une croyance répandue" },
+  { id: "storytelling", emoji: "📖", label: "Storytelling + leçon", desc: "Raconter une galère et en tirer une leçon" },
+  { id: "histoire-cliente", emoji: "💬", label: "Histoire cliente", desc: "Illustrer un blocage via un cas réel" },
+  { id: "surf-actu", emoji: "📡", label: "Surf sur l'actu", desc: "Rebondir sur une actualité" },
+  { id: "regard-philo", emoji: "🧠", label: "Regard philo / sociétal", desc: "Prendre de la hauteur, côté France Culture" },
+  { id: "conseil-contre-intuitif", emoji: "🔄", label: "Conseil contre-intuitif", desc: "Aller à contre-courant" },
+  { id: "before-after", emoji: "✨", label: "Before / After", desc: "Montrer une évolution concrète" },
+  { id: "identification", emoji: "🪞", label: "Identification / Quotidien", desc: "Situations où l'audience se reconnaît" },
+  { id: "build-in-public", emoji: "🏗️", label: "Build in public", desc: "Partager les coulisses en transparence" },
+  { id: "analyse-profondeur", emoji: "📊", label: "Analyse en profondeur", desc: "Décortiquer un sujet avec des données" },
+];
+
+const RECOMMENDED_BY_OBJECTIVE: Record<string, string[]> = {
+  inspirer: ["storytelling", "regard-philo", "build-in-public", "before-after"],
+  eduquer: ["enquete", "mythe", "analyse-profondeur", "conseil-contre-intuitif", "test"],
+  vendre: ["histoire-cliente", "before-after", "storytelling", "test"],
+  creer_du_lien: ["identification", "coup-de-gueule", "build-in-public", "surf-actu", "storytelling"],
 };
 
 const TONS = [
@@ -157,13 +147,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
   const handleFormatSelect = (id: string) => {
     setFormat(id);
     setContentType("");
-    // If content types exist for this format, go to step 5, else skip to step 6 (ton)
-    const types = CONTENT_TYPES_BY_FORMAT[id];
-    if (types?.length) {
-      setStep(5);
-    } else {
-      setStep(6);
-    }
+    setStep(5);
   };
 
   const handleContentTypeSelect = (id: string) => {
@@ -243,8 +227,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
   };
 
   const isEducatif = objectif === "eduquer";
-  const currentContentTypes = CONTENT_TYPES_BY_FORMAT[format] || [];
-  const totalSteps = currentContentTypes.length > 0 ? 6 : 5;
+  const totalSteps = 6;
 
   return (
     <CoachingShell
@@ -386,22 +369,68 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
             </div>
           )}
 
-          {/* Step 5: Content Type */}
-          {step === 5 && currentContentTypes.length > 0 && (
+          {/* Step 5: Angle éditorial */}
+          {step === 5 && (
             <div className="space-y-3 animate-fade-in">
-              <p className="text-sm font-medium text-foreground">Quel type de contenu ?</p>
-              <div className="grid grid-cols-2 gap-2">
-                {currentContentTypes.map(ct => (
-                  <button
-                    key={ct.id}
-                    onClick={() => handleContentTypeSelect(ct.id)}
-                    className="rounded-xl border-2 border-border bg-card p-3 text-center hover:border-primary hover:shadow-sm transition-all group"
-                  >
-                    <span className="text-xl block mb-0.5">{ct.emoji}</span>
-                    <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">{ct.label}</span>
-                  </button>
-                ))}
-              </div>
+              <p className="text-sm font-medium text-foreground">Quel angle éditorial ?</p>
+
+              {(() => {
+                const recommendedIds = RECOMMENDED_BY_OBJECTIVE[objectif] || [];
+                const recommended = EDITORIAL_ANGLES.filter(a => recommendedIds.includes(a.id));
+                const others = EDITORIAL_ANGLES.filter(a => !recommendedIds.includes(a.id));
+
+                return (
+                  <>
+                    {recommended.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] font-semibold text-primary uppercase tracking-wider">📌 Recommandés pour toi</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {recommended.map(a => (
+                            <button
+                              key={a.id}
+                              onClick={() => handleContentTypeSelect(a.id)}
+                              className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3 text-center hover:border-primary hover:shadow-sm transition-all group"
+                            >
+                              <span className="text-xl block mb-0.5">{a.emoji}</span>
+                              <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">{a.label}</span>
+                              <span className="text-[10px] text-muted-foreground block mt-0.5 leading-tight">{a.desc}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {others.length > 0 && (
+                      <details className="group">
+                        <summary className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors py-1">
+                          Voir tous les angles ({others.length} de plus) ▾
+                        </summary>
+                        <div className="grid grid-cols-2 gap-2 mt-2 animate-fade-in">
+                          {others.map(a => (
+                            <button
+                              key={a.id}
+                              onClick={() => handleContentTypeSelect(a.id)}
+                              className="rounded-xl border-2 border-border bg-card p-3 text-center hover:border-primary hover:shadow-sm transition-all group"
+                            >
+                              <span className="text-xl block mb-0.5">{a.emoji}</span>
+                              <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">{a.label}</span>
+                              <span className="text-[10px] text-muted-foreground block mt-0.5 leading-tight">{a.desc}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+
+                    <button
+                      onClick={() => { setContentType(""); setStep(6); }}
+                      className="w-full text-xs text-muted-foreground hover:text-primary transition-colors py-1"
+                    >
+                      L'IA choisit pour moi →
+                    </button>
+                  </>
+                );
+              })()}
+
               <Button variant="ghost" size="sm" onClick={() => setStep(4)} className="gap-1">
                 <ArrowLeft className="h-3.5 w-3.5" /> Retour
               </Button>
@@ -424,7 +453,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
                   </button>
                 ))}
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setStep(currentContentTypes.length > 0 ? 5 : 4)} className="gap-1">
+              <Button variant="ghost" size="sm" onClick={() => setStep(5)} className="gap-1">
                 <ArrowLeft className="h-3.5 w-3.5" /> Retour
               </Button>
             </div>
