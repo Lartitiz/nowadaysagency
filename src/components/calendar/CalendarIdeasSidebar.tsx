@@ -78,7 +78,6 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: P
     const { data } = await (supabase.from("saved_ideas") as any)
       .select("id, titre, format, objectif, notes, status, canal, content_draft, content_data, source_module, planned_date, calendar_post_id")
       .eq(column, value)
-      .is("calendar_post_id", null)
       .order("created_at", { ascending: false });
     if (data) setIdeas(data as SavedIdea[]);
   };
@@ -286,9 +285,11 @@ function DraggableIdeaCard({ idea, onDelete, onClick }: { idea: SavedIdea; onDel
   const icon = FORMAT_ICONS[idea.format || ""] || "📝";
   const objColor = OBJECTIVE_COLORS[idea.objectif || ""] || "text-muted-foreground";
 
+  const isPlanned = !!idea.calendar_post_id;
+
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}
-      className="rounded-lg border border-border bg-card p-2 hover:border-primary/30 hover:bg-accent/30 transition-colors cursor-grab"
+      className={cn("rounded-lg border border-border bg-card p-2 hover:border-primary/30 hover:bg-accent/30 transition-colors cursor-grab", isPlanned && "opacity-60")}
       onClick={onClick}
     >
       <div className="min-w-0">
@@ -296,7 +297,10 @@ function DraggableIdeaCard({ idea, onDelete, onClick }: { idea: SavedIdea; onDel
         <p className={cn("text-[10px] truncate", objColor)}>
           {idea.format || "Post"} {idea.objectif ? `· ${idea.objectif}` : ""}
         </p>
-        {idea.status && idea.status !== "idea" && (
+        {isPlanned && (
+          <p className="text-[10px] text-green-600 dark:text-green-400">📅 Planifiée</p>
+        )}
+        {!isPlanned && idea.status && idea.status !== "idea" && (
           <p className="text-[10px] text-muted-foreground capitalize">{idea.status}</p>
         )}
       </div>
@@ -309,9 +313,11 @@ function MobileIdeaCard({ idea, onDelete, onPlan, onClick }: { idea: SavedIdea; 
   const icon = FORMAT_ICONS[idea.format || ""] || "📝";
   const objColor = OBJECTIVE_COLORS[idea.objectif || ""] || "text-muted-foreground";
 
+  const isPlanned = !!idea.calendar_post_id;
+
   return (
     <div
-      className="flex items-start gap-2 rounded-lg border border-border bg-card p-2.5 cursor-pointer hover:bg-accent/30 transition-colors"
+      className={cn("flex items-start gap-2 rounded-lg border border-border bg-card p-2.5 cursor-pointer hover:bg-accent/30 transition-colors", isPlanned && "opacity-60")}
       onClick={onClick}
     >
       <div className="flex-1 min-w-0">
@@ -319,6 +325,9 @@ function MobileIdeaCard({ idea, onDelete, onPlan, onClick }: { idea: SavedIdea; 
         <p className={cn("text-[10px] truncate", objColor)}>
           {idea.format || "Post"} {idea.objectif ? `· ${idea.objectif}` : ""}
         </p>
+        {isPlanned && (
+          <p className="text-[10px] text-green-600 dark:text-green-400">📅 Planifiée</p>
+        )}
       </div>
       <div className="flex gap-1 shrink-0">
         <button onClick={(e) => { e.stopPropagation(); onPlan(); }} className="text-[10px] text-primary font-medium px-2 py-1 rounded border border-primary/30 hover:bg-primary/5">
