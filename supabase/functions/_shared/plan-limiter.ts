@@ -149,7 +149,6 @@ export async function checkQuota(
     };
   }
 
-  const sb = getServiceClient();
   const monthStart = getMonthStart();
 
   // Get bonus credits for the user
