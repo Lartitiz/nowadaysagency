@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
-import { motion } from "framer-motion";
-import { Sparkles, ArrowRight, RefreshCw } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, ArrowRight, RefreshCw, Zap, Pencil, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId, useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useQuery } from "@tanstack/react-query";
@@ -246,12 +246,81 @@ export default function SuggestedContents() {
     refetch();
   };
 
+  const [activePopover, setActivePopover] = useState<number | null>(null);
+  const [expressingIdx, setExpressingIdx] = useState<number | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Close popover on outside click
+  useEffect(() => {
+    if (activePopover === null) return;
+    const handleClick = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setActivePopover(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [activePopover]);
+
   const handleCreateFromIdea = (idea: IdeaSpark) => {
+    setActivePopover(null);
     const route = FORMAT_ROUTE[idea.format] || "/creer";
     const params = new URLSearchParams();
     params.set("sujet", idea.idea);
     if (idea.objective) params.set("objectif", idea.objective);
     navigate(`${route}?${params.toString()}`);
+  };
+
+  const handleExpressGenerate = async (idea: IdeaSpark, idx: number) => {
+    setActivePopover(null);
+    setExpressingIdx(idx);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-content", {
+        body: {
+          type: "express-draft",
+          sujet: idea.idea,
+          objectif: idea.objective === "inspirer" ? "visibilite" : idea.objective === "eduquer" ? "credibilite" : idea.objective === "vendre" ? "vente" : idea.objective === "engager" ? "confiance" : "visibilite",
+          format: idea.format,
+          canal: "instagram",
+          workspace_id: workspaceId || undefined,
+        },
+      });
+
+      if (error) throw new Error(error.message);
+
+      let result = data?.content || data;
+      // Parse JSON response
+      if (typeof result === "string") {
+        try {
+          const cleaned = result.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+          result = JSON.parse(cleaned);
+        } catch {
+          // Not JSON, use raw content
+          result = { content: result, accroche: "", hashtags: [] };
+        }
+      }
+
+      // Navigate to redaction page with pre-filled content
+      const params = new URLSearchParams();
+      params.set("canal", "instagram");
+      params.set("theme", idea.idea);
+      if (idea.format) params.set("format", idea.format);
+      if (idea.objective) params.set("objectif", idea.objective === "inspirer" ? "visibilite" : idea.objective === "eduquer" ? "credibilite" : idea.objective === "vendre" ? "vente" : "confiance");
+
+      navigate(`/atelier/rediger?${params.toString()}`, {
+        state: {
+          expressDraft: true,
+          content_draft: result.content || result,
+          accroche: result.accroche || "",
+          hashtags: result.hashtags || [],
+        },
+      });
+    } catch (err: any) {
+      console.error("Express generation error:", err);
+      toast.error("Erreur lors de la génération express. Réessaie !");
+    } finally {
+      setExpressingIdx(null);
+    }
   };
 
   const waitingForBranding = !isCacheLoading && !cachedContents && !brandProfile && !isGenerating;
@@ -302,40 +371,81 @@ export default function SuggestedContents() {
       {/* Ideas list */}
       <div className="space-y-2">
         {ideas.map((idea, i) => (
-          <motion.button
-            key={i}
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.2, delay: 0.05 * i }}
-            onClick={() => handleCreateFromIdea(idea)}
-            className="w-full text-left rounded-xl border border-border/60 hover:border-primary/40 bg-card hover:bg-primary/5 p-3 flex items-center gap-3 transition-all group"
-          >
-            <span className="text-base shrink-0" aria-hidden="true">
-              {FORMAT_EMOJI[idea.format] || "📝"}
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-foreground line-clamp-1 group-hover:text-primary transition-colors">
-                {idea.idea}
-              </p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className={cn(
-                  "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
-                  OBJECTIVE_COLORS[idea.objective] || "bg-muted text-muted-foreground"
-                )}>
-                  {OBJECTIVE_LABELS[idea.objective] || idea.objective}
-                </span>
-                <span className="text-[10px] text-muted-foreground">
-                  {FORMAT_LABEL[idea.format] || idea.format}
-                </span>
+          <div key={i} className="relative">
+            <motion.button
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.2, delay: 0.05 * i }}
+              onClick={() => setActivePopover(activePopover === i ? null : i)}
+              disabled={expressingIdx !== null}
+              className={cn(
+                "w-full text-left rounded-xl border border-border/60 hover:border-primary/40 bg-card hover:bg-primary/5 p-3 flex items-center gap-3 transition-all group",
+                expressingIdx === i && "opacity-70 pointer-events-none",
+                activePopover === i && "border-primary/50 bg-primary/5"
+              )}
+            >
+              <span className="text-base shrink-0" aria-hidden="true">
+                {expressingIdx === i ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : (FORMAT_EMOJI[idea.format] || "📝")}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+                  {expressingIdx === i ? "Génération express en cours…" : idea.idea}
+                </p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className={cn(
+                    "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                    OBJECTIVE_COLORS[idea.objective] || "bg-muted text-muted-foreground"
+                  )}>
+                    {OBJECTIVE_LABELS[idea.objective] || idea.objective}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {FORMAT_LABEL[idea.format] || idea.format}
+                  </span>
+                </div>
               </div>
-            </div>
-            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-          </motion.button>
+              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+            </motion.button>
+
+            {/* Choice popover */}
+            <AnimatePresence>
+              {activePopover === i && (
+                <motion.div
+                  ref={popoverRef}
+                  initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute z-20 left-0 right-0 mt-1 rounded-xl border border-border bg-card shadow-lg overflow-hidden"
+                >
+                  <button
+                    onClick={() => handleExpressGenerate(idea, i)}
+                    className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-primary/5 transition-colors border-b border-border/50"
+                  >
+                    <Zap className="h-4 w-4 text-amber-500 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">⚡ Générer express</p>
+                      <p className="text-[11px] text-muted-foreground">L'IA rédige tout, tu reçois le texte prêt à poster</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => handleCreateFromIdea(idea)}
+                    className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-primary/5 transition-colors"
+                  >
+                    <Pencil className="h-4 w-4 text-primary shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">✏️ Rédiger pas à pas</p>
+                      <p className="text-[11px] text-muted-foreground">Tu choisis l'angle, la structure, l'accroche…</p>
+                    </div>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         ))}
       </div>
 
       <p className="text-[11px] text-muted-foreground mt-3 italic">
-        💡 Basées sur tes piliers de contenu. Clique pour créer directement.
+        💡 Basées sur tes piliers de contenu. Clique pour choisir ton mode.
       </p>
     </motion.div>
   );
