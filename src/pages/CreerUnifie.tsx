@@ -9,21 +9,13 @@ import CreerStepFormat from "@/components/creer/CreerStepFormat";
 import CreerStepQuestions from "@/components/creer/CreerStepQuestions";
 import CreerStepResult from "@/components/creer/CreerStepResult";
 import CreerStepEdit from "@/components/creer/CreerStepEdit";
+import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import { useContentGenerator } from "@/hooks/use-content-generator";
 import { CONTENT_STRUCTURES, getStructureForCombo } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
 
 type Step = "idea" | "format" | "questions" | "result" | "edit";
 type Mode = "create" | "transform";
-
-// Placeholder for the transform tab (to be created separately)
-function CreerTransformTab() {
-  return (
-    <div className="py-12 text-center text-muted-foreground text-sm">
-      🔄 L'onglet Transformer arrive bientôt.
-    </div>
-  );
-}
 
 export default function CreerUnifie() {
   const [searchParams] = useSearchParams();
