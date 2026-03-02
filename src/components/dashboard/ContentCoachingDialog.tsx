@@ -101,7 +101,7 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
           answers: {
             objectif,
             sujet: hasSujet ? sujet : null,
-            format: id,
+            format,
             ton_envie: id,
           },
         },
