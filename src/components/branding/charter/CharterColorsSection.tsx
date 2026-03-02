@@ -181,45 +181,7 @@ export default function CharterColorsSection({
         </div>
 
         {/* Palette Questionnaire */}
-        <div className="mt-5 pt-5 border-t border-border space-y-5">
-          <h3 className="text-sm font-semibold text-foreground">✨ Génère ta palette personnalisée</h3>
-
-          {/* Q1: Emotions */}
-          <div>
-            <p className="text-xs font-medium text-foreground mb-2">Quelle émotion principale veux-tu transmettre ? <span className="text-muted-foreground">(max 2)</span></p>
-            <div className="flex flex-wrap gap-2">
-              {[
-              { id: "confidence" as Emotion, label: "🌟 Confiance et expertise" },
-              { id: "warmth" as Emotion, label: "💛 Chaleur et proximité" },
-              { id: "energy" as Emotion, label: "⚡ Énergie et audace" },
-              { id: "calm" as Emotion, label: "🌿 Calme et sérénité" },
-              { id: "creativity" as Emotion, label: "🎨 Créativité et originalité" },
-              { id: "engagement" as Emotion, label: "✊ Engagement et conviction" }].
-              map((opt) => {
-                const selected = selectedEmotions.includes(opt.id);
-                return (
-                  <button
-                    key={opt.id}
-                    onClick={() => {
-                      if (selected) {
-                        setSelectedEmotions((prev) => prev.filter((e) => e !== opt.id));
-                      } else if (selectedEmotions.length < 2) {
-                        setSelectedEmotions((prev) => [...prev, opt.id]);
-                      }
-                    }}
-                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${selected ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:border-primary/40"}`}>
-                    
-                    {opt.label}
-                  </button>);
-
-              })}
-            </div>
-          </div>
-
-          {/* Q2: Universe */}
-          <div>
-            
-            
+        
 
 
 
@@ -241,123 +203,161 @@ export default function CharterColorsSection({
 
 
 
-            
-          </div>
 
-          {/* Q3: Style sliders */}
-          <div>
-            <p className="text-xs font-medium text-foreground mb-3">Tu préfères un style plutôt…</p>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-[10px] text-muted-foreground mb-1.5">
-                  <span>Doux et féminin</span>
-                  <span>Bold et affirmé</span>
-                </div>
-                <Slider value={[styleAxes.softBold]} min={0} max={100} step={5} onValueChange={([v]) => setStyleAxes((prev) => ({ ...prev, softBold: v }))} />
-              </div>
-              <div>
-                <div className="flex justify-between text-[10px] text-muted-foreground mb-1.5">
-                  <span>Classique et intemporel</span>
-                  <span>Moderne et tendance</span>
-                </div>
-                <Slider value={[styleAxes.classicModern]} min={0} max={100} step={5} onValueChange={([v]) => setStyleAxes((prev) => ({ ...prev, classicModern: v }))} />
-              </div>
-            </div>
-          </div>
 
-          {/* Generate button */}
-          <Button
-            size="sm"
-            className="w-full gap-2"
-            disabled={selectedEmotions.length === 0 || !selectedUniverse || isGenerating}
-            onClick={handleGeneratePalettes}>
-            
-            {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {isGenerating ? "Génération en cours…" : "Générer mes palettes"}
-          </Button>
 
-          {/* Generated palettes */}
-          {generatedPalettes.length > 0 &&
-          <div className="space-y-3 pt-2">
-              <p className="text-xs font-semibold text-foreground">🎨 Tes palettes personnalisées</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {generatedPalettes.map((palette, idx) =>
-              <div key={idx} className="rounded-xl border border-border bg-background p-3 space-y-2">
-                    <div className="flex items-center gap-1.5">
-                      {Object.values(palette.colors).map((c, i) =>
-                  <div key={i} className="w-7 h-7 rounded-lg border border-border" style={{ backgroundColor: c }} title={c} />
-                  )}
-                    </div>
-                    <p className="text-xs font-medium text-foreground">{palette.name}</p>
-                    {(palette as any).explanation &&
-                <p className="text-[10px] text-muted-foreground leading-relaxed">{(palette as any).explanation}</p>
-                }
-                    <div className="flex gap-1.5">
-                      <Button
-                    size="sm"
-                    variant="default"
-                    className="flex-1 text-[10px] h-7"
-                    onClick={() => {
-                      applyPalette(palette.colors);
-                      toast.success("Palette appliquée !");
-                    }}>
-                    
-                        Appliquer
-                      </Button>
-                      <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 text-[10px] h-7"
-                    onClick={() => {
-                      applyPalette(palette.colors);
-                      toast.success("Palette chargée — personnalise les couleurs ci-dessus.");
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}>
-                    
-                        Personnaliser
-                      </Button>
-                    </div>
-                  </div>
-              )}
-              </div>
-            </div>
-          }
 
-          {/* Collapsible sector palettes */}
-          <Collapsible open={sectorPalettesOpen} onOpenChange={setSectorPalettesOpen}>
-            <CollapsibleTrigger asChild>
-              <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mt-2">
-                {sectorPalettesOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                Voir les palettes par secteur d'activité
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-3">
-              <p className="text-xs text-muted-foreground mb-2">Secteur détecté : <span className="font-medium text-foreground">{userSector}</span></p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {(SECTOR_PALETTES[userSector] || SECTOR_PALETTES[DEFAULT_SECTOR]).map((palette) =>
-                <button
-                  key={palette.name}
-                  onClick={() => {
-                    applyPalette(palette.colors);
-                    toast.success("Palette appliquée !");
-                  }}
-                  className="rounded-xl border border-border hover:border-primary/50 bg-background p-3 text-left transition-all hover:shadow-sm">
-                  
-                    <div className="flex items-center gap-1.5 mb-2">
-                      {[palette.colors.primary, palette.colors.secondary, palette.colors.accent, palette.colors.background, palette.colors.text].map((c, i) =>
-                    <div key={i} className="w-5 h-5 rounded-lg border border-border" style={{ backgroundColor: c }} />
-                    )}
-                    </div>
-                    <p className="text-xs font-medium text-foreground">{palette.name}</p>
-                  </button>
-                )}
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setAllPalettesOpen(true)} className="text-xs text-muted-foreground mt-3">
-                Voir toutes les palettes →
-              </Button>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
       </section>
 
       {/* All palettes dialog */}
