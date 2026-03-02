@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import Confetti from "@/components/Confetti";
+import { MarkdownText } from "@/components/ui/markdown-text";
 
 /* ── Icon resolver ── */
 function RecommendationIcon({ name }: {name: string;}) {
@@ -207,7 +208,7 @@ export default function AdaptiveHome() {
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="font-display text-lg text-foreground">{recommendation.title}</h2>
-              <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{recommendation.explanation}</p>
+              <MarkdownText content={recommendation.explanation} className="text-sm text-muted-foreground mt-1 leading-relaxed" />
             </div>
           </div>
           <Button className="w-full mt-4 rounded-xl" onClick={() => handleNavigate(recommendation.ctaRoute)}>
