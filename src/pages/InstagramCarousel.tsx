@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -209,7 +209,7 @@ export default function InstagramCarousel() {
     visibilite: "shares", confiance: "community", vente: "conversion", credibilite: "saves",
   };
 
-  const { restored: draftRestored, clearDraft } = useFormPersist(
+  const { restored: draftRestored, clearDraft: clearFormDraft } = useFormPersist(
     "carousel-form",
     { step, carouselType, objective, subject, selectedOffer, slideCount },
     (saved) => {
@@ -223,6 +223,51 @@ export default function InstagramCarousel() {
       if (saved.step && saved.step > 1 && saved.step < 4) setStep(saved.step);
     }
   );
+
+  // ── Persist generated results (steps 3-6) to sessionStorage so tab switch doesn't lose them ──
+  const GENERATED_KEY = "carousel_generated";
+  const generatedRestoredRef = useRef(false);
+
+  // Restore on mount
+  useEffect(() => {
+    if (generatedRestoredRef.current || navState?.expressCarousel) return;
+    generatedRestoredRef.current = true;
+    try {
+      const raw = sessionStorage.getItem(GENERATED_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved.dynamicQuestions) setDynamicQuestions(saved.dynamicQuestions);
+      if (saved.deepeningAnswers && Object.keys(saved.deepeningAnswers).length) setDeepeningAnswers(saved.deepeningAnswers);
+      if (saved.angles?.length) setAngles(saved.angles);
+      if (saved.chosenAngle) setChosenAngle(saved.chosenAngle);
+      if (saved.hooks?.length) setHooks(saved.hooks);
+      if (saved.selectedHook) setSelectedHook(saved.selectedHook);
+      if (saved.customHook) setCustomHook(saved.customHook);
+      if (saved.slides?.length) setSlides(saved.slides);
+      if (saved.caption) setCaption(saved.caption);
+      if (saved.qualityCheck) setQualityCheck(saved.qualityCheck);
+      if (saved.publishingTip) setPublishingTip(saved.publishingTip);
+      if (saved.currentQuestion != null) setCurrentQuestion(saved.currentQuestion);
+      // Restore step (including steps > 3)
+      if (saved.step && saved.step > 1) setStep(saved.step);
+    } catch { /* corrupt — ignore */ }
+  }, []);
+
+  // Save whenever generated state changes
+  useEffect(() => {
+    if (step <= 1) return; // nothing to persist yet
+    try {
+      sessionStorage.setItem(GENERATED_KEY, JSON.stringify({
+        step, dynamicQuestions, deepeningAnswers, angles, chosenAngle,
+        hooks, selectedHook, customHook, slides, caption, qualityCheck, publishingTip, currentQuestion,
+      }));
+    } catch { /* quota — ignore */ }
+  }, [step, dynamicQuestions, deepeningAnswers, angles, chosenAngle, hooks, selectedHook, customHook, slides, caption, qualityCheck, publishingTip, currentQuestion]);
+
+  const clearDraft = () => {
+    clearFormDraft();
+    sessionStorage.removeItem(GENERATED_KEY);
+  };
 
   useEffect(() => {
     if (!user) return;
