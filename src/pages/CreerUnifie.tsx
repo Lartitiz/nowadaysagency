@@ -60,22 +60,32 @@ export default function CreerUnifie() {
     questions,
   } = useContentGenerator();
 
-  // Pre-fill from URL/state on mount & auto-advance
+  // Pre-fill from URL/state & auto-advance
+  // Uses location.search so it re-runs when navigating to /creer with new params
+  // (e.g. from coaching dialog while already on /creer)
   useEffect(() => {
-    const prefillSubject = ideaText; // already set from paramSujet / locState
+    const subject = paramSujet || locState.sujet || locState.subject || "";
+    const obj = paramObjectif || locState.objectif || locState.objective || null;
 
-    if (paramFormat && prefillSubject.trim()) {
+    // Sync state from URL params (needed when component doesn't remount)
+    if (subject) setIdeaText(subject);
+    if (obj) setObjective(obj);
+    if (paramFormat) setSelectedFormat(paramFormat);
+
+    if (paramFormat && subject.trim()) {
       // Both format AND subject provided (e.g. from coaching or calendar)
       // → skip straight to questions
-      setSelectedFormat(paramFormat);
       handleFormatNext(paramFormat);
-    } else if (locState.fromCalendar && prefillSubject) {
+    } else if (locState.fromCalendar && subject) {
       setStep("format");
     } else if (paramFormat) {
       setStep("format");
+    } else {
+      // No params — reset to step 1 (handles back-navigation)
+      setStep("idea");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [location.search]);
 
   // Show error
   useEffect(() => {
