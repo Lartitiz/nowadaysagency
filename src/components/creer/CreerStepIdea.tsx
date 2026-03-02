@@ -8,6 +8,7 @@ import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog"
 
 interface Props {
   onNext: (idea: string, objective?: string) => void;
+  onCoachingSelect?: (data: { subject: string; format: string; objective: string }) => void;
 }
 
 const objectives = Object.entries(OBJECTIVE_RECOMMENDATIONS).map(([id, o]) => ({
@@ -16,7 +17,7 @@ const objectives = Object.entries(OBJECTIVE_RECOMMENDATIONS).map(([id, o]) => ({
   emoji: o.emoji,
 }));
 
-export default function CreerStepIdea({ onNext }: Props) {
+export default function CreerStepIdea({ onNext, onCoachingSelect }: Props) {
   const [idea, setIdea] = useState("");
   const [objective, setObjective] = useState<string | undefined>(undefined);
   const [coachOpen, setCoachOpen] = useState(false);
@@ -83,7 +84,7 @@ export default function CreerStepIdea({ onNext }: Props) {
       </Button>
 
       {/* Coaching dialog */}
-      <ContentCoachingDialog open={coachOpen} onOpenChange={setCoachOpen} />
+      <ContentCoachingDialog open={coachOpen} onOpenChange={setCoachOpen} onSelect={onCoachingSelect} />
     </div>
   );
 }

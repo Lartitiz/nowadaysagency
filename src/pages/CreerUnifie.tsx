@@ -94,6 +94,18 @@ export default function CreerUnifie() {
 
   // ── Step handlers ──
 
+  // Callback from coaching dialog (when already on /creer)
+  const handleCoachingSelect = (data: { subject: string; format: string; objective: string }) => {
+    setIdeaText(data.subject);
+    if (data.objective) setObjective(data.objective);
+    if (data.format) {
+      setSelectedFormat(data.format);
+      // Advance to questions with the provided subject directly
+      setStep("questions");
+      generateQuestions({ format: data.format, subject: data.subject, editorialAngle: undefined });
+    }
+  };
+
   const handleIdeaNext = (idea: string, obj?: string) => {
     setIdeaText(idea);
     setObjective(obj || null);
@@ -255,7 +267,7 @@ export default function CreerUnifie() {
 
             {/* Steps */}
             {step === "idea" && (
-              <CreerStepIdea onNext={handleIdeaNext} />
+              <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} />
             )}
 
             {step === "format" && (
