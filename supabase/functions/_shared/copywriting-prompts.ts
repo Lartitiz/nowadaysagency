@@ -835,3 +835,153 @@ export const LANDING_PAGE_RED_FLAGS = [
   { pattern: "Nous sommes ravis|C'est avec fierté", label: "corporate vide", fix: "Supprimer ou reformuler en ton direct" },
   { pattern: "Offre exclusive|Opportunité unique", label: "fausse exclusivité", fix: "Décrire l'offre simplement" },
 ];
+
+export const EDITORIAL_ANGLES_REFERENCE = `
+
+═══════════════════════════════════════════════════
+LES 13 ANGLES ÉDITORIAUX ET LEURS STRUCTURES PAR TYPE
+═══════════════════════════════════════════════════
+
+ANGLE 1 : ENQUÊTE / DÉCRYPTAGE
+Principe : Analyser un phénomène avec un angle que personne n'a pris.
+Structure par défaut : éducationnelle
+Objectifs : visibilité + crédibilité | Phase 1-2 | Déclic : prise de conscience
+En carrousel (8 slides) : Hook (affirmation forte) → Constat (ce que tout le monde croit) → Bascule/révélation (concept nouveau) → Développement/preuve (donnée concrète) → Interprétation (dans ton langage) → Morale bienveillante → Application concrète → Punchline finale
+En reel (30-60s) : Hook 0-3s (statistique choc ou question intrigante) → Contexte 3-10s ("j'ai remarqué que...") → Analyse 10-40s (décortiquer avec exemples) → Conclusion 40-60s (ce que ça change)
+En story (5 stories) : Hook texte → Contexte + photo/vidéo → Analyse avec sondage ("t'as remarqué toi aussi ?") → Conclusion → CTA save
+En post caption (800-1500 car) : Accroche affirmation forte → Contexte ("j'ai remarqué que...") → Analyse détaillée → Conclusion percutante → Ouverture question
+En LinkedIn (1300-2000 car) : Accroche statistique ou affirmation → Analyse sectorielle détaillée → Preuves/données → Position d'experte → CTA question pro
+
+ANGLE 2 : TEST GRANDEUR NATURE
+Principe : Tester un conseil/tendance et donner ton verdict honnête.
+Structure par défaut : tuto
+Objectifs : visibilité + confiance | Phase 2 | Déclic : les deux
+En carrousel (8 slides) : Hook "J'ai testé [X] pendant [durée]" → Contexte (pourquoi ce test) → Étape 1 du test → Étape 2 → Étape 3 + résultats chiffrés → Verdict honnête → Leçon → CTA
+En reel (30-60s) : Hook 0-3s "J'ai testé..." → Setup 3-10s → Résultats 10-40s (montrer les preuves) → Verdict 40-60s
+En story (5-7 stories) : Hook "J'ai testé un truc" → Process jour par jour → Résultats → Sondage "vous voulez que je teste quoi d'autre ?" → Verdict
+En post caption : Accroche "J'ai testé..." → Contexte → Résultats détaillés → Verdict → CTA question
+En LinkedIn : Accroche retour d'expérience → Méthodologie du test → Résultats → Apprentissages pro → CTA
+
+ANGLE 3 : COUP DE GUEULE ENGAGÉ
+Principe : Taper sur une frustration partagée. Prise de position assumée.
+Structure par défaut : coup de gueule doux (8 temps)
+Objectifs : visibilité + engagement | Phase 1 | Déclic : prise de conscience
+En carrousel (8 slides) : Hook (injustice "J'en peux plus que...") → Constat (le problème) → Détail concret (exemple réel) → Conséquence (perte de sens) → Retournement (pourquoi c'est absurde) → Manifeste (ce que tu veux changer) → Appel collectif → CTA
+En reel (15-30s) : Hook 0-3s (frustration face cam) → Constat 3-10s → Alternative 10-25s → Manifeste 25-30s
+En story (5 stories) : Hook frustration → Constat + exemples → Sondage "ça t'énerve aussi ?" → Manifeste → CTA
+En post caption : Accroche tranchée → Problème détaillé → Impact → Alternative → Appel collectif → CTA dialogue
+En LinkedIn : Accroche position forte → Constat sectoriel → Impact pro → Alternative → CTA débat
+
+ANGLE 4 : MYTHE À DÉCONSTRUIRE
+Principe : Démonter une croyance répandue avec des arguments concrets.
+Structure par défaut : éducationnelle (variante Sandwich Mythe/Vérité)
+Objectifs : visibilité + confiance | Phase 1-2 | Déclic : prise de conscience
+En carrousel (8 slides) : Hook (le mythe entre guillemets) → Le mythe développé → Exemple qui contredit → La vérité → Preuve/donnée → Pourquoi on y croit → Ce qu'il faut retenir → Punchline
+En reel (30-45s) : Hook 0-3s "On t'a menti" → Le mythe 3-10s → La réalité 10-30s → Verdict 30-45s
+En story (5 stories) : Quiz "Vrai ou faux : [mythe]" → La réalité → Preuves → Sondage → Verdict
+En post caption : Mythe formulé en accroche → Pourquoi c'est faux → Preuves → Vraie leçon → CTA
+En LinkedIn : Mythe sectoriel en accroche → Démontage argumenté → Données → Position → CTA
+
+ANGLE 5 : STORYTELLING PERSONNEL + LEÇON
+Principe : Raconter une galère/déclic et en tirer une leçon applicable.
+Structure par défaut : storytelling (8 temps)
+Objectifs : confiance | Phase 2-3 | Déclic : identification
+En carrousel (8 slides) : Hook/claque (phrase choc chiffrée) → Contexte/vulnérabilité → Erreurs/responsabilité (apprentie pas victime) → Chute (point bas) → Tournant → Bilan/reconstruction → Morale universelle → Message d'apaisement
+En reel (30-60s) : Hook 0-3s "Ce jour-là..." → Contexte 3-15s → Galère 15-30s → Tournant 30-45s → Leçon 45-60s
+En story (6 stories) : Hook "Faut que je te raconte" → Contexte → La galère → Le déclic → La leçon → Question ouverte
+En post caption : Accroche moment clé → Contexte détaillé → Retournement → Leçon universelle → CTA identification
+En LinkedIn : Accroche retour d'expérience → Contexte pro → Erreur/apprentissage → Leçon → CTA
+
+ANGLE 6 : HISTOIRE CLIENTE + DÉCLIC
+Principe : Illustrer un blocage commun via un cas réel. Social proof déguisé.
+Structure par défaut : storytelling (court format) ou étude de cas (long format)
+Objectifs : confiance + vente | Phase 3-4 | Déclic : projection
+En carrousel (8 slides) : Hook "Elle m'a dit..." → Le blocage → Le contexte → Le déclic → Les actions → Le résultat → La leçon universelle → CTA
+En reel (30-45s) : Hook 0-3s "Une cliente..." → Blocage 3-10s → Déclic 10-25s → Résultat 25-35s → CTA 35-45s
+En story (5 stories) : Hook "Je te raconte l'histoire de..." → Avant → Le travail ensemble → Après → Sondage "tu te reconnais ?"
+En post caption : "Elle m'a dit..." → Blocage → Déclic → Résultat → Leçon → CTA doux
+En LinkedIn (étude de cas longue, 11 sections) : Accroche résultat → Contexte → Problème → Diagnostic → Stratégie → Exécution → Résultats → Transformation → Témoignage → Enseignements → CTA offre
+En newsletter (étude de cas longue) : même structure 11 sections, développée
+
+ANGLE 7 : SURF SUR L'ACTU
+Principe : Rebondir sur une actualité pour partager ton analyse.
+Structure par défaut : conseil pratique
+Objectifs : visibilité | Phase 1 | Déclic : prise de conscience
+En carrousel (5-7 slides) : Hook l'actu → Contexte rapide → Ton analyse → Le lien avec l'audience → Ta position → CTA
+En reel (15-30s) : Hook 0-3s (l'actu) → Analyse rapide 3-20s → Ta position 20-30s
+En story (4 stories) : L'actu → Ton analyse → Sondage "t'en penses quoi ?" → Ta position
+En post caption : Accroche actu → Analyse → Lien avec ton audience → Position → CTA
+En LinkedIn : Accroche actu sectorielle → Analyse détaillée → Impact pro → Position → CTA
+
+ANGLE 8 : REGARD PHILOSOPHIQUE / SOCIÉTAL
+Principe : Prendre de la hauteur sur un sujet de société. Le côté France Culture.
+Structure par défaut : éducationnelle
+Objectifs : confiance + crédibilité | Phase 2-3 | Déclic : prise de conscience
+En carrousel (8 slides) : Observation large → Question → Développement (références) → Lien avec la com' → Interprétation perso → Nuance → Ouverture → Punchline
+En reel (45-60s) : Hook 0-3s question large → Réflexion 3-40s → Lien avec ton domaine 40-50s → Ouverture 50-60s
+En story (5 stories) : Question → Réflexion avec images → Lien perso → Sondage → Ouverture
+En post caption : Question/observation → Développement → Lien avec la com → Ouverture/invitation réflexion → Pas de solution toute faite
+En LinkedIn : Observation sociétale → Analyse → Références → Lien pro → Ouverture
+
+ANGLE 9 : CONSEIL CONTRE-INTUITIF
+Principe : Aller à contre-courant des conseils mainstream.
+Structure par défaut : conseil pratique ou éducationnelle
+Objectifs : visibilité | Phase 1-2 | Déclic : prise de conscience
+En carrousel (8 slides, structure éducationnelle) : Hook contre-intuitif → Le conseil mainstream → Pourquoi ça marche pas → La vraie approche → Preuve → Application → Résultat → Punchline
+En reel (15-30s) : Hook 0-3s "Arrête de [conseil courant]" → Pourquoi 3-15s → La vraie approche 15-25s → CTA 25-30s
+En story (4 stories) : Hook contre-intuitif → Le pourquoi → L'alternative → Sondage
+En post caption : Accroche contre-intuitive → Thèse → Diagnostic → Exemples → Permission + CTA
+En LinkedIn : Accroche contre-courant → Argumentation → Preuves → Position → CTA
+
+ANGLE 10 : BEFORE / AFTER RÉVÉLATEUR
+Principe : Montrer une évolution pour inspirer.
+Structure par défaut : storytelling
+Objectifs : vente | Phase 3-4 | Déclic : projection
+En carrousel (8 slides) : Hook avant/après chiffré → Le "avant" détaillé → Les actions → Le tournant → Le "après" → Les résultats → La leçon → CTA
+En reel (30-45s) : Hook 0-3s "Il y a [durée]..." → Avant 3-10s → Les actions 10-25s → Après 25-35s → CTA 35-45s
+En story (5 stories) : Avant (photo/texte) → Le process → Après → Sondage réaction → CTA
+En post caption : Accroche avant/après → Détail avant → Ce qui a changé → Détail après → Leçon → CTA
+En LinkedIn : Accroche transformation → Contexte → Process → Résultats chiffrés → CTA
+
+ANGLE 11 : IDENTIFICATION / QUOTIDIEN
+Principe : Contenus où l'audience se reconnaît dans une situation.
+Structure par défaut : coup de gueule doux ou conseil pratique
+Objectifs : visibilité | Phase 1 | Déclic : identification
+En carrousel (8 slides, coup de gueule) : Hook identification → Situation → "Tu fais ça toi aussi ?" → Le problème derrière → Pourquoi c'est normal → Permission → Application → CTA
+En reel (15-30s) : Hook 0-3s situation quotidienne → Identification 3-15s → Le twist 15-25s → CTA 25-30s
+En story (4 stories) : Situation → Sondage "c'est toi ?" → Le pourquoi → Permission
+En post caption (conseil pratique) : Accroche situation → Thèse → Diagnostic empathique → Exemples → Permission + CTA
+En LinkedIn : Accroche situation pro → Identification → Analyse → Permission → CTA
+
+ANGLE 12 : BUILD IN PUBLIC
+Principe : Partager ton parcours en transparence.
+Structure par défaut : storytelling
+Objectifs : confiance | Phase 2-3 | Déclic : identification
+En carrousel (8 slides) : Hook "Ce mois-ci..." → Objectif initial → Ce qui s'est passé → Les galères → Les wins → Les chiffres → La leçon → Ce qui vient
+En reel (30-60s) : Hook 0-3s confession → Contexte 3-15s → Les coulisses 15-40s → Bilan 40-50s → CTA 50-60s
+En story (6 stories) : Hook "Coulisses" → Les actions → Les résultats → Les doutes → La suite → Question
+En post caption : Accroche transparence → Contexte → Échecs + réussites → Leçon → CTA communauté
+En LinkedIn : Accroche entrepreneuriale → Objectifs → Résultats → Apprentissages → CTA réseau
+
+ANGLE 13 : ANALYSE EN PROFONDEUR
+Principe : Décortiquer un sujet en profondeur avec des points de vue fouillés.
+Structure par défaut : éducationnelle
+Objectifs : crédibilité + visibilité | Phase 1-2 | Déclic : prise de conscience
+En carrousel (8-10 slides) : Hook pédagogique → Constat → Analyse point 1 → Analyse point 2 → Analyse point 3 → Synthèse → Application → Punchline
+En reel (45-60s) : Hook 0-3s "3 choses que personne ne te dit sur..." → Point 1 → Point 2 → Point 3 → Synthèse
+En story (5-7 stories) : Hook → Point 1 + sondage → Point 2 → Point 3 → Synthèse → Save CTA
+En post caption : Accroche analyse → Développement structuré → Preuves → Synthèse → CTA
+En LinkedIn : Accroche expertise → Analyse détaillée avec données → Position → CTA
+
+═══════════════════════════════════════════════════
+COMMENT UTILISER CES ANGLES
+═══════════════════════════════════════════════════
+
+Quand tu reçois un paramètre "editorial_angle" ET un type de contenu (carrousel, reel, story, post, linkedin, newsletter) :
+1. Trouve l'angle correspondant ci-dessus
+2. Utilise la structure SPÉCIFIQUE à ce type de contenu pour cet angle
+3. Le contenu généré DOIT suivre cette structure étape par étape
+4. Adapte le ton et la longueur aux specs du canal
+
+Si tu ne reçois PAS d'editorial_angle, garde ton comportement actuel (choix libre).
+`;
