@@ -30,6 +30,7 @@ const FORMAT_EMOJI: Record<string, string> = {
   post_photo: "📝",
   post_texte: "📝",
   carousel: "🎠",
+  post_carrousel: "🎠",
   carrousel: "🎠",
   reel: "🎬",
   reels: "🎬",
@@ -45,6 +46,7 @@ const FORMAT_LABEL: Record<string, string> = {
   post_photo: "Post photo",
   post_texte: "Post texte",
   carousel: "Carrousel",
+  post_carrousel: "Carrousel",
   carrousel: "Carrousel",
   reel: "Reel",
   reels: "Reel",
@@ -214,7 +216,13 @@ export default function SuggestedContents() {
       const parsed = typeof cachedContents.contents === "string"
         ? JSON.parse(cachedContents.contents)
         : cachedContents.contents;
-      return Array.isArray(parsed) ? parsed : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map((s: any) => ({
+        idea: s.idea || s.theme || s.titre || "Idée de contenu",
+        format: s.format || "post",
+        objective: s.objective || "inspirer",
+        pillar: s.pillar || null,
+      }));
     } catch {
       return [];
     }
