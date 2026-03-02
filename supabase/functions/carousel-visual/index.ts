@@ -161,20 +161,34 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
     // Build messages - include template reference image if available
     const messages: any[] = [];
+    const imageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"];
+    const isImageUrl = (url: string) => {
+      const lower = url.toLowerCase().split("?")[0];
+      return imageExtensions.some(ext => lower.endsWith(ext));
+    };
+
     if (isCharterRef && template_reference_urls?.length) {
-      // Use vision: send the template image + text prompt
-      const content: any[] = [];
-      for (const url of template_reference_urls) {
+      // Filter to only image URLs (exclude PDFs and other unsupported formats)
+      const imageUrls = template_reference_urls.filter((u: string) => isImageUrl(u));
+      
+      if (imageUrls.length > 0) {
+        // Use vision: send the template image + text prompt
+        const content: any[] = [];
+        for (const url of imageUrls) {
+          content.push({
+            type: "image",
+            source: { type: "url", url },
+          });
+        }
         content.push({
-          type: "image",
-          source: { type: "url", url },
+          type: "text",
+          text: `Voici le template de référence de l'utilisatrice. Analyse son design (mise en page, style, espacement, ambiance) et reproduis-le fidèlement pour les slides suivantes.\n\n${userPrompt}`,
         });
+        messages.push({ role: "user", content });
+      } else {
+        // No valid image templates, fallback to text-only
+        messages.push({ role: "user", content: userPrompt });
       }
-      content.push({
-        type: "text",
-        text: `Voici le template de référence de l'utilisatrice. Analyse son design (mise en page, style, espacement, ambiance) et reproduis-le fidèlement pour les slides suivantes.\n\n${userPrompt}`,
-      });
-      messages.push({ role: "user", content });
     } else {
       messages.push({ role: "user", content: userPrompt });
     }
