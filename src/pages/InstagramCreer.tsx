@@ -125,13 +125,22 @@ export default function InstagramCreer() {
     if (!suggestion) return;
     const fmt = FORMAT_OPTIONS.find(f => f.id === suggestion.format);
     if (fmt && !fmt.comingSoon) {
-      const suggestedState = calendarState?.notes ? { fromSuggested: true, existingContent: calendarState.notes, theme: calendarState.theme } : undefined;
+      const existingContent = calendarState?.notes || undefined;
+      const stateToPass = {
+        fromSuggested: true,
+        theme: calendarState?.theme || ideaText,
+        ...(existingContent ? { existingContent } : {}),
+      };
       if (suggestion.format === "post") {
-        navigate(`/atelier?canal=instagram&objectif=${suggestion.objective}&sujet=${encodeURIComponent(ideaText)}`, {
-          state: suggestedState,
+        const params = new URLSearchParams({
+          canal: "instagram",
+          objectif: suggestion.objective,
+          sujet: ideaText,
         });
+        if (suggestion.suggested_angle) params.set("angle", suggestion.suggested_angle);
+        navigate(`/atelier?${params.toString()}`, { state: stateToPass });
       } else {
-        navigate(fmt.route, { state: suggestedState });
+        navigate(fmt.route, { state: stateToPass });
       }
     }
   };
