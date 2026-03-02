@@ -241,13 +241,18 @@ export default function InstagramCarousel() {
   const questions = DEEPENING_QUESTIONS[carouselType] || DEFAULT_QUESTIONS;
 
   // Pre-fill from URL params (force override — URL params take priority)
+  const fromCarouselType = searchParams.get("carousel_type");
   useEffect(() => {
     if (fromObjectif) {
       const objMap: Record<string, string> = { visibilite: "shares", confiance: "community", vente: "conversion", credibilite: "saves" };
       if (objMap[fromObjectif]) setObjective(objMap[fromObjectif]);
     }
     if (fromSujet) setSubject(fromSujet);
-  }, [fromObjectif, fromSujet]);
+    if (fromCarouselType && CAROUSEL_TYPES.some(t => t.id === fromCarouselType)) {
+      setCarouselType(fromCarouselType);
+      setStep(2);
+    }
+  }, [fromObjectif, fromSujet, fromCarouselType]);
 
   const CAROUSEL_STEPS = [
     { key: "type", label: "Type" },
