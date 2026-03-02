@@ -670,7 +670,7 @@ export default function InstagramCarousel() {
                   <Button variant="outline" size="sm" onClick={async () => {
                     toast.info("Export PPTX en cours…");
                     try {
-                      await exportCarouselPptx(slides, subject || "carrousel", visualSlides);
+                      await exportCarouselPptx(slides, subject || "carrousel", visualSlides, charterHookData);
                       toast.success("PPTX téléchargé !");
                     } catch (err: any) {
                       console.error("PPTX export error:", err);

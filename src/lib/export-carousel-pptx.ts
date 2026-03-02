@@ -12,69 +12,30 @@ interface VisualSlide {
   html: string;
 }
 
-/**
- * Render an HTML string to a canvas image at 1080x1350 (Instagram 4:5).
- */
-async function renderHtmlToImage(html: string): Promise<string> {
-  const html2canvas = (await import("html2canvas")).default;
+export interface CharterColors {
+  color_primary?: string | null;
+  color_secondary?: string | null;
+  color_accent?: string | null;
+  color_background?: string | null;
+  color_text?: string | null;
+  font_title?: string | null;
+  font_body?: string | null;
+}
 
-  // Create an off-screen container
-  const container = document.createElement("div");
-  container.style.position = "fixed";
-  container.style.left = "-9999px";
-  container.style.top = "0";
-  container.style.width = "1080px";
-  container.style.height = "1350px";
-  container.style.overflow = "hidden";
-  container.style.zIndex = "-1";
-  document.body.appendChild(container);
-
-  // Use an iframe to isolate the HTML and its styles
-  const iframe = document.createElement("iframe");
-  iframe.style.width = "1080px";
-  iframe.style.height = "1350px";
-  iframe.style.border = "none";
-  iframe.style.overflow = "hidden";
-  container.appendChild(iframe);
-
-  await new Promise<void>((resolve) => {
-    iframe.onload = () => resolve();
-    iframe.srcdoc = html;
-  });
-
-  // Wait for fonts/images to load
-  await new Promise((r) => setTimeout(r, 600));
-
-  const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-  if (!iframeDoc?.body) {
-    document.body.removeChild(container);
-    throw new Error("Failed to render slide HTML");
-  }
-
-  const canvas = await html2canvas(iframeDoc.body, {
-    width: 1080,
-    height: 1350,
-    scale: 1,
-    useCORS: true,
-    allowTaint: true,
-    backgroundColor: "#ffffff",
-    logging: false,
-  });
-
-  const dataUrl = canvas.toDataURL("image/png");
-  document.body.removeChild(container);
-  return dataUrl;
+function hexToRgb(hex: string): string {
+  // Strip # and return 6-char hex for pptxgenjs
+  return hex.replace("#", "").padEnd(6, "0").slice(0, 6);
 }
 
 /**
  * Export carousel slides as a PPTX file (portrait 1080x1350 ratio).
- * If visualSlides (HTML) are provided, renders them as images.
- * Otherwise falls back to text-only slides.
+ * Uses brand charter colors/fonts for editable native slides.
  */
 export async function exportCarouselPptx(
   slides: SlideData[],
   fileName = "carrousel",
-  visualSlides?: VisualSlide[]
+  _visualSlides?: VisualSlide[],
+  charter?: CharterColors | null
 ) {
   const pptx = new PptxGenJS();
 
@@ -83,82 +44,123 @@ export async function exportCarouselPptx(
   pptx.defineLayout({ name: "INSTAGRAM", width: 7.5, height: 9.375 });
   pptx.layout = "INSTAGRAM";
 
-  // If we have visual HTML slides, render them as images
-  if (visualSlides && visualSlides.length > 0) {
-    for (const vs of visualSlides) {
-      const slide = pptx.addSlide();
-      try {
-        const imgData = await renderHtmlToImage(vs.html);
-        slide.addImage({
-          data: imgData,
-          x: 0,
-          y: 0,
-          w: 7.5,
-          h: 9.375,
-        });
-      } catch (err) {
-        console.warn(`Failed to render slide ${vs.slide_number} as image, using text fallback`, err);
-        const textSlide = slides.find((s) => s.slide_number === vs.slide_number);
-        if (textSlide) {
-          addTextSlide(slide, textSlide);
-        }
-      }
-    }
-  } else {
-    // Text-only fallback
-    for (const s of slides) {
-      const slide = pptx.addSlide();
-      addTextSlide(slide, s);
-    }
+  const colors = {
+    primary: hexToRgb(charter?.color_primary || "#E91E8C"),
+    secondary: hexToRgb(charter?.color_secondary || "#1A1A2E"),
+    accent: hexToRgb(charter?.color_accent || "#FFE561"),
+    background: hexToRgb(charter?.color_background || "#FFFFFF"),
+    text: hexToRgb(charter?.color_text || "#1A1A2E"),
+  };
+  const fonts = {
+    title: charter?.font_title || "Arial",
+    body: charter?.font_body || "Arial",
+  };
+
+  for (const s of slides) {
+    const slide = pptx.addSlide();
+    addBrandedSlide(slide, s, colors, fonts);
   }
 
   await pptx.writeFile({ fileName: `${fileName}.pptx` });
 }
 
-function addTextSlide(slide: any, s: SlideData) {
-  slide.background = { color: "FFFFFF" };
+function addBrandedSlide(
+  slide: any,
+  s: SlideData,
+  colors: { primary: string; secondary: string; accent: string; background: string; text: string },
+  fonts: { title: string; body: string }
+) {
+  slide.background = { color: colors.background };
+
+  // Accent bar at top
+  slide.addShape("rect", {
+    x: 0,
+    y: 0,
+    w: 7.5,
+    h: 0.08,
+    fill: { color: colors.primary },
+  });
 
   // Slide number badge
-  slide.addText(`SLIDE ${s.slide_number}`, {
+  slide.addText(`${s.slide_number}`, {
     x: 0.4,
-    y: 0.4,
-    w: 1.6,
-    h: 0.4,
-    fontSize: 10,
+    y: 0.5,
+    w: 0.7,
+    h: 0.7,
+    fontSize: 22,
     bold: true,
-    color: "888888",
-    fontFace: "Arial",
+    color: colors.background,
+    fontFace: fonts.title,
+    align: "center",
+    valign: "middle",
+    fill: { color: colors.primary },
+    shape: "roundRect",
+    rectRadius: 0.15,
   });
+
+  // Role / type label
+  if (s.role) {
+    slide.addText(s.role.toUpperCase(), {
+      x: 1.3,
+      y: 0.6,
+      w: 5,
+      h: 0.4,
+      fontSize: 10,
+      bold: true,
+      color: colors.primary,
+      fontFace: fonts.body,
+      letterSpacing: 2,
+    });
+  }
 
   // Title
   slide.addText(s.title, {
     x: 0.6,
-    y: 2.5,
+    y: 2.2,
     w: 6.3,
-    h: 2,
+    h: 2.5,
     fontSize: 28,
     bold: true,
-    color: "1a1a1a",
-    fontFace: "Arial",
+    color: colors.text,
+    fontFace: fonts.title,
     align: "center",
     valign: "middle",
     wrap: true,
+    lineSpacingMultiple: 1.2,
+  });
+
+  // Decorative line separator
+  slide.addShape("rect", {
+    x: 3.0,
+    y: 4.9,
+    w: 1.5,
+    h: 0.04,
+    fill: { color: colors.accent },
   });
 
   // Body
   if (s.body) {
     slide.addText(s.body, {
       x: 0.8,
-      y: 5,
+      y: 5.2,
       w: 5.9,
-      h: 3,
+      h: 3.2,
       fontSize: 16,
-      color: "444444",
-      fontFace: "Arial",
+      color: colors.text,
+      fontFace: fonts.body,
       align: "center",
       valign: "top",
       wrap: true,
-      lineSpacingMultiple: 1.3,
+      lineSpacingMultiple: 1.4,
     });
   }
+
+  // Bottom accent bar
+  slide.addShape("rect", {
+    x: 0,
+    y: 9.295,
+    w: 7.5,
+    h: 0.08,
+    fill: { color: colors.primary },
+  });
 }
