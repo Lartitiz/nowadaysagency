@@ -12,7 +12,8 @@ import ContentActions from "@/components/ContentActions";
 import ReturnToOrigin from "@/components/ReturnToOrigin";
 import BaseReminder from "@/components/BaseReminder";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
-import { Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { Loader2, RefreshCw, Sparkles, Download } from "lucide-react";
+import { exportCarouselPptx } from "@/lib/export-carousel-pptx";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
@@ -524,6 +525,9 @@ export default function InstagramCarousel() {
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-foreground">Aperçu ({visualSlides.length} slides)</p>
                 <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => exportCarouselPptx(slides, subject || "carrousel")} className="text-xs gap-1.5">
+                    <Download className="h-3.5 w-3.5" /> PPTX
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => setVisualSlides([])} className="text-xs gap-1.5">
                     Changer de style
                   </Button>
