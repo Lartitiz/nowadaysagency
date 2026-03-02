@@ -125,10 +125,16 @@ export function useContentGenerator() {
 
       switch (format) {
         case "carousel": {
+          // If editorial angle is provided, don't impose a carousel_type
+          let effectiveCarouselType = carouselType || null;
+          if (!effectiveCarouselType && editorialAngle) {
+            effectiveCarouselType = null;
+          }
+
           const res = await supabase.functions.invoke("carousel-ai", {
             body: {
               type: "express_full",
-              carousel_type: carouselType || "tips",
+              carousel_type: effectiveCarouselType,
               subject,
               objective: objective || null,
               slide_count: slideCount || 7,
