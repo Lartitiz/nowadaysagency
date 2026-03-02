@@ -125,6 +125,14 @@ export async function checkQuota(
   category: string,
   workspaceId?: string
 ): Promise<QuotaResult> {
+  // Admin bypass — unlimited quota
+  const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
+  const sb = getServiceClient();
+  const { data: authUser } = await sb.auth.admin.getUserById(userId);
+  if (authUser?.user?.email === ADMIN_EMAIL) {
+    return { allowed: true, plan: "admin", remaining: 9999, remaining_total: 9999 };
+  }
+
   const plan = workspaceId
     ? await getWorkspacePlan(workspaceId)
     : await getUserPlan(userId);
