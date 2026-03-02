@@ -40,7 +40,7 @@ serve(async (req) => {
 
     const body = await req.json();
     validateInput(body, z.object({
-      type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles", "deepening_questions"]),
+      type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles", "deepening_questions", "express_full"]),
       carousel_type: z.string().max(100).optional().nullable(),
       subject: z.string().max(2000).optional().nullable(),
       objective: z.string().max(100).optional().nullable(),
@@ -68,6 +68,8 @@ serve(async (req) => {
       userPrompt = buildHooksPrompt(body);
     } else if (type === "slides") {
       userPrompt = buildSlidesPrompt(body);
+    } else if (type === "express_full") {
+      userPrompt = buildExpressFullPrompt(body);
     } else if (type === "suggest_topics") {
       userPrompt = buildSuggestTopicsPrompt(body);
     } else if (type === "suggest_angles") {
@@ -440,5 +442,62 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour :
     { "question": "...", "placeholder": "..." },
     { "question": "...", "placeholder": "..." }
   ]
+}`;
+}
+
+function buildExpressFullPrompt(body: any): string {
+  const { subject, carousel_type, objective, slide_count } = body;
+  const type = carousel_type || "tips";
+  const structureGuide = getStructureGuide(type);
+
+  return `DEMANDE : Génère un carrousel Instagram COMPLET en une seule fois. Tu dois choisir le meilleur hook, puis rédiger toutes les slides et la caption.
+
+Sujet : "${subject || "non précisé"}"
+Type de carrousel : ${type}
+Objectif : ${objective || "engagement"}
+Nombre de slides : ${slide_count || 7}
+
+STRUCTURE RECOMMANDÉE :
+${structureGuide}
+
+RÈGLES :
+- Slide 1 = hook percutant (max 12 mots), qui stoppe le scroll
+- Chaque slide : max 50 mots, 1 idée
+- Slide 2 = DOIT fonctionner comme hook autonome (seconde chance algo)
+- Dernière slide = 1 SEUL CTA
+- Headlines de 4-7 mots, commencer par un verbe d'action
+- Caption différente du hook slide 1
+- Hashtags : 3-8, mix large + niche
+- Le contenu doit sonner humain, pas IA
+
+Retourne ce JSON exact :
+{
+  "carousel_type": "${type}",
+  "slides": [
+    {
+      "slide_number": 1,
+      "role": "hook",
+      "title": "Le headline de la slide",
+      "body": "Le texte complémentaire (optionnel pour le hook)",
+      "visual_suggestion": "Ce qui devrait apparaître visuellement",
+      "word_count": 8
+    }
+  ],
+  "caption": {
+    "hook": "Les 125 premiers caractères de la caption (accroche DIFFÉRENTE de slide 1)",
+    "body": "Le reste de la caption",
+    "cta": "Le CTA dans la caption",
+    "hashtags": ["hashtag1", "hashtag2"]
+  },
+  "quality_check": {
+    "hook_word_count": 8,
+    "hook_ok": true,
+    "all_slides_under_50_words": true,
+    "single_cta": true,
+    "caption_different_from_hook": true,
+    "slide_2_works_as_standalone_hook": true,
+    "score": 90
+  },
+  "publishing_tip": "Meilleur moment pour publier ce type de carrousel..."
 }`;
 }

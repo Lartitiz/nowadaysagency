@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { parseAIResponse } from "@/lib/parse-ai-response";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -124,6 +125,7 @@ const DEFAULT_QUESTIONS = [
 
 export default function InstagramCarousel() {
   const { user } = useAuth();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -132,11 +134,23 @@ export default function InstagramCarousel() {
   const fromObjectif = searchParams.get("objectif");
   const fromSujet = searchParams.get("sujet") ? decodeURIComponent(searchParams.get("sujet")!) : "";
 
+  // Express mode: pre-filled from chat guide
+  const navState = location.state as {
+    expressCarousel?: boolean;
+    slides?: any[];
+    caption?: any;
+    qualityCheck?: any;
+    publishingTip?: string;
+    carouselType?: string;
+    subject?: string;
+    objective?: string;
+  } | null;
+
   // Flow: 1=type, 2=context, 3=deepening questions, 4=angles, 5=hooks+structure, 6=slides+caption
-  const [step, setStep] = useState(1);
-  const [carouselType, setCarouselType] = useState("");
-  const [objective, setObjective] = useState("");
-  const [subject, setSubject] = useState("");
+  const [step, setStep] = useState(navState?.expressCarousel ? 6 : 1);
+  const [carouselType, setCarouselType] = useState(navState?.carouselType || "");
+  const [objective, setObjective] = useState(navState?.objective || "");
+  const [subject, setSubject] = useState(navState?.subject || "");
   const [selectedOffer, setSelectedOffer] = useState("");
   const [slideCount, setSlideCount] = useState(7);
   
@@ -155,10 +169,10 @@ export default function InstagramCarousel() {
   const [hooks, setHooks] = useState<Hook[]>([]);
   const [selectedHook, setSelectedHook] = useState("");
   const [customHook, setCustomHook] = useState("");
-  const [slides, setSlides] = useState<Slide[]>([]);
-  const [caption, setCaption] = useState<Caption | null>(null);
-  const [qualityCheck, setQualityCheck] = useState<QualityCheck | null>(null);
-  const [publishingTip, setPublishingTip] = useState("");
+  const [slides, setSlides] = useState<Slide[]>(navState?.slides || []);
+  const [caption, setCaption] = useState<Caption | null>(navState?.caption || null);
+  const [qualityCheck, setQualityCheck] = useState<QualityCheck | null>(navState?.qualityCheck || null);
+  const [publishingTip, setPublishingTip] = useState(navState?.publishingTip || "");
   const [loading, setLoading] = useState(false);
   const { canGenerate, remainingTotal } = useUserPlan();
   const quotaBlocked = !canGenerate("content");
@@ -199,6 +213,7 @@ export default function InstagramCarousel() {
     "carousel-form",
     { step, carouselType, objective, subject, selectedOffer, slideCount },
     (saved) => {
+      if (navState?.expressCarousel) return; // Don't restore draft in express mode
       if (searchParams.get("calendar_id") || searchParams.get("sujet")) return;
       if (saved.carouselType) setCarouselType(saved.carouselType);
       if (saved.objective) setObjective(saved.objective);
@@ -246,6 +261,7 @@ export default function InstagramCarousel() {
   // Pre-fill from URL params (force override — URL params take priority)
   const fromCarouselType = searchParams.get("carousel_type");
   useEffect(() => {
+    if (navState?.expressCarousel) return; // Skip URL param overrides in express mode
     if (fromObjectif) {
       const objMap: Record<string, string> = { visibilite: "shares", confiance: "community", vente: "conversion", credibilite: "saves" };
       if (objMap[fromObjectif]) setObjective(objMap[fromObjectif]);
