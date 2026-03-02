@@ -271,7 +271,14 @@ export default function InstagramCarousel() {
   }, [user?.id, searchParams]);
 
   const typeObj = CAROUSEL_TYPES.find(t => t.id === carouselType);
-  const questions = dynamicQuestions || (loadingQuestions ? [] : (DEEPENING_QUESTIONS[carouselType] || DEFAULT_QUESTIONS));
+  
+  // Always use dynamic (AI-personalized) questions — static fallback only as last resort with subject injection
+  const personalizedFallback = subject.trim() ? [
+    { question: `Sur "${subject}", c'est quoi ton point de vue personnel ? Ce que tu as observé, vécu ou appris.`, placeholder: "Ton vécu, ton observation..." },
+    { question: `Qu'est-ce que ta cible ne comprend pas ou se trompe sur "${subject}" ?`, placeholder: "L'erreur courante, le malentendu..." },
+    { question: `Tu as un exemple concret ou une anecdote sur "${subject}" à partager ?`, placeholder: "Un cas client, une situation vécue..." },
+  ] : DEFAULT_QUESTIONS;
+  const questions = dynamicQuestions || (loadingQuestions ? [] : personalizedFallback);
 
   // Pre-fill from URL params
   const fromCarouselType = searchParams.get("carousel_type");
@@ -684,20 +691,25 @@ export default function InstagramCarousel() {
               setDynamicQuestions(null);
               if (subject.trim()) {
                 setLoadingQuestions(true);
-                supabase.functions.invoke("carousel-ai", {
-                  body: { type: "deepening_questions", carousel_type: carouselType, subject, objective, workspace_id: workspaceId },
-                }).then(({ data, error }) => {
-                  if (!error && data?.content) {
-                    try {
+                const fetchDynamicQuestions = async (attempt = 1) => {
+                  try {
+                    const { data, error } = await supabase.functions.invoke("carousel-ai", {
+                      body: { type: "deepening_questions", carousel_type: carouselType, subject, objective, workspace_id: workspaceId },
+                    });
+                    if (!error && data?.content) {
                       const parsed = typeof data.content === "string" ? JSON.parse(data.content) : data.content;
                       if (parsed.questions?.length >= 2) {
                         setDynamicQuestions(parsed.questions);
+                        return;
                       }
-                    } catch (e) {
-                      console.warn("Failed to parse dynamic questions, using defaults", e);
                     }
+                    if (attempt < 2) return fetchDynamicQuestions(2);
+                  } catch (e) {
+                    console.warn("Failed to load dynamic questions (attempt " + attempt + ")", e);
+                    if (attempt < 2) return fetchDynamicQuestions(2);
                   }
-                }).finally(() => setLoadingQuestions(false));
+                };
+                fetchDynamicQuestions().finally(() => setLoadingQuestions(false));
               }
             }}
             subjectPlaceholder={`Ex : "${activityExamples.post_examples[0]}"`}
