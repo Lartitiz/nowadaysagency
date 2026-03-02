@@ -125,8 +125,8 @@ export function useOnboardingMissions() {
   const allDone = completedCount === 5;
   const nextMission = missions.find((m) => !m.completed) ?? null;
 
-  // Re-show if dismissed but 14 days passed and not all done
-  const effectiveDismissed = dismissed && (allDone || isDismissedNow());
+  // Once all done and dismissed, stay dismissed permanently
+  const effectiveDismissed = allDone ? dismissed : (dismissed && isDismissedNow());
 
   return {
     missions,
