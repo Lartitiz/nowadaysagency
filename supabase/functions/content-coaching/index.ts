@@ -48,6 +48,29 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Map raw IDs to human-readable labels for better AI output
+    const OBJECTIF_LABELS: Record<string, string> = {
+      inspirer: "Inspirer son audience",
+      eduquer: "Éduquer / apporter de la valeur",
+      vendre: "Vendre / convertir",
+      creer_du_lien: "Créer du lien / engager la communauté",
+    };
+    const FORMAT_LABELS: Record<string, string> = {
+      post_texte: "Post texte (légende Instagram ou post LinkedIn)",
+      carrousel: "Carrousel Instagram",
+      reel: "Reel vidéo court",
+      story: "Story Instagram",
+    };
+    const TON_LABELS: Record<string, string> = {
+      intime: "Intime et personnel (vulnérabilité, authenticité)",
+      expert: "Expert et informatif (crédibilité, pédagogie)",
+      engage: "Engagé et provocateur (opinion forte, prise de position)",
+    };
+
+    const objectifLabel = OBJECTIF_LABELS[objectif] || objectif;
+    const formatLabel = FORMAT_LABELS[format] || format;
+    const tonLabel = TON_LABELS[ton_envie] || ton_envie;
+
     const sbService = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -92,13 +115,16 @@ PILIERS DE CONTENU : ${pillars}
 DERNIERS POSTS (pour ne pas répéter) :
 ${recentPosts}
 
-RÉPONSES :
-- Objectif : ${objectif}
-- Sujet : ${sujet || "pas de sujet, l'utilisatrice a besoin d'idées"}
-- Format préféré : ${format}
-- Ton envie : ${ton_envie}
+RÉPONSES DE L'UTILISATRICE :
+- Objectif : ${objectifLabel}
+- Sujet : ${sujet || "PAS DE SUJET → l'utilisatrice a besoin d'idées concrètes"}
+- Format préféré : ${formatLabel}
+- Ton souhaité : ${tonLabel}
 
-${!sujet ? "L'UTILISATRICE N'A PAS DE SUJET : propose 3 idées basées sur ses piliers de contenu en ÉVITANT les sujets déjà traités dans les derniers posts." : ""}
+${!sujet ? `L'UTILISATRICE N'A PAS DE SUJET :
+- Propose 3 idées ULTRA CONCRÈTES basées sur ses piliers de contenu
+- ÉVITE les sujets déjà traités dans les derniers posts
+- Chaque idée doit être un angle précis, pas un thème vague (ex: "Les 3 erreurs que je vois sur 90% des sites de photographes" plutôt que "Parler de ton expertise")` : ""}
 
 FORMATS DISPONIBLES ET ROUTES :
 - Post texte → /instagram/creer
@@ -106,18 +132,24 @@ FORMATS DISPONIBLES ET ROUTES :
 - Reel → /instagram/reels
 - Story → /instagram/stories
 
-Choisis la route qui correspond au format recommandé.
+Le format recommandé DOIT correspondre au format choisi par l'utilisatrice (${formatLabel}), sauf si tu as une raison TRÈS forte de proposer autre chose (dans ce cas, explique pourquoi).
 
 Retourne UNIQUEMENT un JSON :
 {
-  "recommended_subject": "Le sujet recommandé (concret et spécifique)",
-  "subject_alternatives": ["2 alternatives de sujets"],
-  "recommended_format": "Le format le plus adapté (Post texte, Carrousel, Reel ou Story)",
-  "format_reason": "Pourquoi ce format en 1 phrase courte",
-  "redirect_route": "/instagram/creer ou /instagram/carousel ou /instagram/reels ou /instagram/stories",
-  "redirect_params": { "subject": "...", "objective": "..." },
-  "quick_brief": "Un mini-brief de 2-3 phrases pour guider la création : angle, ton, structure suggérée"
+  "recommended_subject": "Le sujet recommandé — CONCRET et SPÉCIFIQUE au métier de l'utilisatrice",
+  "subject_alternatives": ["2 alternatives de sujets tout aussi concrètes"],
+  "recommended_format": "${formatLabel}",
+  "format_reason": "Pourquoi ce format en 1 phrase courte et pertinente",
+  "redirect_route": "la route correspondant au format",
+  "redirect_params": { "subject": "le sujet choisi", "objective": "${objectif}" },
+  "quick_brief": "Un mini-brief de 2-3 phrases : l'angle exact, le ton à adopter (${tonLabel}), la structure suggérée. Sois CONCRÈTE, pas générique."
 }
+
+QUALITÉ DU BRIEF :
+- Le quick_brief doit donner envie de créer, pas être une instruction froide
+- Utilise le vocabulaire du métier de l'utilisatrice
+- INTERDIT : "dans un monde où", "et si je te disais", "spoiler alert", formules IA génériques
+- Les sujets doivent refléter son positionnement UNIQUE, pas des conseils génériques applicables à n'importe qui
 
 Sois directe et concrète. Tutoiement. Pas de jargon.`;
 
