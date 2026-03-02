@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Copy, RefreshCw, RotateCcw, CalendarDays, Save } from "lucide-react";
+import { Copy, RefreshCw, RotateCcw, CalendarDays, Save, Palette, Download, Loader2 } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState } from "react";
@@ -13,9 +13,16 @@ interface Props {
   onReset: () => void;
   onSave?: () => void;
   onCalendar?: () => void;
+  onGenerateVisuals?: () => void;
+  visualLoading?: boolean;
+  visualSlides?: { slide_number: number; html: string }[];
+  onExportPptx?: () => void;
 }
 
-export default function CarouselResult({ result, onCopy, onRegenerate, onReset, onSave, onCalendar }: Props) {
+export default function CarouselResult({
+  result, onCopy, onRegenerate, onReset, onSave, onCalendar,
+  onGenerateVisuals, visualLoading, visualSlides, onExportPptx,
+}: Props) {
   const slides = result?.slides || result?.carousel?.slides || [];
   const caption = result?.caption || result?.carousel?.caption || {};
   const qualityCheck = result?.quality_check || result?.carousel?.quality_check;
@@ -133,6 +140,51 @@ export default function CarouselResult({ result, onCopy, onRegenerate, onReset, 
           <RotateCcw className="h-3.5 w-3.5" /> Nouveau contenu
         </Button>
       </div>
+
+      {/* Visual actions (carousel only) */}
+      {(onGenerateVisuals || onExportPptx) && (
+        <div className="flex flex-wrap gap-2 pt-1 border-t border-border">
+          {onGenerateVisuals && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onGenerateVisuals}
+              disabled={visualLoading}
+              className="gap-1.5"
+            >
+              {visualLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Palette className="h-3.5 w-3.5" />
+              )}
+              {visualLoading ? "Génération..." : "Générer les visuels"}
+            </Button>
+          )}
+          {onExportPptx && (
+            <Button variant="outline" size="sm" onClick={onExportPptx} className="gap-1.5">
+              <Download className="h-3.5 w-3.5" /> Export PPTX
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Visual preview */}
+      {visualSlides && visualSlides.length > 0 && (
+        <div className="space-y-3 pt-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Aperçu des visuels ({visualSlides.length} slides)
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {visualSlides.map((vs, idx) => (
+              <div
+                key={idx}
+                className="rounded-lg border border-border overflow-hidden aspect-square"
+                dangerouslySetInnerHTML={{ __html: vs.html }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

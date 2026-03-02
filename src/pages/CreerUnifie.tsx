@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useLocation } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Loader2, CalendarDays } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import CreerStepIdea from "@/components/creer/CreerStepIdea";
@@ -13,6 +17,8 @@ import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import { useContentGenerator } from "@/hooks/use-content-generator";
 import { CONTENT_STRUCTURES, getStructureForCombo } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
+import { exportCarouselPptx } from "@/lib/export-carousel-pptx";
+import { supabase } from "@/integrations/supabase/client";
 
 type Step = "idea" | "format" | "questions" | "result" | "edit";
 type Mode = "create" | "transform";
@@ -49,6 +55,17 @@ export default function CreerUnifie() {
   const [launchIndex, setLaunchIndex] = useState(0);
   const [launchGenerating, setLaunchGenerating] = useState(false);
 
+  // Post-generation states
+  const [saving, setSaving] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
+  const [calendarDate, setCalendarDate] = useState("");
+  const [savingToCalendar, setSavingToCalendar] = useState(false);
+
+  // Visual states (carousel only)
+  const [visualSlides, setVisualSlides] = useState<{ slide_number: number; html: string }[]>([]);
+  const [visualLoading, setVisualLoading] = useState(false);
+
   const {
     generate,
     generating,
@@ -61,26 +78,21 @@ export default function CreerUnifie() {
   } = useContentGenerator();
 
   // Pre-fill from URL/state & auto-advance
-  // Uses location.search so it re-runs when navigating to /creer with new params
-  // (e.g. from coaching dialog while already on /creer)
   useEffect(() => {
     const subject = paramSujet || locState.sujet || locState.subject || "";
     const obj = paramObjectif || locState.objectif || locState.objective || null;
 
-    // Sync state from URL params (needed when component doesn't remount)
     if (subject) setIdeaText(subject);
     if (obj) setObjective(obj);
     if (paramFormat) setSelectedFormat(paramFormat);
 
     if (paramFormat && subject.trim()) {
-      // Both format AND subject provided — pass subject directly to avoid stale state
       handleFormatNext(paramFormat, undefined, subject);
     } else if (locState.fromCalendar && subject) {
       setStep("format");
     } else if (paramFormat) {
       setStep("format");
     } else {
-      // No params — reset to step 1 (handles back-navigation)
       setStep("idea");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -93,21 +105,17 @@ export default function CreerUnifie() {
 
   // ── Step handlers ──
 
-  // Callback from coaching dialog (when already on /creer)
   const handleCoachingSelect = useCallback(async (data: { subject: string; format: string; objective: string }) => {
-    // Reset content state (but NOT the generator loading states)
     setAnswers({});
     setEditorialAngle(null);
     setEditContent("");
     setLaunchResults([]);
-    
-    // Set new values
+
     setIdeaText(data.subject);
     if (data.objective) setObjective(data.objective);
     setSelectedFormat(data.format);
     setStep("questions");
-    
-    // Generate questions with the subject directly (not from state which may not be updated yet)
+
     await generateQuestions({ format: data.format, subject: data.subject, editorialAngle: undefined });
   }, [generateQuestions]);
 
@@ -123,14 +131,12 @@ export default function CreerUnifie() {
 
     const subjectToUse = overrideSubject || ideaText;
 
-    // Special launch mode
     if (angle === "lancement") {
       setStep("result");
       await handleLaunchSequence(format, angle);
       return;
     }
 
-    // Load questions
     setStep("questions");
     await generateQuestions({ format, subject: subjectToUse, editorialAngle: angle });
   };
@@ -149,6 +155,9 @@ export default function CreerUnifie() {
 
   const doGenerate = async (ans: Record<string, string>) => {
     if (!selectedFormat) return;
+    // Reset post-generation state on new generation
+    setSavedId(null);
+    setVisualSlides([]);
     await generate({
       format: selectedFormat as any,
       subject: ideaText,
@@ -248,6 +257,134 @@ export default function CreerUnifie() {
     setEditContent("");
     setLaunchResults([]);
     setLaunchIndex(0);
+    setSavedId(null);
+    setVisualSlides([]);
+  };
+
+  // ── Post-generation handlers ──
+
+  const handleSave = async () => {
+    if (!session?.user?.id || !result?.raw || saving) return;
+    setSaving(true);
+    try {
+      const r = result.raw;
+      if (selectedFormat === "carousel" && r?.slides) {
+        const hookText = r.slides?.[0]?.title || "";
+        const captionText = [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n\n");
+        const { data } = await supabase.from("generated_carousels" as any).insert({
+          user_id: session.user.id,
+          carousel_type: r.carousel_type || "tips",
+          subject: ideaText,
+          objective: objective || null,
+          hook_text: hookText,
+          slide_count: r.slides?.length || 7,
+          slides: r.slides,
+          caption: captionText,
+          hashtags: r.caption?.hashtags || [],
+          quality_score: r.quality_check?.score || null,
+        }).select("id").single();
+        if (data) setSavedId((data as any).id);
+      }
+      toast.success("Contenu sauvegardé !");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de la sauvegarde");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddToCalendar = () => {
+    if (!session?.user?.id || !result?.raw) return;
+    setCalendarDialogOpen(true);
+  };
+
+  const handleConfirmCalendar = async () => {
+    if (!session?.user?.id || !calendarDate || savingToCalendar) return;
+    setSavingToCalendar(true);
+    try {
+      const r = result.raw;
+      let contentDraft = "";
+      let accroche = "";
+      const fmt = selectedFormat || "post";
+
+      if (selectedFormat === "carousel" && r?.slides) {
+        accroche = r.slides?.[0]?.title || "";
+        contentDraft = r.slides?.map((s: any) => `${s.title}\n${s.body || ""}`).join("\n\n");
+      } else if (selectedFormat === "linkedin" && (r?.hook || r?.full_text)) {
+        accroche = r.hook || "";
+        contentDraft = r.full_text || [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
+      } else if (selectedFormat === "reel" && r?.sections) {
+        accroche = r.sections?.[0]?.texte_parle || "";
+        contentDraft = r.sections?.map((s: any) => s.texte_parle || "").join("\n\n");
+      } else {
+        contentDraft = r.content || r.post || r.text || "";
+        accroche = contentDraft.split("\n")[0] || "";
+      }
+
+      const canal = selectedFormat === "linkedin" ? "linkedin" : "instagram";
+
+      const { error: insertError } = await supabase.from("calendar_posts").insert({
+        user_id: session.user.id,
+        date: calendarDate,
+        theme: ideaText,
+        status: "ready",
+        canal,
+        format: fmt,
+        content_draft: contentDraft,
+        accroche,
+        ...(savedId ? { generated_content_id: savedId, generated_content_type: "carousel" } : {}),
+      });
+
+      if (insertError) throw insertError;
+      toast.success("Ajouté au calendrier !");
+      setCalendarDialogOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur");
+    } finally {
+      setSavingToCalendar(false);
+    }
+  };
+
+  const handleGenerateVisuals = async () => {
+    if (!result?.raw?.slides || visualLoading) return;
+    setVisualLoading(true);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke("carousel-visual", {
+        body: {
+          slides: result.raw.slides.map((s: any) => ({
+            slide_number: s.slide_number,
+            role: s.role,
+            title: s.title,
+            body: s.body,
+            visual_suggestion: s.visual_suggestion,
+          })),
+          template_style: "clean",
+        },
+      });
+      if (fnError) throw fnError;
+      if (data?.error) throw new Error(data.error);
+      setVisualSlides(data.result?.slides_html || []);
+      toast.success("Visuels générés !");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de la génération des visuels");
+    } finally {
+      setVisualLoading(false);
+    }
+  };
+
+  const handleExportPptx = async () => {
+    if (!result?.raw?.slides) return;
+    try {
+      await exportCarouselPptx(
+        result.raw.slides,
+        ideaText || "carrousel",
+        visualSlides.length > 0 ? visualSlides : undefined,
+        undefined,
+      );
+      toast.success("PPTX téléchargé !");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'export");
+    }
   };
 
   // ── Launch sequence (5 chapters) ──
@@ -282,7 +419,6 @@ export default function CreerUnifie() {
 
   const stepOrder: Step[] = ["idea", "format", "questions", "result", "edit"];
   const stepIndex = stepOrder.indexOf(step);
-  const progressPercent = step === "idea" ? 0 : ((stepIndex) / (stepOrder.length - 1)) * 100;
 
   // ── Launch mode rendering ──
 
@@ -365,6 +501,12 @@ export default function CreerUnifie() {
                 onReset={handleReset}
                 onRegenerate={handleRegenerate}
                 onCopy={handleCopy}
+                onSave={handleSave}
+                onCalendar={handleAddToCalendar}
+                onGenerateVisuals={selectedFormat === "carousel" ? handleGenerateVisuals : undefined}
+                visualLoading={visualLoading}
+                visualSlides={visualSlides.length > 0 ? visualSlides : undefined}
+                onExportPptx={selectedFormat === "carousel" ? handleExportPptx : undefined}
               />
             )}
 
@@ -430,6 +572,41 @@ export default function CreerUnifie() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Calendar date dialog */}
+      <Dialog open={calendarDialogOpen} onOpenChange={setCalendarDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5" />
+              Planifier la publication
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Date de publication</label>
+              <Input
+                type="date"
+                value={calendarDate}
+                onChange={(e) => setCalendarDate(e.target.value)}
+                min={new Date().toISOString().split("T")[0]}
+              />
+            </div>
+            <Button
+              onClick={handleConfirmCalendar}
+              disabled={!calendarDate || savingToCalendar}
+              className="w-full gap-2"
+            >
+              {savingToCalendar ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CalendarDays className="h-4 w-4" />
+              )}
+              {savingToCalendar ? "Ajout en cours..." : "Ajouter au calendrier"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

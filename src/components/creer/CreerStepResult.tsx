@@ -16,6 +16,10 @@ interface Props {
   onCopy: (text: string) => void;
   onSave?: () => void;
   onCalendar?: () => void;
+  onGenerateVisuals?: () => void;
+  visualLoading?: boolean;
+  visualSlides?: { slide_number: number; html: string }[];
+  onExportPptx?: () => void;
 }
 
 const LOADING_MESSAGES: Record<string, string> = {
@@ -37,6 +41,10 @@ export default function CreerStepResult({
   onCopy,
   onSave,
   onCalendar,
+  onGenerateVisuals,
+  visualLoading,
+  visualSlides,
+  onExportPptx,
 }: Props) {
   if (generating) {
     return (
@@ -64,7 +72,15 @@ export default function CreerStepResult({
   const renderResult = () => {
     switch (format) {
       case "carousel":
-        return <CarouselResult {...commonProps} />;
+        return (
+          <CarouselResult
+            {...commonProps}
+            onGenerateVisuals={onGenerateVisuals}
+            visualLoading={visualLoading}
+            visualSlides={visualSlides}
+            onExportPptx={onExportPptx}
+          />
+        );
       case "reel":
         return <ReelResult {...commonProps} />;
       case "story":
