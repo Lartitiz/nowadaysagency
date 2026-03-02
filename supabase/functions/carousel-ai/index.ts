@@ -4,7 +4,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
@@ -46,6 +46,8 @@ serve(async (req) => {
       objective: z.string().max(100).optional().nullable(),
       slide_count: z.number().min(1).max(20).optional(),
       workspace_id: z.string().uuid().optional().nullable(),
+      editorial_angle: z.string().max(100).optional().nullable(),
+      content_structure: z.string().max(5000).optional().nullable(),
     }).passthrough());
     const { type, workspace_id } = body;
 
@@ -195,7 +197,7 @@ Retourne ce JSON exact :
 }
 
 function buildSlidesPrompt(body: any): string {
-  const { carousel_type, subject, objective, selected_hook, slide_count, selected_offer, deepening_answers, chosen_angle } = body;
+  const { carousel_type, subject, objective, selected_hook, slide_count, selected_offer, deepening_answers, chosen_angle, editorial_angle, content_structure } = body;
 
   const structureGuide = getStructureGuide(carousel_type);
 
@@ -213,6 +215,16 @@ function buildSlidesPrompt(body: any): string {
     angleCtx = `\nANGLE ÉDITORIAL CHOISI : "${chosen_angle.title}" — ${chosen_angle.description}\nLe carrousel DOIT suivre cet angle.\n`;
   }
 
+  // Build structure block: editorial angle overrides carousel_type structure
+  let structureBlock: string;
+  let extraRules = "";
+  if (editorial_angle && content_structure) {
+    structureBlock = `ANGLE ÉDITORIAL : ${editorial_angle}\n\nSTRUCTURE À SUIVRE (obligatoire, chaque étape = 1 slide) :\n${content_structure}\n\n${EDITORIAL_ANGLES_REFERENCE}`;
+    extraRules = "\n- Chaque slide DOIT correspondre à une étape de la structure. Le role de chaque slide dans le JSON doit correspondre au rôle défini dans la structure.";
+  } else {
+    structureBlock = structureGuide;
+  }
+
   return `DEMANDE : Générer un carrousel Instagram complet, slide par slide.
 
 Type de carrousel : ${carousel_type}
@@ -223,7 +235,7 @@ Nombre de slides : ${slide_count || 7}
 ${selected_offer ? `Offre à mentionner : ${selected_offer}` : "Pas d'offre à mentionner."}
 ${deepeningCtx}${angleCtx}
 STRUCTURE RECOMMANDÉE POUR CE TYPE :
-${structureGuide}
+${structureBlock}
 
 RÈGLES :
 - Slide 1 = hook choisi ci-dessus (max 12 mots)
@@ -232,7 +244,7 @@ RÈGLES :
 - Dernière slide = 1 SEUL CTA
 - Headlines de 4-7 mots, commencer par un verbe d'action
 - Caption différente du hook slide 1
-- Hashtags : 3-8, mix large + niche
+- Hashtags : 3-8, mix large + niche${extraRules}
 ${deepeningCtx ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}
 
 Retourne ce JSON exact :
@@ -408,7 +420,7 @@ Slide 10: CTA doux "Ta photo préférée ? Dis-le moi."
 }
 
 function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string): string {
-  const { carousel_type, subject, objective } = body;
+  const { carousel_type, subject, objective, editorial_angle, content_structure } = body;
 
   const CAROUSEL_TYPE_LABELS: Record<string, string> = {
     tips: "Tips / Astuces", tutoriel: "Tutoriel pas-à-pas", prise_de_position: "Prise de position",
@@ -425,15 +437,25 @@ function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string): str
     ? `\n\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n\nUtilise ce contexte pour personnaliser tes questions : mentionne son domaine d'activité, sa cible, ses offres ou son positionnement quand c'est pertinent. Les questions doivent montrer que tu connais son univers.`
     : "";
 
-  return `Tu dois générer exactement 3 questions d'approfondissement pour aider à créer un carrousel ${CAROUSEL_TYPE_LABELS[carousel_type] || carousel_type}.
+  // If editorial_angle is present, adapt questions to the angle + structure
+  let formatLabel: string;
+  let angleBlock = "";
+  if (editorial_angle && content_structure) {
+    formatLabel = editorial_angle;
+    angleBlock = `\n\nANGLE ÉDITORIAL : ${editorial_angle}\nSTRUCTURE DU CARROUSEL :\n${content_structure}\n\nLes questions doivent aider l'utilisatrice à remplir les étapes de cette structure avec son vécu personnel.`;
+  } else {
+    formatLabel = CAROUSEL_TYPE_LABELS[carousel_type] || carousel_type;
+  }
+
+  return `Tu dois générer exactement 3 questions d'approfondissement pour aider à créer un carrousel ${formatLabel}.
 
 SUJET du carrousel : "${subject || "non précisé"}"
-OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}${brandingBlock}
+OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}${brandingBlock}${angleBlock}
 
 TON RÔLE : Tu es une coach com' qui aide une solopreneuse/créatrice à extraire son vécu, ses opinions et son expertise PERSONNELLE pour que le contenu ne soit pas générique.
 
 RÈGLES pour les questions :
-- Chaque question doit être liée SPÉCIFIQUEMENT au sujet "${subject}" et au format ${CAROUSEL_TYPE_LABELS[carousel_type] || carousel_type}
+- Chaque question doit être liée SPÉCIFIQUEMENT au sujet "${subject}" et au format ${formatLabel}
 - Les questions doivent faire émerger du vécu, des anecdotes, des opinions tranchées, des exemples concrets
 - Si tu as le contexte branding, adapte les questions à son activité et sa cible (ex : "Quand une de tes clientes [cible] te dit..." plutôt que "Quand quelqu'un te dit...")
 - Tutoie l'utilisatrice, sois directe et chaleureuse
@@ -451,7 +473,7 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour :
 }
 
 function buildExpressFullPrompt(body: any): string {
-  const { subject, carousel_type, objective, slide_count, deepening_answers, selected_offer } = body;
+  const { subject, carousel_type, objective, slide_count, deepening_answers, selected_offer, editorial_angle, content_structure } = body;
   const type = carousel_type || "tips";
   const structureGuide = getStructureGuide(type);
 
@@ -464,6 +486,16 @@ function buildExpressFullPrompt(body: any): string {
     if (answers) deepeningCtx = `\nRÉPONSES DE L'UTILISATRICE (intègre son vécu, ses mots, ses exemples) :\n${answers}\n\nINTÉGRATION DES RÉPONSES :\n- Les réponses de l'utilisatrice sont du contenu AUTHENTIQUE. Utilise ses mots exacts.\n- Son vécu et ses expressions doivent apparaître naturellement dans les slides.\n- Si elle a donné une anecdote, elle peut devenir le hook ou l'exemple concret.\n`;
   }
 
+  // Build structure block: editorial angle overrides carousel_type structure
+  let structureBlock: string;
+  let extraRules = "";
+  if (editorial_angle && content_structure) {
+    structureBlock = `ANGLE ÉDITORIAL : ${editorial_angle}\n\nSTRUCTURE À SUIVRE (obligatoire, chaque étape = 1 slide) :\n${content_structure}\n\n${EDITORIAL_ANGLES_REFERENCE}`;
+    extraRules = "\n- Chaque slide DOIT correspondre à une étape de la structure. Le role de chaque slide dans le JSON doit correspondre au rôle défini dans la structure.";
+  } else {
+    structureBlock = structureGuide;
+  }
+
   return `DEMANDE : Génère un carrousel Instagram COMPLET en une seule fois. Tu dois d'abord choisir le meilleur angle éditorial, puis le meilleur hook, puis rédiger toutes les slides et la caption.
 
 Sujet : "${subject || "non précisé"}"
@@ -473,7 +505,7 @@ Nombre de slides : ${slide_count || 7}
 ${selected_offer ? `Offre à mentionner : ${selected_offer}` : "Pas d'offre à mentionner."}
 ${deepeningCtx}
 STRUCTURE RECOMMANDÉE :
-${structureGuide}
+${structureBlock}
 
 RÈGLES :
 - Slide 1 = hook percutant (max 12 mots), qui stoppe le scroll
@@ -483,7 +515,7 @@ RÈGLES :
 - Headlines de 4-7 mots, commencer par un verbe d'action
 - Caption différente du hook slide 1
 - Hashtags : 3-8, mix large + niche
-- Le contenu doit sonner humain, pas IA
+- Le contenu doit sonner humain, pas IA${extraRules}
 ${deepeningCtx ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}
 
 Retourne ce JSON exact :
