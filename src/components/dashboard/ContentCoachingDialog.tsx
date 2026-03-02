@@ -218,12 +218,13 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
       route = result.redirect_route || "/creer";
     }
 
-    const params = new URLSearchParams({
-      subject: finalSubject,
-      objective: finalObjective,
-    });
+    // Parse existing params from redirect_route (e.g. /creer?format=carousel)
+    const [basePath, existingQuery] = route.split("?");
+    const params = new URLSearchParams(existingQuery || "");
+    params.set("subject", finalSubject);
+    params.set("objective", finalObjective);
     onOpenChange(false);
-    navigate(`${route}?${params.toString()}`);
+    navigate(`${basePath}?${params.toString()}`);
   };
 
   const handleSelectAlternative = (alt: string) => {
