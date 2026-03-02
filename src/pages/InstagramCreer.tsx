@@ -87,7 +87,10 @@ export default function InstagramCreer() {
   const handleFormatClick = (format: FormatOption) => {
     if (format.comingSoon) return;
     
-    navigate(format.route);
+    const stateToPass = calendarState?.notes
+      ? { fromSuggested: true, existingContent: calendarState.notes, theme: calendarState.theme }
+      : undefined;
+    navigate(format.route, { state: stateToPass });
   };
 
   const handleSuggestFormat = async () => {
