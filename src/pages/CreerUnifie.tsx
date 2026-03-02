@@ -60,9 +60,16 @@ export default function CreerUnifie() {
     questions,
   } = useContentGenerator();
 
-  // Pre-fill from URL/state on mount
+  // Pre-fill from URL/state on mount & auto-advance
   useEffect(() => {
-    if (locState.fromCalendar && ideaText) {
+    const prefillSubject = ideaText; // already set from paramSujet / locState
+
+    if (paramFormat && prefillSubject.trim()) {
+      // Both format AND subject provided (e.g. from coaching or calendar)
+      // → skip straight to questions
+      setSelectedFormat(paramFormat);
+      handleFormatNext(paramFormat);
+    } else if (locState.fromCalendar && prefillSubject) {
       setStep("format");
     } else if (paramFormat) {
       setStep("format");
