@@ -4,7 +4,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, AnthropicError, getModelForAction, getModelForRichContent } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
@@ -58,8 +58,10 @@ serve(async (req) => {
       time_available: z.string().max(50).optional().nullable(),
       image_urls: z.array(z.string().url().max(2048)).max(10).optional(),
       workspace_id: z.string().uuid().optional().nullable(),
+      editorial_angle: z.string().max(100).optional().nullable(),
+      content_structure: z.string().max(5000).optional().nullable(),
     }).passthrough());
-    const { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context, workspace_id } = body;
+    const { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context, workspace_id, editorial_angle, content_structure } = body;
 
     // Fetch full context server-side
     const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
@@ -84,9 +86,9 @@ serve(async (req) => {
         ]},
       ];
     } else if (type === "hooks") {
-      userPrompt = buildHooksPrompt(objective, face_cam, subject, time_available, is_launch, inspiration_context);
+      userPrompt = buildHooksPrompt(objective, face_cam, subject, time_available, is_launch, inspiration_context, editorial_angle, content_structure);
     } else if (type === "script") {
-      userPrompt = buildScriptPrompt(objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, inspiration_context);
+      userPrompt = buildScriptPrompt(objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, inspiration_context, editorial_angle, content_structure);
     } else {
       return new Response(JSON.stringify({ error: "Type invalide" }), {
         status: 400,
@@ -241,7 +243,7 @@ RETOURNE UNIQUEMENT un JSON valide, sans backticks :
 }`;
 }
 
-function buildHooksPrompt(objective: string, face_cam: string, subject: string, time_available: string, is_launch: boolean, inspirationContext?: string): string {
+function buildHooksPrompt(objective: string, face_cam: string, subject: string, time_available: string, is_launch: boolean, inspirationContext?: string, editorial_angle?: string | null, content_structure?: string | null): string {
   const objectiveMap: Record<string, string> = {
     reach: "Reach / Viralité — toucher un max de nouvelles personnes",
     saves: "Saves / Expertise — contenu qu'on sauvegarde",
@@ -273,7 +275,8 @@ ${subjectInstruction}
 Temps tournage : ${time_available}
 En lancement : ${is_launch ? "oui" : "non"}
 Format suggéré : ${suggestedFormat}
-${inspirationContext ? `\nINSPIRATION ANALYSÉE :\n${inspirationContext}\n\nINSPIRE-TOI du style et du format identifiés dans les screenshots d'inspiration pour les hooks et le format. NE COPIE PAS le contenu.\n` : ""}
+  ${inspirationContext ? `\nINSPIRATION ANALYSÉE :\n${inspirationContext}\n\nINSPIRE-TOI du style et du format identifiés dans les screenshots d'inspiration pour les hooks et le format. NE COPIE PAS le contenu.\n` : ""}
+${editorial_angle && content_structure ? `\nANGLE ÉDITORIAL : ${editorial_angle}\nLes hooks proposés doivent être cohérents avec cet angle. Voici la structure reel prévue :\n${content_structure}\nLe hook doit s'intégrer dans cette structure (il correspond à la section 0-3 sec).\n` : ""}
 HOOKS REELS — RÈGLES NON-NÉGOCIABLES :
 
 UN HOOK REEL = 5-12 MOTS MAXIMUM.
@@ -369,7 +372,7 @@ Retourne ce JSON exact :
 }`;
 }
 
-function buildScriptPrompt(objective: string, face_cam: string, subject: string, time_available: string, is_launch: boolean, selectedHook: any, preGenAnswers?: { anecdote?: string; emotion?: string; conviction?: string }, inspirationContext?: string): string {
+function buildScriptPrompt(objective: string, face_cam: string, subject: string, time_available: string, is_launch: boolean, selectedHook: any, preGenAnswers?: { anecdote?: string; emotion?: string; conviction?: string }, inspirationContext?: string, editorial_angle?: string | null, content_structure?: string | null): string {
   let preGenBlock = "";
   if (preGenAnswers && (preGenAnswers.anecdote || preGenAnswers.emotion || preGenAnswers.conviction)) {
     preGenBlock = `
@@ -421,6 +424,16 @@ ANALOGIES VISUELLES — DOSAGE :
 1 analogie max dans le script. Parfois 0. Si l'idée est claire sans, n'en mets pas.
 L'analogie doit être du QUOTIDIEN et VISUELLE. Jamais forcée.
 
+${editorial_angle && content_structure ? `
+ANGLE ÉDITORIAL IMPOSÉ : ${editorial_angle}
+
+STRUCTURE À SUIVRE (obligatoire) :
+${content_structure}
+
+Chaque section du script DOIT correspondre aux étapes de cette structure. Adapte les timings pour que le script respecte ce déroulé.
+
+${EDITORIAL_ANGLES_REFERENCE}
+` : ""}
 Génère un script complet structuré avec timing seconde par seconde.
 Chaque section body DOIT inclure une indication de CUT (changement de plan).
 
@@ -431,6 +444,7 @@ Retourne ce JSON exact :
   "duree_cible": "45 sec",
   "duree_justification": "Le storytelling a besoin de contexte + tension + leçon",
   "objectif": "${objective}",
+  "editorial_angle_used": "${editorial_angle || 'auto'}",
   "personal_tip": null,
   "script": [
     {
