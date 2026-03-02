@@ -222,13 +222,14 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
       if (routeMatch) finalFormat = routeMatch[1];
     }
 
-    onOpenChange(false);
-
     if (onSelect) {
       // Callback mode (used when already on /creer)
+      // Call onSelect BEFORE closing dialog to avoid unmount race
       onSelect({ subject: finalSubject, format: finalFormat, objective: finalObjective });
+      onOpenChange(false);
     } else {
       // Navigate mode (used from Dashboard)
+      onOpenChange(false);
       const baseRoute = result.redirect_route?.split("?")[0] || "/creer";
       const existingParams = new URLSearchParams(result.redirect_route?.split("?")[1] || "");
       existingParams.set("subject", finalSubject);
