@@ -143,6 +143,8 @@ export default function InstagramCarousel() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [deepeningAnswers, setDeepeningAnswers] = useState<Record<string, string>>({});
   const [activeMicField, setActiveMicField] = useState<string | null>(null);
+  const [dynamicQuestions, setDynamicQuestions] = useState<{ question: string; placeholder: string }[] | null>(null);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
   
   // Angles state
   const [angles, setAngles] = useState<AngleSuggestion[]>([]);
@@ -238,7 +240,7 @@ export default function InstagramCarousel() {
   }, [user?.id, searchParams]);
 
   const typeObj = CAROUSEL_TYPES.find(t => t.id === carouselType);
-  const questions = DEEPENING_QUESTIONS[carouselType] || DEFAULT_QUESTIONS;
+  const questions = dynamicQuestions || DEEPENING_QUESTIONS[carouselType] || DEFAULT_QUESTIONS;
 
   // Pre-fill from URL params (force override — URL params take priority)
   const fromCarouselType = searchParams.get("carousel_type");
@@ -696,7 +698,29 @@ export default function InstagramCarousel() {
             loadingTopics={loadingTopics}
             onSuggestTopics={handleSuggestTopics}
             onBack={() => setStep(1)}
-            onNext={() => { setStep(3); setCurrentQuestion(0); }}
+            onNext={() => { 
+              setStep(3); 
+              setCurrentQuestion(0);
+              setDynamicQuestions(null);
+              // Generate dynamic questions
+              if (subject.trim()) {
+                setLoadingQuestions(true);
+                supabase.functions.invoke("carousel-ai", {
+                  body: { type: "deepening_questions", carousel_type: carouselType, subject, objective, workspace_id: workspaceId },
+                }).then(({ data, error }) => {
+                  if (!error && data?.content) {
+                    try {
+                      const parsed = typeof data.content === "string" ? JSON.parse(data.content) : data.content;
+                      if (parsed.questions?.length >= 2) {
+                        setDynamicQuestions(parsed.questions);
+                      }
+                    } catch (e) {
+                      console.warn("Failed to parse dynamic questions, using defaults", e);
+                    }
+                  }
+                }).finally(() => setLoadingQuestions(false));
+              }
+            }}
             subjectPlaceholder={`Ex : "${activityExamples.post_examples[0]}"`}
           />
         )}
@@ -713,6 +737,7 @@ export default function InstagramCarousel() {
             onSkip={handleSkipQuestions}
             step={step}
             totalSteps={totalSteps}
+            loadingQuestions={loadingQuestions}
           />
         )}
 
