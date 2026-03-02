@@ -196,7 +196,7 @@ export default function InstagramCarousel() {
     "carousel-form",
     { step, carouselType, objective, subject, selectedOffer, slideCount },
     (saved) => {
-      if (searchParams.get("calendar_id")) return;
+      if (searchParams.get("calendar_id") || searchParams.get("sujet")) return;
       if (saved.carouselType) setCarouselType(saved.carouselType);
       if (saved.objective) setObjective(saved.objective);
       if (saved.subject) setSubject(saved.subject);
@@ -240,13 +240,13 @@ export default function InstagramCarousel() {
   const typeObj = CAROUSEL_TYPES.find(t => t.id === carouselType);
   const questions = DEEPENING_QUESTIONS[carouselType] || DEFAULT_QUESTIONS;
 
-  // Pre-fill from URL params
+  // Pre-fill from URL params (force override — URL params take priority)
   useEffect(() => {
-    if (fromObjectif && !objective) {
+    if (fromObjectif) {
       const objMap: Record<string, string> = { visibilite: "shares", confiance: "community", vente: "conversion", credibilite: "saves" };
       if (objMap[fromObjectif]) setObjective(objMap[fromObjectif]);
     }
-    if (fromSujet && !subject) setSubject(fromSujet);
+    if (fromSujet) setSubject(fromSujet);
   }, [fromObjectif, fromSujet]);
 
   const CAROUSEL_STEPS = [
