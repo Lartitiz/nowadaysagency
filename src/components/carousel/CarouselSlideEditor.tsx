@@ -50,7 +50,10 @@ export default function CarouselSlideEditor({ slide, index, onUpdate }: Carousel
           value={slide.body || ""}
           onChange={(e) => onUpdate(index, "body", e.target.value)}
           className="w-full bg-transparent text-sm text-muted-foreground resize-none border-none outline-none leading-relaxed"
-          rows={2}
+          rows={4}
+          style={{ overflow: "hidden" }}
+          onInput={(e) => { const t = e.currentTarget; t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; }}
+          ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
           placeholder="Texte complémentaire..."
         />
       )}
