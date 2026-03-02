@@ -300,8 +300,9 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     aiByDay.push({ date: dateStr, count });
   }
 
-  // Power users
+  // Power users (exclude admin)
   const powerUsers = [...aiCountByUser.entries()]
+    .filter(([userId]) => userId !== adminUserId)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
     .map(([userId, count]) => {
