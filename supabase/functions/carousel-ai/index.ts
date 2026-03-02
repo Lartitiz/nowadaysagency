@@ -474,8 +474,6 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour :
 
 function buildExpressFullPrompt(body: any): string {
   const { subject, carousel_type, objective, slide_count, deepening_answers, selected_offer, editorial_angle, content_structure } = body;
-  const type = carousel_type || "tips";
-  const structureGuide = getStructureGuide(type);
 
   let deepeningCtx = "";
   if (deepening_answers) {
@@ -486,57 +484,76 @@ function buildExpressFullPrompt(body: any): string {
     if (answers) deepeningCtx = `\nRÉPONSES DE L'UTILISATRICE (intègre son vécu, ses mots, ses exemples) :\n${answers}\n\nINTÉGRATION DES RÉPONSES :\n- Les réponses de l'utilisatrice sont du contenu AUTHENTIQUE. Utilise ses mots exacts.\n- Son vécu et ses expressions doivent apparaître naturellement dans les slides.\n- Si elle a donné une anecdote, elle peut devenir le hook ou l'exemple concret.\n`;
   }
 
-  // Build structure block: editorial angle overrides carousel_type structure
+  // Build structure block
   let structureBlock: string;
   let extraRules = "";
+
   if (editorial_angle && content_structure) {
-    structureBlock = `ANGLE ÉDITORIAL : ${editorial_angle}\n\nSTRUCTURE À SUIVRE (obligatoire, chaque étape = 1 slide) :\n${content_structure}\n\n${EDITORIAL_ANGLES_REFERENCE}`;
+    // CAS 1 : Angle éditorial explicite → la structure guide tout
+    structureBlock = `ANGLE ÉDITORIAL CHOISI : ${editorial_angle}
+
+STRUCTURE IMPOSÉE (chaque étape = 1 slide) :
+${content_structure}
+
+${EDITORIAL_ANGLES_REFERENCE}`;
     extraRules = "\n- Chaque slide DOIT correspondre à une étape de la structure. Le role de chaque slide dans le JSON doit correspondre au rôle défini dans la structure.";
+
+  } else if (carousel_type && carousel_type !== "tips") {
+    // CAS 2 : Type de carrousel explicite (ancien flow)
+    structureBlock = getStructureGuide(carousel_type);
+
   } else {
-    structureBlock = structureGuide;
+    // CAS 3 : Ni angle ni type explicite → l'IA choisit le meilleur format
+    structureBlock = `PAS DE FORMAT IMPOSÉ. Analyse le sujet et choisis la structure la plus pertinente parmi ces options :
+
+${EDITORIAL_ANGLES_REFERENCE}
+
+CHOISIS l'angle qui créera le plus de tension et d'engagement pour le sujet "${subject}".
+NE CHOISIS PAS "tips" sauf si le sujet est réellement une liste de conseils pratiques.
+Privilégie les angles narratifs : storytelling, enquête, coup de gueule, mythe à déconstruire.`;
   }
 
-  return `DEMANDE : Génère un carrousel Instagram COMPLET en une seule fois. Tu dois d'abord choisir le meilleur angle éditorial, puis le meilleur hook, puis rédiger toutes les slides et la caption.
+  return `DEMANDE : Génère un carrousel Instagram COMPLET.
+
+Tu dois d'abord analyser le sujet, choisir le meilleur angle narratif, écrire un hook irrésistible, puis rédiger toutes les slides avec un fil conducteur fort.
 
 Sujet : "${subject || "non précisé"}"
-Type de carrousel : ${type}
 Objectif : ${objective || "engagement"}
 Nombre de slides : ${slide_count || 7}
 ${selected_offer ? `Offre à mentionner : ${selected_offer}` : "Pas d'offre à mentionner."}
 ${deepeningCtx}
-STRUCTURE RECOMMANDÉE :
+
+═══ STRUCTURE ═══
 ${structureBlock}
 
-RÈGLES DE STRUCTURE :
-- Slide 1 = hook percutant (max 12 mots), qui stoppe le scroll. Technique : provocation, question rhétorique, stat choc, ou confession.
-- Slide 2 = DOIT fonctionner comme hook autonome (seconde chance algo). Développe le contexte personnel : pourquoi ce sujet te parle, d'où tu parles.
-- Chaque slide : max 50 mots, 1 idée principale
-- CONNEXION ENTRE SLIDES OBLIGATOIRE : chaque slide doit créer une tension qui donne envie de swiper. Dernière phrase d'une slide = amorce de la suivante. Technique : bucket brigades ("Le problème, c'est que...", "Sauf que...", "Résultat ?").
-- Headlines de 4-7 mots, commencer par un verbe d'action ou un mot déclencheur émotionnel
-- Dernière slide = 1 SEUL CTA doux, pas agressif. Formulation type : "Sauvegarde si...", "Dis-moi en commentaire...", "Envoie à quelqu'un qui..."
-- Caption différente du hook slide 1
-- Hashtags : 3-8, mix large + niche${extraRules}
+═══ RÈGLES DE STRUCTURE ═══
+- Slide 1 = hook percutant (max 12 mots). Technique : provocation, question rhétorique, stat choc, ou confession. Le hook doit créer un GAP (écart entre ce qu'on croit et la réalité).
+- Slide 2 = DOIT fonctionner comme hook autonome (seconde chance algo). Développe le contexte : pourquoi ce sujet, d'où tu parles, quelle observation personnelle.
+- Chaque slide : max 50 mots, 1 idée principale.
+- Dernière slide = 1 SEUL CTA doux. Formulation type : "Sauvegarde si...", "Dis-moi en commentaire...", "Envoie à quelqu'un qui..."
+- Headlines : 4-7 mots, verbe d'action ou mot déclencheur émotionnel.
 
-RÈGLES DE NARRATION :
-- Le carrousel doit raconter une HISTOIRE avec un arc narratif : situation → tension → enseignement → ouverture
-- Ton : oral assumé, comme une conversation. Utilise "tu", des apartés entre parenthèses, des phrases courtes qui claquent après des phrases longues.
-- Chaque tip/astuce doit avoir un EXEMPLE CONCRET (pas juste le conseil abstrait)
-- Intègre au moins 1 analogie du quotidien ou référence culture pop
-- La caption est DIFFÉRENTE du hook slide 1 et apporte une couche supplémentaire de storytelling
-${deepeningCtx ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}
+═══ RÈGLES DE NARRATION ═══
+- ARC NARRATIF OBLIGATOIRE : le carrousel raconte une histoire avec situation → tension → développement → résolution → ouverture. Même un carrousel "tips" doit avoir un fil conducteur, pas juste une liste.
+- CONNEXION ENTRE SLIDES : chaque slide crée une tension qui donne envie de swiper. Dernière phrase = amorce de la suivante. Utilise des bucket brigades : "Le problème, c'est que...", "Sauf que...", "Résultat ?", "Et là...", "La vraie question c'est..."
+- EXEMPLES CONCRETS dans chaque slide : pas de conseil abstrait sans illustration.
+- AU MOINS 1 analogie du quotidien ou référence culture pop dans le carrousel.
+- La caption est DIFFÉRENTE du hook slide 1 et apporte une couche supplémentaire (storytelling perso, contexte, pourquoi ce sujet maintenant).
 
-RÈGLES ANTI-IA :
-- PAS de "Dans un monde où...", "Il est important de...", "N'hésite pas à..."
-- PAS de listes numérotées dans les slides (sauf si c'est le format tips)
-- Le contenu doit sonner comme quelqu'un qui PARLE, pas qui RÉDIGE
-- Chaque slide doit pouvoir être lue à voix haute naturellement
+═══ RÈGLES ANTI-IA ═══
+- INTERDIT : "Dans un monde où...", "Il est important de...", "N'hésite pas à...", "Voici X astuces pour..."
+- INTERDIT : Numéroter les slides "Tip 1, Tip 2, Tip 3" de façon mécanique. Si c'est un format tips, chaque tip a un TITRE PROPRE qui accroche, pas "Tip N° : [verbe]".
+- Le contenu doit sonner comme quelqu'un qui PARLE, pas qui RÉDIGE un article.
+- Chaque slide doit pouvoir être lue à voix haute naturellement.
+- Ton oral : "en vrai", "franchement", "le truc c'est que", "du coup", apartés en parenthèses.
+${deepeningCtx ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}${extraRules}
 
 Retourne ce JSON exact :
 {
-  "carousel_type": "${type}",
+  "carousel_type": "le type de carrousel choisi (tips/storytelling/mythe_realite/enquete/etc.)",
   "chosen_angle": {
     "title": "Titre court de l'angle choisi (3-5 mots)",
-    "description": "Pourquoi cet angle est le plus pertinent"
+    "description": "Pourquoi cet angle est le plus pertinent pour ce sujet"
   },
   "slides": [
     {
@@ -549,8 +566,8 @@ Retourne ce JSON exact :
     }
   ],
   "caption": {
-    "hook": "Les 125 premiers caractères de la caption (accroche DIFFÉRENTE de slide 1)",
-    "body": "Le reste de la caption",
+    "hook": "Les 125 premiers caractères de la caption (accroche DIFFÉRENTE de slide 1, angle storytelling perso)",
+    "body": "Le reste de la caption (ajout de contexte, pourquoi ce sujet)",
     "cta": "Le CTA dans la caption",
     "hashtags": ["hashtag1", "hashtag2"]
   },
