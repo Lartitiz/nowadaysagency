@@ -27,16 +27,32 @@ const FORMAT_ROUTE: Record<string, string> = {
 
 const FORMAT_EMOJI: Record<string, string> = {
   post: "📝",
+  post_photo: "📝",
+  post_texte: "📝",
   carousel: "🎠",
+  carrousel: "🎠",
   reel: "🎬",
+  reels: "🎬",
   story: "📱",
+  stories: "📱",
+  newsletter: "📩",
+  article: "📰",
+  linkedin: "💼",
 };
 
 const FORMAT_LABEL: Record<string, string> = {
   post: "Post",
+  post_photo: "Post photo",
+  post_texte: "Post texte",
   carousel: "Carrousel",
+  carrousel: "Carrousel",
   reel: "Reel",
+  reels: "Reel",
   story: "Story",
+  stories: "Story",
+  newsletter: "Newsletter",
+  article: "Article",
+  linkedin: "LinkedIn",
 };
 
 const OBJECTIVE_COLORS: Record<string, string> = {
