@@ -526,51 +526,131 @@ export default function ChatGuidePage() {
     const history = messages.slice(-10).map((m) => ({ role: m.role, content: m.content }));
 
     setIsTyping(true);
+    const aiMsgId = crypto.randomUUID();
+
     try {
-      const { data, error } = await supabase.functions.invoke("chat-guide", {
-        body: {
+      // Use SSE streaming for real-time token display
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      
+      const resp = await fetch(`${supabaseUrl}/functions/v1/chat-guide`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
           message: userMsg.content,
           conversationHistory: history,
           workspaceId: workspaceId !== user?.id ? workspaceId : undefined,
-        },
+        }),
       });
 
-      setIsTyping(false);
-      if (error) throw error;
-
-      const aiMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: data.reply || "Hmm, je n'ai pas compris. Reformule ?",
-        actions: data.actions || [],
-        suggestions: data.suggestions ? data.suggestions
-          .filter((s: string) => !recentSuggestionsRef.current.includes(s))
-          .map((s: string) => ({ icon: guessIconForSuggestion(s), label: s }))
-          : undefined,
-        created_at: new Date().toISOString(),
-      };
-
-      // Track recent suggestions (keep last 5)
-      if (data.suggestions) {
-        recentSuggestionsRef.current = [
-          ...data.suggestions.slice(0, 3),
-          ...recentSuggestionsRef.current,
-        ].slice(0, 5);
+      if (!resp.ok || !resp.body) {
+        throw new Error("Stream failed");
       }
 
-      setMessages((prev) => [...prev, aiMsg]);
-      await saveMessage({ role: "assistant", content: aiMsg.content, actions: aiMsg.actions });
+      setIsTyping(false);
+
+      // Add empty assistant message that will be progressively filled
+      const emptyAiMsg: ChatMessage = {
+        id: aiMsgId,
+        role: "assistant",
+        content: "",
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, emptyAiMsg]);
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = "";
+      let streamingContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIdx: number;
+        while ((newlineIdx = textBuffer.indexOf("\n")) !== -1) {
+          const line = textBuffer.slice(0, newlineIdx).trim();
+          textBuffer = textBuffer.slice(newlineIdx + 1);
+
+          if (!line.startsWith("data: ")) continue;
+          const jsonStr = line.slice(6).trim();
+
+          try {
+            const event = JSON.parse(jsonStr);
+
+            if (event.type === "delta" && event.text) {
+              streamingContent += event.text;
+              // Update message content progressively
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === aiMsgId ? { ...m, content: streamingContent } : m
+                )
+              );
+            }
+
+            if (event.type === "done") {
+              // Final update with clean text, actions and suggestions
+              const finalSuggestions = event.suggestions
+                ? event.suggestions
+                    .filter((s: string) => !recentSuggestionsRef.current.includes(s))
+                    .map((s: string) => ({ icon: guessIconForSuggestion(s), label: s }))
+                : undefined;
+
+              if (event.suggestions) {
+                recentSuggestionsRef.current = [
+                  ...event.suggestions.slice(0, 3),
+                  ...recentSuggestionsRef.current,
+                ].slice(0, 5);
+              }
+
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === aiMsgId
+                    ? { ...m, content: event.cleanText || streamingContent, actions: event.actions || [], suggestions: finalSuggestions }
+                    : m
+                )
+              );
+              await saveMessage({ role: "assistant", content: event.cleanText || streamingContent, actions: event.actions });
+            }
+
+            if (event.type === "error") {
+              throw new Error(event.error);
+            }
+          } catch (parseErr) {
+            // Ignore partial JSON
+          }
+        }
+      }
     } catch (err) {
       console.error("Chat guide error:", err);
       setIsTyping(false);
 
-      const fallbackMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: "Je suis un peu dans les choux là... Réessaie dans quelques secondes !",
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, fallbackMsg]);
+      // If we already added the assistant message, update it with error
+      setMessages((prev) => {
+        const hasAiMsg = prev.some((m) => m.id === aiMsgId);
+        if (hasAiMsg) {
+          return prev.map((m) =>
+            m.id === aiMsgId && !m.content
+              ? { ...m, content: "Je suis un peu dans les choux là... Réessaie dans quelques secondes !" }
+              : m
+          );
+        }
+        return [
+          ...prev,
+          {
+            id: aiMsgId,
+            role: "assistant" as const,
+            content: "Je suis un peu dans les choux là... Réessaie dans quelques secondes !",
+            created_at: new Date().toISOString(),
+          },
+        ];
+      });
     }
   }, [saveMessage, messages, workspaceId, user, updateConversationTitle, isDemoMode, getDemoResponse, queryClient]);
 
