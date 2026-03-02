@@ -181,6 +181,7 @@ function buildRecommendation(
     alternatives: [
       { title: "Voir ton calendrier", route: "/calendrier", icon: "CalendarDays" },
       { title: "Mettre à jour ton branding", route: "/branding", icon: "Palette" },
+      { title: "Faire ta routine d'engagement", route: "/instagram/routine", icon: "Heart" },
     ],
   };
 }
