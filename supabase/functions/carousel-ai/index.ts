@@ -40,7 +40,7 @@ serve(async (req) => {
 
     const body = await req.json();
     validateInput(body, z.object({
-      type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles"]),
+      type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles", "deepening_questions"]),
       carousel_type: z.string().max(100).optional().nullable(),
       subject: z.string().max(2000).optional().nullable(),
       objective: z.string().max(100).optional().nullable(),
@@ -49,7 +49,7 @@ serve(async (req) => {
     }).passthrough());
     const { type, workspace_id } = body;
 
-    const category = (type === "suggest_topics" || type === "suggest_angles") ? "suggestion" : "content";
+    const category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions") ? "suggestion" : "content";
     const quotaCheck = await checkQuota(user.id, category, workspace_id);
     if (!quotaCheck.allowed) {
       return new Response(
@@ -72,6 +72,8 @@ serve(async (req) => {
       userPrompt = buildSuggestTopicsPrompt(body);
     } else if (type === "suggest_angles") {
       userPrompt = buildSuggestAnglesPrompt(body);
+    } else if (type === "deepening_questions") {
+      userPrompt = buildDeepeningQuestionsPrompt(body);
     } else {
       return new Response(JSON.stringify({ error: "Type invalide" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -401,4 +403,42 @@ Slide 10: CTA doux "Ta photo préférée ? Dis-le moi."
 (Pour ce type, génère surtout les légendes, pas le visuel)`,
   };
   return guides[type] || guides.tips;
+}
+
+function buildDeepeningQuestionsPrompt(body: any): string {
+  const { carousel_type, subject, objective } = body;
+
+  const CAROUSEL_TYPE_LABELS: Record<string, string> = {
+    tips: "Tips / Astuces", tutoriel: "Tutoriel pas-à-pas", prise_de_position: "Prise de position",
+    mythe_realite: "Mythe vs Réalité", storytelling: "Storytelling personnel", etude_de_cas: "Étude de cas cliente",
+    checklist: "Checklist", comparatif: "Comparatif A vs B", before_after: "Before / After",
+    promo: "Promo / Offre", coulisses: "Coulisses", photo_dump: "Photo dump",
+  };
+
+  const OBJ_LABELS: Record<string, string> = {
+    saves: "Engagement (saves)", shares: "Portée (partages)", conversion: "Conversion", community: "Communauté (lien)",
+  };
+
+  return `Tu dois générer exactement 3 questions d'approfondissement pour aider à créer un carrousel ${CAROUSEL_TYPE_LABELS[carousel_type] || carousel_type}.
+
+SUJET du carrousel : "${subject || "non précisé"}"
+OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}
+
+TON RÔLE : Tu es une coach com' qui aide une solopreneuse/créatrice à extraire son vécu, ses opinions et son expertise PERSONNELLE pour que le contenu ne soit pas générique.
+
+RÈGLES pour les questions :
+- Chaque question doit être liée SPÉCIFIQUEMENT au sujet "${subject}" et au format ${CAROUSEL_TYPE_LABELS[carousel_type] || carousel_type}
+- Les questions doivent faire émerger du vécu, des anecdotes, des opinions tranchées, des exemples concrets
+- Tutoie l'utilisatrice, sois directe et chaleureuse
+- Chaque question fait 1-2 phrases max
+- Le placeholder est un court exemple de réponse attendue (5-8 mots)
+
+Réponds UNIQUEMENT en JSON valide, sans texte autour :
+{
+  "questions": [
+    { "question": "...", "placeholder": "..." },
+    { "question": "...", "placeholder": "..." },
+    { "question": "...", "placeholder": "..." }
+  ]
+}`;
 }

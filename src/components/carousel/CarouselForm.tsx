@@ -204,12 +204,13 @@ interface QuestionsStepProps {
   onSkip: () => void;
   step: number;
   totalSteps: number;
+  loadingQuestions?: boolean;
 }
 
 export function CarouselQuestionsStep({
   typeObj, questions, currentQuestion, deepeningAnswers,
   onAnswerChange, onPrevQuestion, onNextQuestion, onSkip,
-  step, totalSteps,
+  step, totalSteps, loadingQuestions,
 }: QuestionsStepProps) {
   const q = questions[currentQuestion];
   const fieldKey = `q${currentQuestion + 1}`;
@@ -229,45 +230,54 @@ export function CarouselQuestionsStep({
         </p>
       </div>
 
-      <div className="flex items-center gap-1.5">
-        {questions.map((_, i) => (
-          <div key={i} className={`h-1.5 rounded-full flex-1 transition-colors ${i <= currentQuestion ? "bg-primary" : "bg-muted"}`} />
-        ))}
-        <span className="text-xs text-muted-foreground ml-2">Question {currentQuestion + 1}/{questions.length}</span>
-      </div>
-
-      <div className="space-y-3">
-        <p className="text-sm font-semibold text-foreground leading-relaxed">
-          🤔 {q.question}
-        </p>
-        <div className="relative">
-          <TextareaWithVoice
-            value={currentAnswer}
-            onChange={(e) => onAnswerChange(fieldKey, e.target.value)}
-            placeholder={q.placeholder}
-            className="min-h-[100px]"
-          />
+      {loadingQuestions ? (
+        <div className="flex flex-col items-center justify-center py-10 gap-3 animate-fade-in">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Je prépare des questions adaptées à ton sujet...</p>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-1.5">
+            {questions.map((_, i) => (
+              <div key={i} className={`h-1.5 rounded-full flex-1 transition-colors ${i <= currentQuestion ? "bg-primary" : "bg-muted"}`} />
+            ))}
+            <span className="text-xs text-muted-foreground ml-2">Question {currentQuestion + 1}/{questions.length}</span>
+          </div>
 
-      <div className="flex items-center justify-between pt-2">
-        <Button variant="ghost" size="sm" onClick={onPrevQuestion} className="gap-1.5">
-          <ArrowLeft className="h-4 w-4" /> {currentQuestion > 0 ? "Précédent" : "Retour"}
-        </Button>
-        <Button onClick={onNextQuestion} className="rounded-full gap-1.5">
-          {currentQuestion < questions.length - 1 ? (
-            <>Suivant <ArrowRight className="h-4 w-4" /></>
-          ) : (
-            <>Proposer des angles <Sparkles className="h-4 w-4" /></>
-          )}
-        </Button>
-      </div>
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-foreground leading-relaxed">
+              🤔 {q.question}
+            </p>
+            <div className="relative">
+              <TextareaWithVoice
+                value={currentAnswer}
+                onChange={(e) => onAnswerChange(fieldKey, e.target.value)}
+                placeholder={q.placeholder}
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
 
-      <div className="text-center pt-1">
-        <button onClick={onSkip} className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5">
-          <SkipForward className="h-3 w-3" /> Passer les questions, générer directement
-        </button>
-      </div>
+          <div className="flex items-center justify-between pt-2">
+            <Button variant="ghost" size="sm" onClick={onPrevQuestion} className="gap-1.5">
+              <ArrowLeft className="h-4 w-4" /> {currentQuestion > 0 ? "Précédent" : "Retour"}
+            </Button>
+            <Button onClick={onNextQuestion} className="rounded-full gap-1.5">
+              {currentQuestion < questions.length - 1 ? (
+                <>Suivant <ArrowRight className="h-4 w-4" /></>
+              ) : (
+                <>Proposer des angles <Sparkles className="h-4 w-4" /></>
+              )}
+            </Button>
+          </div>
+
+          <div className="text-center pt-1">
+            <button onClick={onSkip} className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5">
+              <SkipForward className="h-3 w-3" /> Passer les questions, générer directement
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
