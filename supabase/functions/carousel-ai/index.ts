@@ -507,16 +507,29 @@ ${deepeningCtx}
 STRUCTURE RECOMMANDÉE :
 ${structureBlock}
 
-RÈGLES :
-- Slide 1 = hook percutant (max 12 mots), qui stoppe le scroll
-- Chaque slide : max 50 mots, 1 idée
-- Slide 2 = DOIT fonctionner comme hook autonome (seconde chance algo)
-- Dernière slide = 1 SEUL CTA
-- Headlines de 4-7 mots, commencer par un verbe d'action
+RÈGLES DE STRUCTURE :
+- Slide 1 = hook percutant (max 12 mots), qui stoppe le scroll. Technique : provocation, question rhétorique, stat choc, ou confession.
+- Slide 2 = DOIT fonctionner comme hook autonome (seconde chance algo). Développe le contexte personnel : pourquoi ce sujet te parle, d'où tu parles.
+- Chaque slide : max 50 mots, 1 idée principale
+- CONNEXION ENTRE SLIDES OBLIGATOIRE : chaque slide doit créer une tension qui donne envie de swiper. Dernière phrase d'une slide = amorce de la suivante. Technique : bucket brigades ("Le problème, c'est que...", "Sauf que...", "Résultat ?").
+- Headlines de 4-7 mots, commencer par un verbe d'action ou un mot déclencheur émotionnel
+- Dernière slide = 1 SEUL CTA doux, pas agressif. Formulation type : "Sauvegarde si...", "Dis-moi en commentaire...", "Envoie à quelqu'un qui..."
 - Caption différente du hook slide 1
-- Hashtags : 3-8, mix large + niche
-- Le contenu doit sonner humain, pas IA${extraRules}
+- Hashtags : 3-8, mix large + niche${extraRules}
+
+RÈGLES DE NARRATION :
+- Le carrousel doit raconter une HISTOIRE avec un arc narratif : situation → tension → enseignement → ouverture
+- Ton : oral assumé, comme une conversation. Utilise "tu", des apartés entre parenthèses, des phrases courtes qui claquent après des phrases longues.
+- Chaque tip/astuce doit avoir un EXEMPLE CONCRET (pas juste le conseil abstrait)
+- Intègre au moins 1 analogie du quotidien ou référence culture pop
+- La caption est DIFFÉRENTE du hook slide 1 et apporte une couche supplémentaire de storytelling
 ${deepeningCtx ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}
+
+RÈGLES ANTI-IA :
+- PAS de "Dans un monde où...", "Il est important de...", "N'hésite pas à..."
+- PAS de listes numérotées dans les slides (sauf si c'est le format tips)
+- Le contenu doit sonner comme quelqu'un qui PARLE, pas qui RÉDIGE
+- Chaque slide doit pouvoir être lue à voix haute naturellement
 
 Retourne ce JSON exact :
 {
@@ -548,6 +561,8 @@ Retourne ce JSON exact :
     "single_cta": true,
     "caption_different_from_hook": true,
     "slide_2_works_as_standalone_hook": true,
+    "narrative_arc": true,
+    "slides_connected": true,
     "score": 90
   },
   "publishing_tip": "Meilleur moment pour publier ce type de carrousel..."
