@@ -1,20 +1,17 @@
 import { useState, useEffect } from "react";
-import ContentSetupForm from "@/components/ContentSetupForm";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
-import { Loader2, ArrowRight, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { isModuleVisible } from "@/config/feature-flags";
-import { useProfile } from "@/hooks/use-profile";
 
 import DictationInput from "@/components/DictationInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { friendlyError } from "@/lib/error-messages";
 import { useActiveChannels } from "@/hooks/use-active-channels";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 
@@ -25,7 +22,7 @@ interface FormatOption {
   desc: string;
   route: string;
   comingSoon?: boolean;
-  channel: string; // which channel this format belongs to
+  channel: string;
 }
 
 function getFormatOptions(suggestion: FormatSuggestion | null): FormatOption[] {
@@ -60,7 +57,7 @@ interface FormatSuggestion {
 export default function InstagramCreer() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const { toast } = useToast();
   const { channels: activeChannels } = useActiveChannels();
   const { column, value } = useWorkspaceFilter();
@@ -68,11 +65,9 @@ export default function InstagramCreer() {
   const [ideaText, setIdeaText] = useState("");
   const [suggesting, setSuggesting] = useState(false);
   const [suggestion, setSuggestion] = useState<FormatSuggestion | null>(null);
-  const [showGuidedFlow, setShowGuidedFlow] = useState(false);
   const FORMAT_OPTIONS = getFormatOptions(suggestion).filter(f => activeChannels.includes(f.channel as any));
   const [secondaryMode, setSecondaryMode] = useState<"none" | "dictate">("none");
   const [contentCoachingOpen, setContentCoachingOpen] = useState(false);
-  const { data: profile } = useProfile();
 
   // Pre-fill from calendar or suggested contents
   useEffect(() => {
@@ -86,7 +81,6 @@ export default function InstagramCreer() {
 
   const handleFormatClick = (format: FormatOption) => {
     if (format.comingSoon) return;
-    
     const stateToPass = calendarState?.notes
       ? { fromSuggested: true, existingContent: calendarState.notes, theme: calendarState.theme }
       : undefined;
@@ -158,44 +152,40 @@ export default function InstagramCreer() {
       <main className="mx-auto max-w-2xl px-4 py-8 animate-fade-in">
         <SubPageHeader parentLabel="Dashboard" parentTo="/dashboard" currentLabel="Créer un contenu" useFromParam />
 
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground">✨ Créer un contenu</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Choisis ton canal et ton format, l'IA s'occupe du reste.</p>
-          <button
-            onClick={() => setContentCoachingOpen(true)}
-            className="text-xs text-muted-foreground hover:text-primary mt-2 transition-colors"
-          >
-            🤔 Je sais pas quoi poster...
-          </button>
+          <p className="mt-2 text-sm text-muted-foreground">Décris ton idée ou choisis directement un format.</p>
         </div>
 
-        {/* ─── "L'IA me recommande" block ─── */}
+        {/* ─── Single smart input block ─── */}
         <div className="rounded-2xl border border-border bg-card p-5 mb-6">
-          <h3 className="font-display font-bold text-sm text-foreground mb-1">
-            💡 Tu as une idée mais tu sais pas quel format choisir ?
-          </h3>
-          <p className="text-xs text-muted-foreground mb-3">
-            Décris ton idée, l'IA te recommande le meilleur format.
-          </p>
           <TextareaWithVoice
             value={ideaText}
             onChange={(e) => {
               setIdeaText(e.target.value);
               setSuggestion(null);
             }}
-            placeholder="Ex : ma pire erreur de communication en 2025..."
+            placeholder="Décris ton idée, ton sujet ou ce qui te trotte dans la tête..."
             rows={2}
             className="mb-3"
           />
-          <Button
-            onClick={handleSuggestFormat}
-            disabled={!ideaText.trim() || suggesting}
-            className="rounded-full gap-1.5"
-            size="sm"
-          >
-            {suggesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
-            Trouve-moi le bon format
-          </Button>
+          <div className="flex items-center justify-between">
+            <Button
+              onClick={handleSuggestFormat}
+              disabled={!ideaText.trim() || suggesting}
+              className="rounded-full gap-1.5"
+              size="sm"
+            >
+              {suggesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              L'IA me guide →
+            </Button>
+            <button
+              onClick={() => setContentCoachingOpen(true)}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors"
+            >
+              🤔 Je sais pas quoi poster...
+            </button>
+          </div>
 
           {suggestion && (
             <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4 animate-fade-in">
@@ -206,7 +196,7 @@ export default function InstagramCreer() {
                 Je te recommande : {FORMAT_OPTIONS.find(f => f.id === suggestion.format)?.emoji} {suggestion.format_label}
               </p>
               <p className="text-xs text-muted-foreground mb-1">
-                Format : {suggestion.suggested_angle}
+                Angle : {suggestion.suggested_angle}
               </p>
               <p className="text-xs text-muted-foreground mb-2">
                 Objectif : {OBJ_EMOJI[suggestion.objective] || "🎯"} {suggestion.objective_label}
@@ -215,18 +205,11 @@ export default function InstagramCreer() {
                 {suggestion.reason}
               </p>
               <div className="flex gap-2">
-                <Button
-                  onClick={handleGoToSuggested}
-                  size="sm"
-                  className="rounded-full gap-1.5"
-                >
+                <Button onClick={handleGoToSuggested} size="sm" className="rounded-full gap-1.5">
                   {FORMAT_OPTIONS.find(f => f.id === suggestion.format)?.emoji} Créer ce contenu →
                 </Button>
                 <Button
-                  onClick={() => {
-                    setSuggestion(null);
-                    handleSuggestFormat();
-                  }}
+                  onClick={() => { setSuggestion(null); handleSuggestFormat(); }}
                   size="sm"
                   variant="outline"
                   className="rounded-full gap-1.5"
@@ -234,45 +217,6 @@ export default function InstagramCreer() {
                   <RefreshCw className="h-3 w-3" /> Autre suggestion
                 </Button>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* ─── Création guidée ─── */}
-        <div className="rounded-2xl border border-border bg-card mb-6 overflow-hidden">
-          <button
-            onClick={() => setShowGuidedFlow(!showGuidedFlow)}
-            className="w-full flex items-center justify-between p-5 text-left"
-          >
-            <div>
-              <h3 className="font-display font-bold text-sm text-foreground">
-                🎯 Tu sais ce que tu veux dire mais pas comment ?
-              </h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Choisis ton objectif et ton angle, on te guide vers le bon format.
-              </p>
-            </div>
-            <span className={`text-muted-foreground transition-transform ${showGuidedFlow ? "rotate-180" : ""}`}>
-              ▾
-            </span>
-          </button>
-          {showGuidedFlow && (
-            <div className="px-5 pb-5 animate-fade-in">
-              <ContentSetupForm
-                compact
-                submitLabel="Créer ce contenu →"
-                onSubmit={({ canal, objectif, format, sujet }) => {
-                  const params = new URLSearchParams();
-                  params.set("canal", canal);
-                  params.set("from", "/creer");
-                  if (objectif) params.set("objectif", objectif);
-                  if (sujet) params.set("sujet", encodeURIComponent(sujet));
-                  if (format) params.set("format", format);
-                  navigate(`/atelier?${params.toString()}`, {
-                    state: calendarState?.notes ? { fromSuggested: true, existingContent: calendarState.notes, theme: calendarState.theme } : undefined,
-                  });
-                }}
-              />
             </div>
           )}
         </div>
@@ -353,9 +297,7 @@ export default function InstagramCreer() {
             <Button
               variant={secondaryMode === "dictate" ? "default" : "outline"}
               size="sm"
-              onClick={() => {
-                setSecondaryMode(secondaryMode === "dictate" ? "none" : "dictate");
-              }}
+              onClick={() => setSecondaryMode(secondaryMode === "dictate" ? "none" : "dictate")}
               className="rounded-full gap-1.5 text-xs"
             >
               🎤 Dicter mon contenu
