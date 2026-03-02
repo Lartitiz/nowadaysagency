@@ -4,6 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrandCharter } from "@/hooks/use-branding";
+import { useUserPlan } from "@/hooks/use-user-plan";
+import CreditWarning from "@/components/CreditWarning";
 import AppHeader from "@/components/AppHeader";
 import ContentProgressBar from "@/components/ContentProgressBar";
 import ContentActions from "@/components/ContentActions";
@@ -155,6 +157,8 @@ export default function InstagramCarousel() {
   const [qualityCheck, setQualityCheck] = useState<QualityCheck | null>(null);
   const [publishingTip, setPublishingTip] = useState("");
   const [loading, setLoading] = useState(false);
+  const { canGenerate, remainingTotal } = useUserPlan();
+  const quotaBlocked = !canGenerate("content");
   const [loadingTopics, setLoadingTopics] = useState(false);
   const [topics, setTopics] = useState<TopicSuggestion[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
@@ -259,7 +263,7 @@ export default function InstagramCarousel() {
 
   // ── API calls ──
   const handleGenerateAngles = async () => {
-    if (!user) return;
+    if (!user || quotaBlocked) return;
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("carousel-ai", {
@@ -662,6 +666,7 @@ export default function InstagramCarousel() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 animate-fade-in">
         <ReturnToOrigin />
         <ContentProgressBar steps={CAROUSEL_STEPS} currentStep={currentStepKey} />
+        <CreditWarning remaining={remainingTotal()} className="mb-4" />
 
         {step === 1 && (
           <CarouselTypeStep
