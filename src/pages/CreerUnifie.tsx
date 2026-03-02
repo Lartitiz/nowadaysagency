@@ -96,11 +96,11 @@ export default function CreerUnifie() {
 
   // Callback from coaching dialog (when already on /creer)
   const handleCoachingSelect = useCallback(async (data: { subject: string; format: string; objective: string }) => {
-    // Reset any previous state
-    resetGenerator();
+    // Reset content state (but NOT the generator loading states)
     setAnswers({});
     setEditorialAngle(null);
     setEditContent("");
+    setLaunchResults([]);
     
     // Set new values
     setIdeaText(data.subject);
@@ -110,7 +110,7 @@ export default function CreerUnifie() {
     
     // Generate questions with the subject directly (not from state which may not be updated yet)
     await generateQuestions({ format: data.format, subject: data.subject, editorialAngle: undefined });
-  }, [generateQuestions, resetGenerator]);
+  }, [generateQuestions]);
 
   const handleIdeaNext = (idea: string, obj?: string) => {
     setIdeaText(idea);
