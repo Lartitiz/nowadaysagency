@@ -51,8 +51,9 @@ serve(async (req) => {
       template_style: z.string().max(100).optional().nullable(),
       charter: z.record(z.unknown()).optional().nullable(),
       custom_overrides: z.record(z.unknown()).optional().nullable(),
+      template_reference_urls: z.array(z.string().url()).max(5).optional().nullable(),
     }).passthrough());
-    const { slides, template_style, charter: bodyCharter, custom_overrides } = reqBody;
+    const { slides, template_style, charter: bodyCharter, custom_overrides, template_reference_urls } = reqBody;
 
     // Resolve charter: use body or fetch from DB
     let charter = bodyCharter;
@@ -80,6 +81,33 @@ serve(async (req) => {
     };
 
     const style = template_style || "clean";
+    const isCharterRef = style === "charter_reference" && template_reference_urls?.length;
+
+    // Build the template style instructions
+    let styleInstructions = "";
+    if (isCharterRef) {
+      styleInstructions = `STYLE : 'charter_reference'
+L'utilisatrice a fourni un ou plusieurs de ses propres templates comme référence visuelle.
+Tu dois ANALYSER L'IMAGE du template fourni et REPRODUIRE FIDÈLEMENT :
+- La mise en page (disposition des éléments, marges, alignements)
+- Le style typographique (tailles relatives, graisses, casses)
+- Les éléments décoratifs (formes, lignes, icônes stylisés)
+- L'ambiance générale (couleurs, contrastes, espaces)
+- Le ratio texte/espace vide
+
+IMPORTANT : Tu ne copies PAS le contenu du template, tu copies SON DESIGN. Applique ce design aux nouvelles slides avec le contenu fourni.
+Utilise les couleurs de la charte graphique ci-dessous mais en respectant les proportions et contrastes du template de référence.`;
+    } else {
+      styleInstructions = `STYLE DE TEMPLATE : ${style}
+- 'clean' : fond uni, texte centré, séparateur fin, beaucoup d'espace blanc
+- 'bold' : fond couleur primaire, gros titre blanc, impact visuel fort
+- 'gradient' : fond dégradé entre primaire et secondaire, texte blanc
+- 'quote' : guillemets décoratifs grands, texte centré, style citation
+- 'numbered' : gros numéro de slide en couleur accent, titre à côté, style éducatif
+- 'split' : slide divisée en 2 zones (bande colorée + zone texte)
+- 'photo' : placeholder pour image de fond avec overlay sombre et texte blanc
+- 'story' : fond doux/crème, typo élégante, ambiance intime`;
+    }
 
     const systemPrompt = `Tu es une directrice artistique experte en design de carrousels Instagram. Tu génères du HTML/CSS pur pour des slides au format 1080x1350px.
 
@@ -105,15 +133,7 @@ CHARTE GRAPHIQUE :
 - Style : ${ch.mood_keywords}
 - Coins : ${ch.border_radius}
 
-STYLE DE TEMPLATE : ${style}
-- 'clean' : fond uni, texte centré, séparateur fin, beaucoup d'espace blanc
-- 'bold' : fond couleur primaire, gros titre blanc, impact visuel fort
-- 'gradient' : fond dégradé entre primaire et secondaire, texte blanc
-- 'quote' : guillemets décoratifs grands, texte centré, style citation
-- 'numbered' : gros numéro de slide en couleur accent, titre à côté, style éducatif
-- 'split' : slide divisée en 2 zones (bande colorée + zone texte)
-- 'photo' : placeholder pour image de fond avec overlay sombre et texte blanc
-- 'story' : fond doux/crème, typo élégante, ambiance intime
+${styleInstructions}
 
 Retourne un JSON :
 {
@@ -139,12 +159,32 @@ Template : ${style}${overrideNote}
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
+    // Build messages - include template reference image if available
+    const messages: any[] = [];
+    if (isCharterRef && template_reference_urls?.length) {
+      // Use vision: send the template image + text prompt
+      const content: any[] = [];
+      for (const url of template_reference_urls) {
+        content.push({
+          type: "image",
+          source: { type: "url", url },
+        });
+      }
+      content.push({
+        type: "text",
+        text: `Voici le template de référence de l'utilisatrice. Analyse son design (mise en page, style, espacement, ambiance) et reproduis-le fidèlement pour les slides suivantes.\n\n${userPrompt}`,
+      });
+      messages.push({ role: "user", content });
+    } else {
+      messages.push({ role: "user", content: userPrompt });
+    }
+
     const model = "claude-sonnet-4-5-20250929" as any;
 
     const rawResponse = await callAnthropic({
       model,
       system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
+      messages,
       temperature: 0.5,
       max_tokens: 8192,
     });

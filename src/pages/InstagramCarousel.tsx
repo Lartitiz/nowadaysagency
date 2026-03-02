@@ -417,11 +417,28 @@ export default function InstagramCarousel() {
     setVisualLoading(true);
     setVisualSlides([]);
     try {
+      // If the user selected a charter template, pass its URL for AI analysis
+      const charterTemplates: { url: string; name: string }[] =
+        (charterData?.uploaded_templates as any[]) || [];
+      const isCharterTemplate = style.startsWith("charter_template_");
+      let templateReferenceUrls: string[] | undefined;
+      let effectiveStyle = style;
+
+      if (isCharterTemplate) {
+        const idx = parseInt(style.replace("charter_template_", ""), 10);
+        const ref = charterTemplates[idx];
+        if (ref) {
+          templateReferenceUrls = [ref.url];
+          effectiveStyle = "charter_reference";
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke("carousel-visual", {
         body: {
           slides: slides.map(s => ({ slide_number: s.slide_number, role: s.role, title: s.title, body: s.body })),
-          template_style: style,
+          template_style: effectiveStyle,
           charter: charterData || undefined,
+          template_reference_urls: templateReferenceUrls,
         },
       });
       if (error) throw error;
@@ -462,6 +479,11 @@ export default function InstagramCarousel() {
       { id: "story", label: "Story", icon: "📖", desc: "Intime" },
     ];
 
+    // Templates uploadés dans la charte graphique
+    const charterTemplates: { url: string; name: string }[] =
+      (charterData?.uploaded_templates as any[]) || [];
+    const hasCharterTemplates = charterTemplates.length > 0;
+
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
@@ -470,7 +492,11 @@ export default function InstagramCarousel() {
           <ContentProgressBar steps={CAROUSEL_STEPS} currentStep={currentStepKey} />
 
           <h1 className="font-display text-2xl font-bold text-foreground mb-2">✨ Visuel du carrousel</h1>
-          <p className="text-sm text-muted-foreground mb-6">Choisis un style de template pour générer les visuels de tes slides.</p>
+          <p className="text-sm text-muted-foreground mb-6">
+            {hasCharterTemplates
+              ? "Choisis un de tes templates ou un style prédéfini."
+              : "Choisis un style de template pour générer les visuels de tes slides."}
+          </p>
 
           {charterLoaded && !charterData && (
             <div className="rounded-xl border border-border bg-amber-50 dark:bg-amber-950/20 p-4 mb-6">
@@ -491,18 +517,67 @@ export default function InstagramCarousel() {
           )}
 
           {!visualLoading && visualSlides.length === 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              {TEMPLATE_OPTIONS.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => handleGenerateVisual(t.id)}
-                  className="rounded-xl border-2 border-border hover:border-primary/60 bg-card p-4 text-center transition-all hover:shadow-md"
-                >
-                  <div className="text-2xl mb-1">{t.icon}</div>
-                  <p className="text-sm font-semibold text-foreground">{t.label}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{t.desc}</p>
-                </button>
-              ))}
+            <div className="space-y-6 mb-6">
+              {/* Mes templates (from charter) */}
+              {hasCharterTemplates && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    📐 Mes templates
+                  </p>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                    {charterTemplates.map((t, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleGenerateVisual(`charter_template_${idx}`)}
+                        className="group rounded-xl border-2 border-primary/30 hover:border-primary bg-card overflow-hidden transition-all hover:shadow-lg"
+                      >
+                        <div className="relative aspect-[4/5] overflow-hidden">
+                          <img
+                            src={t.url}
+                            alt={t.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground p-2 truncate text-center">{t.name}</p>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-2 italic">
+                    L'IA analysera ton template et reproduira son style sur tes slides.
+                  </p>
+                </div>
+              )}
+
+              {/* Styles prédéfinis */}
+              <div>
+                {hasCharterTemplates && (
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                    Ou un style prédéfini
+                  </p>
+                )}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {TEMPLATE_OPTIONS.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => handleGenerateVisual(t.id)}
+                      className="rounded-xl border-2 border-border hover:border-primary/60 bg-card p-4 text-center transition-all hover:shadow-md"
+                    >
+                      <div className="text-2xl mb-1">{t.icon}</div>
+                      <p className="text-sm font-semibold text-foreground">{t.label}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{t.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {!hasCharterTemplates && (
+                <p className="text-[10px] text-muted-foreground text-center">
+                  💡 Tu peux{" "}
+                  <a href="/branding/charter" className="text-primary hover:underline">uploader tes propres templates dans ta charte</a>
+                  {" "}pour que l'IA s'en inspire.
+                </p>
+              )}
             </div>
           )}
 
