@@ -32,6 +32,7 @@ interface ContentResult {
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSelect?: (data: { subject: string; format: string; objective: string }) => void;
 }
 
 const OBJECTIFS = [
@@ -98,7 +99,7 @@ const TONS = [
   { id: "engage", emoji: "🔥", label: "Engagé et provoc" },
 ];
 
-export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
+export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: Props) {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>(1);
   const [objectif, setObjectif] = useState("");
@@ -202,29 +203,38 @@ export default function ContentCoachingDialog({ open, onOpenChange }: Props) {
 
     let finalSubject: string;
     let finalObjective: string;
-    let route: string;
 
     if (selectedIdea) {
       finalSubject = selectedIdea.subject;
       finalObjective = selectedIdea.objective_tag || objectif;
-      route = result.redirect_route || "/creer";
     } else if (result.ideas?.length) {
       finalSubject = result.ideas[0].subject;
       finalObjective = result.ideas[0].objective_tag || objectif;
-      route = result.redirect_route || "/creer";
     } else {
       finalSubject = selectedSubject || result.recommended_subject || "";
       finalObjective = result.redirect_params?.objective || objectif;
-      route = result.redirect_route || "/creer";
     }
 
-    // Parse existing params from redirect_route (e.g. /creer?format=carousel)
-    const [basePath, existingQuery] = route.split("?");
-    const params = new URLSearchParams(existingQuery || "");
-    params.set("subject", finalSubject);
-    params.set("objective", finalObjective);
+    // Extract format from redirect_route
+    let finalFormat = format || "";
+    if (result.redirect_route) {
+      const routeMatch = result.redirect_route.match(/format=(\w+)/);
+      if (routeMatch) finalFormat = routeMatch[1];
+    }
+
     onOpenChange(false);
-    navigate(`${basePath}?${params.toString()}`);
+
+    if (onSelect) {
+      // Callback mode (used when already on /creer)
+      onSelect({ subject: finalSubject, format: finalFormat, objective: finalObjective });
+    } else {
+      // Navigate mode (used from Dashboard)
+      const baseRoute = result.redirect_route?.split("?")[0] || "/creer";
+      const existingParams = new URLSearchParams(result.redirect_route?.split("?")[1] || "");
+      existingParams.set("subject", finalSubject);
+      existingParams.set("objective", finalObjective);
+      navigate(`${baseRoute}?${existingParams.toString()}`);
+    }
   };
 
   const handleSelectAlternative = (alt: string) => {
