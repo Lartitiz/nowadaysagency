@@ -563,8 +563,6 @@ export default function BrandingPage() {
                 onAnalyze={handleStartAnalysis}
                 onSkip={handleSkipImport}
                 initialWebsite={reanalyzeUrls.website}
-                initialInstagram={reanalyzeUrls.instagram}
-                initialLinkedin={reanalyzeUrls.linkedin}
                 reanalyzeWarning={reanalyzeMode}
               />
             </motion.div>
