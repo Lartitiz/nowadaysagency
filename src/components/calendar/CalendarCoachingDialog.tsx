@@ -118,7 +118,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
         workspace_id: workspaceId || null,
         date,
         theme: item.subject,
-        format: item.format === "carousel" ? "post_carrousel" : item.format,
+        format: item.format === "carousel" ? "post_carrousel" : item.format === "story" || item.format === "story_serie" ? "story_serie" : item.format,
         canal: "instagram",
         status: "a_rediger",
         objectif: item.objective,
@@ -217,7 +217,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
               </button>
             </div>
             {mixOrFocus && (
-              <Button onClick={handleGenerate} className="w-full gap-2">
+              <Button onClick={handleGenerate} disabled={loading} className="w-full gap-2">
                 <Sparkles className="h-4 w-4" /> Planifier ma semaine
               </Button>
             )}
@@ -265,7 +265,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
                         size="sm"
                         variant="outline"
                         className="text-xs gap-1 flex-1"
-                        disabled={isAdded}
+                        disabled={isAdded || loading}
                         onClick={() => handleAddToCalendar(item, i)}
                       >
                         {isAdded ? "✅ Ajouté" : <><CalendarPlus className="h-3 w-3" /> Ajouter au calendrier</>}
