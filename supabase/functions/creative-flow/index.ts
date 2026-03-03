@@ -60,8 +60,11 @@ serve(async (req) => {
       sourceText: z.string().max(10000).optional().nullable(),
       targetFormat: z.string().max(100).optional().nullable(),
       workspace_id: z.string().uuid().optional().nullable(),
+      objective: z.string().max(50).optional().nullable(),
+      editorialFormat: z.string().max(100).optional().nullable(),
+      editorialFormatLabel: z.string().max(200).optional().nullable(),
     }).passthrough());
-    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective } = body;
+    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel } = body;
 
     // Determine channel from contentType for persona selection
     const channelFromType = contentType?.includes("linkedin") ? "linkedin" : contentType?.includes("instagram") || contentType?.includes("carousel") || contentType?.includes("reel") || contentType?.includes("stories") ? "instagram" : undefined;
@@ -172,12 +175,19 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     };
 
     if (step === "angles") {
+      const editorialCtx = editorialFormatLabel
+        ? `\nFORMAT ÉDITORIAL CHOISI : "${editorialFormatLabel}"\nL'utilisatrice a choisi ce format parmi les 13 angles éditoriaux. Les 3 angles proposés doivent être des VARIATIONS de "${editorialFormatLabel}", pas des formats complètement différents.\nChaque angle prend un POINT D'ENTRÉE différent dans le sujet, mais tous suivent la logique de "${editorialFormatLabel}".\nExemple : si elle a choisi "Mythe à déconstruire", les 3 angles déconstruisent le même sujet mais avec 3 approches différentes (données vs vécu vs comparaison).\n`
+        : "";
+
       systemPrompt = `${COMMON_PREFIX}
 
 ${FRAMEWORK_SELECTION}
 
-TYPE DE CONTENU : ${contentType}
-CONTEXTE : ${context}
+${EDITORIAL_ANGLES_REFERENCE}
+${editorialCtx}
+CANAL : ${contentType}
+SUJET : ${context}
+${effectiveObjective ? `OBJECTIF : ${effectiveObjective}` : ""}
 ${calendarBlock}
 
 Propose exactement 3 angles éditoriaux DIFFÉRENTS.
@@ -185,14 +195,16 @@ Propose exactement 3 angles éditoriaux DIFFÉRENTS.
 Pour chaque angle :
 1. TITRE : 2-5 mots, évocateur (pas "Option 1")
 2. PITCH : 2-3 phrases qui expliquent l'approche et pourquoi ça fonctionne
-3. STRUCTURE : le squelette du contenu en 4-5 étapes (utilise les structures par format si le format est connu)
+3. STRUCTURE : le squelette du contenu en 4-5 étapes${editorialFormatLabel ? ` (basé sur la structure de "${editorialFormatLabel}" dans les angles éditoriaux de référence)` : " (utilise les structures par format si le format est connu)"}
 4. TON : l'énergie et le registre émotionnel de cet angle
+5. FORMAT_LIVRAISON : le format de sortie recommandé pour cet angle (carrousel, reel, stories, caption longue, LinkedIn, newsletter)
 
 RÈGLES :
-- Les 3 angles doivent être VRAIMENT différents (pas 3 variations du même)
+${editorialFormatLabel ? `- Les 3 angles sont des VARIATIONS de "${editorialFormatLabel}", PAS des formats différents` : "- Les 3 angles doivent être VRAIMENT différents (pas 3 variations du même)"}
 - Chaque angle est basé sur un framework narratif DIFFÉRENT, traduit en angle créatif lisible
 - Un angle peut être surprenant ou inattendu
 - Pense à des angles que l'utilisatrice n'aurait pas trouvés seule
+${effectiveObjective ? `- Les 3 angles doivent servir l'objectif "${effectiveObjective}". Un angle "visibilité" privilégie les accroches polarisantes, un angle "vente" les preuves et témoignages.` : ""}
 - Reste cohérent avec son ton & style
 - Ne rédige RIEN. Pas d'exemple de phrases. Juste la direction.
 
@@ -203,7 +215,8 @@ Réponds UNIQUEMENT en JSON :
       "title": "...",
       "pitch": "...",
       "structure": ["étape 1", "étape 2", "étape 3", "étape 4"],
-      "tone": "..."
+      "tone": "...",
+      "format_livraison": "carrousel | reel | stories | caption | linkedin | newsletter"
     }
   ]
 }`;
@@ -213,10 +226,12 @@ Réponds UNIQUEMENT en JSON :
       systemPrompt = `${COMMON_PREFIX}
 
 L'utilisatrice a choisi cet angle pour son contenu :
-- Type : ${contentType}
+- Canal : ${contentType}
+${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
 - Angle : ${angle.title}
 - Structure : ${(angle.structure || []).join(" → ")}
 - Ton : ${angle.tone}
+${angle.format_livraison ? `- Format de livraison recommandé : ${angle.format_livraison}` : ""}
 ${calendarBlock}${objectiveBlock}
 
 Pose exactement 3 questions pour récupérer SA matière première. Ces questions doivent extraire des anecdotes, des réflexions, des émotions PERSONNELLES qui rendront le contenu unique et impossible à reproduire par une IA seule.
@@ -271,12 +286,14 @@ Réponds UNIQUEMENT en JSON :
         : "";
 
       // Determine target format for depth instructions
-      const formatHint = contentType?.toLowerCase() || "";
+      // Priority: angle.format_livraison > contentType > canal detection
+      const angleFormat = angle?.format_livraison?.toLowerCase() || "";
+      const formatHint = angleFormat || contentType?.toLowerCase() || "";
       const isCarousel = formatHint.includes("carrousel") || formatHint.includes("carousel");
       const isReel = formatHint.includes("reel") || formatHint.includes("script");
       const isStories = formatHint.includes("stories") || formatHint.includes("story");
-      const isLinkedIn = formatHint.includes("linkedin");
-      const isNewsletter = formatHint.includes("newsletter") || formatHint.includes("email");
+      const isLinkedIn = formatHint.includes("linkedin") || contentType === "post_linkedin";
+      const isNewsletter = formatHint.includes("newsletter") || formatHint.includes("email") || contentType === "post_newsletter";
       const isCaption = !isCarousel && !isReel && !isStories && !isLinkedIn && !isNewsletter;
 
       // Build format-specific depth instructions
@@ -378,7 +395,9 @@ ${angle ? `ANGLE CHOISI :
 - Structure : ${(angle.structure || []).join(" → ")}
 - Ton : ${angle.tone}` : "Pas d'angle spécifique choisi. Choisis le meilleur angle pour le sujet."}
 
-TYPE DE CONTENU DEMANDÉ : ${contentType || "Post Instagram"}
+CANAL : ${contentType || "Post Instagram"}
+${editorialFormatLabel ? `FORMAT ÉDITORIAL : ${editorialFormatLabel}` : ""}
+${angle?.format_livraison ? `FORMAT DE LIVRAISON : ${angle.format_livraison}` : ""}
 
 ${depthMandate}
 
@@ -434,15 +453,37 @@ Réponds UNIQUEMENT en JSON :
       userPrompt = "Rédige mon contenu à partir de mes réponses et de l'angle choisi.";
 
     } else if (step === "adjust") {
+      // Smart guidance based on adjustment type
+      const adjustLower = (adjustment || "").toLowerCase();
+      let adjustGuidance = "";
+      if (adjustLower.includes("long")) {
+        const isCarouselContent = currentContent?.includes("SLIDE") || currentContent?.includes("📌");
+        adjustGuidance = isCarouselContent
+          ? "AJOUTE une slide supplémentaire qui développe un point existant en profondeur. Ne rallonge pas les slides existantes."
+          : "Développe l'idée principale avec un exemple concret ou une anecdote. Ne rallonge pas artificiellement avec des transitions vides.";
+      } else if (adjustLower.includes("court")) {
+        adjustGuidance = "Coupe les transitions faibles et les répétitions. Garde les punchlines et les exemples concrets. Ne sacrifie pas la profondeur.";
+      } else if (adjustLower.includes("punchy")) {
+        adjustGuidance = "Raccourcis les phrases longues. Ajoute des bucket brigades. L'accroche doit claquer plus fort.";
+      } else if (adjustLower.includes("exemples") || adjustLower.includes("concret")) {
+        adjustGuidance = "Remplace les conseils abstraits par des situations concrètes. Chaque point doit avoir un exemple terrain, un cas réel, ou un chiffre.";
+      } else if (adjustLower.includes("storytelling") || adjustLower.includes("histoire")) {
+        adjustGuidance = "Restructure autour d'une narration. Commence par un moment précis (lieu, émotion), développe la tension, puis la résolution.";
+      } else if (adjustLower.includes("chiffres") || adjustLower.includes("données") || adjustLower.includes("stats")) {
+        adjustGuidance = "Ajoute 2-3 données chiffrées. Si pas de chiffres exacts disponibles, indique [STAT À VÉRIFIER] pour que l'utilisatrice insère les vrais chiffres.";
+      }
+
       systemPrompt = `${COMMON_PREFIX}
 
 ${ANTI_BIAS}
 
-${CHAIN_OF_THOUGHT}
-
 ${FORMAT_STRUCTURES}
 
 ${WRITING_RESOURCES}
+
+${editorialFormatLabel ? `FORMAT ÉDITORIAL : ${editorialFormatLabel}` : ""}
+${effectiveObjective ? `OBJECTIF : ${effectiveObjective}` : ""}
+${angle ? `ANGLE : ${angle.title} (${angle.tone})` : ""}
 
 CONTENU ACTUEL :
 """
@@ -450,8 +491,10 @@ ${currentContent}
 """
 
 AJUSTEMENT DEMANDÉ : ${adjustment}
+${adjustGuidance ? `\nGUIDE :\n${adjustGuidance}` : ""}
 
 Réécris le contenu avec l'ajustement demandé. Garde la structure, les anecdotes et les mots de l'utilisatrice. Change UNIQUEMENT ce qui est lié à l'ajustement.
+Ne raccourcis JAMAIS la profondeur sauf si l'ajustement demande explicitement de raccourcir.
 
 Réponds UNIQUEMENT en JSON :
 {
