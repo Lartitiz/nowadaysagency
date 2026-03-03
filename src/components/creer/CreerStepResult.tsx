@@ -1,10 +1,12 @@
-import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette } from "lucide-react";
+import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
 import ReelResult from "@/components/creer/formatRenderers/ReelResult";
 import StoryResult from "@/components/creer/formatRenderers/StoryResult";
 import PostResult from "@/components/creer/formatRenderers/PostResult";
 import LinkedInResult from "@/components/creer/formatRenderers/LinkedInResult";
+
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Props {
   result: any;
@@ -20,6 +22,7 @@ interface Props {
   visualLoading?: boolean;
   visualSlides?: { slide_number: number; html: string }[];
   onExportPptx?: () => void;
+  onExportVisualPptx?: () => void;
   onSlidesUpdate?: (slides: any[], caption: any) => void;
 }
 
@@ -46,6 +49,7 @@ export default function CreerStepResult({
   visualLoading,
   visualSlides,
   onExportPptx,
+  onExportVisualPptx,
   onSlidesUpdate,
 }: Props) {
   if (generating) {
@@ -133,9 +137,27 @@ export default function CreerStepResult({
           <Copy className="h-3.5 w-3.5" /> Copier
         </Button>
         {isCarousel && hasVisuals && onExportPptx && (
-          <Button variant="ghost" size="sm" onClick={onExportPptx} className="gap-1.5 text-xs text-muted-foreground">
-            <Download className="h-3.5 w-3.5" /> Export PPTX
-          </Button>
+          onExportVisualPptx ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
+                  <Download className="h-3.5 w-3.5" /> Exporter <ChevronDown className="h-3 w-3 ml-0.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={onExportVisualPptx}>
+                  Visuels (images fidèles)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onExportPptx}>
+                  Éditable (PowerPoint)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={onExportPptx} className="gap-1.5 text-xs text-muted-foreground">
+              <Download className="h-3.5 w-3.5" /> Export PPTX
+            </Button>
+          )
         )}
         {isCarousel && hasVisuals && onGenerateVisuals && (
           <Button variant="ghost" size="sm" onClick={onGenerateVisuals} className="gap-1.5 text-xs text-muted-foreground">
