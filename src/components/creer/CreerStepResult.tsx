@@ -20,6 +20,7 @@ interface Props {
   visualLoading?: boolean;
   visualSlides?: { slide_number: number; html: string }[];
   onExportPptx?: () => void;
+  onSlidesUpdate?: (slides: any[], caption: any) => void;
 }
 
 const LOADING_MESSAGES: Record<string, string> = {
@@ -45,6 +46,7 @@ export default function CreerStepResult({
   visualLoading,
   visualSlides,
   onExportPptx,
+  onSlidesUpdate,
 }: Props) {
   if (generating) {
     return (
@@ -63,7 +65,7 @@ export default function CreerStepResult({
   const renderResult = () => {
     switch (format) {
       case "carousel":
-        return <CarouselResult result={result} visualSlides={visualSlides} />;
+        return <CarouselResult result={result} visualSlides={visualSlides} onSlidesUpdate={onSlidesUpdate} />;
       case "reel":
         return <ReelResult result={result} />;
       case "story":

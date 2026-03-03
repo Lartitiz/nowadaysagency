@@ -2,11 +2,76 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+
+interface SlideData {
+  slide_number: number;
+  role?: string;
+  title?: string;
+  body?: string;
+  visual_suggestion?: string;
+}
+
+interface CaptionData {
+  hook?: string;
+  body?: string;
+  cta?: string;
+  hashtags?: string | string[];
+}
 
 interface Props {
   result: any;
   visualSlides?: { slide_number: number; html: string }[];
+  onSlidesUpdate?: (slides: SlideData[], caption: CaptionData) => void;
+}
+
+/** Inline editable text block */
+function InlineEditable({
+  value,
+  onChange,
+  className = "",
+  placeholder = "Ajouter du texte…",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+  placeholder?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [focused, setFocused] = useState(false);
+
+  // Sync external value only when not editing
+  useEffect(() => {
+    if (!focused && ref.current && ref.current.innerText !== value) {
+      ref.current.innerText = value;
+    }
+  }, [value, focused]);
+
+  return (
+    <div
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      className={`outline-none rounded-md transition-all cursor-text ${
+        focused
+          ? "ring-1 ring-primary/40 bg-primary/5 px-2 py-1 -mx-2 -my-1"
+          : "hover:bg-muted/50 px-2 py-1 -mx-2 -my-1"
+      } ${className}`}
+      style={{ whiteSpace: "pre-wrap", minHeight: "1.5em" }}
+      data-placeholder={placeholder}
+      onFocus={() => setFocused(true)}
+      onBlur={() => {
+        setFocused(false);
+        const text = ref.current?.innerText?.trim() || "";
+        if (text !== value) onChange(text);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
 }
 
 function VisualSlidesGrid({ slides }: { slides: { slide_number: number; html: string }[] }) {
@@ -17,7 +82,6 @@ function VisualSlidesGrid({ slides }: { slides: { slide_number: number; html: st
     const el = gridRef.current;
     if (!el) return;
     const measure = () => {
-      // Measure actual first grid cell width
       const firstChild = el.children[0] as HTMLElement | undefined;
       if (firstChild) {
         setColWidth(firstChild.getBoundingClientRect().width);
@@ -74,23 +138,54 @@ function VisualSlidesGrid({ slides }: { slides: { slide_number: number; html: st
   );
 }
 
-export default function CarouselResult({ result, visualSlides }: Props) {
-  const slides = result?.slides || result?.carousel?.slides || [];
-  const caption = result?.caption || result?.carousel?.caption || {};
+export default function CarouselResult({ result, visualSlides, onSlidesUpdate }: Props) {
+  const rawSlides: SlideData[] = result?.slides || result?.carousel?.slides || [];
+  const rawCaption: CaptionData = result?.caption || result?.carousel?.caption || {};
   const qualityCheck = result?.quality_check || result?.carousel?.quality_check;
   const publishingTip = result?.publishing_tip || result?.carousel?.publishing_tip;
   const chosenAngle = result?.chosen_angle || result?.carousel?.chosen_angle;
+
+  // Local editable copies
+  const [slides, setSlides] = useState<SlideData[]>(rawSlides);
+  const [caption, setCaption] = useState<CaptionData>(rawCaption);
+
+  // Sync when result changes (new generation)
+  useEffect(() => {
+    setSlides(rawSlides);
+    setCaption(rawCaption);
+  }, [result]);
+
+  const updateSlide = useCallback((index: number, field: "title" | "body", value: string) => {
+    setSlides(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      onSlidesUpdate?.(updated, caption);
+      return updated;
+    });
+  }, [caption, onSlidesUpdate]);
+
+  const updateCaption = useCallback((field: "hook" | "body" | "cta", value: string) => {
+    setCaption(prev => {
+      const updated = { ...prev, [field]: value };
+      onSlidesUpdate?.(slides, updated);
+      return updated;
+    });
+  }, [slides, onSlidesUpdate]);
 
   const fullText = [
     caption?.hook,
     caption?.body,
     caption?.cta,
-    ...slides.map((s: any) => [s.title, s.body].filter(Boolean).join("\n")),
+    ...slides.map((s) => [s.title, s.body].filter(Boolean).join("\n")),
   ]
     .filter(Boolean)
     .join("\n\n");
 
   const [checkedText, setCheckedText] = useState(fullText);
+
+  useEffect(() => {
+    setCheckedText(fullText);
+  }, [fullText]);
 
   const score = qualityCheck?.score ?? qualityCheck?.overall_score;
 
@@ -107,9 +202,14 @@ export default function CarouselResult({ result, visualSlides }: Props) {
         </div>
       )}
 
+      {/* Editable hint */}
+      <p className="text-[11px] text-muted-foreground italic text-center">
+        ✏️ Clique sur un texte pour le modifier directement
+      </p>
+
       {/* Slides */}
       <div className="space-y-2">
-        {slides.map((slide: any, i: number) => (
+        {slides.map((slide, i) => (
           <Card key={i} className="border-border">
             <CardContent className="p-3 space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
@@ -122,8 +222,22 @@ export default function CarouselResult({ result, visualSlides }: Props) {
                   </Badge>
                 )}
               </div>
-              {slide.title && <p className="text-sm font-bold text-foreground">{slide.title}</p>}
-              {slide.body && <p className="text-sm text-foreground leading-relaxed">{slide.body}</p>}
+              {slide.title != null && (
+                <InlineEditable
+                  value={slide.title || ""}
+                  onChange={(v) => updateSlide(i, "title", v)}
+                  className="text-sm font-bold text-foreground"
+                  placeholder="Titre de la slide…"
+                />
+              )}
+              {slide.body != null && (
+                <InlineEditable
+                  value={slide.body || ""}
+                  onChange={(v) => updateSlide(i, "body", v)}
+                  className="text-sm text-foreground leading-relaxed"
+                  placeholder="Contenu de la slide…"
+                />
+              )}
               {slide.visual_suggestion && (
                 <p className="text-xs italic text-muted-foreground">🎨 {slide.visual_suggestion}</p>
               )}
@@ -137,9 +251,30 @@ export default function CarouselResult({ result, visualSlides }: Props) {
         <Card className="border-border">
           <CardContent className="p-3 space-y-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Caption</p>
-            {caption.hook && <p className="text-sm font-bold text-foreground">{caption.hook}</p>}
-            {caption.body && <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{caption.body}</p>}
-            {caption.cta && <p className="text-sm text-primary font-medium">{caption.cta}</p>}
+            {caption.hook != null && (
+              <InlineEditable
+                value={caption.hook || ""}
+                onChange={(v) => updateCaption("hook", v)}
+                className="text-sm font-bold text-foreground"
+                placeholder="Accroche…"
+              />
+            )}
+            {caption.body != null && (
+              <InlineEditable
+                value={caption.body || ""}
+                onChange={(v) => updateCaption("body", v)}
+                className="text-sm text-foreground leading-relaxed"
+                placeholder="Corps de la caption…"
+              />
+            )}
+            {caption.cta != null && (
+              <InlineEditable
+                value={caption.cta || ""}
+                onChange={(v) => updateCaption("cta", v)}
+                className="text-sm text-primary font-medium"
+                placeholder="Call to action…"
+              />
+            )}
             {caption.hashtags && (
               <p className="text-xs text-muted-foreground">{Array.isArray(caption.hashtags) ? caption.hashtags.join(" ") : caption.hashtags}</p>
             )}
