@@ -1,0 +1,79 @@
+import { useState, useCallback, useEffect, useRef } from "react";
+
+const STORAGE_KEY = "creer_flow_state";
+
+interface FlowState {
+  step: string;
+  ideaText: string;
+  objective: string | null;
+  selectedFormat: string | null;
+  editorialAngle: string | null;
+  answers: Record<string, string>;
+  editContent: string;
+  result: any;
+  visualSlides: { slide_number: number; html: string }[];
+  savedId: string | null;
+  ts: number;
+}
+
+const MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+export function saveFlowState(state: Partial<FlowState>) {
+  try {
+    const existing = loadFlowState();
+    const merged = { ...existing, ...state, ts: Date.now() };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+  } catch {
+    // Storage full or unavailable — silently ignore
+  }
+}
+
+export function loadFlowState(): FlowState | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as FlowState;
+    // Expire after MAX_AGE
+    if (parsed.ts && Date.now() - parsed.ts > MAX_AGE_MS) {
+      clearFlowState();
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function clearFlowState() {
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch {}
+}
+
+/**
+ * Hook that auto-saves creation flow state to sessionStorage on every change.
+ * Returns the initial saved state (if any) for restoration.
+ */
+export function useFlowPersistence(deps: Partial<FlowState>) {
+  const saved = useRef(false);
+
+  useEffect(() => {
+    // Don't save on the very first render (let initialization happen first)
+    if (!saved.current) {
+      saved.current = true;
+      return;
+    }
+    saveFlowState(deps);
+  }, [
+    deps.step,
+    deps.ideaText,
+    deps.objective,
+    deps.selectedFormat,
+    deps.editorialAngle,
+    deps.editContent,
+    deps.result,
+    deps.savedId,
+    // visualSlides changes often — save on length change
+    deps.visualSlides?.length,
+  ]);
+}
