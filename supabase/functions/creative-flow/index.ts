@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, PREGEN_INJECTION_RULES } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback } from "../_shared/user-context.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -85,18 +85,24 @@ serve(async (req) => {
       voiceBlock = "\n" + vl.join("\n") + "\n";
     }
 
-    // Pre-generation personal answers
+    // Pre-generation personal answers (with branding fallback)
+    let effectivePreGen = preGenAnswers;
+    if (!effectivePreGen && step === "generate") {
+      effectivePreGen = buildPreGenFallback(ctx);
+    }
     let preGenBlock = "";
-    if (preGenAnswers) {
+    if (effectivePreGen) {
+      const fromBranding = (effectivePreGen as any)._fromBranding;
+      const sourceNote = fromBranding ? " (éléments tirés du branding, pas du coaching direct)" : "";
       const pl: string[] = [];
-      if (preGenAnswers.anecdote) pl.push(`- Anecdote (UTILISE ses mots exacts, garde le côté brut et authentique) : "${preGenAnswers.anecdote}"`);
-      if (preGenAnswers.emotion) pl.push(`- Énergie/émotion visée (guide le ton de TOUT le contenu) : ${preGenAnswers.emotion}`);
-      if (preGenAnswers.conviction) pl.push(`- Conviction/phrase clé (doit apparaître TEXTUELLEMENT dans le contenu, c'est SA voix) : "${preGenAnswers.conviction}"`);
+      if (effectivePreGen.anecdote) pl.push(`- Anecdote${sourceNote} (UTILISE ses mots exacts, garde le côté brut et authentique) : "${effectivePreGen.anecdote}"`);
+      if (effectivePreGen.emotion) pl.push(`- Énergie/émotion visée${sourceNote} (guide le ton de TOUT le contenu) : ${effectivePreGen.emotion}`);
+      if (effectivePreGen.conviction) pl.push(`- Conviction/phrase clé${sourceNote} (doit apparaître TEXTUELLEMENT dans le contenu, c'est SA voix) : "${effectivePreGen.conviction}"`);
       if (pl.length) {
         preGenBlock = `\nL'UTILISATRICE A PARTAGÉ CES ÉLÉMENTS PERSONNELS :\n${pl.join("\n")}\n\nINTÈGRE CES ÉLÉMENTS dans le contenu généré :\n- L'anecdote doit apparaître naturellement (en accroche ou en illustration)\n- L'émotion visée guide le ton et la structure\n- La conviction doit être présente, formulée dans le style de l'utilisatrice\n- Ne change PAS le sens de ce qu'elle a dit, juste la structure\n`;
       }
     }
-    if (!preGenAnswers && step === "generate") {
+    if (!effectivePreGen && step === "generate") {
       preGenBlock = `\nL'utilisatrice n'a pas fourni d'éléments personnels.\nGénère le contenu normalement mais AJOUTE en fin :\n"💡 Ajoute une anecdote perso pour que ça sonne vraiment toi. L'IA structure, toi tu incarnes."\n`;
     }
 

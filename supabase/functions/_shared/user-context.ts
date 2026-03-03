@@ -465,3 +465,34 @@ export function buildProfileBlock(profile: any): string {
   if (profile.style_communication?.length) lines.push(`- Style de communication : ${profile.style_communication.join(", ")}`);
   return lines.join("\n");
 }
+
+/**
+ * Builds fallback pre-gen answers from branding context when the user
+ * skipped the coaching pre-gen questions. Returns null if branding is
+ * also empty (new user).
+ */
+export function buildPreGenFallback(ctx: any): { anecdote?: string; emotion?: string; conviction?: string; _fromBranding: true } | null {
+  const story = ctx.storytelling?.step_7_polished;
+  const tone = ctx.tone;
+  const profile = ctx.profile;
+  const proposition = ctx.proposition;
+
+  const anecdote = story || undefined;
+
+  // Emotion: derive from tone/mission
+  let emotion: string | undefined;
+  if (tone?.tone_style) emotion = tone.tone_style;
+  else if (profile?.tons?.length) emotion = Array.isArray(profile.tons) ? profile.tons.join(", ") : profile.tons;
+  else if (profile?.mission) emotion = profile.mission;
+
+  // Conviction: derive from combat/proposition
+  let conviction: string | undefined;
+  if (tone?.combat_cause) conviction = tone.combat_cause;
+  else if (tone?.combat_fights) conviction = tone.combat_fights;
+  else if (proposition?.version_one_liner) conviction = proposition.version_one_liner;
+  else if (profile?.mission) conviction = profile.mission;
+
+  if (!anecdote && !emotion && !conviction) return null;
+
+  return { anecdote, emotion, conviction, _fromBranding: true };
+}

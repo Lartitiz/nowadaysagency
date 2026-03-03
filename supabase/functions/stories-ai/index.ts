@@ -50,7 +50,7 @@ serve(async (req) => {
     }
 
     // Fetch full context server-side
-    const { getUserContext, formatContextForAI, CONTEXT_PRESETS } = await import("../_shared/user-context.ts");
+    const { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } = await import("../_shared/user-context.ts");
 
     const body = await req.json();
     validateInput(body, z.object({
@@ -63,10 +63,22 @@ serve(async (req) => {
       direction: z.string().max(500).optional().nullable(),
       workspace_id: z.string().uuid().optional().nullable(),
     }).passthrough());
-    const { objective, price_range, time_available, face_cam, subject, subject_details, raw_idea, clarify_context, direction, is_launch, type, pre_gen_answers, workspace_id } = body;
+    let { objective, price_range, time_available, face_cam, subject, subject_details, raw_idea, clarify_context, direction, is_launch, type, pre_gen_answers, workspace_id } = body;
 
     const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
     const branding_context = formatContextForAI(ctx, CONTEXT_PRESETS.stories);
+
+    // Fallback: inject branding as pre_gen_answers if none provided
+    if (!pre_gen_answers && type === "generate") {
+      const fallback = buildPreGenFallback(ctx);
+      if (fallback) {
+        pre_gen_answers = {
+          vecu: fallback.anecdote ? `${fallback.anecdote} (élément tiré du branding)` : undefined,
+          energy: fallback.emotion,
+          message_cle: fallback.conviction ? `${fallback.conviction} (élément tiré du branding)` : undefined,
+        };
+      }
+    }
 
     // Préfixe commun pour maximiser le cache Anthropic entre les appels d'un même flow
     const STORIES_PREFIX = BASE_SYSTEM_RULES + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :

@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, LINKEDIN_HOOK_TYPES_PROMPTS, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE, PREGEN_INJECTION_RULES } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -116,9 +116,19 @@ Ce qu'on ne fait JAMAIS en hook LinkedIn :
       userPrompt = "Génère 6 versions de résumé LinkedIn.";
 
     } else if (action === "generate-post") {
-      const { template, audience, sujet, anecdote, emotion, conviction, hook_type, editorial_angle, content_structure, objective } = params;
+      let { template, audience, sujet, anecdote, emotion, conviction, hook_type, editorial_angle, content_structure, objective } = params;
       const templateContent = (LINKEDIN_TEMPLATES as any)[template] || "";
       
+      // Fallback: inject branding if no personal elements provided
+      if (!anecdote && !emotion && !conviction) {
+        const fallback = buildPreGenFallback(ctx);
+        if (fallback) {
+          anecdote = fallback.anecdote ? `${fallback.anecdote} (élément tiré du branding)` : undefined;
+          emotion = fallback.emotion;
+          conviction = fallback.conviction ? `${fallback.conviction} (élément tiré du branding)` : undefined;
+        }
+      }
+
       let personalBlock = "";
       if (anecdote || emotion || conviction) {
         personalBlock = `\nÉLÉMENTS PERSONNELS :\n${anecdote ? `- Anecdote : "${anecdote}"` : ""}\n${emotion ? `- Émotion visée : ${emotion}` : ""}\n${conviction ? `- Conviction : "${conviction}"` : ""}`;

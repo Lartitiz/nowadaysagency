@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } from "../_shared/user-context.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, AnthropicError, getModelForAction, getModelForRichContent } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -61,11 +61,23 @@ serve(async (req) => {
       editorial_angle: z.string().max(100).optional().nullable(),
       content_structure: z.string().max(5000).optional().nullable(),
     }).passthrough());
-    const { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context, workspace_id, editorial_angle, content_structure } = body;
+    let { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context, workspace_id, editorial_angle, content_structure } = body;
 
     // Fetch full context server-side
     const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.reels);
+
+    // Fallback: inject branding as pre_gen_answers if none provided
+    if (!pre_gen_answers && type === "script") {
+      const fallback = buildPreGenFallback(ctx);
+      if (fallback) {
+        pre_gen_answers = {
+          anecdote: fallback.anecdote ? `${fallback.anecdote} (élément tiré du branding)` : undefined,
+          emotion: fallback.emotion,
+          conviction: fallback.conviction ? `${fallback.conviction} (élément tiré du branding)` : undefined,
+        };
+      }
+    }
 
     const systemPrompt = buildSystemPrompt(brandingContext);
 
