@@ -41,9 +41,9 @@ const FORMAT_ICONS: Record<string, string> = {
 
 const FORMAT_ROUTES: Record<string, string> = {
   post: "/creer",
-  carousel: "/instagram/carousel",
-  reel: "/instagram/reels",
-  story: "/instagram/stories",
+  carousel: "/creer?format=carousel",
+  reel: "/creer?format=reel",
+  story: "/creer?format=story",
   newsletter: "/creer",
 };
 

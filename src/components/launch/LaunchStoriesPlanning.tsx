@@ -133,7 +133,7 @@ export default function LaunchStoriesPlanning({ launchName }: Props) {
     if (launchName) {
       presets.subject = presets.subject.replace("mon offre", launchName);
     }
-    navigate("/instagram/stories", {
+    navigate("/creer?format=story", {
       state: {
         fromHighlights: true,
         ...presets,

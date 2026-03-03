@@ -848,17 +848,17 @@ export default function ChatGuidePage() {
                                  "/creer", "/calendrier", "/branding", "/branding/section",
                                 "/branding/coaching", "/branding/proposition/recap",
                                 "/branding/charter", "/branding/offres",
-                                "/instagram/profil/bio", "/instagram/carousel", "/instagram/reels",
-                                "/instagram/stories", "/instagram/audit", "/instagram/stats",
+                                "/instagram/profil/bio", "/creer",
+                                "/instagram/audit", "/instagram/stats",
                                 "/instagram/routine", "/instagram/profil",
                                 "/linkedin", "/linkedin/post", "/linkedin/audit",
-                                "/plan", "/mon-plan", "/contacts", "/atelier", "/transformer",
+                                "/plan", "/mon-plan", "/contacts", "/creer", "/transformer",
                                 "/dashboard", "/dashboard/guide", "/profil",
                                 "/idees", "/pricing", "/abonnement",
                               ];
 
                               // Express carousel generation
-                              if (baseRoute === "/instagram/carousel") {
+                              if (baseRoute === "/creer" && action.route.includes("format=carousel")) {
                                 const params = new URLSearchParams(action.route.split("?")[1] || "");
                                 const sujet = params.get("sujet") || "";
                                 const carouselType = params.get("carousel_type") || "tips";
@@ -879,7 +879,7 @@ export default function ChatGuidePage() {
                                   });
                                   if (error) throw error;
                                   const parsed = parseAIResponse(data?.content || "");
-                                  navigate("/instagram/carousel", {
+                                  navigate("/creer?format=carousel", {
                                     state: {
                                       expressCarousel: true,
                                       slides: parsed.slides,

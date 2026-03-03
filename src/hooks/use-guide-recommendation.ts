@@ -148,7 +148,7 @@ function buildRecommendation(
       ctaRoute: "/calendrier",
       icon: "CalendarPlus",
       alternatives: [
-        { title: "Générer des idées de contenus", route: "/atelier", icon: "Lightbulb" },
+        { title: "Générer des idées de contenus", route: "/creer", icon: "Lightbulb" },
         { title: "Faire un audit Instagram", route: "/instagram/audit", icon: "Search" },
       ],
     };

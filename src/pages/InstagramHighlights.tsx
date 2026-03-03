@@ -260,7 +260,7 @@ export default function InstagramHighlights() {
       },
     };
 
-    navigate("/instagram/stories", {
+    navigate("/creer?format=story", {
       state: {
         fromHighlights: true,
         highlightType: h.type,

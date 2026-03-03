@@ -168,7 +168,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
   const handleRediger = (idea: SavedIdea) => {
     // Navigate to atelier/rediger — the RedactionPage will pick up via query params
     const params = new URLSearchParams({ theme: idea.titre, angle: idea.angle, format: idea.format, canal: idea.canal, objectif: idea.objectif || "", idea_id: idea.id });
-    navigate(`/atelier/rediger?${params.toString()}`);
+    navigate(`/creer?${params.toString()}`);
   };
 
   const handleSaveNotes = async (id: string, notes: string) => {

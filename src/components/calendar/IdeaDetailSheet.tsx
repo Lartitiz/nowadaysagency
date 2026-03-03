@@ -33,11 +33,11 @@ const OBJ_OPTIONS = [
 
 const FORMAT_ROUTES: Record<string, string> = {
   post: "/creer",
-  carousel: "/instagram/carousel",
-  post_carrousel: "/instagram/carousel",
-  reel: "/instagram/reels",
-  story: "/instagram/stories",
-  story_serie: "/instagram/stories",
+  carousel: "/creer?format=carousel",
+  post_carrousel: "/creer?format=carousel",
+  reel: "/creer?format=reel",
+  story: "/creer?format=story",
+  story_serie: "/creer?format=story",
   linkedin: "/linkedin",
   post_photo: "/creer",
 };
