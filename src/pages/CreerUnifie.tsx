@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { exportCarouselPptx } from "@/lib/export-carousel-pptx";
 import { supabase } from "@/integrations/supabase/client";
+import { loadFlowState, saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
 
 type Step = "idea" | "format" | "questions" | "result" | "edit";
 type Mode = "create" | "transform";
@@ -43,17 +44,24 @@ export default function CreerUnifie() {
   // Location state (from calendar, etc.)
   const locState = (location.state as any) || {};
 
-  // Core state
+  // Check if we have URL params that should override persisted state
+  const hasUrlParams = !!(paramFormat || paramSujet || paramObjectif || locState.fromCalendar);
+
+  // Load persisted state for restoration (only when no URL params)
+  const persistedState = useRef(hasUrlParams ? null : loadFlowState());
+
+  // Core state — restore from sessionStorage if available
+  const ps = persistedState.current;
   const [mode, setMode] = useState<Mode>(paramMode === "transform" ? "transform" : "create");
-  const [step, setStep] = useState<Step>("idea");
-  const [ideaText, setIdeaText] = useState(paramSujet || locState.sujet || locState.subject || "");
+  const [step, setStep] = useState<Step>(ps?.step as Step || "idea");
+  const [ideaText, setIdeaText] = useState(ps?.ideaText || paramSujet || locState.sujet || locState.subject || "");
   const [objective, setObjective] = useState<string | null>(
-    paramObjectif || locState.objectif || locState.objective || null
+    ps?.objective || paramObjectif || locState.objectif || locState.objective || null
   );
-  const [selectedFormat, setSelectedFormat] = useState<string | null>(paramFormat || null);
-  const [editorialAngle, setEditorialAngle] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [editContent, setEditContent] = useState("");
+  const [selectedFormat, setSelectedFormat] = useState<string | null>(ps?.selectedFormat || paramFormat || null);
+  const [editorialAngle, setEditorialAngle] = useState<string | null>(ps?.editorialAngle || null);
+  const [answers, setAnswers] = useState<Record<string, string>>(ps?.answers || {});
+  const [editContent, setEditContent] = useState(ps?.editContent || "");
 
   // Launch sequence state
   const [launchResults, setLaunchResults] = useState<any[]>([]);
@@ -62,19 +70,20 @@ export default function CreerUnifie() {
 
   // Post-generation states
   const [saving, setSaving] = useState(false);
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(ps?.savedId || null);
   const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
   const [calendarDate, setCalendarDate] = useState("");
   const [savingToCalendar, setSavingToCalendar] = useState(false);
 
   // Visual states (carousel only)
-  const [visualSlides, setVisualSlides] = useState<{ slide_number: number; html: string }[]>([]);
+  const [visualSlides, setVisualSlides] = useState<{ slide_number: number; html: string }[]>(ps?.visualSlides || []);
   const [visualLoading, setVisualLoading] = useState(false);
 
   const {
     generate,
     generating,
     result,
+    setResult,
     error,
     reset: resetGenerator,
     generateQuestions,
@@ -82,8 +91,45 @@ export default function CreerUnifie() {
     questions,
   } = useContentGenerator();
 
-  // Pre-fill from URL/state & auto-advance
+  // Restore result from persisted state
   useEffect(() => {
+    if (ps?.result && !result) {
+      setResult(ps.result);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-persist state on changes
+  useEffect(() => {
+    // Only persist when we're past the idea step or have meaningful state
+    if (step !== "idea" || ideaText) {
+      saveFlowState({
+        step,
+        ideaText,
+        objective,
+        selectedFormat,
+        editorialAngle,
+        answers,
+        editContent,
+        result: result || undefined,
+        visualSlides,
+        savedId,
+      });
+    }
+  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId]);
+
+  // Pre-fill from URL/state & auto-advance (only when URL params are present)
+  const initDone = useRef(false);
+  useEffect(() => {
+    // If we restored from persistence, skip URL-based init
+    if (ps && !hasUrlParams) {
+      initDone.current = true;
+      return;
+    }
+    // Prevent re-running on subsequent location.search changes after first init
+    if (initDone.current && !hasUrlParams) return;
+    initDone.current = true;
+
     const subject = paramSujet || locState.sujet || locState.subject || "";
     const obj = paramObjectif || locState.objectif || locState.objective || null;
 
@@ -97,7 +143,7 @@ export default function CreerUnifie() {
       setStep("format");
     } else if (paramFormat) {
       setStep("format");
-    } else {
+    } else if (!ps) {
       setStep("idea");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -264,6 +310,7 @@ export default function CreerUnifie() {
     setLaunchIndex(0);
     setSavedId(null);
     setVisualSlides([]);
+    clearFlowState();
   };
 
   // ── Post-generation handlers ──
@@ -368,6 +415,7 @@ export default function CreerUnifie() {
       if (insertError) throw insertError;
       toast.success("Ajouté au calendrier !");
       setCalendarDialogOpen(false);
+      clearFlowState();
 
       // Redirect to calendar at the right date, open the post
       const postId = insertedPost?.id;

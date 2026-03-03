@@ -396,6 +396,7 @@ export function useContentGenerator() {
     generate,
     generating,
     result,
+    setResult,
     error,
     reset,
     generateQuestions,
