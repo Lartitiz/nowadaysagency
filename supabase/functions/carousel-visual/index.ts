@@ -176,7 +176,13 @@ BORDURES POINTILLÉES (pour les encadrés, citations, analogies) :
 ESPACEMENT VERTICAL :
 - Titre → corps : 32px de gap
 - Entre les blocs : 40px
-- Le texte doit être centré VERTICALEMENT dans la slide (utilise display:flex; align-items:center; justify-content:center sur le conteneur principal)
+
+CENTRAGE VERTICAL (OBLIGATOIRE sur CHAQUE slide) :
+Le <div> principal de 1080×1350px DOIT TOUJOURS avoir ces styles :
+display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 80px;
+Le contenu doit être visuellement CENTRÉ au milieu de la slide.
+JAMAIS de contenu collé en bas ou en haut. Si tu vois du vide en haut ou en bas, c'est que le centrage manque.
+C'est la règle la plus importante du design system.
 
 ═══ DESIGN PAR RÔLE DE SLIDE ═══
 
