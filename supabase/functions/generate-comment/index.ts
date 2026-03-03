@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
     if (!post_caption?.trim()) throw new Error("La légende du post est requise.");
 
     // Fetch full user context server-side
-    const ctx = await getUserContext(supabaseClient, user.id, undefined, "instagram");
+    const ctx = await getUserContext(supabaseClient, user.id, body.workspace_id || undefined, "instagram");
     const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.comments);
 
     const angleInstruction = angle && angle !== "all"
