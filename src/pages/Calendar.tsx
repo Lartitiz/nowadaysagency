@@ -41,6 +41,7 @@ function getGeneratorRoute(post: CalendarPost): string | null {
   if (fmt === "reel") return "/instagram/reels";
   if (fmt === "carousel" || fmt === "post_carrousel") return "/instagram/carousel";
   if (fmt === "linkedin") return "/linkedin";
+  if (fmt === "newsletter" || fmt === "newsletter_standard") return "/creer";
   if (fmt === "post" || fmt === "post_photo") return "/creer";
 
   // If generated_content_type is set, use that
@@ -488,6 +489,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       if (post.theme) params.set("sujet", post.theme);
       if (post.objectif || post.category) params.set("objectif", post.objectif || post.category || "");
       params.set("from", "/calendrier");
+      if (post.format === "newsletter" || post.format === "newsletter_standard" || post.canal === "newsletter") {
+        params.set("format", "newsletter");
+      }
 
       navigate(`${route}?${params.toString()}`, { state: {
         fromCalendar: true,

@@ -16,6 +16,7 @@ export const CANAL_FILTERS = [
   { id: "all", label: "Tout", enabled: true },
   { id: "instagram", label: "Instagram", enabled: true },
   { id: "linkedin", label: "LinkedIn", enabled: true },
+  { id: "newsletter", label: "Newsletter", enabled: true },
   { id: "pinterest", label: "Pinterest", enabled: true },
   { id: "blog", label: "Blog", enabled: false },
 ];
@@ -38,6 +39,7 @@ export const statusStyles: Record<string, string> = {
 export const CANAL_COLORS: Record<string, string> = {
   instagram: "bg-[hsl(340,96%,60%)]",   // rose
   linkedin: "bg-[hsl(210,80%,40%)]",    // bleu LinkedIn
+  newsletter: "bg-[hsl(280,60%,50%)]",  // violet
   pinterest: "bg-[hsl(356,82%,52%)]",   // rouge Pinterest
   blog: "bg-[hsl(160,50%,45%)]",
 };
