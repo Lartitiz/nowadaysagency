@@ -403,11 +403,10 @@ export default function AtelierPage() {
         {/* ── Creative Flow ── */}
         <CreativeFlow
           contentType={`post_${canal}`}
-          context={[
-            selectedFormatLabel && `Format : ${selectedFormatLabel}`,
-            objectif && `Objectif : ${objectif}`,
-            sujetLibre && `Sujet : ${sujetLibre}`,
-          ].filter(Boolean).join(". ") || `Idées de contenu ${canal}`}
+          context={sujetLibre || `Idées de contenu ${canal}`}
+          objective={objectif || undefined}
+          editorialFormat={selectedFormat || undefined}
+          editorialFormatLabel={selectedFormatLabel || undefined}
           profile={mergedProfile || undefined}
           calendarContext={calendarContext}
           skipToQuestions={fromCalendar && !!calendarData?.objectif && !!calendarData?.angle}

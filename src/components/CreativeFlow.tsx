@@ -67,6 +67,9 @@ interface CalendarContext {
 interface CreativeFlowProps {
   contentType: string;
   context: string;
+  objective?: string;
+  editorialFormat?: string;
+  editorialFormatLabel?: string;
   profile?: any;
   calendarContext?: CalendarContext;
   skipToQuestions?: boolean;
@@ -140,6 +143,9 @@ function StepIndicator({ current }: { current: FlowStep }) {
 export default function CreativeFlow({
   contentType,
   context,
+  objective,
+  editorialFormat,
+  editorialFormatLabel,
   profile,
   calendarContext,
   skipToQuestions,
@@ -190,6 +196,9 @@ export default function CreativeFlow({
         step: stepName,
         contentType,
         context,
+        objective: objective || calendarContext?.objective || undefined,
+        editorialFormat: editorialFormat || undefined,
+        editorialFormatLabel: editorialFormatLabel || undefined,
         profile: profile || {},
         calendarContext: calendarContext || undefined,
         workspace_id: workspaceId,
@@ -198,7 +207,7 @@ export default function CreativeFlow({
     });
     if (res.error) throw new Error(res.error.message);
     return res.data;
-  }, [contentType, context, profile, calendarContext, workspaceId]);
+  }, [contentType, context, objective, editorialFormat, editorialFormatLabel, profile, calendarContext, workspaceId]);
 
   // Auto-start creative flow when coming from calendar
   useEffect(() => {
@@ -698,18 +707,31 @@ export default function CreativeFlow({
           <AiGeneratedMention />
 
           {/* Tone adjustment chips */}
-          <div className="flex flex-wrap gap-1.5">
-            <span className="text-xs text-muted-foreground mr-1">✏️ Ajuster :</span>
-            {["Plus punchy", "Plus doux", "Plus court", "Plus long", "Plus perso", "Plus pro"].map((adj) => (
-              <button
-                key={adj}
-                onClick={() => adjustTone(adj.toLowerCase())}
-                disabled={adjusting}
-                className="text-xs px-2.5 py-1 rounded-pill border border-border bg-card text-foreground hover:border-primary/40 transition-colors disabled:opacity-50"
-              >
-                {adj}
-              </button>
-            ))}
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1.5">
+              <span className="text-xs text-muted-foreground mr-1">✏️ Ajuster :</span>
+              {["Plus punchy", "Plus doux", "Plus court", "Plus long", "Plus perso", "Plus pro", "Plus d'exemples", "Plus de storytelling", "Ajoute des chiffres"].map((adj) => (
+                <button
+                  key={adj}
+                  onClick={() => adjustTone(adj.toLowerCase())}
+                  disabled={adjusting}
+                  className="text-xs px-2.5 py-1 rounded-pill border border-border bg-card text-foreground hover:border-primary/40 transition-colors disabled:opacity-50"
+                >
+                  {adj}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              placeholder="Ou dis-moi exactement ce que tu veux changer..."
+              className="w-full text-xs px-3 py-1.5 rounded-pill border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) {
+                  adjustTone((e.target as HTMLInputElement).value.trim());
+                  (e.target as HTMLInputElement).value = "";
+                }
+              }}
+            />
           </div>
 
           {adjusting && (
