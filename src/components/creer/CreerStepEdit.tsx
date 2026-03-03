@@ -41,7 +41,7 @@ export default function CreerStepEdit({ content, format, onSave, onBack, onCopy,
       const { data, error } = await supabase.functions.invoke("creative-flow", {
         body: {
           step: "adjust",
-          contentType: format === "linkedin" ? "linkedin_post" : "instagram_post",
+          contentType: format === "linkedin" ? "linkedin_post" : format === "newsletter" ? "newsletter" : "instagram_post",
           content: editedContent,
           adjustment: adjustmentId,
         },

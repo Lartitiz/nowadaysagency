@@ -5,6 +5,7 @@ import ReelResult from "@/components/creer/formatRenderers/ReelResult";
 import StoryResult from "@/components/creer/formatRenderers/StoryResult";
 import PostResult from "@/components/creer/formatRenderers/PostResult";
 import LinkedInResult from "@/components/creer/formatRenderers/LinkedInResult";
+import NewsletterResult from "@/components/creer/formatRenderers/NewsletterResult";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -78,6 +79,8 @@ export default function CreerStepResult({
         return <PostResult result={result} />;
       case "linkedin":
         return <LinkedInResult result={result} />;
+      case "newsletter":
+        return <NewsletterResult result={result} />;
       default:
         return <PostResult result={result} />;
     }

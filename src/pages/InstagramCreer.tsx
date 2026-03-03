@@ -50,7 +50,7 @@ const FORMAT_OPTIONS: FormatOption[] = [
   { id: "linkedin", emoji: "💼", label: "LinkedIn", desc: "Post LinkedIn", channel: "linkedin", generatorType: "linkedin" },
   { id: "crosspost", emoji: "🔄", label: "Crosspost", desc: "Adapter un contenu existant", channel: "instagram", generatorType: "crosspost" },
   { id: "pinterest", emoji: "📌", label: "Pinterest", desc: "Épingle optimisée", channel: "pinterest", generatorType: "coming_soon" },
-  { id: "newsletter", emoji: "📧", label: "Newsletter", desc: "Email engageant", channel: "newsletter", generatorType: "coming_soon" },
+  { id: "newsletter", emoji: "📧", label: "Newsletter", desc: "Email long format — fidélisation et profondeur", channel: "newsletter", generatorType: "coming_soon" },
 ];
 
 // Unified 4-step flow

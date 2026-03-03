@@ -316,7 +316,7 @@ export const CONTENT_TYPE_SPECS: Record<string, ContentTypeSpec> = {
     label: "Newsletter",
     emoji: "📧",
     channel: "newsletter",
-    edgeFunction: "creative-flow",
+    edgeFunction: "newsletter-ai",
     specs: "1500-2500 mots, storytelling + valeur",
   },
   pinterest: {

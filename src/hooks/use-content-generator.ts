@@ -264,27 +264,17 @@ export function useContentGenerator() {
         }
 
         case "newsletter": {
-          const angle = editorialAngle
-            ? EDITORIAL_ANGLES.find((a) => a.id === editorialAngle)
-            : undefined;
-          const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
-
-          const res = await supabase.functions.invoke("creative-flow", {
+          const res = await supabase.functions.invoke("newsletter-ai", {
             body: {
-              step: "generate",
-              contentType: "newsletter",
-              context: subject,
-              angle: angle
+              topic: subject,
+              preGenAnswers: answers
                 ? {
-                    title: angle.label,
-                    structure: structure?.steps.map((s) => s.label),
-                    tone: "direct, chaleureux, oral assumé",
+                    anecdote: answers.anecdote || answers.q_0 || undefined,
+                    emotion: answers.emotion || answers.q_1 || undefined,
+                    conviction: answers.conviction || answers.q_2 || undefined,
                   }
-                : undefined,
-              answers: answers
-                ? Object.entries(answers).map(([k, v]) => ({ question: k, answer: v }))
-                : [],
-              objective: objective || null,
+                : preGenAnswers || null,
+              template: editorialAngle || null,
               workspace_id: workspaceId || null,
             },
           });
