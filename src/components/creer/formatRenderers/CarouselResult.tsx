@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, RefreshCw, RotateCcw, CalendarDays, Palette, Download, Loader2 } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface Props {
   result: any;
@@ -17,6 +17,62 @@ interface Props {
   visualLoading?: boolean;
   visualSlides?: { slide_number: number; html: string }[];
   onExportPptx?: () => void;
+}
+
+function VisualSlidesGrid({ slides }: { slides: { slide_number: number; html: string }[] }) {
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.28);
+
+  useEffect(() => {
+    const calculate = () => {
+      if (!gridRef.current) return;
+      const gridWidth = gridRef.current.offsetWidth;
+      const gap = 12; // gap-3 = 12px
+      const columnWidth = (gridWidth - gap) / 2;
+      setScale(columnWidth / 1080);
+    };
+    calculate();
+    window.addEventListener("resize", calculate);
+    return () => window.removeEventListener("resize", calculate);
+  }, []);
+
+  return (
+    <div className="space-y-3 pt-2">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        Aperçu des visuels ({slides.length} slides)
+      </p>
+      <div ref={gridRef} className="grid grid-cols-2 gap-3">
+        {slides.map((vs) => (
+          <div key={vs.slide_number} className="space-y-1">
+            <p className="text-[10px] font-mono text-muted-foreground text-center">
+              Slide {vs.slide_number}
+            </p>
+            <div
+              className="relative overflow-hidden rounded-lg border border-border"
+              style={{ height: `${Math.round(1350 * scale)}px` }}
+            >
+              <iframe
+                srcDoc={vs.html}
+                title={`Slide ${vs.slide_number}`}
+                sandbox="allow-same-origin"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "1080px",
+                  height: "1350px",
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
+                  border: "none",
+                  pointerEvents: "none",
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function CarouselResult({
@@ -184,30 +240,7 @@ export default function CarouselResult({
 
       {/* Visual preview */}
       {visualSlides && visualSlides.length > 0 && (
-        <div className="space-y-3 pt-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Aperçu des visuels ({visualSlides.length} slides)
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            {visualSlides.map((vs) => (
-              <div key={vs.slide_number} className="space-y-1">
-                <p className="text-[10px] font-mono text-muted-foreground text-center">
-                  Slide {vs.slide_number}
-                </p>
-                <div className="relative overflow-hidden rounded-lg border border-border" style={{ aspectRatio: "4/5" }}>
-                  <div style={{ position: "absolute", top: 0, left: 0, width: "1080px", height: "1350px", transform: "scale(0.35)", transformOrigin: "top left" }}>
-                    <iframe
-                      srcDoc={vs.html}
-                      title={`Slide ${vs.slide_number}`}
-                      sandbox="allow-same-origin"
-                      style={{ width: "1080px", height: "1350px", border: "none", pointerEvents: "none" }}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <VisualSlidesGrid slides={visualSlides} />
       )}
     </div>
   );
