@@ -121,25 +121,37 @@ Deno.serve(async (req) => {
     const filterCol = workspace_id ? "workspace_id" : "user_id";
     const filterVal = workspace_id || user.id;
 
-    // Fetch context, recent posts, and strategy in parallel
-    const [ctx, recentPostsRes, strategyRes] = await Promise.all([
+    // Fetch context, recent posts, generated content, and strategy in parallel
+    const [ctx, recentPostsRes, strategyRes, generatedRes] = await Promise.all([
       getUserContext(sbService, user.id, workspace_id),
       sbService.from("calendar_posts")
-        .select("theme, date, canal")
+        .select("theme, accroche, date, canal, format")
         .eq(filterCol, filterVal)
         .order("date", { ascending: false })
-        .limit(5),
+        .limit(20),
       sbService.from("brand_strategy")
         .select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3")
         .eq(filterCol, filterVal)
         .maybeSingle(),
+      sbService.from("generated_carousels" as any)
+        .select("subject, hook_text, carousel_type, objective, created_at")
+        .eq(filterCol === "workspace_id" ? "workspace_id" : "user_id", filterCol === "workspace_id" ? filterVal : user.id)
+        .order("created_at", { ascending: false })
+        .limit(20),
     ]);
 
     const contextText = formatContextForAI(ctx, CONTEXT_PRESETS.content);
 
-    const recentPosts = (recentPostsRes.data || [])
-      .map((p: any) => `- ${p.theme} (${p.canal}, ${p.date})`)
-      .join("\n") || "Aucun post récent";
+    const calendarPosts = (recentPostsRes.data || [])
+      .map((p: any) => `- "${p.theme}"${p.accroche ? ` → accroche: "${p.accroche}"` : ""} (${p.canal}, ${p.format || "post"}, ${p.date})`)
+      .join("\n");
+    const generatedContent = (generatedRes.data || [])
+      .map((g: any) => `- "${g.subject}"${g.hook_text ? ` → hook: "${g.hook_text}"` : ""} (${g.carousel_type}, ${g.objective || "?"})`)
+      .join("\n");
+    const recentPosts = [
+      calendarPosts ? `Posts planifiés :\n${calendarPosts}` : "",
+      generatedContent ? `Contenus générés :\n${generatedContent}` : "",
+    ].filter(Boolean).join("\n\n") || "Aucun historique";
 
     const strategy = strategyRes.data;
     const pillars = strategy
@@ -147,107 +159,166 @@ Deno.serve(async (req) => {
           .filter(Boolean).join(", ")
       : "Non définis";
 
-    const systemPrompt = `Tu es Laetitia Mattioli, fondatrice de Nowadays Agency, experte en communication éthique pour solopreneuses créatives. Tu aides une utilisatrice qui ne sait pas quoi poster à trouver THE idée qui la fera vibrer.
+    // Current date for seasonal awareness
+    const now = new Date();
+    const months = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+    const currentMonth = months[now.getMonth()];
+    const currentYear = now.getFullYear();
+    const dayOfWeek = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"][now.getDay()];
+
+    // Random creative seed to force variety between sessions
+    const CREATIVE_SEEDS = [
+      "Une idée doit utiliser une analogie avec la cuisine, le sport, ou le jardinage",
+      "Une idée doit s'appuyer sur un biais cognitif précis (effet Dunning-Kruger, biais de survie, paradoxe du choix, etc.)",
+      "Une idée doit faire un parallèle avec un film, une série ou un livre connu",
+      "Une idée doit partir d'un chiffre ou d'une statistique concrète (même approximative)",
+      "Une idée doit prendre le contre-pied EXACT d'un conseil mainstream dans le domaine de l'utilisatrice",
+      "Une idée doit raconter un micro-moment du quotidien (pas une grande histoire, un détail précis)",
+      "Une idée doit faire un parallèle inattendu avec un autre métier ou une autre industrie",
+      "Une idée doit utiliser le format 'confession' ou 'j'avoue que...'",
+      "Une idée doit poser une question que l'audience se pose en secret mais n'ose pas formuler",
+      "Une idée doit comparer deux époques (avant/maintenant) sur un aspect du métier de l'utilisatrice",
+      "Une idée doit décortiquer un mot ou un concept que tout le monde utilise sans le comprendre",
+      "Une idée doit s'inspirer d'une tendance sociétale actuelle (slow life, dé-croissance, IA, etc.)",
+    ];
+    const seed1 = CREATIVE_SEEDS[Math.floor(Math.random() * CREATIVE_SEEDS.length)];
+    let seed2 = CREATIVE_SEEDS[Math.floor(Math.random() * CREATIVE_SEEDS.length)];
+    while (seed2 === seed1) seed2 = CREATIVE_SEEDS[Math.floor(Math.random() * CREATIVE_SEEDS.length)];
+
+    // Random hook structures to force variety
+    const HOOK_STRUCTURES = [
+      "Question rhétorique qui pique : 'Pourquoi [paradoxe] ?'",
+      "Confession : 'J'ai longtemps cru que [croyance]. Jusqu'à [déclic].'",
+      "Chiffre choc : '[Stat]% des [cible] font [erreur]. Et personne n'en parle.'",
+      "Contradiction : '[Conseil mainstream]. Sauf que c'est faux.'",
+      "Micro-scène : 'Ce matin, en [action banale], j'ai réalisé que...'",
+      "Liste-appât : 'Les 3 [trucs] que [les experts] ne disent jamais'",
+      "Comparaison inattendue : '[Chose A] et [chose B] ont plus en commun qu'on croit'",
+      "Interpellation directe : 'Tu fais probablement [erreur]. Voici pourquoi.'",
+      "Polarisation douce : 'Il y a 2 types de [profession]. Lequel es-tu ?'",
+      "Promesse-mystère : 'Le truc qui a changé [aspect] dans mon business. (C'est pas ce que tu crois.)'",
+    ];
+    const shuffledHooks = HOOK_STRUCTURES.sort(() => Math.random() - 0.5).slice(0, 6);
+
+    const systemPrompt = `Tu es la meilleure directrice éditoriale du monde. Ton job : trouver THE idée de contenu qui fait dire "PUTAIN OUI, c'est exactement ça que je veux poster". Pas des idées tièdes. Pas des sujets génériques. Des angles qui surprennent, qui piquent, qui donnent envie de tout lâcher pour écrire.
 
 CONTEXTE BRANDING DE L'UTILISATRICE :
 ${contextText}
 
 PILIERS DE CONTENU : ${pillars}
 
-DERNIERS POSTS (ne pas répéter ces sujets) :
+DATE : ${dayOfWeek} ${now.getDate()} ${currentMonth} ${currentYear}
+Pense aux événements, saisons, tendances du moment. ${currentMonth} rime avec quoi dans le secteur de l'utilisatrice ?
+
+HISTORIQUE (NE PAS REPROPOSER ces sujets ni des variations proches) :
 ${recentPosts}
 
 RÉPONSES DE L'UTILISATRICE :
 - Canal : ${canalLabel}
 - Objectif : ${objectifLabel}
-- Sujet : ${sujet || "PAS DE SUJET → elle a besoin d'idées concrètes"}
-- Format préféré : ${formatLabel}${contentTypeLabel ? `\n- Type de contenu : ${contentTypeLabel}` : ""}
+- Sujet : ${sujet || "PAS DE SUJET → elle a besoin d'idées concrètes et surprenantes"}
+- Format préféré : ${formatLabel}${contentTypeLabel ? `\n- Angle demandé : ${contentTypeLabel}` : ""}
 - Ton souhaité : ${tonLabel}
 
 ═══════════════════════════════════════════════════
-TA MÉTHODE POUR TROUVER DES IDÉES (à suivre étape par étape)
+MÉTHODE POUR GÉNÉRER 6 IDÉES EXCEPTIONNELLES
 ═══════════════════════════════════════════════════
 
-ÉTAPE 1 — PENSE AUX 13 ANGLES ÉDITORIAUX POSSIBLES :
-1. Enquête/décryptage : analyser un phénomène avec un angle inédit ("et personne n'en parle")
-2. Test grandeur nature : tester un conseil qu'on voit partout et donner ton verdict ("j'ai testé pour vous")
-3. Coup de gueule engagé : taper sur une frustration partagée ("j'en peux plus que...")
-4. Mythe à déconstruire : démonter une croyance répandue ("on t'a menti")
-5. Storytelling personnel : raconter une galère/déclic + leçon ("ce jour-là, j'ai compris")
-6. Histoire cliente : illustrer un blocage commun via un cas réel (social proof déguisé)
-7. Surf sur l'actu : rebondir sur une news/tendance pour partager ton analyse
-8. Regard philosophique : prendre de la hauteur, côté France Culture
-9. Conseil contre-intuitif : aller à contre-courant ("et si on faisait l'inverse ?")
-10. Before/after : montrer une évolution concrète pour inspirer
-11. Identification/quotidien : situations où l'audience se reconnaît instantanément
-12. Build in public : partager objectifs, échecs, pivots en transparence
-13. Analyses en profondeur : décortiquer un sujet avec des points de vue fouillés
+RÈGLE D'OR : chaque idée doit passer le "test du screenshot".
+Si quelqu'un tombe dessus en scrollant, est-ce qu'elle fait une capture d'écran pour l'envoyer à une amie ?
+Si non → l'idée n'est pas assez forte. Recommence.
 
-ÉTAPE 2 — FILTRE SELON L'OBJECTIF DE L'UTILISATRICE :
-- Visibilité → privilégie : coup de gueule, mythe, conseil contre-intuitif, surf actu, identification
-- Engagement → privilégie : storytelling, build in public, regard philo, identification, test
-- Vente → privilégie : histoire cliente, before/after, étude de cas
-- Crédibilité → privilégie : enquête, analyse, regard philo, test
+ÉTAPE 1 — UTILISE 6 ANGLES ÉDITORIAUX DIFFÉRENTS (obligatoire, pas 2 fois le même) :
+Pioche parmi ces 13, en choisissant des angles VARIÉS :
+1. Enquête/décryptage ("et personne n'en parle")
+2. Test grandeur nature ("j'ai testé pour vous")
+3. Coup de gueule engagé ("j'en peux plus que...")
+4. Mythe à déconstruire ("on t'a menti")
+5. Storytelling + leçon ("ce jour-là, j'ai compris")
+6. Histoire cliente / cas réel (social proof déguisé)
+7. Surf sur l'actu (rebondir sur une news/tendance actuelle)
+8. Regard philosophique (prendre de la hauteur)
+9. Conseil contre-intuitif ("et si on faisait l'inverse ?")
+10. Before/after (évolution concrète)
+11. Identification/quotidien (l'audience se reconnaît)
+12. Build in public (coulisses, transparence)
+13. Analyse en profondeur (data, décryptage)
 
-ÉTAPE 3 — POUR CHAQUE IDÉE, VÉRIFIE CES 3 CRITÈRES :
-✅ MONNAIE SOCIALE : est-ce que l'audience voudrait PARTAGER ce contenu ? (parce qu'il exprime ce qu'elle pense sans oser le dire, parce qu'il la fait bien paraître, parce qu'il aide quelqu'un qu'elle connaît)
-✅ SPÉCIFICITÉ : est-ce que ce sujet est UNIQUE au métier/positionnement de l'utilisatrice ? (pas un conseil générique applicable à tout le monde)
-✅ TENSION : est-ce qu'il y a un élément de surprise, de contradiction, de révélation qui donne envie de lire ?
+ÉTAPE 2 — INJECTE DE LA CRÉATIVITÉ FORCÉE :
+🎲 Contrainte créative 1 : ${seed1}
+🎲 Contrainte créative 2 : ${seed2}
+Intègre ces contraintes dans AU MOINS 2 des 6 idées. Ça force la surprise.
 
-ÉTAPE 4 — ÉCRIS UN HOOK IRRÉSISTIBLE POUR CHAQUE IDÉE :
-Le hook c'est LA phrase qui décide si on lit ou pas. Il doit :
-- Faire moins de 15 mots
-- Stopper le scroll (curiosité, identification, provocation douce, ou promesse concrète)
-- Fonctionner seul, sans contexte
-Types de hooks selon l'objectif :
-- Visibilité : polarisant, contre-intuitif, frustration ("J'en peux plus que..."), ennemi commun
-- Engagement : suspense, émotion, confession ("J'avoue, j'ai longtemps cru que...")
-- Vente : témoignage, avant/après, bénéfice concret
-- Crédibilité : statistique choc, preuve sociale
+ÉTAPE 3 — ÉCRIS DES HOOKS QUI STOPPENT LE SCROLL :
+Chaque idée utilise une STRUCTURE DE HOOK DIFFÉRENTE :
+${shuffledHooks.map((h, i) => `Idée ${i + 1} → ${h}`).join("\n")}
+
+INTERDIT pour les hooks : "Et si je te disais", "Dans un monde où", "Spoiler alert", "Tu ne devineras jamais", "Le secret de", "La clé c'est", toute formule IA générique.
+Les hooks font max 15 mots. Ils fonctionnent SEULS, sans contexte.
+
+ÉTAPE 4 — VÉRIFIE LA QUALITÉ :
+Pour chaque idée, 3 tests obligatoires :
+✅ TEST DU SCREENSHOT : est-ce que l'audience capture et envoie à une amie ?
+✅ TEST DE SPÉCIFICITÉ : est-ce que cette idée ne PEUT exister QUE dans l'univers de cette utilisatrice ? (sinon → trop générique, recommence)
+✅ TEST DE TENSION : y a-t-il un paradoxe, une surprise, une contradiction qui crée de la curiosité ?
+
+${sujet ? `
+TOUTES les idées sont liées au sujet "${sujet}" mais avec des ANGLES RADICALEMENT DIFFÉRENTS.
+Ne fais pas 6 variations du même message. Chaque idée doit attaquer le sujet par un côté inattendu.
+` : `
+Les 6 idées doivent couvrir AU MOINS 3 objectifs différents parmi : visibilité, engagement, vente, crédibilité.
+Les idées doivent toucher des FACETTES DIFFÉRENTES du métier/positionnement de l'utilisatrice.
+`}
 
 ═══════════════════════════════════════════════════
-RÈGLES DE QUALITÉ
+EXEMPLES DE CE QUI EST WAHOU vs CE QUI EST FADE
 ═══════════════════════════════════════════════════
 
-- Génère exactement 6 idées, chacune avec un ANGLE ÉDITORIAL DIFFÉRENT (pas 6 variations du même angle)
-- ${sujet ? `Toutes les idées doivent être liées au sujet "${sujet}" mais avec des angles RADICALEMENT différents` : "Les idées doivent couvrir AU MOINS 3 objectifs différents (visibilité, engagement, vente, crédibilité)"}
-- ${contentTypeLabel ? `Chaque idée doit être structurée selon le type "${contentTypeLabel}" (ex: si "Mythe vs Réalité", chaque sujet est formulé comme un mythe à déconstruire)` : ""}
-- Chaque sujet doit être si CONCRET qu'on peut commencer à écrire immédiatement (pas "Parler de ton expertise" mais "Les 3 erreurs que je vois sur 90% des sites de photographes")
-- Le hook doit être une VRAIE accroche prête à poster, pas un titre de blog
-- Utilise le vocabulaire du MÉTIER de l'utilisatrice (pas du jargon marketing)
-- ÉVITE les sujets déjà traités dans les derniers posts
-- INTERDIT : "dans un monde où", "et si je te disais", "spoiler alert", "tu ne devineras jamais", toute formule IA générique
-- Tutoiement, ton direct et complice
+FADE ❌ : "3 erreurs de communication à éviter" → trop générique, on a lu ça 10 000 fois
+WAHOU ✅ : "J'ai analysé 47 comptes de céramistes. 41 font la même erreur dans leur bio." → spécifique, data, curiosité
 
-ROUTES POUR LA REDIRECTION :
+FADE ❌ : "Pourquoi il faut oser montrer ses valeurs" → tiède, pas de tension
+WAHOU ✅ : "Le paradoxe du boulanger bio : plus son pain est bon, moins il sait le vendre." → analogie, paradoxe, identification
+
+FADE ❌ : "Mon parcours de solopreneuse" → trop vague
+WAHOU ✅ : "Le jour où j'ai perdu 7 000€ parce que je n'avais pas de contrat. La leçon que je ne partage jamais." → spécifique, vulnérabilité, mystère
+
+FADE ❌ : "L'importance de l'authenticité sur Instagram" → tout le monde dit ça
+WAHOU ✅ : "L'authenticité sur Instagram, c'est le nouveau filtre. Et on est toutes tombées dans le piège." → retournement, provocation douce
+
+═══════════════════════════════════════════════════
+FORMAT DE SORTIE
+═══════════════════════════════════════════════════
+
+ROUTES :
 Instagram : Post → /creer, Carrousel → /creer?format=carousel, Reel → /creer?format=reel, Story → /creer?format=story
 LinkedIn : Post → /creer?format=linkedin, Carrousel → /creer?format=linkedin
 
-Le format recommandé DOIT correspondre au format choisi (${formatLabel}), sauf raison TRÈS forte (expliquée).
+Le format recommandé correspond au format choisi (${formatLabel}).
 
-Retourne UNIQUEMENT ce JSON (pas de texte avant ou après, pas de backticks) :
+Retourne UNIQUEMENT ce JSON :
 {
   "ideas": [
     {
-      "subject": "Le sujet concret et spécifique",
-      "hook": "L'accroche prête à poster (max 15 mots)",
-      "angle": "L'angle éditorial utilisé (ex: coup de gueule, mythe, storytelling...)",
+      "subject": "Le sujet ultra-concret (assez précis pour commencer à écrire tout de suite)",
+      "hook": "L'accroche prête à poster (max 15 mots, structure imposée ci-dessus)",
+      "angle": "Nom de l'angle (enquête, coup de gueule, mythe, etc.)",
       "objective_tag": "visibilite|engagement|vente|credibilite",
-      "why_it_works": "1 phrase : pourquoi ce sujet va résonner avec SON audience spécifiquement",
-      "brief": "2-3 phrases : l'angle exact, la structure suggérée, le ton. Assez concret pour commencer à écrire."
+      "why_it_works": "1 phrase : POURQUOI ce sujet va résonner avec l'audience de cette utilisatrice SPÉCIFIQUEMENT",
+      "brief": "2-3 phrases : angle exact, structure, ton, le détail qui rend le contenu unique. Assez concret pour commencer."
     }
   ],
   "recommended_format": "${formatLabel}",
-  "format_reason": "Pourquoi ce format en 1 phrase courte",
-  "redirect_route": "la route correspondant au format et canal choisis"
+  "format_reason": "Pourquoi ce format en 1 phrase",
+  "redirect_route": "route correspondant au format et canal choisis"
 }`;
 
     const raw = await callAnthropicSimple(
       getModelForAction("coaching"),
       systemPrompt + "\n\n" + ANTI_SLOP,
       "Génère 6 idées de contenu ultra-concrètes avec un hook irrésistible pour chaque.",
-      0.7,
-      3000,
+      0.9,
+      4000,
     );
 
     let result;
