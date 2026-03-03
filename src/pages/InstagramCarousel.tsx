@@ -10,7 +10,7 @@ import { useBrandCharter } from "@/hooks/use-branding";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { toast } from "sonner";
-import { Loader2, Download, RefreshCw, Sparkles, Upload, Plus } from "lucide-react";
+import { Loader2, Download, RefreshCw, Sparkles, Upload, Plus, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AppHeader from "@/components/AppHeader";
 import ContentProgressBar from "@/components/ContentProgressBar";
@@ -22,6 +22,8 @@ import RedFlagsChecker from "@/components/RedFlagsChecker";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import BaseReminder from "@/components/BaseReminder";
 import { exportCarouselPptx } from "@/lib/export-carousel-pptx";
+import { exportCarouselVisualPptx } from "@/lib/export-carousel-visual-pptx";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   CarouselTypeSubjectStep,
   CarouselQuestionsStep,
@@ -668,18 +670,39 @@ export default function InstagramCarousel() {
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-foreground">Aperçu ({visualSlides.length} slides)</p>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={async () => {
-                    toast.info("Export PPTX en cours…");
-                    try {
-                      await exportCarouselPptx(slides, subject || "carrousel", visualSlides, charterHookData);
-                      toast.success("PPTX téléchargé !");
-                    } catch (err: any) {
-                      console.error("PPTX export error:", err);
-                      toast.error("Erreur lors de l'export PPTX : " + (err?.message || "inconnue"));
-                    }
-                  }} className="text-xs gap-1.5">
-                    <Download className="h-3.5 w-3.5" /> PPTX
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="text-xs gap-1.5">
+                        <Download className="h-3.5 w-3.5" /> Exporter <ChevronDown className="h-3 w-3 ml-0.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={async () => {
+                        toast.info("Export visuels en cours (capture des slides)…");
+                        try {
+                          await exportCarouselVisualPptx(visualSlides, subject || "carrousel-visuels");
+                          toast.success("PPTX visuels téléchargé !");
+                        } catch (err: any) {
+                          console.error("Visual PPTX export error:", err);
+                          toast.error("Erreur : " + (err?.message || "inconnue"));
+                        }
+                      }}>
+                        Visuels (images fidèles)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={async () => {
+                        toast.info("Export éditable en cours…");
+                        try {
+                          await exportCarouselPptx(slides, subject || "carrousel", visualSlides, charterHookData);
+                          toast.success("PPTX éditable téléchargé !");
+                        } catch (err: any) {
+                          console.error("PPTX export error:", err);
+                          toast.error("Erreur : " + (err?.message || "inconnue"));
+                        }
+                      }}>
+                        Éditable (PowerPoint)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button variant="outline" size="sm" onClick={() => setVisualSlides([])} className="text-xs gap-1.5">
                     Changer de style
                   </Button>

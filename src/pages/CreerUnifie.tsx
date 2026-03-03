@@ -20,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { exportCarouselPptx } from "@/lib/export-carousel-pptx";
+import { exportCarouselVisualPptx } from "@/lib/export-carousel-visual-pptx";
 import { supabase } from "@/integrations/supabase/client";
 import { loadFlowState, saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
 import { useFormPersist } from "@/hooks/use-form-persist";
@@ -517,7 +518,18 @@ export default function CreerUnifie() {
         visualSlides.length > 0 ? visualSlides : undefined,
         charterData,
       );
-      toast.success("PPTX téléchargé !");
+      toast.success("PPTX éditable téléchargé !");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'export");
+    }
+  };
+
+  const handleExportVisualPptx = async () => {
+    if (visualSlides.length === 0) return;
+    try {
+      toast.info("Export visuels en cours (capture des slides)…");
+      await exportCarouselVisualPptx(visualSlides, ideaText || "carrousel-visuels");
+      toast.success("PPTX visuels téléchargé !");
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de l'export");
     }
@@ -643,6 +655,7 @@ export default function CreerUnifie() {
                 visualLoading={visualLoading}
                 visualSlides={visualSlides.length > 0 ? visualSlides : undefined}
                 onExportPptx={selectedFormat === "carousel" ? handleExportPptx : undefined}
+                onExportVisualPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? handleExportVisualPptx : undefined}
                 onSlidesUpdate={selectedFormat === "carousel" ? (slides, caption) => {
                   if (result?.raw) {
                     result.raw.slides = slides;
