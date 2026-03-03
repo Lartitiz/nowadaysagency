@@ -3,12 +3,14 @@ import { useTextSelection } from "@/hooks/use-text-selection";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import SelectionMenu from "./SelectionMenu";
 
 export default function SelectionMenuProvider({ children }: { children: ReactNode }) {
   const { selection, menuPosition, isVisible, close } = useTextSelection();
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
+  const workspaceId = useWorkspaceId();
 
   const handleAction = useCallback(
     async (text: string, prompt: string): Promise<string> => {
@@ -23,16 +25,16 @@ export default function SelectionMenuProvider({ children }: { children: ReactNod
 
       const { data, error } = await supabase.functions.invoke("ai-text-action", {
         body: {
-          user_id: user?.id,
           selected_text: text,
           action_prompt: prompt,
+          workspace_id: workspaceId,
         },
       });
 
       if (error) throw error;
       return data?.result || text;
     },
-    [user?.id, isDemoMode],
+    [user?.id, isDemoMode, workspaceId],
   );
 
   return (
