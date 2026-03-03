@@ -101,7 +101,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       setObjectif(editingPost.objectif || null);
       setPostCanal(editingPost.canal || "instagram");
       setFormat((editingPost as any).format || null);
-      const draft = (editingPost as any).content_draft || (editingPost.story_sequence_detail as any)?.full_content || null;
+      const ssd = editingPost.story_sequence_detail as any;
+      const draft = (editingPost as any).content_draft
+        || ssd?.full_content
+        || (ssd?.stories ? ssd.stories.map((s: any) => `${s.text || ""}`).join("\n\n") : null)
+        || (ssd?.script ? ssd.script.map((s: any) => s.texte_parle || "").join("\n\n") : null)
+        || null;
       setContentDraft(draft);
       setAccroche((editingPost as any).accroche || null);
       setMediaUrls((editingPost as any).media_urls || []);
@@ -345,10 +350,22 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     }
   };
 
-  const isStoriesPost = !!(editingPost?.stories_count || editingPost?.stories_sequence_id || editingPost?.stories_structure);
-  const isReelPost = editingPost?.format === "reel" && editingPost?.story_sequence_detail;
+  const isStoriesPost = !!(
+    editingPost?.stories_count ||
+    editingPost?.stories_sequence_id ||
+    editingPost?.stories_structure ||
+    (editingPost?.story_sequence_detail as any)?.stories ||
+    (editingPost?.story_sequence_detail as any)?.sequences ||
+    ((editingPost?.format === "story" || editingPost?.format === "story_serie") && editingPost?.story_sequence_detail)
+  );
+  const isReelPost = !!(
+    (editingPost?.format === "reel" && editingPost?.story_sequence_detail) ||
+    (editingPost?.story_sequence_detail as any)?.type === "reel"
+  );
   const reelData = isReelPost ? (editingPost.story_sequence_detail as any) : null;
-  const storiesData = isStoriesPost && editingPost?.story_sequence_detail ? (editingPost.story_sequence_detail as any) : null;
+  const storiesData = isStoriesPost && editingPost?.story_sequence_detail
+    ? (editingPost.story_sequence_detail as any)
+    : null;
 
   const contentPreview = contentDraft && contentDraft.length > 200 && !showFullContent
     ? contentDraft.slice(0, 200) + "..."
