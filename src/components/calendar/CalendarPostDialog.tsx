@@ -240,7 +240,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     }
     onOpenChange(false);
     setTimeout(() => {
-      navigate("/atelier?canal=" + (postCanal || "instagram"), {
+      navigate("/creer?canal=" + (postCanal || "instagram"), {
         state: {
           fromCalendar: true,
           calendarPostId: editingPost?.id,
