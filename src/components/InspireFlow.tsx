@@ -90,7 +90,7 @@ export default function InspireFlow() {
       .then(({ data }: any) => {
         if (data) setHistory(data as unknown as HistoryItem[]);
       });
-  }, [user?.id]);
+  }, [user?.id, column, value]);
 
   const fetchFromLink = async () => {
     if (!sourceUrl.trim()) return;
