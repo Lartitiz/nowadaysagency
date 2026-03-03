@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrandProfile } from "@/hooks/use-profile";
 import { useToast } from "@/hooks/use-toast";
@@ -40,6 +40,7 @@ interface Props {
 export default function CommentGenerator({ contact, open, onOpenChange, onCommentPosted, prospectId }: Props) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { toast } = useToast();
   const { data: hookBrandProfile } = useBrandProfile();
   const [caption, setCaption] = useState("");
@@ -113,6 +114,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
           branding_context: brandingContext,
           screenshot_base64: screenshotBase64 || undefined,
           screenshot_media_type: screenshotBase64 ? screenshotMediaType : undefined,
+          workspace_id: workspaceId,
         },
       });
 
