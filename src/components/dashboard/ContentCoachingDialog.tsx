@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { Loader2, ArrowLeft, ArrowRight, Rocket } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Rocket, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | "loading" | "result";
@@ -157,7 +157,16 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
 
   const handleTonSelect = async (id: string) => {
     setTonEnvie(id);
+    await generateIdeas(id);
+  };
+
+  const generateIdeas = async (ton?: string) => {
+    const tonToUse = ton || tonEnvie;
+    if (!tonToUse) return;
     setStep("loading");
+    setResult(null);
+    setSelectedIdea(null);
+    setSelectedSubject(null);
 
     try {
       const { data, error } = await supabase.functions.invoke("content-coaching", {
@@ -168,7 +177,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
             canal,
             format,
             content_type: contentType || null,
-            ton_envie: id,
+            ton_envie: tonToUse,
           },
         },
       });
@@ -560,14 +569,23 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
                 <p className="text-xs text-muted-foreground italic">{result.format_reason}</p>
               </div>
 
-              {/* CTA */}
-              <Button
-                onClick={handleGo}
-                disabled={!!(result.ideas?.length && !selectedIdea)}
-                className="w-full gap-2 text-base h-12"
-              >
-                <Rocket className="h-5 w-5" /> C'est parti, on crée !
-              </Button>
+              {/* CTA + Regenerate */}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => generateIdeas()}
+                  className="gap-1.5"
+                >
+                  <RefreshCw className="h-4 w-4" /> Autres idées
+                </Button>
+                <Button
+                  onClick={handleGo}
+                  disabled={!!(result.ideas?.length && !selectedIdea)}
+                  className="flex-1 gap-2 text-base h-12"
+                >
+                  <Rocket className="h-5 w-5" /> C'est parti, on crée !
+                </Button>
+              </div>
               {result.ideas?.length && !selectedIdea && (
                 <p className="text-xs text-center text-muted-foreground">Choisis une idée pour continuer</p>
               )}
