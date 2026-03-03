@@ -553,26 +553,35 @@ export default function CreativeFlow({
               </p>
 
               <div className="space-y-4">
-                {questions.map((q, i) => (
-                  <div key={i}>
-                    <label className="text-sm font-medium text-foreground block mb-1.5">{q.question}</label>
-                    <div className="relative">
-                      <Textarea
-                        value={answers[i] || ""}
-                        onChange={(e) => setAnswers((prev) => ({ ...prev, [i]: e.target.value }))}
-                        placeholder={q.placeholder}
-                        className="pr-12 min-h-[100px]"
-                      />
-                      <CreativeFlowMicButton
-                        fieldId={`q-${i}`}
-                        onResult={(text) => setAnswers((prev) => ({
-                          ...prev,
-                          [i]: (prev[i] || "") + (prev[i] ? " " : "") + text,
-                        }))}
-                      />
+                {questions.map((q, i) => {
+                  const charCount = (answers[i] || "").length;
+                  const isShort = charCount > 0 && charCount < 80;
+                  return (
+                    <div key={i}>
+                      <label className="text-sm font-medium text-foreground block mb-1.5">{q.question}</label>
+                      <div className="relative">
+                        <Textarea
+                          value={answers[i] || ""}
+                          onChange={(e) => setAnswers((prev) => ({ ...prev, [i]: e.target.value }))}
+                          placeholder={q.placeholder}
+                          className="pr-12 min-h-[100px]"
+                        />
+                        <CreativeFlowMicButton
+                          fieldId={`q-${i}`}
+                          onResult={(text) => setAnswers((prev) => ({
+                            ...prev,
+                            [i]: (prev[i] || "") + (prev[i] ? " " : "") + text,
+                          }))}
+                        />
+                      </div>
+                      {charCount > 0 && (
+                        <p className={`text-[11px] mt-1 ${isShort ? "text-amber-500" : "text-green-600"}`}>
+                          {isShort ? "💡 Plus tu détailles, plus le contenu sera unique et profond" : "✨ Top, bonne matière !"}
+                        </p>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {/* Follow-up questions */}
                 {followUpQuestions.length > 0 && (
