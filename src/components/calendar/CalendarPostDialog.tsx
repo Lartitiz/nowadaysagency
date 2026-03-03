@@ -313,10 +313,21 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         format,
         notes,
         postDate: selectedDate,
+        existingContent: contentDraft,
+        existingAccroche: accroche,
         launchId: editingPost?.launch_id,
         contentType: editingPost?.content_type,
         category: editingPost?.category,
         objective: editingPost?.objective,
+        ...(editingPost?.launch_id ? {
+          launchContext: {
+            launchId: editingPost.launch_id,
+            contentType: editingPost.content_type,
+            chapter: (editingPost as any)?.chapter,
+            chapterLabel: (editingPost as any)?.chapter_label,
+            audiencePhase: (editingPost as any)?.audience_phase,
+          }
+        } : {}),
       };
 
       const fmt = format || "post_carrousel";
