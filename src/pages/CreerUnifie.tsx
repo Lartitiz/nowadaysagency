@@ -761,6 +761,13 @@ export default function CreerUnifie() {
                     else if (result.raw.carousel?.caption) result.raw.carousel.caption = caption;
                   }
                 } : undefined}
+                onStoriesUpdate={selectedFormat === "story" ? (stories) => {
+                  if (result?.raw) {
+                    if (result.raw.stories) result.raw.stories = stories;
+                    else if (result.raw.sequences) result.raw.sequences = stories;
+                    else if (result.raw.slides) result.raw.slides = stories;
+                  }
+                } : undefined}
               />
             )}
 

@@ -2,14 +2,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 interface Props {
   result: any;
+  onStoriesUpdate?: (stories: any[]) => void;
 }
 
-export default function StoryResult({ result }: Props) {
-  const stories = result?.stories || result?.sequences || result?.slides || [];
+export default function StoryResult({ result, onStoriesUpdate }: Props) {
+  const rawStories: any[] = result?.stories || result?.sequences || result?.slides || [];
+  const [stories, setStories] = useState(rawStories);
 
   const fullText = stories
     .map((s: any) => s.text || s.texte || s.content || "")
@@ -18,9 +20,25 @@ export default function StoryResult({ result }: Props) {
 
   const [checkedText, setCheckedText] = useState(fullText);
 
+  const getTextField = (story: any): "text" | "texte" | "content" => {
+    if ("text" in story) return "text";
+    if ("texte" in story) return "texte";
+    return "content";
+  };
+
+  const updateStoryText = useCallback((index: number, newValue: string) => {
+    setStories(prev => {
+      const updated = [...prev];
+      const field = getTextField(updated[index]);
+      updated[index] = { ...updated[index], [field]: newValue };
+      onStoriesUpdate?.(updated);
+      return updated;
+    });
+  }, [onStoriesUpdate]);
+
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="space-y-2">
+      <div className="space-y-2" data-selection-enabled="true">
         {stories.map((story: any, i: number) => (
           <Card key={i} className="border-border">
             <CardContent className="p-3 space-y-1.5">
@@ -41,9 +59,20 @@ export default function StoryResult({ result }: Props) {
                 )}
               </div>
               {(story.text || story.texte || story.content) && (
-                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                <div
+                  contentEditable
+                  suppressContentEditableWarning
+                  onBlur={(e) => {
+                    const newText = e.currentTarget.textContent || "";
+                    const oldText = story.text || story.texte || story.content || "";
+                    if (newText !== oldText) {
+                      updateStoryText(i, newText);
+                    }
+                  }}
+                  className="text-sm text-foreground leading-relaxed whitespace-pre-wrap rounded px-1 -mx-1 transition-colors hover:bg-muted/50 focus:bg-muted/50 focus:outline-none focus:ring-1 focus:ring-primary/30 cursor-text"
+                >
                   {story.text || story.texte || story.content}
-                </p>
+                </div>
               )}
               {story.sticker && (
                 <div className="flex items-center gap-1.5">
