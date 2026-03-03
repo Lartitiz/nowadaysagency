@@ -921,7 +921,6 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         </DialogHeader>
 
         {/* ── UNIFIED POST VIEW: 2-column layout ── */}
-        /* ── REGULAR POST: 2-column layout ── */
         <div className="mt-2">
           {dialogTab === "preview" ? (
             <PreviewTab
