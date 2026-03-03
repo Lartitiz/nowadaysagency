@@ -361,22 +361,6 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     }
   };
 
-  const isStoriesPost = !!(
-    editingPost?.stories_count ||
-    editingPost?.stories_sequence_id ||
-    editingPost?.stories_structure ||
-    (editingPost?.story_sequence_detail as any)?.stories ||
-    (editingPost?.story_sequence_detail as any)?.sequences ||
-    ((editingPost?.format === "story" || editingPost?.format === "story_serie") && editingPost?.story_sequence_detail)
-  );
-  const isReelPost = !!(
-    (editingPost?.format === "reel" && editingPost?.story_sequence_detail) ||
-    (editingPost?.story_sequence_detail as any)?.type === "reel"
-  );
-  const reelData = isReelPost ? (editingPost.story_sequence_detail as any) : null;
-  const storiesData = isStoriesPost && editingPost?.story_sequence_detail
-    ? (editingPost.story_sequence_detail as any)
-    : null;
 
   const contentPreview = contentDraft && contentDraft.length > 200 && !showFullContent
     ? contentDraft.slice(0, 200) + "..."
@@ -689,6 +673,22 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              {editingPost?.story_sequence_detail && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowContentViewer(true)}
+                  className="rounded-pill text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                >
+                  👁️ {(editingPost.story_sequence_detail as any)?.type === "reel"
+                    ? "Voir le script"
+                    : (editingPost.story_sequence_detail as any)?.type === "stories"
+                    ? "Voir la séquence"
+                    : (editingPost.story_sequence_detail as any)?.type === "carousel"
+                    ? "Voir les slides"
+                    : "Voir le détail"}
+                </Button>
+              )}
             </div>
           </div>
 
@@ -824,6 +824,22 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              {editingPost?.story_sequence_detail && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowContentViewer(true)}
+                  className="rounded-pill text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                >
+                  👁️ {(editingPost.story_sequence_detail as any)?.type === "reel"
+                    ? "Voir le script"
+                    : (editingPost.story_sequence_detail as any)?.type === "stories"
+                    ? "Voir la séquence"
+                    : (editingPost.story_sequence_detail as any)?.type === "carousel"
+                    ? "Voir les slides"
+                    : "Voir le détail"}
+                </Button>
+              )}
             </div>
           </div>
 
@@ -863,10 +879,10 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="font-display">
-              {isReelPost ? "🎬 Script Reel" : isStoriesPost ? "📱 Séquence Stories" : editingPost ? "Modifier le post" : "Ajouter un post"}
+              {editingPost ? "Modifier le post" : "Ajouter un post"}
             </DialogTitle>
             {/* Tabs in header — only for regular posts */}
-            {!isReelPost && !isStoriesPost && (
+            {editingPost && (
               <div className="flex rounded-full border border-border overflow-hidden mr-6">
                 <button onClick={() => setDialogTab("edit")}
                   className={`px-3 py-1 text-[11px] font-medium transition-colors ${dialogTab === "edit" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
@@ -882,142 +898,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           <DialogDescription className="sr-only">Formulaire de création ou modification d'un post du calendrier éditorial</DialogDescription>
         </DialogHeader>
 
-        {/* Reel-specific view */}
-        {isReelPost && editingPost ? (
-          <div className="space-y-4 mt-2">
-            <div className="rounded-xl border border-border bg-card p-3">
-              <p className="text-sm font-medium text-foreground mb-1">
-                🎬 {editingPost.theme}
-              </p>
-              {reelData?.duree_cible && (
-                <p className="text-xs text-muted-foreground">Durée : {reelData.duree_cible}</p>
-              )}
-              {editingPost.accroche && (
-                <p className="text-xs text-muted-foreground mt-1 italic">Hook : "{editingPost.accroche}"</p>
-              )}
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">Statut</label>
-              <div className="flex flex-wrap gap-1.5">
-                {STATUSES.map((s) => (
-                  <button key={s.id} onClick={() => setStatus(s.id)}
-                    className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${status === s.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowContentViewer(true)} className="rounded-pill text-xs gap-1.5">
-                👁️ Voir le script
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => {
-                if (reelData?.script) {
-                  const text = reelData.script.map((s: any) => `[${s.timing}] ${s.section?.toUpperCase()}\n"${s.texte_parle}"${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n───\n\n");
-                  navigator.clipboard.writeText(text);
-                  toast({ title: "Script copié !" });
-                }
-              }} className="rounded-pill text-xs gap-1.5">
-                <Copy className="h-3 w-3" /> Script
-              </Button>
-              {reelData?.caption && (
-                <Button variant="outline" size="sm" onClick={() => {
-                  navigator.clipboard.writeText(`${reelData.caption.text}\n\n${reelData.caption.cta}\n\n${reelData.hashtags?.join(" ") || ""}`);
-                  toast({ title: "Caption copiée !" });
-                }} className="rounded-pill text-xs gap-1.5">
-                  <Copy className="h-3 w-3" /> Caption
-                </Button>
-              )}
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button onClick={() => onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null })} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux">
-                Enregistrer
-              </Button>
-              {onUnplan && editingPost && (
-                <Button variant="outline" size="icon" onClick={onUnplan} className="rounded-full text-muted-foreground hover:text-primary" title="Remettre en idée">
-                  <Undo2 className="h-4 w-4" />
-                </Button>
-              )}
-              <Button variant="outline" size="icon" onClick={onDelete} className="rounded-full text-destructive hover:bg-destructive/10">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        ) : isStoriesPost && editingPost ? (
-          <div className="space-y-4 mt-2">
-            <div className="rounded-xl border border-border bg-card p-3">
-              <p className="text-sm font-medium text-foreground mb-1">
-                {editingPost.stories_structure || editingPost.theme} · {editingPost.stories_count || "?"} stories
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Objectif : {editingPost.stories_objective || editingPost.objectif || "—"}
-              </p>
-              {editingPost.stories_timing && (
-                <div className="mt-2 space-y-1">
-                  {Object.entries(editingPost.stories_timing).map(([k, v]) => {
-                    const emoji = k === "matin" ? "🌅" : k === "midi" ? "☀️" : "🌙";
-                    return (
-                      <p key={k} className="text-xs text-muted-foreground">
-                        {emoji} <span className="capitalize">{k}</span> : {v as string}
-                      </p>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">Statut</label>
-              <div className="flex flex-wrap gap-1.5">
-                {STATUSES.map((s) => (
-                  <button key={s.id} onClick={() => setStatus(s.id)}
-                    className={`rounded-pill px-3 py-1 text-xs font-medium border transition-all ${status === s.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {storiesData?.stories && (
-                <Button variant="outline" size="sm" onClick={() => setShowContentViewer(true)} className="rounded-pill text-xs gap-1.5">
-                  👁️ Voir la séquence
-                </Button>
-              )}
-              {editingPost.stories_sequence_id && !storiesData?.stories && (
-                <Button variant="outline" size="sm" onClick={handleViewStoriesSequence} className="rounded-pill text-xs gap-1.5">
-                  👁️ Voir la séquence
-                </Button>
-              )}
-              {storiesData?.stories && (
-                <Button variant="outline" size="sm" onClick={() => {
-                  const text = storiesData.stories.map((s: any) => `${s.timing_emoji || ""} STORY ${s.number} · ${s.role}\n${s.format_label || s.format}\n\n${s.text}${s.sticker ? `\n🎯 ${s.sticker.label}${s.sticker.options ? ` → ${s.sticker.options.join(" / ")}` : ""}` : ""}`).join("\n\n───\n\n");
-                  navigator.clipboard.writeText(text);
-                  toast({ title: "Séquence copiée !" });
-                }} className="rounded-pill text-xs gap-1.5">
-                  <Copy className="h-3 w-3" /> Copier tout
-                </Button>
-              )}
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button onClick={() => onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null })} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux">
-                Enregistrer
-              </Button>
-              {onUnplan && editingPost && (
-                <Button variant="outline" size="icon" onClick={onUnplan} className="rounded-full text-muted-foreground hover:text-primary" title="Remettre en idée">
-                  <Undo2 className="h-4 w-4" />
-                </Button>
-              )}
-              <Button variant="outline" size="icon" onClick={onDelete} className="rounded-full text-destructive hover:bg-destructive/10">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        ) : (
+        {/* ── UNIFIED POST VIEW: 2-column layout ── */}
         /* ── REGULAR POST: 2-column layout ── */
         <div className="mt-2">
           {dialogTab === "preview" ? (
@@ -1141,7 +1022,6 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           </>
           )}
         </div>
-        )}
       </DialogContent>
     </Dialog>
 
@@ -1150,7 +1030,11 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="font-display">
-            {isReelPost ? "🎬 Script complet" : "📱 Séquence complète"}
+            {(editingPost?.story_sequence_detail as any)?.type === "reel"
+              ? "🎬 Script complet"
+              : (editingPost?.story_sequence_detail as any)?.type === "carousel"
+              ? "📑 Slides détaillées"
+              : "📱 Séquence complète"}
           </SheetTitle>
           <SheetDescription className="sr-only">Visualisation du contenu généré</SheetDescription>
         </SheetHeader>
@@ -1158,7 +1042,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         <div className="mt-4 space-y-4">
           <ContentPreview
             contentData={editingPost?.story_sequence_detail}
-            contentType={isReelPost ? "reel" : isStoriesPost ? "stories" : undefined}
+            contentType={
+              (editingPost?.story_sequence_detail as any)?.type === "reel" ? "reel"
+              : (editingPost?.story_sequence_detail as any)?.type === "stories" ? "stories"
+              : (editingPost?.story_sequence_detail as any)?.type === "carousel" ? "carousel"
+              : undefined
+            }
             editable
             onContentChange={async (updatedData) => {
               if (!editingPost) return;
