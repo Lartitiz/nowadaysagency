@@ -43,6 +43,9 @@ const FORMAT_OPTIONS_BY_CANAL: Record<string, { id: string; emoji: string; label
     { id: "epingle", emoji: "📌", label: "Épingle" },
     { id: "epingle_idee", emoji: "💡", label: "Épingle idée" },
   ],
+  newsletter: [
+    { id: "newsletter_standard", emoji: "✉️", label: "Newsletter" },
+  ],
 };
 
 interface Props {
@@ -312,7 +315,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       };
 
       const fmt = format || "post_carrousel";
-      if (postCanal === "linkedin") {
+      if (postCanal === "newsletter" || fmt === "newsletter_standard") {
+        navigate(`/creer?format=newsletter&${params.toString()}`, { state });
+      } else if (postCanal === "linkedin") {
         navigate(`/linkedin/post?${params.toString()}`, { state: { ...state, sujet: theme } });
       } else if (fmt === "post_carrousel" || fmt === "carousel") {
         if (angle && ANGLE_TO_CAROUSEL[angle]) {
