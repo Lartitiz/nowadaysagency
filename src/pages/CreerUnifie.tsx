@@ -285,7 +285,10 @@ export default function CreerUnifie() {
     const r = result?.raw || result;
     let text = "";
 
-    if (selectedFormat === "carousel" && r?.slides) {
+    if (!r) {
+      // Pas de résultat IA — utiliser le contenu existant du calendrier ou le brouillon
+      text = existingCalendarContent || "";
+    } else if (selectedFormat === "carousel" && r?.slides) {
       const slidesText = (r.slides as any[])
         .map((s: any) => {
           const header = `--- SLIDE ${s.slide_number} (${s.role || ""}) ---`;
@@ -343,8 +346,15 @@ export default function CreerUnifie() {
       text = r.text;
     } else if (r?.hook && r?.body) {
       text = [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
+    } else if (typeof r === "string") {
+      text = r;
     } else {
       text = JSON.stringify(r, null, 2);
+    }
+
+    // Fallback: si texte vide ou juste "null", utiliser le contenu existant
+    if ((!text || text === "null" || !text.trim()) && existingCalendarContent) {
+      text = existingCalendarContent;
     }
 
     setEditContent(text);
