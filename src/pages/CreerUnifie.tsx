@@ -188,9 +188,18 @@ export default function CreerUnifie() {
     if (fmt) setSelectedFormat(fmt);
 
     if (fmt && subject.trim()) {
-      handleFormatNext(fmt, undefined, subject);
+      // Build enriched subject directly from locState to avoid race condition
+      // (setExistingCalendarContent is async and not yet available)
+      const calendarContent = locState?.existingContent || null;
+      const enrichedSubject = calendarContent
+        ? subject + "\n\n[Contenu existant à approfondir]\n" + calendarContent
+        : subject;
+      const calendarAngle = locState?.angle || undefined;
+      if (calendarAngle) setEditorialAngle(calendarAngle);
+      handleFormatNext(fmt, calendarAngle, enrichedSubject);
     } else if (locState?.fromCalendar && subject) {
       if (locState.format) setSelectedFormat(locState.format);
+      if (locState.angle) setEditorialAngle(locState.angle);
       setStep("format");
     } else if (fmt) {
       setStep("format");
