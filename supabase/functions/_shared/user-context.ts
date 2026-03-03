@@ -41,6 +41,20 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
   const col = workspaceId ? "workspace_id" : "user_id";
   const val = workspaceId || userId;
 
+  // Resolve the owner's user_id for tables without workspace_id (profiles, voice_profile)
+  let profileUserId = userId;
+  if (workspaceId) {
+    const { data: ownerRow } = await supabase
+      .from("workspace_members")
+      .select("user_id")
+      .eq("workspace_id", workspaceId)
+      .eq("role", "owner")
+      .maybeSingle();
+    if (ownerRow?.user_id) {
+      profileUserId = ownerRow.user_id;
+    }
+  }
+
   // Build persona query: channel-specific → primary → any
   const personaSelect = "step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches, portrait_prenom, portrait, label, is_primary, channels";
   const fetchPersona = async () => {
@@ -85,10 +99,10 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
     supabase.from("brand_proposition").select("version_final, version_complete, version_bio, version_one_liner").eq(col, val).maybeSingle(),
     supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept, facet_1, facet_2, facet_3").eq(col, val).maybeSingle(),
     supabase.from("instagram_editorial_line").select("main_objective, objective_details, posts_frequency, stories_frequency, time_available, pillars, preferred_formats, do_more, stop_doing, free_notes").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, mission, offre, croyances_limitantes, verbatims, expressions_cles, ce_quon_evite, style_communication, validated_bio, instagram_display_name, instagram_username, instagram_bio, instagram_followers, instagram_frequency, differentiation_text, bio_cta_type, bio_cta_text").eq("user_id", userId).maybeSingle(),
+    supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, mission, offre, croyances_limitantes, verbatims, expressions_cles, ce_quon_evite, style_communication, validated_bio, instagram_display_name, instagram_username, instagram_bio, instagram_followers, instagram_frequency, differentiation_text, bio_cta_type, bio_cta_text").eq("user_id", profileUserId).maybeSingle(),
     supabase.from("offers").select("*").eq(col, val).order("created_at", { ascending: true }),
     supabase.from("instagram_audit").select("score_global, score_bio, score_feed, score_edito, score_stories, score_epingles, resume, combo_gagnant").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("voice_profile").select("voice_summary, signature_expressions, banned_expressions, tone_patterns, structure_patterns, formatting_habits, sample_texts").eq("user_id", userId).maybeSingle(),
+    supabase.from("voice_profile").select("voice_summary, signature_expressions, banned_expressions, tone_patterns, structure_patterns, formatting_habits, sample_texts").eq("user_id", profileUserId).maybeSingle(),
     supabase.from("brand_charter").select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, font_accent, photo_style, mood_keywords, visual_donts, icon_style, border_radius, ai_generated_brief, moodboard_description").eq(col, val).maybeSingle(),
     supabase.from("branding_mirror_results").select("coherence_score, summary, alignments, gaps, quick_wins").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
