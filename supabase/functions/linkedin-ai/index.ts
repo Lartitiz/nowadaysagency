@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, LINKEDIN_HOOK_TYPES_PROMPTS, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE } from "../_shared/copywriting-prompts.ts";
+import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, LINKEDIN_HOOK_TYPES_PROMPTS, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE, PREGEN_INJECTION_RULES } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
@@ -83,6 +83,26 @@ serve(async (req) => {
 
     const ANTI_BROETRY = `ANTI-BROETRY (CRITIQUE) :\nLinkedIn est infesté de posts où chaque phrase est seule sur sa ligne, sans substance.\nTon contenu est l'INVERSE :\n- Des paragraphes de 2-3 phrases qui développent une idée\n- Des bucket brigades qui relancent NATURELLEMENT (pas des mots seuls sur une ligne)\n- Si une phrase ne tient pas debout seule ET n'ajoute rien, supprime-la\n- Le rythme vient du contraste entre paragraphes développés et phrases courtes qui ponctuent, PAS du saut de ligne systématique\n- Chaque ligne doit apporter une information, une émotion, ou une progression. Zéro remplissage.\n\n`;
 
+    const LINKEDIN_HOOK_RULES = `## LES 3 PREMIÈRES LIGNES (CRITIQUE)
+
+Sur LinkedIn, après 3 lignes le texte est coupé par "...voir plus".
+
+Si ces 3 lignes ne donnent pas envie de cliquer, le post est mort. C'est la SEULE chose qui compte pour la portée.
+
+Techniques pour les 3 premières lignes :
+- Affirmation forte ou chiffre qui interpelle : "J'ai accompagné 47 projets éthiques en 7 ans."
+- Gap de curiosité : promettre la suite sans la donner : "Le point commun de ceux qui échouent ?"
+- Commencer par "Je" pour ancrer dans le vécu : "J'ai fait / découvert / compris / arrêté de..."
+- Opposition ou tension : "Tout le monde dit X. Je pense l'inverse."
+
+Ce qu'on ne fait JAMAIS en hook LinkedIn :
+- Question rhétorique molle ("Vous êtes-vous déjà demandé...?")
+- Emoji en première ligne
+- "🔥 X conseils pour..."
+- Accroches génériques ("Dans le monde d'aujourd'hui...")
+`;
+
+
     let systemPrompt = "";
     let userPrompt = "";
 
@@ -127,7 +147,7 @@ serve(async (req) => {
           }\n`
         : "";
 
-      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${ANTI_BROETRY}${context}\n\n${qualityBlocks}\n${objectiveInstruction}\nAUDIENCE : ${audience || "tu"}\n${audience === "vous" ? "Utilise le vouvoiement chaleureux et professionnel." : audience === "mixte" ? "Utilise un ton mixte, principalement tutoiement avec vouvoiement quand c'est plus pro." : "Utilise le tutoiement."}\n\n${templateContent}\n${personalBlock}\n${hookInstruction}\n${editorialAngleBlock}\n\nEn plus du hook principal, génère 2 accroches alternatives pour le même post. Chaque accroche doit utiliser un ANGLE DIFFÉRENT (pas juste une reformulation). Ajoute-les dans le champ "hook_alternatives".\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks :\n{\n  "hook": "Les 210 premiers caractères",\n  "body": "Le corps complet avec sauts de ligne",\n  "cta": "La question ou invitation finale",\n  "full_text": "Le post complet prêt à copier",\n  "character_count": 1247,\n  "hashtags": [],\n  "hook_alternatives": ["Variante 2 d'accroche (angle différent)", "Variante 3 d'accroche (angle différent)"],\n  "template_used": "${template}",\n  "hook_type_used": "${hook_type || "auto"}",\n  "editorial_angle_used": "${editorial_angle || "auto"}",\n  "checklist": [\n    { "item": "Accroche < 210 car.", "ok": true },\n    { "item": "Paragraphes courts (1-3 lignes)", "ok": true },\n    { "item": "Opinion/expertise visible", "ok": true },\n    { "item": "Exemple concret ou storytelling", "ok": true },\n    { "item": "0-2 emojis", "ok": true },\n    { "item": "3-5 hashtags de niche", "ok": true },\n    { "item": "Pas de lien dans le corps", "ok": true },\n    { "item": "CTA question ouverte", "ok": true },\n    { "item": "Écriture inclusive", "ok": true },\n    { "item": "Pas de tiret cadratin", "ok": true },\n    { "item": "1300-1900 caractères", "ok": true },\n    { "item": "Bucket brigades / rythme", "ok": true }\n  ]\n}`;
+      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${ANTI_BROETRY}${LINKEDIN_HOOK_RULES}\n\n${PREGEN_INJECTION_RULES}\n\n${context}\n\n${qualityBlocks}\n${objectiveInstruction}\nAUDIENCE : ${audience || "tu"}\n${audience === "vous" ? "Utilise le vouvoiement chaleureux et professionnel." : audience === "mixte" ? "Utilise un ton mixte, principalement tutoiement avec vouvoiement quand c'est plus pro." : "Utilise le tutoiement."}\n\n${templateContent}\n${personalBlock}\n${hookInstruction}\n${editorialAngleBlock}\n\nEn plus du hook principal, génère 2 accroches alternatives pour le même post. Chaque accroche doit utiliser un ANGLE DIFFÉRENT (pas juste une reformulation). Ajoute-les dans le champ "hook_alternatives".\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks :\n{\n  "hook": "Les 210 premiers caractères",\n  "body": "Le corps complet avec sauts de ligne",\n  "cta": "La question ou invitation finale",\n  "full_text": "Le post complet prêt à copier",\n  "character_count": 1247,\n  "hashtags": [],\n  "hook_alternatives": ["Variante 2 d'accroche (angle différent)", "Variante 3 d'accroche (angle différent)"],\n  "template_used": "${template}",\n  "hook_type_used": "${hook_type || "auto"}",\n  "editorial_angle_used": "${editorial_angle || "auto"}",\n  "checklist": [\n    { "item": "Accroche < 210 car.", "ok": true },\n    { "item": "Paragraphes courts (1-3 lignes)", "ok": true },\n    { "item": "Opinion/expertise visible", "ok": true },\n    { "item": "Exemple concret ou storytelling", "ok": true },\n    { "item": "0-2 emojis", "ok": true },\n    { "item": "3-5 hashtags de niche", "ok": true },\n    { "item": "Pas de lien dans le corps", "ok": true },\n    { "item": "CTA question ouverte", "ok": true },\n    { "item": "Écriture inclusive", "ok": true },\n    { "item": "Pas de tiret cadratin", "ok": true },\n    { "item": "1300-1900 caractères", "ok": true },\n    { "item": "Bucket brigades / rythme", "ok": true }\n  ]\n}`;
       userPrompt = `Rédige un post LinkedIn sur ce sujet : "${sujet || "sujet libre"}"`;
 
 
