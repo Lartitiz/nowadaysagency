@@ -26,6 +26,7 @@ interface Props {
   onExportPptx?: () => void;
   onExportVisualPptx?: () => void;
   onSlidesUpdate?: (slides: any[], caption: any) => void;
+  onStoriesUpdate?: (stories: any[]) => void;
 }
 
 const LOADING_MESSAGES: Record<string, string> = {
@@ -54,6 +55,7 @@ export default function CreerStepResult({
   onExportPptx,
   onExportVisualPptx,
   onSlidesUpdate,
+  onStoriesUpdate,
 }: Props) {
   if (generating) {
     return (
@@ -76,7 +78,7 @@ export default function CreerStepResult({
       case "reel":
         return <ReelResult result={result} />;
       case "story":
-        return <StoryResult result={result} />;
+        return <StoryResult result={result} onStoriesUpdate={onStoriesUpdate} />;
       case "post":
         return <PostResult result={result} />;
       case "linkedin":
