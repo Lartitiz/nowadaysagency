@@ -62,7 +62,7 @@ serve(async (req) => {
       const val = workspaceId || user.id;
       const { data: dbCharter } = await sbAdmin
         .from("brand_charter")
-        .select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, border_radius")
+        .select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, border_radius, uploaded_templates, photo_style, visual_donts, ai_generated_brief, moodboard_description, icon_style")
         .eq(col, val)
         .maybeSingle();
       charter = dbCharter || {};
@@ -78,10 +78,26 @@ serve(async (req) => {
       font_body: charter.font_body || "IBM Plex Mono",
       mood_keywords: Array.isArray(charter.mood_keywords) ? charter.mood_keywords.join(", ") : (charter.mood_keywords || "pop, joyeux, audacieux, art contemporain"),
       border_radius: charter.border_radius || "12px",
+      photo_style: charter.photo_style || "",
+      visual_donts: charter.visual_donts || "",
+      ai_generated_brief: charter.ai_generated_brief || "",
+      moodboard_description: charter.moodboard_description || "",
+      icon_style: charter.icon_style || "",
     };
 
-    const style = template_style || "clean";
-    const isCharterRef = style === "charter_reference" && template_reference_urls?.length;
+    // Extract uploaded template URLs for charter_reference mode
+    const uploadedTemplates: { url: string; name: string }[] = Array.isArray(charter.uploaded_templates) ? charter.uploaded_templates : [];
+
+    // Auto-detect: if user has uploaded templates in their charter, use charter_reference mode
+    const hasUploadedTemplates = uploadedTemplates.length > 0;
+    const templateUrls = template_reference_urls?.length
+      ? template_reference_urls
+      : hasUploadedTemplates
+        ? uploadedTemplates.map((t: any) => typeof t === "string" ? t : t.url).filter(Boolean)
+        : [];
+
+    const style = (templateUrls.length > 0) ? "charter_reference" : (template_style || "clean");
+    const isCharterRef = style === "charter_reference" && templateUrls.length > 0;
 
     // Build the template style instructions
     let styleInstructions = "";
@@ -124,7 +140,7 @@ Texte : ${ch.color_text}
 Police titres : ${ch.font_title} (JAMAIS en font-weight bold, toujours normal/400)
 Police corps : ${ch.font_body}
 Ambiance : ${ch.mood_keywords}
-Border-radius : ${ch.border_radius}
+Border-radius : ${ch.border_radius}${ch.photo_style ? `\nStyle photo / ambiance visuelle : ${ch.photo_style}` : ""}${ch.visual_donts ? `\n\n⛔ INTERDITS VISUELS (l'utilisatrice a EXPLICITEMENT interdit ces éléments) :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\n\nBRIEF CRÉATIF DE LA MARQUE :\n${ch.ai_generated_brief}` : ""}${ch.moodboard_description ? `\n\nAMBIANCE MOODBOARD :\n${ch.moodboard_description}` : ""}${ch.icon_style ? `\nStyle d'icônes : ${ch.icon_style}` : ""}
 
 ═══ DESIGN SYSTEM — VALEURS CSS CONCRÈTES ═══
 
@@ -301,9 +317,9 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
       return imageExtensions.some(ext => lower.endsWith(ext));
     };
 
-    if (isCharterRef && template_reference_urls?.length) {
+    if (isCharterRef && templateUrls.length > 0) {
       // Filter to only image URLs (exclude PDFs and other unsupported formats)
-      const imageUrls = template_reference_urls.filter((u: string) => isImageUrl(u));
+      const imageUrls = templateUrls.filter((u: string) => isImageUrl(u));
       
       if (imageUrls.length > 0) {
         // Use vision: send the template image + text prompt

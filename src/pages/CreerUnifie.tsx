@@ -382,7 +382,7 @@ export default function CreerUnifie() {
             body: s.body,
             visual_suggestion: s.visual_suggestion,
           })),
-          template_style: "clean",
+          template_style: null,
         },
       });
       if (fnError) throw fnError;
