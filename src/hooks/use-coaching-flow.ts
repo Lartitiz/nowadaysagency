@@ -26,23 +26,23 @@ export interface CoachingFlowState {
   shouldActivate: boolean;
 }
 
-const LS_STEP_KEY = "lac_coaching_step";
-const LS_COMPLETED_KEY = "lac_coaching_completed";
-const LS_STARTED_KEY = "lac_coaching_started";
+function lsKey(base: string, wsId: string): string {
+  return wsId ? `${base}_${wsId}` : base;
+}
 
-function getStoredStep(): CoachingStep {
+function getStoredStep(wsId: string): CoachingStep {
   try {
-    const v = parseInt(localStorage.getItem(LS_STEP_KEY) || "0", 10);
+    const v = parseInt(localStorage.getItem(lsKey("lac_coaching_step", wsId)) || "0", 10);
     return (v >= 0 && v <= 5 ? v : 0) as CoachingStep;
   } catch { return 0; }
 }
 
-function isCompleted(): boolean {
-  try { return localStorage.getItem(LS_COMPLETED_KEY) === "1"; } catch { return false; }
+function isCompleted(wsId: string): boolean {
+  try { return localStorage.getItem(lsKey("lac_coaching_completed", wsId)) === "1"; } catch { return false; }
 }
 
-function wasStarted(): boolean {
-  try { return localStorage.getItem(LS_STARTED_KEY) === "1"; } catch { return false; }
+function wasStarted(wsId: string): boolean {
+  try { return localStorage.getItem(lsKey("lac_coaching_started", wsId)) === "1"; } catch { return false; }
 }
 
 /**
@@ -54,8 +54,9 @@ function wasStarted(): boolean {
 export function shouldActivateCoaching(
   phase: string,
   brandingTotal: number,
+  wsId: string = "",
 ): boolean {
-  if (isCompleted()) return false;
+  if (isCompleted(wsId)) return false;
   return phase === "construction" && brandingTotal < 50;
 }
 
@@ -67,32 +68,32 @@ export function useCoachingFlow(phase: string, brandingTotal: number) {
   const workspaceId = useWorkspaceId();
   const { column, value } = useWorkspaceFilter();
 
-  const shouldActivate = shouldActivateCoaching(phase, brandingTotal);
-  const [step, setStepState] = useState<CoachingStep>(getStoredStep);
-  const [completed, setCompleted] = useState(isCompleted);
-  const [isActive, setIsActive] = useState(shouldActivate && !isCompleted());
+  const shouldActivate = shouldActivateCoaching(phase, brandingTotal, workspaceId);
+  const [step, setStepState] = useState<CoachingStep>(() => getStoredStep(workspaceId));
+  const [completed, setCompleted] = useState(() => isCompleted(workspaceId));
+  const [isActive, setIsActive] = useState(shouldActivate && !isCompleted(workspaceId));
   const initialScoreRef = useRef(brandingTotal);
 
   // Persist step
   const setStep = useCallback((s: CoachingStep) => {
     setStepState(s);
-    try { localStorage.setItem(LS_STEP_KEY, String(s)); } catch {}
-  }, []);
+    try { localStorage.setItem(lsKey("lac_coaching_step", workspaceId), String(s)); } catch {}
+  }, [workspaceId]);
 
   // Mark coaching as started
   const markStarted = useCallback(() => {
-    try { localStorage.setItem(LS_STARTED_KEY, "1"); } catch {}
-  }, []);
+    try { localStorage.setItem(lsKey("lac_coaching_started", workspaceId), "1"); } catch {}
+  }, [workspaceId]);
 
   // Mark complete
   const markComplete = useCallback(() => {
     setCompleted(true);
     setIsActive(false);
     try {
-      localStorage.setItem(LS_COMPLETED_KEY, "1");
-      localStorage.setItem(LS_STEP_KEY, "5");
+      localStorage.setItem(lsKey("lac_coaching_completed", workspaceId), "1");
+      localStorage.setItem(lsKey("lac_coaching_step", workspaceId), "5");
     } catch {}
-  }, []);
+  }, [workspaceId]);
 
   // Advance to next step
   const advance = useCallback(() => {
