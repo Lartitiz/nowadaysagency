@@ -63,7 +63,7 @@ serve(async (req) => {
       direction: z.string().max(500).optional().nullable(),
       workspace_id: z.string().uuid().optional().nullable(),
     }).passthrough());
-    let { objective, price_range, time_available, face_cam, subject, subject_details, raw_idea, clarify_context, direction, is_launch, type, pre_gen_answers, workspace_id } = body;
+    let { objective, price_range, time_available, face_cam, subject, subject_details, raw_idea, clarify_context, direction, is_launch, type, pre_gen_answers, workspace_id, launch_context } = body;
 
     const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
     const branding_context = formatContextForAI(ctx, CONTEXT_PRESETS.stories);
@@ -221,7 +221,14 @@ Réponds UNIQUEMENT avec le JSON.`;
     // Main generation
     const hasRichContent = !!(pre_gen_answers?.vecu && pre_gen_answers.vecu.length > 50) || !!(pre_gen_answers?.message_cle && pre_gen_answers.message_cle.length > 30);
     const model = getModelForRichContent("stories", hasRichContent);
-    const systemPrompt = buildMainPrompt({ objective, price_range, time_available, face_cam, subject: enrichedSubject, is_launch, gardeFouAlerte, pre_gen_answers }, STORIES_PREFIX);
+    let systemPrompt = buildMainPrompt({ objective, price_range, time_available, face_cam, subject: enrichedSubject, is_launch, gardeFouAlerte, pre_gen_answers }, STORIES_PREFIX);
+
+    // Inject launch context if present
+    if (launch_context) {
+      const lc = launch_context;
+      systemPrompt += `\n\nCONTEXTE LANCEMENT :\n- Phase : ${lc.phase || "?"}\n- Chapitre : ${lc.chapter_label || "?"}\n- Phase mentale audience : ${lc.audience_phase || "?"}\n- Objectif du slot : ${lc.objective || "?"}\n- Angle suggéré : ${lc.angle_suggestion || "?"}\nCONSIGNE : adapte le contenu à cette phase du lancement. Un contenu de phase "vente" n'a pas le même ton qu'un contenu de phase "teasing".`;
+    }
+
     const response = await callAnthropicSimple(model, systemPrompt, "Génère ma séquence stories.");
     return new Response(JSON.stringify({ content: response }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

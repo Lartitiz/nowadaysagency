@@ -249,8 +249,15 @@ export default function InstagramReels() {
       const brandingContext = fetchBrandingContext();
       setCachedBrandingCtx(brandingContext);
       const inspCtx = inspirationAnalysis ? `Patterns : ${inspirationAnalysis.patterns_communs}\nRecommandation : ${inspirationAnalysis.recommandation}` : undefined;
+      const launchCtx = calendarState?.launchId ? {
+        phase: calendarState.category,
+        chapter_label: calendarState.chapterLabel || calendarState.chapter,
+        audience_phase: calendarState.audiencePhase,
+        objective: calendarState.objective,
+        angle_suggestion: calendarState.angleSuggestion,
+      } : undefined;
       const { data, error } = await supabase.functions.invoke("reels-ai", {
-        body: { type: "hooks", objective, face_cam: faceCam, subject, time_available: timeAvailable, is_launch: isLaunch, branding_context: brandingContext, inspiration_context: inspCtx, workspace_id: workspaceId },
+        body: { type: "hooks", objective, face_cam: faceCam, subject, time_available: timeAvailable, is_launch: isLaunch, branding_context: brandingContext, inspiration_context: inspCtx, workspace_id: workspaceId, launch_context: launchCtx },
       });
       if (error) throw error;
       const parsed = parseAIResponse(data?.content || "");
@@ -285,6 +292,13 @@ export default function InstagramReels() {
     try {
       const brandingContext = cachedBrandingCtx || fetchBrandingContext();
       const inspCtx = inspirationAnalysis ? `Patterns : ${inspirationAnalysis.patterns_communs}\nRecommandation : ${inspirationAnalysis.recommandation}` : undefined;
+      const launchCtxScript = calendarState?.launchId ? {
+        phase: calendarState.category,
+        chapter_label: calendarState.chapterLabel || calendarState.chapter,
+        audience_phase: calendarState.audiencePhase,
+        objective: calendarState.objective,
+        angle_suggestion: calendarState.angleSuggestion,
+      } : undefined;
       const { data, error } = await supabase.functions.invoke("reels-ai", {
         body: {
           type: "script",
@@ -298,6 +312,7 @@ export default function InstagramReels() {
           pre_gen_answers: answers || undefined,
           inspiration_context: inspCtx,
           workspace_id: workspaceId,
+          launch_context: launchCtxScript,
         },
       });
       if (error) throw error;

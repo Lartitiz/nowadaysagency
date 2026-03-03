@@ -232,6 +232,13 @@ export default function InstagramStories() {
     if (!user) return;
     setLoading(true);
     try {
+      const launchCtx = calendarState?.launchId ? {
+        phase: calendarState.category,
+        chapter_label: calendarState.chapterLabel || calendarState.chapter,
+        audience_phase: calendarState.audiencePhase,
+        objective: calendarState.objective,
+        angle_suggestion: calendarState.angleSuggestion,
+      } : undefined;
       const { data, error } = await supabase.functions.invoke("stories-ai", {
         body: {
           type: "sequence",
@@ -248,7 +255,8 @@ export default function InstagramStories() {
             vecu: preGenVecu,
             energy: preGenEnergy,
             message_cle: preGenMessage,
-          }
+          },
+          launch_context: launchCtx,
         },
       });
 

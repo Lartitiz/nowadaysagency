@@ -61,7 +61,7 @@ serve(async (req) => {
       editorial_angle: z.string().max(100).optional().nullable(),
       content_structure: z.string().max(5000).optional().nullable(),
     }).passthrough());
-    let { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context, workspace_id, editorial_angle, content_structure } = body;
+    let { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context, workspace_id, editorial_angle, content_structure, launch_context } = body;
 
     // Fetch full context server-side
     const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
@@ -79,7 +79,14 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = buildSystemPrompt(brandingContext);
+    let systemPrompt = buildSystemPrompt(brandingContext);
+
+    // Inject launch context if present
+    if (launch_context && (type === "hooks" || type === "script")) {
+      const lc = launch_context;
+      systemPrompt += `\n\nCONTEXTE LANCEMENT :\n- Phase : ${lc.phase || "?"}\n- Chapitre : ${lc.chapter_label || "?"}\n- Phase mentale audience : ${lc.audience_phase || "?"}\n- Objectif du slot : ${lc.objective || "?"}\n- Angle suggéré : ${lc.angle_suggestion || "?"}\nCONSIGNE : adapte le contenu à cette phase du lancement. Un contenu de phase "vente" n'a pas le même ton qu'un contenu de phase "teasing".`;
+    }
+
 
     let userPrompt = "";
     let messages: any[] = [];
