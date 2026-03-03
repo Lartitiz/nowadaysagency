@@ -569,12 +569,34 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                 size="sm"
                 className="rounded-pill text-xs gap-1.5 text-primary hover:bg-primary/10"
                 onClick={() => {
-                  const params = new URLSearchParams();
-                  if (theme) params.set("sujet", theme);
-                  if (objectif) params.set("objectif", objectif);
-                  if (editingPost?.id) params.set("calendar_id", editingPost.id);
-                  params.set("from", "/calendrier");
-                  navigate(`/creer?${params.toString()}`);
+                  if (theme.trim()) {
+                    onSave({
+                      theme, angle, status, notes, canal: postCanal, objectif, format,
+                      content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null,
+                    });
+                  }
+                  onOpenChange(false);
+                  setTimeout(() => {
+                    const params = new URLSearchParams();
+                    if (theme) params.set("sujet", theme);
+                    if (objectif) params.set("objectif", objectif);
+                    if (format) params.set("format", format);
+                    if (editingPost?.id) params.set("calendar_id", editingPost.id);
+                    params.set("from", "/calendrier");
+                    navigate("/creer?" + params.toString(), {
+                      state: {
+                        fromCalendar: true,
+                        calendarPostId: editingPost?.id,
+                        theme,
+                        objectif,
+                        angle,
+                        format,
+                        notes,
+                        existingContent: contentDraft,
+                        existingAccroche: accroche,
+                      },
+                    });
+                  }, 100);
                 }}
               >
                 <Sparkles className="h-3 w-3" /> Approfondir avec l'IA
@@ -682,12 +704,34 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                 size="sm"
                 className="rounded-pill text-xs gap-1.5 text-primary hover:bg-primary/10"
                 onClick={() => {
-                  const params = new URLSearchParams();
-                  if (theme) params.set("sujet", theme);
-                  if (objectif) params.set("objectif", objectif);
-                  if (editingPost?.id) params.set("calendar_id", editingPost.id);
-                  params.set("from", "/calendrier");
-                  navigate(`/creer?${params.toString()}`);
+                  if (theme.trim()) {
+                    onSave({
+                      theme, angle, status, notes, canal: postCanal, objectif, format,
+                      content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null,
+                    });
+                  }
+                  onOpenChange(false);
+                  setTimeout(() => {
+                    const params = new URLSearchParams();
+                    if (theme) params.set("sujet", theme);
+                    if (objectif) params.set("objectif", objectif);
+                    if (format) params.set("format", format);
+                    if (editingPost?.id) params.set("calendar_id", editingPost.id);
+                    params.set("from", "/calendrier");
+                    navigate("/creer?" + params.toString(), {
+                      state: {
+                        fromCalendar: true,
+                        calendarPostId: editingPost?.id,
+                        theme,
+                        objectif,
+                        angle,
+                        format,
+                        notes,
+                        existingContent: contentDraft,
+                        existingAccroche: accroche,
+                      },
+                    });
+                  }, 100);
                 }}
               >
                 <Sparkles className="h-3 w-3" /> Approfondir avec l'IA

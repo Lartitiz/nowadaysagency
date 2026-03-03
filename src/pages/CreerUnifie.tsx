@@ -63,6 +63,7 @@ export default function CreerUnifie() {
   const [editorialAngle, setEditorialAngle] = useState<string | null>(ps?.editorialAngle || null);
   const [answers, setAnswers] = useState<Record<string, string>>(ps?.answers || {});
   const [editContent, setEditContent] = useState(ps?.editContent || "");
+  const [existingCalendarContent, setExistingCalendarContent] = useState<string | null>(null);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
@@ -177,13 +178,17 @@ export default function CreerUnifie() {
 
     if (subject) setIdeaText(subject);
     if (obj) setObjective(obj);
-    if (paramFormat) setSelectedFormat(paramFormat);
+    if (locState?.existingContent) setExistingCalendarContent(locState.existingContent);
 
-    if (paramFormat && subject.trim()) {
-      handleFormatNext(paramFormat, undefined, subject);
-    } else if (locState.fromCalendar && subject) {
+    const fmt = paramFormat || locState?.format;
+    if (fmt) setSelectedFormat(fmt);
+
+    if (fmt && subject.trim()) {
+      handleFormatNext(fmt, undefined, subject);
+    } else if (locState?.fromCalendar && subject) {
+      if (locState.format) setSelectedFormat(locState.format);
       setStep("format");
-    } else if (paramFormat) {
+    } else if (fmt) {
       setStep("format");
     } else if (!ps) {
       setStep("idea");

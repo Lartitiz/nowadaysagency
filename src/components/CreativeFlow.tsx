@@ -219,6 +219,7 @@ export default function CreativeFlow({
       };
       setResult(gen);
       setEditedContent(calendarContext.existingContent);
+      setStep("result");
     }
   }, []);
 
