@@ -545,6 +545,13 @@ export default function CreerUnifie() {
                 visualLoading={visualLoading}
                 visualSlides={visualSlides.length > 0 ? visualSlides : undefined}
                 onExportPptx={selectedFormat === "carousel" ? handleExportPptx : undefined}
+                onSlidesUpdate={selectedFormat === "carousel" ? (slides, caption) => {
+                  if (result?.raw) {
+                    result.raw.slides = slides;
+                    if (result.raw.caption) result.raw.caption = caption;
+                    else if (result.raw.carousel?.caption) result.raw.carousel.caption = caption;
+                  }
+                } : undefined}
               />
             )}
 
