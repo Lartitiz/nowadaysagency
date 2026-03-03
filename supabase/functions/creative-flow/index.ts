@@ -220,7 +220,7 @@ Réponds UNIQUEMENT en JSON :
     }
   ]
 }`;
-      userPrompt = `Pose-moi des questions pour créer mon contenu avec l'angle "${angle.title}".`;
+      userPrompt = `Pose-moi des questions pour créer mon contenu${angle ? ` avec l'angle "${angle.title}"` : ""}.`;
 
     } else if (step === "follow-up") {
       const answersBlock = answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n");
@@ -261,10 +261,10 @@ ${FORMAT_STRUCTURES}
 
 ${WRITING_RESOURCES}
 
-ANGLE CHOISI :
+${angle ? `ANGLE CHOISI :
 - Titre : ${angle.title}
 - Structure : ${(angle.structure || []).join(" → ")}
-- Ton : ${angle.tone}
+- Ton : ${angle.tone}` : "Pas d'angle spécifique choisi. Choisis le meilleur angle pour le sujet."}
 
 RÉPONSES DE L'UTILISATRICE :
 ${answersBlock}
