@@ -4,7 +4,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT } from "../_shared/copywriting-prompts.ts";
+import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, PREGEN_INJECTION_RULES } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
@@ -144,6 +144,43 @@ ANTI-BIAIS — TU NE REPRODUIS JAMAIS :
 - Clichés genrés → Parler de compétences, pas de genre
 - Glorification du hustle → "Mieux vaut du mieux que du plus"
 - Vocabulaire masculin par défaut → écriture inclusive point médian
+
+## PENSÉE VISUELLE (OBLIGATOIRE)
+
+Chaque slide doit être pensée VISUELLEMENT, pas juste textuellement.
+
+Quand le sujet s'y prête, propose des éléments visuels structurants dans le champ visual_suggestion :
+- Flux avec flèches : étape 1 → étape 2 → résultat
+- Comparaisons côte à côte : AVANT | APRÈS ou MYTHE | RÉALITÉ
+- Équations visuelles : X + Y = Z
+- Diagrammes simples avec des encadrés reliés
+- Emojis utilisés comme PICTOS pour structurer (pas comme décoration)
+
+Le visual_suggestion doit décrire précisément l'élément visuel ("Diagramme : encadré 'Contenu de qualité' + flèche → encadré 'Algo le pousse' + flèche → encadré 'Bonnes personnes le voient'"), pas juste "illustration du concept".
+
+Un carrousel où TOUTES les slides sont du texte dans des cartes blanches, c'est un échec visuel.
+
+## HOOKS CARROUSEL
+
+Le hook (slide 1) est une CLAQUE, pas un titre de blog.
+
+Exemples de hooks ton Nowadays :
+- "J'ai arrêté de poster pendant 3 semaines. Voilà ce qui s'est passé."
+- "Ton contenu n'est pas nul. Il est juste invisible."
+- "Le problème c'est pas l'algo. C'est ta stratégie."
+- "On m'a dit que mon feed était 'trop rose'. J'ai doublé le rose."
+- "J'ai compté : 47h de formation en ligne. Résultat : 0 post publié."
+
+JAMAIS : "5 astuces pour...", "Comment booster votre...", "Les X erreurs à éviter", "Le guide ultime de..."
+
+## DEEPENING (INTÉGRATION ÉLÉMENTS D'APPROFONDISSEMENT)
+
+Si des réponses d'approfondissement sont fournies, elles sont PLUS IMPORTANTES que le template.
+- Son anecdote → slides 2-3 (storytelling du carrousel)
+- Sa conviction → punchline de la slide finale avant le CTA
+- Le carrousel raconte SON histoire à travers le framework, pas un framework illustré par un exemple générique
+
+${PREGEN_INJECTION_RULES}
 
 RÈGLES ABSOLUES DES CARROUSELS :
 - Slide 1 (hook) : MAXIMUM 12 mots. Règle stricte.
@@ -398,9 +435,9 @@ Retourne ce JSON exact :
 function getStructureGuide(type: string): string {
   const guides: Record<string, string> = {
     tips: `TIPS / ASTUCES (5-8 slides) :
-Slide 1: Hook "[Nombre] [résultats] que tu peux obtenir en [action]"
+Slide 1: Hook percutant — pas de "X astuces pour", mais une accroche qui crée un gap ("Ce truc que tout le monde fait... et qui sabote tout.")
 Slide 2: Contexte "J'ai testé/observé ça en [contexte]. Voici ce qui change tout."
-Slides 3-N: 1 tip par slide "Tip [n°] : [Verbe] + [quoi] + [pourquoi en 1 ligne]"
+Slides 3-N: 1 tip par slide avec un TITRE PROPRE qui accroche (pas "Tip 1 :", mais "Arrête de te forcer")
 Dernière: CTA "Sauvegarde pour [situation]. Dis-moi lequel tu testes en premier."`,
     tutoriel: `TUTORIEL PAS-À-PAS (8-10 slides) :
 Slide 1: Hook promesse de résultat
