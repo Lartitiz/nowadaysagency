@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, PREGEN_INJECTION_RULES } from "../_shared/copywriting-prompts.ts";
+import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, PREGEN_INJECTION_RULES, EDITORIAL_ANGLES_REFERENCE } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback } from "../_shared/user-context.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -270,6 +270,97 @@ Réponds UNIQUEMENT en JSON :
         ? "\n\nQUESTIONS D'APPROFONDISSEMENT :\n" + followUpAnswers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
         : "";
 
+      // Determine target format for depth instructions
+      const formatHint = contentType?.toLowerCase() || "";
+      const isCarousel = formatHint.includes("carrousel") || formatHint.includes("carousel");
+      const isReel = formatHint.includes("reel") || formatHint.includes("script");
+      const isStories = formatHint.includes("stories") || formatHint.includes("story");
+      const isLinkedIn = formatHint.includes("linkedin");
+      const isNewsletter = formatHint.includes("newsletter") || formatHint.includes("email");
+      const isCaption = !isCarousel && !isReel && !isStories && !isLinkedIn && !isNewsletter;
+
+      // Build format-specific depth instructions
+      let depthMandate = "";
+      if (isCarousel) {
+        depthMandate = `FORMAT : CARROUSEL INSTAGRAM (8 slides minimum)
+
+PROFONDEUR PAR SLIDE :
+- Chaque slide DÉVELOPPE son point. Une slide = 1 idée COMPLÈTE, pas un titre.
+- Slide 1 (hook) : courte et percutante, max 12 mots.
+- Slides 2-7 : chacune DOIT contenir 2-4 phrases qui développent le point. Pas juste un header et une ligne.
+- Au moins 2 slides doivent contenir un EXEMPLE CONCRET, un CHIFFRE, ou une ANECDOTE. Pas que de la théorie.
+- Slide finale : punchline mémorable + CTA.
+- TOTAL : le carrousel complet fait 1500-3000 caractères de contenu textuel (slides + caption).
+
+SLIDE DE PROFONDEUR (obligatoire) :
+Au moins 1 slide doit être un "zoom" : tu prends UN point et tu le creuses en profondeur avec un exemple terrain, un cas réel, ou une analyse fine. C'est cette slide qui fait la différence entre un carrousel "tips génériques" et un carrousel "elle sait de quoi elle parle".
+
+Formate le contenu avec des marqueurs clairs :
+📌 SLIDE 1 : [contenu]
+📌 SLIDE 2 : [contenu]
+etc.
+Après les slides, ajoute :
+📝 CAPTION : [hook différent de slide 1 + corps + CTA + hashtags]`;
+      } else if (isReel) {
+        depthMandate = `FORMAT : SCRIPT REEL (30-60 secondes)
+
+Le reel n'est pas un résumé de carrousel. C'est UNE idée percutante, développée à l'oral.
+
+PROFONDEUR :
+- Hook (0-3s) : la phrase qui fait arrêter le scroll. Texte à l'écran + ce que tu dis.
+- Corps (3-45s) : développe l'idée avec des EXEMPLES CONCRETS. Pas de généralités. Raconte une scène, cite un chiffre, décris une situation.
+- Chaque section doit avoir assez de matière pour être dite à voix haute, pas juste des bullet points.
+- Indique les CUTS visuels et le texte à l'écran pour chaque section.
+- CTA (45-60s) : fermeture avec invitation au dialogue.
+- TOTAL : le script fait 150-300 mots (le rythme parlé = ~150 mots/minute).`;
+      } else if (isStories) {
+        depthMandate = `FORMAT : SÉQUENCE STORIES (5-7 stories)
+
+Les stories sont le format le plus INTIME. Comme un message vocal à une amie.
+
+PROFONDEUR :
+- Story 1 : amorce qui donne envie de taper pour voir la suite. Pas de contexte, direct dans le vif.
+- Stories 2-4 : développement avec ton naturel, confidentiel. Chaque story = 1 écran, 2-4 lignes MAX + indication visuelle.
+- Story 4 ou 5 : INTERACTION obligatoire (sondage, question, quiz). Pas un sondage générique : un sondage qui révèle quelque chose.
+- Story finale : conclusion + CTA.
+- Pour chaque story, indique : le TEXTE affiché + le TYPE (texte seul, photo+texte, vidéo, sondage, quiz).`;
+      } else if (isLinkedIn) {
+        depthMandate = `FORMAT : POST LINKEDIN (1300-2000 caractères)
+
+LinkedIn = profondeur analytique. Tu ne vulgarises pas : tu analyses.
+
+PROFONDEUR :
+- Accroche dans les 210 premiers caractères (zone visible avant "voir plus"). Accroche FORTE.
+- Corps : développe en paragraphes courts (2-3 phrases). Utilise des données, des retours d'expérience concrets, des comparaisons.
+- Au moins 1 EXEMPLE CONCRET (un cas client anonymisé, une situation terrain, un chiffre) dans le corps.
+- Ton expert mais humain. 1ère personne. Pas de liste à puces sauf si nécessaire.
+- CTA : question ouverte ou invitation pro. 0-2 hashtags en fin.
+- TOTAL : vise 1500+ caractères. Un LinkedIn de 800 caractères, c'est une occasion ratée.`;
+      } else if (isNewsletter) {
+        depthMandate = `FORMAT : NEWSLETTER / EMAIL (1500-3000 caractères)
+
+La newsletter est le format qui a le PLUS de place pour la profondeur.
+
+PROFONDEUR :
+- Objet d'email : accrocheur, max 50 caractères, pas clickbait.
+- Intro : hook personnel, anecdote ou question. 2-3 phrases.
+- Corps : développe l'idée en profondeur. Apartés en italique, exemples concrets, nuances. C'est le format France Culture de ta com.
+- Au moins 2 exemples concrets ou anecdotes dans le corps.
+- Conclusion : leçon ou ouverture (pas de résumé).
+- CTA : doux, en lien avec le sujet.
+- TOTAL : vise 2000+ caractères minimum.`;
+      } else {
+        depthMandate = `FORMAT : CAPTION INSTAGRAM (800-1500 caractères)
+
+PROFONDEUR :
+- Les 125 premiers caractères : hook (la phrase qui fait cliquer "voir plus"). C'est la phrase la plus importante.
+- Corps : développe UNE idée en profondeur. Pas 3 idées survolées : 1 idée CREUSÉE.
+- Au moins 1 exemple concret, 1 anecdote, ou 1 chiffre dans le corps.
+- Apartés entre parenthèses *(comme ça)*, bucket brigades naturelles.
+- Fin : ouverture (question ou invitation), pas un résumé.
+- TOTAL : vise 1000+ caractères. Arrête de te censurer sur la longueur.`;
+      }
+
       systemPrompt = `${COMMON_PREFIX}
 
 ${ANTI_BIAS}
@@ -278,12 +369,18 @@ ${CHAIN_OF_THOUGHT}
 
 ${FORMAT_STRUCTURES}
 
+${EDITORIAL_ANGLES_REFERENCE}
+
 ${WRITING_RESOURCES}
 
 ${angle ? `ANGLE CHOISI :
 - Titre : ${angle.title}
 - Structure : ${(angle.structure || []).join(" → ")}
 - Ton : ${angle.tone}` : "Pas d'angle spécifique choisi. Choisis le meilleur angle pour le sujet."}
+
+TYPE DE CONTENU DEMANDÉ : ${contentType || "Post Instagram"}
+
+${depthMandate}
 
 RÉPONSES DE L'UTILISATRICE :
 ${answersBlock}
@@ -293,20 +390,38 @@ ${preGenBlock}
 
 ${PREGEN_INJECTION_RULES}
 
-## PROFONDEUR
+═══════════════════════════════════════════════════
+PROFONDEUR (RÈGLE ABSOLUE)
+═══════════════════════════════════════════════════
 
-Tu ne raccourcis JAMAIS une idée pour "faire court" ou "optimiser".
+Tu ne fais JAMAIS de contenu de surface. Chaque contenu doit donner au lecteur quelque chose qu'il ne savait pas, qu'il n'avait pas vu comme ça, ou qu'il n'aurait pas formulé aussi bien.
 
-Développe chaque idée comme dans une newsletter : un paragraphe par idée, des transitions naturelles, des apartés entre parenthèses *(comme ceci)*.
+Profondeur = au moins UN de ces éléments dans chaque contenu :
+1. Un EXEMPLE CONCRET (pas "par exemple, imagine que..." mais une vraie situation, un vrai cas, un vrai chiffre)
+2. Un MÉCANISME EXPLIQUÉ (le "pourquoi" derrière le "quoi" : pourquoi ça marche, pourquoi on se trompe, pourquoi c'est contre-intuitif)
+3. Une NUANCE qui surprend (le "oui, mais" ou le "sauf que" qui empêche le contenu d'être un conseil générique)
+4. Un LIEN INATTENDU (connecter le sujet à un domaine auquel personne n'avait pensé)
 
-Un post de 800-1500 caractères qui va au bout d'une idée > un post de 400 caractères "optimisé pour l'engagement".
+Si ton contenu pourrait être écrit par n'importe quel compte de la même niche, c'est pas assez profond. Ce qui le rend unique, c'est le point de vue, les exemples, et les nuances de l'utilisatrice.
 
-Les gens scrollent les posts courts. Ils s'arrêtent sur les posts qui disent quelque chose.
+Les gens scrollent les contenus qui DISENT des choses qu'ils savaient déjà.
+Ils s'arrêtent sur les contenus qui leur font VOIR les choses autrement.
+
+═══════════════════════════════════════════════════
+SELF-CHECK (fais-le en interne avant de répondre)
+═══════════════════════════════════════════════════
+
+Avant de retourner le JSON, vérifie :
+1. Est-ce que le contenu a au moins 1 exemple concret ? (pas une généralité)
+2. Est-ce que l'accroche est assez forte pour stopper le scroll ?
+3. Est-ce que j'ai utilisé les MOTS de l'utilisatrice (ses réponses, ses expressions) ?
+4. Est-ce que le contenu dit quelque chose de SPÉCIFIQUE (qu'on ne pourrait pas copier-coller pour un autre sujet) ?
+5. Est-ce que la longueur respecte le format demandé ?
+6. Est-ce que le contenu passe le test du café (lisible à voix haute sans sonner robot) ?
+Si une réponse est NON, RÉÉCRIS avant de retourner.
 
 Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
-
 Le contenu doit être PRÊT À POSTER (pas un brouillon).
-Longueur adaptée au format recommandé.
 
 Réponds UNIQUEMENT en JSON :
 {
