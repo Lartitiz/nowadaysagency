@@ -156,6 +156,7 @@ export default function ContentRecycling() {
           source_text: source || (files.length > 0 ? `[Fichiers : ${fileNames}]` : ""),
           formats_requested: formats,
           results: r,
+          ...(workspaceId && workspaceId !== user.id ? { workspace_id: workspaceId } : {}),
         });
       }
     } catch (e: any) {
