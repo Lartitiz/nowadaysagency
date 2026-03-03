@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS } from "../_shared/copywriting-prompts.ts";
+import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, PREGEN_INJECTION_RULES } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock } from "../_shared/user-context.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -102,8 +102,21 @@ serve(async (req) => {
 
     const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "") + voiceBlock;
 
+    // Build incarnation block from user context
+    const activity = ctx?.profile?.activite || profile?.activite || "";
+    const target = ctx?.profile?.cible || profile?.cible || "";
+    const tone = ctx?.tone?.tone_description || ctx?.tone?.voice_description || "";
+    const incarnationBlock = `
+Tu n'écris PAS comme une IA qui a reçu un brief.
+Tu écris comme cette personne parlerait si elle avait trouvé les mots justes.
+
+Son activité : ${activity || "(non renseignée)"}. Sa cible : ${target || "(non renseignée)"}. Son ton naturel : ${tone || "(non renseigné)"}.
+
+Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES tics de langage, SES tournures, SES expressions favorites. Le contenu doit sonner comme elle, pas comme "un post bien écrit par une IA".
+`;
+
     // COMMON_PREFIX: identical for ALL steps → maximizes Anthropic prompt caching
-    const COMMON_PREFIX = BASE_SYSTEM_RULES + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + CORE_PRINCIPLES + "\n\n" + ANTI_SLOP + "\n\n" + ETHICAL_GUARDRAILS + "\n\n" + fullContext;
+    const COMMON_PREFIX = BASE_SYSTEM_RULES + "\n\n" + incarnationBlock + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + CORE_PRINCIPLES + "\n\n" + ANTI_SLOP + "\n\n" + ETHICAL_GUARDRAILS + "\n\n" + fullContext;
 
     // Build calendar context block
     let calendarBlock = "";
@@ -271,6 +284,18 @@ ${answersBlock}
 ${followUpBlock}
 ${calendarBlock}${objectiveBlock}
 ${preGenBlock}
+
+${PREGEN_INJECTION_RULES}
+
+## PROFONDEUR
+
+Tu ne raccourcis JAMAIS une idée pour "faire court" ou "optimiser".
+
+Développe chaque idée comme dans une newsletter : un paragraphe par idée, des transitions naturelles, des apartés entre parenthèses *(comme ceci)*.
+
+Un post de 800-1500 caractères qui va au bout d'une idée > un post de 400 caractères "optimisé pour l'engagement".
+
+Les gens scrollent les posts courts. Ils s'arrêtent sur les posts qui disent quelque chose.
 
 Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
 
