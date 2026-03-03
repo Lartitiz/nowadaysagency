@@ -177,7 +177,14 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const navigate = useNavigate();
   const isInstagramRoute = location.pathname.startsWith("/instagram/");
   const [searchParams] = useSearchParams();
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => {
+    const dateParam = searchParams.get("date");
+    if (dateParam) {
+      const parsed = new Date(dateParam + "T00:00:00");
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    return new Date();
+  });
   const [viewMode, setViewMode] = useState<"month" | "week" | "kanban" | "list">("month");
   const [kanbanPeriod, setKanbanPeriod] = useState<"week" | "month" | "all">("week");
   const [posts, setPosts] = useState<CalendarPost[]>([]);
@@ -330,9 +337,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       setEditingPost(target);
       setSelectedDate(target.date);
       setDialogOpen(true);
-      // Clean up the param so reopening doesn't re-trigger
+      // Clean up the params so reopening doesn't re-trigger
       const next = new URLSearchParams(searchParams);
       next.delete("post");
+      next.delete("date");
       navigate({ search: next.toString() }, { replace: true });
     }
   }, [posts, postsLoading, searchParams]);

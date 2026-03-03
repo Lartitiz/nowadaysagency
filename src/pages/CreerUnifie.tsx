@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams, useLocation } from "react-router-dom";
+import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -17,6 +17,7 @@ import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import { useContentGenerator } from "@/hooks/use-content-generator";
 import { CONTENT_STRUCTURES, getStructureForCombo } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { exportCarouselPptx } from "@/lib/export-carousel-pptx";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -25,8 +26,10 @@ type Mode = "create" | "transform";
 
 export default function CreerUnifie() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const location = useLocation();
   const { session } = useAuth();
+  const workspaceId = useWorkspaceId();
 
   // URL params
   const paramFormat = searchParams.get("format");
@@ -346,8 +349,9 @@ export default function CreerUnifie() {
         storyDetail = { type: "story", sequences: r.stories || r.sequences };
       }
 
-      const { error: insertError } = await supabase.from("calendar_posts").insert({
+      const { data: insertedPost, error: insertError } = await supabase.from("calendar_posts").insert({
         user_id: session.user.id,
+        ...(workspaceId && workspaceId !== session.user.id ? { workspace_id: workspaceId } : {}),
         date: calendarDate,
         theme: ideaText,
         status: "ready",
@@ -357,11 +361,19 @@ export default function CreerUnifie() {
         accroche,
         ...(storyDetail ? { story_sequence_detail: storyDetail } : {}),
         ...(savedId ? { generated_content_id: savedId, generated_content_type: "carousel" } : {}),
-      });
+      }).select("id").single();
 
       if (insertError) throw insertError;
       toast.success("Ajouté au calendrier !");
       setCalendarDialogOpen(false);
+
+      // Redirect to calendar at the right date, open the post
+      const postId = insertedPost?.id;
+      if (postId) {
+        navigate(`/calendrier?date=${calendarDate}&post=${postId}`);
+      } else {
+        navigate(`/calendrier?date=${calendarDate}`);
+      }
     } catch (e: any) {
       toast.error(e?.message || "Erreur");
     } finally {
