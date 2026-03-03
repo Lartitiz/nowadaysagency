@@ -428,9 +428,12 @@ export default function CreerUnifie() {
     } else if (selectedFormat === "linkedin" && (r?.hook || r?.full_text)) {
       accroche = r.hook || "";
       contentDraft = r.full_text || [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
-    } else if (selectedFormat === "reel" && r?.sections) {
-      accroche = r.sections?.[0]?.texte_parle || "";
-      contentDraft = r.sections?.map((s: any) => s.texte_parle || "").join("\n\n");
+    } else if (selectedFormat === "reel" && r?.script) {
+      accroche = r.script?.[0]?.texte_parle || "";
+      contentDraft = r.script?.map((s: any) => `[${s.timing || ""}] ${(s.section || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n");
+    } else if (selectedFormat === "story" && r?.stories) {
+      accroche = r.stories?.[0]?.text || "";
+      contentDraft = r.stories?.map((s: any) => `STORY ${s.number || ""} (${s.timing || ""})\n${s.format_label || s.format || ""}\n${s.text || ""}${s.sticker ? `\n🎯 ${s.sticker.label || s.sticker.type || ""}` : ""}`).join("\n\n───\n\n");
     } else {
       contentDraft = r.content || r.post || r.text || "";
       accroche = contentDraft.split("\n")[0] || "";
@@ -448,10 +451,29 @@ export default function CreerUnifie() {
           visual_html: visualSlides.map((vs: any) => ({ slide_number: vs.slide_number, html: vs.html })),
         } : {}),
       };
-    } else if (selectedFormat === "reel" && r?.sections) {
-      storyDetail = { type: "reel", sections: r.sections };
+    } else if (selectedFormat === "reel" && r?.script) {
+      storyDetail = {
+        type: "reel",
+        format_type: r.format_type,
+        format_label: r.format_label,
+        duree_cible: r.duree_cible,
+        script: r.script,
+        caption: r.caption,
+        hashtags: r.hashtags,
+        cover_text: r.cover_text,
+        alt_text: r.alt_text,
+        amplification_stories: r.amplification_stories,
+      };
     } else if (selectedFormat === "story" && (r?.stories || r?.sequences)) {
-      storyDetail = { type: "story", sequences: r.stories || r.sequences };
+      storyDetail = {
+        type: "stories",
+        stories: r.stories || r.sequences,
+        structure_type: r.structure_type,
+        structure_label: r.structure_label,
+        stickers_used: r.stickers_used,
+        garde_fou_alerte: r.garde_fou_alerte,
+        personal_tip: r.personal_tip,
+      };
     }
 
     return { contentDraft, accroche, storyDetail };
@@ -466,14 +488,20 @@ export default function CreerUnifie() {
         await handleSave();
       }
       const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
+      const r = result?.raw;
       const { error } = await supabase.from("calendar_posts").update({
         content_draft: contentDraft,
         accroche: accroche || null,
         status: "drafting",
-        format: selectedFormat || "post",
+        format: selectedFormat === "story" ? "story_serie" : (selectedFormat || "post"),
         objectif: objective || null,
         angle: editorialAngle || null,
         ...(storyDetail ? { story_sequence_detail: storyDetail } : {}),
+        ...(selectedFormat === "story" && r?.stories ? {
+          stories_count: r.total_stories || r.stories?.length || null,
+          stories_structure: r.structure_label || r.structure_type || null,
+          stories_objective: objective || null,
+        } : {}),
         ...(savedId ? { generated_content_id: savedId, generated_content_type: "carousel" } : {}),
         updated_at: new Date().toISOString(),
       }).eq("id", calendarPostId);
@@ -507,7 +535,8 @@ export default function CreerUnifie() {
     setSavingToCalendar(true);
     try {
       const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
-      const fmt = selectedFormat || "post";
+      const r = result?.raw;
+      const fmt = selectedFormat === "story" ? "story_serie" : (selectedFormat || "post");
       const canal = selectedFormat === "linkedin" ? "linkedin" : "instagram";
 
       const { data: insertedPost, error: insertError } = await supabase.from("calendar_posts").insert({
@@ -523,6 +552,11 @@ export default function CreerUnifie() {
         content_draft: contentDraft,
         accroche,
         ...(storyDetail ? { story_sequence_detail: storyDetail } : {}),
+        ...(selectedFormat === "story" && r?.stories ? {
+          stories_count: r.total_stories || r.stories?.length || null,
+          stories_structure: r.structure_label || r.structure_type || null,
+          stories_objective: objective || null,
+        } : {}),
         ...(savedId ? { generated_content_id: savedId, generated_content_type: "carousel" } : {}),
       }).select("id").single();
 
