@@ -347,33 +347,91 @@ Réponds UNIQUEMENT en JSON :
     } else if (step === "recycle") {
       const requestedFormats = (formats || []).map((f: string) => formatLabels[f] || f);
 
+      // Persona and target from context
+      const recycleActivity = ctx?.profile?.activite || profile?.activite || "";
+      const recycleTarget = ctx?.profile?.cible || profile?.cible || "";
+      const recyclePiliers = ctx?.profile?.piliers || "";
+
       systemPrompt = `${COMMON_PREFIX}
 
 ${ANTI_BIAS}
 
+${CHAIN_OF_THOUGHT}
+
 ${FORMAT_STRUCTURES}
 
 ${WRITING_RESOURCES}
+${objectiveBlock}
+═══════════════════════════════════════════════════
+MISSION : RECYCLAGE DE CONTENU
+═══════════════════════════════════════════════════
 
-${sourceText ? `Voici un contenu existant de l'utilisatrice :\n"""\n${sourceText}\n"""` : ""}
+Tu vas recycler un contenu existant en ${requestedFormats.length} format(s) : ${requestedFormats.join(", ")}.
 
-Transforme ce contenu en ces formats : ${requestedFormats.join(", ")}
+ÉTAPE 1 — ANALYSE (réfléchis en interne, ne montre PAS cette étape) :
 
-RÈGLES CRUCIALES :
-- Chaque format prend un ANGLE DIFFÉRENT du contenu source
-- Le carrousel ne résume PAS la newsletter : il prend 1 idée et la développe
-- Le Reel ne lit PAS le carrousel : il prend un autre point en mode oral/punchy
-- Les stories ne récitent PAS le Reel : elles ouvrent le sujet de manière intime
-- Le post LinkedIn ne copie PAS le post Instagram : ton plus analytique, 1ère personne, storytelling pro
-- Pour chaque format, précise l'angle choisi
+Avant de rédiger quoi que ce soit, analyse le contenu source :
+1. Quel est le MESSAGE CENTRAL ? (la thèse, en 1 phrase)
+2. Quelles sont les SOUS-IDÉES exploitables ? (liste 3-5 idées distinctes)
+3. Quelle est l'ÉMOTION dominante ? (vulnérabilité, colère, joie, révélation, urgence)
+4. Quels EXEMPLES ou ANECDOTES sont présents ?
+5. Quels CHIFFRES ou PREUVES sont utilisables ?
 
-Réponds UNIQUEMENT en JSON :
+ÉTAPE 2 — ATTRIBUTION DES ANGLES :
+
+Chaque format DOIT prendre une sous-idée DIFFÉRENTE du contenu source.
+Ce n'est pas du reformatage (dire la même chose en plus court). C'est de la dérivation (explorer une facette différente du même sujet).
+
+Matrice d'angles par format :
+- Carrousel : prend l'idée la plus PÉDAGOGIQUE. Développe-la en profondeur. Structure en progression logique (constat > bascule > solution > application).
+- Reel : prend l'idée la plus PROVOCANTE ou CONTRE-INTUITIVE. Hook en 3 secondes. Oral, direct, une seule idée martelée.
+- Stories : prend l'angle le plus INTIME ou PERSONNEL. Comme un message vocal à une amie. Confidences, coulisses, réactions spontanées.
+- LinkedIn : prend l'angle le plus ANALYTIQUE. Données, contexte pro, retour d'expérience structuré. Ton plus expert, 1ère personne.
+- Newsletter : prend l'angle le plus PROFOND. C'est le format qui a le plus de place : développe une réflexion complète avec nuances, apartés, exemples concrets.
+
+Si 2 formats risquent de se chevaucher, force un pivot : change le point d'entrée, la question posée, ou le public visé dans le contenu.
+
+ÉTAPE 3 — RÉDACTION :
+
+Pour chaque format, rédige un contenu COMPLET et PRÊT À POSTER. Pas un brouillon.
+
+${recycleActivity ? `L'utilisatrice est : ${recycleActivity}.` : ""}
+${recycleTarget ? `Sa cible : ${recycleTarget}. Adapte le vocabulaire et les exemples à cette audience.` : ""}
+${recyclePiliers ? `Ses piliers de contenu : ${recyclePiliers}. Le recyclage doit rester cohérent avec ces piliers.` : ""}
+
+LONGUEURS OBLIGATOIRES :
+- Carrousel : 8 slides détaillées (slide 1 = hook, slides 2-7 = développement, slide 8 = punchline + CTA). Chaque slide = 2-4 phrases. Pas de slides d'1 mot.
+- Reel : script complet avec timecodes (0-3s hook, 3-15s contexte, 15-45s coeur, 45-60s CTA). Indique les cuts et le texte à l'écran.
+- Stories : séquence de 5-7 stories. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle. Story 4 = interaction obligatoire.
+- LinkedIn : 800-2000 caractères. Paragraphes courts. Accroche dans les 210 premiers caractères. 0-2 hashtags en fin.
+- Newsletter : 1500-3000 caractères. Objet d'email accrocheur. Structure : hook personnel > développement > leçon > CTA.
+
+RÈGLE DE PROFONDEUR :
+Tu ne raccourcis JAMAIS une idée pour "faire court" ou "tout faire rentrer".
+Un carrousel de 8 slides qui va au bout d'UNE idée > un carrousel de 8 slides qui survole 3 idées.
+Un reel de 45 secondes sur UN point percutant > un reel de 60 secondes qui liste des conseils.
+
+RÈGLE DE VOIX :
+Chaque format doit sonner comme si l'utilisatrice l'avait écrit elle-même. Si elle utilise "en vrai", "le truc c'est que", "franchement" dans le contenu source, RÉUTILISE ces expressions. L'IA structure et amplifie, elle ne réécrit pas.
+
+SELF-CHECK FINAL (fais-le en interne avant de répondre) :
+- Est-ce que chaque format a un angle VRAIMENT différent ? Si 2 formats disent la même chose en changeant juste la longueur, RÉÉCRIS.
+- Est-ce que les accroches sont assez fortes pour stopper le scroll ?
+- Est-ce que le contenu passe le test du café (lisible à voix haute sans sonner robot) ?
+- Est-ce que j'ai utilisé des expressions de la source ou est-ce que j'ai tout réécrit en mode IA ?
+- Est-ce que les longueurs sont respectées ?
+
+Réponds UNIQUEMENT en JSON valide :
 {
   "results": {
     ${(formats || []).map((f: string) => `"${f}": "contenu complet ici"`).join(",\n    ")}
   }
 }`;
-      userPrompt = `Recycle ce contenu en ${requestedFormats.join(", ")}.`;
+
+      // Move source text to user message instead of system prompt
+      userPrompt = sourceText
+        ? `Voici le contenu à recycler :\n\n"""\n${sourceText}\n"""\n\nRecycle-le en ${requestedFormats.join(", ")}. Chaque format prend un angle différent. Contenu complet et prêt à poster.`
+        : `Recycle ce contenu en ${requestedFormats.join(", ")}. Chaque format prend un angle différent.`;
 
     } else if (step === "dictation") {
       systemPrompt = `${COMMON_PREFIX}
