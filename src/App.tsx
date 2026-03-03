@@ -53,11 +53,8 @@ const InstagramLaunchRecommendation = lazy(() => import("./pages/InstagramLaunch
 const InstagramRythme = lazy(() => import("./pages/InstagramRythme"));
 const InstagramEngagement = lazy(() => import("./pages/InstagramEngagement"));
 const InstagramStats = lazy(() => import("./pages/InstagramStats"));
-const InstagramStories = lazy(() => import("./pages/InstagramStories"));
-const InstagramReels = lazy(() => import("./pages/InstagramReels"));
 const InstagramCreer = lazy(() => import("./pages/InstagramCreer"));
 const CreerUnifie = lazy(() => import("./pages/CreerUnifie"));
-const InstagramCarousel = lazy(() => import("./pages/InstagramCarousel"));
 const TransformContentPage = lazy(() => import("./pages/TransformContentPage"));
 const AtelierPage = lazy(() => import("./pages/AtelierPage"));
 const RedactionPage = lazy(() => import("./pages/RedactionPage"));
@@ -159,6 +156,17 @@ function RedirectWithParams({ to, mergeParams }: { to: string; mergeParams?: Rec
   searchParams.forEach((v, k) => { if (!merged.has(k)) merged.set(k, v); });
   const qs = merged.toString();
   return <Navigate to={qs ? `${basePath}?${qs}` : basePath} replace />;
+}
+
+function SmartRedirect({ to, mergeParams }: { to: string; mergeParams?: Record<string, string> }) {
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const [basePath, baseQuery] = to.split("?");
+  const merged = new URLSearchParams(baseQuery || "");
+  if (mergeParams) Object.entries(mergeParams).forEach(([k, v]) => merged.set(k, v));
+  searchParams.forEach((v, k) => { if (!merged.has(k)) merged.set(k, v); });
+  const qs = merged.toString();
+  return <Navigate to={qs ? `${basePath}?${qs}` : basePath} replace state={location.state} />;
 }
 
 const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilot", "/binome", "/pricing", "/services", "/studio/discover", "/share/branding", "/checkout/binome"];
@@ -270,21 +278,21 @@ function AnimatedRoutes() {
                 <Route path="/instagram/rythme" element={<ProtectedRoute><InstagramRythme /></ProtectedRoute>} />
                 <Route path="/instagram/routine" element={<ProtectedRoute><InstagramEngagement /></ProtectedRoute>} />
                 <Route path="/instagram/engagement" element={<Navigate to="/instagram/routine" replace />} />
-                <Route path="/instagram/stories" element={<Navigate to="/creer?format=story" replace />} />
-                <Route path="/instagram/reels" element={<Navigate to="/creer?format=reel" replace />} />
+                <Route path="/instagram/stories" element={<SmartRedirect to="/creer" mergeParams={{ format: "story" }} />} />
+                <Route path="/instagram/reels" element={<SmartRedirect to="/creer" mergeParams={{ format: "reel" }} />} />
                 <Route path="/transformer" element={<Navigate to="/creer?mode=transform" replace />} />
                 <Route path="/creer" element={<ProtectedRoute><CreerUnifie /></ProtectedRoute>} />
                 <Route path="/creer-legacy" element={<ProtectedRoute><InstagramCreer /></ProtectedRoute>} />
                 <Route path="/instagram/creer" element={<Navigate to="/creer" replace />} />
-                <Route path="/instagram/carousel" element={<Navigate to="/creer?format=carousel" replace />} />
+                <Route path="/instagram/carousel" element={<SmartRedirect to="/creer" mergeParams={{ format: "carousel" }} />} />
                 {/* Redirects from old routes */}
                 <Route path="/instagram/bio" element={<Navigate to="/instagram/profil/bio" replace />} />
                 <Route path="/instagram/highlights" element={<Navigate to="/instagram/profil/stories" replace />} />
                 <Route path="/instagram/inspiration" element={<Navigate to="/instagram/inspirer" replace />} />
               </Route>
               {/* Transversal routes */}
-              <Route path="/atelier" element={<Navigate to="/creer" replace />} />
-              <Route path="/atelier/rediger" element={<Navigate to="/creer" replace />} />
+              <Route path="/atelier" element={<SmartRedirect to="/creer" />} />
+              <Route path="/atelier/rediger" element={<SmartRedirect to="/creer" />} />
               {/* LinkedIn module */}
               <Route path="/linkedin" element={<ProtectedRoute><LinkedInHub /></ProtectedRoute>} />
               <Route path="/linkedin/audit" element={<ProtectedRoute><LinkedInAudit /></ProtectedRoute>} />
