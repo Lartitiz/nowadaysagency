@@ -18,6 +18,7 @@ import { useContentGenerator } from "@/hooks/use-content-generator";
 import { CONTENT_STRUCTURES, getStructureForCombo } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useBrandCharter } from "@/hooks/use-branding";
 import { exportCarouselPptx } from "@/lib/export-carousel-pptx";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -30,6 +31,7 @@ export default function CreerUnifie() {
   const location = useLocation();
   const { session } = useAuth();
   const workspaceId = useWorkspaceId();
+  const { data: charterData } = useBrandCharter();
 
   // URL params
   const paramFormat = searchParams.get("format");
@@ -415,7 +417,7 @@ export default function CreerUnifie() {
         result.raw.slides,
         ideaText || "carrousel",
         visualSlides.length > 0 ? visualSlides : undefined,
-        undefined,
+        charterData,
       );
       toast.success("PPTX téléchargé !");
     } catch (e: any) {

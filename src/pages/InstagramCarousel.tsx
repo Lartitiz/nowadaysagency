@@ -702,7 +702,7 @@ export default function InstagramCarousel() {
                           width="1080"
                           height="1350"
                           style={{ border: "none", pointerEvents: "none" }}
-                          sandbox="allow-same-origin"
+                          sandbox="allow-same-origin allow-scripts"
                         />
                       </div>
                     </div>
