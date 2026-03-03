@@ -451,7 +451,7 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
       system: systemPrompt,
       messages,
       temperature: 0.5,
-      max_tokens: 16000,
+      max_tokens: 8192,
     });
 
     let result: any;
