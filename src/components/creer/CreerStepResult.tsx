@@ -99,9 +99,6 @@ export default function CreerStepResult({
       {renderResult()}
 
       {/* 2. Peaufiner */}
-      <Button variant="outline" size="sm" onClick={onEdit} className="w-full gap-1.5">
-        <Pencil className="h-3.5 w-3.5" /> Peaufiner
-      </Button>
 
       {/* 3. CTAs principaux */}
       {isCarousel && !hasVisuals ? (
