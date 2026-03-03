@@ -443,6 +443,7 @@ export default function CreerUnifie() {
             title: s.title,
             body: s.body,
             visual_suggestion: s.visual_suggestion,
+            ...(s.visual_schema ? { visual_schema: s.visual_schema } : {}),
           })),
           template_style: null,
         },
