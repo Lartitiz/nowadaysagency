@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, AnthropicError, getModelForAction, getModelForRichContent } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+import { ANTI_SLOP, CHAIN_OF_THOUGHT } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
@@ -80,6 +80,8 @@ Tu es experte en création de stories Instagram pour des solopreneuses créative
 
 ${ANTI_SLOP}
 
+${CHAIN_OF_THOUGHT}
+
 ${branding_context || ""}`;
     // Clarify subject (fuzzy path)
     if (type === "clarify_subject") {
@@ -128,6 +130,8 @@ Réponds UNIQUEMENT avec le JSON.`;
 Tu es experte en stories Instagram pour solopreneuses créatives.
 
 ${ANTI_SLOP}
+
+${CHAIN_OF_THOUGHT}
 
 CONTEXTE DE MARQUE DE L'UTILISATRICE :
 ${branding_context || "(aucun contexte fourni)"}
