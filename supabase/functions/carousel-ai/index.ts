@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -62,6 +62,18 @@ serve(async (req) => {
 
     const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.posts);
+
+    // Fallback: inject branding as deepening_answers if none provided
+    if (!body.deepening_answers && (type === "express_full" || type === "slides" || type === "hooks")) {
+      const fallback = buildPreGenFallback(ctx);
+      if (fallback) {
+        body.deepening_answers = {
+          anecdote: fallback.anecdote ? `${fallback.anecdote} (élément tiré du branding)` : undefined,
+          emotion: fallback.emotion ? `${fallback.emotion} (élément tiré du branding)` : undefined,
+          conviction: fallback.conviction ? `${fallback.conviction} (élément tiré du branding)` : undefined,
+        };
+      }
+    }
 
     let systemPrompt = buildSystemPrompt(brandingContext);
     let userPrompt = "";

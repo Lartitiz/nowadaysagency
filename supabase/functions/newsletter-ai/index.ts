@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ANTI_SLOP, CHAIN_OF_THOUGHT, PREGEN_INJECTION_RULES } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback } from "../_shared/user-context.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -131,7 +131,7 @@ serve(async (req) => {
       workspace_id: z.string().uuid().optional().nullable(),
     }).passthrough());
 
-    const { topic, preGenAnswers, template, workspace_id } = body;
+    let { topic, preGenAnswers, template, workspace_id } = body;
 
     // Fetch user context + voice profile
     const ctx = await getUserContext(supabase, user.id, workspace_id);
@@ -161,13 +161,26 @@ Tu écris comme cette personne parlerait si elle avait trouvé les mots justes.
 Son activité : ${activity}. Sa cible : ${target}. Son ton naturel : ${tone}.
 Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES tics de langage, SES tournures, SES expressions favorites. Le contenu doit sonner comme elle, pas comme "une newsletter bien écrite par une IA".`;
 
-    // Build pre-gen block
+    // Build pre-gen block (with branding fallback)
+    let effectivePreGen = preGenAnswers;
+    if (!effectivePreGen || (!effectivePreGen.anecdote && !effectivePreGen.emotion && !effectivePreGen.conviction)) {
+      const fallback = buildPreGenFallback(ctx);
+      if (fallback) {
+        effectivePreGen = {
+          anecdote: fallback.anecdote,
+          emotion: fallback.emotion,
+          conviction: fallback.conviction,
+        };
+      }
+    }
     let preGenBlock = "";
-    if (preGenAnswers) {
-      const parts: string[] = ["ÉLÉMENTS D'APPROFONDISSEMENT FOURNIS PAR L'UTILISATRICE :"];
-      if (preGenAnswers.anecdote) parts.push(`- Son anecdote / vécu : ${preGenAnswers.anecdote}`);
-      if (preGenAnswers.emotion) parts.push(`- L'émotion qu'elle veut transmettre : ${preGenAnswers.emotion}`);
-      if (preGenAnswers.conviction) parts.push(`- Sa conviction sur ce sujet : ${preGenAnswers.conviction}`);
+    if (effectivePreGen) {
+      const fromBranding = !preGenAnswers && effectivePreGen;
+      const sourceNote = fromBranding ? " (éléments tirés du branding, pas du coaching direct)" : "";
+      const parts: string[] = [`ÉLÉMENTS D'APPROFONDISSEMENT${sourceNote} :`];
+      if (effectivePreGen.anecdote) parts.push(`- Son anecdote / vécu : ${effectivePreGen.anecdote}`);
+      if (effectivePreGen.emotion) parts.push(`- L'émotion qu'elle veut transmettre : ${effectivePreGen.emotion}`);
+      if (effectivePreGen.conviction) parts.push(`- Sa conviction sur ce sujet : ${effectivePreGen.conviction}`);
       parts.push("\nCes éléments sont PLUS IMPORTANTS que le template. L'anecdote doit devenir le fil rouge du storytelling (sections 3-4). La conviction doit nourrir la leçon (section 7) et le message de fond (section 8).");
       preGenBlock = parts.join("\n");
     }
