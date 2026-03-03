@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+import { ANTI_SLOP, CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -65,6 +65,8 @@ serve(async (req) => {
 
     const systemPrompt = `Tu es une coach en stratégie de contenu pour solopreneuses créatives. Planifie la semaine de contenu de l'utilisatrice.
 
+${CORE_PRINCIPLES}
+
 CONTEXTE BRANDING :
 ${brandingContext}
 
@@ -81,11 +83,27 @@ PRÉFÉRENCES :
 
 RÈGLES :
 - Varie les piliers de contenu si "mix", concentre sur un seul si "focus"
-- Alterne les formats (post, carousel, reel) pour ne pas lasser
+- Alterne les formats (post, carousel, reel, story, newsletter) pour ne pas lasser
 - Ne propose PAS un sujet déjà traité dans les 10 derniers posts
 - Chaque idée doit être CONCRÈTE et actionnable, pas vague
 - Si un lancement est mentionné, intègre du contenu de teasing/vente
 - Utilise le tutoiement et l'écriture inclusive (point médian)
+
+PROFONDEUR DES SUJETS :
+- JAMAIS de sujets génériques ("5 astuces pour...", "Comment faire pour...", "Les erreurs à éviter").
+- Chaque sujet doit avoir un ANGLE ORIGINAL : un point de vue, une expérience, une prise de position, un décryptage.
+- Exemples de bons sujets : "Le jour où j'ai compris que poster tous les jours ne servait à rien" (storytelling + leçon), "Ce que personne ne dit sur l'algorithme" (mythe à déconstruire), "J'ai analysé 50 comptes de ma niche : voici ce qui marche vraiment" (enquête).
+- Exemples de mauvais sujets : "3 tips pour augmenter ton engagement" (générique), "Comment créer du contenu" (vague), "Les tendances 2025" (surface).
+
+ACCROCHES :
+- Chaque hook_idea doit être une VRAIE accroche percutante, pas un titre de blog.
+- L'accroche doit donner envie de cliquer/scroller : provocation, curiosité, identification, surprise.
+- Exemples de bonnes accroches : "J'ai perdu 3 clientes le même soir. Et c'est la meilleure chose qui me soit arrivée." / "Ton audience s'en fout de ton expertise."
+- Exemples de mauvaises accroches : "Comment créer un carrousel efficace" / "Mes conseils pour ta bio Instagram"
+
+RÉPARTITION DES OBJECTIFS :
+- Sauf contexte spécifique (lancement, vente urgente), vise : ~40% visibilité (inspirer) + ~40% confiance (eduquer/lien) + ~20% vente (vendre)
+- Si l'utilisatrice est en phase de lancement, augmente la part vente à 40% max
 
 Retourne UNIQUEMENT un JSON valide :
 {
@@ -93,9 +111,9 @@ Retourne UNIQUEMENT un JSON valide :
     {
       "day": "Lundi",
       "pillar": "nom du pilier",
-      "subject": "sujet concret",
-      "format": "post | carousel | reel | story",
-      "hook_idea": "idée d'accroche en 1 phrase",
+      "subject": "sujet concret avec un angle original",
+      "format": "post | carousel | reel | story | newsletter",
+      "hook_idea": "accroche percutante prête à poster (pas un titre)",
       "objective": "inspirer | eduquer | vendre | lien"
     }
   ],
