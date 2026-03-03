@@ -150,6 +150,17 @@ export function useContentGenerator() {
     }
 
     try {
+      // Split enriched subject: if it contains calendar content, separate it out
+      // to avoid exceeding the 500-char subject validation limit on edge functions
+      const CALENDAR_MARKER = "\n\n[Contenu existant à approfondir]\n";
+      let effectiveSubject = subject;
+      let existingContent: string | null = null;
+      if (subject.includes(CALENDAR_MARKER)) {
+        const idx = subject.indexOf(CALENDAR_MARKER);
+        effectiveSubject = subject.slice(0, idx);
+        existingContent = subject.slice(idx + CALENDAR_MARKER.length);
+      }
+
       let data: any;
       let invokeError: any;
 
@@ -165,7 +176,8 @@ export function useContentGenerator() {
             body: {
               type: "express_full",
               carousel_type: effectiveCarouselType,
-              subject,
+              subject: effectiveSubject,
+              subject_details: existingContent || undefined,
               objective: objective || null,
               slide_count: slideCount || 7,
               deepening_answers: answers || null,
@@ -183,7 +195,8 @@ export function useContentGenerator() {
           const res = await supabase.functions.invoke("reels-ai", {
             body: {
               type: "script",
-              subject,
+              subject: effectiveSubject,
+              subject_details: existingContent || undefined,
               objective: objective || null,
               face_cam: faceCam || "oui",
               time_available: timeAvailable || "flexible",
@@ -203,7 +216,8 @@ export function useContentGenerator() {
           const res = await supabase.functions.invoke("stories-ai", {
             body: {
               type: "generate",
-              subject,
+              subject: effectiveSubject,
+              subject_details: existingContent || undefined,
               objective: objective || null,
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
@@ -225,7 +239,7 @@ export function useContentGenerator() {
             body: {
               step: "generate",
               contentType: "instagram_post",
-              context: subject,
+              context: effectiveSubject + (existingContent ? `\n\n[Contenu existant à approfondir]\n${existingContent}` : ""),
               angle: angle
                 ? {
                     title: angle.label,
@@ -249,7 +263,7 @@ export function useContentGenerator() {
           const res = await supabase.functions.invoke("linkedin-ai", {
             body: {
               action: "generate-post",
-              sujet: subject,
+              sujet: effectiveSubject + (existingContent ? `\n\n${existingContent}` : ""),
               template: "expert_insight",
               audience: "tu",
               objective: objective || null,
@@ -266,7 +280,7 @@ export function useContentGenerator() {
         case "newsletter": {
           const res = await supabase.functions.invoke("newsletter-ai", {
             body: {
-              topic: subject,
+              topic: effectiveSubject + (existingContent ? `\n\n${existingContent}` : ""),
               preGenAnswers: answers
                 ? {
                     anecdote: answers.anecdote || answers.q_0 || undefined,
@@ -323,6 +337,16 @@ export function useContentGenerator() {
         let data: any;
         let invokeError: any;
 
+        // Split enriched subject for questions too
+        const CALENDAR_MARKER_Q = "\n\n[Contenu existant à approfondir]\n";
+        let effectiveSubjectQ = subject;
+        let existingContentQ: string | null = null;
+        if (subject.includes(CALENDAR_MARKER_Q)) {
+          const idx = subject.indexOf(CALENDAR_MARKER_Q);
+          effectiveSubjectQ = subject.slice(0, idx);
+          existingContentQ = subject.slice(idx + CALENDAR_MARKER_Q.length);
+        }
+
         if (format === "carousel") {
           const structurePrompt = editorialAngle
             ? getStructurePromptForCombo(format, editorialAngle)
@@ -331,7 +355,8 @@ export function useContentGenerator() {
           const res = await supabase.functions.invoke("carousel-ai", {
             body: {
               type: "deepening_questions",
-              subject,
+              subject: effectiveSubjectQ,
+              subject_details: existingContentQ || undefined,
               objective: objective || null,
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
@@ -368,7 +393,7 @@ export function useContentGenerator() {
                   : format === "newsletter"
                   ? "newsletter"
                   : "instagram_post",
-              context: subject,
+              context: effectiveSubjectQ + (existingContentQ ? `\n\n[Contenu existant à approfondir]\n${existingContentQ}` : ""),
               angle: angleObj,
               objective: objective || null,
             },
