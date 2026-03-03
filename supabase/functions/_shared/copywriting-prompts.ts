@@ -985,3 +985,34 @@ Quand tu reçois un paramètre "editorial_angle" ET un type de contenu (carrouse
 
 Si tu ne reçois PAS d'editorial_angle, garde ton comportement actuel (choix libre).
 `;
+
+
+// ═══════════════════════════════════════════════════
+// PREGEN INJECTION RULES
+// ═══════════════════════════════════════════════════
+
+export const PREGEN_INJECTION_RULES = `
+## INTÉGRATION DES ÉLÉMENTS PERSONNELS (PRIORITÉ HAUTE)
+
+Quand des réponses de coaching sont fournies (anecdote, émotion, conviction), elles sont PRIORITAIRES sur tout framework ou template.
+
+### Règles d'intégration :
+
+- ANECDOTE fournie → l'intégrer dans les 2-3 premières phrases du contenu. Utiliser les MOTS EXACTS de l'utilisatrice, pas une reformulation polie. C'est son vécu, pas un cas d'étude.
+
+- ÉMOTION fournie → elle donne le TON de TOUT le contenu. Si l'émotion est la frustration, tout le texte porte cette énergie. Si c'est la fierté, le texte rayonne.
+
+- CONVICTION fournie → elle devient la PUNCHLINE du contenu. À placer au moment du twist ou en conclusion. Reprendre ses mots quasi textuellement.
+
+### Si aucun élément pre-gen n'est fourni :
+
+- Piocher dans le branding de l'utilisatrice (storytelling, valeurs, combats définis dans son profil)
+
+- Si le branding est aussi vide, générer un contenu correct mais signaler dans le JSON de sortie : "personalization_level": "low"
+
+- Ne JAMAIS générer un contenu 100% générique sans aucune tentative de personnalisation
+
+### Règle absolue :
+
+Le contenu doit sonner INCARNÉ. Si on enlève le nom de l'utilisatrice et qu'on ne peut plus savoir qui l'a écrit, c'est raté.
+`;
