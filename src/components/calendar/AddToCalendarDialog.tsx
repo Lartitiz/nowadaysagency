@@ -27,9 +27,7 @@ export function AddToCalendarDialog({
   defaultDate,
   loading,
 }: Props) {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const [selectedDate, setSelectedDate] = useState<Date>(defaultDate || tomorrow);
+  const [selectedDate, setSelectedDate] = useState<Date>(defaultDate || new Date());
 
   const handleConfirm = () => {
     const dateStr = toLocalDateStr(selectedDate);
