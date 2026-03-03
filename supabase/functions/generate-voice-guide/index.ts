@@ -27,6 +27,15 @@ Deno.serve(async (req) => {
     }
     const userId = claims.claims.sub as string;
 
+    // Read optional workspace_id from body
+    let workspace_id: string | undefined;
+    try {
+      const body = await req.json();
+      workspace_id = body.workspace_id || undefined;
+    } catch {
+      // No body or invalid JSON — ignore
+    }
+
     // Check quota
     const quota = await checkQuota(userId, "content");
     if (!quota.allowed) {
@@ -35,7 +44,7 @@ Deno.serve(async (req) => {
 
     // Get user context
     const serviceClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const ctx = await getUserContext(serviceClient, userId);
+    const ctx = await getUserContext(serviceClient, userId, workspace_id);
     const contextText = formatContextForAI(ctx, {
       includeProfile: true,
       includeVoice: true,
