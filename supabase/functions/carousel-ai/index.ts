@@ -247,6 +247,61 @@ RÈGLES :
 - Hashtags : 3-8, mix large + niche${extraRules}
 ${deepeningCtx ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}
 
+═══ SCHÉMAS VISUELS (PUISSANT — utilise-les !) ═══
+
+Certaines slides gagnent à être des SCHÉMAS plutôt que du texte pur. Quand c'est pertinent, ajoute un "visual_schema" à la slide.
+L'IA de design sait dessiner ces schémas en HTML/CSS. N'hésite PAS à les utiliser : 2-3 slides schéma par carrousel = le sweet spot.
+
+Types disponibles et QUAND les utiliser :
+
+1. "before_after" — Avant/Après, comparaison de 2 états
+   { "type": "before_after", "before": { "label": "Avant", "items": ["Point 1", "Point 2"] }, "after": { "label": "Après", "items": ["Point 1", "Point 2"] } }
+
+2. "comparison" — Deux colonnes opposées (bon/mauvais, mythe/réalité, toi/les autres)
+   { "type": "comparison", "left": { "label": "❌ Ce qu'on te dit", "items": ["Poste tous les jours", "Utilise 30 hashtags"] }, "right": { "label": "✅ Ce qui marche", "items": ["Poste quand t'as un truc à dire", "3-5 hashtags ciblés"] } }
+
+3. "timeline" — Progression chronologique ou étapes
+   { "type": "timeline", "steps": [ { "label": "2019", "desc": "L'ère du bio-partout" }, { "label": "2022", "desc": "La crise du greenwashing" }, { "label": "2026", "desc": "L'éthique silencieuse" } ] }
+
+4. "checklist" — Liste de vérification avec ✅/❌
+   { "type": "checklist", "title": "Ta com' est éthique si…", "items": [ { "text": "Tu parles de tes valeurs sans jargon", "checked": true }, { "text": "Tu utilises la culpabilité pour vendre", "checked": false } ] }
+
+5. "stats" — Chiffres clés, données percutantes (1-3 stats)
+   { "type": "stats", "items": [ { "number": "73%", "label": "des consommateurs vérifient les engagements d'une marque" }, { "number": "2x", "label": "plus de partages sur les posts authentiques" } ] }
+
+6. "matrix_2x2" — Matrice à 4 quadrants
+   { "type": "matrix_2x2", "x_axis": { "left": "Facile", "right": "Difficile" }, "y_axis": { "bottom": "Peu d'impact", "top": "Fort impact" }, "quadrants": [ { "position": "top_left", "label": "Quick wins", "emoji": "🎯" }, { "position": "top_right", "label": "Projets stratégiques", "emoji": "🏗️" }, { "position": "bottom_left", "label": "Déléguer", "emoji": "🤷" }, { "position": "bottom_right", "label": "Éviter", "emoji": "🚫" } ] }
+
+7. "pyramid" — Hiérarchie en niveaux (3-5 niveaux, le sommet = le plus important)
+   { "type": "pyramid", "levels": [ { "label": "Valeurs", "desc": "Ce en quoi tu crois" }, { "label": "Message", "desc": "Ce que tu dis" }, { "label": "Contenu", "desc": "Comment tu le dis" } ] }
+
+8. "equation" — Relation visuelle A + B = C
+   { "type": "equation", "parts": [ { "label": "Authenticité" }, { "label": "Régularité" } ], "result": { "label": "Confiance" }, "operator": "+" }
+
+9. "flowchart" — Arbre de décision simple (max 2 niveaux)
+   { "type": "flowchart", "start": "Tu veux poster aujourd'hui ?", "branches": [ { "condition": "J'ai un truc à dire", "result": "Poste ✅" }, { "condition": "Je me force", "result": "Écris plutôt en privé 📝" } ] }
+
+10. "scale" — Spectre/gradient entre deux extrêmes
+    { "type": "scale", "left": { "label": "Greenwashing", "emoji": "🤮" }, "right": { "label": "Impact réel", "emoji": "💎" }, "marker": { "position": 75, "label": "Toi ici 👆" } }
+
+11. "icon_grid" — Grille d'icônes avec labels (2-6 items)
+    { "type": "icon_grid", "items": [ { "emoji": "🎯", "label": "Clarté" }, { "emoji": "💬", "label": "Dialogue" }, { "emoji": "❤️", "label": "Care" } ] }
+
+QUAND utiliser un schéma :
+- Slide de comparaison (avant/après, bon/mauvais) → before_after ou comparison
+- Slide avec des chiffres → stats
+- Slide qui explique un process ou une évolution → timeline, flowchart, pyramid
+- Slide récap ou synthèse → checklist, icon_grid, matrix_2x2
+- Slide qui positionne un concept → scale, equation
+
+QUAND NE PAS utiliser de schéma :
+- Slide hook (slide 1) → toujours du texte pur avec un titre percutant
+- Slide CTA (dernière) → toujours du texte avec appel à l'action
+- Slide storytelling personnel → le texte suffit
+- Si le texte est plus fort seul → pas besoin d'un schéma forcé
+
+Quand une slide a un visual_schema, le body peut être plus court ou vide — le schéma porte le message visuel.
+
 Retourne ce JSON exact :
 {
   "slides": [
@@ -255,7 +310,8 @@ Retourne ce JSON exact :
       "role": "hook",
       "title": "Le headline de la slide",
       "body": "Le texte complémentaire (optionnel pour le hook)",
-      "visual_suggestion": "Ce qui devrait apparaître visuellement",
+      "visual_suggestion": "Description visuelle textuelle (ambiance, composition, couleurs)",
+      "visual_schema": null,
       "word_count": 8
     }
   ],
@@ -549,6 +605,26 @@ ${structureBlock}
 - Ton oral : "en vrai", "franchement", "le truc c'est que", "du coup", apartés en parenthèses.
 ${deepeningCtx ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}${extraRules}
 
+═══ SCHÉMAS VISUELS (PUISSANT — utilise-les !) ═══
+
+Certaines slides gagnent à être des SCHÉMAS plutôt que du texte pur. Quand c'est pertinent, ajoute un "visual_schema" à la slide.
+L'IA de design sait dessiner ces schémas en HTML/CSS. N'hésite PAS à les utiliser : 2-3 slides schéma par carrousel = le sweet spot.
+
+Types disponibles :
+1. "before_after" — { "type": "before_after", "before": { "label": "...", "items": [...] }, "after": { "label": "...", "items": [...] } }
+2. "comparison" — { "type": "comparison", "left": { "label": "...", "items": [...] }, "right": { "label": "...", "items": [...] } }
+3. "timeline" — { "type": "timeline", "steps": [ { "label": "...", "desc": "..." } ] }
+4. "checklist" — { "type": "checklist", "title": "...", "items": [ { "text": "...", "checked": true/false } ] }
+5. "stats" — { "type": "stats", "items": [ { "number": "73%", "label": "..." } ] }
+6. "matrix_2x2" — { "type": "matrix_2x2", "x_axis": {...}, "y_axis": {...}, "quadrants": [...] }
+7. "pyramid" — { "type": "pyramid", "levels": [ { "label": "...", "desc": "..." } ] }
+8. "equation" — { "type": "equation", "parts": [ { "label": "..." } ], "result": { "label": "..." }, "operator": "+" }
+9. "flowchart" — { "type": "flowchart", "start": "...", "branches": [ { "condition": "...", "result": "..." } ] }
+10. "scale" — { "type": "scale", "left": { "label": "...", "emoji": "..." }, "right": { "label": "...", "emoji": "..." }, "marker": { "position": 75, "label": "..." } }
+11. "icon_grid" — { "type": "icon_grid", "items": [ { "emoji": "...", "label": "..." } ] }
+
+Utilise un schéma quand la slide compare, liste, chiffre, ou montre un process. Pas pour hook, CTA, ou storytelling.
+
 Retourne ce JSON exact :
 {
   "carousel_type": "le type de carrousel choisi (tips/storytelling/mythe_realite/enquete/etc.)",
@@ -562,7 +638,8 @@ Retourne ce JSON exact :
       "role": "hook",
       "title": "Le headline de la slide",
       "body": "Le texte complémentaire (optionnel pour le hook)",
-      "visual_suggestion": "Ce qui devrait apparaître visuellement",
+      "visual_suggestion": "Description visuelle textuelle (ambiance, composition, couleurs)",
+      "visual_schema": null,
       "word_count": 8
     }
   ],

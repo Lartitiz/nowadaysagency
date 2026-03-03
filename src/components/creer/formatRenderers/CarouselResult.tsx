@@ -10,6 +10,7 @@ interface SlideData {
   title?: string;
   body?: string;
   visual_suggestion?: string;
+  visual_schema?: Record<string, any> | null;
 }
 
 interface CaptionData {
@@ -238,7 +239,14 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate }:
                   placeholder="Contenu de la slide…"
                 />
               )}
-              {slide.visual_suggestion && (
+              {slide.visual_schema && (
+                <div className="flex items-center gap-1.5 mt-1">
+                  <Badge className="bg-violet-100 text-violet-700 border-violet-200 text-[10px]">
+                    📊 Schéma : {(slide.visual_schema as any).type}
+                  </Badge>
+                </div>
+              )}
+              {slide.visual_suggestion && !slide.visual_schema && (
                 <p className="text-xs italic text-muted-foreground">🎨 {slide.visual_suggestion}</p>
               )}
             </CardContent>

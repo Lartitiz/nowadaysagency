@@ -265,6 +265,96 @@ CTA (dernière slide) — Douce, invitante :
 - ❌ Couleurs qui ne sont pas dans la charte
 - ❌ Plus de 3 couleurs de fond différentes dans tout le carrousel
 
+═══ SCHÉMAS VISUELS — TEMPLATES HTML/CSS ═══
+
+Certaines slides contiennent un champ "visual_schema" avec des données structurées. Tu DOIS les rendre comme des schémas visuels en HTML/CSS, PAS comme du texte simple.
+
+Voici le design pour chaque type :
+
+█ BEFORE_AFTER — Deux colonnes côte à côte
+<div style="display:flex;gap:24px;width:100%">
+  <div style="flex:1;background:#FFF;border-radius:12px;padding:32px;border-left:4px solid #E74C3C">
+    <p style="font-size:22px;font-weight:600;color:#E74C3C;margin-bottom:16px">❌ AVANT_LABEL</p>
+    <!-- items en <p> avec une puce rouge -->
+  </div>
+  <div style="flex:1;background:#FFF;border-radius:12px;padding:32px;border-left:4px solid #27AE60">
+    <p style="font-size:22px;font-weight:600;color:#27AE60;margin-bottom:16px">✅ APRÈS_LABEL</p>
+    <!-- items en <p> avec une puce verte -->
+  </div>
+</div>
+
+█ COMPARISON — Similaire mais avec les couleurs/labels du schema
+Même structure que before_after mais avec les labels et couleurs du champ left/right.
+
+█ TIMELINE — Ligne verticale avec des étapes
+<div style="position:relative;padding-left:60px">
+  <div style="position:absolute;left:24px;top:0;bottom:0;width:3px;background:linear-gradient(to bottom, ${ch.color_primary}, ${ch.color_accent})"></div>
+  <!-- Pour chaque step : cercle numéroté + label + desc -->
+</div>
+
+█ CHECKLIST — Liste avec des badges ✅/❌
+Pour chaque item :
+<div style="display:flex;align-items:center;gap:16px;padding:16px 24px;background:#FFF;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+  <span style="font-size:28px">✅ ou ❌</span>
+  <p style="font-size:24px;color:${ch.color_text}">TEXTE</p>
+</div>
+
+█ STATS — Gros chiffres avec labels
+Pour chaque stat :
+<div style="text-align:center;padding:24px">
+  <p style="font-size:80px;font-weight:700;color:${ch.color_primary};line-height:1">73%</p>
+  <p style="font-size:22px;color:${ch.color_text};margin-top:8px;opacity:0.8">description</p>
+</div>
+Dispose 2-3 stats en flex row avec des séparateurs visuels.
+
+█ MATRIX_2X2 — Grille 2×2 avec axes
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+  <div style="background:${ch.color_primary}15;border-radius:12px;padding:24px;text-align:center">
+    <span style="font-size:40px">EMOJI</span>
+    <p style="font-size:22px;font-weight:600;margin-top:8px">LABEL</p>
+  </div>
+</div>
+Ajoute les labels d'axes autour de la grille.
+
+█ PYRAMID — Niveaux empilés (le plus large en bas)
+Le sommet = 50% de largeur, la base = 100%. Couleurs du plus foncé (sommet) au plus clair (base).
+
+█ EQUATION — A + B = C
+<div style="display:flex;align-items:center;justify-content:center;gap:24px">
+  <div style="background:#FFF;border-radius:12px;padding:24px 32px;box-shadow:0 2px 12px rgba(0,0,0,0.06);text-align:center">
+    <p style="font-size:28px;font-weight:600;color:${ch.color_secondary}">A</p>
+  </div>
+  <span style="font-size:48px;color:${ch.color_primary}">+</span>
+  <!-- ... -->
+  <span style="font-size:48px;color:${ch.color_primary}">=</span>
+  <div style="background:${ch.color_primary};border-radius:12px;padding:24px 32px;text-align:center">
+    <p style="font-size:28px;font-weight:600;color:white">C</p>
+  </div>
+</div>
+
+█ FLOWCHART — Arbre de décision
+Question en pilule ${ch.color_primary}, branches avec lignes verticales, résultats en cartes colorées.
+
+█ SCALE — Barre de gradient avec marqueur
+<div style="position:relative;height:60px;background:linear-gradient(to right, #E74C3C, #F39C12, #27AE60);border-radius:30px;margin:40px 0">
+  <div style="position:absolute;left:POSITION%;top:-20px;transform:translateX(-50%)">👆 LABEL</div>
+</div>
+
+█ ICON_GRID — Grille d'emojis avec labels
+<div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:24px">
+  <div style="text-align:center;background:#FFF;border-radius:12px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+    <span style="font-size:48px;display:block;margin-bottom:8px">EMOJI</span>
+    <p style="font-size:20px;font-weight:600;color:${ch.color_secondary}">LABEL</p>
+  </div>
+</div>
+
+IMPORTANT pour les schémas :
+- Utilise les vraies couleurs de la charte (${ch.color_primary}, ${ch.color_secondary}, ${ch.color_accent}, ${ch.color_text})
+- Les schémas doivent être CENTRÉS verticalement dans la slide
+- Le titre de la slide (s'il existe) reste AU-DESSUS du schéma
+- Les schémas doivent respirer : pas de texte trop petit, pas de schéma qui remplit 100% de la slide
+- Si une slide a un visual_schema, le design du schéma est PRIORITAIRE sur le design par rôle
+
 ${styleInstructions}
 
 Retourne un JSON :
@@ -294,18 +384,29 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
       .filter((s: any) => s.visual_suggestion)
       .map((s: any) => `- Slide ${s.slide_number}: ${s.visual_suggestion}`)
       .join("\n");
-    const visualHintsBlock = visualHints
-      ? `\n\nINDICATIONS VISUELLES PAR SLIDE — PRIORITAIRES, l'IA rédactrice a suggéré ces directions artistiques. Tu DOIS les intégrer dans le design de chaque slide correspondante :\n${visualHints}`
-      : "";
+
+    // Build schema instructions from visual_schema fields
+    const schemaSlides = slides.filter((s: any) => s.visual_schema);
+    const schemaInstructions = schemaSlides
+      .map((s: any) => `- Slide ${s.slide_number} (SCHÉMA type "${s.visual_schema.type}") : ${JSON.stringify(s.visual_schema)}`)
+      .join("\n");
+
+    let visualBlock = "";
+    if (schemaInstructions) {
+      visualBlock += `\n\n🎨 SLIDES AVEC SCHÉMA VISUEL — OBLIGATOIRE, utilise les templates de schéma du design system :\n${schemaInstructions}`;
+    }
+    if (visualHints) {
+      visualBlock += `\n\nINDICATIONS VISUELLES TEXTUELLES (pour les slides SANS schéma) :\n${visualHints}`;
+    }
 
     const userPrompt = `Génère les slides HTML pour ce carrousel.
 
 CONTENU DES SLIDES :
 ${JSON.stringify(slides, null, 2)}
 
-Template demandé : ${style}${overrideNote}${visualHintsBlock}
+Template demandé : ${style}${overrideNote}${visualBlock}
 
-RAPPEL : Chaque slide doit avoir un design DIFFÉRENT adapté à son rôle (hook, context, tip, separator, cta). Utilise les éléments du design system : badges pilules, cartes blanches, barres latérales, soulignements colorés, emojis décoratifs.
+RAPPEL : Chaque slide doit avoir un design DIFFÉRENT adapté à son rôle (hook, context, tip, separator, cta). Utilise les éléments du design system : badges pilules, cartes blanches, barres latérales, soulignements colorés, emojis décoratifs. Pour les slides avec visual_schema, rends le schéma en HTML/CSS fidèle aux templates.
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
