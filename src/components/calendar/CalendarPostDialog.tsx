@@ -292,7 +292,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       const calendarId = editingPost?.id;
       const params = new URLSearchParams();
       if (calendarId) params.set("calendar_id", calendarId);
-      if (theme) params.set("sujet", encodeURIComponent(theme));
+      if (theme) params.set("sujet", theme);
       if (objectif) params.set("objectif", objectif);
       params.set("from", "/calendrier");
 

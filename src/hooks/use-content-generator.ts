@@ -53,25 +53,54 @@ function parseAIJson(raw: string | object): any {
 
   let cleaned = raw.trim();
 
-  // Remove markdown code fences
+  // Remove markdown code fences (with or without language tag)
   if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+    cleaned = cleaned.replace(/^```[a-z]*\s*\n?/i, "").replace(/\n?\s*```\s*$/, "");
   }
 
+  cleaned = cleaned.trim();
+
+  // Direct parse attempt
   try {
     return JSON.parse(cleaned);
   } catch {
-    // Try to extract JSON object or array
-    const match = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-    if (match) {
-      try {
-        return JSON.parse(match[1]);
-      } catch {
-        return null;
-      }
-    }
-    return null;
+    // ignore
   }
+
+  // Try to find a JSON object
+  const objMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (objMatch) {
+    try {
+      return JSON.parse(objMatch[0]);
+    } catch {
+      // ignore
+    }
+  }
+
+  // Try to find a JSON array
+  const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+  if (arrMatch) {
+    try {
+      return JSON.parse(arrMatch[0]);
+    } catch {
+      // ignore
+    }
+  }
+
+  // Last resort: fix common issues (trailing commas, single quotes)
+  try {
+    const fixed = cleaned
+      .replace(/,\s*([}\]])/g, "$1")
+      .replace(/'/g, '"');
+    const obj2 = fixed.match(/\{[\s\S]*\}/);
+    if (obj2) return JSON.parse(obj2[0]);
+    const arr2 = fixed.match(/\[[\s\S]*\]/);
+    if (arr2) return JSON.parse(arr2[0]);
+  } catch {
+    // ignore
+  }
+
+  return null;
 }
 
 // ── Hook ──
