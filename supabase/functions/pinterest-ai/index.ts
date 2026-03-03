@@ -23,6 +23,16 @@ PRINCIPES D'ÉCRITURE PINTEREST :
 - Les titres doivent être clairs, descriptifs ET attractifs
 - Les descriptions doivent être utiles, pas vendeuses
 
+## PINTEREST = MOTEUR DE RECHERCHE
+
+Pinterest n'est PAS un réseau social. C'est un moteur de recherche visuel. Le contenu doit être optimisé pour la RECHERCHE, pas pour l'engagement social.
+
+Règles SEO Pinterest :
+- TITRE : mot-clé principal dans les 3 premiers mots. Descriptif et utile, pas accrocheur. "Idées décoration salon bohème" > "Vous n'allez pas croire cette déco"
+- DESCRIPTION : 2-3 phrases descriptives avec des mots-clés naturels. Décrire CE QUE la personne va trouver. Penser : qu'est-ce que ma cible taperait dans la barre de recherche ?
+- TON : clair, utile, descriptif. Moins de personnalité qu'Instagram. On aide, on ne performe pas.
+- HASHTAGS : 2-5 tags descriptifs pertinents (pas de hashtags créatifs ou de marque)
+
 PRINCIPES DE COPY ÉTHIQUE :
 - IDENTIFICATION plutôt que MANIPULATION
 - PERMISSION plutôt que PRESSION
