@@ -53,11 +53,7 @@ const InstagramLaunchRecommendation = lazy(() => import("./pages/InstagramLaunch
 const InstagramRythme = lazy(() => import("./pages/InstagramRythme"));
 const InstagramEngagement = lazy(() => import("./pages/InstagramEngagement"));
 const InstagramStats = lazy(() => import("./pages/InstagramStats"));
-const InstagramCreer = lazy(() => import("./pages/InstagramCreer"));
 const CreerUnifie = lazy(() => import("./pages/CreerUnifie"));
-const TransformContentPage = lazy(() => import("./pages/TransformContentPage"));
-const AtelierPage = lazy(() => import("./pages/AtelierPage"));
-const RedactionPage = lazy(() => import("./pages/RedactionPage"));
 const PropositionRecapPage = lazy(() => import("./pages/PropositionRecapPage"));
 const OffersPage = lazy(() => import("./pages/OffersPage"));
 const ConnectionCheckPage = lazy(() => import("./pages/ConnectionCheckPage"));
@@ -92,7 +88,7 @@ const MentionsLegalesPage = lazy(() => import("./pages/MentionsLegalesPage"));
 const ConfidentialitePage = lazy(() => import("./pages/ConfidentialitePage"));
 const CguCgvPage = lazy(() => import("./pages/CguCgvPage"));
 const PaymentSuccessPage = lazy(() => import("./pages/PaymentSuccessPage"));
-const ClientsPage = lazy(() => import("./pages/ClientsPage"));
+
 const PricingPage = lazy(() => import("./pages/PricingPage"));
 const NowStudioSalesPage = lazy(() => import("./pages/NowStudioSalesPage"));
 const ServicesPage = lazy(() => import("./pages/ServicesPage"));
@@ -282,7 +278,7 @@ function AnimatedRoutes() {
                 <Route path="/instagram/reels" element={<SmartRedirect to="/creer" mergeParams={{ format: "reel" }} />} />
                 <Route path="/transformer" element={<Navigate to="/creer?mode=transform" replace />} />
                 <Route path="/creer" element={<ProtectedRoute><CreerUnifie /></ProtectedRoute>} />
-                <Route path="/creer-legacy" element={<ProtectedRoute><InstagramCreer /></ProtectedRoute>} />
+                <Route path="/creer-legacy" element={<Navigate to="/creer" replace />} />
                 <Route path="/instagram/creer" element={<Navigate to="/creer" replace />} />
                 <Route path="/instagram/carousel" element={<SmartRedirect to="/creer" mergeParams={{ format: "carousel" }} />} />
                 {/* Redirects from old routes */}
