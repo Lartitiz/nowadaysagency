@@ -229,6 +229,9 @@ export default function CreerUnifie() {
     setEditorialAngle(angle || null);
 
     const subjectToUse = overrideSubject || ideaText;
+    const enrichedSubject = existingCalendarContent
+      ? subjectToUse + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
+      : subjectToUse;
 
     if (angle === "lancement") {
       setStep("result");
@@ -237,7 +240,7 @@ export default function CreerUnifie() {
     }
 
     setStep("questions");
-    await generateQuestions({ format, subject: subjectToUse, editorialAngle: angle, objective: objective || undefined });
+    await generateQuestions({ format, subject: enrichedSubject, editorialAngle: angle, objective: objective || undefined });
   };
 
   const handleQuestionsNext = async (ans: Record<string, string>) => {
@@ -257,9 +260,12 @@ export default function CreerUnifie() {
     // Reset post-generation state on new generation
     setSavedId(null);
     setVisualSlides([]);
+    const enrichedSubject = existingCalendarContent
+      ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
+      : ideaText;
     await generate({
       format: selectedFormat as any,
-      subject: ideaText,
+      subject: enrichedSubject,
       objective: objective || undefined,
       editorialAngle: editorialAngle || undefined,
       answers: Object.keys(ans).length > 0 ? ans : undefined,
