@@ -9,21 +9,55 @@ interface Props {
   visualSlides?: { slide_number: number; html: string }[];
 }
 
+function VisualSlideCell({ vs, containerWidth }: { vs: { slide_number: number; html: string }; containerWidth: number }) {
+  const gap = 12; // gap-3
+  const colWidth = (containerWidth - gap) / 2;
+  const s = colWidth > 0 ? colWidth / 1080 : 0.15;
+
+  return (
+    <div className="space-y-1">
+      <p className="text-[10px] font-mono text-muted-foreground text-center">
+        Slide {vs.slide_number}
+      </p>
+      <div
+        className="relative overflow-hidden rounded-lg border border-border"
+        style={{ width: `${Math.round(1080 * s)}px`, height: `${Math.round(1350 * s)}px` }}
+      >
+        <iframe
+          srcDoc={vs.html}
+          title={`Slide ${vs.slide_number}`}
+          sandbox="allow-same-origin"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "1080px",
+            height: "1350px",
+            transform: `scale(${s})`,
+            transformOrigin: "top left",
+            border: "none",
+            pointerEvents: "none",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function VisualSlidesGrid({ slides }: { slides: { slide_number: number; html: string }[] }) {
   const gridRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0.28);
+  const [width, setWidth] = useState(0);
 
   useEffect(() => {
-    const calculate = () => {
-      if (!gridRef.current) return;
-      const gridWidth = gridRef.current.offsetWidth;
-      const gap = 12;
-      const columnWidth = (gridWidth - gap) / 2;
-      setScale(columnWidth / 1080);
-    };
-    calculate();
-    window.addEventListener("resize", calculate);
-    return () => window.removeEventListener("resize", calculate);
+    const el = gridRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setWidth(entry.contentRect.width);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   return (
@@ -32,33 +66,8 @@ function VisualSlidesGrid({ slides }: { slides: { slide_number: number; html: st
         Aperçu des visuels ({slides.length} slides)
       </p>
       <div ref={gridRef} className="grid grid-cols-2 gap-3">
-        {slides.map((vs) => (
-          <div key={vs.slide_number} className="space-y-1">
-            <p className="text-[10px] font-mono text-muted-foreground text-center">
-              Slide {vs.slide_number}
-            </p>
-            <div
-              className="relative overflow-hidden rounded-lg border border-border"
-              style={{ height: `${Math.round(1350 * scale)}px` }}
-            >
-              <iframe
-                srcDoc={vs.html}
-                title={`Slide ${vs.slide_number}`}
-                sandbox="allow-same-origin"
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "1080px",
-                  height: "1350px",
-                  transform: `scale(${scale})`,
-                  transformOrigin: "top left",
-                  border: "none",
-                  pointerEvents: "none",
-                }}
-              />
-            </div>
-          </div>
+        {width > 0 && slides.map((vs) => (
+          <VisualSlideCell key={vs.slide_number} vs={vs} containerWidth={width} />
         ))}
       </div>
     </div>
