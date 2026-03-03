@@ -116,7 +116,7 @@ export default function CreerUnifie() {
     setSelectedFormat(data.format);
     setStep("questions");
 
-    await generateQuestions({ format: data.format, subject: data.subject, editorialAngle: undefined });
+    await generateQuestions({ format: data.format, subject: data.subject, editorialAngle: undefined, objective: data.objective || undefined });
   }, [generateQuestions]);
 
   const handleIdeaNext = (idea: string, obj?: string) => {
@@ -138,7 +138,7 @@ export default function CreerUnifie() {
     }
 
     setStep("questions");
-    await generateQuestions({ format, subject: subjectToUse, editorialAngle: angle });
+    await generateQuestions({ format, subject: subjectToUse, editorialAngle: angle, objective: objective || undefined });
   };
 
   const handleQuestionsNext = async (ans: Record<string, string>) => {

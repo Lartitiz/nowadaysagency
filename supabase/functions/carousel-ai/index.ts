@@ -450,7 +450,8 @@ function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string): str
   return `Tu dois générer exactement 3 questions d'approfondissement pour aider à créer un carrousel ${formatLabel}.
 
 SUJET du carrousel : "${subject || "non précisé"}"
-OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}${brandingBlock}${angleBlock}
+OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}
+${objective ? `\nOriente les questions vers cet objectif. Si "vente" : demande des témoignages clients, des résultats, des transformations. Si "engagement" : demande des anecdotes personnelles, des moments vécus. Si "visibilité" : demande des opinions tranchées, des constats provocants.\n` : ""}${brandingBlock}${angleBlock}
 
 TON RÔLE : Tu es une coach com' qui aide une solopreneuse/créatrice à extraire son vécu, ses opinions et son expertise PERSONNELLE pour que le contenu ne soit pas générique.
 

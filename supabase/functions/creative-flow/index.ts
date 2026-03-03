@@ -61,7 +61,7 @@ serve(async (req) => {
       targetFormat: z.string().max(100).optional().nullable(),
       workspace_id: z.string().uuid().optional().nullable(),
     }).passthrough());
-    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch } = body;
+    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective } = body;
 
     // Determine channel from contentType for persona selection
     const channelFromType = contentType?.includes("linkedin") ? "linkedin" : contentType?.includes("instagram") || contentType?.includes("carousel") || contentType?.includes("reel") || contentType?.includes("stories") ? "instagram" : undefined;
@@ -124,6 +124,22 @@ serve(async (req) => {
       if (cl.length) calendarBlock = `\nCONTEXTE DU POST (depuis le calendrier) :\n${cl.join("\n")}\n`;
     }
 
+    // Build objective block (from direct param or calendar context)
+    const effectiveObjective = objective || calendarContext?.objective || null;
+    let objectiveBlock = "";
+    if (effectiveObjective) {
+      const objectiveGuidance: Record<string, string> = {
+        "visibilite": "OBJECTIF : VISIBILITÉ (reach, découverte)\n- Le contenu doit être PARTAGEABLE : l'audience doit vouloir l'envoyer à quelqu'un\n- Privilégie les prises de position, les accroches polarisantes, les constats qui font réagir\n- L'appel à l'action doit encourager le partage, le save, ou le tag\n- Pas de CTA commercial. Pas de mention d'offre.",
+        "engagement": "OBJECTIF : ENGAGEMENT (lien, communauté)\n- Le contenu doit créer de la CONNEXION : l'audience doit se reconnaître et vouloir répondre\n- Privilégie les questions ouvertes, le storytelling personnel, les moments de vulnérabilité\n- L'appel à l'action doit inviter au commentaire, au partage d'expérience, au dialogue\n- La mention d'offre est possible en toute fin, mais secondaire.",
+        "vente": "OBJECTIF : VENTE (conversion)\n- Le contenu doit créer le DÉCLIC : l'audience doit comprendre pourquoi elle a besoin d'aide maintenant\n- Privilégie les avant/après, les études de cas, les transformations concrètes, les témoignages\n- Montre le coût de l'inaction (rester seule, continuer à galérer)\n- L'appel à l'action doit mener vers l'offre : appel découverte, lien en bio, inscription\n- Le CTA est direct mais pas agressif : invitation, pas injonction.",
+        "credibilite": "OBJECTIF : CRÉDIBILITÉ (autorité, expertise)\n- Le contenu doit démontrer la MAÎTRISE : l'audience doit se dire \"elle sait de quoi elle parle\"\n- Privilégie les décryptages, les analyses, les données chiffrées, les références\n- Mentionne l'expérience, les clients, les résultats concrets\n- L'appel à l'action peut inviter à approfondir (newsletter, article, échange).",
+      };
+      const key = Object.keys(objectiveGuidance).find(k =>
+        k === effectiveObjective || k === effectiveObjective.toLowerCase()
+      );
+      objectiveBlock = `\n${key ? objectiveGuidance[key] : `OBJECTIF DU CONTENU : ${effectiveObjective}\nAdapte le ton, la structure et le CTA pour atteindre cet objectif.`}\n`;
+    }
+
     let systemPrompt = "";
     let userPrompt: string | null = "";
 
@@ -182,7 +198,7 @@ L'utilisatrice a choisi cet angle pour son contenu :
 - Angle : ${angle.title}
 - Structure : ${(angle.structure || []).join(" → ")}
 - Ton : ${angle.tone}
-${calendarBlock}
+${calendarBlock}${objectiveBlock}
 
 Pose exactement 3 questions pour récupérer SA matière première. Ces questions doivent extraire des anecdotes, des réflexions, des émotions PERSONNELLES qui rendront le contenu unique et impossible à reproduire par une IA seule.
 
@@ -193,6 +209,7 @@ RÈGLES :
 - Une question peut demander une opinion tranchée ou une conviction
 - Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment)
 - Chaque question a un placeholder qui donne un mini-exemple de réponse pour inspirer
+- Les questions doivent être ORIENTÉES vers l'objectif : si l'objectif est "vente", demande des témoignages, des résultats, des transformations. Si c'est "engagement", demande des anecdotes, des émotions, des situations vécues.
 
 Réponds UNIQUEMENT en JSON :
 {
@@ -252,7 +269,7 @@ ANGLE CHOISI :
 RÉPONSES DE L'UTILISATRICE :
 ${answersBlock}
 ${followUpBlock}
-${calendarBlock}
+${calendarBlock}${objectiveBlock}
 ${preGenBlock}
 
 Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
