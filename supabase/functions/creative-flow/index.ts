@@ -64,7 +64,7 @@ serve(async (req) => {
       editorialFormat: z.string().max(100).optional().nullable(),
       editorialFormatLabel: z.string().max(200).optional().nullable(),
     }).passthrough());
-    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel } = body;
+    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent } = body;
 
     // Determine channel from contentType for persona selection
     const channelFromType = contentType?.includes("linkedin") ? "linkedin" : contentType?.includes("instagram") || contentType?.includes("carousel") || contentType?.includes("reel") || contentType?.includes("stories") ? "instagram" : undefined;
@@ -439,6 +439,22 @@ Avant de retourner le JSON, vérifie :
 6. Est-ce que le contenu passe le test du café (lisible à voix haute sans sonner robot) ?
 Si une réponse est NON, RÉÉCRIS avant de retourner.
 
+${variation && previousContent ? `
+═══════════════════════════════════════════════════
+MODE RÉÉCRITURE : VERSION ALTERNATIVE
+═══════════════════════════════════════════════════
+
+L'utilisatrice a déjà reçu cette version et veut AUTRE CHOSE :
+"""
+${previousContent.slice(0, 2000)}
+"""
+
+Tu DOIS proposer une version SIGNIFICATIVEMENT DIFFÉRENTE :
+- Accroche DIFFÉRENTE : pas la même reformulée, une AUTRE approche (si la v1 commençait par une question, commence par une affirmation choc ; si la v1 était un constat, commence par une anecdote)
+- Point d'entrée DIFFÉRENT dans le sujet (si la v1 partait du problème, pars de la solution ; si la v1 était éducative, sois émotionnelle)
+- Le message central reste cohérent mais l'angle d'attaque change
+- Ne fais PAS une variation cosmétique (mêmes idées avec d'autres mots). Fais une VRAIE alternative.
+` : ""}
 Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
 Le contenu doit être PRÊT À POSTER (pas un brouillon).
 

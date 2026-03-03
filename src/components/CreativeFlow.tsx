@@ -183,6 +183,7 @@ export default function CreativeFlow({
   const [adjusting, setAdjusting] = useState(false);
   const [deepResearch, setDeepResearch] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState<"research" | "writing" | null>(null);
+  const [generationCount, setGenerationCount] = useState(0);
 
   // Collapsed sections
   const [anglesCollapsed, setAnglesCollapsed] = useState(false);
@@ -300,10 +301,11 @@ export default function CreativeFlow({
     setLoading(true);
     setQuestionsCollapsed(true);
     setStep("result");
+    const isRewrite = generationCount > 0;
+    setGenerationCount(prev => prev + 1);
     try {
       if (deepResearch) {
         setLoadingPhase("research");
-        // Small delay so the user sees the research phase
         await new Promise((r) => setTimeout(r, 800));
       }
       const answersArr = questions.map((q, i) => ({ question: q.question, answer: answers[i] || "" }));
@@ -316,6 +318,8 @@ export default function CreativeFlow({
         answers: answersArr,
         followUpAnswers: followUpArr,
         deepResearch,
+        variation: isRewrite || undefined,
+        previousContent: isRewrite ? editedContent : undefined,
       });
       const gen: GeneratedContent = {
         content: data.content || data.raw || "",
