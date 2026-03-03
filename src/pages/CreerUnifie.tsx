@@ -65,6 +65,9 @@ export default function CreerUnifie() {
   const [answers, setAnswers] = useState<Record<string, string>>(ps?.answers || {});
   const [editContent, setEditContent] = useState(ps?.editContent || "");
   const [existingCalendarContent, setExistingCalendarContent] = useState<string | null>(null);
+  const [calendarPostId] = useState<string | null>(locState?.calendarPostId || null);
+  const [calendarPostDate] = useState<string | null>(locState?.postDate || null);
+  const fromCalendar = !!(locState?.fromCalendar && calendarPostId);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
@@ -411,11 +414,90 @@ export default function CreerUnifie() {
     }
   };
 
+  // Extract content draft from result for calendar save
+  const extractContentForCalendar = () => {
+    const r = result?.raw;
+    if (!r) return { contentDraft: "", accroche: "", storyDetail: null as any };
+    let contentDraft = "";
+    let accroche = "";
+    const fmt = selectedFormat || "post";
+
+    if (selectedFormat === "carousel" && r?.slides) {
+      accroche = r.slides?.[0]?.title || "";
+      contentDraft = r.slides?.map((s: any) => `${s.title}\n${s.body || ""}`).join("\n\n");
+    } else if (selectedFormat === "linkedin" && (r?.hook || r?.full_text)) {
+      accroche = r.hook || "";
+      contentDraft = r.full_text || [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
+    } else if (selectedFormat === "reel" && r?.sections) {
+      accroche = r.sections?.[0]?.texte_parle || "";
+      contentDraft = r.sections?.map((s: any) => s.texte_parle || "").join("\n\n");
+    } else {
+      contentDraft = r.content || r.post || r.text || "";
+      accroche = contentDraft.split("\n")[0] || "";
+    }
+
+    let storyDetail: any = null;
+    if (selectedFormat === "carousel" && r?.slides) {
+      storyDetail = {
+        type: "carousel",
+        carousel_type: r.carousel_type || "tips",
+        slides: r.slides,
+        caption: r.caption,
+        quality_check: r.quality_check,
+        ...(visualSlides.length > 0 ? {
+          visual_html: visualSlides.map((vs: any) => ({ slide_number: vs.slide_number, html: vs.html })),
+        } : {}),
+      };
+    } else if (selectedFormat === "reel" && r?.sections) {
+      storyDetail = { type: "reel", sections: r.sections };
+    } else if (selectedFormat === "story" && (r?.stories || r?.sequences)) {
+      storyDetail = { type: "story", sequences: r.stories || r.sequences };
+    }
+
+    return { contentDraft, accroche, storyDetail };
+  };
+
+  // Save back to existing calendar post (when coming from calendar)
+  const handleSaveBackToCalendar = async () => {
+    if (!session?.user?.id || !calendarPostId || !result?.raw) return;
+    setSavingToCalendar(true);
+    try {
+      if (selectedFormat === "carousel" && !savedId && result?.raw?.slides) {
+        await handleSave();
+      }
+      const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
+      const { error } = await supabase.from("calendar_posts").update({
+        content_draft: contentDraft,
+        accroche: accroche || null,
+        status: "drafting",
+        format: selectedFormat || "post",
+        objectif: objective || null,
+        angle: editorialAngle || null,
+        ...(storyDetail ? { story_sequence_detail: storyDetail } : {}),
+        ...(savedId ? { generated_content_id: savedId, generated_content_type: "carousel" } : {}),
+        updated_at: new Date().toISOString(),
+      }).eq("id", calendarPostId);
+      if (error) throw error;
+      toast.success("Contenu sauvegardé dans ton calendrier !");
+      clearFlowState();
+      navigate(`/calendrier?date=${calendarPostDate || ""}&post=${calendarPostId}`);
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur de sauvegarde");
+    } finally {
+      setSavingToCalendar(false);
+    }
+  };
+
   const handleAddToCalendar = async () => {
     if (!session?.user?.id || !result?.raw) return;
     // Auto-save carousel if not already saved
     if (selectedFormat === "carousel" && !savedId && result?.raw?.slides) {
       await handleSave();
+    }
+    // If coming from calendar, save directly back
+    if (fromCalendar) {
+      await handleSaveBackToCalendar();
+      return;
     }
     setCalendarDialogOpen(true);
   };
@@ -424,45 +506,9 @@ export default function CreerUnifie() {
     if (!session?.user?.id || !calendarDate || savingToCalendar) return;
     setSavingToCalendar(true);
     try {
-      const r = result.raw;
-      let contentDraft = "";
-      let accroche = "";
+      const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
       const fmt = selectedFormat || "post";
-
-      if (selectedFormat === "carousel" && r?.slides) {
-        accroche = r.slides?.[0]?.title || "";
-        contentDraft = r.slides?.map((s: any) => `${s.title}\n${s.body || ""}`).join("\n\n");
-      } else if (selectedFormat === "linkedin" && (r?.hook || r?.full_text)) {
-        accroche = r.hook || "";
-        contentDraft = r.full_text || [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
-      } else if (selectedFormat === "reel" && r?.sections) {
-        accroche = r.sections?.[0]?.texte_parle || "";
-        contentDraft = r.sections?.map((s: any) => s.texte_parle || "").join("\n\n");
-      } else {
-        contentDraft = r.content || r.post || r.text || "";
-        accroche = contentDraft.split("\n")[0] || "";
-      }
-
       const canal = selectedFormat === "linkedin" ? "linkedin" : "instagram";
-
-      // Build story_sequence_detail for structured formats
-      let storyDetail: any = null;
-      if (selectedFormat === "carousel" && r?.slides) {
-        storyDetail = {
-          type: "carousel",
-          carousel_type: r.carousel_type || "tips",
-          slides: r.slides,
-          caption: r.caption,
-          quality_check: r.quality_check,
-          ...(visualSlides.length > 0 ? {
-            visual_html: visualSlides.map((vs: any) => ({ slide_number: vs.slide_number, html: vs.html })),
-          } : {}),
-        };
-      } else if (selectedFormat === "reel" && r?.sections) {
-        storyDetail = { type: "reel", sections: r.sections };
-      } else if (selectedFormat === "story" && (r?.stories || r?.sequences)) {
-        storyDetail = { type: "story", sequences: r.stories || r.sequences };
-      }
 
       const { data: insertedPost, error: insertError } = await supabase.from("calendar_posts").insert({
         user_id: session.user.id,
@@ -485,7 +531,6 @@ export default function CreerUnifie() {
       setCalendarDialogOpen(false);
       clearFlowState();
 
-      // Redirect to calendar at the right date, open the post
       const postId = insertedPost?.id;
       if (postId) {
         navigate(`/calendrier?date=${calendarDate}&post=${postId}`);
@@ -669,6 +714,7 @@ export default function CreerUnifie() {
                 onCopy={handleCopy}
                 onSave={handleSave}
                 onCalendar={handleAddToCalendar}
+                calendarLabel={fromCalendar ? "Sauvegarder dans le calendrier" : undefined}
                 onGenerateVisuals={selectedFormat === "carousel" ? handleGenerateVisuals : undefined}
                 visualLoading={visualLoading}
                 visualSlides={visualSlides.length > 0 ? visualSlides : undefined}
