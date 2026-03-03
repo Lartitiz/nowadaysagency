@@ -483,7 +483,13 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const handleQuickGenerate = (post: CalendarPost) => {
     const route = getGeneratorRoute(post);
     if (route) {
-      navigate(route, { state: {
+      const params = new URLSearchParams();
+      params.set("calendar_id", post.id);
+      if (post.theme) params.set("sujet", post.theme);
+      if (post.objectif || post.category) params.set("objectif", post.objectif || post.category || "");
+      params.set("from", "/calendrier");
+
+      navigate(`${route}?${params.toString()}`, { state: {
         fromCalendar: true,
         postId: post.id,
         calendarPostId: post.id,
