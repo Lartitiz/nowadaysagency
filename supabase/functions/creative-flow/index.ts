@@ -660,6 +660,29 @@ Réponds UNIQUEMENT en JSON :
       const theme = calendarContext?.theme || context || contentType || "contenu";
       const activite = profile?.activite || "";
 
+      // Build targeted research prompt based on objective and editorial format
+      const researchObjective = effectiveObjective || objective || "";
+      const researchAngle = editorialFormatLabel || angle?.title || "";
+      let researchFocus = "";
+      if (researchObjective.includes("vente") || researchObjective.includes("conversion")) {
+        researchFocus = "Cherche en priorité : des témoignages, des études de cas, des chiffres de transformation (avant/après), des statistiques de conversion ou de résultats clients.";
+      } else if (researchObjective.includes("credibilite") || researchObjective.includes("crédibilité")) {
+        researchFocus = "Cherche en priorité : des études scientifiques, des rapports sectoriels, des données chiffrées officielles, des avis d'experts reconnus.";
+      } else if (researchObjective.includes("visibilite") || researchObjective.includes("visibilité")) {
+        researchFocus = "Cherche en priorité : des tendances émergentes, des chiffres surprenants ou contre-intuitifs, des faits viralisables, des comparaisons frappantes.";
+      } else if (researchObjective.includes("confiance") || researchObjective.includes("engagement")) {
+        researchFocus = "Cherche en priorité : des histoires humaines, des situations vécues universelles, des sondages d'opinion, des verbatims ou témoignages.";
+      }
+      
+      let researchAngleHint = "";
+      if (researchAngle.toLowerCase().includes("mythe") || researchAngle.toLowerCase().includes("déconstruire")) {
+        researchAngleHint = "Le contenu va déconstruire un mythe. Cherche des données qui CONTREDISENT une croyance courante sur le sujet.";
+      } else if (researchAngle.toLowerCase().includes("enquête") || researchAngle.toLowerCase().includes("décryptage")) {
+        researchAngleHint = "Le contenu est une enquête/décryptage. Cherche des données récentes et des tendances que peu de gens connaissent.";
+      } else if (researchAngle.toLowerCase().includes("test") || researchAngle.toLowerCase().includes("grandeur nature")) {
+        researchAngleHint = "Le contenu est un retour d'expérience. Cherche des benchmarks, des moyennes sectorielles, des résultats comparatifs.";
+      }
+
       const searchResponse = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -673,7 +696,17 @@ Réponds UNIQUEMENT en JSON :
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
           messages: [{
             role: "user",
-            content: `Recherche des données récentes, statistiques, tendances et exemples concrets sur le sujet suivant : ${theme}. Contexte : ${activite}. Résume les 3-5 points les plus pertinents et intéressants pour créer du contenu social media engageant.`,
+            content: `Recherche des données récentes sur le sujet suivant : ${theme}.
+Contexte professionnel : ${activite}.
+${researchFocus ? `\n${researchFocus}` : ""}
+${researchAngleHint ? `\n${researchAngleHint}` : ""}
+
+Résume les 3-5 points les plus pertinents. Pour chaque point, donne :
+- Le fait ou la donnée
+- La source (nom du média, de l'étude, ou de l'organisme)
+- Pourquoi c'est intéressant pour du contenu social media
+
+Privilégie les sources françaises et européennes quand elles existent.`,
           }],
         }),
       });
