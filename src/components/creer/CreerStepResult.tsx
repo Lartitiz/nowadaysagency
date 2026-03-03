@@ -19,6 +19,7 @@ interface Props {
   onCopy: (text: string) => void;
   onSave?: () => void;
   onCalendar?: () => void;
+  calendarLabel?: string;
   onGenerateVisuals?: () => void;
   visualLoading?: boolean;
   visualSlides?: { slide_number: number; html: string }[];
@@ -46,6 +47,7 @@ export default function CreerStepResult({
   onCopy,
   onSave,
   onCalendar,
+  calendarLabel,
   onGenerateVisuals,
   visualLoading,
   visualSlides,
@@ -122,14 +124,14 @@ export default function CreerStepResult({
               onClick={onCalendar}
               className="h-11 gap-2 text-sm font-semibold"
             >
-              <CalendarDays className="h-4 w-4" /> Ajouter au calendrier
+              <CalendarDays className="h-4 w-4" /> {calendarLabel || "Ajouter au calendrier"}
             </Button>
           )}
         </div>
       ) : (
         onCalendar && (
           <Button onClick={onCalendar} className="w-full gap-2 h-11 text-sm font-semibold">
-            <CalendarDays className="h-4 w-4" /> Ajouter au calendrier
+            <CalendarDays className="h-4 w-4" /> {calendarLabel || "Ajouter au calendrier"}
           </Button>
         )
       )}
