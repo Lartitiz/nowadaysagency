@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
@@ -88,6 +88,7 @@ function getUsername(p: Prospect) {
 export default function DmGenerator({ prospect, interactions, onBack, onMessageSent }: Props) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { toast } = useToast();
 
   // Step state
@@ -185,6 +186,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
           interactions_summary: interactionsSummary,
           conversation_history: skippedHistory ? "" : conversationHistory,
           selected_offer: selectedOffer || null,
+          workspace_id: workspaceId,
         },
       });
 
