@@ -156,6 +156,27 @@ export async function callAnthropic(options: AnthropicOptions): Promise<string> 
       continue;
     }
 
+    // Fallback: if Opus is overloaded (529) after all retries, try Sonnet
+    if (response.status === 529 && options.model === "claude-opus-4-6") {
+      console.log("Opus overloaded after retries — falling back to Sonnet...");
+      const fallbackBody = { ...body, model: "claude-sonnet-4-5-20250929" };
+      const fallbackRes = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-beta": "prompt-caching-2024-07-31",
+        },
+        body: JSON.stringify(fallbackBody),
+      });
+      if (fallbackRes.ok) {
+        const data = await fallbackRes.json();
+        return data.content?.[0]?.text || "";
+      }
+      await fallbackRes.text(); // consume body
+    }
+
     // Non-retryable or last attempt
     if (response.status === 429) {
       throw new AnthropicError("Trop de requêtes. Réessaie dans un moment.", 429);
