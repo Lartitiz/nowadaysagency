@@ -13,8 +13,10 @@ import { cn } from "@/lib/utils";
 /* ── Types ── */
 interface IdeaSpark {
   idea: string;
+  hook?: string;
   format: string;
   objective: string;
+  angle?: string;
   pillar?: string | null;
 }
 
@@ -71,6 +73,20 @@ const OBJECTIVE_LABELS: Record<string, string> = {
   engager: "Engager",
 };
 
+const ANGLE_LABELS: Record<string, string> = {
+  coup_de_gueule: "Coup de gueule",
+  mythe_a_deconstruire: "Mythe à déconstruire",
+  storytelling_lecon: "Storytelling + leçon",
+  histoire_cliente: "Histoire cliente",
+  conseil_contre_intuitif: "Conseil contre-intuitif",
+  regard_philosophique: "Regard philosophique",
+  before_after: "Before/After",
+  identification: "Identification",
+  analyse_decryptage: "Analyse & décryptage",
+  build_in_public: "Build in public",
+  surf_actu: "Surf sur l'actu",
+};
+
 /** Fallback ideas from branding data (no AI call) */
 function buildFallbackIdeas(brandProfile: any): IdeaSpark[] {
   const ideas: IdeaSpark[] = [];
@@ -81,24 +97,30 @@ function buildFallbackIdeas(brandProfile: any): IdeaSpark[] {
 
   if (positioning) {
     ideas.push({
-      idea: "Pourquoi j'ai choisi cette approche (et pas une autre)",
-      format: "post",
+      idea: "Pourquoi tu as choisi cette approche plutôt qu'une autre (et ce que ça change pour tes client·es)",
+      hook: "Tout le monde me demandait pourquoi je faisais pas comme les autres.",
+      format: "carousel",
       objective: "inspirer",
+      angle: "storytelling_lecon",
       pillar: pillars[0] || null,
     });
   }
   if (mission) {
     ideas.push({
-      idea: "L'erreur n°1 que je vois chez mes client·es",
+      idea: "La croyance n°1 de ta cible qui l'empêche d'avancer (et comment tu la déconstruis au quotidien)",
+      hook: "Si ton produit est bon, il se vendra tout seul. Ah oui ?",
       format: "carousel",
       objective: "eduquer",
+      angle: "mythe_a_deconstruire",
       pillar: pillars[1] || null,
     });
   }
   ideas.push({
-    idea: "Ce que tu gagnes vraiment en travaillant avec moi",
+    idea: "Une situation du quotidien dans laquelle ta cliente idéale se reconnaîtra immédiatement",
+    hook: "2h sur un post. 12 likes. Tu fermes l'appli.",
     format: "reel",
     objective: "engager",
+    angle: "identification",
     pillar: pillars[2] || null,
   });
 
@@ -180,8 +202,10 @@ export default function SuggestedContents() {
 
         const ideas: IdeaSpark[] = data.suggestions.map((s: any) => ({
           idea: s.idea || s.theme || "Idée de contenu",
+          hook: s.hook || null,
           format: s.format || "post",
           objective: s.objective || "inspirer",
+          angle: s.angle || null,
           pillar: s.pillar || null,
         }));
 
@@ -219,8 +243,10 @@ export default function SuggestedContents() {
       if (!Array.isArray(parsed)) return [];
       return parsed.map((s: any) => ({
         idea: s.idea || s.theme || s.titre || "Idée de contenu",
+        hook: s.hook || null,
         format: s.format || "post",
         objective: s.objective || "inspirer",
+        angle: s.angle || null,
         pillar: s.pillar || null,
       }));
     } catch {
@@ -289,18 +315,15 @@ export default function SuggestedContents() {
       if (error) throw new Error(error.message);
 
       let result = data?.content || data;
-      // Parse JSON response
       if (typeof result === "string") {
         try {
           const cleaned = result.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
           result = JSON.parse(cleaned);
         } catch {
-          // Not JSON, use raw content
           result = { content: result, accroche: "", hashtags: [] };
         }
       }
 
-      // Navigate to redaction page with pre-filled content
       const params = new URLSearchParams();
       params.set("canal", "instagram");
       params.set("theme", idea.idea);
@@ -388,10 +411,15 @@ export default function SuggestedContents() {
                 {expressingIdx === i ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : (FORMAT_EMOJI[idea.format] || "📝")}
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+                <p className="text-sm text-foreground line-clamp-2 group-hover:text-primary transition-colors">
                   {expressingIdx === i ? "Génération express en cours…" : idea.idea}
                 </p>
-                <div className="flex items-center gap-2 mt-0.5">
+                {idea.hook && expressingIdx !== i && (
+                  <p className="text-xs text-muted-foreground italic mt-0.5 line-clamp-1">
+                    « {idea.hook} »
+                  </p>
+                )}
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className={cn(
                     "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
                     OBJECTIVE_COLORS[idea.objective] || "bg-muted text-muted-foreground"
@@ -401,6 +429,11 @@ export default function SuggestedContents() {
                   <span className="text-[10px] text-muted-foreground">
                     {FORMAT_LABEL[idea.format] || idea.format}
                   </span>
+                  {idea.angle && ANGLE_LABELS[idea.angle] && (
+                    <span className="text-[10px] text-muted-foreground/70">
+                      · {ANGLE_LABELS[idea.angle]}
+                    </span>
+                  )}
                 </div>
               </div>
               <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />

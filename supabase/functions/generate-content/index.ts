@@ -127,36 +127,72 @@ serve(async (req) => {
         const ctx = await getUserContext(supabase, user.id, workspace_id);
         const wFullContext = formatContextForAI(ctx, CONTEXT_PRESETS.weeklySuggestions);
 
+        // Fetch recent posts to avoid repetition
+        const col = workspace_id && workspace_id !== user.id ? "workspace_id" : "user_id";
+        const val = workspace_id || user.id;
+        const { data: recentPosts } = await supabase
+          .from("calendar_posts")
+          .select("theme, content_draft, format, objective")
+          .eq(col, val)
+          .gte("date", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0])
+          .order("date", { ascending: false })
+          .limit(10);
+
+        const recentTopics = recentPosts?.length
+          ? `\nSUJETS RÉCENTS (ne PAS reproposer de sujets similaires) :\n${recentPosts.map((p: any) => `- ${p.theme || p.content_draft?.slice(0, 80) || "?"} (${p.format || "post"}, ${p.objective || "?"})`).join("\n")}`
+          : "";
+
         systemPrompt = `${CORE_PRINCIPLES}
 
 PROFIL DE L'UTILISATRICE :
 ${wFullContext}
+${recentTopics}
 
 CONSIGNE :
-Tu es l'assistant com' de cette utilisatrice. Génère exactement 3 IDÉES DE SUJETS courtes et percutantes pour sa semaine sur Instagram.
+Tu es l'assistant com' de cette utilisatrice. Génère exactement 3 IDÉES DE CONTENUS pour sa semaine sur Instagram.
 
-IMPORTANT :
-- Chaque idée = UNE PHRASE COURTE (max 12 mots), formulée comme un sujet de post concret et spécifique.
-- PAS de post complet, PAS de corps de texte, PAS de CTA. Juste le sujet.
-- Les idées doivent être ULTRA-SPÉCIFIQUES à son activité, sa cible, ses piliers. Pas de sujets génériques comme "Partage ton parcours".
-- Inspire-toi de ses piliers de contenu, de son combat, de sa cible, de son offre.
-- Varie les objectifs : 1 idée "inspirer", 1 idée "éduquer", 1 idée "engager" ou "vendre".
-- Suggère le format le plus adapté à chaque idée.
-- Formule chaque idée comme si tu disais à une copine "Tiens, tu devrais parler de…"
+CHAQUE IDÉE DOIT CONTENIR :
+1. Un SUJET précis et spécifique à son activité (pas "Partage ton parcours" mais "Le jour où une cliente m'a dit que mon prix était trop bas et pourquoi ça m'a fait réfléchir")
+2. Un HOOK : la première phrase du post, celle qui arrête le scroll. Percutante, concrète, qui donne envie de lire la suite. Maximum 15 mots.
+3. Un FORMAT adapté au sujet
+4. Un OBJECTIF de communication
+5. Un ANGLE ÉDITORIAL parmi ces formats Nowadays :
+   - "coup_de_gueule" : exprimer une injustice de ton secteur
+   - "mythe_a_deconstruire" : démonter une croyance répandue
+   - "storytelling_lecon" : raconter un vécu + en tirer une leçon
+   - "histoire_cliente" : illustrer un blocage commun via un cas réel
+   - "conseil_contre_intuitif" : donner un conseil qui va à l'encontre du consensus
+   - "regard_philosophique" : prendre de la hauteur sur un sujet de société lié à son métier
+   - "before_after" : montrer une évolution (pratique, pensée, résultat)
+   - "identification" : situation du quotidien dans laquelle la cible se reconnaît
+   - "analyse_decryptage" : décortiquer un sujet en profondeur
+   - "build_in_public" : partager les coulisses de son projet
+   - "surf_actu" : rebondir sur une actualité pertinente
+
+RÈGLES CRITIQUES :
+- Les idées doivent être ULTRA-SPÉCIFIQUES à son activité, sa cible, ses piliers, ses combats. Pas de sujets génériques applicables à n'importe qui.
+- Le hook doit être formulé comme la vraie première phrase du post : oral, direct, percutant. Pas un titre de blog SEO.
+- Varier les objectifs : une idée orientée visibilité, une confiance/engagement, une vente/crédibilité.
+- Varier les angles éditoriaux : ne PAS proposer 3 fois le même format.
+- Varier les formats Instagram : mixer post, carousel, reel, story.
+- S'inspirer de ses combats, de ses valeurs, de ses frustrations de cible, de ses offres.
+- Si des sujets récents sont fournis, proposer des idées DIFFÉRENTES.
 
 STRUCTURE DE RÉPONSE (JSON strict) :
 [
   {
-    "idea": "Le sujet en une phrase courte et percutante (max 12 mots)",
+    "idea": "Le sujet développé en 1-2 phrases (spécifique, pas vague)",
+    "hook": "La première phrase du post, max 15 mots, percutante",
     "format": "post" | "carousel" | "reel" | "story",
     "objective": "inspirer" | "eduquer" | "vendre" | "engager",
+    "angle": "Le format éditorial Nowadays utilisé (ex: mythe_a_deconstruire)",
     "pillar": "Le pilier de contenu associé (si applicable, sinon null)"
   }
 ]
 
 Réponds UNIQUEMENT avec le JSON, sans markdown, sans backticks, sans explication.`;
 
-        userPrompt = "Génère mes 3 idées de sujets de la semaine.";
+        userPrompt = "Génère mes 3 idées de contenus de la semaine.";
 
 
       } else if (type === "ideas") {
