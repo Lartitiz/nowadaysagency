@@ -718,13 +718,13 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap cursor-text transition-colors hover:bg-muted/30 focus:bg-muted/30 focus:outline-none focus:ring-1 focus:ring-primary/30"
             >
               {contentPreview}
-              {contentDraft && contentDraft.length > 200 && !showFullContent && (
-                <button onClick={() => setShowFullContent(true)} className="block mt-1 text-xs text-primary hover:underline">voir la suite ↓</button>
-              )}
-              {showFullContent && contentDraft && contentDraft.length > 200 && (
-                <button onClick={() => setShowFullContent(false)} className="block mt-1 text-xs text-primary hover:underline">réduire ↑</button>
-              )}
             </div>
+            {contentDraft && contentDraft.length > 200 && !showFullContent && (
+              <button onClick={() => setShowFullContent(true)} className="block mt-1 text-xs text-primary hover:underline">voir la suite ↓</button>
+            )}
+            {showFullContent && contentDraft && contentDraft.length > 200 && (
+              <button onClick={() => setShowFullContent(false)} className="block mt-1 text-xs text-primary hover:underline">réduire ↑</button>
+            )}
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="rounded-pill text-xs gap-1.5">
                 ✏️ Modifier
