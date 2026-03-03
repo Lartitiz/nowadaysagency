@@ -462,6 +462,8 @@ export default function CreerUnifie() {
         status: "ready",
         canal,
         format: fmt,
+        objectif: objective || null,
+        angle: editorialAngle || null,
         content_draft: contentDraft,
         accroche,
         ...(storyDetail ? { story_sequence_detail: storyDetail } : {}),
