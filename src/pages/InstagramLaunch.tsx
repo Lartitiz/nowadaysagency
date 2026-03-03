@@ -429,12 +429,12 @@ export default function InstagramLaunch() {
                             size="sm"
                             onClick={() => {
                               const formatMap: Record<string, string> = {
-                                "Post": "/atelier?canal=instagram",
-                                "Carrousel": "/instagram/carousel",
-                                "Reel": "/instagram/reels",
-                                "Story": "/instagram/stories",
-                                "Stories": "/instagram/stories",
-                                "Live": "/atelier?canal=instagram",
+                                "Post": "/creer",
+                                "Carrousel": "/creer?format=carousel",
+                                "Reel": "/creer?format=reel",
+                                "Story": "/creer?format=story",
+                                "Stories": "/creer?format=story",
+                                "Live": "/creer",
                               };
                               const route = formatMap[idea.format] || "/creer";
                               const params = new URLSearchParams();

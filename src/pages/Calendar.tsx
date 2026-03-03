@@ -37,18 +37,18 @@ function getGeneratorRoute(post: CalendarPost): string | null {
   const fmt = post.format || "";
   const isStories = !!(post.stories_count || post.stories_sequence_id || post.stories_structure);
 
-  if (isStories || fmt === "story" || fmt === "story_serie") return "/instagram/stories";
-  if (fmt === "reel") return "/instagram/reels";
-  if (fmt === "carousel" || fmt === "post_carrousel") return "/instagram/carousel";
+  if (isStories || fmt === "story" || fmt === "story_serie") return "/creer?format=story";
+  if (fmt === "reel") return "/creer?format=reel";
+  if (fmt === "carousel" || fmt === "post_carrousel") return "/creer?format=carousel";
   if (fmt === "linkedin") return "/linkedin";
   if (fmt === "newsletter" || fmt === "newsletter_standard") return "/creer";
   if (fmt === "post" || fmt === "post_photo") return "/creer";
 
   // If generated_content_type is set, use that
   const gct = post.generated_content_type || "";
-  if (gct === "carousel") return "/instagram/carousel";
-  if (gct === "reel") return "/instagram/reels";
-  if (gct === "story") return "/instagram/stories";
+  if (gct === "carousel") return "/creer?format=carousel";
+  if (gct === "reel") return "/creer?format=reel";
+  if (gct === "story") return "/creer?format=story";
   if (gct === "linkedin") return "/linkedin";
 
   return null; // fallback to dialog

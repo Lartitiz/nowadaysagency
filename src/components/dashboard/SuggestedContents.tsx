@@ -20,9 +20,9 @@ interface IdeaSpark {
 
 const FORMAT_ROUTE: Record<string, string> = {
   post: "/creer",
-  carousel: "/instagram/carousel",
-  reel: "/instagram/reels",
-  story: "/instagram/stories",
+  carousel: "/creer?format=carousel",
+  reel: "/creer?format=reel",
+  story: "/creer?format=story",
 };
 
 const FORMAT_EMOJI: Record<string, string> = {
@@ -307,7 +307,7 @@ export default function SuggestedContents() {
       if (idea.format) params.set("format", idea.format);
       if (idea.objective) params.set("objectif", idea.objective === "inspirer" ? "visibilite" : idea.objective === "eduquer" ? "credibilite" : idea.objective === "vendre" ? "vente" : "confiance");
 
-      navigate(`/atelier/rediger?${params.toString()}`, {
+      navigate(`/creer?${params.toString()}`, {
         state: {
           expressDraft: true,
           content_draft: result.content || result,

@@ -437,8 +437,8 @@ export default function Dashboard() {
                 <div className="flex flex-wrap gap-2">
                   {[
                     { label: "Post Instagram", route: "/creer" },
-                    { label: "Carousel", route: "/instagram/carousel" },
-                    { label: "Reel", route: "/instagram/reels" },
+                    { label: "Carousel", route: "/creer?format=carousel" },
+                    { label: "Reel", route: "/creer?format=reel" },
                     { label: "Post LinkedIn", route: "/linkedin/post" },
                     ...(isModuleVisible("site", isAdmin) ? [{ label: "Article de blog", route: "/site/accueil" }] : []),
                   ].map((item) => (

@@ -149,7 +149,7 @@ export default function InstagramProfileEpingles() {
   const handleCreateAtAtelier = (slotType: string) => {
     const slot = SLOTS.find((s) => s.type === slotType);
     if (!slot) return;
-    navigate("/atelier?canal=instagram", {
+    navigate("/creer?canal=instagram", {
       state: {
         fromPinnedPosts: true,
         pinType: slotType,

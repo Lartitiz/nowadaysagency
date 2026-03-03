@@ -159,7 +159,7 @@ function getSmartFocus(
     {
       emoji: "💡", title: "Trouve 3 idées de posts",
       description: "Remplis ta banque d'idées pour ne jamais être en panne d'inspiration.",
-      cta: "Trouver des idées", route: "/atelier?canal=instagram",
+      cta: "Trouver des idées", route: "/creer",
       duration: "10 min", type: "other",
     },
     {

@@ -13,7 +13,7 @@ const CARDS = [
   { emoji: "🔎", title: "Mes mots-clés", desc: "Trouve les bons mots-clés SEO.", to: "/pinterest/mots-cles", tag: "Assisté" },
   { emoji: "📌", title: "Mes épingles", desc: "Crée des épingles optimisées.", to: "/pinterest/epingles", tag: "Assisté" },
   { emoji: "⏰", title: "Ma routine Pinterest", desc: "Ton rythme et ta checklist mensuelle.", to: "/pinterest/routine", tag: "Suivi" },
-  { emoji: "💡", title: "Trouver des idées", desc: "Idées de contenu Pinterest.", to: "/atelier?canal=pinterest", tag: "Assisté" },
+  { emoji: "💡", title: "Trouver des idées", desc: "Idées de contenu Pinterest.", to: "/creer?canal=pinterest", tag: "Assisté" },
   { emoji: "📅", title: "Mon calendrier", desc: "Planifie tes épingles.", to: "/calendrier?canal=pinterest", tag: "Planning" },
 ];
 

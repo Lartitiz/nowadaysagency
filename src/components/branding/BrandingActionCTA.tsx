@@ -11,7 +11,7 @@ interface ActionDef {
 const ACTIONS: Record<string, ActionDef[]> = {
   story: [
     { label: "Écrire un post storytelling", route: "/creer" },
-    { label: "Créer un carousel Mon Parcours", route: "/instagram/carousel" },
+    { label: "Créer un carousel Mon Parcours", route: "/creer?format=carousel" },
     { label: "Générer une accroche newsletter", route: "/creer" },
   ],
   persona: [

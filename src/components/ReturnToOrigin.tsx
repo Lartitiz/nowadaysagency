@@ -16,7 +16,7 @@ export default function ReturnToOrigin({ fallbackTo = "/creer", fallbackLabel = 
     label = "Calendrier";
   } else if (from) {
     to = from;
-    label = from === "/creer" ? "Créer" : from === "/atelier" ? "Atelier" : "Retour";
+    label = from === "/creer" ? "Créer" : "Retour";
   }
 
   return (

@@ -163,7 +163,7 @@ async function buildTasks(
       title: "Encore un contenu",
       emoji: "🔥",
       duration: 600,
-      route: "/instagram/carousel",
+      route: "/creer?format=carousel",
       description: "Un carrousel, un reel, un post LinkedIn… Varie les plaisirs.",
       completed: false,
     });
@@ -176,7 +176,7 @@ async function buildTasks(
       title: "Stocke des idées",
       emoji: "💡",
       duration: 300,
-      route: "/atelier",
+      route: "/creer",
       description: "Note 3 idées de contenus pour la semaine prochaine.",
       completed: false,
     });

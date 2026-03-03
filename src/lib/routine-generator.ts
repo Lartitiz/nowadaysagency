@@ -90,7 +90,7 @@ export function generateRoutineTasks(plan: CommPlan): GeneratedTask[] {
         recurrence: "weekly",
         day_of_week: day,
         week_of_month: null,
-        linked_module: "/atelier?canal=instagram",
+        linked_module: "/creer",
         sort_order: order++,
       });
     });
@@ -107,7 +107,7 @@ export function generateRoutineTasks(plan: CommPlan): GeneratedTask[] {
           recurrence: "weekly",
           day_of_week: day,
           week_of_month: null,
-          linked_module: "/instagram/stories",
+          linked_module: "/creer?format=story",
           sort_order: order++,
         });
       });
@@ -126,7 +126,7 @@ export function generateRoutineTasks(plan: CommPlan): GeneratedTask[] {
           recurrence: "monthly",
           day_of_week: activeDays[0] || "lun",
           week_of_month: w,
-          linked_module: "/instagram/reels",
+          linked_module: "/creer?format=reel",
           sort_order: order++,
         });
       });

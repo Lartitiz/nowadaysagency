@@ -339,13 +339,13 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         if (angle && ANGLE_TO_CAROUSEL[angle]) {
           params.set("carousel_type", ANGLE_TO_CAROUSEL[angle]);
         }
-        navigate(`/instagram/carousel?${params.toString()}`, { state });
+        navigate(`/creer?format=carousel&${params.toString()}`, { state });
       } else if (fmt === "reel") {
-        navigate(`/instagram/reels?${params.toString()}`, { state });
+        navigate(`/creer?format=reel&${params.toString()}`, { state });
       } else if (fmt === "story_serie") {
-        navigate(`/instagram/stories?${params.toString()}`, { state });
+        navigate(`/creer?format=story&${params.toString()}`, { state });
       } else {
-        navigate(`/atelier?canal=${postCanal || "instagram"}&${params.toString()}`, { state });
+        navigate(`/creer?canal=${postCanal || "instagram"}&${params.toString()}`, { state });
       }
     }, 100);
   };
@@ -354,7 +354,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     if (editingPost?.stories_sequence_id) {
       onOpenChange(false);
       setTimeout(() => {
-        navigate("/instagram/stories", {
+        navigate("/creer?format=story", {
           state: { viewSequenceId: editingPost.stories_sequence_id },
         });
       }, 100);
@@ -649,7 +649,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                         if (objectif) params.set("objectif", objectif);
                         if (editingPost?.id) params.set("calendar_id", editingPost.id);
                         params.set("from", "/calendrier");
-                        navigate(`/instagram/carousel?${params.toString()}`);
+                        navigate(`/creer?format=carousel&${params.toString()}`);
                       }}>
                         📑 Transformer en carrousel
                       </DropdownMenuItem>
@@ -658,7 +658,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                         params.set("sujet", theme || "");
                         if (editingPost?.id) params.set("calendar_id", editingPost.id);
                         params.set("from", "/calendrier");
-                        navigate(`/instagram/reels?${params.toString()}`);
+                        navigate(`/creer?format=reel&${params.toString()}`);
                       }}>
                         🎬 Transformer en reel
                       </DropdownMenuItem>
@@ -667,7 +667,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                         params.set("sujet", theme || "");
                         if (editingPost?.id) params.set("calendar_id", editingPost.id);
                         params.set("from", "/calendrier");
-                        navigate(`/instagram/stories?${params.toString()}`);
+                        navigate(`/creer?format=story&${params.toString()}`);
                       }}>
                         📱 Transformer en stories
                       </DropdownMenuItem>
@@ -784,7 +784,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                         if (objectif) params.set("objectif", objectif);
                         if (editingPost?.id) params.set("calendar_id", editingPost.id);
                         params.set("from", "/calendrier");
-                        navigate(`/instagram/carousel?${params.toString()}`);
+                        navigate(`/creer?format=carousel&${params.toString()}`);
                       }}>
                         📑 Transformer en carrousel
                       </DropdownMenuItem>
@@ -793,7 +793,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                         params.set("sujet", theme || "");
                         if (editingPost?.id) params.set("calendar_id", editingPost.id);
                         params.set("from", "/calendrier");
-                        navigate(`/instagram/reels?${params.toString()}`);
+                        navigate(`/creer?format=reel&${params.toString()}`);
                       }}>
                         🎬 Transformer en reel
                       </DropdownMenuItem>
@@ -802,7 +802,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                         params.set("sujet", theme || "");
                         if (editingPost?.id) params.set("calendar_id", editingPost.id);
                         params.set("from", "/calendrier");
-                        navigate(`/instagram/stories?${params.toString()}`);
+                        navigate(`/creer?format=story&${params.toString()}`);
                       }}>
                         📱 Transformer en stories
                       </DropdownMenuItem>
