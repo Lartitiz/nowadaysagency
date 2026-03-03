@@ -263,6 +263,8 @@ CTA SOUHAITÉ :
 - Action : ${ctaTypeLabels[cta.type] || cta.type || "?"}
 ${cta.text ? `- Nom du freebie/newsletter : ${cta.text}` : ""}
 ${structureData}
+CONTRAINTE ABSOLUE : Une bio Instagram est limitée à 150 caractères maximum (espaces et emojis inclus). Chaque variante que tu génères DOIT faire 150 caractères ou moins. Compte les caractères avant de retourner chaque variante. Si une variante dépasse 150 caractères, raccourcis-la jusqu'à ce qu'elle rentre.
+
 CONSIGNE :
 Génère 5 propositions de bio Instagram.
 
@@ -304,7 +306,7 @@ Réponds UNIQUEMENT en JSON :
 
       } else if (type === "bio") {
         // SECTION 1 (règles d'écriture uniquement via CORE_PRINCIPLES)
-        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONSIGNE :\nGénère exactement 2 versions de bio Instagram pour cette utilisatrice.\n\nVERSION 1 : Bio structurée & claire\nFormat strict ligne par ligne :\n- Ligne "nom_profil" : Prénom + mot-clé de l'activité\n- Ligne 1 : Ce qu'elle propose (commence par un emoji pertinent)\n- Ligne 2 : Ce qui la rend unique (commence par un emoji pertinent)\n- Ligne 3 : Appel à l'action (commence par un emoji pertinent, termine par ⤵️)\n\nVERSION 2 : Bio créative & incarnée\nMême structure mais avec un ton plus libre, poétique, avec de l'humour ou de la personnalité.\n\nRÈGLES :\n- Maximum 150 caractères par ligne\n- Pas de hashtags dans la bio\n\nIMPORTANT : Réponds UNIQUEMENT en JSON :\n{"structured": {"nom_profil": "...", "ligne1": "...", "ligne2": "...", "ligne3": "..."}, "creative": {"nom_profil": "...", "ligne1": "...", "ligne2": "...", "ligne3": "..."}}`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONSIGNE :\nGénère exactement 2 versions de bio Instagram pour cette utilisatrice.\n\nVERSION 1 : Bio structurée & claire\nFormat strict ligne par ligne :\n- Ligne "nom_profil" : Prénom + mot-clé de l'activité\n- Ligne 1 : Ce qu'elle propose (commence par un emoji pertinent)\n- Ligne 2 : Ce qui la rend unique (commence par un emoji pertinent)\n- Ligne 3 : Appel à l'action (commence par un emoji pertinent, termine par ⤵️)\n\nVERSION 2 : Bio créative & incarnée\nMême structure mais avec un ton plus libre, poétique, avec de l'humour ou de la personnalité.\n\nCONTRAINTE ABSOLUE : Une bio Instagram est limitée à 150 caractères maximum (espaces et emojis inclus). Chaque variante DOIT faire 150 caractères ou moins au total (toutes lignes confondues). Compte les caractères avant de retourner.\n\nRÈGLES :\n- 150 caractères MAX pour la bio complète (toutes lignes)\n- Pas de hashtags dans la bio\n\nIMPORTANT : Réponds UNIQUEMENT en JSON :\n{"structured": {"nom_profil": "...", "ligne1": "...", "ligne2": "...", "ligne3": "..."}, "creative": {"nom_profil": "...", "ligne1": "...", "ligne2": "...", "ligne3": "..."}}`;
         userPrompt = "Génère 2 versions de bio Instagram pour moi.";
 
       } else if (type === "launch-ideas") {
