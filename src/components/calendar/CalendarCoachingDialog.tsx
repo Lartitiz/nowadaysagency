@@ -118,7 +118,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
         theme: item.subject,
         format: item.format === "carousel" ? "post_carrousel" : item.format,
         canal: "instagram",
-        status: "draft",
+        status: "a_rediger",
         objectif: item.objective,
         accroche: item.hook_idea,
         notes: `Pilier : ${item.pillar}`,
