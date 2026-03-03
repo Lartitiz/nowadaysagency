@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Copy, RefreshCw, RotateCcw, CalendarDays, Save, Palette, Download, Loader2 } from "lucide-react";
+import { Copy, RefreshCw, RotateCcw, CalendarDays, Palette, Download, Loader2 } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState } from "react";
@@ -118,53 +118,67 @@ export default function CarouselResult({
 
       <AiGeneratedMention />
 
-      {/* Actions */}
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={onCopy} className="gap-1.5">
-          <Copy className="h-3.5 w-3.5" /> Copier
-        </Button>
-        <Button variant="outline" size="sm" onClick={onRegenerate} className="gap-1.5">
-          <RefreshCw className="h-3.5 w-3.5" /> Regénérer
-        </Button>
-        {onSave && (
-          <Button variant="outline" size="sm" onClick={onSave} className="gap-1.5">
-            <Save className="h-3.5 w-3.5" /> Sauvegarder
-          </Button>
-        )}
-        {onCalendar && (
-          <Button variant="outline" size="sm" onClick={onCalendar} className="gap-1.5">
-            <CalendarDays className="h-3.5 w-3.5" /> Planifier
-          </Button>
-        )}
-        <Button variant="ghost" size="sm" onClick={onReset} className="gap-1.5 ml-auto">
-          <RotateCcw className="h-3.5 w-3.5" /> Nouveau contenu
-        </Button>
-      </div>
-
-      {/* Visual actions (carousel only) */}
-      {(onGenerateVisuals || onExportPptx) && (
-        <div className="flex flex-wrap gap-2 pt-1 border-t border-border">
-          {onGenerateVisuals && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onGenerateVisuals}
-              disabled={visualLoading}
-              className="gap-1.5"
-            >
-              {visualLoading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Palette className="h-3.5 w-3.5" />
-              )}
-              {visualLoading ? "Génération..." : "Générer les visuels"}
+      {/* === ACTIONS : 2 chemins === */}
+      {visualSlides && visualSlides.length > 0 ? (
+        /* ÉTAT : Visuels générés → CTA principal = Ajouter au calendrier */
+        <div className="space-y-3 pt-2">
+          {onCalendar && (
+            <Button onClick={onCalendar} className="w-full gap-2 h-11 text-sm font-semibold">
+              <CalendarDays className="h-4 w-4" /> Ajouter au calendrier
             </Button>
           )}
-          {onExportPptx && (
-            <Button variant="outline" size="sm" onClick={onExportPptx} className="gap-1.5">
-              <Download className="h-3.5 w-3.5" /> Export PPTX
+          <div className="flex items-center justify-center gap-3">
+            {onExportPptx && (
+              <Button variant="ghost" size="sm" onClick={onExportPptx} className="gap-1.5 text-xs text-muted-foreground">
+                <Download className="h-3.5 w-3.5" /> Export PPTX
+              </Button>
+            )}
+            {onGenerateVisuals && (
+              <Button variant="ghost" size="sm" onClick={onGenerateVisuals} className="gap-1.5 text-xs text-muted-foreground">
+                <RefreshCw className="h-3.5 w-3.5" /> Regénérer visuels
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={onCopy} className="gap-1.5 text-xs text-muted-foreground">
+              <Copy className="h-3.5 w-3.5" /> Copier
             </Button>
-          )}
+          </div>
+        </div>
+      ) : (
+        /* ÉTAT : Pas encore de visuels → 2 CTAs côte à côte */
+        <div className="space-y-3 pt-2">
+          <div className="grid grid-cols-2 gap-3">
+            {onGenerateVisuals && (
+              <Button
+                onClick={onGenerateVisuals}
+                disabled={visualLoading}
+                className="h-11 gap-2 text-sm font-semibold"
+              >
+                {visualLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Palette className="h-4 w-4" />
+                )}
+                {visualLoading ? "Création..." : "Créer les visuels"}
+              </Button>
+            )}
+            {onCalendar && (
+              <Button
+                variant="outline"
+                onClick={onCalendar}
+                className="h-11 gap-2 text-sm font-semibold"
+              >
+                <CalendarDays className="h-4 w-4" /> Ajouter au calendrier
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center justify-center gap-3">
+            <Button variant="ghost" size="sm" onClick={onCopy} className="gap-1.5 text-xs text-muted-foreground">
+              <Copy className="h-3.5 w-3.5" /> Copier
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onReset} className="gap-1.5 text-xs text-muted-foreground">
+              <RotateCcw className="h-3.5 w-3.5" /> Nouveau contenu
+            </Button>
+          </div>
         </div>
       )}
 

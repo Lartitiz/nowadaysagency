@@ -293,8 +293,12 @@ export default function CreerUnifie() {
     }
   };
 
-  const handleAddToCalendar = () => {
+  const handleAddToCalendar = async () => {
     if (!session?.user?.id || !result?.raw) return;
+    // Auto-save carousel if not already saved
+    if (selectedFormat === "carousel" && !savedId && result?.raw?.slides) {
+      await handleSave();
+    }
     setCalendarDialogOpen(true);
   };
 
@@ -323,6 +327,25 @@ export default function CreerUnifie() {
 
       const canal = selectedFormat === "linkedin" ? "linkedin" : "instagram";
 
+      // Build story_sequence_detail for structured formats
+      let storyDetail: any = null;
+      if (selectedFormat === "carousel" && r?.slides) {
+        storyDetail = {
+          type: "carousel",
+          carousel_type: r.carousel_type || "tips",
+          slides: r.slides,
+          caption: r.caption,
+          quality_check: r.quality_check,
+          ...(visualSlides.length > 0 ? {
+            visual_html: visualSlides.map((vs: any) => ({ slide_number: vs.slide_number, html: vs.html })),
+          } : {}),
+        };
+      } else if (selectedFormat === "reel" && r?.sections) {
+        storyDetail = { type: "reel", sections: r.sections };
+      } else if (selectedFormat === "story" && (r?.stories || r?.sequences)) {
+        storyDetail = { type: "story", sequences: r.stories || r.sequences };
+      }
+
       const { error: insertError } = await supabase.from("calendar_posts").insert({
         user_id: session.user.id,
         date: calendarDate,
@@ -332,6 +355,7 @@ export default function CreerUnifie() {
         format: fmt,
         content_draft: contentDraft,
         accroche,
+        ...(storyDetail ? { story_sequence_detail: storyDetail } : {}),
         ...(savedId ? { generated_content_id: savedId, generated_content_type: "carousel" } : {}),
       });
 
