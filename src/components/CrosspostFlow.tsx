@@ -92,11 +92,12 @@ export default function CrosspostFlow() {
       }
       const res = await supabase.functions.invoke("linkedin-ai", {
         body: {
-          action: "crosspost",
-          sourceContent: sourceContent || "",
-          sourceType,
-          targetChannels: Array.from(targets),
-          fileUrls,
+    action: "crosspost",
+    sourceContent: sourceContent || "",
+    sourceType,
+    targetChannels: Array.from(targets),
+    fileUrls,
+    workspace_id: workspaceId,
         },
       });
       if (res.error) throw new Error(res.error.message);
