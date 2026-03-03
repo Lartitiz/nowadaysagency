@@ -1,4 +1,4 @@
-import { Loader2, Pencil } from "lucide-react";
+import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
 import ReelResult from "@/components/creer/formatRenderers/ReelResult";
@@ -60,46 +60,90 @@ export default function CreerStepResult({
 
   if (!result) return null;
 
-  const commonProps = {
-    result,
-    onCopy: () => onCopy(JSON.stringify(result, null, 2)),
-    onRegenerate,
-    onReset,
-    onSave,
-    onCalendar,
-  };
-
   const renderResult = () => {
     switch (format) {
       case "carousel":
-        return (
-          <CarouselResult
-            {...commonProps}
-            onGenerateVisuals={onGenerateVisuals}
-            visualLoading={visualLoading}
-            visualSlides={visualSlides}
-            onExportPptx={onExportPptx}
-          />
-        );
+        return <CarouselResult result={result} visualSlides={visualSlides} />;
       case "reel":
-        return <ReelResult {...commonProps} />;
+        return <ReelResult result={result} />;
       case "story":
-        return <StoryResult {...commonProps} />;
+        return <StoryResult result={result} />;
       case "post":
-        return <PostResult {...commonProps} />;
+        return <PostResult result={result} />;
       case "linkedin":
-        return <LinkedInResult {...commonProps} />;
+        return <LinkedInResult result={result} />;
       default:
-        return <PostResult {...commonProps} />;
+        return <PostResult result={result} />;
     }
   };
 
+  const hasVisuals = !!(visualSlides && visualSlides.length > 0);
+  const isCarousel = format === "carousel";
+
   return (
     <div className="space-y-4 animate-fade-in">
+      {/* 1. Contenu (slides, caption, visuels, etc.) */}
       {renderResult()}
+
+      {/* 2. Peaufiner */}
       <Button variant="outline" size="sm" onClick={onEdit} className="w-full gap-1.5">
         <Pencil className="h-3.5 w-3.5" /> Peaufiner
       </Button>
+
+      {/* 3. CTAs principaux */}
+      {isCarousel && !hasVisuals ? (
+        <div className="grid grid-cols-2 gap-3">
+          {onGenerateVisuals && (
+            <Button
+              onClick={onGenerateVisuals}
+              disabled={visualLoading}
+              className="h-11 gap-2 text-sm font-semibold"
+            >
+              {visualLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Palette className="h-4 w-4" />
+              )}
+              {visualLoading ? "Création..." : "Créer les visuels"}
+            </Button>
+          )}
+          {onCalendar && (
+            <Button
+              variant="outline"
+              onClick={onCalendar}
+              className="h-11 gap-2 text-sm font-semibold"
+            >
+              <CalendarDays className="h-4 w-4" /> Ajouter au calendrier
+            </Button>
+          )}
+        </div>
+      ) : (
+        onCalendar && (
+          <Button onClick={onCalendar} className="w-full gap-2 h-11 text-sm font-semibold">
+            <CalendarDays className="h-4 w-4" /> Ajouter au calendrier
+          </Button>
+        )
+      )}
+
+      {/* 4. Actions secondaires */}
+      <div className="flex items-center justify-center gap-3">
+        <Button variant="ghost" size="sm" onClick={() => onCopy(JSON.stringify(result, null, 2))} className="gap-1.5 text-xs text-muted-foreground">
+          <Copy className="h-3.5 w-3.5" /> Copier
+        </Button>
+        {isCarousel && hasVisuals && onExportPptx && (
+          <Button variant="ghost" size="sm" onClick={onExportPptx} className="gap-1.5 text-xs text-muted-foreground">
+            <Download className="h-3.5 w-3.5" /> Export PPTX
+          </Button>
+        )}
+        {isCarousel && hasVisuals && onGenerateVisuals && (
+          <Button variant="ghost" size="sm" onClick={onGenerateVisuals} className="gap-1.5 text-xs text-muted-foreground">
+            <RefreshCw className="h-3.5 w-3.5" /> Regénérer visuels
+          </Button>
+        )}
+        <Button variant="ghost" size="sm" onClick={onReset} className="gap-1.5 text-xs text-muted-foreground">
+          <RotateCcw className="h-3.5 w-3.5" /> Nouveau contenu
+        </Button>
+      </div>
     </div>
   );
 }

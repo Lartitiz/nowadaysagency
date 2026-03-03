@@ -1,22 +1,15 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Copy, RotateCcw, CalendarDays } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState } from "react";
 
 interface Props {
   result: any;
-  onCopy: () => void;
-  onRegenerate: () => void;
-  onReset: () => void;
-  onSave?: () => void;
-  onCalendar?: () => void;
 }
 
-export default function LinkedInResult({ result, onCopy, onRegenerate, onReset, onSave, onCalendar }: Props) {
+export default function LinkedInResult({ result }: Props) {
   const hook = result?.hook || result?.accroche || "";
   const body = result?.body || result?.content || result?.text || "";
   const cta = result?.cta || result?.call_to_action || "";
@@ -32,7 +25,6 @@ export default function LinkedInResult({ result, onCopy, onRegenerate, onReset, 
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Hook */}
       {hook && (
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="p-3 space-y-1">
@@ -45,7 +37,6 @@ export default function LinkedInResult({ result, onCopy, onRegenerate, onReset, 
         </Card>
       )}
 
-      {/* Body */}
       {body && (
         <Card className="border-border">
           <CardContent className="p-3 space-y-1">
@@ -55,7 +46,6 @@ export default function LinkedInResult({ result, onCopy, onRegenerate, onReset, 
         </Card>
       )}
 
-      {/* CTA */}
       {cta && (
         <Card className="border-border">
           <CardContent className="p-3 space-y-1">
@@ -65,7 +55,6 @@ export default function LinkedInResult({ result, onCopy, onRegenerate, onReset, 
         </Card>
       )}
 
-      {/* Hashtags */}
       {hashtags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {(Array.isArray(hashtags) ? hashtags : [hashtags]).map((tag: string, i: number) => (
@@ -76,12 +65,10 @@ export default function LinkedInResult({ result, onCopy, onRegenerate, onReset, 
         </div>
       )}
 
-      {/* Character count */}
       {characterCount && (
         <p className="text-xs text-muted-foreground">{characterCount} caractères</p>
       )}
 
-      {/* Checklist */}
       {checklist.length > 0 && (
         <Card className="border-border">
           <CardContent className="p-3 space-y-1.5">
@@ -102,7 +89,6 @@ export default function LinkedInResult({ result, onCopy, onRegenerate, onReset, 
         </Card>
       )}
 
-      {/* Hook alternatives */}
       {hookAlternatives.length > 0 && (
         <Accordion type="single" collapsible>
           <AccordionItem value="alternatives" className="border-border">
@@ -123,27 +109,9 @@ export default function LinkedInResult({ result, onCopy, onRegenerate, onReset, 
         </Accordion>
       )}
 
-      {/* Red flags */}
       <RedFlagsChecker content={checkedText} onFix={setCheckedText} />
 
       <AiGeneratedMention />
-
-      {/* === ACTIONS === */}
-      <div className="space-y-3 pt-2">
-        {onCalendar && (
-          <Button onClick={onCalendar} className="w-full gap-2 h-11 text-sm font-semibold">
-            <CalendarDays className="h-4 w-4" /> Ajouter au calendrier
-          </Button>
-        )}
-        <div className="flex items-center justify-center gap-3">
-          <Button variant="ghost" size="sm" onClick={onCopy} className="gap-1.5 text-xs text-muted-foreground">
-            <Copy className="h-3.5 w-3.5" /> Copier
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onReset} className="gap-1.5 text-xs text-muted-foreground">
-            <RotateCcw className="h-3.5 w-3.5" /> Nouveau contenu
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

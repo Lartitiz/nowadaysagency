@@ -1,21 +1,14 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Copy, RotateCcw, CalendarDays } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState } from "react";
 
 interface Props {
   result: any;
-  onCopy: () => void;
-  onRegenerate: () => void;
-  onReset: () => void;
-  onSave?: () => void;
-  onCalendar?: () => void;
 }
 
-export default function ReelResult({ result, onCopy, onRegenerate, onReset, onSave, onCalendar }: Props) {
+export default function ReelResult({ result }: Props) {
   const formatType = result?.format_type || result?.format;
   const dureeCible = result?.duree_cible || result?.duration;
   const sections = result?.sections || result?.script?.sections || [];
@@ -30,7 +23,6 @@ export default function ReelResult({ result, onCopy, onRegenerate, onReset, onSa
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Format badges */}
       <div className="flex items-center gap-2 flex-wrap">
         {formatType && (
           <Badge className="bg-primary/10 text-primary border-primary/20">{formatType}</Badge>
@@ -40,7 +32,6 @@ export default function ReelResult({ result, onCopy, onRegenerate, onReset, onSa
         )}
       </div>
 
-      {/* Sections */}
       <div className="space-y-2">
         {sections.map((section: any, i: number) => (
           <Card key={i} className="border-border">
@@ -77,7 +68,6 @@ export default function ReelResult({ result, onCopy, onRegenerate, onReset, onSa
         ))}
       </div>
 
-      {/* Personal tip */}
       {personalTip && (
         <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
           <p className="text-xs font-semibold text-primary mb-1">🎯 Conseil personnalisé</p>
@@ -85,27 +75,9 @@ export default function ReelResult({ result, onCopy, onRegenerate, onReset, onSa
         </div>
       )}
 
-      {/* Red flags */}
       <RedFlagsChecker content={checkedText} onFix={setCheckedText} />
 
       <AiGeneratedMention />
-
-      {/* === ACTIONS === */}
-      <div className="space-y-3 pt-2">
-        {onCalendar && (
-          <Button onClick={onCalendar} className="w-full gap-2 h-11 text-sm font-semibold">
-            <CalendarDays className="h-4 w-4" /> Ajouter au calendrier
-          </Button>
-        )}
-        <div className="flex items-center justify-center gap-3">
-          <Button variant="ghost" size="sm" onClick={onCopy} className="gap-1.5 text-xs text-muted-foreground">
-            <Copy className="h-3.5 w-3.5" /> Copier
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onReset} className="gap-1.5 text-xs text-muted-foreground">
-            <RotateCcw className="h-3.5 w-3.5" /> Nouveau contenu
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }
