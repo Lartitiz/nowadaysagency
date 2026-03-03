@@ -52,7 +52,7 @@ function VisualSlidesGrid({ slides }: { slides: { slide_number: number; html: st
                 <iframe
                   srcDoc={vs.html}
                   title={`Slide ${vs.slide_number}`}
-                  sandbox="allow-same-origin"
+                  sandbox="allow-same-origin allow-scripts"
                   style={{
                     position: "absolute",
                     top: 0,
