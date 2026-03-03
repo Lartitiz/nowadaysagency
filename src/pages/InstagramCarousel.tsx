@@ -357,7 +357,7 @@ export default function InstagramCarousel() {
 
       if (calendarPostId && insertRes.data) {
         await supabase.from("calendar_posts").update({
-          status: "ready",
+          status: "drafting",
           generated_content_id: (insertRes.data as any).id,
           generated_content_type: "carousel",
           content_draft: parsed.slides?.map((s: any) => `${s.title}\n${s.body || ""}`).join("\n\n"),
