@@ -732,7 +732,8 @@ Reponds en JSON :
       );
     }
 
-    const maxTokens = 4096;
+    const shortTypes = ["bio", "bio-audit", "bio-generator", "caption", "instagram-nom"];
+    const maxTokens = shortTypes.includes(type) ? 1024 : 4096;
     const content = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt, 0.8, maxTokens);
 
     if (false) { // dead code guard — weekly-suggestions handled above
