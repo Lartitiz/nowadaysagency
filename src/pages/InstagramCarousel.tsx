@@ -325,6 +325,14 @@ export default function InstagramCarousel() {
     setLoading(true);
     try {
       const offerCtx = selectedOffer && selectedOffer !== "none" ? offers.find(o => o.id === selectedOffer) : null;
+      const calState = location.state as any;
+      const launchCtx = calState?.launchId ? {
+        phase: calState.category,
+        chapter_label: calState.chapterLabel || calState.chapter,
+        audience_phase: calState.audiencePhase,
+        objective: calState.objective,
+        angle_suggestion: calState.angleSuggestion,
+      } : undefined;
       const { data, error } = await supabase.functions.invoke("carousel-ai", {
         body: {
           type: "express_full",
@@ -335,6 +343,7 @@ export default function InstagramCarousel() {
           deepening_answers: Object.values(deepeningAnswers).some(v => v.trim()) ? deepeningAnswers : undefined,
           selected_offer: offerCtx ? `${offerCtx.name} (${offerCtx.price_text || "gratuit"})` : undefined,
           workspace_id: workspaceId,
+          launch_context: launchCtx,
         },
       });
       if (error) throw error;

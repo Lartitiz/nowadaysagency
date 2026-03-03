@@ -49,7 +49,7 @@ serve(async (req) => {
       editorial_angle: z.string().max(100).optional().nullable(),
       content_structure: z.string().max(5000).optional().nullable(),
     }).passthrough());
-    const { type, workspace_id } = body;
+    const { type, workspace_id, launch_context } = body;
 
     const category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions") ? "suggestion" : "content";
     const quotaCheck = await checkQuota(user.id, category, workspace_id);
@@ -76,6 +76,13 @@ serve(async (req) => {
     }
 
     let systemPrompt = buildSystemPrompt(brandingContext);
+
+    // Inject launch context if present
+    if (launch_context && (type === "express_full" || type === "hooks" || type === "slides")) {
+      const lc = launch_context;
+      systemPrompt += `\n\nCONTEXTE LANCEMENT :\n- Phase : ${lc.phase || "?"}\n- Chapitre : ${lc.chapter_label || "?"}\n- Phase mentale audience : ${lc.audience_phase || "?"}\n- Objectif du slot : ${lc.objective || "?"}\n- Angle suggéré : ${lc.angle_suggestion || "?"}\nCONSIGNE : adapte le contenu à cette phase du lancement. Un contenu de phase "vente" n'a pas le même ton qu'un contenu de phase "teasing".`;
+    }
+
     let userPrompt = "";
 
     if (type === "hooks") {
