@@ -84,22 +84,6 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
     { label: "Instagram", path: "/instagram" },
     { label: "Créer" },
   ]],
-  ["/instagram/carousel", [
-    { label: "Accueil", path: "/dashboard" },
-    { label: "Instagram", path: "/instagram" },
-    { label: "Créer", path: "/creer" },
-    { label: "Carrousel" },
-  ]],
-  ["/instagram/reels", [
-    { label: "Accueil", path: "/dashboard" },
-    { label: "Instagram", path: "/instagram" },
-    { label: "Reels" },
-  ]],
-  ["/instagram/stories", [
-    { label: "Accueil", path: "/dashboard" },
-    { label: "Instagram", path: "/instagram" },
-    { label: "Stories" },
-  ]],
   ["/instagram/inspirer", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Instagram", path: "/instagram" },
@@ -386,16 +370,6 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
     { label: "SEO" },
   ]],
 
-  // ── Transversal ──
-  ["/atelier/rediger", [
-    { label: "Accueil", path: "/dashboard" },
-    { label: "Atelier", path: "/atelier" },
-    { label: "Rédiger" },
-  ]],
-  ["/atelier", [
-    { label: "Accueil", path: "/dashboard" },
-    { label: "Atelier" },
-  ]],
   ["/calendrier", [
     { label: "Accueil", path: "/dashboard" },
     { label: "Calendrier" },
