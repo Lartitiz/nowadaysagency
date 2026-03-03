@@ -49,8 +49,13 @@ serve(async (req) => {
       );
     }
 
-    const body = await req.json();
-    validateInput(body, z.object({
+    const rawBody = await req.json();
+    if (!rawBody || typeof rawBody !== "object") {
+      return new Response(JSON.stringify({ error: "Corps de requête invalide" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const body = validateInput(rawBody, z.object({
       type: z.enum(["analyze_inspiration", "hooks", "script"]),
       objective: z.string().max(100).optional().nullable(),
       face_cam: z.string().max(50).optional().nullable(),
@@ -61,7 +66,7 @@ serve(async (req) => {
       editorial_angle: z.string().max(100).optional().nullable(),
       content_structure: z.string().max(5000).optional().nullable(),
     }).passthrough());
-    let { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context, workspace_id, editorial_angle, content_structure, launch_context } = body;
+    let { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context, workspace_id, editorial_angle, content_structure, launch_context } = body as any;
 
     // Fetch full context server-side
     const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
