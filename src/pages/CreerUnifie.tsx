@@ -22,6 +22,7 @@ import { useBrandCharter } from "@/hooks/use-branding";
 import { exportCarouselPptx } from "@/lib/export-carousel-pptx";
 import { supabase } from "@/integrations/supabase/client";
 import { loadFlowState, saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
+import { useFormPersist } from "@/hooks/use-form-persist";
 
 type Step = "idea" | "format" | "questions" | "result" | "edit";
 type Mode = "create" | "transform";
@@ -63,6 +64,20 @@ export default function CreerUnifie() {
   const [answers, setAnswers] = useState<Record<string, string>>(ps?.answers || {});
   const [editContent, setEditContent] = useState(ps?.editContent || "");
 
+  const { restored: draftRestored, clearDraft } = useFormPersist(
+    "creer-unifie-form",
+    { step, ideaText, objective, selectedFormat, editorialAngle, answers },
+    (saved) => {
+      if (location.state || searchParams.get("format") || searchParams.get("sujet")) return;
+      if (saved.step && saved.step !== "idea") setStep(saved.step as Step);
+      if (saved.ideaText) setIdeaText(saved.ideaText);
+      if (saved.objective) setObjective(saved.objective);
+      if (saved.selectedFormat) setSelectedFormat(saved.selectedFormat);
+      if (saved.editorialAngle) setEditorialAngle(saved.editorialAngle);
+      if (saved.answers && Object.keys(saved.answers).length) setAnswers(saved.answers);
+    }
+  );
+
   // Launch sequence state
   const [launchResults, setLaunchResults] = useState<any[]>([]);
   const [launchIndex, setLaunchIndex] = useState(0);
@@ -78,6 +93,33 @@ export default function CreerUnifie() {
   // Visual states (carousel only)
   const [visualSlides, setVisualSlides] = useState<{ slide_number: number; html: string }[]>(ps?.visualSlides || []);
   const [visualLoading, setVisualLoading] = useState(false);
+
+  // ── Persist generated result to sessionStorage ──
+  const CREER_RESULT_KEY = "creer_unifie_result";
+  const resultRestoredRef = useRef(false);
+
+  useEffect(() => {
+    if (resultRestoredRef.current) return;
+    if (location.state || searchParams.get("format") || searchParams.get("sujet")) return;
+    resultRestoredRef.current = true;
+    try {
+      const raw = sessionStorage.getItem(CREER_RESULT_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved.visualSlides?.length) setVisualSlides(saved.visualSlides);
+      if (saved.launchResults?.length) setLaunchResults(saved.launchResults);
+    } catch { /* corrupt — ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (step === "idea" || step === "format") return;
+    try {
+      sessionStorage.setItem(CREER_RESULT_KEY, JSON.stringify({
+        visualSlides,
+        launchResults,
+      }));
+    } catch { /* quota — ignore */ }
+  }, [step, visualSlides, launchResults]);
 
   const {
     generate,
@@ -311,6 +353,8 @@ export default function CreerUnifie() {
     setSavedId(null);
     setVisualSlides([]);
     clearFlowState();
+    clearDraft();
+    sessionStorage.removeItem(CREER_RESULT_KEY);
   };
 
   // ── Post-generation handlers ──

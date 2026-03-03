@@ -10,12 +10,17 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading, isAdmin } = useAuth();
   const { isDemoMode } = useDemoContext();
   const location = useLocation();
-  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [checkingOnboarding, setCheckingOnboarding] = useState(() => {
+    return sessionStorage.getItem("onboarding_checked") !== "done";
+  });
+  const [needsOnboarding, setNeedsOnboarding] = useState(() => {
+    return sessionStorage.getItem("onboarding_checked") === "needs";
+  });
 
   useEffect(() => {
     if (isDemoMode || !user || location.pathname === "/onboarding") {
       setCheckingOnboarding(false);
+      if (isDemoMode) sessionStorage.setItem("onboarding_checked", "done");
       return;
     }
 
@@ -33,6 +38,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
         ]);
         const done = profile?.onboarding_completed === true || config?.onboarding_completed === true;
         setNeedsOnboarding(!done);
+        sessionStorage.setItem("onboarding_checked", done ? "done" : "needs");
       } catch (e) {
         console.error("Onboarding check failed:", e);
         setNeedsOnboarding(true);
