@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +22,7 @@ import LinkedInPreview from "@/components/linkedin/LinkedInPreview";
 import CharacterCounter from "@/components/linkedin/CharacterCounter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LINKEDIN_TIPS, LINKEDIN_TEMPLATES_UI, LINKEDIN_HOOK_TYPES, OBJECTIF_COLORS } from "@/lib/linkedin-data";
+import { useFormPersist } from "@/hooks/use-form-persist";
 
 const AUDIENCES = [
   { id: "tu", emoji: "🙋", label: 'Tutoiement ("tu")', desc: "Direct, intime, chaleureux" },
@@ -95,6 +96,46 @@ export default function LinkedInPostGenerator() {
   const [copiedImprove, setCopiedImprove] = useState<string | null>(null);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
   const [ideasContent, setIdeasContent] = useState("");
+
+  const { restored: draftRestored, clearDraft } = useFormPersist(
+    "linkedin-post-form",
+    { mode, template, audience, sujet, anecdote, emotion, conviction, hookType },
+    (saved) => {
+      if (calendarState) return;
+      if (saved.mode) setMode(saved.mode);
+      if (saved.template) setTemplate(saved.template);
+      if (saved.audience) setAudience(saved.audience);
+      if (saved.sujet) setSujet(saved.sujet);
+      if (saved.anecdote) setAnecdote(saved.anecdote);
+      if (saved.emotion) setEmotion(saved.emotion);
+      if (saved.conviction) setConviction(saved.conviction);
+      if (saved.hookType) setHookType(saved.hookType);
+    }
+  );
+
+  // ── Persist generated result ──
+  const LINKEDIN_RESULT_KEY = "linkedin_post_result";
+  const resultRestoredRef = useRef(false);
+
+  useEffect(() => {
+    if (resultRestoredRef.current) return;
+    if (calendarState) return;
+    resultRestoredRef.current = true;
+    try {
+      const raw = sessionStorage.getItem(LINKEDIN_RESULT_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved.result) setResult(saved.result);
+      if (saved.improveResult) setImproveResult(saved.improveResult);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (!result && !improveResult) return;
+    try {
+      sessionStorage.setItem(LINKEDIN_RESULT_KEY, JSON.stringify({ result, improveResult }));
+    } catch { /* ignore */ }
+  }, [result, improveResult]);
 
   // Random tip
   // Auto-suggest template when subject is pre-filled

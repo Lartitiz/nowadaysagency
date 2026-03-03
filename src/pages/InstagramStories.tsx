@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -202,7 +202,31 @@ export default function InstagramStories() {
     }
   );
 
+  // ── Persist generated result ──
+  const STORIES_RESULT_KEY = "stories_generated_result";
+  const resultRestoredRef = useRef(false);
 
+  useEffect(() => {
+    if (resultRestoredRef.current) return;
+    if (location.state || searchParams.get("calendar_id")) return;
+    resultRestoredRef.current = true;
+    try {
+      const raw = sessionStorage.getItem(STORIES_RESULT_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved.sequenceResult) {
+        setSequenceResult(saved.sequenceResult);
+        if (saved.step) setStep(saved.step);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (!sequenceResult) return;
+    try {
+      sessionStorage.setItem(STORIES_RESULT_KEY, JSON.stringify({ sequenceResult, step }));
+    } catch { /* ignore */ }
+  }, [sequenceResult, step]);
 
   const handleGenerate = async (quickMode = false) => {
     if (!user) return;
@@ -234,6 +258,7 @@ export default function InstagramStories() {
       setSequenceResult(parsed);
       setStep(5); // Result view
       clearDraft(); // Clear draft on success
+      sessionStorage.removeItem(STORIES_RESULT_KEY);
     } catch (e) {
       console.error(e);
       toast.error("Erreur lors de la génération.");

@@ -211,6 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    sessionStorage.removeItem("onboarding_checked");
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   }, []);

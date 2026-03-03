@@ -232,7 +232,6 @@ export default function InstagramCarousel() {
       if (saved.qualityCheck) setQualityCheck(saved.qualityCheck);
       if (saved.publishingTip) setPublishingTip(saved.publishingTip);
       if (saved.currentQuestion != null) setCurrentQuestion(saved.currentQuestion);
-      if (saved.visualSlides?.length) setVisualSlides(saved.visualSlides);
       if (saved.templateStyle) setTemplateStyle(saved.templateStyle);
       if (saved.step && saved.step > 1) setStep(saved.step);
     } catch { /* corrupt — ignore */ }
@@ -241,13 +240,15 @@ export default function InstagramCarousel() {
   useEffect(() => {
     if (step <= 1) return;
     try {
-      sessionStorage.setItem(GENERATED_KEY, JSON.stringify({
+      const dataToSave = {
         step, dynamicQuestions, deepeningAnswers, chosenAngle,
         slides, caption, qualityCheck, publishingTip, currentQuestion,
-        visualSlides, templateStyle,
-      }));
+        templateStyle,
+        // Don't persist visualSlides — too large for sessionStorage
+      };
+      sessionStorage.setItem(GENERATED_KEY, JSON.stringify(dataToSave));
     } catch { /* quota — ignore */ }
-  }, [step, dynamicQuestions, deepeningAnswers, chosenAngle, slides, caption, qualityCheck, publishingTip, currentQuestion, visualSlides, templateStyle]);
+  }, [step, dynamicQuestions, deepeningAnswers, chosenAngle, slides, caption, qualityCheck, publishingTip, currentQuestion, templateStyle]);
 
   const clearDraft = () => {
     clearFormDraft();
