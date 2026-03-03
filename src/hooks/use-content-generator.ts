@@ -30,6 +30,7 @@ export interface GenerateQuestionsParams {
   format: string;
   subject: string;
   editorialAngle?: string;
+  objective?: string;
 }
 
 export interface Question {
@@ -206,6 +207,7 @@ export function useContentGenerator() {
               answers: answers
                 ? Object.entries(answers).map(([k, v]) => ({ question: k, answer: v }))
                 : [],
+              objective: objective || null,
               workspace_id: workspaceId || null,
             },
           });
@@ -221,6 +223,7 @@ export function useContentGenerator() {
               sujet: subject,
               template: "expert_insight",
               audience: "tu",
+              objective: objective || null,
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
               workspace_id: workspaceId || null,
@@ -252,6 +255,7 @@ export function useContentGenerator() {
               answers: answers
                 ? Object.entries(answers).map(([k, v]) => ({ question: k, answer: v }))
                 : [],
+              objective: objective || null,
               workspace_id: workspaceId || null,
             },
           });
@@ -291,7 +295,7 @@ export function useContentGenerator() {
 
   const generateQuestions = useCallback(
     async (params: GenerateQuestionsParams) => {
-      const { format, subject, editorialAngle } = params;
+      const { format, subject, editorialAngle, objective } = params;
 
       setLoadingQuestions(true);
       setQuestions([]);
@@ -309,6 +313,7 @@ export function useContentGenerator() {
             body: {
               type: "deepening_questions",
               subject,
+              objective: objective || null,
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
             },
@@ -346,6 +351,7 @@ export function useContentGenerator() {
                   : "instagram_post",
               context: subject,
               angle: angleObj,
+              objective: objective || null,
             },
           });
           data = res.data;
