@@ -427,11 +427,11 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (!user) return;
     const { data, error } = await supabase.from("calendar_posts").insert({
       user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       date: dateStr,
       theme: title,
       status: "idea",
       canal: canalFilter !== "all" ? canalFilter : "instagram",
-      ...(column !== "user_id" ? { [column]: value } : {}),
     }).select().single();
 
     if (!error && data) {
