@@ -68,6 +68,7 @@ export default function BinomeDashboard() {
   const [coachings, setCoachings] = useState<Coaching[]>([]);
   const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
   const [loading, setLoading] = useState(true);
+  // "studio_*" = colonnes legacy, correspond à "Binôme de com'" (plan now_pilot)
   const [subInfo, setSubInfo] = useState<{ studio_start_date?: string; studio_end_date?: string; studio_months_paid?: number } | null>(null);
 
   useEffect(() => {
