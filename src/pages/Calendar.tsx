@@ -607,6 +607,17 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       return;
     }
 
+    // Kanban column drop
+    if (overId.startsWith("kanban-col-")) {
+      const newStatus = overId.replace("kanban-col-", "");
+      const postId = active.id as string;
+      const post = posts.find(p => p.id === postId);
+      if (post && post.status !== newStatus) {
+        handleQuickStatusChange(postId, newStatus);
+      }
+      return;
+    }
+
     const newDate = overId;
 
     if (data?.type === "idea") {
