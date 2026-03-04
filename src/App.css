@@ -1,4 +1,11 @@
 #root {
   width: 100%;
-  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Safari ≤ 15.3 fallback — 100dvh is ignored, 100vh kicks in */
+@supports not (min-height: 100dvh) {
+  #root {
+    min-height: 100vh;
+  }
 }

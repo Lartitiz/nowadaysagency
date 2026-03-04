@@ -220,8 +220,17 @@ function StepCard({ step, isOverridden, onToggleOverride }: { step: PlanStep; is
               {step.recommendation}
             </span>
           )}
+          {/* Duration + status inline on mobile instead of right column */}
+          <div className="flex items-center gap-3 mt-1.5 sm:hidden">
+            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <Clock className="h-3 w-3" /> {step.duration} min
+            </span>
+            <span className={`text-[11px] font-medium ${isDone ? "text-primary" : "text-muted-foreground"}`}>
+              {STATUS_LABEL[step.status]}
+            </span>
+          </div>
         </div>
-        <div className="shrink-0 flex flex-col items-end gap-2">
+        <div className="shrink-0 hidden sm:flex flex-col items-end gap-2">
           <span className="text-[11px] text-muted-foreground flex items-center gap-1">
             <Clock className="h-3 w-3" /> {step.duration} min
           </span>

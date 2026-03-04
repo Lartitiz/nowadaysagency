@@ -116,12 +116,12 @@ export default function SeoEmbed() {
           <iframe
             src={iframeSrc}
             className="w-full border-0 rounded-xl"
-            style={{ height: "calc(100vh - 140px)" }}
+            style={{ height: "calc(100dvh - 140px)" }}
             allow="clipboard-write"
             title={TOOL_LABELS[tool]}
           />
         ) : (
-          <div className="flex items-center justify-center" style={{ height: "calc(100vh - 140px)" }}>
+          <div className="flex items-center justify-center" style={{ height: "calc(100dvh - 140px)" }}>
             <p className="text-sm text-muted-foreground">Chargement…</p>
           </div>
         )}
