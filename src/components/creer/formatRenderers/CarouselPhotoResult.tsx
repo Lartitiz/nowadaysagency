@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +9,125 @@ interface CarouselPhotoResultProps {
   result: any;
   photos?: { preview: string }[];
   onSlidesUpdate?: (slides: any[], caption: any) => void;
+  visualSlides?: { slide_number: number; html: string }[];
+}
+
+function VisualSlidesCarousel({ slides }: { slides: { slide_number: number; html: string }[] }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [slideWidth, setSlideWidth] = useState(0);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      setSlideWidth(el.getBoundingClientRect().width);
+    };
+
+    const handleScroll = () => {
+      if (!el || slideWidth === 0) return;
+      const index = Math.round(el.scrollLeft / slideWidth);
+      setActiveIndex(Math.min(index, slides.length - 1));
+    };
+
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(el);
+    el.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      ro.disconnect();
+      el.removeEventListener("scroll", handleScroll);
+    };
+  }, [slides.length, slideWidth]);
+
+  const scale = slideWidth > 0 ? slideWidth / 1080 : 0;
+  const slideHeight = slideWidth > 0 ? (slideWidth / 1080) * 1350 : 0;
+
+  return (
+    <div className="space-y-3 pt-2">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        Aperçu des visuels ({slides.length} slides) — swipe pour naviguer →
+      </p>
+
+      <div
+        ref={scrollRef}
+        style={{
+          display: "flex",
+          overflowX: "auto",
+          scrollSnapType: "x mandatory",
+          WebkitOverflowScrolling: "touch",
+          scrollbarWidth: "none",
+          gap: "0px",
+        }}
+        className="rounded-xl [&::-webkit-scrollbar]:hidden"
+      >
+        {slides.map((vs) => (
+          <div
+            key={vs.slide_number}
+            style={{
+              flex: "0 0 100%",
+              scrollSnapAlign: "start",
+              width: "100%",
+            }}
+          >
+            <div
+              className="relative overflow-hidden rounded-xl border border-border mx-auto"
+              style={{
+                width: slideWidth > 0 ? `${slideWidth}px` : "100%",
+                height: slideHeight > 0 ? `${slideHeight}px` : "auto",
+                aspectRatio: slideWidth > 0 ? undefined : "1080 / 1350",
+              }}
+            >
+              {scale > 0 && (
+                <iframe
+                  srcDoc={vs.html}
+                  title={`Slide ${vs.slide_number}`}
+                  sandbox="allow-same-origin allow-scripts"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "1080px",
+                    height: "1350px",
+                    transform: `scale(${scale})`,
+                    transformOrigin: "top left",
+                    border: "none",
+                    pointerEvents: "none",
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Dots indicator */}
+      <div className="flex justify-center gap-1.5 py-1">
+        {slides.map((vs, idx) => (
+          <button
+            key={vs.slide_number}
+            onClick={() => {
+              scrollRef.current?.scrollTo({
+                left: idx * slideWidth,
+                behavior: "smooth",
+              });
+            }}
+            className={`rounded-full transition-all duration-200 ${
+              idx === activeIndex
+                ? "w-2 h-2 bg-primary"
+                : "w-1.5 h-1.5 bg-muted-foreground/30"
+            }`}
+            aria-label={`Slide ${vs.slide_number}`}
+          />
+        ))}
+      </div>
+
+      <p className="text-[10px] font-mono text-muted-foreground text-center">
+        {activeIndex + 1} / {slides.length}
+      </p>
+    </div>
+  );
 }
 
 const OVERLAY_STYLE_CLASS: Record<string, string> = {
@@ -18,7 +137,7 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
   technique: "text-sm font-mono",
 };
 
-export default function CarouselPhotoResult({ result, photos, onSlidesUpdate }: CarouselPhotoResultProps) {
+export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
   const [slides, setSlides] = useState<any[]>(r?.slides || []);
   const [caption, setCaption] = useState<any>(r?.caption || {});
@@ -199,6 +318,11 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate }: 
             {qualityCheck.slides_with_text ?? 0} slide{(qualityCheck.slides_with_text ?? 0) > 1 ? "s" : ""} avec texte, {qualityCheck.slides_without_text ?? 0} sans
           </span>
         </div>
+      )}
+
+      {/* Visual slides carousel */}
+      {visualSlides && visualSlides.length > 0 && (
+        <VisualSlidesCarousel slides={visualSlides} />
       )}
 
       <AiGeneratedMention />
