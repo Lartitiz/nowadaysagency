@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -70,17 +71,17 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
   const loadQuestions = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("coaching-module", {
+      const { data, error } = await invokeWithTimeout("coaching-module", {
         body: { phase: "questions", module, rec_id: recId },
       });
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setQuestions(data.questions || []);
       setIntro(data.intro || conseil || "");
       setAnswers(new Array(data.questions?.length || 4).fill(""));
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast.error(friendlyError(e));
+      toast.error(e?.isTimeout ? "Ça prend plus longtemps que prévu. Réessaie." : friendlyError(e));
     } finally {
       setLoading(false);
     }
@@ -102,10 +103,10 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
         question: q.question,
         answer: answers[i] || "",
       }));
-      const { data, error } = await supabase.functions.invoke("coaching-module", {
+      const { data, error } = await invokeWithTimeout("coaching-module", {
         body: { phase: "diagnostic", module, answers: answersPayload, rec_id: recId },
       });
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setDiagnostic(data);
       setIterationCount(0);
@@ -115,7 +116,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
       setEditedProposals(edited);
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast.error(friendlyError(e));
+      toast.error(e?.isTimeout ? "Ça prend plus longtemps que prévu. Réessaie." : friendlyError(e));
       setPhase("questions");
     } finally {
       setLoading(false);
@@ -139,7 +140,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
         feedback: d.feedback,
       }));
 
-      const { data, error } = await supabase.functions.invoke("coaching-module", {
+      const { data, error } = await invokeWithTimeout("coaching-module", {
         body: {
           phase: "adjust",
           module,
@@ -155,7 +156,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
           iteration: iterationCount + 1,
         },
       });
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
       // Store previous diagnostic with feedback
@@ -169,7 +170,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
       setEditedProposals(edited);
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast.error(friendlyError(e));
+      toast.error(e?.isTimeout ? "Ça prend plus longtemps que prévu. Réessaie." : friendlyError(e));
     } finally {
       setLoading(false);
     }

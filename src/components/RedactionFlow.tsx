@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
@@ -84,7 +84,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
   const generateStructure = async () => {
     setLoadingStructure(true);
     try {
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: {
           type: "redaction-structure",
           format: idea.format,
@@ -95,10 +95,10 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
           profile: profilePayload,
         },
       });
-      if (res.error) throw new Error(res.error.message);
+      if (res.error) throw res.error;
       setStructure(res.data?.content || "");
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur", description: e.message, variant: "destructive" });
     } finally {
       setLoadingStructure(false);
     }
@@ -107,7 +107,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
   const generateAccroches = async () => {
     setLoadingAccroches(true);
     try {
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: {
           type: "redaction-accroches",
           format: idea.format,
@@ -118,7 +118,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
           profile: profilePayload,
         },
       });
-      if (res.error) throw new Error(res.error.message);
+      if (res.error) throw res.error;
       const content = res.data?.content || "";
       let parsed: string[];
       try {
@@ -129,7 +129,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
       }
       setAccroches(parsed.slice(0, 3));
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur", description: e.message, variant: "destructive" });
     } finally {
       setLoadingAccroches(false);
     }
@@ -139,7 +139,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
     setLoadingDraft(true);
     try {
       const chosenAccroche = selectedAccroche !== null ? accroches[selectedAccroche] : "";
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: {
           type: "redaction-draft",
           format: idea.format,
@@ -152,12 +152,12 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
           profile: profilePayload,
         },
       });
-      if (res.error) throw new Error(res.error.message);
+      if (res.error) throw res.error;
       const content = res.data?.content || "";
       setDraft(content);
       setEditedContent(content);
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur", description: e.message, variant: "destructive" });
     } finally {
       setLoadingDraft(false);
     }
