@@ -160,16 +160,6 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         .eq("section", section)
         .maybeSingle();
 
-      // Fallback: if workspace filter returned nothing, try user_id directly
-      if (!data && column === "workspace_id") {
-        const fallback = await (supabase
-          .from("branding_coaching_sessions") as any)
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("section", section)
-          .maybeSingle();
-        data = fallback.data;
-      }
 
       if (data && data.messages && (data.messages as any[]).length > 0) {
         setHasExistingSession(true);

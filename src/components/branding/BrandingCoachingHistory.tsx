@@ -64,18 +64,8 @@ export default function BrandingCoachingHistory({ section }: Props) {
         .eq(column, value)
         .eq("section", section)
         .order("created_at", { ascending: true });
-      
-      // Fallback: if workspace filter returned nothing, try user_id directly
-      if ((!data || data.length === 0) && column === "workspace_id") {
-        const fallback = await (supabase
-          .from("branding_coaching_sessions") as any)
-          .select("id, messages, created_at, question_count, is_complete")
-          .eq("user_id", user.id)
-          .eq("section", section)
-          .order("created_at", { ascending: true });
-        data = fallback.data;
-      }
-      
+
+
       setSessions(data || []);
       setLoading(false);
     };
