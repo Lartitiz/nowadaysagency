@@ -191,7 +191,9 @@ export default function CreerUnifie() {
     if (locState?.existingContent) setExistingCalendarContent(locState.existingContent);
 
     const fmt = paramFormat || locState?.format;
+    const paramCarouselSubMode = searchParams.get("carouselSubMode") as "text" | "photo" | null;
     if (fmt) setSelectedFormat(fmt);
+    if (paramCarouselSubMode) setCarouselSubMode(paramCarouselSubMode);
 
     if (fmt && subject.trim()) {
       // Build enriched subject directly from locState to avoid race condition
@@ -236,24 +238,19 @@ export default function CreerUnifie() {
     setEditContent("");
     setLaunchResults([]);
 
-    // Normalize format ID: coaching dialog uses "carrousel"/"post_texte", app uses "carousel"/"post"
-    const normalizedFormat = data.format === "carrousel" ? "carousel" : data.format === "post_texte" ? "post" : data.format;
-
     setIdeaText(data.subject);
     if (data.objective) setObjective(data.objective);
-    setSelectedFormat(normalizedFormat);
-    
+    setSelectedFormat(data.format);
     if (data.carouselSubMode) setCarouselSubMode(data.carouselSubMode);
-    
-    if (normalizedFormat === "carousel" && data.carouselSubMode) {
-      setStep("questions");
-      generateQuestions({ format: normalizedFormat, subject: data.subject, editorialAngle: undefined, objective: data.objective || undefined });
-    } else if (normalizedFormat === "carousel" || normalizedFormat === "post") {
-      setStep("format");
-    } else {
-      setStep("questions");
-      generateQuestions({ format: normalizedFormat, subject: data.subject, editorialAngle: undefined, objective: data.objective || undefined });
-    }
+
+    // Coaching dialog already handles sub-mode choice, go directly to questions
+    setStep("questions");
+    generateQuestions({ 
+      format: data.format, 
+      subject: data.subject, 
+      editorialAngle: undefined, 
+      objective: data.objective || undefined 
+    });
   }, [generateQuestions]);
 
   const handleIdeaNext = (idea: string, obj?: string) => {

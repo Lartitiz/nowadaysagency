@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     const { answers, workspace_id } = body;
     const { objectif, sujet, canal, format, content_type, ton_envie } = answers || {};
 
-    if (!objectif || !format || !ton_envie) {
+    if (!objectif || !ton_envie) {
       return new Response(JSON.stringify({ error: "Réponses incomplètes" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -56,10 +56,13 @@ Deno.serve(async (req) => {
       creer_du_lien: "Créer du lien / engager la communauté",
     };
     const FORMAT_LABELS: Record<string, string> = {
-      post_texte: "Post texte (légende Instagram ou post LinkedIn)",
-      carrousel: "Carrousel",
+      post: "Post texte (légende Instagram ou post LinkedIn)",
+      carousel: "Carrousel",
       reel: "Reel vidéo court",
       story: "Story Instagram",
+      // Rétrocompatibilité
+      post_texte: "Post texte (légende Instagram ou post LinkedIn)",
+      carrousel: "Carrousel",
     };
     const CANAL_LABELS: Record<string, string> = {
       instagram: "Instagram",
