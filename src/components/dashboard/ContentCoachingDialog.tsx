@@ -49,14 +49,14 @@ const CANAUX = [
 
 const FORMATS_BY_CANAL: Record<string, { id: string; emoji: string; label: string }[]> = {
   instagram: [
-    { id: "post_texte", emoji: "📝", label: "Post texte" },
-    { id: "carrousel", emoji: "🎠", label: "Carrousel" },
+    { id: "post", emoji: "📝", label: "Post" },
+    { id: "carousel", emoji: "🎠", label: "Carrousel" },
     { id: "reel", emoji: "🎬", label: "Reel" },
     { id: "story", emoji: "📱", label: "Story" },
   ],
   linkedin: [
-    { id: "post_texte", emoji: "📝", label: "Post texte" },
-    { id: "carrousel", emoji: "🎠", label: "Carrousel" },
+    { id: "post", emoji: "📝", label: "Post" },
+    { id: "carousel", emoji: "🎠", label: "Carrousel" },
   ],
 };
 
@@ -149,7 +149,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
   const handleFormatSelect = (id: string) => {
     setFormat(id);
     setContentType("");
-    if (id === "carrousel") {
+    if (id === "carousel") {
       setCarouselSubMode(null);
     } else {
       setStep(5);
@@ -224,7 +224,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
     if (onSelect) {
       // Callback mode (used when already on /creer)
       // Call onSelect BEFORE closing dialog to avoid unmount race
-      onSelect({ subject: finalSubject, format: finalFormat, objective: finalObjective, carouselSubMode: (finalFormat === "carousel" || finalFormat === "carrousel") ? (carouselSubMode || "text") : undefined });
+      onSelect({ subject: finalSubject, format: finalFormat, objective: finalObjective, carouselSubMode: finalFormat === "carousel" ? (carouselSubMode || "text") : undefined });
       onOpenChange(false);
     } else {
       // Navigate mode (used from Dashboard)
@@ -233,6 +233,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
       const existingParams = new URLSearchParams(result.redirect_route?.split("?")[1] || "");
       existingParams.set("subject", finalSubject);
       existingParams.set("objective", finalObjective);
+      if (carouselSubMode) existingParams.set("carouselSubMode", carouselSubMode);
       navigate(`${baseRoute}?${existingParams.toString()}`);
     }
   };
@@ -386,7 +387,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
               </div>
 
               {/* Sous-choix carrousel texte / photo */}
-              {format === "carrousel" && (
+              {format === "carousel" && (
                 <div className="space-y-2 animate-fade-in">
                   <p className="text-xs font-semibold text-muted-foreground">Quel type de carrousel ?</p>
                   <div className="grid grid-cols-2 gap-2">
