@@ -55,7 +55,9 @@ export default function CreerUnifie() {
   // Core state — restore from sessionStorage if available
   const ps = persistedState.current;
   const [mode, setMode] = useState<Mode>(paramMode === "transform" ? "transform" : "create");
-  const [step, setStep] = useState<Step>(ps?.step as Step || "idea");
+  // Don't restore into "result" or "edit" steps — they need runtime data (result object)
+  const safeStep = ps?.step && !["result", "edit"].includes(ps.step) ? ps.step as Step : "idea";
+  const [step, setStep] = useState<Step>(safeStep);
   const [ideaText, setIdeaText] = useState(ps?.ideaText || paramSujet || locState.sujet || locState.subject || "");
   const [objective, setObjective] = useState<string | null>(
     ps?.objective || paramObjectif || locState.objectif || locState.objective || null
@@ -788,9 +790,13 @@ export default function CreerUnifie() {
               />
             )}
 
-            {step === "result" && !isLaunchMode && !generating && !result && error && (
+            {step === "result" && !isLaunchMode && !generating && !result && (
               <div className="py-12 text-center space-y-4 animate-fade-in">
-                <p className="text-destructive font-medium">{error}</p>
+                {error ? (
+                  <p className="text-destructive font-medium">{error}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Session expirée ou contenu indisponible.</p>
+                )}
                 <div className="flex gap-3 justify-center">
                   <button
                     onClick={handleRegenerate}
