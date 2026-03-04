@@ -4,6 +4,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments, processScreenshots } from "../_shared/scraping.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 
 const MAX_TEXT_PER_SOURCE = 5000;
 const GLOBAL_TIMEOUT_MS = 55000;
@@ -19,24 +20,8 @@ serve(async (req) => {
   const timeout = setTimeout(() => controller.abort(), GLOBAL_TIMEOUT_MS);
 
   try {
-    const {
-      userId,
-      websiteUrl,
-      instagramHandle,
-      linkedinUrl,
-      documentIds,
-      profile,
-      freeformAnswers,
-      isOnboarding,
-    } = await req.json();
-
-    if (!userId) {
-      clearTimeout(timeout);
-      return new Response(JSON.stringify({ error: "userId requis" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const { userId } = await authenticateRequest(req);
+    const { websiteUrl, instagramHandle, linkedinUrl, documentIds, profile, freeformAnswers, isOnboarding } = await req.json();
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -544,6 +529,11 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
     );
   } catch (e) {
     clearTimeout(timeout);
+    if (e instanceof AuthError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: e.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("deep-diagnostic error:", e);
     const msg = e instanceof Error ? e.message : "Erreur inconnue";
     return new Response(
