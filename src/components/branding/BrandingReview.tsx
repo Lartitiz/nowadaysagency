@@ -263,20 +263,85 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
   }
 }
 async function saveValueProp(data: AnalysisResult["value_proposition"], userId: string, workspaceId: string) {
-  await (supabase.from("brand_proposition") as any).upsert({ user_id: userId, workspace_id: workspaceId, step_1_what: data?.key_phrase || null, step_2a_process: data?.solution || null, step_2d_refuse: data?.differentiator || null, step_3_for_whom: data?.problem || null, version_one_liner: data?.key_phrase || null }, { onConflict: "user_id" });
+  if (!data) return;
+  const payload: Record<string, any> = { updated_at: new Date().toISOString() };
+  if (data.key_phrase) { payload.step_1_what = data.key_phrase; payload.version_one_liner = data.key_phrase; }
+  if (data.solution) payload.step_2a_process = data.solution;
+  if (data.differentiator) payload.step_2d_refuse = data.differentiator;
+  if (data.problem) payload.step_3_for_whom = data.problem;
+  const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
+  const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
+  const { data: existing } = await (supabase.from("brand_proposition") as any)
+    .select("id").eq(filterCol, filterVal).maybeSingle();
+  if (existing?.id) {
+    await (supabase.from("brand_proposition") as any).update(payload).eq("id", existing.id);
+  } else {
+    await (supabase.from("brand_proposition") as any).insert({ user_id: userId, workspace_id: workspaceId || null, ...payload });
+  }
 }
 async function saveTone(data: AnalysisResult["tone_style"], userId: string, workspaceId: string) {
-  await (supabase.from("brand_profile") as any).upsert({ user_id: userId, workspace_id: workspaceId, tone_keywords: data?.tone_keywords || null, tone_do: data?.i_do?.join("\n") || null, tone_dont: data?.i_never_do?.join("\n") || null, combat_cause: data?.fights?.join("\n") || null, visual_style: data?.visual_style || null }, { onConflict: "user_id" });
+  if (!data) return;
+  const payload: Record<string, any> = { updated_at: new Date().toISOString() };
+  if (data.tone_keywords) payload.tone_keywords = data.tone_keywords;
+  if (data.i_do?.length) payload.tone_do = data.i_do.join("\n");
+  if (data.i_never_do?.length) payload.tone_dont = data.i_never_do.join("\n");
+  if (data.fights?.length) payload.combat_cause = data.fights.join("\n");
+  if (data.visual_style) payload.visual_style = data.visual_style;
+  const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
+  const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
+  const { data: existing } = await (supabase.from("brand_profile") as any)
+    .select("id").eq(filterCol, filterVal).maybeSingle();
+  if (existing?.id) {
+    await (supabase.from("brand_profile") as any).update(payload).eq("id", existing.id);
+  } else {
+    await (supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, ...payload });
+  }
 }
 async function saveStrategy(data: AnalysisResult["content_strategy"], userId: string, workspaceId: string) {
-  await (supabase.from("brand_strategy") as any).upsert({ user_id: userId, workspace_id: workspaceId, pillar_major: data?.pillars?.[0] || null, pillar_minor_1: data?.pillars?.[1] || null, pillar_minor_2: data?.pillars?.[2] || null, creative_concept: data?.creative_twist || null }, { onConflict: "user_id" });
-  if (data?.editorial_line || data?.formats?.length) {
-    await (supabase.from("brand_profile") as any).upsert({ user_id: userId, workspace_id: workspaceId, content_pillars: data?.pillars || null, content_editorial_line: data?.editorial_line || null, content_formats: data?.formats || null, content_frequency: data?.rhythm || null }, { onConflict: "user_id" });
+  if (!data) return;
+  const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
+  const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
+  const stratPayload: Record<string, any> = { updated_at: new Date().toISOString() };
+  if (data.pillars?.[0]) stratPayload.pillar_major = data.pillars[0];
+  if (data.pillars?.[1]) stratPayload.pillar_minor_1 = data.pillars[1];
+  if (data.pillars?.[2]) stratPayload.pillar_minor_2 = data.pillars[2];
+  if (data.creative_twist) stratPayload.creative_concept = data.creative_twist;
+  const { data: existingStrat } = await (supabase.from("brand_strategy") as any)
+    .select("id").eq(filterCol, filterVal).maybeSingle();
+  if (existingStrat?.id) {
+    await (supabase.from("brand_strategy") as any).update(stratPayload).eq("id", existingStrat.id);
+  } else {
+    await (supabase.from("brand_strategy") as any).insert({ user_id: userId, workspace_id: workspaceId || null, ...stratPayload });
+  }
+  if (data.editorial_line || data.formats?.length) {
+    const profilePayload: Record<string, any> = { updated_at: new Date().toISOString() };
+    if (data.pillars) profilePayload.content_pillars = data.pillars;
+    if (data.editorial_line) profilePayload.content_editorial_line = data.editorial_line;
+    if (data.formats) profilePayload.content_formats = data.formats;
+    if (data.rhythm) profilePayload.content_frequency = data.rhythm;
+    const { data: existingProfile } = await (supabase.from("brand_profile") as any)
+      .select("id").eq(filterCol, filterVal).maybeSingle();
+    if (existingProfile?.id) {
+      await (supabase.from("brand_profile") as any).update(profilePayload).eq("id", existingProfile.id);
+    } else {
+      await (supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, ...profilePayload });
+    }
   }
 }
 async function saveOffers(data: AnalysisResult["offers"], userId: string, workspaceId: string) {
-  const offerText = data?.offers?.map(o => `${o.name || "Offre"} – ${o.price || "?"} : ${o.description || ""}`).join("\n") || null;
-  await (supabase.from("brand_profile") as any).upsert({ user_id: userId, workspace_id: workspaceId, offer: offerText }, { onConflict: "user_id" });
+  if (!data?.offers?.length) return;
+  for (const offer of data.offers) {
+    await (supabase.from("offers") as any).insert({
+      user_id: userId,
+      workspace_id: workspaceId || null,
+      name: offer.name || "Offre",
+      price_text: offer.price || null,
+      description: offer.description || null,
+      target_ideal: offer.target || null,
+      promise: offer.promise || null,
+      updated_at: new Date().toISOString(),
+    });
+  }
 }
 
 const SAVE_FNS: Record<SectionKey, (data: any, uid: string, wsId: string) => Promise<void>> = {
