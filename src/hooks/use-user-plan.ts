@@ -4,7 +4,7 @@ import { trackError } from "@/lib/error-tracker";
 import { supabase } from "@/integrations/supabase/client";
 import { useDemoContext } from "@/contexts/DemoContext";
 
-type Plan = "free" | "outil" | "studio" | "now_pilot";
+type Plan = "free" | "outil" | "now_pilot";
 
 type Feature =
   | "branding" | "persona" | "audit_basic" | "generation_limited" | "community_read"
@@ -25,10 +25,6 @@ const OUTIL_FEATURES: Feature[] = [
   "contacts_strategiques", "routine_engagement", "editorial_line", "calendar",
 ];
 
-const STUDIO_FEATURES: Feature[] = [
-  ...OUTIL_FEATURES,
-  "coaching", "studio_space", "laetitia_validation", "studio_lives", "direct_channel", "binome",
-];
 
 const NOW_PILOT_FEATURES: Feature[] = [
   ...OUTIL_FEATURES,
@@ -113,8 +109,6 @@ export function useUserPlan(): UserPlanState {
       const p = isAdminUser ? "now_pilot" : (isDemoMode ? demoPlanResolved : plan);
       switch (p) {
         case "now_pilot": return NOW_PILOT_FEATURES.includes(feature);
-        case "studio": return STUDIO_FEATURES.includes(feature);
-        
         case "outil": return OUTIL_FEATURES.includes(feature);
         default: return FREE_FEATURES.includes(feature);
       }
@@ -169,7 +163,7 @@ export function useUserPlan(): UserPlanState {
     remainingAudits,
     remainingTotal,
     isPaid: isAdminUser || (isDemoMode && demoPlan === "now_pilot") || (!isDemoMode && plan !== "free"),
-    isStudio: !isDemoMode && (isAdminUser || plan === "studio"),
+    isStudio: !isDemoMode && (isAdminUser || plan === "now_pilot"),
     isPilot: isAdminUser || (isDemoMode && demoPlan === "now_pilot") || (!isDemoMode && plan === "now_pilot"),
     refresh: load,
   };

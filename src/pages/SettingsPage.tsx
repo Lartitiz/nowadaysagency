@@ -162,7 +162,7 @@ export default function SettingsPage() {
     }
   };
 
-  const planLabel = subInfo?.plan === "now_pilot" ? "Binôme de com" : subInfo?.plan === "studio" ? "Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
+  const planLabel = subInfo?.plan === "now_pilot" ? "Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
 
   return (
     <div className="min-h-screen bg-background">
@@ -240,7 +240,7 @@ export default function SettingsPage() {
                     💎 S'abonner pour garder l'accès
                   </Button>
                 )}
-                {subInfo?.plan === "studio" && (
+                {subInfo?.plan === "now_pilot" && (
                   <Button size="sm" variant="outline" className="rounded-full" onClick={handleManageSubscription} disabled={portalLoading}>
                     {portalLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Gérer mon abonnement
@@ -579,7 +579,7 @@ const QUOTA_CATEGORIES = [
 
 function AiQuotaDisplay() {
   const { plan, usage, isPaid } = useUserPlan();
-  const planLabel = plan === "now_pilot" ? "Binôme de com (250€/mois)" : plan === "studio" ? "Binôme de com (250€/mois)" : plan === "outil" ? "Premium (39€/mois)" : "Gratuit";
+  const planLabel = plan === "now_pilot" ? "Binôme de com (250€/mois)" : plan === "outil" ? "Premium (39€/mois)" : "Gratuit";
   const total = usage.total;
   const nextMonth = new Date();
   nextMonth.setMonth(nextMonth.getMonth() + 1, 1);

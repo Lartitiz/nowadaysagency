@@ -40,18 +40,6 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     adaptation: 30,
     deep_research: 15,
   },
-  studio: {
-    total: 300,
-    content: 150,
-    audit: 15,
-    dm_comment: 60,
-    bio_profile: 15,
-    suggestion: 30,
-    coach: 60,
-    import: 10,
-    adaptation: 30,
-    deep_research: 30,
-  },
   now_pilot: {
     total: 300,
     content: 150,
