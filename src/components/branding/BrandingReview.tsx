@@ -228,7 +228,39 @@ async function saveStory(data: AnalysisResult["story"], userId: string, workspac
   }
 }
 async function savePersona(data: AnalysisResult["persona"], userId: string, workspaceId: string) {
-  await (supabase.from("brand_profile") as any).upsert({ user_id: userId, workspace_id: workspaceId, target_description: [data?.name, data?.age_range, data?.job].filter(Boolean).join(" · ") || null, target_frustrations: data?.frustrations?.join("\n") || null, target_desires: data?.desires?.join("\n") || null, channels: data?.channels || null }, { onConflict: "user_id" });
+  if (!data) return;
+
+  const payload: Record<string, any> = {
+    user_id: userId,
+    workspace_id: workspaceId || null,
+    is_primary: true,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (data.name) payload.portrait_prenom = data.name;
+  if (data.age_range) payload.portrait_age = data.age_range;
+  if (data.job) payload.description = data.job;
+  if (data.frustrations?.length) payload.step_1_frustrations = data.frustrations.join("\n");
+  if (data.desires?.length) payload.step_2_transformation = data.desires.join("\n");
+  if (data.goals?.length) payload.step_3a_objections = data.goals.join("\n");
+  if (data.channels) payload.channels = data.channels;
+  if (data.brands_they_follow?.length) payload.step_4_inspiring = data.brands_they_follow.join(", ");
+
+  const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
+  const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
+
+  const { data: existing } = await (supabase.from("persona") as any)
+    .select("id")
+    .eq(filterCol, filterVal)
+    .eq("is_primary", true)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing?.id) {
+    await (supabase.from("persona") as any).update(payload).eq("id", existing.id);
+  } else {
+    await (supabase.from("persona") as any).insert(payload);
+  }
 }
 async function saveValueProp(data: AnalysisResult["value_proposition"], userId: string, workspaceId: string) {
   await (supabase.from("brand_proposition") as any).upsert({ user_id: userId, workspace_id: workspaceId, step_1_what: data?.key_phrase || null, step_2a_process: data?.solution || null, step_2d_refuse: data?.differentiator || null, step_3_for_whom: data?.problem || null, version_one_liner: data?.key_phrase || null }, { onConflict: "user_id" });
