@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { scrapeWebsite } from "../_shared/scraping.ts";
+import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -10,11 +11,11 @@ serve(async (req) => {
   }
 
   try {
-    const { userId, websiteUrl } = await req.json();
-    if (!userId || !websiteUrl) {
-      return new Response(JSON.stringify({ error: "userId et websiteUrl requis" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const { userId } = await authenticateRequest(req);
+    const { websiteUrl } = await req.json();
+    if (!websiteUrl) {
+      return new Response(JSON.stringify({ error: "websiteUrl requis" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -61,10 +62,14 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof AuthError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: e.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("pre-scrape error:", e);
     return new Response(JSON.stringify({ error: "scrape failed" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
