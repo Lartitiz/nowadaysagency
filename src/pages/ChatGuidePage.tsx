@@ -430,7 +430,7 @@ export default function ChatGuidePage() {
       }
       setLoaded(true);
     })();
-  }, [user, isDemoMode]);
+  }, [user, isDemoMode, column, value]);
 
   // Auto-scroll
   useEffect(() => {
