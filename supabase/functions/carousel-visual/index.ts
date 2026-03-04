@@ -415,6 +415,7 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
     // ═══ Determine if photo carousel mode ═══
     const isPhotoCarousel = reqBody.carousel_type === "photo" && reqBody.photos?.length > 0;
+    const isMixCarousel = reqBody.carousel_type === "mix" && reqBody.photos?.length > 0;
 
     let finalSystemPrompt = systemPrompt;
     let finalUserPrompt = userPrompt;
@@ -516,11 +517,105 @@ RAPPEL : Le texte doit être LISIBLE sur chaque photo. Adapte le style d'overlay
 Retourne UNIQUEMENT le JSON.`;
     }
 
+    if (isMixCarousel) {
+      finalSystemPrompt = `Tu es une directrice artistique experte en design de carrousels Instagram. Tu génères du HTML/CSS inline pour des slides au format 1080×1350px.
+
+Ce carrousel est un MIX : certaines slides ont des photos, d'autres sont du texte pur. Tu dois adapter le design de CHAQUE slide selon son type.
+
+═══ RÈGLES HTML/CSS STRICTES ═══
+- Chaque slide = un <div> EXACTEMENT 1080px × 1350px
+- CSS 100% inline (pas de classes CSS)
+- CHAQUE slide commence par la balise @import Google Fonts (sera remplacée en post-processing)
+- Pas de JavaScript
+- JAMAIS de cercle, rond, ou border-radius: 50% en élément décoratif de fond
+
+═══ CHARTE GRAPHIQUE ═══
+Couleur principale : ${ch.color_primary}
+Couleur secondaire (titres foncés) : ${ch.color_secondary}
+Couleur accent (highlights) : ${ch.color_accent}
+Fond par défaut : ${ch.color_background}
+Texte : ${ch.color_text}
+Police titres : ${ch.font_title} (JAMAIS en font-weight bold, toujours normal/400)
+Police corps : ${ch.font_body}
+Ambiance : ${ch.mood_keywords}
+Border-radius : ${ch.border_radius}${ch.photo_style ? `\nStyle photo : ${ch.photo_style}` : ""}${ch.visual_donts ? `\n\n⛔ INTERDITS VISUELS :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\n\nBRIEF CRÉATIF :\n${ch.ai_generated_brief}` : ""}${ch.template_layout_description ? `\n\n═══ LAYOUT DE RÉFÉRENCE (templates uploadés par l'utilisatrice) ═══\n${ch.template_layout_description}\n\nInspire-toi de ce layout pour le placement des éléments et l'ambiance générale.` : ""}
+
+═══ DESIGN PAR TYPE DE SLIDE ═══
+
+TYPE "photo_full" — Photo plein écran + overlay
+- Le div principal a : background-image: url({{PHOTO_N}}); background-size: cover; background-position: center
+- Le texte overlay est posé dessus avec un traitement de lisibilité :
+  · Style "sensoriel" : gradient sombre en bas (linear-gradient transparent → rgba(0,0,0,0.7)), texte blanc italic en ${ch.font_title}
+  · Style "narratif" : bandeau blanc semi-transparent (rgba(255,255,255,0.92), backdrop-filter blur), texte en ${ch.font_body}
+  · Style "minimal" : badge pilule ${ch.color_primary} ou texte blanc grand avec ombre forte
+- Position selon overlay_position (mais adapter si le sujet principal de la photo est à cet endroit)
+
+TYPE "photo_integrated" — Photo intégrée dans un layout design
+- La photo est une balise <img src="{{PHOTO_N}}" style="width:100%;height:auto;object-fit:cover;border-radius:${ch.border_radius}">
+- Layouts selon photo_layout :
+  · "top_photo" : photo en haut (55-60% de la hauteur), texte en bas sur fond ${ch.color_background} ou blanc. La photo a des coins arrondis en haut, le texte est dans une zone avec padding 40px.
+  · "left_photo" : 2 colonnes flex. Photo à gauche (40%), texte à droite (60%) avec padding. Hauteur complète.
+  · "right_photo" : inverse. Texte à gauche, photo à droite.
+  · "card_photo" : fond ${ch.color_background}. Carte blanche centrée avec la photo en haut (border-radius haut) et le texte en bas. La carte fait ~85% de la largeur.
+  · "banner_photo" : photo en bandeau horizontal (height: 400px, object-fit cover) + titre et body en dessous avec padding.
+- Le texte utilise le design system : ${ch.font_title} pour les titres, ${ch.font_body} pour le corps, badges pilules, barres latérales colorées.
+
+TYPE "text_only" — Slide texte pure
+- Design system Nowadays classique (identique aux carrousels texte).
+- Fond ${ch.color_background} ou blanc.
+- Cartes blanches, badges pilules, barres latérales, soulignements colorés.
+- Si visual_schema est fourni, rendre le schéma en HTML/CSS.
+
+═══ COHÉRENCE ENTRE LES TYPES ═══
+- TOUTES les slides (quel que soit le type) utilisent les mêmes fonts, la même palette, les mêmes badges
+- Le padding latéral est constant (80px pour text_only et photo_integrated, adapté pour photo_full)
+- L'alternance des types crée un rythme visuel agréable
+- Les slides photo_integrated font la TRANSITION entre les slides photo_full et text_only
+
+═══ PLACEHOLDERS PHOTOS ═══
+Pour chaque slide qui utilise une photo :
+- photo_full : background-image: url({{PHOTO_N}})
+- photo_integrated : <img src="{{PHOTO_N}}">
+N = le photo_index de la slide (1, 2, 3...)
+N'essaie PAS d'écrire le base64. Le placeholder sera remplacé automatiquement.
+
+═══ ANTI-PATTERNS ═══
+- ❌ Texte illisible sur photo (TOUJOURS un traitement : gradient, bandeau, ombre)
+- ❌ Photo déformée (TOUJOURS object-fit: cover)
+- ❌ Toutes les slides avec le même layout
+- ❌ Photo intégrée trop petite (minimum 40% de la surface de la slide)
+- ❌ Cercles ou ronds décoratifs
+- ❌ Font-weight bold sur ${ch.font_title}
+
+Retourne un JSON :
+{
+  "slides_html": [
+    { "slide_number": 1, "html": "..." }
+  ]
+}
+
+Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
+
+      finalUserPrompt = `Génère les slides HTML pour ce carrousel MIXTE.
+
+SLIDES :
+${JSON.stringify(slides, null, 2)}
+
+Les photos sont fournies dans l'ordre (photo 1, photo 2, etc.).
+Pour les slides de type "photo_full", utilise background-image: url({{PHOTO_N}}).
+Pour les slides de type "photo_integrated", utilise <img src="{{PHOTO_N}}">.
+Pour les slides de type "text_only", pas de photo.
+
+Adapte le design de CHAQUE slide à son type. Crée une continuité visuelle entre les trois types.
+
+Retourne UNIQUEMENT le JSON.`;
+    }
+
     // Build messages - include template reference image if available
     const messages: any[] = [];
 
-    if (isPhotoCarousel) {
-      // Mode photo : envoyer chaque photo en vision
+    if (isPhotoCarousel || isMixCarousel) {
+      // Mode photo/mix : envoyer chaque photo en vision
       const messageContent: any[] = [];
       for (let i = 0; i < reqBody.photos.length; i++) {
         const photo = reqBody.photos[i];
@@ -581,7 +676,7 @@ Retourne UNIQUEMENT le JSON.`;
       system: finalSystemPrompt,
       messages,
       temperature: 0.5,
-      max_tokens: isPhotoCarousel ? 16384 : 8192,
+      max_tokens: (isPhotoCarousel || isMixCarousel) ? 16384 : 8192,
     });
 
     let result: any;
@@ -598,7 +693,7 @@ Retourne UNIQUEMENT le JSON.`;
     }
 
     // ═══ Post-processing : injecter les photos base64 dans le HTML ═══
-    if (isPhotoCarousel && result?.slides_html && reqBody.photos) {
+    if ((isPhotoCarousel || isMixCarousel) && result?.slides_html && reqBody.photos) {
       result.slides_html = result.slides_html.map((slide: any) => {
         let html = slide.html || "";
         
@@ -634,7 +729,7 @@ Retourne UNIQUEMENT le JSON.`;
     }
 
     // Vérifier qu'il ne reste plus de placeholders non remplacés
-    if (isPhotoCarousel && result?.slides_html) {
+    if ((isPhotoCarousel || isMixCarousel) && result?.slides_html) {
       for (const slide of result.slides_html) {
         if (slide.html && slide.html.includes("{{PHOTO_")) {
           console.warn(`carousel-visual: placeholder non remplacé dans slide ${slide.slide_number}`);
