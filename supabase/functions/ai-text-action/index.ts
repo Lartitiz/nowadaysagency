@@ -1,4 +1,5 @@
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
@@ -14,6 +15,13 @@ Deno.serve(async (req) => {
     if (!selected_text || !action_prompt) {
       return new Response(JSON.stringify({ error: "Missing selected_text or action_prompt" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const quota = await checkQuota(userId, "adaptation", workspace_id || undefined);
+    if (!quota.allowed) {
+      return new Response(JSON.stringify({ error: quota.message, quota }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -62,6 +70,8 @@ RÈGLES :
       max_tokens: 1024,
       temperature: 0.7,
     });
+
+    await logUsage(userId, "adaptation", "text_action", undefined, undefined, workspace_id || undefined);
 
     return new Response(JSON.stringify({ result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
