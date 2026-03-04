@@ -146,7 +146,69 @@ serve(async (req) => {
     } else if (type === "suggest_angles") {
       userPrompt = buildSuggestAnglesPrompt(body);
     } else if (type === "deepening_questions") {
-      userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext);
+      // ── Photo carousel: vision-informed questions ──
+      if (body.carousel_type === "photo" && body.photos && body.photos.length > 0) {
+        const messageContent: any[] = [];
+        for (const photo of body.photos.slice(0, 10)) {
+          if (photo.base64) {
+            const raw = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
+            messageContent.push({
+              type: "image",
+              source: { type: "base64", media_type: "image/jpeg", data: raw },
+            });
+          }
+        }
+        messageContent.push({
+          type: "text",
+          text: `Voici ${body.photos.length} photo(s) que l'utilisatrice veut utiliser pour un carrousel photo Instagram.
+
+Sujet : "${body.subject || "non précisé"}"
+Objectif : ${body.objective || "engagement"}
+${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}
+
+Tu es une coach com' spécialisée en contenu visuel. Analyse les photos et pose exactement 3 questions d'approfondissement.
+
+Tes questions doivent :
+- MENTIONNER ce que tu vois dans les photos (couleurs, ambiance, éléments, scène)
+- Aider l'utilisatrice à définir l'histoire que ces photos racontent ensemble
+- Extraire le contexte INVISIBLE : pourquoi ce moment, quelle émotion, quel message
+- Être spécifiques aux photos (pas génériques)
+
+Exemples de bonnes questions :
+- "Je vois [élément]. C'était dans quel contexte ? Qu'est-ce que ce moment représente pour toi ?"
+- "L'ambiance de tes photos est [observation]. C'est volontaire ? Quel message tu veux faire passer ?"
+- "Quelle est l'histoire entre la première et la dernière photo ? Il y a une progression ?"
+
+Réponds UNIQUEMENT en JSON valide :
+{
+  "questions": [
+    { "question": "...", "placeholder": "..." },
+    { "question": "...", "placeholder": "..." },
+    { "question": "...", "placeholder": "..." }
+  ]
+}`,
+        });
+
+        const content = await callAnthropic({
+          model: getModelForAction("carousel"),
+          system: systemPrompt,
+          messages: [{ role: "user", content: messageContent }],
+          max_tokens: 4096,
+        });
+
+        await logUsage(user.id, category, "carousel_deepening_photo");
+        return new Response(JSON.stringify({ content }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // ── Photo carousel with description only (no actual photos) ──
+      if (body.carousel_type === "photo" && body.photo_description) {
+        const photoDescBlock = `\n\nL'utilisatrice décrit ses photos : "${body.photo_description}". Pose des questions en lien avec ce qu'elle décrit : l'ambiance, le contexte invisible, l'émotion derrière ces images, l'histoire qu'elles racontent ensemble.`;
+        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext) + photoDescBlock;
+      } else {
+        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext);
+      }
     } else {
       return new Response(JSON.stringify({ error: "Type invalide" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },

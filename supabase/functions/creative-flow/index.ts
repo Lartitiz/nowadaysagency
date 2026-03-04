@@ -63,6 +63,9 @@ serve(async (req) => {
       objective: z.string().max(50).optional().nullable(),
       editorialFormat: z.string().max(100).optional().nullable(),
       editorialFormatLabel: z.string().max(200).optional().nullable(),
+      photo_mode: z.boolean().optional(),
+      photo_description: z.string().max(2000).optional().nullable(),
+      photos: z.array(z.object({ base64: z.string(), mimeType: z.string().optional() })).max(1).optional(),
     }).passthrough());
     const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent } = body;
 
@@ -295,6 +298,7 @@ Réponds UNIQUEMENT en JSON :
       const isLinkedIn = formatHint.includes("linkedin") || contentType === "post_linkedin";
       const isNewsletter = formatHint.includes("newsletter") || formatHint.includes("email") || contentType === "post_newsletter";
       const isCaption = !isCarousel && !isReel && !isStories && !isLinkedIn && !isNewsletter;
+      const isPhotoMode = body.photo_mode === true;
 
       // Build format-specific depth instructions
       let depthMandate = "";
@@ -366,6 +370,26 @@ PROFONDEUR :
 - Conclusion : leçon ou ouverture (pas de résumé).
 - CTA : doux, en lien avec le sujet.
 - TOTAL : vise 2000+ caractères minimum.`;
+      } else if (isPhotoMode) {
+        depthMandate = `FORMAT : LÉGENDE PHOTO INSTAGRAM (400-800 caractères)
+
+La légende ACCOMPAGNE une photo. Elle ne la DÉCRIT PAS.
+La légende COMPLÈTE l'image : contexte invisible, émotion, pourquoi.
+
+${body.photo_description ? `PHOTO DÉCRITE PAR L'UTILISATRICE : "${body.photo_description}"` : ""}
+
+RÈGLES :
+- L'accroche fait ÉCHO à l'image sans la décrire
+- Le corps développe ce que la photo NE DIT PAS
+- Ton sensoriel : texture, lumière, chaleur, poids, odeur
+- Longueur : 400-800 caractères. La photo fait la moitié du travail.
+- CTA doux : invitation, pas de vente agressive
+- 5-10 hashtags
+
+✅ Raconte ce que la photo ne montre pas
+✅ Crée une émotion complémentaire
+❌ Ne décrit pas ce qu'on voit
+❌ Ne sonne pas comme une fiche produit`;
       } else {
         depthMandate = `FORMAT : CAPTION INSTAGRAM (800-1500 caractères)
 
@@ -791,6 +815,28 @@ Privilégie les sources françaises et européennes quand elles existent.`,
         system: systemPrompt,
         messages: [{ role: "user", content }],
         temperature: 0.8,
+        max_tokens: 4096,
+      });
+    } else if (step === "generate" && body.photo_mode && body.photos?.[0]?.base64) {
+      // Photo mode with vision: send the image to Claude
+      const photoBase64 = body.photos[0].base64.replace(/^data:image\/[a-z]+;base64,/, "");
+      const photoMimeType = body.photos[0].mimeType || "image/jpeg";
+      const photoContent: any[] = [
+        {
+          type: "image",
+          source: { type: "base64", media_type: photoMimeType, data: photoBase64 },
+        },
+        {
+          type: "text",
+          text: `Rédige une légende Instagram pour cette photo.${body.photo_description ? `\nDescription de l'utilisatrice : "${body.photo_description}"` : ""}\nLa légende doit COMPLÉTER l'image, pas la décrire. Ton sensoriel. 400-800 caractères.\n\nRéponds UNIQUEMENT en JSON :\n{\n  "content": "...",\n  "accroche": "...",\n  "format": "caption_photo",\n  "pillar": "...",\n  "objectif": "..."\n}`,
+        },
+      ];
+
+      rawContent = await callAnthropic({
+        model: getModelForAction("content"),
+        system: systemPrompt,
+        messages: [{ role: "user", content: photoContent }],
+        temperature: 0.85,
         max_tokens: 4096,
       });
     } else {
