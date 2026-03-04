@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 
 serve(async (req) => {
@@ -33,6 +34,13 @@ serve(async (req) => {
     }
 
     const { section, text, fields, workspace_id } = await req.json();
+
+    const quota = await checkQuota(user.id, "import", workspace_id || undefined);
+    if (!quota.allowed) {
+      return new Response(JSON.stringify({ error: quota.message, quota }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (!section || !text || !fields || !Array.isArray(fields)) {
       return new Response(JSON.stringify({ error: "Paramètres manquants" }), {
@@ -88,6 +96,8 @@ Retourne uniquement le JSON, sans aucune explication autour.`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    await logUsage(user.id, "import", "branding_import", undefined, undefined, workspace_id || undefined);
 
     return new Response(JSON.stringify({ extracted: parsed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
