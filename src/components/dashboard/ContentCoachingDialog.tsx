@@ -224,7 +224,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
     if (onSelect) {
       // Callback mode (used when already on /creer)
       // Call onSelect BEFORE closing dialog to avoid unmount race
-      onSelect({ subject: finalSubject, format: finalFormat, objective: finalObjective, carouselSubMode: finalFormat === "carousel" ? (carouselSubMode || "text") : undefined });
+      onSelect({ subject: finalSubject, format: finalFormat, objective: finalObjective, carouselSubMode: (finalFormat === "carousel" || finalFormat === "carrousel") ? (carouselSubMode || "text") : undefined });
       onOpenChange(false);
     } else {
       // Navigate mode (used from Dashboard)

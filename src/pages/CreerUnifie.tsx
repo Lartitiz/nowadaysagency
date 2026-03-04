@@ -236,20 +236,23 @@ export default function CreerUnifie() {
     setEditContent("");
     setLaunchResults([]);
 
+    // Normalize format ID: coaching dialog uses "carrousel"/"post_texte", app uses "carousel"/"post"
+    const normalizedFormat = data.format === "carrousel" ? "carousel" : data.format === "post_texte" ? "post" : data.format;
+
     setIdeaText(data.subject);
     if (data.objective) setObjective(data.objective);
-    setSelectedFormat(data.format);
+    setSelectedFormat(normalizedFormat);
     
     if (data.carouselSubMode) setCarouselSubMode(data.carouselSubMode);
     
-    if (data.format === "carousel" && data.carouselSubMode) {
+    if (normalizedFormat === "carousel" && data.carouselSubMode) {
       setStep("questions");
-      generateQuestions({ format: data.format, subject: data.subject, editorialAngle: undefined, objective: data.objective || undefined });
-    } else if (data.format === "carousel" || data.format === "post") {
+      generateQuestions({ format: normalizedFormat, subject: data.subject, editorialAngle: undefined, objective: data.objective || undefined });
+    } else if (normalizedFormat === "carousel" || normalizedFormat === "post") {
       setStep("format");
     } else {
       setStep("questions");
-      generateQuestions({ format: data.format, subject: data.subject, editorialAngle: undefined, objective: data.objective || undefined });
+      generateQuestions({ format: normalizedFormat, subject: data.subject, editorialAngle: undefined, objective: data.objective || undefined });
     }
   }, [generateQuestions]);
 
