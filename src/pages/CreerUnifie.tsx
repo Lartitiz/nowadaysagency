@@ -222,7 +222,7 @@ export default function CreerUnifie() {
 
   // ── Step handlers ──
 
-  const handleCoachingSelect = useCallback(async (data: { subject: string; format: string; objective: string }) => {
+  const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string }) => {
     setAnswers({});
     setEditorialAngle(null);
     setEditContent("");
@@ -231,10 +231,8 @@ export default function CreerUnifie() {
     setIdeaText(data.subject);
     if (data.objective) setObjective(data.objective);
     setSelectedFormat(data.format);
-    setStep("questions");
-
-    await generateQuestions({ format: data.format, subject: data.subject, editorialAngle: undefined, objective: data.objective || undefined });
-  }, [generateQuestions]);
+    setStep("format");
+  }, []);
 
   const handleIdeaNext = (idea: string, obj?: string) => {
     setIdeaText(idea);
@@ -752,6 +750,7 @@ export default function CreerUnifie() {
               <CreerStepFormat
                 idea={ideaText}
                 objective={objective || undefined}
+                initialFormat={selectedFormat || undefined}
                 onNext={(fmt, angle, sub, photos, desc, pm) => handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm })}
                 onBack={() => setStep("idea")}
               />

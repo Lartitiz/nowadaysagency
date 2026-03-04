@@ -16,12 +16,13 @@ import { PhotoUploadZone, type PhotoItem } from "@/components/creer/PhotoUploadZ
 interface Props {
   idea: string;
   objective?: string;
+  initialFormat?: string;
   onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean) => void;
   onBack: () => void;
 }
 
-export default function CreerStepFormat({ idea, objective, onNext, onBack }: Props) {
-  const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
+export default function CreerStepFormat({ idea, objective, initialFormat, onNext, onBack }: Props) {
+  const [selectedFormat, setSelectedFormat] = useState<string | null>(initialFormat || null);
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<PhotoItem[]>([]);
