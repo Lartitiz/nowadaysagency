@@ -48,6 +48,8 @@ serve(async (req) => {
       workspace_id: z.string().uuid().optional().nullable(),
       editorial_angle: z.string().max(100).optional().nullable(),
       content_structure: z.string().max(5000).optional().nullable(),
+      photos: z.array(z.object({ base64: z.string() })).max(10).optional(),
+      photo_description: z.string().max(2000).optional().nullable(),
     }).passthrough());
     const { type, workspace_id, launch_context } = body;
 
@@ -90,6 +92,54 @@ serve(async (req) => {
     } else if (type === "slides") {
       userPrompt = buildSlidesPrompt(body);
     } else if (type === "express_full") {
+      // ── Photo carousel mode ──
+      if (body.carousel_type === "photo") {
+        const photoPrompt = buildPhotoCarouselPrompt(body);
+        let content: string;
+
+        if (body.photos && body.photos.length > 0) {
+          // Vision mode: send photos to Claude
+          const messageContent: any[] = [];
+          for (const photo of body.photos.slice(0, 10)) {
+            if (photo.base64) {
+              // Strip data:image/jpeg;base64, prefix if present
+              const raw = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
+              messageContent.push({
+                type: "image",
+                source: { type: "base64", media_type: "image/jpeg", data: raw },
+              });
+            }
+          }
+          messageContent.push({
+            type: "text",
+            text: `Voici ${body.photos.length} photo(s) pour un carrousel photo Instagram.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\nNombre de slides : ${body.photos.length}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}\n\nAnalyse chaque photo et génère le carrousel photo.`,
+          });
+
+          content = await callAnthropic({
+            model: getModelForAction("carousel"),
+            system: systemPrompt + "\n\n" + photoPrompt,
+            messages: [{ role: "user", content: messageContent }],
+            max_tokens: 8192,
+          });
+        } else {
+          // Text-only mode: description without actual photos
+          const textPrompt = photoPrompt + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides estimé : ${body.slide_count || 6}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
+
+          content = await callAnthropic({
+            model: getModelForAction("carousel"),
+            system: systemPrompt,
+            messages: [{ role: "user", content: textPrompt }],
+            max_tokens: 8192,
+          });
+        }
+
+        await logUsage(user.id, category, "carousel_photo");
+        return new Response(JSON.stringify({ content }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // ── Standard text carousel ──
       userPrompt = buildExpressFullPrompt(body);
     } else if (type === "suggest_topics") {
       userPrompt = buildSuggestTopicsPrompt(body);
@@ -719,5 +769,87 @@ Retourne ce JSON exact :
     "score": 90
   },
   "publishing_tip": "Meilleur moment pour publier ce type de carrousel..."
+}`;
+}
+
+function buildPhotoCarouselPrompt(body: any): string {
+  const { editorial_angle, content_structure, deepening_answers } = body;
+
+  let deepeningCtx = "";
+  if (deepening_answers) {
+    const answers = Object.entries(deepening_answers)
+      .filter(([, v]) => v && (v as string).trim())
+      .map(([k, v]) => `- ${k}: ${v}`)
+      .join("\n");
+    if (answers) deepeningCtx = `\nRÉPONSES DE L'UTILISATRICE (intègre son vécu et ses mots) :\n${answers}\n`;
+  }
+
+  let angleBlock = "";
+  if (editorial_angle && content_structure) {
+    angleBlock = `\nANGLE ÉDITORIAL CHOISI : ${editorial_angle}\nSTRUCTURE IMPOSÉE :\n${content_structure}\n\n${EDITORIAL_ANGLES_REFERENCE}`;
+  }
+
+  return `Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels photo Instagram.
+
+Ton rôle : transformer des photos brutes en carrousel éditorial cohérent avec texte overlay minimal.
+
+═══ RÈGLES OVERLAY ═══
+- overlay_text : 0 à 15 mots MAX. Certaines slides DOIVENT rester SANS texte (overlay_text: null).
+- Un bon carrousel photo a 30-50% de slides sans texte.
+- Le texte overlay COMPLÈTE l'image, il ne la DÉCRIT PAS.
+- Styles d'overlay :
+  · "minimal" : mot-clé ou chiffre percutant (1-3 mots)
+  · "sensoriel" : phrase évocatrice courte (5-10 mots)
+  · "narratif" : mini-phrase qui fait avancer l'histoire
+  · "technique" : détail produit ou spécification
+- Positions : "bottom_left", "bottom_center", "top_left", "top_center", "center"
+
+═══ RÔLES DES SLIDES ═══
+- "hook_visuel" : la première photo doit arrêter le scroll
+- "detail" : zoom sur un détail, une texture, un élément
+- "contexte" : mise en situation, ambiance, lifestyle
+- "process" : coulisses, fabrication, avant/après
+- "emotion" : photo qui transmet une émotion pure
+- "cta_visuel" : dernière slide, image + CTA doux
+
+═══ LÉGENDE ═══
+- 400-800 caractères
+- La légende COMPLÈTE les photos, elle ne les DÉCRIT PAS
+- Style sensoriel et narratif : faire ressentir, pas expliquer
+- Hook : phrase d'accroche émotionnelle (pas "Découvrez notre...")
+- Body : storytelling, contexte, coulisses
+- CTA : invitation douce (pas injonctif)
+- 3-5 hashtags pertinents
+${deepeningCtx}${angleBlock}
+
+RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
+{
+  "carousel_type": "photo",
+  "chosen_angle": { "title": "Titre court de l'angle (3-5 mots)", "description": "Pourquoi cet angle" },
+  "slides": [
+    {
+      "slide_number": 1,
+      "role": "hook_visuel",
+      "photo_description": "Description de ce que montre la photo",
+      "overlay_text": "Texte court" ou null,
+      "overlay_position": "bottom_left" ou null,
+      "overlay_style": "minimal" ou null,
+      "note": "Note de direction artistique pour cette slide"
+    }
+  ],
+  "caption": {
+    "hook": "Accroche émotionnelle (125 car max)",
+    "body": "Corps de la légende (sensoriel, narratif)",
+    "cta": "CTA doux",
+    "hashtags": ["hashtag1", "hashtag2"]
+  },
+  "quality_check": {
+    "slides_with_text": 3,
+    "slides_without_text": 3,
+    "max_overlay_words": 8,
+    "caption_length": 520,
+    "caption_complements_not_describes": true,
+    "score": 85
+  }
 }`;
 }
