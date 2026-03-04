@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, GripVertical, MoreVertical, Trash2, CalendarIcon, Undo2, Search, X } from "lucide-react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
@@ -59,6 +59,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: P
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { toast } = useToast();
   const [ideas, setIdeas] = useState<SavedIdea[]>([]);
   const [filter, setFilter] = useState("all");
@@ -82,7 +83,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: P
     if (data) setIdeas(data as SavedIdea[]);
   };
 
-  useEffect(() => { fetchIdeas(); }, [user?.id, isDemoMode]);
+  useEffect(() => { fetchIdeas(); }, [user?.id, isDemoMode, column, value]);
 
   // Expose refresh so parent can trigger after unplan
   useEffect(() => {
@@ -133,6 +134,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: P
     const dateStr = format(planDate, "yyyy-MM-dd");
     const { data: newPost } = await supabase.from("calendar_posts").insert({
       user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       date: dateStr,
       theme: planDialogIdea.titre,
       status: "idea",
@@ -344,6 +346,7 @@ function MobileIdeaCard({ idea, onDelete, onPlan, onClick }: { idea: SavedIdea; 
 /* ── Add Idea Dialog ── */
 function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenChange: (o: boolean) => void; onAdded: () => void }) {
   const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
   const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [ideaFormat, setIdeaFormat] = useState("post");
@@ -354,6 +357,7 @@ function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenC
     if (!user || !title.trim()) return;
     await supabase.from("saved_ideas").insert({
       user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       titre: title.trim(),
       format: ideaFormat,
       angle: "",
