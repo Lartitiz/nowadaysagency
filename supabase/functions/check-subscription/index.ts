@@ -96,9 +96,10 @@ serve(async (req) => {
       .eq("user_id", userId)
       .gte("created_at", monthStart.toISOString());
 
-    const rows = usageRows || [];
-    // If subscription says free but there's an active coaching program, override to now_pilot
+    // Resolve legacy plan aliases (studio → now_pilot, binome → now_pilot)
+    const PLAN_ALIASES: Record<string, string> = { studio: "now_pilot", binome: "now_pilot" };
     let plan = sub?.plan || "free";
+    plan = PLAN_ALIASES[plan] || plan;
     if (plan === "free" && activeProgram) {
       plan = "now_pilot";
     }

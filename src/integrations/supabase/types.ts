@@ -2155,42 +2155,6 @@ export type Database = {
           },
         ]
       }
-      demo_profiles: {
-        Row: {
-          admin_user_id: string
-          created_at: string
-          demo_activity: string
-          demo_instagram: string | null
-          demo_name: string
-          demo_problem: string | null
-          demo_website: string | null
-          generated_data: Json | null
-          id: string
-        }
-        Insert: {
-          admin_user_id: string
-          created_at?: string
-          demo_activity: string
-          demo_instagram?: string | null
-          demo_name: string
-          demo_problem?: string | null
-          demo_website?: string | null
-          generated_data?: Json | null
-          id?: string
-        }
-        Update: {
-          admin_user_id?: string
-          created_at?: string
-          demo_activity?: string
-          demo_instagram?: string | null
-          demo_name?: string
-          demo_problem?: string | null
-          demo_website?: string | null
-          generated_data?: Json | null
-          id?: string
-        }
-        Relationships: []
-      }
       diagnostic_results: {
         Row: {
           branding_prefill: Json | null
