@@ -4,6 +4,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { ANTI_SLOP, CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -29,6 +30,14 @@ serve(async (req) => {
       .eq("role", "owner")
       .maybeSingle();
     const workspaceId = wsMember?.workspace_id;
+
+    const quota = await checkQuota(user.id, "coach", workspaceId || undefined);
+    if (!quota.allowed) {
+      return new Response(JSON.stringify({ error: quota.message, quota }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const col = workspaceId ? "workspace_id" : "user_id";
     const val = workspaceId || user.id;
 
@@ -177,6 +186,8 @@ Retourne UNIQUEMENT un JSON valide :
       if (match) parsed = JSON.parse(match[0]);
       else throw new Error("Format de réponse inattendu");
     }
+
+    await logUsage(user.id, "coach", "calendar_coaching", undefined, undefined, workspaceId || undefined);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
