@@ -24,6 +24,10 @@ export interface GenerateParams {
   // Carousel-specific
   slideCount?: number;
   carouselType?: string;
+  // Photo-related
+  photos?: { base64: string }[];
+  photoDescription?: string;
+  photoMode?: boolean;
 }
 
 export interface GenerateQuestionsParams {
@@ -184,6 +188,8 @@ export function useContentGenerator() {
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
               workspace_id: workspaceId || null,
+              photos: params.carouselType === "photo" ? params.photos : undefined,
+              photo_description: params.carouselType === "photo" ? params.photoDescription : undefined,
             },
           });
           data = res.data;
@@ -252,6 +258,9 @@ export function useContentGenerator() {
                 : [],
               objective: objective || null,
               workspace_id: workspaceId || null,
+              photo_mode: params.photoMode || undefined,
+              photos: params.photoMode && params.photos?.length ? [{ base64: params.photos[0].base64, mimeType: "image/jpeg" }] : undefined,
+              photo_description: params.photoMode ? params.photoDescription : undefined,
             },
           });
           data = res.data;
