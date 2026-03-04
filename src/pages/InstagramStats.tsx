@@ -56,7 +56,7 @@ export default function InstagramStats() {
   const [compareB, setCompareB] = useState("");
   const [showImportDialog, setShowImportDialog] = useState(false);
 
-  const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("this_month");
+  const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("3_months");
   const [customFrom, setCustomFrom] = useState(() => monthKey(new Date(now.getFullYear(), now.getMonth() - 5, 1)));
   const [customTo, setCustomTo] = useState(currentMonthDate);
 
@@ -205,12 +205,29 @@ export default function InstagramStats() {
         if (ins) setFormId((ins as any).id);
       }
       toast({ title: `✅ Stats de ${monthLabel(selectedMonth)} enregistrées.` });
+      
+      // Auto-adjust period to include the saved month
+      const currentRange = getPeriodRange(periodPreset, now);
+      if (selectedMonth < currentRange.from || selectedMonth > currentRange.to) {
+        // Switch to a period that includes the saved month
+        if (selectedMonth === monthKey(new Date(now.getFullYear(), now.getMonth() - 1, 1))) {
+          setPeriodPreset("3_months");
+        } else if (selectedMonth >= monthKey(new Date(now.getFullYear(), now.getMonth() - 5, 1))) {
+          setPeriodPreset("6_months");
+        } else if (selectedMonth >= monthKey(new Date(now.getFullYear(), 0, 1))) {
+          setPeriodPreset("this_year");
+        } else {
+          setPeriodPreset("all");
+        }
+        sonnerToast.info("📊 Période ajustée pour afficher tes nouvelles stats.");
+      }
+      
       loadStats();
     } catch {
       toast({ title: "Erreur lors de la sauvegarde", variant: "destructive" });
     }
     setSaving(false);
-  }, [user, formData, formId, selectedMonth, workspaceId, loadStats, toast]);
+  }, [user, formData, formId, selectedMonth, workspaceId, loadStats, toast, periodPreset, now]);
 
   const handleAnalyze = useCallback(async () => {
     if (!user) return;
