@@ -1,6 +1,7 @@
 import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
+import CarouselPhotoResult from "@/components/creer/formatRenderers/CarouselPhotoResult";
 import ReelResult from "@/components/creer/formatRenderers/ReelResult";
 import StoryResult from "@/components/creer/formatRenderers/StoryResult";
 import PostResult from "@/components/creer/formatRenderers/PostResult";
@@ -72,6 +73,12 @@ export default function CreerStepResult({
   if (!result) return null;
 
   const renderResult = () => {
+    // Carousel photo gets its own renderer
+    const r = result?.raw || result;
+    if (format === "carousel" && r?.carousel_type === "photo") {
+      return <CarouselPhotoResult result={result} onSlidesUpdate={onSlidesUpdate} />;
+    }
+
     switch (format) {
       case "carousel":
         return <CarouselResult result={result} visualSlides={visualSlides} onSlidesUpdate={onSlidesUpdate} />;
