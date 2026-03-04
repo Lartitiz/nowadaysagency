@@ -31,7 +31,7 @@ const SECTIONS = [
   {
     title: "Création de contenu",
     rows: [
-      { label: "Crédits IA", free: "25/mois", outil: "300/mois", studio: "300/mois" },
+      { label: "Crédits IA", free: "60/mois", outil: "300/mois", studio: "300/mois" },
       { label: "Posts Instagram", free: true, outil: true, studio: true },
       { label: "Reels", free: true, outil: true, studio: true },
       { label: "Stories", free: true, outil: true, studio: true },
@@ -80,7 +80,7 @@ const SECTIONS = [
 const FAQ = [
   {
     q: "Pourquoi tout l'outil est gratuit ?",
-    a: "L'outil est entièrement accessible en gratuit avec 25 crédits IA/mois. Quand tu voudras produire régulièrement et accéder à toutes les fonctionnalités avancées (calendrier, communauté, lives...), le Premium sera là.",
+    a: "L'outil est entièrement accessible en gratuit avec 60 crédits IA/mois. Quand tu voudras produire régulièrement et accéder à toutes les fonctionnalités avancées (calendrier, communauté, lives...), le Premium sera là.",
   },
   {
     q: "Je peux annuler quand je veux ?",
@@ -193,11 +193,11 @@ export default function PricingPage() {
               0€
             </p>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              Tout l'écosystème Nowadays : branding, calendrier, audits, espaces canaux, CRM, stats. 25 crédits IA/mois pour goûter à la magie.
+              Tout l'écosystème Nowadays : branding, calendrier, audits, espaces canaux, CRM, stats. 60 crédits IA/mois pour goûter à la magie.
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Tout l'outil débloqué</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 25 crédits IA / mois</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 60 crédits IA / mois</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 3 audits IA / mois</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Calendrier éditorial complet</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Mini-CRM + contacts stratégiques</li>

@@ -7,7 +7,7 @@ export const STRIPE_PLANS = {
     mode: null,
     features: [
       "Tout l'outil débloqué",
-      "25 crédits IA / mois",
+      "60 crédits IA / mois",
       "3 audits IA / mois",
       "Communauté en lecture",
     ],
