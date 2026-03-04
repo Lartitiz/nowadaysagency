@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, ArrowRight, Wand2 } from "lucide-react";
 import {
   CONTENT_TYPE_SPECS,
@@ -15,7 +16,7 @@ import { PhotoUploadZone, type PhotoItem } from "@/components/creer/PhotoUploadZ
 interface Props {
   idea: string;
   objective?: string;
-  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo", photos?: PhotoItem[], photoDescription?: string) => void;
+  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean) => void;
   onBack: () => void;
 }
 
@@ -25,6 +26,9 @@ export default function CreerStepFormat({ idea, objective, onNext, onBack }: Pro
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<PhotoItem[]>([]);
   const [photoDescription, setPhotoDescription] = useState("");
+  const [photoMode, setPhotoMode] = useState(false);
+  const [postPhoto, setPostPhoto] = useState<PhotoItem[]>([]);
+  const [postPhotoDescription, setPostPhotoDescription] = useState("");
 
   const typeEntries = Object.entries(CONTENT_TYPE_SPECS);
   const priorityTypes = objective ? OBJECTIVE_RECOMMENDATIONS[objective]?.priorityTypes || [] : [];
@@ -40,6 +44,9 @@ export default function CreerStepFormat({ idea, objective, onNext, onBack }: Pro
     setCarouselSubMode(null);
     setUploadedPhotos([]);
     setPhotoDescription("");
+    setPhotoMode(false);
+    setPostPhoto([]);
+    setPostPhotoDescription("");
   };
 
   const renderAngleCard = (angle: EditorialAngle, isRecommended: boolean) => {
@@ -90,12 +97,15 @@ export default function CreerStepFormat({ idea, objective, onNext, onBack }: Pro
 
   const handleNext = () => {
     if (!selectedFormat) return;
+    const isCarouselPhoto = selectedFormat === "carousel" && carouselSubMode === "photo";
+    const isPostPhoto = selectedFormat === "post" && photoMode;
     onNext(
       selectedFormat,
       selectedAngle,
       selectedFormat === "carousel" ? (carouselSubMode || "text") : undefined,
-      selectedFormat === "carousel" && carouselSubMode === "photo" ? uploadedPhotos : undefined,
-      selectedFormat === "carousel" && carouselSubMode === "photo" ? photoDescription : undefined,
+      isCarouselPhoto ? uploadedPhotos : isPostPhoto ? postPhoto : undefined,
+      isCarouselPhoto ? photoDescription : isPostPhoto ? postPhotoDescription : undefined,
+      selectedFormat === "post" ? photoMode : undefined,
     );
   };
 
@@ -134,6 +144,28 @@ export default function CreerStepFormat({ idea, objective, onNext, onBack }: Pro
           })}
         </div>
       </div>
+
+      {/* Post photo toggle */}
+      {selectedFormat === "post" && (
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border animate-fade-in">
+          <Switch checked={photoMode} onCheckedChange={setPhotoMode} />
+          <div>
+            <p className="text-sm font-medium text-foreground">📸 J'accompagne une photo</p>
+            <p className="text-xs text-muted-foreground">L'IA adapte ta légende à ton image</p>
+          </div>
+        </div>
+      )}
+
+      {/* Post photo upload */}
+      {selectedFormat === "post" && photoMode && (
+        <div className="animate-fade-in">
+          <PhotoUploadZone
+            maxPhotos={1}
+            onPhotosChange={setPostPhoto}
+            onDescriptionChange={setPostPhotoDescription}
+          />
+        </div>
+      )}
 
       {/* Carousel sub-mode */}
       {selectedFormat === "carousel" && (
