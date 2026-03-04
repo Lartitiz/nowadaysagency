@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useProfileUserId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -336,6 +336,7 @@ function PhaseSection({ phase, overrides, onToggleOverride }: { phase: PlanPhase
 export default function PlanPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const profileUserId = useProfileUserId();
   const [planData, setPlanData] = useState<PlanData | null>(null);
   const [config, setConfig] = useState<PlanConfig | null>(null);
   const [hasConfig, setHasConfig] = useState<boolean | null>(null);
@@ -347,11 +348,11 @@ export default function PlanPage() {
     if (!user) return [];
     const { data } = await (supabase.from("plan_step_overrides") as any)
       .select("step_id, status")
-      .eq("user_id", user.id);
+      .eq("user_id", profileUserId);
     const list = (data || []) as PlanStepOverride[];
     setOverrides(list);
     return list;
-  }, [user?.id]);
+  }, [user?.id, profileUserId]);
 
   const loadConfig = useCallback(async () => {
     if (!user) return;
@@ -409,11 +410,11 @@ export default function PlanPage() {
     if (isCurrentlyOverridden) {
       await (supabase.from("plan_step_overrides") as any)
         .delete()
-        .eq("user_id", user.id)
+        .eq("user_id", profileUserId)
         .eq("step_id", stepId);
     } else {
       await (supabase.from("plan_step_overrides") as any)
-        .insert({ user_id: user.id, step_id: stepId, status: "done" });
+        .insert({ user_id: profileUserId, step_id: stepId, status: "done" });
     }
 
     const newOverrides = await loadOverrides();
