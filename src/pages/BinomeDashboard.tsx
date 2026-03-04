@@ -60,7 +60,7 @@ const statusLabel = (status: string) => {
   }
 };
 
-export default function StudioDashboard() {
+export default function BinomeDashboard() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const { isStudio, loading: planLoading } = useUserPlan();

@@ -90,9 +90,9 @@ const CguCgvPage = lazy(() => import("./pages/CguCgvPage"));
 const PaymentSuccessPage = lazy(() => import("./pages/PaymentSuccessPage"));
 
 const PricingPage = lazy(() => import("./pages/PricingPage"));
-const NowStudioSalesPage = lazy(() => import("./pages/NowStudioSalesPage"));
+const BinomeSalesPage = lazy(() => import("./pages/BinomeSalesPage"));
 const ServicesPage = lazy(() => import("./pages/ServicesPage"));
-const StudioDashboard = lazy(() => import("./pages/StudioDashboard"));
+const BinomeDashboard = lazy(() => import("./pages/BinomeDashboard"));
 const LivesPage = lazy(() => import("./pages/LivesPage"));
 const CommunautePage = lazy(() => import("./pages/CommunautePage"));
 const ContactsPage = lazy(() => import("./pages/ContactsPage"));
@@ -227,7 +227,7 @@ function AnimatedRoutes() {
               <Route path="/plan" element={<RedirectWithParams to="/calendrier" mergeParams={{ tab: "strategie" }} />} />
               <Route path="/mon-plan" element={<RedirectWithParams to="/calendrier" mergeParams={{ tab: "strategie" }} />} />
               <Route path="/pricing" element={<PricingPage />} />
-              <Route path="/studio" element={<ProtectedRoute><StudioDashboard /></ProtectedRoute>} />
+              <Route path="/studio" element={<ProtectedRoute><BinomeDashboard /></ProtectedRoute>} />
               <Route path="/studio/discover" element={<Navigate to="/binome" replace />} />
               <Route path="/services" element={<ServicesPage />} />
               <Route path="/lives" element={<ProtectedRoute><LivesPage /></ProtectedRoute>} />
@@ -245,7 +245,7 @@ function AnimatedRoutes() {
               <Route path="/admin/analytics" element={<Navigate to="/admin/coaching" replace />} />
               <Route path="/now-pilot" element={<Navigate to="/binome" replace />} />
               <Route path="/now-studio" element={<Navigate to="/binome" replace />} />
-              <Route path="/binome" element={<NowStudioSalesPage />} />
+              <Route path="/binome" element={<BinomeSalesPage />} />
               <Route path="/legal-ia" element={<ProtectedRoute><LegalAiPage /></ProtectedRoute>} />
               <Route path="/mentions-legales" element={<MentionsLegalesPage />} />
               <Route path="/confidentialite" element={<ConfidentialitePage />} />
