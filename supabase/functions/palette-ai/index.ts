@@ -1,13 +1,23 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { authenticateRequest, AuthError } from "../_shared/auth.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const { userId } = await authenticateRequest(req);
     const { emotions, universe, styleAxes, userSector } = await req.json();
+
+    const quota = await checkQuota(userId, "content");
+    if (!quota.allowed) {
+      return new Response(JSON.stringify({ error: quota.message, quota }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (!emotions?.length || !universe) {
       return new Response(JSON.stringify({ error: "Sélectionne au moins une émotion et un univers visuel." }), {
@@ -85,14 +95,21 @@ Retourne ce JSON exactement :
       });
     }
 
+    await logUsage(userId, "content", "palette_ai");
+
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof AuthError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: e.status, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
     console.error("palette-ai error:", e);
     const status = (e as any).status || 500;
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }), {
-      status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
   }
 });
