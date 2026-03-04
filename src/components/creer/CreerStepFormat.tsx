@@ -10,17 +10,21 @@ import {
   getStructureForCombo,
   type EditorialAngle,
 } from "@/lib/content-structures";
+import { PhotoUploadZone, type PhotoItem } from "@/components/creer/PhotoUploadZone";
 
 interface Props {
   idea: string;
   objective?: string;
-  onNext: (format: string, editorialAngle?: string) => void;
+  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo", photos?: PhotoItem[], photoDescription?: string) => void;
   onBack: () => void;
 }
 
 export default function CreerStepFormat({ idea, objective, onNext, onBack }: Props) {
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
+  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | null>(null);
+  const [uploadedPhotos, setUploadedPhotos] = useState<PhotoItem[]>([]);
+  const [photoDescription, setPhotoDescription] = useState("");
 
   const typeEntries = Object.entries(CONTENT_TYPE_SPECS);
   const priorityTypes = objective ? OBJECTIVE_RECOMMENDATIONS[objective]?.priorityTypes || [] : [];
@@ -33,6 +37,9 @@ export default function CreerStepFormat({ idea, objective, onNext, onBack }: Pro
     if (CONTENT_TYPE_SPECS[id]?.comingSoon) return;
     setSelectedFormat(id);
     setSelectedAngle(undefined);
+    setCarouselSubMode(null);
+    setUploadedPhotos([]);
+    setPhotoDescription("");
   };
 
   const renderAngleCard = (angle: EditorialAngle, isRecommended: boolean) => {
@@ -76,9 +83,21 @@ export default function CreerStepFormat({ idea, objective, onNext, onBack }: Pro
     );
   };
 
-  // Show structure info for selected angle
   const selectedStructureId = selectedFormat && selectedAngle ? getStructureForCombo(selectedFormat, selectedAngle) : null;
   const selectedStructure = selectedStructureId ? CONTENT_STRUCTURES[selectedStructureId] : null;
+
+  const showAngles = selectedFormat && (selectedFormat !== "carousel" || carouselSubMode !== null);
+
+  const handleNext = () => {
+    if (!selectedFormat) return;
+    onNext(
+      selectedFormat,
+      selectedAngle,
+      selectedFormat === "carousel" ? (carouselSubMode || "text") : undefined,
+      selectedFormat === "carousel" && carouselSubMode === "photo" ? uploadedPhotos : undefined,
+      selectedFormat === "carousel" && carouselSubMode === "photo" ? photoDescription : undefined,
+    );
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -116,8 +135,52 @@ export default function CreerStepFormat({ idea, objective, onNext, onBack }: Pro
         </div>
       </div>
 
-      {/* Angle selection (shown when format selected) */}
-      {selectedFormat && (
+      {/* Carousel sub-mode */}
+      {selectedFormat === "carousel" && (
+        <div className="space-y-3 animate-fade-in">
+          <p className="text-sm font-semibold text-foreground">Quel type de carrousel ?</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => { setCarouselSubMode("text"); setUploadedPhotos([]); setPhotoDescription(""); }}
+              className={`rounded-xl border-2 p-3 text-center transition-all ${
+                carouselSubMode === "text"
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-border bg-card hover:border-primary/40"
+              }`}
+            >
+              <span className="text-2xl block mb-1">📝</span>
+              <span className="text-xs font-semibold text-foreground">Carrousel texte</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">L'IA rédige tes slides</p>
+            </button>
+            <button
+              onClick={() => setCarouselSubMode("photo")}
+              className={`rounded-xl border-2 p-3 text-center transition-all ${
+                carouselSubMode === "photo"
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-border bg-card hover:border-primary/40"
+              }`}
+            >
+              <span className="text-2xl block mb-1">📸</span>
+              <span className="text-xs font-semibold text-foreground">Carrousel photo</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Tu as des photos, l'IA les met en histoire</p>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Photo upload zone (carousel photo mode) */}
+      {carouselSubMode === "photo" && (
+        <div className="animate-fade-in">
+          <PhotoUploadZone
+            maxPhotos={10}
+            onPhotosChange={setUploadedPhotos}
+            onDescriptionChange={setPhotoDescription}
+          />
+        </div>
+      )}
+
+      {/* Angle selection */}
+      {showAngles && (
         <div className="space-y-3 animate-fade-in">
           <p className="text-sm font-semibold text-foreground">Précise ton angle</p>
 
@@ -170,7 +233,7 @@ export default function CreerStepFormat({ idea, objective, onNext, onBack }: Pro
         <Button
           size="sm"
           disabled={!selectedFormat}
-          onClick={() => selectedFormat && onNext(selectedFormat, selectedAngle)}
+          onClick={handleNext}
           className="gap-1"
         >
           Suivant <ArrowRight className="h-3.5 w-3.5" />
