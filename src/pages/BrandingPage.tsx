@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMergedProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/contexts/AuthContext";
@@ -635,7 +636,9 @@ export default function BrandingPage() {
               )}
 
               {showSynthesis ? (
-                <BrandingSynthesisSheet onClose={() => setShowSynthesis(false)} />
+                <LocalErrorBoundary fallbackMessage="Erreur lors du chargement de la synthèse.">
+                  <BrandingSynthesisSheet onClose={() => setShowSynthesis(false)} />
+                </LocalErrorBoundary>
               ) : importPhase === 'reviewing' && importExtraction ? (
                 <BrandingImportReview
                   extraction={importExtraction}

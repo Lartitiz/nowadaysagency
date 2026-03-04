@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -811,7 +812,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
             </DragOverlay>
           </DndContext>
         )}
-        <CalendarPostDialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setPrefillData(null); }} editingPost={editingPost} selectedDate={selectedDate} defaultCanal={canalFilter} onSave={handleSave} onDelete={handleDelete} onUnplan={editingPost ? handleUnplan : undefined} onDateChange={(postId, newDate) => { handleMovePost(postId, newDate); setSelectedDate(newDate); if (editingPost) setEditingPost({ ...editingPost, date: newDate }); }} prefillData={prefillData} />
+        <LocalErrorBoundary fallbackMessage="Erreur dans le dialogue de post.">
+          <CalendarPostDialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setPrefillData(null); }} editingPost={editingPost} selectedDate={selectedDate} defaultCanal={canalFilter} onSave={handleSave} onDelete={handleDelete} onUnplan={editingPost ? handleUnplan : undefined} onDateChange={(postId, newDate) => { handleMovePost(postId, newDate); setSelectedDate(newDate); if (editingPost) setEditingPost({ ...editingPost, date: newDate }); }} prefillData={prefillData} />
+        </LocalErrorBoundary>
         <IdeaDetailSheet idea={selectedIdea} open={ideaDetailOpen} onOpenChange={setIdeaDetailOpen} onUpdated={handleIdeaUpdated} onPlanned={handleIdeaPlannedFromSheet} />
         <CalendarCoachingDialog open={coachingOpen} onOpenChange={setCoachingOpen} onPostAdded={fetchPosts} />
       </div>
@@ -879,22 +882,24 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           </DndContext>
         )}
 
-        <CalendarPostDialog
-          open={dialogOpen}
-          onOpenChange={(open) => { setDialogOpen(open); if (!open) setPrefillData(null); }}
-          editingPost={editingPost}
-          selectedDate={selectedDate}
-          defaultCanal={canalFilter}
-          onSave={handleSave}
-          onDelete={handleDelete}
-          onUnplan={editingPost ? handleUnplan : undefined}
-          onDateChange={(postId, newDate) => {
-            handleMovePost(postId, newDate);
-            setSelectedDate(newDate);
-            if (editingPost) setEditingPost({ ...editingPost, date: newDate });
-          }}
-          prefillData={prefillData}
-        />
+        <LocalErrorBoundary fallbackMessage="Erreur dans le dialogue de post.">
+          <CalendarPostDialog
+            open={dialogOpen}
+            onOpenChange={(open) => { setDialogOpen(open); if (!open) setPrefillData(null); }}
+            editingPost={editingPost}
+            selectedDate={selectedDate}
+            defaultCanal={canalFilter}
+            onSave={handleSave}
+            onDelete={handleDelete}
+            onUnplan={editingPost ? handleUnplan : undefined}
+            onDateChange={(postId, newDate) => {
+              handleMovePost(postId, newDate);
+              setSelectedDate(newDate);
+              if (editingPost) setEditingPost({ ...editingPost, date: newDate });
+            }}
+            prefillData={prefillData}
+          />
+        </LocalErrorBoundary>
 
         <IdeaDetailSheet
           idea={selectedIdea}

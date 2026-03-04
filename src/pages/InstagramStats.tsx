@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -522,7 +523,7 @@ export default function InstagramStats() {
           </TabsContent>
         </Tabs>
       </main>
-      {user && <ExcelImportDialog open={showImportDialog} onOpenChange={setShowImportDialog} userId={user.id} onImportComplete={loadStats} />}
+      {user && <LocalErrorBoundary fallbackMessage="Erreur lors de l'import Excel."><ExcelImportDialog open={showImportDialog} onOpenChange={setShowImportDialog} userId={user.id} onImportComplete={loadStats} /></LocalErrorBoundary>}
     </div>
   );
 }
