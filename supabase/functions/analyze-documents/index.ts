@@ -1,6 +1,7 @@
 import { authenticateRequest, getServiceClient, AuthError } from "../_shared/auth.ts";
 import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { extractFromBlob } from "../_shared/scraping.ts";
 
 Deno.serve(async (req) => {
@@ -14,6 +15,14 @@ Deno.serve(async (req) => {
     const { userId } = await authenticateRequest(req);
 
     const { workspace_id, document_ids } = await req.json();
+
+    const quota = await checkQuota(userId, "import", workspace_id || undefined);
+    if (!quota.allowed) {
+      return new Response(JSON.stringify({ error: quota.message, quota }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!document_ids?.length) {
       return new Response(JSON.stringify({ error: "Missing document_ids" }), {
         status: 400,
@@ -122,6 +131,8 @@ Retourne UNIQUEMENT un JSON valide, sans texte avant ni après :
         .update({ processed: true, extracted_data })
         .eq("id", doc.id);
     }
+
+    await logUsage(userId, "import", "analyze_documents", undefined, undefined, workspace_id || undefined);
 
     return new Response(JSON.stringify({ extracted_data }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
