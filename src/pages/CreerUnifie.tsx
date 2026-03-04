@@ -634,17 +634,31 @@ export default function CreerUnifie() {
     if (!result?.raw?.slides || visualLoading) return;
     setVisualLoading(true);
     try {
+      const isPhotoCarousel = result.raw.carousel_type === "photo";
+
       const { data, error: fnError } = await supabase.functions.invoke("carousel-visual", {
         body: {
           slides: result.raw.slides.map((s: any) => ({
             slide_number: s.slide_number,
             role: s.role,
-            title: s.title,
-            body: s.body,
-            visual_suggestion: s.visual_suggestion,
-            ...(s.visual_schema ? { visual_schema: s.visual_schema } : {}),
+            ...(isPhotoCarousel ? {
+              overlay_text: s.overlay_text,
+              overlay_position: s.overlay_position || "bottom_center",
+              overlay_style: s.overlay_style || "sensoriel",
+              note: s.note,
+            } : {
+              title: s.title || "",
+              body: s.body || "",
+              visual_suggestion: s.visual_suggestion,
+              ...(s.visual_schema ? { visual_schema: s.visual_schema } : {}),
+            }),
           })),
-          template_style: null,
+          ...(isPhotoCarousel && uploadedPhotos.length > 0 ? {
+            photos: uploadedPhotos.map(p => ({ base64: p.base64 })),
+            carousel_type: "photo",
+          } : {
+            template_style: null,
+          }),
         },
       });
       if (fnError) throw fnError;
