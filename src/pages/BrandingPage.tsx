@@ -83,8 +83,13 @@ export default function BrandingPage() {
   const [importExtraction, setImportExtraction] = useState<BrandingExtraction | null>(null);
   const [showImportBlock, setShowImportBlock] = useState(false);
   const [skipImport, setSkipImport] = useState(() => {
-    try { return localStorage.getItem("branding_skip_import") === "true"; } catch { return false; }
+    try { return localStorage.getItem(`branding_skip_import_${workspaceId}`) === "true"; } catch { return false; }
   });
+  useEffect(() => {
+    try {
+      setSkipImport(localStorage.getItem(`branding_skip_import_${workspaceId}`) === "true");
+    } catch { /* silent */ }
+  }, [workspaceId]);
   const [importAnalyzing, setImportAnalyzing] = useState(false);
   const [forceImport, setForceImport] = useState(false);
   const [lastAudit, setLastAudit] = useState<any>(null);
@@ -494,7 +499,7 @@ export default function BrandingPage() {
       return;
     }
     setSkipImport(true);
-    localStorage.setItem("branding_skip_import", "true");
+    localStorage.setItem(`branding_skip_import_${workspaceId}`, "true");
     logEvent("autofill_abandoned");
   };
 
@@ -608,7 +613,7 @@ export default function BrandingPage() {
                   setSkipImport(true);
                   setReanalyzeMode(false);
                   setForceImport(false);
-                  localStorage.setItem("branding_skip_import", "true");
+                  localStorage.setItem(`branding_skip_import_${workspaceId}`, "true");
                   await reloadCompletion();
                 }}
               />
