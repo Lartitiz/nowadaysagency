@@ -188,8 +188,8 @@ export function useContentGenerator() {
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
               workspace_id: workspaceId || null,
-              photos: params.carouselType === "photo" ? params.photos : undefined,
-              photo_description: params.carouselType === "photo" ? params.photoDescription : undefined,
+              photos: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photos : undefined,
+              photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,
             },
           });
           data = res.data;

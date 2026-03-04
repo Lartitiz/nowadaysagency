@@ -72,7 +72,7 @@ export default function CreerUnifie() {
   const fromCalendar = !!(locState?.fromCalendar && calendarPostId);
 
   // Photo states (carousel photo + post photo)
-  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | null>(null);
+  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<any[]>([]);
   const [photoDescription, setPhotoDescription] = useState("");
   const [photoMode, setPhotoMode] = useState(false);
@@ -261,7 +261,7 @@ export default function CreerUnifie() {
     setStep("format");
   };
 
-  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string }) => {
+  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string }) => {
     const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject } = options || {};
     setSelectedFormat(format);
     setEditorialAngle(angle || null);
@@ -312,6 +312,7 @@ export default function CreerUnifie() {
       editorialAngle: editorialAngle || undefined,
       answers: Object.keys(ans).length > 0 ? ans : undefined,
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
+      ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
       ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64 }] : undefined, photoDescription } : {}),
     });
   };
@@ -472,6 +473,21 @@ export default function CreerUnifie() {
       contentDraft = (r.slides || []).map((s: any) => s.overlay_text ? `SLIDE ${s.slide_number}: ${s.overlay_text}` : `SLIDE ${s.slide_number}: (photo seule)`).join("\n") + "\n\n" + [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n");
       const storyDetail: any = { type: "carousel_photo", slides: r.slides, caption: r.caption, quality_check: r.quality_check };
       // Inclure les visuels générés s'ils existent
+      if (visualSlides.length > 0) {
+        storyDetail.visual_html = visualSlides.map((vs: any) => ({ slide_number: vs.slide_number, html: vs.html }));
+      }
+      return { contentDraft, accroche, storyDetail };
+    }
+
+    if (selectedFormat === "carousel" && r?.carousel_type === "mix") {
+      accroche = r.caption?.hook || "";
+      contentDraft = (r.slides || []).map((s: any) => {
+        const type = s.slide_type || "text_only";
+        if (type === "photo_full") return `SLIDE ${s.slide_number} [📸]: ${s.overlay_text || "(photo seule)"}`;
+        if (type === "photo_integrated") return `SLIDE ${s.slide_number} [📷+📝]: ${s.title || ""} — ${s.body || ""}`;
+        return `SLIDE ${s.slide_number} [📝]: ${s.title || ""} — ${s.body || ""}`;
+      }).join("\n") + "\n\n" + [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n");
+      const storyDetail: any = { type: "carousel_mix", slides: r.slides, caption: r.caption, quality_check: r.quality_check };
       if (visualSlides.length > 0) {
         storyDetail.visual_html = visualSlides.map((vs: any) => ({ slide_number: vs.slide_number, html: vs.html }));
       }
@@ -639,27 +655,39 @@ export default function CreerUnifie() {
     setVisualLoading(true);
     try {
       const isPhotoCarousel = result.raw.carousel_type === "photo";
+      const isMixCarousel = result.raw.carousel_type === "mix";
+      const hasPhotos = isPhotoCarousel || isMixCarousel;
 
       const { data, error: fnError } = await supabase.functions.invoke("carousel-visual", {
         body: {
           slides: result.raw.slides.map((s: any) => ({
             slide_number: s.slide_number,
             role: s.role,
-            ...(isPhotoCarousel ? {
+            slide_type: s.slide_type || (isPhotoCarousel ? "photo_full" : "text_only"),
+            ...(s.slide_type === "photo_full" || (isPhotoCarousel && !s.slide_type) ? {
               overlay_text: s.overlay_text,
               overlay_position: s.overlay_position || "bottom_center",
               overlay_style: s.overlay_style || "sensoriel",
               note: s.note,
-            } : {
+              photo_index: s.photo_index,
+            } : {}),
+            ...(s.slide_type === "photo_integrated" ? {
+              photo_index: s.photo_index,
+              photo_layout: s.photo_layout || "top_photo",
+              title: s.title || "",
+              body: s.body || "",
+              note: s.note,
+            } : {}),
+            ...(s.slide_type === "text_only" || (!hasPhotos && !s.slide_type) ? {
               title: s.title || "",
               body: s.body || "",
               visual_suggestion: s.visual_suggestion,
               ...(s.visual_schema ? { visual_schema: s.visual_schema } : {}),
-            }),
+            } : {}),
           })),
-          ...(isPhotoCarousel && uploadedPhotos.length > 0 ? {
+          ...(hasPhotos && uploadedPhotos.length > 0 ? {
             photos: uploadedPhotos.map(p => ({ base64: p.base64 })),
-            carousel_type: "photo",
+            carousel_type: isMixCarousel ? "mix" : "photo",
           } : {
             template_style: null,
           }),
@@ -837,7 +865,7 @@ export default function CreerUnifie() {
                 result={result?.raw || result}
                 format={selectedFormat || "post"}
                 generating={generating}
-                photos={carouselSubMode === "photo" ? uploadedPhotos : undefined}
+                photos={(carouselSubMode === "photo" || carouselSubMode === "mix") ? uploadedPhotos : undefined}
                 onEdit={handleEdit}
                 onReset={handleReset}
                 onRegenerate={handleRegenerate}

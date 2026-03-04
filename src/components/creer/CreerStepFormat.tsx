@@ -17,14 +17,14 @@ interface Props {
   idea: string;
   objective?: string;
   initialFormat?: string;
-  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean) => void;
+  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean) => void;
   onBack: () => void;
 }
 
 export default function CreerStepFormat({ idea, objective, initialFormat, onNext, onBack }: Props) {
   const [selectedFormat, setSelectedFormat] = useState<string | null>(initialFormat || null);
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
-  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | null>(null);
+  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<PhotoItem[]>([]);
   const [photoDescription, setPhotoDescription] = useState("");
   const [photoMode, setPhotoMode] = useState(false);
@@ -99,13 +99,14 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
   const handleNext = () => {
     if (!selectedFormat) return;
     const isCarouselPhoto = selectedFormat === "carousel" && carouselSubMode === "photo";
+    const isCarouselMix = selectedFormat === "carousel" && carouselSubMode === "mix";
     const isPostPhoto = selectedFormat === "post" && photoMode;
     onNext(
       selectedFormat,
       selectedAngle,
       selectedFormat === "carousel" ? (carouselSubMode || "text") : undefined,
-      isCarouselPhoto ? uploadedPhotos : isPostPhoto ? postPhoto : undefined,
-      isCarouselPhoto ? photoDescription : isPostPhoto ? postPhotoDescription : undefined,
+      isCarouselPhoto || isCarouselMix ? uploadedPhotos : isPostPhoto ? postPhoto : undefined,
+      isCarouselPhoto || isCarouselMix ? photoDescription : isPostPhoto ? postPhotoDescription : undefined,
       selectedFormat === "post" ? photoMode : undefined,
     );
   };
@@ -172,7 +173,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
       {selectedFormat === "carousel" && (
         <div className="space-y-3 animate-fade-in">
           <p className="text-sm font-semibold text-foreground">Quel type de carrousel ?</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => { setCarouselSubMode("text"); setUploadedPhotos([]); setPhotoDescription(""); }}
               className={`rounded-xl border-2 p-3 text-center transition-all ${
@@ -182,8 +183,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
               }`}
             >
               <span className="text-2xl block mb-1">📝</span>
-              <span className="text-xs font-semibold text-foreground">Carrousel texte</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">L'IA rédige tes slides</p>
+              <span className="text-xs font-semibold text-foreground">Texte</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">L'IA rédige et designe</p>
             </button>
             <button
               onClick={() => setCarouselSubMode("photo")}
@@ -194,15 +195,27 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
               }`}
             >
               <span className="text-2xl block mb-1">📸</span>
-              <span className="text-xs font-semibold text-foreground">Carrousel photo</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Tu as des photos, l'IA les met en histoire</p>
+              <span className="text-xs font-semibold text-foreground">Photo</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Tes photos en plein écran</p>
+            </button>
+            <button
+              onClick={() => setCarouselSubMode("mix")}
+              className={`rounded-xl border-2 p-3 text-center transition-all ${
+                carouselSubMode === "mix"
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-border bg-card hover:border-primary/40"
+              }`}
+            >
+              <span className="text-2xl block mb-1">✨</span>
+              <span className="text-xs font-semibold text-foreground">Mixte</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Photos intégrées + slides texte</p>
             </button>
           </div>
         </div>
       )}
 
       {/* Photo upload zone (carousel photo mode) */}
-      {carouselSubMode === "photo" && (
+      {(carouselSubMode === "photo" || carouselSubMode === "mix") && (
         <div className="animate-fade-in">
           <PhotoUploadZone
             maxPhotos={10}
