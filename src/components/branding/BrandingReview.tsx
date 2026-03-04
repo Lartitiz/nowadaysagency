@@ -192,7 +192,40 @@ function OffersSection({ data }: { data: AnalysisResult["offers"] }) {
 
 // ─── Save helpers ────────────────────────────────────────────
 async function saveStory(data: AnalysisResult["story"], userId: string, workspaceId: string) {
-  await (supabase.from("storytelling") as any).upsert({ user_id: userId, workspace_id: workspaceId, is_primary: true, story_origin: data?.origin || null, story_turning_point: data?.trigger || null, story_struggles: data?.struggles || null, story_unique: data?.uniqueness || null, story_vision: data?.vision || null, story_full: data?.full_story || null }, { onConflict: "user_id,is_primary" });
+  if (!data) return;
+
+  const payload: Record<string, any> = {
+    user_id: userId,
+    workspace_id: workspaceId || null,
+    is_primary: true,
+    title: "Mon histoire fondatrice",
+    story_type: "fondatrice",
+    source: "autofill",
+    updated_at: new Date().toISOString(),
+  };
+
+  if (data.origin) payload.step_1_raw = data.origin;
+  if (data.trigger) payload.step_2_location = data.trigger;
+  if (data.struggles) payload.step_3_action = data.struggles;
+  if (data.uniqueness) payload.step_4_thoughts = data.uniqueness;
+  if (data.vision) payload.step_5_emotions = data.vision;
+  if (data.full_story) payload.step_6_full_story = data.full_story;
+
+  const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
+  const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
+
+  const { data: existing } = await (supabase.from("storytelling") as any)
+    .select("id")
+    .eq(filterCol, filterVal)
+    .eq("is_primary", true)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing?.id) {
+    await (supabase.from("storytelling") as any).update(payload).eq("id", existing.id);
+  } else {
+    await (supabase.from("storytelling") as any).insert(payload);
+  }
 }
 async function savePersona(data: AnalysisResult["persona"], userId: string, workspaceId: string) {
   await (supabase.from("brand_profile") as any).upsert({ user_id: userId, workspace_id: workspaceId, target_description: [data?.name, data?.age_range, data?.job].filter(Boolean).join(" · ") || null, target_frustrations: data?.frustrations?.join("\n") || null, target_desires: data?.desires?.join("\n") || null, channels: data?.channels || null }, { onConflict: "user_id" });
