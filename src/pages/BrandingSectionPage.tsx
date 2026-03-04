@@ -298,7 +298,7 @@ export default function BrandingSectionPage() {
       setLoading(false);
     };
     load();
-  }, [user?.id, section, isDemoMode]);
+  }, [user?.id, section, isDemoMode, column, value]);
 
   const workspaceId = useWorkspaceId();
   const { suggestions, suggestionId, showSuggestions, checkImpact, dismissSuggestions } = useBrandingSuggestions(workspaceId);

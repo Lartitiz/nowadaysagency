@@ -257,7 +257,7 @@ export default function BrandingPage() {
       setLoading(false);
     };
     load();
-  }, [user?.id, isDemoMode]);
+  }, [user?.id, isDemoMode, column, value]);
 
   const generateProposition = async () => {
     if (!user) return;
