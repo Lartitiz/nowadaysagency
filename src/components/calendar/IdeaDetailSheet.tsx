@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -52,6 +53,7 @@ interface Props {
 
 export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned }: Props) {
   const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
   const { toast } = useToast();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -99,6 +101,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
     const dateStr = format(planDate, "yyyy-MM-dd");
     const { data: newPost } = await supabase.from("calendar_posts").insert({
       user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       date: dateStr,
       theme: title.trim(),
       status: "idea",
