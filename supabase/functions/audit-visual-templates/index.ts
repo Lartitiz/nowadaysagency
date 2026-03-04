@@ -134,6 +134,7 @@ Pour chaque image analysée, identifie :
 - Les typographies utilisées (ou leur style : serif, sans-serif, script)
 - Le style général (minimaliste, chargé, coloré, épuré, etc.)
 - La mise en page (centré, asymétrique, grille, etc.)
+- Comment les PHOTOS sont intégrées dans le design (plein écran, en vignette, en demi-slide, dans une carte, absentes)
 
 Puis fais une SYNTHÈSE GLOBALE en JSON (et UNIQUEMENT du JSON, sans texte avant ni après) :
 {
@@ -152,10 +153,13 @@ Puis fais une SYNTHÈSE GLOBALE en JSON (et UNIQUEMENT du JSON, sans texte avant
     "font_style_title": "serif / sans-serif / script",
     "font_style_body": "serif / sans-serif / script",
     "mood_keywords": ["3 mots"]
-  }
+  },
+  "template_layout_description": "Description TRÈS DÉTAILLÉE et TECHNIQUE du layout des templates pour qu'un autre modèle IA puisse le reproduire sans voir l'image. Inclure : la disposition des éléments (grille, colonnes, sections), la taille relative des blocs (en pourcentages), le placement des photos (plein écran en fond / en haut 60% / à gauche 40% / en vignette ronde / dans une carte / absentes), les marges et paddings approximatifs, le style des éléments décoratifs (badges, barres latérales, bordures), l'alternance entre les slides si visible, le ratio texte/image. Être AUSSI PRÉCIS que possible, c'est la seule info que l'IA de génération aura.",
+  "photo_integration_styles": ["liste des styles d'intégration de photos détectés, ex: full_background, top_photo_60, left_photo_40, vignette_round, card_with_photo, text_only"]
 }
 
-Sois précise sur les HEX. Sois bienveillante dans les recommandations.`;
+Sois précise sur les HEX. Sois bienveillante dans les recommandations.
+La description template_layout_description doit être TRÈS détaillée (200-500 mots). C'est le champ le plus important car il sera utilisé pour générer des visuels sans revoir l'image.`;
 
     const userContent: any[] = [
       { type: "text", text: `Analyse ces ${imageContents.length} template(s) visuel(s) et extrais-en l'identité graphique. Réponds uniquement en JSON.` },

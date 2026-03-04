@@ -511,6 +511,10 @@ export default function BrandCharterPage() {
     if (ec.color_secondary) updates.color_secondary = ec.color_secondary;
     if (ec.color_accent) updates.color_accent = ec.color_accent;
     if (ec.mood_keywords?.length) updates.mood_keywords = ec.mood_keywords;
+    // Sauvegarder la description de layout des templates
+    if (auditResult.template_layout_description) {
+      (updates as any).template_layout_description = auditResult.template_layout_description;
+    }
     setData(prev => ({ ...prev, ...updates }));
     triggerSave();
     setAuditDialogOpen(false);

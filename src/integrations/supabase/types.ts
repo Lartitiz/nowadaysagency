@@ -318,6 +318,7 @@ export type Database = {
           moodboard_images: Json | null
           photo_keywords: Json | null
           photo_style: string | null
+          template_layout_description: string | null
           updated_at: string | null
           uploaded_templates: Json | null
           user_id: string
@@ -348,6 +349,7 @@ export type Database = {
           moodboard_images?: Json | null
           photo_keywords?: Json | null
           photo_style?: string | null
+          template_layout_description?: string | null
           updated_at?: string | null
           uploaded_templates?: Json | null
           user_id: string
@@ -378,6 +380,7 @@ export type Database = {
           moodboard_images?: Json | null
           photo_keywords?: Json | null
           photo_style?: string | null
+          template_layout_description?: string | null
           updated_at?: string | null
           uploaded_templates?: Json | null
           user_id?: string
