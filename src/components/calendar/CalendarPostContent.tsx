@@ -122,6 +122,8 @@ export function CalendarPostContent({
             ? "Voir la séquence"
             : (editingPost.story_sequence_detail as any)?.type === "carousel"
             ? "Voir les slides"
+            : (editingPost.story_sequence_detail as any)?.type === "carousel_photo"
+            ? "Voir les slides photo"
             : "Voir le détail"}
         </Button>
       )}

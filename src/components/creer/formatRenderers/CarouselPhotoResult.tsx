@@ -14,9 +14,20 @@ interface CarouselPhotoResultProps {
 
 function VisualSlidesCarousel({ slides }: { slides: { slide_number: number; html: string }[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
 
-  const SLIDE_WIDTH = 280;
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setContainerWidth(el.getBoundingClientRect().width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Sur mobile, la slide fait 85% du conteneur. Sur desktop, 280px max.
+  const SLIDE_WIDTH = containerWidth > 0 ? Math.min(280, containerWidth * 0.85) : 280;
   const SLIDE_GAP = 20;
   const scale = SLIDE_WIDTH / 1080;
   const slideHeight = SLIDE_WIDTH * (1350 / 1080);
@@ -34,7 +45,7 @@ function VisualSlidesCarousel({ slides }: { slides: { slide_number: number; html
 
     el.addEventListener("scroll", handleScroll, { passive: true });
     return () => el.removeEventListener("scroll", handleScroll);
-  }, [slides.length]);
+  }, [slides.length, SLIDE_WIDTH]);
 
   const scrollToSlide = (idx: number) => {
     scrollRef.current?.scrollTo({
@@ -44,7 +55,7 @@ function VisualSlidesCarousel({ slides }: { slides: { slide_number: number; html
   };
 
   return (
-    <div className="space-y-3 pt-2">
+    <div ref={containerRef} className="space-y-3 pt-2">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Aperçu des visuels ({slides.length} slides)

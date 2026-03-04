@@ -604,7 +604,9 @@ Retourne UNIQUEMENT le JSON.`;
         // Remplacer chaque placeholder {{PHOTO_N}} par le vrai base64
         for (let i = 0; i < reqBody.photos.length; i++) {
           const placeholder = `{{PHOTO_${i + 1}}}`;
-          const base64Url = `data:image/jpeg;base64,${reqBody.photos[i].base64}`;
+          // Le base64 peut déjà contenir le préfixe data URL
+          const raw = reqBody.photos[i].base64;
+          const base64Url = raw.startsWith("data:") ? raw : `data:image/jpeg;base64,${raw}`;
           while (html.includes(placeholder)) {
             html = html.replace(placeholder, base64Url);
           }
