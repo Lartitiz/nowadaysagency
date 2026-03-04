@@ -11,7 +11,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 const GLOBAL_TIMEOUT_MS = 60_000;
 const PAGE_TIMEOUT_MS = 10_000;
 const MAX_TEXT_PER_PAGE = 3000; // ~tokens
-const USER_AGENT = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 const BLOCKED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"];
 
