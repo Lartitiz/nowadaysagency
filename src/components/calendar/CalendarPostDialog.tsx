@@ -14,6 +14,7 @@ import { Trash2, ChevronDown, Upload, Undo2 } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
 import { type CalendarPost } from "@/lib/calendar-constants";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
@@ -149,17 +150,17 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     try {
       const validObjectifs = ["visibilite", "confiance", "vente", "credibilite"];
       const safeObjectif = objectif && validObjectifs.includes(objectif) ? objectif : null;
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: { type: "calendar-quick", theme, objectif: safeObjectif, angle, format: format || "post_carrousel", notes, profile: profileData || {}, canal: postCanal },
       });
-      if (res.error) throw new Error(res.error.message);
+      if (res.error) throw res.error;
       const generated = res.data?.content || "";
       setContentDraft(generated);
       setAccroche(generated.split(/[.\n]/)[0]?.trim() || null);
       if (status === "idea" || status === "a_rediger") setStatus("drafting");
       toast({ title: "Contenu généré !" });
     } catch (e: any) {
-      toast({ title: "Erreur de génération", description: friendlyError(e), variant: "destructive" });
+      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur de génération", description: e?.isTimeout ? e.message : friendlyError(e), variant: "destructive" });
     } finally { setIsGenerating(false); }
   };
 
