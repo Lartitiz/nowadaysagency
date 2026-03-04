@@ -77,7 +77,7 @@ export default function CreerStepResult({
   const renderResult = () => {
     // Carousel photo gets its own renderer
     const r = result?.raw || result;
-    if (format === "carousel" && r?.carousel_type === "photo") {
+    if (format === "carousel" && (r?.carousel_type === "photo" || r?.carousel_type === "mix")) {
       return (
         <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} />
       );

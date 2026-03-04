@@ -208,9 +208,6 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
 
       {/* Slides */}
       {slides.map((slide: any, idx: number) => {
-        const photo = photos?.[idx];
-        const styleClass = OVERLAY_STYLE_CLASS[slide.overlay_style] || "text-sm";
-
         return (
           <Card key={idx} className="border-border">
             <CardContent className="p-4 space-y-3">
@@ -224,43 +221,96 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                     {slide.role}
                   </Badge>
                 )}
+                {slide.slide_type && (
+                  <Badge variant="outline" className="text-[10px]">
+                    {slide.slide_type === "photo_full" ? "📸 Photo plein écran"
+                      : slide.slide_type === "photo_integrated" ? "📷 Photo intégrée"
+                      : slide.slide_type === "text_only" ? "📝 Texte"
+                      : slide.slide_type}
+                  </Badge>
+                )}
               </div>
 
-              {/* Photo thumbnail */}
-              {photo?.preview && (
-                <img
-                  src={photo.preview}
-                  alt={`Photo ${idx + 1}`}
-                  className="h-20 w-auto rounded-md object-cover"
-                />
+              {/* Photo thumbnail (pour photo_full et photo_integrated) */}
+              {(slide.slide_type === "photo_full" || slide.slide_type === "photo_integrated" || (!slide.slide_type && slide.overlay_text !== undefined)) && (
+                <>
+                  {slide.photo_index && photos?.[slide.photo_index - 1]?.preview && (
+                    <img
+                      src={photos[slide.photo_index - 1].preview}
+                      alt={`Photo ${slide.photo_index}`}
+                      className="h-20 w-auto rounded-md object-cover"
+                    />
+                  )}
+                  {!slide.photo_index && photos?.[idx]?.preview && (
+                    <img
+                      src={photos[idx].preview}
+                      alt={`Photo ${idx + 1}`}
+                      className="h-20 w-auto rounded-md object-cover"
+                    />
+                  )}
+                </>
               )}
 
-              {/* Photo description (DA note) */}
+              {/* Photo layout badge (photo_integrated only) */}
+              {slide.slide_type === "photo_integrated" && slide.photo_layout && (
+                <Badge variant="outline" className="text-[10px]">
+                  Layout : {slide.photo_layout.replace(/_/g, " ")}
+                </Badge>
+              )}
+
+              {/* Photo description */}
               {slide.photo_description && (
-                <p className="text-xs text-muted-foreground">
-                  📷 {slide.photo_description}
-                </p>
+                <p className="text-xs text-muted-foreground">📷 {slide.photo_description}</p>
               )}
 
-              {/* Overlay text */}
-              {slide.overlay_text !== null && slide.overlay_text !== undefined ? (
-                <div className="space-y-1">
-                  <Textarea
-                    value={slide.overlay_text}
-                    onChange={(e) => updateSlideText(idx, e.target.value)}
-                    className={`resize-none min-h-[48px] ${styleClass}`}
-                    rows={2}
-                  />
-                  {slide.overlay_position && (
-                    <Badge variant="outline" className="text-[10px]">
-                      {slide.overlay_position.replace(/_/g, " ")}
-                    </Badge>
+              {/* Contenu selon le type */}
+              {(slide.slide_type === "photo_full" || (!slide.slide_type && slide.overlay_text !== undefined)) ? (
+                <>
+                  {slide.overlay_text !== null && slide.overlay_text !== undefined ? (
+                    <div className="space-y-1">
+                      <Textarea
+                        value={slide.overlay_text}
+                        onChange={(e) => updateSlideText(idx, e.target.value)}
+                        className={`resize-none min-h-[48px] ${OVERLAY_STYLE_CLASS[slide.overlay_style] || "text-sm"}`}
+                        rows={2}
+                      />
+                      {slide.overlay_position && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {slide.overlay_position.replace(/_/g, " ")}
+                        </Badge>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">(Pas de texte — laisser l'image parler)</p>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-2">
+                  {slide.title && (
+                    <Textarea
+                      value={slide.title}
+                      onChange={(e) => {
+                        const next = slides.map((s: any, i: number) => (i === idx ? { ...s, title: e.target.value } : s));
+                        setSlides(next);
+                        notify(next, caption);
+                      }}
+                      className="resize-none min-h-[40px] text-sm font-semibold"
+                      rows={1}
+                    />
+                  )}
+                  {slide.body && (
+                    <Textarea
+                      value={slide.body}
+                      onChange={(e) => {
+                        const next = slides.map((s: any, i: number) => (i === idx ? { ...s, body: e.target.value } : s));
+                        setSlides(next);
+                        notify(next, caption);
+                      }}
+                      className="resize-none min-h-[48px] text-sm"
+                      rows={2}
+                    />
                   )}
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground italic">
-                  (Pas de texte — laisser l'image parler)
-                </p>
               )}
 
               {/* DA note */}
