@@ -44,7 +44,7 @@ export default function OrganizationHub() {
       <AppHeader />
       <main className="mx-auto max-w-[1400px] px-6 py-8 max-md:px-4">
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="mb-6 bg-card border border-border rounded-full p-1 h-auto gap-1">
+          <TabsList className="mb-6 bg-card border border-border rounded-full p-1 h-auto gap-1 max-w-full overflow-x-auto scrollbar-hide">
             <TabsTrigger
               value="calendrier"
               className="rounded-full px-4 py-2 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5"

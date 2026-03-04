@@ -135,7 +135,7 @@ export default function BetaFeedbackWidget() {
       {!open && (
         <button
           onClick={handleOpen}
-          className="fixed bottom-6 right-6 max-md:bottom-20 max-md:right-4 z-50 h-14 w-14 rounded-full bg-background border-2 border-primary shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
+          className="fixed bottom-6 right-6 max-md:bottom-[5.5rem] max-md:right-4 z-40 h-14 w-14 rounded-full bg-background border-2 border-primary shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
           aria-label="Donner un feedback"
         >
           <MessageSquarePlus className="h-6 w-6 text-primary" />
