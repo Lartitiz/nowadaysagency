@@ -91,6 +91,7 @@ async function getUserPlan(userId: string): Promise<string> {
     .eq("user_id", userId)
     .single();
   return resolvePlan(data?.plan || "free");
+}
 
 async function getWorkspacePlan(workspaceId: string): Promise<string> {
   const sb = getServiceClient();

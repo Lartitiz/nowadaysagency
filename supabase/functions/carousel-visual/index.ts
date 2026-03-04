@@ -495,7 +495,10 @@ Retourne un JSON :
   ]
 }
 
-IMPORTANT : Inclus le base64 de la photo dans le background-image de CHAQUE slide.
+IMPORTANT : Pour chaque slide, utilise le placeholder {{PHOTO_N}} (où N est le numéro de la slide) dans le background-image.
+Exemple pour la slide 1 : background-image: url({{PHOTO_1}})
+Exemple pour la slide 3 : background-image: url({{PHOTO_3}})
+N'essaie PAS d'écrire le base64 toi-même. Utilise UNIQUEMENT le placeholder {{PHOTO_N}}.
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
       finalUserPrompt = `Génère les slides HTML pour ce carrousel PHOTO.
@@ -504,7 +507,8 @@ SLIDES (textes overlay à poser sur les photos) :
 ${JSON.stringify(slides, null, 2)}
 
 Les photos sont fournies dans l'ordre des slides (photo 1 → slide 1, etc.).
-Pour chaque slide, utilise la photo correspondante comme background-image.
+Pour chaque slide, utilise le placeholder {{PHOTO_N}} dans le background-image (ex: slide 1 → {{PHOTO_1}}, slide 2 → {{PHOTO_2}}).
+Le placeholder sera automatiquement remplacé par la vraie image.
 
 RAPPEL : Le texte doit être LISIBLE sur chaque photo. Adapte le style d'overlay (gradient sombre, bandeau blanc, badge pilule) selon le style demandé et la luminosité de la photo. Varie les traitements d'une slide à l'autre.
 
@@ -588,6 +592,33 @@ Retourne UNIQUEMENT le JSON.`;
     } catch {
       console.error("Failed to parse carousel-visual response:", rawResponse.slice(0, 500));
       throw new Error("L'IA n'a pas retourné un format valide. Réessaie.");
+    }
+
+    // ═══ Post-processing : injecter les photos base64 dans le HTML ═══
+    if (isPhotoCarousel && result?.slides_html && reqBody.photos) {
+      result.slides_html = result.slides_html.map((slide: any) => {
+        let html = slide.html || "";
+        
+        // Remplacer chaque placeholder {{PHOTO_N}} par le vrai base64
+        for (let i = 0; i < reqBody.photos.length; i++) {
+          const placeholder = `{{PHOTO_${i + 1}}}`;
+          const base64Url = `data:image/jpeg;base64,${reqBody.photos[i].base64}`;
+          while (html.includes(placeholder)) {
+            html = html.replace(placeholder, base64Url);
+          }
+        }
+        
+        return { ...slide, html };
+      });
+    }
+
+    // Vérifier qu'il ne reste plus de placeholders non remplacés
+    if (isPhotoCarousel && result?.slides_html) {
+      for (const slide of result.slides_html) {
+        if (slide.html && slide.html.includes("{{PHOTO_")) {
+          console.warn(`carousel-visual: placeholder non remplacé dans slide ${slide.slide_number}`);
+        }
+      }
     }
 
     await logUsage(user.id, "content", "carousel_visual", undefined, model, workspaceId);
