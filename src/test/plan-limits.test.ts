@@ -34,4 +34,14 @@ describe("PLAN_LIMITS", () => {
       expect(PLAN_LIMITS.now_pilot[cat]).toBeGreaterThanOrEqual(PLAN_LIMITS.outil[cat]);
     }
   });
+
+  it("'studio' plan does not exist in PLAN_LIMITS", () => {
+    expect(PLAN_LIMITS).not.toHaveProperty("studio");
+  });
+
+  it.each(Object.keys(PLAN_LIMITS))("plan '%s' has all limits >= 0", (plan) => {
+    for (const cat of ALL_CATEGORIES) {
+      expect(PLAN_LIMITS[plan][cat]).toBeGreaterThanOrEqual(0);
+    }
+  });
 });
