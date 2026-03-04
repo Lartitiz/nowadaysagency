@@ -202,7 +202,15 @@ export default function CreerUnifie() {
         : subject;
       const calendarAngle = locState?.angle || undefined;
       if (calendarAngle) setEditorialAngle(calendarAngle);
-      handleFormatNext(fmt, calendarAngle, { overrideSubject: enrichedSubject });
+      
+      // Si le format est "carousel" ou "post", passer par l'étape format
+      // pour permettre le sous-choix (carrousel texte/photo, toggle photo)
+      // SAUF si on vient du calendrier avec un angle déjà choisi (flow calendrier = direct)
+      if ((fmt === "carousel" || fmt === "post") && !locState?.fromCalendar) {
+        setStep("format");
+      } else {
+        handleFormatNext(fmt, calendarAngle, { overrideSubject: enrichedSubject });
+      }
     } else if (locState?.fromCalendar && subject) {
       if (locState.format) setSelectedFormat(locState.format);
       if (locState.angle) setEditorialAngle(locState.angle);
