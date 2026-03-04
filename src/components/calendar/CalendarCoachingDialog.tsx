@@ -115,7 +115,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
       const date = getNextDayDate(item.day);
       await supabase.from("calendar_posts").insert({
         user_id: user.id,
-        workspace_id: workspaceId || null,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         date,
         theme: item.subject,
         format: item.format === "carousel" ? "post_carrousel" : item.format === "story" || item.format === "story_serie" ? "story_serie" : item.format,
