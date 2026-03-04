@@ -1,5 +1,6 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
+import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 
 type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers" | "charter";
 
@@ -43,10 +44,12 @@ export default function BrandingCoachingPage() {
   }
 
   return (
-    <BrandingCoachingFlow
-      section={section}
-      onComplete={() => navigate(RECAP_ROUTES[section] || "/branding")}
-      onBack={() => navigate("/branding")}
-    />
+    <LocalErrorBoundary fallbackMessage="Le coaching branding a rencontré une erreur.">
+      <BrandingCoachingFlow
+        section={section}
+        onComplete={() => navigate(RECAP_ROUTES[section] || "/branding")}
+        onBack={() => navigate("/branding")}
+      />
+    </LocalErrorBoundary>
   );
 }
