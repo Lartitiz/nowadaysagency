@@ -389,10 +389,10 @@ export default function ChatGuidePage() {
       return;
     }
     (async () => {
-      const { data: convs } = await supabase
-        .from("chat_guide_conversations")
+      const { data: convs } = await (supabase
+        .from("chat_guide_conversations") as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .order("updated_at", { ascending: false })
         .limit(1);
 
@@ -681,14 +681,14 @@ export default function ChatGuidePage() {
   // Load conversations for drawer
   const loadConversations = useCallback(async () => {
     if (!user || isDemoMode) return;
-    const { data } = await supabase
-      .from("chat_guide_conversations")
+    const { data } = await (supabase
+      .from("chat_guide_conversations") as any)
       .select("*")
-      .eq("user_id", user.id)
+      .eq(column, value)
       .order("updated_at", { ascending: false })
       .limit(30);
     if (data) setConversations(data);
-  }, [user, isDemoMode]);
+  }, [user, isDemoMode, column, value]);
 
   // Load a specific conversation
   const loadConversation = useCallback(async (conv: Conversation) => {
