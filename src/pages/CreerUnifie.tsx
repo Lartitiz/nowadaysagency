@@ -769,7 +769,27 @@ export default function CreerUnifie() {
               />
             )}
 
-            {step === "result" && !isLaunchMode && (
+            {step === "result" && !isLaunchMode && !generating && !result && error && (
+              <div className="py-12 text-center space-y-4 animate-fade-in">
+                <p className="text-destructive font-medium">{error}</p>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={handleRegenerate}
+                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition"
+                  >
+                    🔄 Réessayer
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    className="px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm font-medium hover:opacity-90 transition"
+                  >
+                    ← Recommencer
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === "result" && !isLaunchMode && (generating || result) && (
               <CreerStepResult
                 result={result?.raw || result}
                 format={selectedFormat || "post"}
