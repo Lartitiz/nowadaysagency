@@ -24,7 +24,7 @@ export function useBrandingData() {
         (supabase.from("brand_strategy") as any).select("*").eq(column, value).maybeSingle(),
         (supabase.from("brand_profile") as any).select("*").eq(column, value).maybeSingle(),
         (supabase.from("storytelling") as any).select("*").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        (supabase.from("persona") as any).select("*").eq(column, value).maybeSingle(),
+        (supabase.from("persona") as any).select("*").eq(column, value).eq("is_primary", true).maybeSingle(),
       ]);
 
       return {
