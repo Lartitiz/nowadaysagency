@@ -616,6 +616,19 @@ Retourne UNIQUEMENT le JSON.`;
       });
     }
 
+    // ═══ Post-processing 2 : forcer les Google Fonts via <link> ═══
+    if (result?.slides_html) {
+      const fontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(ch.font_title)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(ch.font_body)}:wght@400;500;600;700&display=swap" rel="stylesheet">`;
+      
+      result.slides_html = result.slides_html.map((slide: any) => {
+        let html = slide.html || "";
+        if (!html.includes("fonts.googleapis.com")) {
+          html = fontsLink + html;
+        }
+        return { ...slide, html };
+      });
+    }
+
     // Vérifier qu'il ne reste plus de placeholders non remplacés
     if (isPhotoCarousel && result?.slides_html) {
       for (const slide of result.slides_html) {
