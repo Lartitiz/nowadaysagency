@@ -326,7 +326,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       if (data) setPosts(data as CalendarPost[]);
     }
     setPostsLoading(false);
-  }, [user, year, month, viewMode, weekStart, isDemoMode, kanbanPeriod]);
+  }, [user, year, month, viewMode, weekStart, isDemoMode, kanbanPeriod, column, value]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
