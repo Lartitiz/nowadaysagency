@@ -234,7 +234,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (!user) return;
     (supabase.from("communication_plans") as any).select("instagram_posts_week").eq(column, value).maybeSingle()
       .then(({ data }) => { if ((data as any)?.instagram_posts_week) setPostsPerWeek((data as any).instagram_posts_week as number); });
-  }, [user?.id]);
+  }, [user?.id, column, value]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
