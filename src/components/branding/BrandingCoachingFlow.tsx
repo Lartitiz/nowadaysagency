@@ -579,7 +579,10 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
 
     // Save session
     const wsId = workspaceId !== user!.id ? workspaceId : undefined;
-    supabase.from("branding_coaching_sessions").upsert({
+    const { data: existingSession } = await (supabase.from("branding_coaching_sessions") as any)
+      .select("id").eq(column, value).eq("section", section).maybeSingle();
+
+    const sessionPayload = {
       user_id: user!.id,
       workspace_id: wsId,
       section,
@@ -595,9 +598,17 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
       completed_at: response.is_complete ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
       covered_topics: newCovered as any,
-    } as any, { onConflict: "user_id,section" }).then(({ error: saveErr }) => {
-      if (saveErr) console.error("[BrandingCoaching] Save session error:", saveErr);
-    });
+    };
+
+    if (existingSession?.id) {
+      (supabase.from("branding_coaching_sessions") as any).update(sessionPayload).eq("id", existingSession.id).then(({ error: saveErr }: any) => {
+        if (saveErr) console.error("[BrandingCoaching] Save session error:", saveErr);
+      });
+    } else {
+      (supabase.from("branding_coaching_sessions") as any).insert(sessionPayload).then(({ error: saveErr }: any) => {
+        if (saveErr) console.error("[BrandingCoaching] Save session error:", saveErr);
+      });
+    }
 
     // Save extracted insights
     if (response.extracted_insights && Object.keys(response.extracted_insights).length > 0) {
@@ -687,12 +698,19 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
           charterDataRef.current = { ...charterDataRef.current, ...charterPayload };
         }
       } else if (sec === "persona") {
-        await supabase.from("persona").upsert({
-          user_id: profileUserId,
-          workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
-          ...insights,
-          updated_at: new Date().toISOString(),
-        } as any, { onConflict: "user_id" });
+        const { data: existingPersona } = await (supabase.from("persona") as any)
+          .select("id").eq(column, value).eq("is_primary", true).maybeSingle();
+        if (existingPersona?.id) {
+          await (supabase.from("persona") as any).update({ ...insights, updated_at: new Date().toISOString() }).eq("id", existingPersona.id);
+        } else {
+          await (supabase.from("persona") as any).insert({
+            user_id: profileUserId,
+            workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
+            is_primary: true,
+            ...insights,
+            updated_at: new Date().toISOString(),
+          });
+        }
       } else if (sec === "story") {
         // Map coaching insights to storytelling columns
         const { data: existing } = await (supabase.from("storytelling") as any)
@@ -726,12 +744,18 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
           });
         }
       } else {
-        await supabase.from("brand_profile").upsert({
-          user_id: profileUserId,
-          workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
-          ...insights,
-          updated_at: new Date().toISOString(),
-        } as any, { onConflict: "user_id" });
+        const { data: existingBP } = await (supabase.from("brand_profile") as any)
+          .select("id").eq(column, value).maybeSingle();
+        if (existingBP?.id) {
+          await (supabase.from("brand_profile") as any).update({ ...insights, updated_at: new Date().toISOString() }).eq("id", existingBP.id);
+        } else {
+          await (supabase.from("brand_profile") as any).insert({
+            user_id: profileUserId,
+            workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
+            ...insights,
+            updated_at: new Date().toISOString(),
+          });
+        }
         queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
         queryClient.invalidateQueries({ queryKey: ["profile"] });
         queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
