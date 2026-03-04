@@ -12,6 +12,7 @@ const DemoBanner = lazy(() => import("@/components/demo/DemoBanner"));
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import SelectionMenuProvider from "@/components/SelectionMenuProvider";
 import { SessionProvider } from "@/contexts/SessionContext";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 const SessionOverlay = lazy(() => import("@/components/session/SessionOverlay"));
 const AiDebugShortcut = lazy(() => import("@/components/admin/AiDebugShortcut"));
 const AssistantButton = lazy(() => import("./components/assistant/AssistantButton"));
@@ -169,6 +170,7 @@ const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilo
 
 function AnimatedRoutes() {
   const location = useLocation();
+  useOnlineStatus();
   const showAppWidgets = !PUBLIC_PATHS.includes(location.pathname) && !location.pathname.startsWith("/invite/") && !location.pathname.startsWith("/share/") && !location.pathname.startsWith("/calendrier/partage/");
   const showCoach = showAppWidgets && location.pathname !== "/onboarding" && location.pathname !== "/welcome";
 

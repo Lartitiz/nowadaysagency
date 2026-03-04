@@ -425,10 +425,16 @@ export function useOnboarding() {
 
       if (existingProfile) {
         const { error: updateErr } = await supabase.from("profiles").update(profileData).eq("user_id", user.id);
-        if (updateErr) console.error("Failed to update profile:", updateErr);
+        if (updateErr) {
+          console.error("Failed to update profile:", updateErr);
+          toast({ title: "Erreur de sauvegarde", description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie.", variant: "destructive" });
+        }
       } else {
         const { error: insertErr } = await supabase.from("profiles").insert({ user_id: user.id, ...profileData });
-        if (insertErr) console.error("Failed to insert profile:", insertErr);
+        if (insertErr) {
+          console.error("Failed to insert profile:", insertErr);
+          toast({ title: "Erreur de sauvegarde", description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie.", variant: "destructive" });
+        }
       }
 
       // 2. user_plan_config — pre-configure plan from onboarding answers
@@ -456,10 +462,16 @@ export function useOnboarding() {
       };
       if (existingConfig) {
         const { error: updErr } = await supabase.from("user_plan_config").update(configData).eq("user_id", user.id);
-        if (updErr) console.error("Failed to update plan_config:", updErr);
+        if (updErr) {
+          console.error("Failed to update plan_config:", updErr);
+          toast({ title: "Erreur de sauvegarde", description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie.", variant: "destructive" });
+        }
       } else {
         const { error: insErr } = await supabase.from("user_plan_config").insert({ user_id: user.id, ...configData });
-        if (insErr) console.error("Failed to insert plan_config:", insErr);
+        if (insErr) {
+          console.error("Failed to insert plan_config:", insErr);
+          toast({ title: "Erreur de sauvegarde", description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie.", variant: "destructive" });
+        }
       }
 
       // NOTE: brand_profile and persona are now filled by the deep-diagnostic edge function, not here.
