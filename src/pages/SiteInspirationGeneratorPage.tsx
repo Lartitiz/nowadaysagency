@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId, useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { friendlyError } from "@/lib/error-messages";
 import { Zap, Copy, Smartphone, Monitor, Palette, RefreshCw, ArrowRight, Sparkles } from "lucide-react";
@@ -44,6 +44,7 @@ export default function SiteInspirationGeneratorPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
+  const { column, value } = useWorkspaceFilter();
 
   const section = sectionType ? SECTION_TYPES[sectionType] : null;
 
@@ -55,10 +56,10 @@ export default function SiteInspirationGeneratorPage() {
   useEffect(() => {
     if (!user?.id || !sectionType) return;
     (async () => {
-      const { data } = await supabase
-        .from("website_inspirations")
+      const { data } = await (supabase
+        .from("website_inspirations") as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .eq("section_type", sectionType)
         .order("variant", { ascending: true });
 
@@ -120,10 +121,10 @@ export default function SiteInspirationGeneratorPage() {
       // Save to DB
       if (user?.id) {
         // Delete old ones first
-        await supabase
-          .from("website_inspirations")
+        await (supabase
+          .from("website_inspirations") as any)
           .delete()
-          .eq("user_id", user.id)
+          .eq(column, value)
           .eq("section_type", sectionType);
 
         for (let i = 0; i < newVariants.length; i++) {
