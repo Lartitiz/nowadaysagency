@@ -79,7 +79,7 @@ export default function SiteInspirationGeneratorPage() {
         setLoaded(true);
       }
     })();
-  }, [user?.id, sectionType]);
+  }, [user?.id, sectionType, column, value]);
 
   const generate = useCallback(async () => {
     if (!sectionType) return;
