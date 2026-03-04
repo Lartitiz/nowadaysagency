@@ -26,7 +26,7 @@ export const STRIPE_PLANS = {
       "Atelier de rédaction",
     ],
   },
-  studio_monthly: {
+  binome_monthly: {
     name: "Ton binôme de com'",
     price: 250,
     priceId: "price_1T3ipcI0YZbTj9ITlKOQN5Tm",
@@ -40,7 +40,7 @@ export const STRIPE_PLANS = {
       "Accès prioritaire aux nouvelles fonctionnalités",
     ],
   },
-  studio_once: {
+  binome_once: {
     name: "Ton binôme de com' (paiement unique)",
     price: 1500,
     priceId: "price_1T3iq5I0YZbTj9ITnDSpkNWN",

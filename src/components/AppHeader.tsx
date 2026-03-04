@@ -77,8 +77,8 @@ function AppHeaderInner() {
   const isActive = (item: { to: string; matchExact: boolean }) =>
     item.matchExact ? location.pathname === item.to : location.pathname.startsWith(item.to);
 
-  const planLabel = plan === "now_pilot" ? "🤝 Binôme de com" : plan === "studio" ? "Binôme de com" : plan === "outil" ? "Outil (39€)" : "Gratuit";
-  const planBadge = plan === "now_pilot" ? "🤝 Binôme" : plan === "outil" || plan === "studio" ? "Pro" : null;
+  const planLabel = plan === "now_pilot" ? "🤝 Binôme de com" : plan === "outil" ? "Outil (39€)" : "Gratuit";
+  const planBadge = plan === "now_pilot" ? "🤝 Binôme" : plan === "outil" ? "Pro" : null;
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;
   const totalPercent = totalLimit > 0 ? Math.round((totalUsed / totalLimit) * 100) : 0;

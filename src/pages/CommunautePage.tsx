@@ -36,7 +36,7 @@ const CATEGORIES = [
 const CommunautePage = () => {
   const { user } = useAuth();
   const { plan } = useUserPlan();
-  const isStudio = plan === "studio" || plan === "now_pilot";
+  const isStudio = plan === "now_pilot";
   const canWrite = plan !== "free";
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);

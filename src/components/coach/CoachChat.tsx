@@ -95,7 +95,7 @@ export default function CoachChat() {
   const dailyLimit = plan === "free" ? 10 : plan === "outil" ? 50 : 999;
   const used = contentUsage?.used ?? 0;
   const remaining = Math.max(0, dailyLimit - used);
-  const quotaReached = remaining <= 0 && plan !== "now_pilot" && plan !== "studio";
+  const quotaReached = remaining <= 0 && plan !== "now_pilot";
 
   // Delayed entrance (500ms)
   useEffect(() => {

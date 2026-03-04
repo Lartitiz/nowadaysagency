@@ -102,7 +102,7 @@ export default function AbonnementPage() {
   };
 
 
-  const planLabel = subInfo?.plan === "now_pilot" ? "🤝 Binôme de com" : subInfo?.plan === "studio" ? "Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
+  const planLabel = subInfo?.plan === "now_pilot" ? "🤝 Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
 
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;
@@ -140,7 +140,6 @@ export default function AbonnementPage() {
               <p className="text-sm">
                 <span className="font-semibold text-primary">{subInfo?.source === "promo" ? "💎 " : ""}{planLabel}</span>
                 {subInfo?.plan === "outil" && " · 39€/mois"}
-                {subInfo?.plan === "studio" && " · 250€/mois"}
                 {subInfo?.plan === "now_pilot" && " · 250€/mois"}
               </p>
               {subInfo?.plan === "now_pilot" && (

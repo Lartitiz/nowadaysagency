@@ -48,7 +48,7 @@ export default function CheckoutBinomePage() {
     try {
       const { data } = await supabase.functions.invoke("create-checkout", {
         body: {
-          priceId: STRIPE_PLANS.studio_monthly.priceId,
+          priceId: STRIPE_PLANS.binome_monthly.priceId,
           mode: "subscription",
         },
       });
