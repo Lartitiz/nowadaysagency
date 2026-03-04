@@ -99,7 +99,7 @@ const OBJECTIONS = [
   { q: "Qu'est-ce qui te différencie des autres ?", a: "10 ans d'expérience, enseignante en école de com', spécialisée solopreneur·es engagé·es. Et un outil IA sur-mesure : pas un Google Doc." },
 ];
 
-export default function NowStudioSalesPage() {
+export default function BinomeSalesPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* ── HERO ── */}
