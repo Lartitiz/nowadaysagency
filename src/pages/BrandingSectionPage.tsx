@@ -326,7 +326,7 @@ export default function BrandingSectionPage() {
 
       const coachingDone = session?.is_complete === true;
 
-      if (pct < 50 && !coachingDone) {
+      if (pct === 0 && !coachingDone) {
         navigate(`/branding/coaching?section=${section}`, { replace: true });
       }
       setRedirectChecked(true);
