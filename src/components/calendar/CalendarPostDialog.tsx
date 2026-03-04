@@ -389,6 +389,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             {(editingPost?.story_sequence_detail as any)?.type === "reel" ? "🎬 Script complet"
               : (editingPost?.story_sequence_detail as any)?.type === "carousel" ? "📑 Slides détaillées"
               : (editingPost?.story_sequence_detail as any)?.type === "carousel_photo" ? "📸 Carrousel photo"
+              : (editingPost?.story_sequence_detail as any)?.type === "carousel_mix" ? "✨ Carrousel mixte"
               : "📱 Séquence complète"}
           </SheetTitle>
           <SheetDescription className="sr-only">Visualisation du contenu généré</SheetDescription>
@@ -401,6 +402,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               : (editingPost?.story_sequence_detail as any)?.type === "stories" ? "stories"
               : (editingPost?.story_sequence_detail as any)?.type === "carousel" ? "carousel"
               : (editingPost?.story_sequence_detail as any)?.type === "carousel_photo" ? "carousel_photo"
+              : (editingPost?.story_sequence_detail as any)?.type === "carousel_mix" ? "carousel_mix"
               : undefined
             }
             editable

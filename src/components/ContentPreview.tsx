@@ -34,7 +34,7 @@ export function ContentPreview({ contentData, contentType, contentDraft, compact
 
   const preview = detectedType === "reel" ? <ReelPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />
     : detectedType === "stories" ? <StoriesPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />
-    : (detectedType === "carousel" || detectedType === "carousel_photo") ? <CarouselPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />
+    : (detectedType === "carousel" || detectedType === "carousel_photo" || detectedType === "carousel_mix") ? <CarouselPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />
     : (detectedType === "post_instagram" || detectedType === "post_linkedin") ? <PostPreview data={data} editable={editable} onContentChange={onContentChange} />
     : <FallbackPreview data={data} editable={editable} onContentChange={onContentChange} />;
 
@@ -638,6 +638,7 @@ function detectType(data: any): string {
   if (data.stories && Array.isArray(data.stories)) return "stories";
   if (data.sequence && Array.isArray(data.sequence)) return "stories";
   if (data.type === "carousel_photo") return "carousel_photo";
+  if (data.type === "carousel_mix") return "carousel_mix";
   if (data.type === "carousel" || (data.slides && Array.isArray(data.slides))) return "carousel";
   return "post";
 }
