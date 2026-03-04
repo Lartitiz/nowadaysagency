@@ -28,6 +28,7 @@ interface Props {
   onExportVisualPptx?: () => void;
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   onStoriesUpdate?: (stories: any[]) => void;
+  photos?: { preview: string; base64?: string; name?: string }[];
 }
 
 const LOADING_MESSAGES: Record<string, string> = {
@@ -57,6 +58,7 @@ export default function CreerStepResult({
   onExportVisualPptx,
   onSlidesUpdate,
   onStoriesUpdate,
+  photos,
 }: Props) {
   if (generating) {
     return (
@@ -76,7 +78,7 @@ export default function CreerStepResult({
     // Carousel photo gets its own renderer
     const r = result?.raw || result;
     if (format === "carousel" && r?.carousel_type === "photo") {
-      return <CarouselPhotoResult result={result} onSlidesUpdate={onSlidesUpdate} />;
+      return <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} />;
     }
 
     switch (format) {
