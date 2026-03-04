@@ -8,7 +8,7 @@ import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog"
 
 interface Props {
   onNext: (idea: string, objective?: string) => void;
-  onCoachingSelect?: (data: { subject: string; format: string; objective: string }) => void;
+  onCoachingSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" }) => void;
 }
 
 const objectives = Object.entries(OBJECTIVE_RECOMMENDATIONS).map(([id, o]) => ({

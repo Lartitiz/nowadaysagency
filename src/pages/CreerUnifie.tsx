@@ -230,7 +230,7 @@ export default function CreerUnifie() {
 
   // ── Step handlers ──
 
-  const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string }) => {
+  const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" }) => {
     setAnswers({});
     setEditorialAngle(null);
     setEditContent("");
@@ -239,8 +239,19 @@ export default function CreerUnifie() {
     setIdeaText(data.subject);
     if (data.objective) setObjective(data.objective);
     setSelectedFormat(data.format);
-    setStep("format");
-  }, []);
+    
+    if (data.carouselSubMode) setCarouselSubMode(data.carouselSubMode);
+    
+    if (data.format === "carousel" && data.carouselSubMode) {
+      setStep("questions");
+      generateQuestions({ format: data.format, subject: data.subject, editorialAngle: undefined, objective: data.objective || undefined });
+    } else if (data.format === "carousel" || data.format === "post") {
+      setStep("format");
+    } else {
+      setStep("questions");
+      generateQuestions({ format: data.format, subject: data.subject, editorialAngle: undefined, objective: data.objective || undefined });
+    }
+  }, [generateQuestions]);
 
   const handleIdeaNext = (idea: string, obj?: string) => {
     setIdeaText(idea);
