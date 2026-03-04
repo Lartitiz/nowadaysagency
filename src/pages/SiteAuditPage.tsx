@@ -231,12 +231,12 @@ const SiteAuditPage = () => {
 
       if (error) throw error;
       if (data?.error === "site_inaccessible") {
-        toast.error(data.message || "Site inaccessible");
+        toast.error(data.message || "Site inaccessible", { duration: 8000 });
         setStep("input");
         return;
       }
       if (data?.error) {
-        toast.error(data.message || data.error);
+        toast.error(data.message || data.error, { duration: 8000 });
         setStep("input");
         return;
       }
@@ -245,6 +245,7 @@ const SiteAuditPage = () => {
         setStep("input");
         return;
       }
+      console.log("[audit-site-auto] Response:", JSON.stringify(data).slice(0, 500));
 
       const result = data as AutoAuditResult;
       setAutoResult(result);
@@ -276,7 +277,8 @@ const SiteAuditPage = () => {
 
       setStep("auto-results");
     } catch (e) {
-      toast.error(friendlyError(e));
+      console.error("[audit-site-auto] Error:", e);
+      toast.error(friendlyError(e), { duration: 8000 });
       setStep("input");
     } finally {
       setAnalyzing(false);
