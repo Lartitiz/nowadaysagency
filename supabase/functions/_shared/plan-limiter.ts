@@ -30,18 +30,6 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     adaptation: 30,
     deep_research: 15,
   },
-  studio: {
-    total: 300,
-    content: 150,
-    audit: 15,
-    dm_comment: 60,
-    bio_profile: 15,
-    suggestion: 30,
-    coach: 60,
-    import: 10,
-    adaptation: 30,
-    deep_research: 30,
-  },
   now_pilot: {
     total: 300,
     content: 150,
@@ -55,6 +43,16 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     deep_research: 30,
   },
 };
+
+/** Resolve legacy plan names still in DB to current plan keys */
+const PLAN_ALIASES: Record<string, string> = {
+  studio: "now_pilot",
+  binome: "now_pilot",
+};
+
+function resolvePlan(raw: string): string {
+  return PLAN_ALIASES[raw] || raw;
+}
 
 const CATEGORY_LABELS: Record<string, string> = {
   content: "contenus",
@@ -92,8 +90,7 @@ async function getUserPlan(userId: string): Promise<string> {
     .select("plan")
     .eq("user_id", userId)
     .single();
-  return data?.plan || "free";
-}
+  return resolvePlan(data?.plan || "free");
 
 async function getWorkspacePlan(workspaceId: string): Promise<string> {
   const sb = getServiceClient();
@@ -102,7 +99,7 @@ async function getWorkspacePlan(workspaceId: string): Promise<string> {
     .select("plan")
     .eq("id", workspaceId)
     .single();
-  return data?.plan || "free";
+  return resolvePlan(data?.plan || "free");
 }
 
 function getMonthStart(): string {
