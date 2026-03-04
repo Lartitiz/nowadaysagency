@@ -15,117 +15,122 @@ interface CarouselPhotoResultProps {
 function VisualSlidesCarousel({ slides }: { slides: { slide_number: number; html: string }[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [slideWidth, setSlideWidth] = useState(0);
+
+  const SLIDE_WIDTH = 280;
+  const SLIDE_GAP = 20;
+  const scale = SLIDE_WIDTH / 1080;
+  const slideHeight = SLIDE_WIDTH * (1350 / 1080);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
 
-    const measure = () => {
-      setSlideWidth(el.getBoundingClientRect().width);
-    };
-
     const handleScroll = () => {
-      if (!el || slideWidth === 0) return;
-      const index = Math.round(el.scrollLeft / slideWidth);
-      setActiveIndex(Math.min(index, slides.length - 1));
+      const scrollPos = el.scrollLeft;
+      const itemWidth = SLIDE_WIDTH + SLIDE_GAP;
+      const index = Math.round(scrollPos / itemWidth);
+      setActiveIndex(Math.max(0, Math.min(index, slides.length - 1)));
     };
 
-    const ro = new ResizeObserver(() => measure());
-    ro.observe(el);
     el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [slides.length]);
 
-    return () => {
-      ro.disconnect();
-      el.removeEventListener("scroll", handleScroll);
-    };
-  }, [slides.length, slideWidth]);
-
-  const scale = slideWidth > 0 ? slideWidth / 1080 : 0;
-  const slideHeight = slideWidth > 0 ? (slideWidth / 1080) * 1350 : 0;
+  const scrollToSlide = (idx: number) => {
+    scrollRef.current?.scrollTo({
+      left: idx * (SLIDE_WIDTH + SLIDE_GAP),
+      behavior: "smooth",
+    });
+  };
 
   return (
     <div className="space-y-3 pt-2">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-        Aperçu des visuels ({slides.length} slides) — swipe pour naviguer →
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          Aperçu des visuels ({slides.length} slides)
+        </p>
+        <p className="text-[10px] text-muted-foreground">
+          ← Défiler →
+        </p>
+      </div>
 
       <div
         ref={scrollRef}
         style={{
           display: "flex",
+          gap: `${SLIDE_GAP}px`,
           overflowX: "auto",
+          padding: "16px 0 24px",
           scrollSnapType: "x mandatory",
           WebkitOverflowScrolling: "touch",
-          scrollbarWidth: "none",
-          gap: "0px",
+          scrollbarWidth: "thin",
+          scrollbarColor: "hsl(var(--primary)) transparent",
         }}
-        className="rounded-xl [&::-webkit-scrollbar]:hidden"
+        className="[&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-primary/40 [&::-webkit-scrollbar-thumb]:rounded-full"
       >
         {slides.map((vs) => (
           <div
             key={vs.slide_number}
             style={{
-              flex: "0 0 100%",
-              scrollSnapAlign: "start",
-              width: "100%",
+              flex: `0 0 ${SLIDE_WIDTH}px`,
+              scrollSnapAlign: "center",
             }}
+            className="group"
           >
             <div
-              className="relative overflow-hidden rounded-xl border border-border mx-auto"
+              className="relative overflow-hidden rounded-xl transition-all duration-300 group-hover:-translate-y-1"
               style={{
-                width: slideWidth > 0 ? `${slideWidth}px` : "100%",
-                height: slideHeight > 0 ? `${slideHeight}px` : "auto",
-                aspectRatio: slideWidth > 0 ? undefined : "1080 / 1350",
+                width: `${SLIDE_WIDTH}px`,
+                height: `${slideHeight}px`,
+                boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 32px rgba(0,0,0,0.14)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 24px rgba(0,0,0,0.08)";
               }}
             >
-              {scale > 0 && (
-                <iframe
-                  srcDoc={vs.html}
-                  title={`Slide ${vs.slide_number}`}
-                  sandbox="allow-same-origin allow-scripts"
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "1080px",
-                    height: "1350px",
-                    transform: `scale(${scale})`,
-                    transformOrigin: "top left",
-                    border: "none",
-                    pointerEvents: "none",
-                  }}
-                />
-              )}
+              <iframe
+                srcDoc={vs.html}
+                title={`Slide ${vs.slide_number}`}
+                sandbox="allow-same-origin allow-scripts"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "1080px",
+                  height: "1350px",
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
+                  border: "none",
+                  pointerEvents: "none",
+                }}
+              />
             </div>
+
+            <p className="text-[10px] font-mono text-muted-foreground text-center mt-2">
+              {vs.slide_number} / {slides.length}
+            </p>
           </div>
         ))}
       </div>
 
       {/* Dots indicator */}
-      <div className="flex justify-center gap-1.5 py-1">
+      <div className="flex justify-center gap-1.5">
         {slides.map((vs, idx) => (
           <button
             key={vs.slide_number}
-            onClick={() => {
-              scrollRef.current?.scrollTo({
-                left: idx * slideWidth,
-                behavior: "smooth",
-              });
-            }}
+            onClick={() => scrollToSlide(idx)}
             className={`rounded-full transition-all duration-200 ${
               idx === activeIndex
-                ? "w-2 h-2 bg-primary"
-                : "w-1.5 h-1.5 bg-muted-foreground/30"
+                ? "w-2.5 h-2.5 bg-primary"
+                : "w-1.5 h-1.5 bg-muted-foreground/25 hover:bg-muted-foreground/50"
             }`}
-            aria-label={`Slide ${vs.slide_number}`}
+            aria-label={`Aller à la slide ${vs.slide_number}`}
           />
         ))}
       </div>
-
-      <p className="text-[10px] font-mono text-muted-foreground text-center">
-        {activeIndex + 1} / {slides.length}
-      </p>
     </div>
   );
 }
