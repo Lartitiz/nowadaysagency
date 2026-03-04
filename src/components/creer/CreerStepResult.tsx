@@ -78,7 +78,33 @@ export default function CreerStepResult({
     // Carousel photo gets its own renderer
     const r = result?.raw || result;
     if (format === "carousel" && r?.carousel_type === "photo") {
-      return <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} />;
+      return (
+        <>
+          <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} />
+          {visualSlides && visualSlides.length > 0 && (
+            <div className="space-y-3 mt-4">
+              <h3 className="text-sm font-semibold text-foreground">🎨 Visuels générés</h3>
+              <div className="grid grid-cols-2 gap-3">
+                {visualSlides.map((vs) => (
+                  <div
+                    key={vs.slide_number}
+                    className="relative rounded-lg overflow-hidden border border-border bg-white"
+                    style={{ aspectRatio: "1080/1350" }}
+                  >
+                    <iframe
+                      srcDoc={vs.html}
+                      className="absolute inset-0 w-full h-full pointer-events-none"
+                      style={{ border: "none", transform: "scale(0.25)", transformOrigin: "top left", width: "400%", height: "400%" }}
+                      sandbox="allow-same-origin"
+                      title={`Slide ${vs.slide_number}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      );
     }
 
     switch (format) {

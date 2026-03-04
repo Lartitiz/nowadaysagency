@@ -52,6 +52,8 @@ serve(async (req) => {
       charter: z.record(z.unknown()).optional().nullable(),
       custom_overrides: z.record(z.unknown()).optional().nullable(),
       template_reference_urls: z.array(z.string().url()).max(5).optional().nullable(),
+      photos: z.array(z.object({ base64: z.string() })).max(10).optional(),
+      carousel_type: z.string().max(50).optional().nullable(),
     }).passthrough());
     const { slides, template_style, charter: bodyCharter, custom_overrides, template_reference_urls } = reqBody;
 
@@ -410,8 +412,128 @@ RAPPEL : Chaque slide doit avoir un design DIFFÉRENT adapté à son rôle (hook
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
+    // ═══ Determine if photo carousel mode ═══
+    const isPhotoCarousel = reqBody.carousel_type === "photo" && reqBody.photos?.length > 0;
+
+    let finalSystemPrompt = systemPrompt;
+    let finalUserPrompt = userPrompt;
+
+    if (isPhotoCarousel) {
+      finalSystemPrompt = `Tu es une directrice artistique experte en design de carrousels Instagram photo. Tu génères du HTML/CSS inline pour des slides au format 1080×1350px.
+
+Chaque slide utilise la PHOTO de l'utilisatrice comme image de fond, et tu poses le texte OVERLAY par-dessus avec sa charte graphique.
+
+═══ RÈGLES HTML/CSS POUR LES PHOTOS ═══
+- Chaque slide = un <div> EXACTEMENT 1080px × 1350px
+- La photo est en background-image: url() en base64, avec background-size: cover; background-position: center
+- CSS 100% inline (pas de classes CSS)
+- CHAQUE slide commence par la balise @import Google Fonts :
+  <style>@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(ch.font_title)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(ch.font_body)}:wght@400;500;600;700&display=swap');</style>
+
+═══ CHARTE GRAPHIQUE ═══
+Couleur principale : ${ch.color_primary}
+Couleur secondaire : ${ch.color_secondary}
+Couleur accent : ${ch.color_accent}
+Fond par défaut : ${ch.color_background}
+Texte : ${ch.color_text}
+Police titres : ${ch.font_title} (JAMAIS en font-weight bold, toujours normal/400)
+Police corps : ${ch.font_body}
+Ambiance : ${ch.mood_keywords}
+Border-radius : ${ch.border_radius}${ch.visual_donts ? `\n\n⛔ INTERDITS VISUELS :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\n\nBRIEF CRÉATIF :\n${ch.ai_generated_brief}` : ""}
+
+═══ DESIGN DES OVERLAYS TEXTE SUR PHOTO ═══
+
+L'overlay_text doit être LISIBLE sur la photo. Utilise UN des styles suivants selon overlay_style :
+
+STYLE "sensoriel" (phrases évocatrices) :
+- Position : en bas de la slide (bottom: 0)
+- Bandeau gradient : fond linear-gradient(transparent, rgba(0,0,0,0.7)) sur les 40% inférieurs
+- Texte : font-family: ${ch.font_title}; font-size: 42-48px; color: white; font-weight: normal; font-style: italic
+- Padding : 80px côtés, 60px bas
+- Ombre texte subtile : text-shadow: 0 2px 20px rgba(0,0,0,0.5)
+
+STYLE "narratif" (phrases d'histoire) :
+- Position : en bas ou au centre selon overlay_position
+- Bandeau : background rgba(255,255,255,0.92); border-radius: ${ch.border_radius}; backdrop-filter: blur(8px)
+- Texte : font-family: ${ch.font_body}; font-size: 32-36px; color: ${ch.color_text}
+- Padding : 28px 40px
+- Le bandeau ne fait PAS toute la largeur : max-width: 85%, centré ou aligné
+
+STYLE "minimal" (phrases courtes percutantes) :
+- Position : selon overlay_position
+- Badge pilule : background ${ch.color_primary}; color white; font-family: ${ch.font_body}; font-size: 24-28px; text-transform: uppercase; letter-spacing: 2px; padding: 12px 32px; border-radius: 100px
+- Ou texte nu en blanc très grand (60-72px) avec ombre forte : text-shadow: 0 4px 30px rgba(0,0,0,0.8)
+
+STYLE "technique" (détails produit) :
+- Position : coin ou bord selon overlay_position
+- Étiquette : background rgba(0,0,0,0.8); color white; font-family: ${ch.font_body}; font-size: 22-26px; padding: 12px 24px; border-radius: 8px
+- Look "tag produit" discret mais lisible
+
+QUAND overlay_text est null :
+- La photo occupe toute la slide SANS texte
+- Background-size: cover, c'est tout
+
+═══ POSITIONS ═══
+"bottom_left" : contenu en bas à gauche (align-items: flex-start; justify-content: flex-end)
+"bottom_center" : contenu en bas centré (align-items: center; justify-content: flex-end)
+"top_left" : contenu en haut à gauche (align-items: flex-start; justify-content: flex-start)
+"top_center" : contenu en haut centré (align-items: center; justify-content: flex-start)
+"center" : contenu centré (align-items: center; justify-content: center)
+
+═══ ANTI-PATTERNS ═══
+- ❌ Texte illisible sur photo claire (TOUJOURS un fond/gradient/ombre)
+- ❌ Bandeau qui cache plus de 40% de la photo
+- ❌ Texte trop petit (< 22px)
+- ❌ Toutes les slides avec le même traitement (varier les styles)
+- ❌ Cercles ou ronds décoratifs
+- ❌ Font-weight bold sur ${ch.font_title}
+
+Retourne un JSON :
+{
+  "slides_html": [
+    { "slide_number": 1, "html": "<style>@import url(...);</style><div style=\\"width:1080px;height:1350px;...\\">...</div>" }
+  ]
+}
+
+IMPORTANT : Inclus le base64 de la photo dans le background-image de CHAQUE slide.
+Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
+
+      finalUserPrompt = `Génère les slides HTML pour ce carrousel PHOTO.
+
+SLIDES (textes overlay à poser sur les photos) :
+${JSON.stringify(slides, null, 2)}
+
+Les photos sont fournies dans l'ordre des slides (photo 1 → slide 1, etc.).
+Pour chaque slide, utilise la photo correspondante comme background-image.
+
+RAPPEL : Le texte doit être LISIBLE sur chaque photo. Adapte le style d'overlay (gradient sombre, bandeau blanc, badge pilule) selon le style demandé et la luminosité de la photo. Varie les traitements d'une slide à l'autre.
+
+Retourne UNIQUEMENT le JSON.`;
+    }
+
     // Build messages - include template reference image if available
     const messages: any[] = [];
+
+    if (isPhotoCarousel) {
+      // Mode photo : envoyer chaque photo en vision
+      const messageContent: any[] = [];
+      for (let i = 0; i < reqBody.photos.length; i++) {
+        const photo = reqBody.photos[i];
+        if (photo.base64) {
+          messageContent.push({
+            type: "image",
+            source: { type: "base64", media_type: "image/jpeg", data: photo.base64 }
+          });
+          messageContent.push({
+            type: "text",
+            text: `↑ Photo ${i + 1} (pour slide ${i + 1})`
+          });
+        }
+      }
+      messageContent.push({ type: "text", text: finalUserPrompt });
+      messages.push({ role: "user", content: messageContent });
+    } else {
+      // Mode texte existant
     const imageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"];
     const isImageUrl = (url: string) => {
       const lower = url.toLowerCase().split("?")[0];
@@ -433,25 +555,26 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
         }
         content.push({
           type: "text",
-          text: `Voici le template de référence de l'utilisatrice. Analyse son design (mise en page, style, espacement, ambiance) et reproduis-le fidèlement pour les slides suivantes.\n\n${userPrompt}`,
+          text: `Voici le template de référence de l'utilisatrice. Analyse son design (mise en page, style, espacement, ambiance) et reproduis-le fidèlement pour les slides suivantes.\n\n${finalUserPrompt}`,
         });
         messages.push({ role: "user", content });
       } else {
         // No valid image templates, fallback to text-only
-        messages.push({ role: "user", content: userPrompt });
+        messages.push({ role: "user", content: finalUserPrompt });
       }
     } else {
-      messages.push({ role: "user", content: userPrompt });
+      messages.push({ role: "user", content: finalUserPrompt });
     }
+    } // end else (text mode)
 
     const model = "claude-sonnet-4-5-20250929" as any;
 
     const rawResponse = await callAnthropic({
       model,
-      system: systemPrompt,
+      system: finalSystemPrompt,
       messages,
       temperature: 0.5,
-      max_tokens: 8192,
+      max_tokens: isPhotoCarousel ? 16384 : 8192,
     });
 
     let result: any;
