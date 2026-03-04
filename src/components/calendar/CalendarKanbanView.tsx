@@ -1,8 +1,7 @@
 import { useState, useMemo } from "react";
 import EmptyState from "@/components/EmptyState";
 import { MESSAGES } from "@/lib/messages";
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { useDroppable, useDraggable } from "@dnd-kit/core";
+import { useDroppable, useDraggable, type DragEndEvent } from "@dnd-kit/core";
 import { STATUSES, type CalendarPost } from "@/lib/calendar-constants";
 import { CalendarContentCard } from "@/components/calendar/CalendarContentCard";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -97,9 +96,7 @@ export function CalendarKanbanView({ posts, onEditPost, onStatusChange, canalFil
   const isMobile = useIsMobile();
   const [mobileStatus, setMobileStatus] = useState("idea");
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  );
+
 
   const filteredPosts = useMemo(() => {
     let result = posts;
@@ -172,18 +169,16 @@ export function CalendarKanbanView({ posts, onEditPost, onStatusChange, canalFil
 
   // Desktop: columns
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <div className="flex gap-4 overflow-x-auto pb-2">
-        {STATUSES.map((s) => (
-          <KanbanColumn
-            key={s.id}
-            statusId={s.id}
-            label={s.label}
-            posts={postsByStatus[s.id] || []}
-            onEditPost={onEditPost}
-          />
-        ))}
-      </div>
-    </DndContext>
+    <div className="flex gap-4 overflow-x-auto pb-2">
+      {STATUSES.map((s) => (
+        <KanbanColumn
+          key={s.id}
+          statusId={s.id}
+          label={s.label}
+          posts={postsByStatus[s.id] || []}
+          onEditPost={onEditPost}
+        />
+      ))}
+    </div>
   );
 }
