@@ -470,7 +470,11 @@ export default function CreerUnifie() {
     if (selectedFormat === "carousel" && r?.carousel_type === "photo") {
       accroche = r.caption?.hook || "";
       contentDraft = (r.slides || []).map((s: any) => s.overlay_text ? `SLIDE ${s.slide_number}: ${s.overlay_text}` : `SLIDE ${s.slide_number}: (photo seule)`).join("\n") + "\n\n" + [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n");
-      const storyDetail = { type: "carousel_photo", slides: r.slides, caption: r.caption, quality_check: r.quality_check };
+      const storyDetail: any = { type: "carousel_photo", slides: r.slides, caption: r.caption, quality_check: r.quality_check };
+      // Inclure les visuels générés s'ils existent
+      if (visualSlides.length > 0) {
+        storyDetail.visual_html = visualSlides.map((vs: any) => ({ slide_number: vs.slide_number, html: vs.html }));
+      }
       return { contentDraft, accroche, storyDetail };
     }
 

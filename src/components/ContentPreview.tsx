@@ -34,6 +34,7 @@ export function ContentPreview({ contentData, contentType, contentDraft, compact
 
   const preview = detectedType === "reel" ? <ReelPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />
     : detectedType === "stories" ? <StoriesPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />
+    : (detectedType === "carousel" || detectedType === "carousel_photo") ? <CarouselPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />
     : (detectedType === "post_instagram" || detectedType === "post_linkedin") ? <PostPreview data={data} editable={editable} onContentChange={onContentChange} />
     : <FallbackPreview data={data} editable={editable} onContentChange={onContentChange} />;
 
@@ -395,6 +396,150 @@ function StoriesPreview({ data, compact, editable, onContentChange }: { data: an
   );
 }
 
+/* ─── Carousel Preview ─── */
+function CarouselPreview({ data, compact, editable, onContentChange }: { data: any; compact: boolean; editable?: boolean; onContentChange?: (d: any) => void }) {
+  const { toast } = useToast();
+  const [localData, setLocalData] = useState(data);
+  const slides = localData.slides || [];
+  const caption = localData.caption;
+  const isPhoto = localData.type === "carousel_photo";
+  const visualHtml = localData.visual_html;
+
+  useEffect(() => { setLocalData(data); }, [data]);
+
+  const updateSlideField = useCallback((idx: number, field: string, value: string) => {
+    const updated = JSON.parse(JSON.stringify(localData));
+    updated.slides[idx][field] = value;
+    setLocalData(updated);
+    onContentChange?.(updated);
+  }, [localData, onContentChange]);
+
+  const updateCaptionField = useCallback((field: string, value: string) => {
+    const updated = JSON.parse(JSON.stringify(localData));
+    if (!updated.caption) updated.caption = {};
+    updated.caption[field] = value;
+    setLocalData(updated);
+    onContentChange?.(updated);
+  }, [localData, onContentChange]);
+
+  if (compact) {
+    return (
+      <div className="text-sm">
+        <p className="text-xs text-muted-foreground mb-1">
+          {isPhoto ? "📸" : "📑"} {slides.length} slides · {localData.carousel_type || (isPhoto ? "photo" : "carrousel")}
+        </p>
+        {slides[0] && (
+          <p className="text-foreground/70 line-clamp-2 italic">
+            {isPhoto ? slides[0].overlay_text : slides[0].title}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  const handleCopy = () => {
+    const text = slides.map((s: any, i: number) => {
+      if (isPhoto) return `SLIDE ${s.slide_number || i + 1}${s.role ? ` (${s.role})` : ""}\n${s.overlay_text || "(photo seule)"}${s.note ? `\n💡 ${s.note}` : ""}`;
+      return `SLIDE ${i + 1}\n${s.title || ""}\n${s.body || ""}`;
+    }).join("\n\n───\n\n");
+    const captionText = caption ? `\n\n📝 LÉGENDE\n${[caption.hook, caption.body, caption.cta].filter(Boolean).join("\n")}` : "";
+    navigator.clipboard.writeText(text + captionText);
+    toast({ title: "Slides copiées !" });
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-mono-ui font-semibold text-muted-foreground">
+          {isPhoto ? "📸 CARROUSEL PHOTO" : "📑 CARROUSEL"} · {slides.length} slides
+        </p>
+      </div>
+
+      {/* Visual HTML preview if available */}
+      {visualHtml && visualHtml.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground font-medium">🎨 Visuels générés</p>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {visualHtml.map((vs: any) => (
+              <div key={vs.slide_number} className="flex-shrink-0 w-[140px] rounded-lg overflow-hidden border border-border" style={{ aspectRatio: "1080/1350" }}>
+                <iframe
+                  srcDoc={vs.html}
+                  title={`Slide ${vs.slide_number}`}
+                  sandbox="allow-same-origin"
+                  className="w-[1080px] h-[1350px] border-none pointer-events-none"
+                  style={{ transform: `scale(${140 / 1080})`, transformOrigin: "top left" }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {slides.map((slide: any, idx: number) => (
+        <div key={idx} className="border-b border-border pb-3 last:border-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-semibold text-muted-foreground uppercase">
+              Slide {slide.slide_number || idx + 1}{slide.role ? ` · ${slide.role}` : ""}
+            </span>
+          </div>
+          {isPhoto ? (
+            <>
+              {slide.overlay_text != null ? (
+                editable ? (
+                  <div className="mt-1"><EditableText value={slide.overlay_text || ""} onSave={(v) => updateSlideField(idx, "overlay_text", v)} className="text-sm text-foreground" /></div>
+                ) : (
+                  <p className="text-sm text-foreground mt-1">"{slide.overlay_text}"</p>
+                )
+              ) : (
+                <p className="text-xs text-muted-foreground italic">(Photo seule)</p>
+              )}
+              {slide.overlay_position && <span className="text-[10px] text-muted-foreground">{slide.overlay_position.replace(/_/g, " ")}</span>}
+            </>
+          ) : (
+            <>
+              {editable ? (
+                <>
+                  <EditableText value={slide.title || ""} onSave={(v) => updateSlideField(idx, "title", v)} className="text-sm font-semibold text-foreground" />
+                  <div className="mt-1"><EditableText value={slide.body || ""} onSave={(v) => updateSlideField(idx, "body", v)} className="text-sm text-foreground" /></div>
+                </>
+              ) : (
+                <>
+                  {slide.title && <p className="text-sm font-semibold text-foreground">{slide.title}</p>}
+                  {slide.body && <p className="text-sm text-foreground mt-1">{slide.body}</p>}
+                </>
+              )}
+            </>
+          )}
+          {slide.note && <p className="text-xs text-muted-foreground italic mt-1">💡 {slide.note}</p>}
+        </div>
+      ))}
+
+      {caption && (
+        <div className="rounded-xl border border-border bg-card p-3 space-y-1">
+          <p className="text-xs font-semibold text-muted-foreground">📝 LÉGENDE</p>
+          {editable ? (
+            <>
+              <EditableText value={caption.hook || ""} onSave={(v) => updateCaptionField("hook", v)} className="text-sm font-bold text-foreground" placeholder="Hook" />
+              <EditableText value={caption.body || ""} onSave={(v) => updateCaptionField("body", v)} className="text-sm text-foreground" placeholder="Body" />
+              {caption.cta != null && <EditableText value={caption.cta || ""} onSave={(v) => updateCaptionField("cta", v)} className="text-sm text-primary font-medium" placeholder="CTA" />}
+            </>
+          ) : (
+            <>
+              {caption.hook && <p className="text-sm font-bold text-foreground">{caption.hook}</p>}
+              {caption.body && <p className="text-sm text-foreground whitespace-pre-line">{caption.body}</p>}
+              {caption.cta && <p className="text-sm text-primary font-medium">{caption.cta}</p>}
+            </>
+          )}
+        </div>
+      )}
+
+      <Button variant="outline" size="sm" onClick={handleCopy} className="rounded-pill text-xs gap-1.5">
+        <Copy className="h-3 w-3" /> Copier tout
+      </Button>
+    </div>
+  );
+}
+
 /* ─── Post Preview ─── */
 function PostPreview({ data, editable, onContentChange }: { data: any; editable?: boolean; onContentChange?: (d: any) => void }) {
   const text = typeof data === "string" ? data : data.content || data.contenu || data.text || "";
@@ -492,5 +637,7 @@ function detectType(data: any): string {
   if (data.script && Array.isArray(data.script)) return "reel";
   if (data.stories && Array.isArray(data.stories)) return "stories";
   if (data.sequence && Array.isArray(data.sequence)) return "stories";
+  if (data.type === "carousel_photo") return "carousel_photo";
+  if (data.type === "carousel" || (data.slides && Array.isArray(data.slides))) return "carousel";
   return "post";
 }
