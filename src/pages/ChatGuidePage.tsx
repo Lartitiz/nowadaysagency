@@ -930,8 +930,8 @@ export default function ChatGuidePage() {
 
                     {/* Tone buttons removed — coaching now handled by AI */}
 
-                    {/* Suggestions */}
-                    {msg.suggestions && (msg.id.startsWith("welcome") ? suggestionsVisible : true) && (
+                    {/* Suggestions — only show welcome suggestions if no conversation yet, always show AI-generated ones */}
+                    {msg.suggestions && (msg.id.startsWith("welcome") ? (suggestionsVisible && messages.filter(m => m.role === "user").length === 0) : true) && (
                       <div className="flex flex-nowrap sm:flex-wrap gap-2 mt-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
                         {msg.suggestions.map((sug, i) => (
                           <motion.button
