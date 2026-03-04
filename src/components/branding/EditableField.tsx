@@ -54,7 +54,14 @@ export default function EditableField({
           await (supabase.from(table as any) as any).update({ [field]: editValue, updated_at: new Date().toISOString() }).eq("id", existing.id);
         }
       } else {
-        await (supabase.from(table as any) as any).upsert({ user_id: user.id, [field]: editValue, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+        const { data: existingRow } = await (supabase.from(table as any) as any)
+          .select("id").eq(column, workspaceValue).maybeSingle();
+        if (existingRow?.id) {
+          await (supabase.from(table as any) as any).update({ [field]: editValue, updated_at: new Date().toISOString() }).eq("id", existingRow.id);
+        } else {
+          const wsId = column === "workspace_id" ? workspaceValue : undefined;
+          await (supabase.from(table as any) as any).insert({ user_id: user.id, workspace_id: wsId, [field]: editValue, updated_at: new Date().toISOString() });
+        }
       }
       onUpdated?.(field, editValue, typeof oldValue === 'string' ? oldValue : undefined);
       setIsEditing(false);
