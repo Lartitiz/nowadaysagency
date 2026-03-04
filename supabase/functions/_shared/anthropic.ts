@@ -145,19 +145,21 @@ export async function callAnthropic(options: AnthropicOptions): Promise<string> 
       timestamp: new Date().toISOString(),
     }));
 
-    // Retryable: 429 (rate limit) and 529 (overloaded)
-    if ((response.status === 429 || response.status === 529) && attempt < MAX_RETRIES) {
+    // Retryable: 429 (rate limit), 500 (server error) and 529 (overloaded)
+    if ((response.status === 429 || response.status === 500 || response.status === 529) && attempt < MAX_RETRIES) {
       lastError = new AnthropicError(
         response.status === 429
           ? "Trop de requêtes, réessai en cours..."
+          : response.status === 500
+          ? "Erreur serveur IA, réessai en cours..."
           : "L'IA est surchargée, réessai en cours...",
         response.status
       );
       continue;
     }
 
-    // Fallback: if Opus is overloaded (529) after all retries, try Sonnet
-    if (response.status === 529 && options.model === "claude-opus-4-6") {
+    // Fallback: if Opus is overloaded (500/529) after all retries, try Sonnet
+    if ((response.status === 529 || response.status === 500) && options.model === "claude-opus-4-6") {
       console.log("Opus overloaded after retries — falling back to Sonnet...");
       const fallbackBody = { ...body, model: "claude-sonnet-4-5-20250929" };
       const fallbackRes = await fetch("https://api.anthropic.com/v1/messages", {
@@ -181,8 +183,8 @@ export async function callAnthropic(options: AnthropicOptions): Promise<string> 
     if (response.status === 429) {
       throw new AnthropicError("Trop de requêtes. Réessaie dans un moment.", 429);
     }
-    if (response.status === 529) {
-      throw new AnthropicError("L'IA est temporairement surchargée. Réessaie dans quelques minutes.", 529);
+    if (response.status === 529 || response.status === 500) {
+      throw new AnthropicError("L'IA est temporairement indisponible. Réessaie dans quelques minutes.", response.status);
     }
     if (response.status === 402 || response.status === 400) {
       let msg = errorText;
