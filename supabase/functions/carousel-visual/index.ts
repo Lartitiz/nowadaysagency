@@ -617,14 +617,17 @@ Retourne UNIQUEMENT le JSON.`;
     }
 
     // ═══ Post-processing 2 : forcer les Google Fonts via <link> ═══
+    // Les @import dans les iframes srcDoc ne chargent pas les fonts de façon fiable.
+    // On remplace tous les @import Google Fonts par un <link> en tête du HTML.
     if (result?.slides_html) {
       const fontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(ch.font_title)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(ch.font_body)}:wght@400;500;600;700&display=swap" rel="stylesheet">`;
       
       result.slides_html = result.slides_html.map((slide: any) => {
         let html = slide.html || "";
-        if (!html.includes("fonts.googleapis.com")) {
-          html = fontsLink + html;
-        }
+        // Supprimer les @import Google Fonts existants (ils ne marchent pas dans les iframes)
+        html = html.replace(/<style>\s*@import\s+url\([^)]*fonts\.googleapis\.com[^)]*\)\s*;?\s*<\/style>/gi, "");
+        // Ajouter le <link> au tout début
+        html = fontsLink + html;
         return { ...slide, html };
       });
     }
