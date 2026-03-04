@@ -88,7 +88,7 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
     sb.from("brand_proposition").select("version_one_liner, version_complete").eq(col, val).maybeSingle(),
     sb.from("brand_profile").select("tone_keywords, tone_style").eq(col, val).maybeSingle(),
     sb.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept").eq(col, val).maybeSingle(),
-    sb.from("offers").select("name, target_audience").eq(col, val).limit(5),
+    sb.from("offers").select("name, target_ideal, offer_type, promise").eq(col, val).limit(5),
     sb.from("calendar_posts").select("id", { count: "exact", head: true }).eq(col, val),
     sb.from("branding_audits").select("score_global, created_at").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     sb.from("ai_usage").select("id", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
@@ -130,8 +130,9 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   lines.push(`- Problème principal : ${profile?.probleme_principal || "Non renseigné"}`);
   lines.push(`- Canaux : ${(profile?.channels || []).join(", ") || "Non renseignés"}`);
 
-  if (offers && offers.length > 0) {
-    lines.push(`- Offres : ${offers.map((o: any) => o.name).join(", ")}`);
+  const namedOffers = (offers || []).filter((o: any) => o.name && o.name.trim());
+  if (namedOffers.length > 0) {
+    lines.push(`- Offres : ${namedOffers.map((o: any) => `${o.name}${o.offer_type ? ` (${o.offer_type})` : ""}`).join(", ")}`);
   } else {
     lines.push("- Offres : ❌ Aucune définie");
   }
@@ -164,7 +165,7 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   sections["Proposition de valeur"] = prop?.version_one_liner || "❌ Vide";
   sections["Ton & style"] = tone?.tone_style || (tone?.tone_keywords ? safeStr(tone.tone_keywords, 80) : "❌ Vide");
   sections["Stratégie contenu"] = strat?.pillar_major || "❌ Vide";
-  sections["Offres"] = offers && offers.length > 0 ? offers.map((o: any) => o.name).join(", ") : "❌ Vide";
+  sections["Offres"] = namedOffers.length > 0 ? namedOffers.map((o: any) => o.name).join(", ") : "❌ Vide";
 
   for (const [name, v] of Object.entries(sections)) {
     lines.push(`- ${name} : ${v}`);
