@@ -3,6 +3,8 @@ import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts"
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+import { authenticateRequest, AuthError } from "../_shared/auth.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 
 const SECTION_PROMPTS: Record<string, string> = {
   story: `Tu es une experte en storytelling de marque personnelle.
@@ -109,7 +111,15 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const { userId } = await authenticateRequest(req);
     const { section, input, branding_context } = await req.json();
+
+    const quota = await checkQuota(userId, "coach");
+    if (!quota.allowed) {
+      return new Response(JSON.stringify({ error: quota.message, quota }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (!section || !SECTION_PROMPTS[section]) {
       return new Response(JSON.stringify({ error: "Section invalide" }), {
@@ -162,10 +172,17 @@ serve(async (req) => {
       }
     }
 
+    await logUsage(userId, "coach", "branding_structure");
+
     return new Response(JSON.stringify({ result: parsed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
+    if (e instanceof AuthError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: e.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("branding-structure-ai error:", e);
     return new Response(JSON.stringify({ error: e.message || "Erreur interne" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
