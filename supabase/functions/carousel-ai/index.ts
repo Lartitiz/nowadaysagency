@@ -92,6 +92,50 @@ serve(async (req) => {
     } else if (type === "slides") {
       userPrompt = buildSlidesPrompt(body);
     } else if (type === "express_full") {
+      // ── Mix carousel mode ──
+      if (body.carousel_type === "mix") {
+        const mixPrompt = buildMixCarouselPrompt(body);
+        let content: string;
+
+        if (body.photos && body.photos.length > 0) {
+          const messageContent: any[] = [];
+          for (const photo of body.photos.slice(0, 10)) {
+            if (photo.base64) {
+              const raw = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
+              messageContent.push({
+                type: "image",
+                source: { type: "base64", media_type: "image/jpeg", data: raw },
+              });
+            }
+          }
+          messageContent.push({
+            type: "text",
+            text: `Voici ${body.photos.length} photo(s) pour un carrousel mixte Instagram.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}\n\nAnalyse chaque photo et crée un carrousel qui mélange slides photo et slides texte.`,
+          });
+
+          content = await callAnthropic({
+            model: getModelForAction("carousel"),
+            system: systemPrompt + "\n\n" + mixPrompt,
+            messages: [{ role: "user", content: messageContent }],
+            max_tokens: 8192,
+          });
+        } else {
+          const textPrompt = mixPrompt + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides estimé : ${body.slide_count || 8}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
+
+          content = await callAnthropic({
+            model: getModelForAction("carousel"),
+            system: systemPrompt,
+            messages: [{ role: "user", content: textPrompt }],
+            max_tokens: 8192,
+          });
+        }
+
+        await logUsage(user.id, category, "carousel_mix");
+        return new Response(JSON.stringify({ content }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // ── Photo carousel mode ──
       if (body.carousel_type === "photo") {
         const photoPrompt = buildPhotoCarouselPrompt(body);
@@ -921,6 +965,127 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "max_overlay_words": 15,
     "caption_length": 520,
     "caption_complements_not_describes": true,
+    "score": 85
+  }
+}`;
+}
+
+function buildMixCarouselPrompt(body: any): string {
+  const { editorial_angle, content_structure, deepening_answers } = body;
+
+  let deepeningCtx = "";
+  if (deepening_answers) {
+    const answers = Object.entries(deepening_answers)
+      .filter(([, v]) => v && (v as string).trim())
+      .map(([k, v]) => `- ${k}: ${v}`)
+      .join("\n");
+    if (answers) deepeningCtx = `\nRÉPONSES DE L'UTILISATRICE (intègre son vécu et ses mots) :\n${answers}\n`;
+  }
+
+  let angleBlock = "";
+  if (editorial_angle && content_structure) {
+    angleBlock = `\nANGLE ÉDITORIAL CHOISI : ${editorial_angle}\nSTRUCTURE IMPOSÉE :\n${content_structure}\n\n${EDITORIAL_ANGLES_REFERENCE}`;
+  }
+
+  return `Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels Instagram.
+
+Tu crées des carrousels MIXTES : un mélange de slides avec photos et de slides texte pur. C'est le format le plus courant et le plus engageant sur Instagram.
+
+═══ TYPES DE SLIDES ═══
+
+Pour chaque slide, tu choisis UN de ces types :
+
+1. "photo_full" — Photo plein écran + texte overlay
+   - La photo occupe toute la slide (1080×1350) en background
+   - Un texte overlay est posé dessus (5-20 mots)
+   - Idéal pour : hook visuel, moment émotion, ambiance, résultat
+   - Champs : overlay_text, overlay_position, overlay_style
+
+2. "photo_integrated" — Photo intégrée dans un layout design
+   - La photo est un ÉLÉMENT du design (pas le fond)
+   - Exemples de layouts :
+     · "top_photo" : photo en haut (50-60%), texte en bas sur fond coloré
+     · "left_photo" : photo à gauche (40%), texte à droite
+     · "right_photo" : texte à gauche, photo à droite (40%)
+     · "card_photo" : photo dans une carte arrondie avec texte en dessous
+     · "banner_photo" : photo en bandeau horizontal + titre en dessous
+   - Champs : photo_layout, title, body, photo_index
+
+3. "text_only" — Slide texte pure (design system)
+   - Pas de photo, design classique avec fond coloré/blanc, typos, badges
+   - Idéal pour : tips, listes, punchlines, CTA, séparateurs
+   - Champs : title, body, visual_schema (optionnel)
+
+═══ RÈGLES DE COMPOSITION ═══
+
+- Un carrousel de ${body.photos?.length || "N"} photos devrait avoir ${body.photos?.length || "N"} à ${(body.photos?.length || 6) + 3} slides au total
+- Commence TOUJOURS par une slide "photo_full" (hook visuel)
+- Termine par une slide "text_only" (CTA)
+- CHAQUE photo uploadée doit être utilisée AU MOINS une fois
+- Une même photo peut être utilisée dans plusieurs slides (ex: full + detail crop)
+- Alterne les types pour créer du rythme : photo → texte → photo → texte
+- Ne fais JAMAIS 3 slides du même type à la suite
+
+═══ ASSIGNATION DES PHOTOS ═══
+
+Les photos sont fournies dans l'ordre : photo 1, photo 2, etc.
+Pour chaque slide photo (photo_full ou photo_integrated), indique photo_index (1, 2, 3...) pour dire quelle photo utiliser.
+
+═══ LÉGENDE ═══
+- 400-800 caractères
+- Hook : phrase d'accroche DIFFÉRENTE du texte de la slide 1
+- Body : ce que les photos ne montrent pas (l'envers du décor, l'émotion, le pourquoi)
+- CTA : invitation à la conversation
+- 5-10 hashtags pertinents
+${deepeningCtx}${angleBlock}
+
+RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
+{
+  "carousel_type": "mix",
+  "chosen_angle": { "title": "Titre court de l'angle (3-5 mots)", "description": "Pourquoi cet angle" },
+  "slides": [
+    {
+      "slide_number": 1,
+      "slide_type": "photo_full",
+      "photo_index": 1,
+      "role": "hook_visuel",
+      "overlay_text": "Une vraie phrase courte qui complète l'image",
+      "overlay_position": "bottom_center",
+      "overlay_style": "sensoriel",
+      "note": "Note de direction artistique"
+    },
+    {
+      "slide_number": 2,
+      "slide_type": "text_only",
+      "photo_index": null,
+      "role": "context",
+      "title": "Titre de la slide texte",
+      "body": "Corps du texte pédagogique ou narratif",
+      "visual_schema": null
+    },
+    {
+      "slide_number": 3,
+      "slide_type": "photo_integrated",
+      "photo_index": 2,
+      "photo_layout": "top_photo",
+      "role": "detail",
+      "title": "Titre au-dessus ou à côté de la photo",
+      "body": "Texte qui accompagne la photo dans le layout",
+      "note": "Note DA"
+    }
+  ],
+  "caption": {
+    "hook": "Accroche émotionnelle (125 car max)",
+    "body": "Corps de la légende",
+    "cta": "Invitation douce",
+    "hashtags": ["hashtag1", "hashtag2"]
+  },
+  "quality_check": {
+    "total_slides": 8,
+    "photo_full_count": 3,
+    "photo_integrated_count": 2,
+    "text_only_count": 3,
+    "all_photos_used": true,
     "score": 85
   }
 }`;
