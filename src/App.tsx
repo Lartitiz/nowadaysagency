@@ -17,9 +17,9 @@ const AiDebugShortcut = lazy(() => import("@/components/admin/AiDebugShortcut"))
 const AssistantButton = lazy(() => import("./components/assistant/AssistantButton"));
 const CoachChat = lazy(() => import("./components/coach/CoachChat"));
 const BetaFeedbackWidget = lazy(() => import("./components/feedback/BetaFeedbackWidget"));
-import LandingPage from "./pages/LandingPage";
-import LoginPage from "./pages/LoginPage";
-import NotFound from "./pages/NotFound";
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 

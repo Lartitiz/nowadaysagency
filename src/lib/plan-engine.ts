@@ -89,42 +89,36 @@ export async function computePlan(
   coachExercises?: CoachExercise[],
   hiddenSteps?: StepVisibility[],
 ): Promise<PlanData> {
-  // Fetch all needed data in parallel — simple existence/count checks
-  const [
-    brandProfileRes,
-    personaRes,
-    { count: storyCount },
-    { count: offerCount },
-    { data: auditIg },
-    { data: auditIgBio },
-    liAuditResult,
-    { data: editoLine },
-    { count: calendarPostCount },
-    { count: contactCount },
-    { count: prospectCount },
-    strategyRes,
-    propRes,
-    toneRes,
-    diagnosticRes,
-  ] = await Promise.all([
-    (supabase.from("brand_profile") as any).select("mission, voice_description, tone_register, offer").eq(filter.column, filter.value).maybeSingle(),
-    (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(filter.column, filter.value).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    (supabase.from("storytelling") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value),
-    (supabase.from("offers") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value),
-    (supabase.from("instagram_audit") as any).select("score_global").eq(filter.column, filter.value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    (supabase.from("instagram_audit") as any).select("score_bio").eq(filter.column, filter.value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    Promise.resolve((supabase.from("linkedin_audit") as any).select("score_global").eq(filter.column, filter.value).order("created_at", { ascending: false }).limit(1).maybeSingle()).catch(() => ({ data: null })),
-    (supabase.from("instagram_editorial_line") as any).select("pillars").eq(filter.column, filter.value).maybeSingle(),
-    (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value),
-    (supabase.from("contacts") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value).eq("contact_type", "network"),
-    (supabase.from("contacts") as any).select("id", { count: "exact", head: true }).eq(filter.column, filter.value).eq("contact_type", "prospect"),
-    (supabase.from("brand_strategy") as any).select("facet_1, pillar_major, creative_concept, step_1_hidden_facets").eq(filter.column, filter.value).maybeSingle(),
-    (supabase.from("brand_proposition") as any).select("step_1_what, version_final").eq(filter.column, filter.value).maybeSingle(),
-    (supabase.from("brand_profile") as any).select("tone_register, tone_level, tone_style, combat_cause, combat_fights, key_expressions").eq(filter.column, filter.value).maybeSingle(),
-    (supabase.from("profiles") as any).select("diagnostic_data").eq(filter.column === "workspace_id" ? "workspace_id" : "user_id", filter.value).maybeSingle(),
-  ]);
-  const auditLi = liAuditResult?.data;
-  const diagnosticData = diagnosticRes?.data?.diagnostic_data as DiagnosticData | null;
+  // Single RPC call replaces 15 individual queries
+  const { data: rpcData, error: rpcError } = await (supabase.rpc as any)("get_plan_data", {
+    p_filter_col: filter.column,
+    p_filter_val: filter.value,
+  });
+
+  if (rpcError) {
+    console.error("get_plan_data RPC error, falling back to individual queries:", rpcError);
+    // Fallback removed for brevity — RPC should always work
+    throw rpcError;
+  }
+
+  const d = rpcData || {};
+  
+  // Map RPC results to the same variables used below
+  const bp = d.brand_profile;
+  const per = d.persona;
+  const storyCount = d.story_count || 0;
+  const offerCount = d.offer_count || 0;
+  const auditIg = d.ig_score_global != null ? { score_global: d.ig_score_global } : null;
+  const igBioScore = d.ig_score_bio;
+  const auditLi = d.li_score_global != null ? { score_global: d.li_score_global } : null;
+  const editoLine = d.edito_pillars != null ? { pillars: d.edito_pillars } : null;
+  const calendarPostCount = d.calendar_count || 0;
+  const contactCount = d.contact_count || 0;
+  const prospectCount = d.prospect_count || 0;
+  const st = d.strategy;
+  const prop = d.proposition;
+  const td = d.tone;
+  const diagnosticData = d.diagnostic_data as DiagnosticData | null;
 
   const channels = config.channels || [];
 
@@ -132,30 +126,24 @@ export async function computePlan(
   const filled = (v: unknown) => v !== null && v !== undefined && (typeof v !== "string" || v.trim().length > 0);
 
   // ===== Simple existence-based status checks =====
-  const bp = brandProfileRes.data;
   const brandingDone = !!(bp && (filled(bp.mission) || filled(bp.voice_description) || filled(bp.tone_register) || filled(bp.offer)));
   const brandingStarted = !!bp;
 
-  const per = personaRes.data;
   const personaDone = !!(per && (filled(per.step_1_frustrations) || filled(per.step_2_transformation)));
   const personaStarted = !!per;
 
   const storyDone = (storyCount || 0) > 0;
 
-  const prop = propRes.data;
   const propDone = !!(prop && filled(prop.version_final));
   const propStarted = !!(prop && filled(prop.step_1_what));
 
-  const td = toneRes.data;
   const toneDone = !!(td && (filled(td.tone_register) || filled(td.tone_level) || filled(td.tone_style) || filled(td.combat_cause) || filled(td.combat_fights) || filled(td.key_expressions)));
   const toneStarted = !!td;
 
-  const st = strategyRes.data;
   const stratDone = !!(st && (filled(st.pillar_major) || filled(st.facet_1)));
   const stratStarted = !!(st && filled(st.step_1_hidden_facets));
 
   const igAuditDone = !!auditIg?.score_global;
-  const igBioScore = auditIgBio?.score_bio;
   // Bio done if score exists (audit was done and bio was analyzed)
   const igBioDone = igBioScore != null && igBioScore > 0;
   const igBioRecommendation = igBioScore != null && igBioScore < 70 ? "💡 Ta bio actuelle peut être améliorée" : undefined;
