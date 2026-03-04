@@ -51,22 +51,11 @@ export default function VoiceGuidePage() {
     if (!user) return;
     setGenerating(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Non connectée");
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-voice-guide`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ workspace_id: workspaceId }),
+      const { data, error } = await supabase.functions.invoke("generate-voice-guide", {
+        body: { workspace_id: workspaceId },
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Erreur");
-      }
-      const json = await res.json();
-      setGuide(json.guide);
+      if (error) throw new Error(error.message || "Erreur");
+      setGuide(data.guide);
       toast.success("✨ Guide de voix généré !");
     } catch (e: any) {
       console.error(e);

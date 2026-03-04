@@ -211,24 +211,12 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
     if (!user) return;
     setSummariesLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      const { data, error } = await supabase.functions.invoke("generate-branding-summary", {
+        body: { force: false },
+      });
       
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-branding-summary`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ force: false }),
-        }
-      );
-      
-      if (res.ok) {
-        const json = await res.json();
-        setSummaries(json.summaries);
+      if (!error && data) {
+        setSummaries(data.summaries);
       }
     } catch (e) {
       console.error("Failed to load branding summaries:", e);
@@ -495,22 +483,11 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             onClick={async () => {
               setSummariesLoading(true);
               try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!session) return;
-                const res = await fetch(
-                  `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-branding-summary`,
-                  {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Authorization: `Bearer ${session.access_token}`,
-                    },
-                    body: JSON.stringify({ force: true }),
-                  }
-                );
-                if (res.ok) {
-                  const json = await res.json();
-                  setSummaries(json.summaries);
+                const { data, error } = await supabase.functions.invoke("generate-branding-summary", {
+                  body: { force: true },
+                });
+                if (!error && data) {
+                  setSummaries(data.summaries);
                   toast.success("Résumés régénérés !");
                 }
               } catch {
