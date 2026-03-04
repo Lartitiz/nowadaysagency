@@ -819,6 +819,7 @@ export default function CreerUnifie() {
                 result={result?.raw || result}
                 format={selectedFormat || "post"}
                 generating={generating}
+                photos={carouselSubMode === "photo" ? uploadedPhotos : undefined}
                 onEdit={handleEdit}
                 onReset={handleReset}
                 onRegenerate={handleRegenerate}
