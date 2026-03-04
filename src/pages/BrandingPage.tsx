@@ -243,7 +243,7 @@ export default function BrandingPage() {
       // Check for pending autofill review
       const { data: pendingAutofill } = await (supabase.from("branding_autofill") as any)
         .select("analysis_result, sources_used, sources_failed, website_url, instagram_handle, linkedin_url")
-        .eq("user_id", user.id)
+        .eq(column, value)
         .eq("autofill_status", "pending_review")
         .order("created_at", { ascending: false })
         .limit(1)
@@ -605,7 +605,7 @@ export default function BrandingPage() {
                   if (user?.id && !isDemoMode) {
                     await (supabase.from("branding_autofill") as any)
                       .update({ autofill_status: "completed", autofill_pending_review: false })
-                      .eq("user_id", user.id)
+                      .eq(column, value)
                       .eq("autofill_status", "pending_review");
                   }
                   setImportPhaseNew("form");
