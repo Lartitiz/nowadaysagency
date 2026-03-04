@@ -32,7 +32,7 @@ interface ContentResult {
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelect?: (data: { subject: string; format: string; objective: string }) => void;
+  onSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" }) => void;
 }
 
 const OBJECTIFS = [
@@ -102,6 +102,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
   const [result, setResult] = useState<ContentResult | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedIdea, setSelectedIdea] = useState<ContentIdea | null>(null);
+  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | null>(null);
 
   const reset = () => {
     setStep(1);
@@ -115,6 +116,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
     setResult(null);
     setSelectedSubject(null);
     setSelectedIdea(null);
+    setCarouselSubMode(null);
   };
 
   const handleOpenChange = (v: boolean) => {
@@ -147,7 +149,11 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
   const handleFormatSelect = (id: string) => {
     setFormat(id);
     setContentType("");
-    setStep(5);
+    if (id === "carrousel") {
+      setCarouselSubMode(null);
+    } else {
+      setStep(5);
+    }
   };
 
   const handleContentTypeSelect = (id: string) => {
@@ -218,7 +224,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
     if (onSelect) {
       // Callback mode (used when already on /creer)
       // Call onSelect BEFORE closing dialog to avoid unmount race
-      onSelect({ subject: finalSubject, format: finalFormat, objective: finalObjective });
+      onSelect({ subject: finalSubject, format: finalFormat, objective: finalObjective, carouselSubMode: finalFormat === "carousel" ? (carouselSubMode || "text") : undefined });
       onOpenChange(false);
     } else {
       // Navigate mode (used from Dashboard)
@@ -365,13 +371,53 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
                   <button
                     key={f.id}
                     onClick={() => handleFormatSelect(f.id)}
-                    className="rounded-xl border-2 border-border bg-card p-4 text-center hover:border-primary hover:shadow-sm transition-all group"
+                    className={`rounded-xl border-2 p-4 text-center transition-all group ${
+                      format === f.id
+                        ? "border-primary bg-primary/5 shadow-sm"
+                        : "border-border bg-card hover:border-primary hover:shadow-sm"
+                    }`}
                   >
                     <span className="text-2xl block mb-1">{f.emoji}</span>
-                    <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{f.label}</span>
+                    <span className={`text-sm font-semibold transition-colors ${
+                      format === f.id ? "text-primary" : "text-foreground group-hover:text-primary"
+                    }`}>{f.label}</span>
                   </button>
                 ))}
               </div>
+
+              {/* Sous-choix carrousel texte / photo */}
+              {format === "carrousel" && (
+                <div className="space-y-2 animate-fade-in">
+                  <p className="text-xs font-semibold text-muted-foreground">Quel type de carrousel ?</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => { setCarouselSubMode("text"); setStep(5); }}
+                      className={`rounded-xl border-2 p-3 text-center transition-all ${
+                        carouselSubMode === "text"
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border bg-card hover:border-primary/40"
+                      }`}
+                    >
+                      <span className="text-lg block mb-0.5">📝</span>
+                      <span className="text-xs font-semibold text-foreground">Carrousel texte</span>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">L'IA rédige tes slides</p>
+                    </button>
+                    <button
+                      onClick={() => { setCarouselSubMode("photo"); setStep(5); }}
+                      className={`rounded-xl border-2 p-3 text-center transition-all ${
+                        carouselSubMode === "photo"
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border bg-card hover:border-primary/40"
+                      }`}
+                    >
+                      <span className="text-lg block mb-0.5">📸</span>
+                      <span className="text-xs font-semibold text-foreground">Carrousel photo</span>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Tu as des photos, l'IA les met en histoire</p>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <Button variant="ghost" size="sm" onClick={() => setStep(3)} className="gap-1">
                 <ArrowLeft className="h-3.5 w-3.5" /> Retour
               </Button>
