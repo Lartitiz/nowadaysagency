@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments } from "../_shared/scraping.ts";
+import { authenticateRequest, AuthError } from "../_shared/auth.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 
 const MAX_TEXT_PER_SOURCE = 5000;
 const GLOBAL_TIMEOUT_MS = 50000;
@@ -17,12 +19,14 @@ serve(async (req) => {
   const timeout = setTimeout(() => controller.abort(), GLOBAL_TIMEOUT_MS);
 
   try {
-    const { userId, websiteUrl, instagramHandle, linkedinUrl, documentIds, documentText } = await req.json();
+    const { userId } = await authenticateRequest(req);
+    const { websiteUrl, instagramHandle, linkedinUrl, documentIds, documentText } = await req.json();
 
-    if (!userId) {
-      return new Response(JSON.stringify({ error: "userId requis" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const quota = await checkQuota(userId, "import");
+    if (!quota.allowed) {
+      clearTimeout(timeout);
+      return new Response(JSON.stringify({ error: quota.message, quota }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -151,6 +155,7 @@ serve(async (req) => {
       console.error("Save error:", saveError);
     }
 
+    await logUsage(userId, "import", "analyze_brand");
     clearTimeout(timeout);
     return new Response(
       JSON.stringify({
@@ -164,6 +169,11 @@ serve(async (req) => {
     );
   } catch (e) {
     clearTimeout(timeout);
+    if (e instanceof AuthError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: e.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("analyze-brand error:", e);
     const msg = e instanceof Error ? e.message : "Erreur inconnue";
     return new Response(
