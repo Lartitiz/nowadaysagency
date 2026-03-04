@@ -145,11 +145,11 @@ export default function SuggestedContents() {
 
   // Fetch cached suggestions for this week
   const { data: cachedContents, refetch, isLoading: isCacheLoading } = useQuery({
-    queryKey: ["suggested-contents", user?.id, weekStart],
+    queryKey: ["suggested-contents", column, value, weekStart],
     queryFn: async () => {
       const { data } = await (supabase.from("suggested_contents") as any)
         .select("*")
-        .eq("user_id", user!.id)
+        .eq(column, value)
         .eq("week_start", weekStart)
         .order("generated_at", { ascending: false })
         .limit(1)
@@ -263,7 +263,7 @@ export default function SuggestedContents() {
 
     await (supabase.from("suggested_contents") as any)
       .delete()
-      .eq("user_id", user.id)
+      .eq(column, value)
       .eq("week_start", weekStart);
 
     const newCount = regenCount + 1;
