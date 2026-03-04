@@ -424,7 +424,7 @@ export default function SalesPageOptimizer() {
 
       {/* Footer */}
       <footer className="text-center py-6 text-xs text-muted-foreground">
-        Créé avec L'Assistant Com' par <a href="https://nowadaysagency.lovable.app" className="text-primary hover:underline">Nowadays Agency</a>
+        Créé avec L'Assistant Com' par <a href="https://nowadays-assistant.fr" className="text-primary hover:underline">Nowadays Agency</a>
       </footer>
     </div>
   );
