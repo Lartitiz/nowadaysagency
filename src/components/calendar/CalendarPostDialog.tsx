@@ -1,52 +1,26 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PostCommentsSection } from "@/components/calendar/PostCommentsSection";
-import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { friendlyError } from "@/lib/error-messages";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useProfile } from "@/hooks/use-profile";
-import { format as formatDate } from "date-fns";
-import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn, toLocalDateStr } from "@/lib/utils";
-import { Trash2, ChevronDown, Sparkles, Zap, Copy, RefreshCw, Loader2, Undo2, CalendarIcon, Upload, MoreHorizontal, CheckCircle2 } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { Trash2, ChevronDown, Upload, Undo2 } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
-import { ANGLES, STATUSES, OBJECTIFS, type CalendarPost } from "@/lib/calendar-constants";
-import { FORMAT_EMOJIS, FORMAT_LABELS } from "@/lib/calendar-helpers";
+import { type CalendarPost } from "@/lib/calendar-constants";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
 
-const FORMAT_OPTIONS_BY_CANAL: Record<string, { id: string; emoji: string; label: string }[]> = {
-  instagram: [
-    { id: "post_carrousel", emoji: "📑", label: "Carrousel" },
-    { id: "reel", emoji: "🎬", label: "Reel" },
-    { id: "post_photo", emoji: "🖼️", label: "Post" },
-    { id: "story_serie", emoji: "📱", label: "Stories" },
-    { id: "live", emoji: "🎤", label: "Live" },
-  ],
-  linkedin: [
-    { id: "post_texte", emoji: "📝", label: "Post texte" },
-    { id: "post_carrousel", emoji: "📑", label: "Carrousel PDF" },
-    { id: "article", emoji: "📰", label: "Article" },
-    { id: "sondage", emoji: "📊", label: "Sondage" },
-  ],
-  pinterest: [
-    { id: "epingle", emoji: "📌", label: "Épingle" },
-    { id: "epingle_idee", emoji: "💡", label: "Épingle idée" },
-  ],
-  newsletter: [
-    { id: "newsletter_standard", emoji: "✉️", label: "Newsletter" },
-  ],
-};
+import { CalendarPostMetadata } from "./CalendarPostMetadata";
+import { CalendarPostContent } from "./CalendarPostContent";
+import { CalendarPostPreview } from "./CalendarPostPreview";
 
 interface Props {
   open: boolean;
@@ -67,14 +41,10 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const { column, value } = useWorkspaceFilter();
   const { data: profileData } = useProfile();
   const [ownerName, setOwnerName] = useState("Moi");
+  const [igUsername, setIgUsername] = useState("");
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  useEffect(() => {
-    if (!profileData) return;
-    if ((profileData as any).prenom) setOwnerName((profileData as any).prenom);
-    if ((profileData as any).instagram_username) setIgUsername((profileData as any).instagram_username);
-  }, [profileData]);
   const [theme, setTheme] = useState("");
   const [angle, setAngle] = useState<string | null>(null);
   const [status, setStatus] = useState("idea");
@@ -85,12 +55,15 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [contentDraft, setContentDraft] = useState<string | null>(null);
   const [accroche, setAccroche] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [showFullContent, setShowFullContent] = useState(false);
-  const [showContentViewer, setShowContentViewer] = useState(false);
   const [dialogTab, setDialogTab] = useState<"edit" | "preview">("edit");
-  const [igUsername, setIgUsername] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showContentViewer, setShowContentViewer] = useState(false);
+
+  useEffect(() => {
+    if (!profileData) return;
+    if ((profileData as any).prenom) setOwnerName((profileData as any).prenom);
+    if ((profileData as any).instagram_username) setIgUsername((profileData as any).instagram_username);
+  }, [profileData]);
 
   useEffect(() => {
     if (editingPost) {
@@ -112,34 +85,21 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       setMediaUrls((editingPost as any).media_urls || []);
     } else if (prefillData) {
       setTheme(prefillData.theme || "");
-      setAngle(null);
-      setStatus("idea");
-      setNotes(prefillData.notes || "");
-      setObjectif(null);
-      setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
-      setFormat(null);
-      setContentDraft(null);
-      setAccroche(null);
-      setMediaUrls([]);
+      setAngle(null); setStatus("idea"); setNotes(prefillData.notes || "");
+      setObjectif(null); setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
+      setFormat(null); setContentDraft(null); setAccroche(null); setMediaUrls([]);
     } else {
-      setTheme("");
-      setAngle(null);
-      setStatus("idea");
-      setNotes("");
-      setObjectif(null);
-      setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
-      setFormat(null);
-      setContentDraft(null);
-      setAccroche(null);
-      setMediaUrls([]);
+      setTheme(""); setAngle(null); setStatus("idea"); setNotes("");
+      setObjectif(null); setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
+      setFormat(null); setContentDraft(null); setAccroche(null); setMediaUrls([]);
     }
-    setIsEditing(false);
-    setShowFullContent(false);
     setDialogTab("edit");
     setShowAdvanced(!!(editingPost?.angle || editingPost?.objectif || (editingPost as any)?.format || editingPost?.notes));
   }, [editingPost, open, defaultCanal, prefillData]);
 
   const guide = angle ? getGuide(angle) : null;
+
+  // ── Handlers ──
 
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -166,733 +126,112 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     }
   };
 
-  const handleRemoveMedia = (index: number) => {
-    setMediaUrls(prev => prev.filter((_, i) => i !== index));
-  };
-
   const handleSave = () => {
     if (!theme.trim()) return;
     onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null });
   };
 
+  const handleCopy = () => {
+    if (contentDraft) { navigator.clipboard.writeText(contentDraft); toast({ title: "Texte copié !" }); }
+  };
+
+  const ANGLE_TO_CAROUSEL: Record<string, string> = {
+    "Storytelling": "storytelling", "Mythe à déconstruire": "mythe_realite",
+    "Coup de gueule": "prise_de_position", "Enquête / décryptage": "prise_de_position",
+    "Conseil contre-intuitif": "tips", "Test grandeur nature": "etude_de_cas",
+    "Before / After": "before_after", "Histoire cliente": "etude_de_cas",
+    "Regard philosophique": "prise_de_position", "Surf sur l'actu": "prise_de_position",
+  };
+
   const handleQuickGenerate = async () => {
-    if (!theme.trim()) {
-      toast({ title: "Il me faut un sujet !", description: "Remplis le thème au-dessus pour que je puisse rédiger.", variant: "destructive" });
-      return;
-    }
+    if (!theme.trim()) { toast({ title: "Il me faut un sujet !", description: "Remplis le thème au-dessus.", variant: "destructive" }); return; }
     setIsGenerating(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Non connectée");
-
-      const profile = profileData || {};
-
       const validObjectifs = ["visibilite", "confiance", "vente", "credibilite"];
       const safeObjectif = objectif && validObjectifs.includes(objectif) ? objectif : null;
       const res = await supabase.functions.invoke("generate-content", {
-        body: {
-          type: "calendar-quick",
-          theme,
-          objectif: safeObjectif,
-          angle,
-          format: format || "post_carrousel",
-          notes,
-          profile: profile || {},
-          canal: postCanal,
-        },
+        body: { type: "calendar-quick", theme, objectif: safeObjectif, angle, format: format || "post_carrousel", notes, profile: profileData || {}, canal: postCanal },
       });
-
       if (res.error) throw new Error(res.error.message);
       const generated = res.data?.content || "";
       setContentDraft(generated);
-      const firstLine = generated.split(/[.\n]/)[0]?.trim();
-      setAccroche(firstLine || null);
-      if (status === "idea" || status === "a_rediger") {
-        setStatus("drafting");
-      }
+      setAccroche(generated.split(/[.\n]/)[0]?.trim() || null);
+      if (status === "idea" || status === "a_rediger") setStatus("drafting");
       toast({ title: "Contenu généré !" });
     } catch (e: any) {
-      console.error("Erreur technique:", e);
       toast({ title: "Erreur de génération", description: friendlyError(e), variant: "destructive" });
-    } finally {
-      setIsGenerating(false);
-    }
+    } finally { setIsGenerating(false); }
   };
 
   const handleSmartGenerate = () => {
-    if (!theme.trim()) {
-      toast({ title: "Il me faut un sujet !", description: "Remplis le thème au-dessus pour que je puisse rédiger.", variant: "destructive" });
-      return;
-    }
+    if (!theme.trim()) { toast({ title: "Il me faut un sujet !", variant: "destructive" }); return; }
     const fmt = format || "post_carrousel";
     if (fmt === "post_carrousel" || fmt === "carousel" || fmt === "reel" || fmt === "story_serie" || postCanal === "linkedin") {
-      handleNavigateToGenerator("generate");
-      return;
+      handleNavigateToGenerator("generate"); return;
     }
     handleQuickGenerate();
   };
 
-  const handleCopy = () => {
-    if (contentDraft) {
-      navigator.clipboard.writeText(contentDraft);
-      toast({ title: "Texte copié !" });
-    }
-  };
-
   const handleOpenAtelier = () => {
-    if (theme.trim()) {
-      onSave({
-        theme, angle, status, notes, canal: postCanal, objectif, format,
-        content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null,
-      });
-    }
+    if (theme.trim()) onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null });
     onOpenChange(false);
     setTimeout(() => {
       navigate("/creer?canal=" + (postCanal || "instagram"), {
-        state: {
-          fromCalendar: true,
-          calendarPostId: editingPost?.id,
-          theme,
-          objectif,
-          angle,
-          format,
-          notes,
-          postDate: selectedDate,
-          existingContent: contentDraft,
-          existingAccroche: accroche,
-          launchId: editingPost?.launch_id,
-          contentType: editingPost?.content_type,
-          contentTypeEmoji: editingPost?.content_type_emoji,
-          category: editingPost?.category,
-          objective: editingPost?.objective,
-          angleSuggestion: editingPost?.angle_suggestion,
-          chapter: (editingPost as any)?.chapter,
-          chapterLabel: (editingPost as any)?.chapter_label,
-          audiencePhase: (editingPost as any)?.audience_phase,
-        },
+        state: { fromCalendar: true, calendarPostId: editingPost?.id, theme, objectif, angle, format, notes, postDate: selectedDate, existingContent: contentDraft, existingAccroche: accroche, launchId: editingPost?.launch_id, contentType: editingPost?.content_type, contentTypeEmoji: editingPost?.content_type_emoji, category: editingPost?.category, objective: editingPost?.objective, angleSuggestion: editingPost?.angle_suggestion, chapter: (editingPost as any)?.chapter, chapterLabel: (editingPost as any)?.chapter_label, audiencePhase: (editingPost as any)?.audience_phase },
       });
     }, 100);
-  };
-
-  const ANGLE_TO_CAROUSEL: Record<string, string> = {
-    "Storytelling": "storytelling",
-    "Mythe à déconstruire": "mythe_realite",
-    "Coup de gueule": "prise_de_position",
-    "Enquête / décryptage": "prise_de_position",
-    "Conseil contre-intuitif": "tips",
-    "Test grandeur nature": "etude_de_cas",
-    "Before / After": "before_after",
-    "Histoire cliente": "etude_de_cas",
-    "Regard philosophique": "prise_de_position",
-    "Surf sur l'actu": "prise_de_position",
   };
 
   const handleNavigateToGenerator = (mode: "generate" | "regenerate" | "view") => {
-    if (theme.trim()) {
-      onSave({
-        theme, angle, status, notes, canal: postCanal, objectif, format,
-        content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null,
-      });
-    }
+    if (theme.trim()) onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null });
     onOpenChange(false);
-
     setTimeout(() => {
-      const calendarId = editingPost?.id;
       const params = new URLSearchParams();
-      if (calendarId) params.set("calendar_id", calendarId);
+      if (editingPost?.id) params.set("calendar_id", editingPost.id);
       if (theme) params.set("sujet", theme);
       if (objectif) params.set("objectif", objectif);
       params.set("from", "/calendrier");
-
-      const state = {
-        fromCalendar: true,
-        calendarPostId: calendarId,
-        theme,
-        objectif,
-        angle,
-        format,
-        notes,
-        postDate: selectedDate,
-        existingContent: contentDraft,
-        existingAccroche: accroche,
-        launchId: editingPost?.launch_id,
-        contentType: editingPost?.content_type,
-        category: editingPost?.category,
-        objective: editingPost?.objective,
-        ...(editingPost?.launch_id ? {
-          launchContext: {
-            launchId: editingPost.launch_id,
-            contentType: editingPost.content_type,
-            chapter: (editingPost as any)?.chapter,
-            chapterLabel: (editingPost as any)?.chapter_label,
-            audiencePhase: (editingPost as any)?.audience_phase,
-          }
-        } : {}),
-      };
-
+      const state = { fromCalendar: true, calendarPostId: editingPost?.id, theme, objectif, angle, format, notes, postDate: selectedDate, existingContent: contentDraft, existingAccroche: accroche, launchId: editingPost?.launch_id, contentType: editingPost?.content_type, category: editingPost?.category, objective: editingPost?.objective, ...(editingPost?.launch_id ? { launchContext: { launchId: editingPost.launch_id, contentType: editingPost.content_type, chapter: (editingPost as any)?.chapter, chapterLabel: (editingPost as any)?.chapter_label, audiencePhase: (editingPost as any)?.audience_phase } } : {}) };
       const fmt = format || "post_carrousel";
-      if (postCanal === "newsletter" || fmt === "newsletter_standard") {
-        navigate(`/creer?format=newsletter&${params.toString()}`, { state });
-      } else if (postCanal === "linkedin") {
-        navigate(`/linkedin/post?${params.toString()}`, { state: { ...state, sujet: theme } });
-      } else if (fmt === "post_carrousel" || fmt === "carousel") {
-        if (angle && ANGLE_TO_CAROUSEL[angle]) {
-          params.set("carousel_type", ANGLE_TO_CAROUSEL[angle]);
-        }
+      if (postCanal === "newsletter" || fmt === "newsletter_standard") navigate(`/creer?format=newsletter&${params.toString()}`, { state });
+      else if (postCanal === "linkedin") navigate(`/linkedin/post?${params.toString()}`, { state: { ...state, sujet: theme } });
+      else if (fmt === "post_carrousel" || fmt === "carousel") {
+        if (angle && ANGLE_TO_CAROUSEL[angle]) params.set("carousel_type", ANGLE_TO_CAROUSEL[angle]);
         navigate(`/creer?format=carousel&${params.toString()}`, { state });
-      } else if (fmt === "reel") {
-        navigate(`/creer?format=reel&${params.toString()}`, { state });
-      } else if (fmt === "story_serie") {
-        navigate(`/creer?format=story&${params.toString()}`, { state });
-      } else {
-        navigate(`/creer?canal=${postCanal || "instagram"}&${params.toString()}`, { state });
-      }
+      } else if (fmt === "reel") navigate(`/creer?format=reel&${params.toString()}`, { state });
+      else if (fmt === "story_serie") navigate(`/creer?format=story&${params.toString()}`, { state });
+      else navigate(`/creer?canal=${postCanal || "instagram"}&${params.toString()}`, { state });
     }, 100);
   };
 
-  const handleViewStoriesSequence = () => {
-    if (editingPost?.stories_sequence_id) {
-      onOpenChange(false);
-      setTimeout(() => {
-        navigate("/creer?format=story", {
-          state: { viewSequenceId: editingPost.stories_sequence_id },
-        });
-      }, 100);
-    }
+  const handleNavigateToDeepen = () => {
+    if (theme.trim()) onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null });
+    onOpenChange(false);
+    setTimeout(() => {
+      const params = new URLSearchParams();
+      if (theme) params.set("sujet", theme);
+      if (objectif) params.set("objectif", objectif);
+      if (format) params.set("format", format);
+      if (editingPost?.id) params.set("calendar_id", editingPost.id);
+      params.set("from", "/calendrier");
+      navigate("/creer?" + params.toString(), { state: { fromCalendar: true, calendarPostId: editingPost?.id, theme, objectif, angle, format, notes, existingContent: contentDraft, existingAccroche: accroche } });
+    }, 100);
   };
 
-
-  const contentPreview = contentDraft && contentDraft.length > 200 && !showFullContent
-    ? contentDraft.slice(0, 200) + "..."
-    : contentDraft;
-
-  /* ── Metadata sidebar (shared between desktop & mobile) ── */
-  const MetadataFields = () => (
-    <>
-      {/* Statut */}
-      <div>
-        <label className="text-xs font-semibold mb-1.5 block text-foreground">Statut</label>
-        <div className="flex flex-wrap gap-1.5">
-          {STATUSES.map((s) => (
-            <button key={s.id} onClick={() => setStatus(s.id)}
-              className={`rounded-pill px-2.5 py-1 text-[11px] font-medium border transition-all ${status === s.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Canal */}
-      <div>
-        <label className="text-xs font-semibold mb-1.5 block text-foreground">Canal</label>
-        <div className="flex flex-wrap gap-1.5">
-          {[
-            { id: "instagram", emoji: "📸", label: "Instagram" },
-            { id: "linkedin", emoji: "💼", label: "LinkedIn" },
-            { id: "pinterest", emoji: "📌", label: "Pinterest" },
-          ].map((c) => (
-            <button key={c.id} onClick={() => setPostCanal(c.id)}
-              className={`rounded-pill px-2.5 py-1 text-[11px] font-medium border transition-all ${postCanal === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-              {c.emoji} {c.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Date */}
-      {editingPost && selectedDate && (
-        <div>
-          <label className="text-xs font-semibold mb-1.5 block text-foreground">Date</label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={cn("w-full justify-start text-left font-normal rounded-[10px] h-9 text-xs")}>
-                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                {formatDate(new Date(selectedDate + "T00:00:00"), "EEE d MMM yyyy", { locale: fr })}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 z-[60]" align="start">
-              <Calendar
-                mode="single"
-                selected={new Date(selectedDate + "T00:00:00")}
-                onSelect={(d) => {
-                  if (d && onDateChange && editingPost) {
-                    const newDateStr = toLocalDateStr(d);
-                    onDateChange(editingPost.id, newDateStr);
-                  }
-                }}
-                locale={fr}
-                className={cn("p-3 pointer-events-auto")}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-      )}
-
-      {/* Format */}
-      <div>
-        <label className="text-xs font-semibold mb-1.5 block text-foreground">Format</label>
-        <div className="flex flex-wrap gap-1.5">
-          {(FORMAT_OPTIONS_BY_CANAL[postCanal] || FORMAT_OPTIONS_BY_CANAL.instagram).map((f) => (
-            <button key={f.id} onClick={() => setFormat(format === f.id ? null : f.id)}
-              className={`rounded-pill px-2.5 py-1 text-[11px] font-medium border transition-all ${format === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-              {f.emoji} {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Objectif + Angle — Collapsible */}
-      <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
-        <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors py-1">
-          <span>🎯 Objectif & angle</span>
-          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")} />
-        </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-3 pt-2">
-          {/* Objectif */}
-          <div>
-            <label className="text-[11px] font-medium mb-1 block text-muted-foreground">Objectif</label>
-            <div className="flex flex-wrap gap-1">
-              {OBJECTIFS.map((o) => (
-                <button key={o.id} onClick={() => setObjectif(objectif === o.id ? null : o.id)}
-                  className="rounded-pill px-2 py-1 text-[11px] font-medium border transition-all"
-                  style={objectif === o.id ? {
-                    backgroundColor: `hsl(var(--${o.cssVar}-bg))`,
-                    color: `hsl(var(--${o.cssVar}))`,
-                    borderColor: `hsl(var(--${o.cssVar}))`
-                  } : undefined}>
-                  {o.emoji} {o.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Angle */}
-          <div>
-            <label className="text-[11px] font-medium mb-1 block text-muted-foreground">Angle</label>
-            <div className="flex flex-wrap gap-1">
-              {ANGLES.map((a) => (
-                <button key={a} onClick={() => setAngle(angle === a ? null : a)}
-                  className={`rounded-pill px-2 py-0.5 text-[10px] font-medium border transition-all ${angle === a ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-                  {a}
-                </button>
-              ))}
-            </div>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    </>
-  );
-
-  /* ── Content section (left column) ── */
-  const ContentSection = () => {
-    if (!editingPost || !theme.trim()) return null;
-    const hasContent = !!(contentDraft || editingPost.generated_content_id);
-    const isPublished = status === "published";
-    const isReady = status === "ready" || status === "draft_ready";
-
-    return (
-      <div>
-        <label className="text-xs font-semibold mb-2 block text-foreground">✍️ Contenu</label>
-
-        {isEditing ? (
-          <div className="space-y-2">
-            <Textarea
-              value={contentDraft || ""}
-              onChange={(e) => setContentDraft(e.target.value)}
-              className="rounded-[10px] min-h-[120px] text-sm"
-              placeholder="Écris ou colle ton contenu ici..."
-              aria-label="Contenu du post"
-            />
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} className="rounded-pill text-xs">
-              ✅ Terminer l'édition
-            </Button>
-          </div>
-
-        ) : isPublished && hasContent ? (
-          <div className="space-y-3">
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-pill">
-              <CheckCircle2 className="h-3 w-3" /> Publié
-            </span>
-            <div className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap opacity-80">
-              {contentPreview}
-            </div>
-            {contentDraft && contentDraft.length > 200 && !showFullContent && (
-              <button onClick={() => setShowFullContent(true)} className="block mt-1 text-xs text-primary hover:underline">voir la suite ↓</button>
-            )}
-            {showFullContent && contentDraft && contentDraft.length > 200 && (
-              <button onClick={() => setShowFullContent(false)} className="block mt-1 text-xs text-primary hover:underline">réduire ↑</button>
-            )}
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleCopy} className="rounded-pill text-xs gap-1.5">
-                <Copy className="h-3 w-3" /> Copier
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="rounded-pill px-2">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => navigate("/transformer")}>
-                    🔄 Recycler (crosspost)
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-
-        ) : hasContent && isReady ? (
-          <div className="space-y-3">
-            <div
-              contentEditable
-              suppressContentEditableWarning
-              onBlur={(e) => {
-                const newText = e.currentTarget.innerText || "";
-                if (newText !== contentDraft) {
-                  setContentDraft(newText);
-                  setShowFullContent(true);
-                }
-              }}
-              className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap cursor-text transition-colors hover:bg-muted/30 focus:bg-muted/30 focus:outline-none focus:ring-1 focus:ring-primary/30"
-            >
-              {contentPreview}
-            </div>
-            {contentDraft && contentDraft.length > 200 && !showFullContent && (
-              <button onClick={() => setShowFullContent(true)} className="block mt-1 text-xs text-primary hover:underline">voir la suite ↓</button>
-            )}
-            {showFullContent && contentDraft && contentDraft.length > 200 && (
-              <button onClick={() => setShowFullContent(false)} className="block mt-1 text-xs text-primary hover:underline">réduire ↑</button>
-            )}
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleCopy} className="rounded-pill text-xs gap-1.5">
-                <Copy className="h-3 w-3" /> Copier
-              </Button>
-              <Button size="sm" onClick={() => setStatus("published")} className="rounded-pill text-xs gap-1.5">
-                ✅ Marquer comme publié
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="rounded-pill px-2">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                    ✏️ Modifier
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleSmartGenerate}>
-                    🔄 Nouvelle version IA
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleOpenAtelier}>
-                    ✨ Ouvrir dans l'atelier
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            {/* Actions: Approfondir + Changer de format */}
-            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/50">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="rounded-pill text-xs gap-1.5 text-primary hover:bg-primary/10"
-                onClick={() => {
-                  if (theme.trim()) {
-                    onSave({
-                      theme, angle, status, notes, canal: postCanal, objectif, format,
-                      content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null,
-                    });
-                  }
-                  onOpenChange(false);
-                  setTimeout(() => {
-                    const params = new URLSearchParams();
-                    if (theme) params.set("sujet", theme);
-                    if (objectif) params.set("objectif", objectif);
-                    if (format) params.set("format", format);
-                    if (editingPost?.id) params.set("calendar_id", editingPost.id);
-                    params.set("from", "/calendrier");
-                    navigate("/creer?" + params.toString(), {
-                      state: {
-                        fromCalendar: true,
-                        calendarPostId: editingPost?.id,
-                        theme,
-                        objectif,
-                        angle,
-                        format,
-                        notes,
-                        existingContent: contentDraft,
-                        existingAccroche: accroche,
-                      },
-                    });
-                  }, 100);
-                }}
-              >
-                <Sparkles className="h-3 w-3" /> Approfondir avec l'IA
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="rounded-pill text-xs gap-1.5 text-muted-foreground hover:text-foreground">
-                    <RefreshCw className="h-3 w-3" /> Changer de format
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  {postCanal === "instagram" && (
-                    <>
-                      <DropdownMenuItem onClick={() => {
-                        const params = new URLSearchParams();
-                        if (theme) params.set("sujet", theme);
-                        if (objectif) params.set("objectif", objectif);
-                        if (editingPost?.id) params.set("calendar_id", editingPost.id);
-                        params.set("from", "/calendrier");
-                        navigate(`/creer?format=carousel&${params.toString()}`);
-                      }}>
-                        📑 Transformer en carrousel
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => {
-                        const params = new URLSearchParams();
-                        params.set("sujet", theme || "");
-                        if (editingPost?.id) params.set("calendar_id", editingPost.id);
-                        params.set("from", "/calendrier");
-                        navigate(`/creer?format=reel&${params.toString()}`);
-                      }}>
-                        🎬 Transformer en reel
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => {
-                        const params = new URLSearchParams();
-                        params.set("sujet", theme || "");
-                        if (editingPost?.id) params.set("calendar_id", editingPost.id);
-                        params.set("from", "/calendrier");
-                        navigate(`/creer?format=story&${params.toString()}`);
-                      }}>
-                        📱 Transformer en stories
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {postCanal === "linkedin" && (
-                    <DropdownMenuItem onClick={() => {
-                      const params = new URLSearchParams();
-                      params.set("sujet", theme || "");
-                      if (editingPost?.id) params.set("calendar_id", editingPost.id);
-                      params.set("from", "/calendrier");
-                      navigate(`/linkedin/post?${params.toString()}`);
-                    }}>
-                      📝 Transformer en post LinkedIn
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={() => navigate("/transformer")}>
-                    🔄 Recycler (crosspost)
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {editingPost?.story_sequence_detail && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowContentViewer(true)}
-                  className="rounded-pill text-xs gap-1.5 text-muted-foreground hover:text-foreground"
-                >
-                  👁️ {(editingPost.story_sequence_detail as any)?.type === "reel"
-                    ? "Voir le script"
-                    : (editingPost.story_sequence_detail as any)?.type === "stories"
-                    ? "Voir la séquence"
-                    : (editingPost.story_sequence_detail as any)?.type === "carousel"
-                    ? "Voir les slides"
-                    : "Voir le détail"}
-                </Button>
-              )}
-            </div>
-          </div>
-
-        ) : hasContent ? (
-          <div className="space-y-3">
-            <div
-              contentEditable
-              suppressContentEditableWarning
-              onBlur={(e) => {
-                const newText = e.currentTarget.innerText || "";
-                if (newText !== contentDraft) {
-                  setContentDraft(newText);
-                  setShowFullContent(true);
-                }
-              }}
-              className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap cursor-text transition-colors hover:bg-muted/30 focus:bg-muted/30 focus:outline-none focus:ring-1 focus:ring-primary/30"
-            >
-              {contentPreview}
-            </div>
-            {contentDraft && contentDraft.length > 200 && !showFullContent && (
-              <button onClick={() => setShowFullContent(true)} className="block mt-1 text-xs text-primary hover:underline">voir la suite ↓</button>
-            )}
-            {showFullContent && contentDraft && contentDraft.length > 200 && (
-              <button onClick={() => setShowFullContent(false)} className="block mt-1 text-xs text-primary hover:underline">réduire ↑</button>
-            )}
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="rounded-pill text-xs gap-1.5">
-                ✏️ Modifier
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleCopy} className="rounded-pill text-xs gap-1.5">
-                <Copy className="h-3 w-3" /> Copier
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="rounded-pill px-2">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleSmartGenerate}>
-                    🔄 Nouvelle version IA
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleOpenAtelier}>
-                    ✨ Ouvrir dans l'atelier
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { setContentDraft(null); setAccroche(null); }} className="text-destructive">
-                    🗑️ Supprimer le contenu
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            {/* Actions: Approfondir + Changer de format */}
-            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/50">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="rounded-pill text-xs gap-1.5 text-primary hover:bg-primary/10"
-                onClick={() => {
-                  if (theme.trim()) {
-                    onSave({
-                      theme, angle, status, notes, canal: postCanal, objectif, format,
-                      content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null,
-                    });
-                  }
-                  onOpenChange(false);
-                  setTimeout(() => {
-                    const params = new URLSearchParams();
-                    if (theme) params.set("sujet", theme);
-                    if (objectif) params.set("objectif", objectif);
-                    if (format) params.set("format", format);
-                    if (editingPost?.id) params.set("calendar_id", editingPost.id);
-                    params.set("from", "/calendrier");
-                    navigate("/creer?" + params.toString(), {
-                      state: {
-                        fromCalendar: true,
-                        calendarPostId: editingPost?.id,
-                        theme,
-                        objectif,
-                        angle,
-                        format,
-                        notes,
-                        existingContent: contentDraft,
-                        existingAccroche: accroche,
-                      },
-                    });
-                  }, 100);
-                }}
-              >
-                <Sparkles className="h-3 w-3" /> Approfondir avec l'IA
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="rounded-pill text-xs gap-1.5 text-muted-foreground hover:text-foreground">
-                    <RefreshCw className="h-3 w-3" /> Changer de format
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  {postCanal === "instagram" && (
-                    <>
-                      <DropdownMenuItem onClick={() => {
-                        const params = new URLSearchParams();
-                        if (theme) params.set("sujet", theme);
-                        if (objectif) params.set("objectif", objectif);
-                        if (editingPost?.id) params.set("calendar_id", editingPost.id);
-                        params.set("from", "/calendrier");
-                        navigate(`/creer?format=carousel&${params.toString()}`);
-                      }}>
-                        📑 Transformer en carrousel
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => {
-                        const params = new URLSearchParams();
-                        params.set("sujet", theme || "");
-                        if (editingPost?.id) params.set("calendar_id", editingPost.id);
-                        params.set("from", "/calendrier");
-                        navigate(`/creer?format=reel&${params.toString()}`);
-                      }}>
-                        🎬 Transformer en reel
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => {
-                        const params = new URLSearchParams();
-                        params.set("sujet", theme || "");
-                        if (editingPost?.id) params.set("calendar_id", editingPost.id);
-                        params.set("from", "/calendrier");
-                        navigate(`/creer?format=story&${params.toString()}`);
-                      }}>
-                        📱 Transformer en stories
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {postCanal === "linkedin" && (
-                    <DropdownMenuItem onClick={() => {
-                      const params = new URLSearchParams();
-                      params.set("sujet", theme || "");
-                      if (editingPost?.id) params.set("calendar_id", editingPost.id);
-                      params.set("from", "/calendrier");
-                      navigate(`/linkedin/post?${params.toString()}`);
-                    }}>
-                      📝 Transformer en post LinkedIn
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={() => navigate("/transformer")}>
-                    🔄 Recycler (crosspost)
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {editingPost?.story_sequence_detail && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowContentViewer(true)}
-                  className="rounded-pill text-xs gap-1.5 text-muted-foreground hover:text-foreground"
-                >
-                  👁️ {(editingPost.story_sequence_detail as any)?.type === "reel"
-                    ? "Voir le script"
-                    : (editingPost.story_sequence_detail as any)?.type === "stories"
-                    ? "Voir la séquence"
-                    : (editingPost.story_sequence_detail as any)?.type === "carousel"
-                    ? "Voir les slides"
-                    : "Voir le détail"}
-                </Button>
-              )}
-            </div>
-          </div>
-
-        ) : (
-          <div className="space-y-3">
-            {!angle && (
-              <p className="text-xs italic text-muted-foreground">
-                💡 Choisis un angle pour un meilleur résultat
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground">Pas encore de contenu.</p>
-            <Button
-              onClick={handleSmartGenerate}
-              disabled={isGenerating || !theme.trim()}
-              className="w-full rounded-pill gap-2"
-              size="default"
-            >
-              {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              ✨ Rédiger avec l'IA
-            </Button>
-            <button
-              onClick={() => setIsEditing(true)}
-              className="block w-full text-center text-xs text-muted-foreground hover:text-primary transition-colors"
-            >
-              ou écrire moi-même
-            </button>
-          </div>
-        )}
-      </div>
-    );
+  const handleNavigateToFormat = (targetFormat: string) => {
+    const params = new URLSearchParams();
+    if (theme) params.set("sujet", theme);
+    if (objectif) params.set("objectif", objectif);
+    if (editingPost?.id) params.set("calendar_id", editingPost.id);
+    params.set("from", "/calendrier");
+    if (targetFormat === "carousel") navigate(`/creer?format=carousel&${params.toString()}`);
+    else if (targetFormat === "reel") navigate(`/creer?format=reel&${params.toString()}`);
+    else if (targetFormat === "story") navigate(`/creer?format=story&${params.toString()}`);
+    else if (targetFormat === "linkedin") navigate(`/linkedin/post?${params.toString()}`);
+    else navigate("/transformer");
   };
+
+  // ── Render ──
 
   return (
     <>
@@ -900,57 +239,50 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle className="font-display">
-              {editingPost ? "Modifier le post" : "Ajouter un post"}
-            </DialogTitle>
-            {/* Tabs in header — only for regular posts */}
+            <DialogTitle className="font-display">{editingPost ? "Modifier le post" : "Ajouter un post"}</DialogTitle>
             {editingPost && (
               <div className="flex rounded-full border border-border overflow-hidden mr-6">
-                <button onClick={() => setDialogTab("edit")}
-                  className={`px-3 py-1 text-[11px] font-medium transition-colors ${dialogTab === "edit" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                  ✏️ Éditer
-                </button>
-                <button onClick={() => setDialogTab("preview")}
-                  className={`px-3 py-1 text-[11px] font-medium transition-colors ${dialogTab === "preview" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                  👁️ Preview
-                </button>
+                <button onClick={() => setDialogTab("edit")} className={`px-3 py-1 text-[11px] font-medium transition-colors ${dialogTab === "edit" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>✏️ Éditer</button>
+                <button onClick={() => setDialogTab("preview")} className={`px-3 py-1 text-[11px] font-medium transition-colors ${dialogTab === "preview" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>👁️ Preview</button>
               </div>
             )}
           </div>
           <DialogDescription className="sr-only">Formulaire de création ou modification d'un post du calendrier éditorial</DialogDescription>
         </DialogHeader>
 
-        {/* ── UNIFIED POST VIEW: 2-column layout ── */}
         <div className="mt-2">
           {dialogTab === "preview" ? (
-            <PreviewTab
-              canal={postCanal}
-              format={format}
-              caption={contentDraft}
-              theme={theme}
-              username={igUsername || ownerName}
-              displayName={ownerName}
-              mediaUrls={mediaUrls}
+            <CalendarPostPreview
+              canal={postCanal} format={format} caption={contentDraft} theme={theme}
+              username={igUsername || ownerName} displayName={ownerName} mediaUrls={mediaUrls}
               visualHtml={(editingPost?.story_sequence_detail as any)?.visual_html || null}
               onNavigateToGenerator={() => handleNavigateToGenerator("generate")}
-              hasAngle={!!angle}
-              hasTheme={!!theme.trim()}
+              hasAngle={!!angle} hasTheme={!!theme.trim()}
             />
           ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_220px] gap-5">
-              {/* ── COLONNE GAUCHE : Contenu ── */}
+              {/* Left column: Content */}
               <div className="space-y-4 min-w-0">
-                {/* Thème */}
                 <div>
                   <label className="text-xs font-semibold mb-1.5 block text-foreground">Thème / sujet</label>
                   <Input autoFocus value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="De quoi parle ce post ?" className="rounded-[10px] h-11" />
                 </div>
 
-                {/* Contenu */}
-                <ContentSection />
+                <CalendarPostContent
+                  editingPost={editingPost} theme={theme}
+                  contentDraft={contentDraft} setContentDraft={setContentDraft}
+                  accroche={accroche} setAccroche={setAccroche}
+                  status={status} setStatus={setStatus}
+                  isGenerating={isGenerating} onSmartGenerate={handleSmartGenerate}
+                  onCopy={handleCopy} onOpenAtelier={handleOpenAtelier}
+                  onNavigateToDeepen={handleNavigateToDeepen}
+                  onNavigateToFormat={handleNavigateToFormat}
+                  postCanal={postCanal} format={format} angle={angle}
+                  objectif={objectif} notes={notes} mediaUrls={mediaUrls}
+                  onSaveAndClose={() => { handleSave(); onOpenChange(false); }}
+                />
 
-                {/* Notes */}
                 <div>
                   <label className="text-xs font-semibold mb-1.5 block text-foreground">📝 Notes</label>
                   <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Idées, brouillon, remarques..." className="rounded-[10px] min-h-[80px]" />
@@ -964,10 +296,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                       {mediaUrls.map((url, i) => (
                         <div key={i} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-border">
                           <img src={url} alt="" className="w-full h-full object-cover" />
-                          <button
-                            onClick={() => handleRemoveMedia(i)}
-                            className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                          >x</button>
+                          <button onClick={() => setMediaUrls(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs">x</button>
                         </div>
                       ))}
                     </div>
@@ -999,18 +328,20 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                   </Collapsible>
                 )}
 
-                {/* Comments */}
-                {editingPost && (
-                  <PostCommentsSection postId={editingPost.id} ownerName={ownerName} />
-                )}
+                {editingPost && <PostCommentsSection postId={editingPost.id} ownerName={ownerName} />}
               </div>
 
-              {/* ── COLONNE DROITE (desktop) : Métadonnées ── */}
+              {/* Right column (desktop): Metadata */}
               <div className="hidden sm:block space-y-4 sm:border-l sm:border-border sm:pl-5">
-                <MetadataFields />
+                <CalendarPostMetadata
+                  status={status} setStatus={setStatus} postCanal={postCanal} setPostCanal={setPostCanal}
+                  format={format} setFormat={setFormat} objectif={objectif} setObjectif={setObjectif}
+                  angle={angle} setAngle={setAngle} showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced}
+                  editingPostId={editingPost?.id} selectedDate={selectedDate} onDateChange={onDateChange}
+                />
               </div>
 
-              {/* ── Mobile : Métadonnées en collapsible ── */}
+              {/* Mobile: Metadata collapsible */}
               <div className="sm:hidden">
                 <Collapsible>
                   <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary w-full py-2">
@@ -1018,33 +349,27 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                     <ChevronDown className="h-3.5 w-3.5 ml-auto" />
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-4 pt-2">
-                    <MetadataFields />
+                    <CalendarPostMetadata
+                      status={status} setStatus={setStatus} postCanal={postCanal} setPostCanal={setPostCanal}
+                      format={format} setFormat={setFormat} objectif={objectif} setObjectif={setObjectif}
+                      angle={angle} setAngle={setAngle} showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced}
+                      editingPostId={editingPost?.id} selectedDate={selectedDate} onDateChange={onDateChange}
+                    />
                   </CollapsibleContent>
                 </Collapsible>
               </div>
             </div>
 
-            {/* Actions — full width below columns */}
+            {/* Actions */}
             <div className="flex gap-2 pt-4 mt-4 border-t border-border">
-              <Button onClick={handleSave} disabled={!theme.trim()} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">
-                💾 Enregistrer
-              </Button>
+              <Button onClick={handleSave} disabled={!theme.trim()} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">💾 Enregistrer</Button>
               {onUnplan && editingPost && (
                 <Button variant="outline" size="icon" onClick={onUnplan} className="rounded-full text-muted-foreground hover:text-primary" title="Remettre en idée">
                   <Undo2 className="h-4 w-4" />
                 </Button>
               )}
               {editingPost && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    if (window.confirm("Supprimer ce post du calendrier ? Cette action est irréversible.")) {
-                      onDelete();
-                    }
-                  }}
-                  className="rounded-full text-destructive hover:bg-destructive/10"
-                >
+                <Button variant="outline" size="icon" onClick={() => { if (window.confirm("Supprimer ce post du calendrier ? Cette action est irréversible.")) onDelete(); }} className="rounded-full text-destructive hover:bg-destructive/10">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               )}
@@ -1060,15 +385,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="font-display">
-            {(editingPost?.story_sequence_detail as any)?.type === "reel"
-              ? "🎬 Script complet"
-              : (editingPost?.story_sequence_detail as any)?.type === "carousel"
-              ? "📑 Slides détaillées"
+            {(editingPost?.story_sequence_detail as any)?.type === "reel" ? "🎬 Script complet"
+              : (editingPost?.story_sequence_detail as any)?.type === "carousel" ? "📑 Slides détaillées"
               : "📱 Séquence complète"}
           </SheetTitle>
           <SheetDescription className="sr-only">Visualisation du contenu généré</SheetDescription>
         </SheetHeader>
-
         <div className="mt-4 space-y-4">
           <ContentPreview
             contentData={editingPost?.story_sequence_detail}
@@ -1081,20 +403,13 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             editable
             onContentChange={async (updatedData) => {
               if (!editingPost) return;
-              await supabase
-                .from("calendar_posts")
-                .update({ story_sequence_detail: updatedData, updated_at: new Date().toISOString() })
-                .eq("id", editingPost.id);
+              await supabase.from("calendar_posts").update({ story_sequence_detail: updatedData, updated_at: new Date().toISOString() } as any).eq("id", editingPost.id);
             }}
           />
-
           {editingPost && (editingPost as any).original_content_data && (
             <RevertToOriginalButton onRevert={async () => {
               const original = (editingPost as any).original_content_data;
-              await supabase
-                .from("calendar_posts")
-                .update({ story_sequence_detail: original, updated_at: new Date().toISOString() })
-                .eq("id", editingPost.id);
+              await supabase.from("calendar_posts").update({ story_sequence_detail: original, updated_at: new Date().toISOString() } as any).eq("id", editingPost.id);
               toast({ title: "Version originale restaurée" });
               setShowContentViewer(false);
             }} />
@@ -1103,130 +418,5 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       </SheetContent>
     </Sheet>
     </>
-  );
-}
-
-// ── Preview Tab ──
-
-function PreviewTab({ canal, format, caption, theme, username, displayName, mediaUrls, visualHtml, onNavigateToGenerator, hasAngle, hasTheme }: {
-  canal: string;
-  format: string | null;
-  caption: string | null;
-  theme: string;
-  username: string;
-  displayName: string;
-  mediaUrls?: string[];
-  visualHtml?: { slide_number: number; html: string }[] | null;
-  onNavigateToGenerator: () => void;
-  hasAngle: boolean;
-  hasTheme: boolean;
-}) {
-  if (!caption) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-3xl mb-3">👁️</p>
-        <p className="text-sm text-muted-foreground mb-4">
-          Génère d'abord ton contenu pour le prévisualiser ici.
-        </p>
-        {hasTheme && hasAngle && (
-          <Button onClick={onNavigateToGenerator} className="rounded-full gap-1.5">
-            <Sparkles className="h-4 w-4" /> Générer le contenu
-          </Button>
-        )}
-        {(!hasTheme || !hasAngle) && (
-          <p className="text-xs text-muted-foreground italic">
-            Remplis le thème et l'angle dans l'onglet Éditer.
-          </p>
-        )}
-      </div>
-    );
-  }
-
-  // Visual HTML slides from carousel generator
-  if (visualHtml && visualHtml.length > 0) {
-    return (
-      <div className="py-2 space-y-4 overflow-y-auto max-h-[60vh]">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">✨ Visuels générés ({visualHtml.length} slides)</p>
-        {visualHtml.map((vs, idx) => (
-          <div key={idx} className="rounded-xl border border-border overflow-hidden bg-card inline-block w-full max-w-[320px] mx-auto block">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 border-b border-border">
-              <span className="text-xs font-medium text-muted-foreground">Slide {vs.slide_number}</span>
-            </div>
-            <div className="relative overflow-hidden" style={{ width: "320px", height: "400px" }}>
-              <div style={{ transform: "scale(0.296)", transformOrigin: "top left", width: "1080px", height: "1350px", position: "absolute", top: 0, left: 0 }}>
-                <iframe
-                  srcDoc={vs.html}
-                  title={`Slide ${vs.slide_number}`}
-                  width="1080"
-                  height="1350"
-                  style={{ border: "none", pointerEvents: "none" }}
-                  sandbox="allow-same-origin allow-scripts"
-                />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  let parsed: any = null;
-  try { parsed = JSON.parse(caption); } catch { /* plain text */ }
-
-  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-    return (
-      <div className="py-2 overflow-y-auto">
-        <ContentPreview contentData={parsed} />
-      </div>
-    );
-  }
-
-  if (parsed && Array.isArray(parsed)) {
-    const slides = parsed.map((s: any, i: number) => ({
-      title: s.title || s.titre || `Slide ${i + 1}`,
-      body: s.body || s.texte || s.content || "",
-      slideNumber: i + 1,
-    }));
-    const mockupCanal = (canal === "instagram" || canal === "linkedin") ? canal : "instagram";
-    return (
-      <div className="flex justify-center py-2 overflow-y-auto">
-        <SocialMockup
-          canal={mockupCanal}
-          format="carousel"
-          username={username || "mon_compte"}
-          displayName={displayName || ""}
-          caption={theme}
-          slides={slides}
-          mediaUrls={mediaUrls}
-          showComments={false}
-          readonly
-          hideFollowButton
-        />
-      </div>
-    );
-  }
-
-  const mockupCanal = (canal === "instagram" || canal === "linkedin") ? canal : "instagram";
-  const mockupFormat = (() => {
-    if (format === "post_carrousel") return "carousel" as const;
-    if (format === "reel") return "reel" as const;
-    if (format === "story_serie") return "story" as const;
-    return "post" as const;
-  })();
-
-  return (
-    <div className="flex justify-center py-2 overflow-y-auto">
-      <SocialMockup
-        canal={mockupCanal}
-        format={mockupFormat}
-        username={username || "mon_compte"}
-        displayName={displayName || ""}
-        caption={caption}
-        mediaUrls={mediaUrls}
-        showComments={false}
-        readonly
-        hideFollowButton
-      />
-    </div>
   );
 }
