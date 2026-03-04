@@ -524,9 +524,11 @@ Retourne UNIQUEMENT le JSON.`;
       for (let i = 0; i < reqBody.photos.length; i++) {
         const photo = reqBody.photos[i];
         if (photo.base64) {
+          // Strip data URL prefix if present (Anthropic expects raw base64)
+          const rawBase64 = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
           messageContent.push({
             type: "image",
-            source: { type: "base64", media_type: "image/jpeg", data: photo.base64 }
+            source: { type: "base64", media_type: "image/jpeg", data: rawBase64 }
           });
           messageContent.push({
             type: "text",
