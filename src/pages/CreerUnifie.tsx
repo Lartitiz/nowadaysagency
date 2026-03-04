@@ -69,6 +69,12 @@ export default function CreerUnifie() {
   const [calendarPostDate] = useState<string | null>(locState?.postDate || null);
   const fromCalendar = !!(locState?.fromCalendar && calendarPostId);
 
+  // Photo states (carousel photo + post photo)
+  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | null>(null);
+  const [uploadedPhotos, setUploadedPhotos] = useState<any[]>([]);
+  const [photoDescription, setPhotoDescription] = useState("");
+  const [photoMode, setPhotoMode] = useState(false);
+
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
     { step, ideaText, objective, selectedFormat, editorialAngle, answers },
@@ -196,7 +202,7 @@ export default function CreerUnifie() {
         : subject;
       const calendarAngle = locState?.angle || undefined;
       if (calendarAngle) setEditorialAngle(calendarAngle);
-      handleFormatNext(fmt, calendarAngle, enrichedSubject);
+      handleFormatNext(fmt, calendarAngle, { overrideSubject: enrichedSubject });
     } else if (locState?.fromCalendar && subject) {
       if (locState.format) setSelectedFormat(locState.format);
       if (locState.angle) setEditorialAngle(locState.angle);
@@ -236,9 +242,14 @@ export default function CreerUnifie() {
     setStep("format");
   };
 
-  const handleFormatNext = async (format: string, angle?: string, overrideSubject?: string) => {
+  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string }) => {
+    const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject } = options || {};
     setSelectedFormat(format);
     setEditorialAngle(angle || null);
+    if (sub) setCarouselSubMode(sub);
+    if (photos) setUploadedPhotos(photos);
+    if (desc) setPhotoDescription(desc);
+    if (pm !== undefined) setPhotoMode(pm);
 
     const subjectToUse = overrideSubject || ideaText;
     const enrichedSubject = existingCalendarContent
@@ -281,6 +292,8 @@ export default function CreerUnifie() {
       objective: objective || undefined,
       editorialAngle: editorialAngle || undefined,
       answers: Object.keys(ans).length > 0 ? ans : undefined,
+      ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
+      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64 }] : undefined, photoDescription } : {}),
     });
   };
 
@@ -386,6 +399,10 @@ export default function CreerUnifie() {
     setLaunchIndex(0);
     setSavedId(null);
     setVisualSlides([]);
+    setCarouselSubMode(null);
+    setUploadedPhotos([]);
+    setPhotoDescription("");
+    setPhotoMode(false);
     clearFlowState();
     clearDraft();
     sessionStorage.removeItem(CREER_RESULT_KEY);
@@ -430,6 +447,13 @@ export default function CreerUnifie() {
     let contentDraft = "";
     let accroche = "";
     const fmt = selectedFormat || "post";
+
+    if (selectedFormat === "carousel" && r?.carousel_type === "photo") {
+      accroche = r.caption?.hook || "";
+      contentDraft = (r.slides || []).map((s: any) => s.overlay_text ? `SLIDE ${s.slide_number}: ${s.overlay_text}` : `SLIDE ${s.slide_number}: (photo seule)`).join("\n") + "\n\n" + [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n");
+      const storyDetail = { type: "carousel_photo", slides: r.slides, caption: r.caption, quality_check: r.quality_check };
+      return { contentDraft, accroche, storyDetail };
+    }
 
     if (selectedFormat === "carousel" && r?.slides) {
       accroche = r.slides?.[0]?.title || "";
@@ -728,7 +752,7 @@ export default function CreerUnifie() {
               <CreerStepFormat
                 idea={ideaText}
                 objective={objective || undefined}
-                onNext={handleFormatNext}
+                onNext={(fmt, angle, sub, photos, desc, pm) => handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm })}
                 onBack={() => setStep("idea")}
               />
             )}
