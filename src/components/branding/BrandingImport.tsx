@@ -70,7 +70,20 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
           </p>
         </motion.div>
 
-        {/* Reanalyze warning */}
+        {/* Website URL input */}
+        <motion.div variants={fadeUp} className="mb-4">
+          <div className="relative">
+            <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              type="url"
+              placeholder="https://monsite.com"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              className="pl-10 h-12 rounded-[14px] bg-card border-border text-foreground placeholder:text-muted-foreground/60"
+            />
+          </div>
+        </motion.div>
+
         {reanalyzeWarning && (
           <motion.div variants={fadeUp} className="bg-amber-50 border border-amber-200 rounded-[16px] p-4 mb-4 text-[13px] text-amber-800">
             ⚠️ Attention : relancer l'analyse va proposer de nouvelles données pour les sections que tu n'as pas verrouillées. Les sections validées ne seront pas touchées.
