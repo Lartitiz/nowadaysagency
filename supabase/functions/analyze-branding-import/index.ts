@@ -1,7 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
-import { logUsage } from "../_shared/plan-limiter.ts";
+import { logUsage, checkQuota } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 
 // ── HTML to text helper ──
 function htmlToText(html: string): string {
@@ -95,7 +96,15 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const { userId } = await authenticateRequest(req);
     const { text, url, social_links } = await req.json();
+
+    const quota = await checkQuota(userId, "import");
+    if (!quota.allowed) {
+      return new Response(JSON.stringify({ error: quota.message, quota }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     let documentText = "";
     const sourcesAnalyzed: string[] = [];
@@ -224,21 +233,18 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après. Pas de mark
       );
     }
 
-    // Log usage if authenticated
-    const authHeader = req.headers.get("Authorization");
-    if (authHeader) {
-      try {
-        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
-        const { data: { user } } = await sb.auth.getUser(authHeader.replace("Bearer ", ""));
-        if (user) await logUsage(user.id, "import", "branding_import");
-      } catch { /* best effort */ }
-    }
+    await logUsage(userId, "import", "branding_import");
 
     return new Response(
       JSON.stringify({ extraction, sources_analyzed: sourcesAnalyzed }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
+    if (e instanceof AuthError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("analyze-branding-import error:", e);
     const msg = e instanceof Error ? e.message : "Erreur inconnue";
     return new Response(
