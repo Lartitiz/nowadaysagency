@@ -4,7 +4,15 @@ import { trackError } from "@/lib/error-tracker";
 import { supabase } from "@/integrations/supabase/client";
 import { useDemoContext } from "@/contexts/DemoContext";
 
-type Plan = "free" | "outil" | "now_pilot";
+type Plan = "free" | "outil" | "studio" | "now_pilot";
+
+/** "studio" et "now_pilot" = même plan (Binôme de com').
+ *  Stripe écrit "studio", coaching_programs écrit "now_pilot".
+ *  On normalise vers "now_pilot" pour simplifier toute la logique. */
+export function normalizePlan(raw: string): Plan {
+  if (raw === "studio") return "now_pilot";
+  return (["free", "outil", "now_pilot"].includes(raw) ? raw : "free") as Plan;
+}
 
 type Feature =
   | "branding" | "persona" | "audit_basic" | "generation_limited" | "community_read"
@@ -85,7 +93,7 @@ export function useUserPlan(): UserPlanState {
     try {
       const { data, error } = await supabase.functions.invoke("check-subscription");
       if (!error && data) {
-        setPlan((data.plan as Plan) || "free");
+        setPlan(normalizePlan(data.plan || "free"));
         setBonusCredits(data.bonus_credits || 0);
         if (data.ai_usage && typeof data.ai_usage === "object") {
           setUsage(data.ai_usage);

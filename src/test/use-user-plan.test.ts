@@ -99,7 +99,16 @@ describe("useUserPlan — plan hierarchy (PLAN_LIMITS)", () => {
     expect(PLAN_LIMITS.free.content).toBeLessThan(PLAN_LIMITS.outil.content);
   });
 
-  it("'studio' plan does not exist in PLAN_LIMITS", () => {
+  it("'studio' plan does not exist in PLAN_LIMITS (normalized to now_pilot)", () => {
     expect(PLAN_LIMITS).not.toHaveProperty("studio");
+  });
+
+  it("normalizePlan maps 'studio' to 'now_pilot'", () => {
+    const { normalizePlan } = require("@/hooks/use-user-plan");
+    expect(normalizePlan("studio")).toBe("now_pilot");
+    expect(normalizePlan("free")).toBe("free");
+    expect(normalizePlan("outil")).toBe("outil");
+    expect(normalizePlan("now_pilot")).toBe("now_pilot");
+    expect(normalizePlan("unknown_plan")).toBe("free");
   });
 });
