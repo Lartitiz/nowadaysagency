@@ -350,7 +350,10 @@ PROFONDEUR :
 - Story finale : conclusion + CTA.
 - Pour chaque story, indique : le TEXTE affiché + le TYPE (texte seul, photo+texte, vidéo, sondage, quiz).`;
       } else if (isLinkedIn) {
-        depthMandate = `FORMAT : POST LINKEDIN (800-1200 caractères)
+        depthMandate = `ANTI-BROETRY :
+Pas de phrases seules sur une ligne pour faire dramatique. Des paragraphes de 2-3 phrases qui développent une idée. Le rythme vient du contraste entre paragraphes et phrases courtes qui ponctuent, pas des sauts de ligne systématiques.
+
+FORMAT : POST LINKEDIN (800-1200 caractères)
 
 LinkedIn ≠ tribune d'expert·e. C'est une conversation entre pro qui se respectent.
 

@@ -130,18 +130,18 @@ OBJECTIF CONFIANCE (identification) :
 → Formats : Carrousel storytelling, Caption longue
 → Accroches : Storytelling, vulnérabilité, partage d'expérience
 → Exemples d'accroches à adapter :
-  • "Ce jour-là, j'ai failli tout arrêter."
-  • "Ce que j'aurais aimé qu'on me dise quand j'ai commencé."
-  • "C'est ok de [chose qu'on n'ose pas]. (Oui, même toi.)"
+  • "[Situation concrète et spécifique vécue par l'utilisatrice]"
+  • "Pendant 2 ans, j'ai fait [erreur spécifique]. Voilà ce que j'en ai tiré."
+  • "Le problème avec [croyance de l'audience], c'est que [constat inattendu]."
 
 OBJECTIF VENTE (conversion) :
 → Frameworks : PASTOR, BAB, AIDA éthique
 → Formats : Carrousel + Stories, Caption longue
 → Accroches : Témoignage, avant/après, bénéfice concret
 → Exemples d'accroches à adapter :
-  • "3 mois. C'est le temps qu'il a fallu à [prénom] pour [résultat]."
-  • "Avant : [galère]. Après : [transformation]."
-  • "Ce n'est pas un programme de plus. Voilà pourquoi."
+  • "[Prénom] est venue me voir avec [problème concret]. 4 mois plus tard, [résultat chiffré]."
+  • "Le jour où [prénom] a arrêté de [comportement], son [métrique] a [changement]."
+  • "On m'a demandé ce qui différencie [offre] de [alternative]. La réponse tient en 1 phrase."
 
 OBJECTIF CRÉDIBILITÉ (autorité) :
 → Frameworks : Structure investigative, Conseil contre-intuitif, 4 U's
@@ -329,27 +329,26 @@ PATTERNS STRUCTURELS BANNIS :
 - Intro longue avant d'arriver au sujet → démarrer dans le vif
 - Répétition de la consigne en début de réponse → NON
 
-PATTERNS "VOIX IA" BANNIS (reconnaissables en 2 secondes) :
+PATTERNS "VOIX IA" BANNIS (reconnaissables instantanément) :
 
 Rythme artificiel :
-- "Phrase courte. Phrase courte. Phrase courte." en rafale → NON. L'oral c'est fluide : on ne parle pas en rafales de 3 mots. Les phrases courtes arrivent naturellement après une phrase longue, pas en série.
-- "Avec X. Avec Y. Avec Z." (anaphore mécanique en fin de texte) → SUPPRIMER. Ça sonne comme un slogan IA.
-- "C'est pas X. C'est Y." comme structure récurrente → UNE FOIS max par contenu, pas plus.
-- Phrases de 3-4 mots isolées sur une ligne pour "faire dramatique" → SUPPRIMER. C'est le tic IA #1.
+- Rafales de phrases de 3-4 mots ("C'est ton message. Et ton message, ça se travaille. Avec méthode. Avec écoute.") → INTERDIT. Écrire des phrases complètes. Les phrases courtes arrivent naturellement après une longue, pas en série.
+- Anaphore mécanique en fin de texte ("Avec X. Avec Y. Avec Z." ou "Pas X. Pas Y. Mais Z.") → SUPPRIMER.
+- "C'est pas X. C'est Y." plus d'une fois par contenu → UNE FOIS MAX.
+- Phrase isolée dramatique sur une ligne ("Et là, tout a basculé.") → SUPPRIMER.
 
 Storytelling fabriqué :
-- "Et là, tout a basculé/changé." → SUPPRIMER. C'est le marqueur IA le plus reconnaissable.
-- "Le déclic ?" suivi d'une révélation → SUPPRIMER. Question rhétorique artificielle.
-- "Ce jour-là, j'ai compris que..." → utiliser SEULEMENT si c'est une vraie anecdote vécue fournie par l'utilisatrice.
-- Toute transition dramatique qui n'est pas basée sur du vécu réel → SUPPRIMER.
-- Le schéma "Je galérais → Et puis un jour → Maintenant tout va bien" si l'utilisatrice n'a PAS fourni cette histoire → INTERDIT.
+- "Et là, tout a basculé/changé." → BANNI. C'est le marqueur IA #1.
+- "Le déclic ?" → BANNI. Question rhétorique artificielle.
+- "Ce jour-là, j'ai compris que..." → SEULEMENT si c'est une vraie anecdote fournie par l'utilisatrice.
+- Schéma "Je galérais → Un jour → Maintenant tout va bien" sans vécu réel → INTERDIT.
 
-Étirement artificiel :
-- Répéter la même idée en 3 formulations différentes pour rallonger → COUPER. 1 formulation forte suffit.
-- Le "Avant/Après" propret et symétrique → seulement si basé sur un cas RÉEL avec des détails concrets. Pas de avant/après générique.
-- Paragraphe de conclusion qui reformule tout ce qui a déjà été dit → COUPER. La fin doit apporter quelque chose de NOUVEAU (une ouverture, une nuance, un appel précis).
+Étirement :
+- Reformuler la même idée 3 fois pour rallonger → COUPER. 1 formulation forte suffit.
+- Avant/Après symétrique sans détails concrets → seulement avec des faits réels.
+- Conclusion qui reformule tout ce qui a été dit → COUPER. La fin apporte du NOUVEAU ou elle n'existe pas.
 
-Test final : lis ton output à voix haute. Si ça sonne comme un post IA qu'on a déjà lu 100 fois sur LinkedIn ou Instagram → RÉÉCRIRE ENTIÈREMENT. Le contenu doit sonner comme quelqu'un qui PARLE, pas comme quelqu'un qui ÉCRIT un post.
+TEST FINAL : lis ton output à voix haute. Si ça sonne comme un post IA qu'on a lu 100 fois → RÉÉCRIRE.
 
 SI TU DÉTECTES QUE TON OUTPUT CONTIENT CES PATTERNS, RÉÉCRIS AVANT DE RETOURNER.
 `;
@@ -359,16 +358,14 @@ SI TU DÉTECTES QUE TON OUTPUT CONTIENT CES PATTERNS, RÉÉCRIS AVANT DE RETOURN
 // ═══════════════════════════════════════════════════
 
 export const CHAIN_OF_THOUGHT = `
-AVANT DE RÉDIGER, RÉFLÉCHIS EN INTERNE (ne montre PAS ce raisonnement) :
+AVANT DE RÉDIGER, réfléchis en interne (ne montre PAS) :
 
-1. Quel est le problème principal de l'audience sur ce sujet ?
-2. Quel déclic ou émotion je veux provoquer ?
-3. Quel framework est le plus adapté (AIDA, PAS, BAB, PASTOR) et pourquoi ?
-4. Quelle est l'accroche la plus forte possible ? (pas la première qui vient : la MEILLEURE)
-5. Comment je termine pour que la personne agisse ou ressente quelque chose ?
-6. Est-ce que mon output contient des patterns "slop" ? Si oui, réécrire.
+1. Quel est LE truc que l'audience doit retenir ? (1 seule idée)
+2. Quelle est l'accroche la plus forte ? Pas la première qui vient : la MEILLEURE. Celle qui ferait s'arrêter de scroller.
+3. Est-ce que je peux dire ça en moins de mots ? (oui, presque toujours)
+4. Est-ce que ça sonne comme un humain qui parle ou comme un post IA ? Si post IA → réécrire.
 
-ENSUITE seulement, génère le contenu final.
+Puis génère le contenu.
 `;
 
 // ═══════════════════════════════════════════════════
@@ -485,14 +482,15 @@ ACCROCHE (les 210 premiers caractères) :
 - Saut de ligne obligatoire après l'accroche
 
 LONGUEUR :
-- Sweet spot engagement : 1 300-1 900 caractères
-- Posts sous 500 car. = low-effort, -35% engagement
-- Adapter la longueur au sujet (témoignage > conseil rapide)
+- Sweet spot : 800-1 200 caractères. Court et dense.
+- Si l'idée tient en 800 caractères, ne l'étire PAS à 1 500.
+- Un post court qui dit quelque chose > un post long qui meuble.
 
 FORMATAGE (72% mobile) :
 - Paragraphes courts : 1-3 lignes max
 - Sauts de ligne entre chaque bloc
-- Bucket brigades : "Sauf que.", "Et là, surprise.", "Le truc, c'est que..."
+- Transitions naturelles : "Sauf que.", "Le truc, c'est que...", "En vrai,"
+- PAS de "Et là, surprise." ni de "Et là, tout a basculé." → marqueurs IA
 - Gras avec parcimonie pour mots-clés essentiels
 - Emojis : 0 à 2 max, comme puces visuelles
 - Écriture inclusive avec point médian
