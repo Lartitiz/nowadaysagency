@@ -272,22 +272,17 @@ export function useOnboarding() {
     return () => window.removeEventListener("keydown", handler);
   }, [step, prev]);
 
-  // Pre-scrape website in background as soon as URL is provided
+  // Pre-scrape website in background (triggered on leaving step 4)
   const preScrapeTriggered = useRef(false);
-  useEffect(() => {
-    if (isDemoMode || !user) return;
-    if (preScrapeTriggered.current) return;
-    
+  const triggerPreScrape = useCallback(() => {
+    if (isDemoMode || !user || preScrapeTriggered.current) return;
     const url = answers.website?.trim();
     if (!url || url.length < 5 || !url.includes(".")) return;
-    
     preScrapeTriggered.current = true;
-    
-    // Fire and forget — pas besoin d'attendre le résultat
     supabase.functions.invoke("pre-scrape-website", {
       body: { userId: user.id, websiteUrl: url },
     }).catch(e => console.warn("Pre-scrape failed (non-blocking):", e));
-  }, [answers.website, isDemoMode, user?.id]);
+  }, [isDemoMode, user, answers.website]);
 
   // Launch background audits when entering diagnostic phase
   const auditsLaunched = useRef(false);
@@ -653,5 +648,6 @@ export function useOnboarding() {
     handleDiagnosticComplete,
     getPlaceholder,
     getTimeRemaining,
+    triggerPreScrape,
   };
 }

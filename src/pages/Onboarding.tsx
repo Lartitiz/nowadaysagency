@@ -68,7 +68,7 @@ export default function Onboarding() {
     uploadedFiles, uploading, auditResults, diagnosticData, setDiagnosticData,
     isDemoMode, demoData,
     handleFileUpload, removeFile, handleFinish, handleSkipDemo,
-    handleDiagnosticComplete, getPlaceholder, getTimeRemaining,
+    handleDiagnosticComplete, getPlaceholder, getTimeRemaining, triggerPreScrape,
   } = useOnboarding();
 
   const { toast } = useToast();
@@ -134,7 +134,7 @@ export default function Onboarding() {
                   {step === 1 && <OnboardingPhase1Profile prenom={answers.prenom} activite={answers.activite} onPrenomChange={v => set("prenom", v)} onActiviteChange={v => set("activite", v)} onNext={validatedNext} />}
                   {step === 2 && <ActivityStep value={answers.activity_type} detailValue={answers.activity_detail} onChange={v => { set("activity_type", v); if (v !== "autre") set("activity_detail", ""); }} onDetailChange={v => set("activity_detail", v)} onNext={validatedNext} />}
                   {step === 3 && <ProductServiceScreen value={answers.product_or_service} onChange={v => { set("product_or_service", v); setPendingAutoNext(true); }} />}
-                  {step === 4 && <OnboardingPhase2Import answers={answers} set={set} files={isDemoMode ? [{ id: "demo-file", name: "profil_instagram_lea.png", url: "" }] : uploadedFiles} uploading={uploading} onUpload={isDemoMode ? () => {} : handleFileUpload} onRemove={isDemoMode ? () => {} : removeFile} onNext={next} isDemoMode={isDemoMode} />}
+                  {step === 4 && <OnboardingPhase2Import answers={answers} set={set} files={isDemoMode ? [{ id: "demo-file", name: "profil_instagram_lea.png", url: "" }] : uploadedFiles} uploading={uploading} onUpload={isDemoMode ? () => {} : handleFileUpload} onRemove={isDemoMode ? () => {} : removeFile} onNext={next} onLeave={triggerPreScrape} isDemoMode={isDemoMode} />}
                   {step === 5 && <CanauxCombinedScreen answers={answers} set={set} onNext={validatedNext} />}
                   {step === 6 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}
                   {step === 7 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
