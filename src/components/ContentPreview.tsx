@@ -404,6 +404,7 @@ function CarouselPreview({ data, compact, editable, onContentChange }: { data: a
   const caption = localData.caption;
   const isPhoto = localData.type === "carousel_photo";
   const visualHtml = localData.visual_html;
+  const visualUrls = localData.visual_urls;
 
   useEffect(() => { setLocalData(data); }, [data]);
 
@@ -455,8 +456,19 @@ function CarouselPreview({ data, compact, editable, onContentChange }: { data: a
         </p>
       </div>
 
-      {/* Visual HTML preview if available */}
-      {visualHtml && visualHtml.length > 0 && (
+      {/* Visual preview: URLs from Storage (priority) or HTML fallback */}
+      {visualUrls && visualUrls.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground font-medium">🎨 Visuels</p>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {visualUrls.map((url: string, i: number) => (
+              <div key={i} className="flex-shrink-0 w-[140px] rounded-lg overflow-hidden border border-border" style={{ aspectRatio: "1080/1350" }}>
+                <img src={url} alt={`Slide ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : visualHtml && visualHtml.length > 0 ? (
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground font-medium">🎨 Visuels générés</p>
           <div className="flex gap-2 overflow-x-auto pb-2">
@@ -473,7 +485,7 @@ function CarouselPreview({ data, compact, editable, onContentChange }: { data: a
             ))}
           </div>
         </div>
-      )}
+      ) : null}
 
       {slides.map((slide: any, idx: number) => (
         <div key={idx} className="border-b border-border pb-3 last:border-0">
