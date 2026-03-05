@@ -230,6 +230,7 @@ Réponds UNIQUEMENT en JSON :
       systemPrompt = `${COMMON_PREFIX}
 
 L'utilisatrice a choisi cet angle pour son contenu :
+- Sujet : ${context}
 - Canal : ${contentType}
 ${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
 - Angle : ${angle.title}
@@ -238,16 +239,16 @@ ${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
 ${angle.format_livraison ? `- Format de livraison recommandé : ${angle.format_livraison}` : ""}
 ${calendarBlock}${objectiveBlock}
 
-Pose exactement 3 questions pour récupérer SA matière première. Ces questions doivent extraire des anecdotes, des réflexions, des émotions PERSONNELLES qui rendront le contenu unique et impossible à reproduire par une IA seule.
+Pose exactement 2 questions pour récupérer SA matière première. Ces questions doivent extraire des anecdotes, des réflexions, des émotions PERSONNELLES qui rendront le contenu unique et impossible à reproduire par une IA seule.
 
 RÈGLES :
+- LIS ATTENTIVEMENT LE SUJET ci-dessus. Les questions doivent être directement liées à CE sujet spécifique, pas à l'angle en général.
 - Questions OUVERTES (pas oui/non)
-- Questions SPÉCIFIQUES à l'angle choisi (pas génériques)
-- Demande des scènes, des moments, des détails concrets
-- Une question peut demander une opinion tranchée ou une conviction
+- Demande des scènes, des moments, des détails concrets EN RAPPORT AVEC LE SUJET
 - Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment)
-- Chaque question a un placeholder qui donne un mini-exemple de réponse pour inspirer
-- Les questions doivent être ORIENTÉES vers l'objectif : si l'objectif est "vente", demande des témoignages, des résultats, des transformations. Si c'est "engagement", demande des anecdotes, des émotions, des situations vécues.
+- Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet
+- ORIENTÉES vers l'objectif : si "vente" → demande des résultats, transformations. Si "engagement" → demande des anecdotes, émotions.
+- INTERDIT : les questions génériques type "Qu'est-ce qui te passionne dans ton métier ?", "Quel est ton parcours ?", "Qu'est-ce qui te différencie ?". Ces questions sont trop vagues. Chaque question doit mentionner le sujet ou un aspect concret du sujet.
 
 Réponds UNIQUEMENT en JSON :
 {
@@ -861,7 +862,8 @@ Privilégie les sources françaises et européennes quand elles existent.`,
         max_tokens: 4096,
       });
     } else {
-      rawContent = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt!, 0.85);
+      const maxTokens = step === "questions" ? 800 : undefined;
+      rawContent = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt!, 0.85, maxTokens);
     }
 
     let parsed;
