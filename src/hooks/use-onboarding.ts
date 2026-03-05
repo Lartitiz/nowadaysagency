@@ -149,13 +149,16 @@ export function useOnboarding() {
     values: isDemoMode ? ([...(demoData?.branding.values ?? [])]) : [],
   });
 
-  // Persist step + answers to localStorage
+  // Persist step + answers to localStorage (debounced)
   useEffect(() => {
     if (isDemoMode) return;
-    localStorage.setItem("lac_onboarding_step", String(step));
-    localStorage.setItem("lac_onboarding_answers", JSON.stringify(answers));
-    localStorage.setItem("lac_onboarding_branding", JSON.stringify(brandingAnswers));
-    localStorage.setItem("lac_onboarding_ts", new Date().toISOString());
+    const timer = setTimeout(() => {
+      localStorage.setItem("lac_onboarding_step", String(step));
+      localStorage.setItem("lac_onboarding_answers", JSON.stringify(answers));
+      localStorage.setItem("lac_onboarding_branding", JSON.stringify(brandingAnswers));
+      localStorage.setItem("lac_onboarding_ts", new Date().toISOString());
+    }, 500);
+    return () => clearTimeout(timer);
   }, [step, isDemoMode, answers, brandingAnswers]);
 
   // Restore answers from localStorage on mount
