@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Loader2, ArrowRight, CalendarPlus, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { toast } from "sonner";
@@ -96,14 +97,15 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
     if (!user || !postsPerWeek || !mixOrFocus) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("calendar-coaching", {
+      const { data, error } = await invokeWithTimeout("calendar-coaching", {
         body: { posts_per_week: postsPerWeek, context_week: contextWeek, mix_or_focus: mixOrFocus },
-      });
-      if (error) throw new Error(error.message);
+      }, 120000);
+      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setResult(data);
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de la génération");
+      if (e?.isTimeout) { toast.error("Le coaching prend plus de temps que prévu. Réessaie."); }
+      else toast.error(e.message || "Erreur lors de la génération");
     } finally {
       setLoading(false);
     }

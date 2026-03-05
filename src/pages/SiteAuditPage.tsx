@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -221,13 +222,13 @@ const SiteAuditPage = () => {
         pages_to_audit.push(customPath.trim());
       }
 
-      const { data, error } = await supabase.functions.invoke("audit-site-auto", {
+      const { data, error } = await invokeWithTimeout("audit-site-auto", {
         body: {
           site_url: siteUrl.trim(),
           pages_to_audit: pages_to_audit.length > 0 ? pages_to_audit : undefined,
           workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         },
-      });
+      }, 120000);
 
       if (error) throw error;
       if (data?.error === "site_inaccessible") {
@@ -276,9 +277,10 @@ const SiteAuditPage = () => {
       if (inserted) setExisting({ ...payload, id: inserted.id, created_at: new Date().toISOString() } as any);
 
       setStep("auto-results");
-    } catch (e) {
+    } catch (e: any) {
       console.error("[audit-site-auto] Error:", e);
-      toast.error(friendlyError(e), { duration: 8000 });
+      if (e?.isTimeout) toast.error("L'audit prend plus de temps que prévu. Réessaie.", { duration: 8000 });
+      else toast.error(friendlyError(e), { duration: 8000 });
       setStep("input");
     } finally {
       setAnalyzing(false);
