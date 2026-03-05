@@ -113,7 +113,12 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
     const { data: { user }, error: authError2 } = await supabase.auth.getUser();
-    const userId = user?.id;
+    if (authError2 || !user) {
+      return new Response(JSON.stringify({ error: "Authentification invalide" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = user.id;
 
     if (isDemoUser(userId)) {
       return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -316,20 +321,16 @@ Réponds en JSON :
         });
     }
 
-    if (userId) {
-      const quotaCheck = await checkQuota(userId, "content");
-      if (!quotaCheck.allowed) {
-        return new Response(JSON.stringify({ error: quotaCheck.message }), {
-          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    const quotaCheck = await checkQuota(userId, "content");
+    if (!quotaCheck.allowed) {
+      return new Response(JSON.stringify({ error: quotaCheck.message }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const content = await callAnthropicSimple(getModelForAction("persona"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, userPrompt);
 
-    if (userId) {
-      await logUsage(userId, "content", "persona");
-    }
+    await logUsage(userId, "content", "persona");
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
