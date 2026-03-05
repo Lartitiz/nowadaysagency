@@ -94,7 +94,7 @@ function AppHeaderInner() {
         Aller au contenu principal
       </a>
       {/* ─── Desktop header (lg+) : logo + icons+text nav + bell+avatar ─── */}
-      <header className="sticky top-0 z-40 border-b border-border bg-card hidden lg:block">
+      <header className="sticky top-0 z-40 border-b border-border bg-card hidden">
         <div className="mx-auto flex h-14 max-w-[1100px] items-center justify-between px-6">
           <div className="flex items-center gap-2 shrink-0">
             <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
