@@ -96,6 +96,8 @@ serve(async (req) => {
       .eq("user_id", userId)
       .gte("created_at", monthStart.toISOString());
 
+    const rows = usageRows || [];
+
     // Resolve legacy plan aliases (studio → now_pilot, binome → now_pilot)
     const PLAN_ALIASES: Record<string, string> = { studio: "now_pilot", binome: "now_pilot" };
     let plan = sub?.plan || "free";
