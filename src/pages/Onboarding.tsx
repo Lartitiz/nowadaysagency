@@ -89,6 +89,7 @@ export default function Onboarding() {
 
   useEffect(() => {
     if (!pendingAutoNext) return;
+    if (step !== 3 && step !== 6 && step !== 7 && step !== 8) return;
     const field = step === 3 ? answers.product_or_service
       : step === 6 ? answers.objectif
       : step === 7 ? answers.blocage
