@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -89,6 +89,30 @@ const TONS = [
   { id: "engage", emoji: "🔥", label: "Engagé et provoc" },
 ];
 
+function LoadingMessage() {
+  const messages = [
+    "Je fouille dans ton branding…",
+    "Je cherche des angles originaux…",
+    "Je formule 6 idées différentes…",
+    "J'écris un hook percutant pour chaque…",
+    "Derniers ajustements…",
+  ];
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % messages.length);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <p className="text-sm font-medium text-primary text-center animate-fade-in" key={index}>
+      {messages[index]}
+    </p>
+  );
+}
+
 export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: Props) {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>(1);
@@ -175,7 +199,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
     setSelectedSubject(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("content-coaching", {
+      const { data, error } = await invokeWithTimeout("content-coaching", {
         body: {
           answers: {
             objectif,
@@ -187,12 +211,12 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
           },
         },
       });
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setResult(data);
       setStep("result");
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de l'analyse");
+      toast.error(e?.isTimeout ? "Ça prend plus longtemps que prévu. Réessaie." : e.message || "Erreur lors de l'analyse");
       setStep(6);
     }
   };
@@ -529,10 +553,31 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
 
           {/* Loading */}
           {step === "loading" && (
-            <div className="py-10 text-center animate-fade-in">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
-              <p className="text-sm font-medium text-foreground">L'IA prépare ton brief…</p>
-              <p className="text-xs text-muted-foreground mt-1">Quelques secondes.</p>
+            <div className="space-y-4 animate-fade-in py-4">
+              {/* Skeleton des 6 idées */}
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div
+                    key={i}
+                    className="rounded-xl border border-border bg-muted/30 p-3.5 animate-pulse"
+                    style={{ animationDelay: `${i * 150}ms`, animationFillMode: "backwards" }}
+                  >
+                    <div className="h-3.5 bg-muted rounded-full w-3/4 mb-2" />
+                    <div className="flex gap-2">
+                      <div className="h-2.5 bg-muted rounded-full w-1/3" />
+                      <div className="h-2.5 bg-muted rounded-full w-1/4" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Message rotatif */}
+              <LoadingMessage />
+
+              {/* Tip */}
+              <p className="text-[11px] text-muted-foreground text-center px-4">
+                💡 L'IA analyse ton branding pour proposer des idées vraiment adaptées à ton univers.
+              </p>
             </div>
           )}
 
