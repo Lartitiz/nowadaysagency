@@ -154,8 +154,9 @@ export function useOnboarding() {
     if (isDemoMode) return;
     localStorage.setItem("lac_onboarding_step", String(step));
     localStorage.setItem("lac_onboarding_answers", JSON.stringify(answers));
+    localStorage.setItem("lac_onboarding_branding", JSON.stringify(brandingAnswers));
     localStorage.setItem("lac_onboarding_ts", new Date().toISOString());
-  }, [step, isDemoMode, answers]);
+  }, [step, isDemoMode, answers, brandingAnswers]);
 
   // Restore answers from localStorage on mount
   useEffect(() => {
@@ -180,6 +181,13 @@ export function useOnboarding() {
         const parsed = JSON.parse(savedAnswers);
         setAnswers(prev => ({ ...prev, ...parsed }));
       }
+      try {
+        const savedBranding = localStorage.getItem("lac_onboarding_branding");
+        if (savedBranding) {
+          const parsedBranding = JSON.parse(savedBranding);
+          setBrandingAnswers(prev => ({ ...prev, ...parsedBranding }));
+        }
+      } catch { /* ignore branding parse errors */ }
       if (savedStep && parseInt(savedStep, 10) > 0) {
         setRestoredFromSave(true);
       }
