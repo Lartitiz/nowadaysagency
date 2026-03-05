@@ -216,7 +216,14 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
       setResult(data);
       setStep("result");
     } catch (e: any) {
-      toast.error(e?.isTimeout ? "La génération des idées prend trop de temps. Réessaie." : e.message || "Erreur lors de l'analyse");
+      console.error("[ContentCoaching] Erreur complète:", e);
+      console.error("[ContentCoaching] Type:", typeof e, "Keys:", e ? Object.keys(e) : "null");
+      console.error("[ContentCoaching] Message:", e?.message);
+      console.error("[ContentCoaching] isTimeout:", e?.isTimeout);
+      const msg = e?.isTimeout 
+        ? "La génération des idées prend trop de temps. Réessaie." 
+        : (typeof e?.message === "string" ? e.message : "Erreur lors de l'analyse. Ouvre la console pour les détails.");
+      toast.error(msg);
       setStep(6);
     }
   };
