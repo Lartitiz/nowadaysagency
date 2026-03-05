@@ -8,15 +8,15 @@ import { useOnboardingMissions, OnboardingMission } from "@/hooks/use-onboarding
 import WelcomeOverlay from "@/components/dashboard/WelcomeOverlay";
 import GuidedTour from "@/components/GuidedTour";
 import AppHeader from "@/components/AppHeader";
+import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import Confetti from "@/components/Confetti";
 import { MarkdownText } from "@/components/ui/markdown-text";
 
 /* ── Icon resolver ── */
-function RecommendationIcon({ name }: {name: string;}) {
+function RecommendationIcon({ name }: { name: string }) {
   const iconMap: Record<string, string> = {
     BookOpen: "📖", Users: "👥", Layers: "📚", CalendarPlus: "📅",
     CalendarDays: "📅", BarChart3: "📊", Sparkles: "✨", PenLine: "✏️",
@@ -26,23 +26,11 @@ function RecommendationIcon({ name }: {name: string;}) {
   return <span className="text-xl">{iconMap[name] || "📌"}</span>;
 }
 
-/* ── Chip ── */
-function Chip({ children, onClick }: {children: React.ReactNode;onClick: () => void;}) {
-  return (
-    <button
-      onClick={onClick}
-      className="px-4 py-2 text-sm rounded-full bg-card border border-[hsl(var(--primary)/0.3)] text-foreground hover:border-primary hover:bg-secondary/30 transition-colors">
-
-      {children}
-    </button>);
-
-}
-
 /* ── Collapsible missions ── */
 const COLLAPSED_KEY = "lac_missions_collapsed";
 const FIRST_SEEN_KEY = "lac_missions_first_seen";
 
-function CollapsibleMissions({ onNavigate }: {onNavigate: (route: string) => void;}) {
+function CollapsibleMissions({ onNavigate }: { onNavigate: (route: string) => void }) {
   const { missions, completedCount, allDone, nextMission, dismissed, dismiss, isLoading } = useOnboardingMissions();
 
   const [collapsed, setCollapsed] = useState(() => {
@@ -62,14 +50,10 @@ function CollapsibleMissions({ onNavigate }: {onNavigate: (route: string) => voi
   };
 
   if (dismissed || isLoading) return null;
-
-  if (allDone) {
-    return null;
-  }
+  if (allDone) return null;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-      {/* Toggle header */}
       <button onClick={toggle} className="w-full flex items-center gap-3">
         <span className="text-base">🚀</span>
         <span className="font-heading text-sm font-bold text-foreground">Tes missions</span>
@@ -80,37 +64,36 @@ function CollapsibleMissions({ onNavigate }: {onNavigate: (route: string) => voi
         <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${collapsed ? "" : "rotate-180"}`} />
       </button>
 
-      {/* Mission list */}
       {!collapsed &&
-      <div className="mt-4 space-y-2">
+        <div className="mt-4 space-y-2">
           {missions.map((mission) =>
-        <MissionRow
-          key={mission.id}
-          mission={mission}
-          isNext={nextMission?.id === mission.id}
-          onClick={() => onNavigate(mission.route)} />
-
-        )}
+            <MissionRow
+              key={mission.id}
+              mission={mission}
+              isNext={nextMission?.id === mission.id}
+              onClick={() => onNavigate(mission.route)}
+            />
+          )}
         </div>
       }
-    </div>);
-
+    </div>
+  );
 }
 
-function MissionRow({ mission, isNext, onClick }: {mission: OnboardingMission;isNext: boolean;onClick: () => void;}) {
+function MissionRow({ mission, isNext, onClick }: { mission: OnboardingMission; isNext: boolean; onClick: () => void }) {
   const isCompleted = mission.completed;
 
   return (
     <button
       onClick={onClick}
       className={`w-full text-left rounded-xl border p-3 flex items-start gap-3 transition-all ${
-      isCompleted ?
-      "border-green-200 bg-green-50/50 opacity-70" :
-      isNext ?
-      "border-primary bg-primary/5" :
-      "border-border bg-card hover:border-primary/30"}`
-      }>
-
+        isCompleted
+          ? "border-green-200 bg-green-50/50 opacity-70"
+          : isNext
+            ? "border-primary bg-primary/5"
+            : "border-border bg-card hover:border-primary/30"
+      }`}
+    >
       <span className="text-lg mt-0.5">{isCompleted ? "✅" : mission.emoji}</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-foreground">{mission.title}</p>
@@ -121,22 +104,29 @@ function MissionRow({ mission, isNext, onClick }: {mission: OnboardingMission;is
         </span>
       </div>
       {isNext && !isCompleted &&
-      <span className="text-xs font-medium text-primary animate-pulse shrink-0 mt-1">
+        <span className="text-xs font-medium text-primary animate-pulse shrink-0 mt-1">
           Commencer →
         </span>
       }
-    </button>);
-
+    </button>
+  );
 }
 
 /* ── Tour steps ── */
 const TOUR_STEPS = [
-{ target: "card-next-step", title: "Ta prochaine étape", text: "L'outil analyse où tu en es et te recommande l'action qui aura le plus d'impact. Tu n'as qu'à suivre.", position: "bottom" as const },
-{ target: "nav-branding", title: "Ta marque", text: "Tout ton branding est ici : positionnement, cible, ton, storytelling. C'est le socle de tout ce que l'outil génère pour toi.", position: "bottom" as const },
-{ target: "nav-creer", title: "Créer du contenu", text: "Posts Instagram, carrousels, newsletters, posts LinkedIn : l'outil connaît ta marque et te propose des textes avec les bonnes structures.", position: "bottom" as const },
-{ target: "card-assistant", title: "Ton coach com' IA", text: "Tu peux lui poser n'importe quelle question sur ta communication. Il connaît ton branding et te répond de façon personnalisée.", position: "top" as const },
-{ target: "nav-mon-plan", title: "Ton plan de com' personnalisé", text: "C'est ici que tout se rejoint. Un parcours étape par étape, adapté à ton objectif et au temps que tu as.", position: "bottom" as const }];
+  { target: "card-next-step", title: "Ta prochaine étape", text: "L'outil analyse où tu en es et te recommande l'action qui aura le plus d'impact. Tu n'as qu'à suivre.", position: "bottom" as const },
+  { target: "nav-branding", title: "Ta marque", text: "Tout ton branding est ici : positionnement, cible, ton, storytelling. C'est le socle de tout ce que l'outil génère pour toi.", position: "bottom" as const },
+  { target: "nav-creer", title: "Créer du contenu", text: "Posts Instagram, carrousels, newsletters, posts LinkedIn : l'outil connaît ta marque et te propose des textes avec les bonnes structures.", position: "bottom" as const },
+  { target: "card-assistant", title: "Ton coach com' IA", text: "Tu peux lui poser n'importe quelle question sur ta communication. Il connaît ton branding et te répond de façon personnalisée.", position: "top" as const },
+  { target: "nav-mon-plan", title: "Ton plan de com' personnalisé", text: "C'est ici que tout se rejoint. Un parcours étape par étape, adapté à ton objectif et au temps que tu as.", position: "bottom" as const },
+];
 
+/* ── Mini-cards data ── */
+const MINI_CARDS = [
+  { emoji: "🎨", title: "Mon branding", subtitle: "Affiner mon identité", bg: "bg-accent/10", route: "/branding" },
+  { emoji: "🔍", title: "Lancer un audit", subtitle: "Instagram ou site web", bg: "bg-[hsl(var(--bento-blue))]", route: "/instagram/audit" },
+  { emoji: "💬", title: "Ma routine", subtitle: "15 min d'engagement", bg: "bg-rose-pale", route: "/instagram/routine" },
+];
 
 /* ── Main ── */
 export default function AdaptiveHome() {
@@ -146,6 +136,8 @@ export default function AdaptiveHome() {
 
   const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
   const [welcomeDone, setWelcomeDone] = useState(() => localStorage.getItem("lac_welcome_seen") === "true");
+  const [contentCoachingOpen, setContentCoachingOpen] = useState(false);
+  const [coachHovered, setCoachHovered] = useState(false);
 
   useEffect(() => {
     const check = () => setWelcomeDone(localStorage.getItem("lac_welcome_seen") === "true");
@@ -164,90 +156,126 @@ export default function AdaptiveHome() {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
-        <main className="max-w-[640px] mx-auto px-4 py-12">
+        <main className="max-w-[680px] mx-auto px-4 py-12">
           <div className="space-y-4 animate-pulse">
             <div className="h-8 w-48 bg-muted rounded-lg" />
             <div className="h-4 w-64 bg-muted rounded" />
             <div className="h-40 bg-muted rounded-2xl mt-6" />
           </div>
         </main>
-      </div>);
-
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="max-w-[640px] mx-auto px-4 py-8 space-y-6">
-        {/* A. Header */}
+      <main className="max-w-[680px] mx-auto px-4 py-8 space-y-6">
+
+        {/* A. Greeting */}
         <div>
           <h1 className="font-display text-2xl text-foreground">
-            Salut {profileSummary.firstName} !
+            Salut {profileSummary.firstName} ! 👋
           </h1>
-          <p className="text-muted-foreground mt-2">Ta prochaine étape :</p>
+          <p className="text-muted-foreground mt-1 text-[15px]">
+            Prête à faire rayonner tes projets ?
+          </p>
         </div>
 
-        {/* B. Recommendation */}
-        <Card data-tour="card-next-step" className="p-6 border-2 border-primary/20 bg-card rounded-2xl">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+        {/* B. Hero Recommendation Card */}
+        <div
+          data-tour="card-next-step"
+          className="rounded-2xl bg-card border border-border/60 p-6 sm:p-7 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[2px] transition-all duration-[300ms] ease-out relative overflow-hidden cursor-pointer"
+          onClick={() => handleNavigate(recommendation.ctaRoute)}
+        >
+          {/* Accent bar */}
+          <div className="absolute top-0 left-0 h-full w-1 bg-gradient-to-b from-accent to-bordeaux rounded-l-2xl" />
+
+          <div className="flex items-start gap-4 pl-3">
+            <div className="w-[46px] h-[46px] rounded-xl bg-accent/20 flex items-center justify-center shrink-0">
               <RecommendationIcon name={recommendation.icon} />
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="font-display text-lg text-foreground">{recommendation.title}</h2>
-              <MarkdownText content={recommendation.explanation} className="text-sm text-muted-foreground mt-1 leading-relaxed" />
+              <p className="font-mono-ui text-[10.5px] text-muted-foreground uppercase tracking-wider mb-1">
+                Ta prochaine étape
+              </p>
+              <h2 className="font-display text-xl text-foreground">{recommendation.title}</h2>
+              <MarkdownText content={recommendation.explanation} className="text-sm text-muted-foreground mt-1.5 leading-relaxed" />
+
+              <Button
+                className="mt-4 rounded-xl bg-bordeaux hover:bg-gradient-to-r hover:from-primary hover:to-rose-medium text-white"
+                onClick={(e) => { e.stopPropagation(); handleNavigate(recommendation.ctaRoute); }}
+              >
+                {recommendation.ctaLabel}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+
+              <button
+                className="block mt-3 text-xs text-muted-foreground hover:text-primary transition-colors"
+                onClick={(e) => { e.stopPropagation(); setContentCoachingOpen(true); }}
+              >
+                🤔 Je sais pas quoi poster...
+              </button>
             </div>
           </div>
-          <Button className="w-full mt-4 rounded-xl" onClick={() => handleNavigate(recommendation.ctaRoute)}>
-            {recommendation.ctaLabel}
-          </Button>
-        </Card>
+        </div>
 
-        {/* C. Alternatives */}
-        <div className="flex flex-wrap gap-2">
-          <p className="w-full text-xs text-muted-foreground mb-1">Tu veux faire autre chose ?</p>
-          {recommendation.alternatives.map((alt) =>
-          <Chip key={alt.route} onClick={() => handleNavigate(alt.route)}>
-              {alt.icon && <RecommendationIcon name={alt.icon} />} {alt.title}
-            </Chip>
-          )}
+        {/* C. Mini-cards */}
+        <div className="grid grid-cols-3 gap-3">
+          {MINI_CARDS.map((card) => (
+            <div
+              key={card.route}
+              className={`rounded-2xl p-5 cursor-pointer border border-transparent hover:border-border hover:-translate-y-[2px] hover:shadow-[var(--shadow-bento)] transition-all duration-[250ms] ease-out ${card.bg}`}
+              onClick={() => handleNavigate(card.route)}
+            >
+              <span className="text-2xl mb-3 block">{card.emoji}</span>
+              <p className="font-body text-sm font-semibold text-foreground">{card.title}</p>
+              <p className="font-body text-xs text-muted-foreground">{card.subtitle}</p>
+            </div>
+          ))}
         </div>
 
         {/* D. Collapsible missions */}
         <CollapsibleMissions onNavigate={handleNavigate} />
 
-        {/* E. Coach IA */}
-        <Card
+        {/* E. Coach Card */}
+        <div
           data-tour="card-assistant"
-          className="p-4 cursor-pointer transition bg-gradient-to-br from-primary/5 to-card rounded-2xl border border-primary/20 hover:border-primary/40"
-          onClick={() => handleNavigate("/dashboard/guide")}>
-
+          className="rounded-2xl p-5 bg-gradient-to-br from-rose-pale to-card border border-primary/15 hover:border-primary/30 hover:-translate-y-[2px] hover:shadow-[var(--shadow-bento)] transition-all duration-[250ms] ease-out cursor-pointer"
+          onClick={() => handleNavigate("/dashboard/guide")}
+          onMouseEnter={() => setCoachHovered(true)}
+          onMouseLeave={() => setCoachHovered(false)}
+        >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-soft to-rose-medium/20 flex items-center justify-center shrink-0">
               <span className="text-lg">🧠</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm text-foreground">Ta coach de com'</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Pose-lui n'importe quelle question sur ta com', ta stratégie, tes contenus. Il connaît ta marque et s'adapte à toi.
+              <p className="font-display text-[15px] text-foreground">Ta coach de com'</p>
+              <p className="text-xs text-muted-foreground">
+                Pose-lui n'importe quelle question sur ta com', ta stratégie, tes contenus.
               </p>
             </div>
-            <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-200 ${coachHovered ? "bg-bordeaux" : "bg-card"}`}>
+              <ArrowRight className={`h-4 w-4 transition-colors duration-200 ${coachHovered ? "text-white" : "text-muted-foreground"}`} />
+            </div>
           </div>
-        </Card>
+        </div>
 
+        {/* Content Coaching Dialog */}
+        <ContentCoachingDialog open={contentCoachingOpen} onOpenChange={setContentCoachingOpen} />
 
-        {/* G. WelcomeOverlay + GuidedTour */}
+        {/* WelcomeOverlay + GuidedTour */}
         <WelcomeOverlay prenom={profileSummary.firstName} />
 
         {!tourDone && !isLoading && welcomeDone &&
-        <GuidedTour
-          steps={TOUR_STEPS}
-          storageKey="lac_dashboard_tour_seen"
-          onComplete={() => setTourDone(true)} />
-
+          <GuidedTour
+            steps={TOUR_STEPS}
+            storageKey="lac_dashboard_tour_seen"
+            onComplete={() => setTourDone(true)}
+          />
         }
       </main>
-    </div>);
-
+    </div>
+  );
 }
