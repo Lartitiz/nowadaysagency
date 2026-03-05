@@ -681,6 +681,38 @@ export default function CreerUnifie() {
         updated_at: new Date().toISOString(),
       }).eq("id", calendarPostId);
       if (error) throw error;
+
+      // Upload visuels et photos dans Storage
+      if (calendarPostId) {
+        const storageUpdates: any = {};
+        
+        if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
+          try {
+            const photoUrls = await uploadPhotosToStorage(calendarPostId);
+            if (photoUrls.length > 0) storageUpdates.photo_urls = photoUrls;
+          } catch (err) {
+            console.warn("Photo upload failed:", err);
+          }
+        }
+        
+        if (visualSlides.length > 0) {
+          try {
+            toast.info("Upload des visuels...");
+            const visualUrls = await uploadVisualsToStorage(calendarPostId);
+            if (visualUrls.length > 0) storageUpdates.visual_urls = visualUrls;
+          } catch (err) {
+            console.warn("Visual upload failed:", err);
+          }
+        }
+        
+        if (Object.keys(storageUpdates).length > 0) {
+          const currentDetail = storyDetail || {};
+          await supabase.from("calendar_posts").update({
+            story_sequence_detail: { ...currentDetail, ...storageUpdates },
+          }).eq("id", calendarPostId);
+        }
+      }
+
       toast.success("Contenu sauvegardé dans ton calendrier !");
       clearFlowState();
       navigate(`/calendrier?date=${calendarPostDate || ""}&post=${calendarPostId}`);
