@@ -171,6 +171,7 @@ export default function CreerUnifie() {
       setSelectedFormat("carousel");
       setCarouselSubMode("photo");
       setObjective(demo.objective);
+      setStep("format");
     }
   }, [isDemoMode, demoData, ideaText, selectedFormat]);
 
