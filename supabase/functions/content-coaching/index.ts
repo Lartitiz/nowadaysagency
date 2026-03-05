@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
       "Polarisation douce : 'Il y a 2 types de [profession]. Lequel es-tu ?'",
       "Promesse-mystère : 'Le truc qui a changé [aspect] dans mon business. (C'est pas ce que tu crois.)'",
     ];
-    const shuffledHooks = HOOK_STRUCTURES.sort(() => Math.random() - 0.5).slice(0, 6);
+    const shuffledHooks = HOOK_STRUCTURES.sort(() => Math.random() - 0.5).slice(0, 3);
 
     const systemPrompt = `Tu es la meilleure directrice éditoriale du monde. Ton job : trouver THE idée de contenu qui fait dire "PUTAIN OUI, c'est exactement ça que je veux poster". Pas des idées tièdes. Pas des sujets génériques. Des angles qui surprennent, qui piquent, qui donnent envie de tout lâcher pour écrire.
 
@@ -224,14 +224,14 @@ RÉPONSES DE L'UTILISATRICE :
 - Ton souhaité : ${tonLabel}
 
 ═══════════════════════════════════════════════════
-MÉTHODE POUR GÉNÉRER 6 IDÉES EXCEPTIONNELLES
+MÉTHODE POUR GÉNÉRER 3 IDÉES EXCEPTIONNELLES
 ═══════════════════════════════════════════════════
 
 RÈGLE D'OR : chaque idée doit passer le "test du screenshot".
 Si quelqu'un tombe dessus en scrollant, est-ce qu'elle fait une capture d'écran pour l'envoyer à une amie ?
 Si non → l'idée n'est pas assez forte. Recommence.
 
-ÉTAPE 1 — UTILISE 6 ANGLES ÉDITORIAUX DIFFÉRENTS (obligatoire, pas 2 fois le même) :
+ÉTAPE 1 — UTILISE 3 ANGLES ÉDITORIAUX DIFFÉRENTS (tous différents, obligatoire) :
 Pioche parmi ces 13, en choisissant des angles VARIÉS :
 1. Enquête/décryptage ("et personne n'en parle")
 2. Test grandeur nature ("j'ai testé pour vous")
@@ -250,7 +250,7 @@ Pioche parmi ces 13, en choisissant des angles VARIÉS :
 ÉTAPE 2 — INJECTE DE LA CRÉATIVITÉ FORCÉE :
 🎲 Contrainte créative 1 : ${seed1}
 🎲 Contrainte créative 2 : ${seed2}
-Intègre ces contraintes dans AU MOINS 2 des 6 idées. Ça force la surprise.
+Intègre ces contraintes dans AU MOINS 1 des 3 idées. Ça force la surprise.
 
 ÉTAPE 3 — ÉCRIS DES HOOKS QUI STOPPENT LE SCROLL :
 Chaque idée utilise une STRUCTURE DE HOOK DIFFÉRENTE :
@@ -267,9 +267,9 @@ Pour chaque idée, 3 tests obligatoires :
 
 ${sujet ? `
 TOUTES les idées sont liées au sujet "${sujet}" mais avec des ANGLES RADICALEMENT DIFFÉRENTS.
-Ne fais pas 6 variations du même message. Chaque idée doit attaquer le sujet par un côté inattendu.
+Ne fais pas 3 variations du même message. Chaque idée doit attaquer le sujet par un côté inattendu.
 ` : `
-Les 6 idées doivent couvrir AU MOINS 3 objectifs différents parmi : visibilité, engagement, vente, crédibilité.
+Les 3 idées doivent couvrir AU MOINS 2 objectifs différents parmi : visibilité, engagement, vente, crédibilité.
 Les idées doivent toucher des FACETTES DIFFÉRENTES du métier/positionnement de l'utilisatrice.
 `}
 
@@ -319,9 +319,9 @@ Retourne UNIQUEMENT ce JSON :
     const raw = await callAnthropicSimple(
       getModelForAction("coaching"),
       systemPrompt + "\n\n" + ANTI_SLOP,
-      "Génère 6 idées de contenu ultra-concrètes avec un hook irrésistible pour chaque.",
+      "Génère 3 idées de contenu ultra-concrètes avec un hook irrésistible pour chaque.",
       0.9,
-      4000,
+      2500,
     );
 
     let result;
