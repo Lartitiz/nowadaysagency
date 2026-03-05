@@ -28,18 +28,18 @@ interface Props {
   notes: string;
   mediaUrls: string[];
   onSaveAndClose: () => void;
+  onShowContentViewer?: () => void;
 }
 
 export function CalendarPostContent({
   editingPost, theme, contentDraft, setContentDraft, accroche, setAccroche,
   status, setStatus, isGenerating, onSmartGenerate, onCopy, onOpenAtelier,
   onNavigateToDeepen, onNavigateToFormat, postCanal, format,
-  angle, objectif, notes, mediaUrls, onSaveAndClose,
+  angle, objectif, notes, mediaUrls, onSaveAndClose, onShowContentViewer,
 }: Props) {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [showFullContent, setShowFullContent] = useState(false);
-  const [showContentViewer, setShowContentViewer] = useState(false);
 
   if (!editingPost || !theme.trim()) return null;
 
@@ -62,7 +62,7 @@ export function CalendarPostContent({
     </>
   );
 
-  const ContentEditable = () => (
+  const contentEditableJsx = (
     <div
       key={showFullContent ? "full" : "preview"}
       contentEditable
@@ -76,7 +76,7 @@ export function CalendarPostContent({
       }}
       className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap cursor-text transition-colors hover:bg-muted/30 focus:bg-muted/30 focus:outline-none focus:ring-1 focus:ring-primary/30"
     >
-      {contentPreview}
+      {showFullContent ? contentDraft : contentPreview}
     </div>
   );
 
@@ -111,10 +111,10 @@ export function CalendarPostContent({
         </DropdownMenuContent>
       </DropdownMenu>
       {editingPost?.story_sequence_detail && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowContentViewer(true)}
+          <Button
+           variant="ghost"
+           size="sm"
+           onClick={() => onShowContentViewer?.()}
           className="rounded-pill text-xs gap-1.5 text-muted-foreground hover:text-foreground"
         >
           👁️ {(editingPost.story_sequence_detail as any)?.type === "reel"
@@ -177,7 +177,7 @@ export function CalendarPostContent({
 
       ) : hasContent && isReady ? (
         <div className="space-y-3">
-          <ContentEditable />
+          {contentEditableJsx}
           <ExpandCollapseButtons />
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={onCopy} className="rounded-pill text-xs gap-1.5">
@@ -204,7 +204,7 @@ export function CalendarPostContent({
 
       ) : hasContent ? (
         <div className="space-y-3">
-          <ContentEditable />
+          {contentEditableJsx}
           <ExpandCollapseButtons />
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="rounded-pill text-xs gap-1.5">
