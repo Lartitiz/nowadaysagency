@@ -33,6 +33,11 @@ const stepValidators: Record<number, { schema: z.ZodType<any>; getData: (a: Answ
     getData: (a) => ({ activity_type: a.activity_type, activity_detail: a.activity_detail || "" }),
     message: "Choisis un type d'activité pour continuer",
   },
+  5: {
+    schema: z.object({ canaux: z.array(z.string()).min(1) }),
+    getData: (a) => ({ canaux: a.canaux }),
+    message: "Sélectionne au moins un canal (ou 'Rien pour l'instant')",
+  },
   6: {
     schema: z.object({ objectif: z.string().min(1) }),
     getData: (a) => ({ objectif: a.objectif }),
@@ -138,7 +143,7 @@ export default function Onboarding() {
                   {step === 2 && <ActivityStep value={answers.activity_type} detailValue={answers.activity_detail} onChange={v => { set("activity_type", v); if (v !== "autre") set("activity_detail", ""); }} onDetailChange={v => set("activity_detail", v)} onNext={validatedNext} />}
                   {step === 3 && <ProductServiceScreen value={answers.product_or_service} onChange={v => { set("product_or_service", v); setPendingAutoNext(true); }} />}
                   {step === 4 && <OnboardingPhase2Import answers={answers} set={set} files={isDemoMode ? [{ id: "demo-file", name: "profil_instagram_lea.png", url: "" }] : uploadedFiles} uploading={uploading} onUpload={isDemoMode ? () => {} : handleFileUpload} onRemove={isDemoMode ? () => {} : removeFile} onNext={next} isDemoMode={isDemoMode} />}
-                  {step === 5 && <CanauxCombinedScreen answers={answers} set={set} onNext={next} />}
+                  {step === 5 && <CanauxCombinedScreen answers={answers} set={set} onNext={validatedNext} />}
                   {step === 6 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}
                   {step === 7 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
                   {step === 8 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setPendingAutoNext(true); }} />}
