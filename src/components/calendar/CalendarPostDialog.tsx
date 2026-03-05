@@ -95,7 +95,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       setFormat(null); setContentDraft(null); setAccroche(null); setMediaUrls([]);
     }
     setDialogTab("edit");
-    setShowAdvanced(!!(editingPost?.angle || editingPost?.objectif || (editingPost as any)?.format || editingPost?.notes));
+    setShowAdvanced(false);
   }, [editingPost, open, defaultCanal, prefillData]);
 
   const guide = angle ? getGuide(angle) : null;
