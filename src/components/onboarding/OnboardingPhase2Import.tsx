@@ -98,8 +98,8 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
               className="border-2 border-dashed border-border rounded-xl p-5 text-center cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-colors"
             >
               <Upload className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
-              <p className="text-xs font-medium text-foreground">📱 Glisse ta capture ici</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">PNG, JPG, WebP · Max 3 images</p>
+              <p className="text-xs font-medium text-foreground">📸 Glisse ta capture d'écran ici</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">PNG, JPG, WebP · Max 3 fichiers</p>
               <input
                 ref={inputRef}
                 type="file"
@@ -150,7 +150,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
           {hasAnything ? "Suivant →" : "Passer →"}
         </Button>
         {!hasAnything && (
-          <p className="text-xs text-muted-foreground/60 italic">Sans liens, mon diagnostic sera moins précis</p>
+          <p className="text-xs text-muted-foreground/60 italic">Sans liens ni captures, mon diagnostic sera moins précis</p>
         )}
       </div>
     </div>
