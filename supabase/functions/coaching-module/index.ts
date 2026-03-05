@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
+import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-stream.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
@@ -225,6 +226,21 @@ Pour le module story, propose des éléments narratifs clés.
 Pour le module offers, propose nom, description, bénéfices pour chaque offre.
 Pour le module editorial, propose piliers de contenu.`;
 
+      // Streaming SSE if client requests it
+      const wantsStream = req.headers.get("Accept") === "text/event-stream";
+      if (wantsStream) {
+        const apiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
+        const anthropicStream = await streamAnthropicSSE(
+          apiKey,
+          getDefaultModel(),
+          systemPrompt,
+          [{ role: "user", content: "Génère ton diagnostic et tes propositions." }],
+          0.5,
+          4000,
+        );
+        return createClientSSEStream(anthropicStream, corsHeaders);
+      }
+
       const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Génère ton diagnostic et tes propositions.", 0.5, 4000);
 
       let result;
@@ -314,6 +330,21 @@ Pour le module bio, propose : mission, offer, target_description.
 Pour le module story, propose des éléments narratifs clés.
 Pour le module offers, propose nom, description, bénéfices.
 Pour le module editorial, propose piliers de contenu.`;
+
+      // Streaming SSE if client requests it
+      const wantsStreamAdj = req.headers.get("Accept") === "text/event-stream";
+      if (wantsStreamAdj) {
+        const apiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
+        const anthropicStream = await streamAnthropicSSE(
+          apiKey,
+          getDefaultModel(),
+          systemPrompt,
+          [{ role: "user", content: "Ajuste ta proposition en tenant compte du feedback." }],
+          0.5,
+          4000,
+        );
+        return createClientSSEStream(anthropicStream, corsHeaders);
+      }
 
       const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Ajuste ta proposition en tenant compte du feedback.", 0.5, 4000);
 
