@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { parseAIResponse } from "@/lib/parse-ai-response";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
@@ -59,6 +59,7 @@ export default function LinkedInPostGenerator() {
   const { toast } = useToast();
   const workspaceId = useWorkspaceId();
   const profileUserId = useProfileUserId();
+  const navigate = useNavigate();
   const location = useLocation();
   const calendarState = location.state as {
     fromCalendar?: boolean;
@@ -275,8 +276,10 @@ export default function LinkedInPostGenerator() {
         content_draft: text,
         accroche: text.split(/[.\n]/)[0]?.trim()?.slice(0, 200) || "",
         status: "drafting",
+        format: "post_texte",
       }).eq("id", calendarState.calendarPostId);
       toast({ title: "✅ Post LinkedIn mis à jour dans ton calendrier !" });
+      navigate("/calendrier");
       return;
     }
 
@@ -292,6 +295,7 @@ export default function LinkedInPostGenerator() {
       status: "drafting",
       content_draft: text,
       accroche: text.split(/[.\n]/)[0]?.trim()?.slice(0, 200) || "",
+      format: "post_texte",
     });
     if (error) {
       console.error("calendar_posts insert error:", error);
