@@ -1,4 +1,5 @@
 import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
 import CarouselPhotoResult from "@/components/creer/formatRenderers/CarouselPhotoResult";
@@ -10,10 +11,92 @@ import NewsletterResult from "@/components/creer/formatRenderers/NewsletterResul
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
+// ── Progress messages par format ──
+const PROGRESS_MESSAGES: Record<string, string[]> = {
+  carousel: [
+    "Construction de tes slides…",
+    "L'IA structure le fil narratif…",
+    "Personnalisation avec ta voix…",
+    "Rédaction des punchlines…",
+    "Ajustement des CTA…",
+  ],
+  reel: [
+    "Écriture du hook d'ouverture…",
+    "Construction du script scène par scène…",
+    "Calibrage du rythme (30-60s)…",
+    "Ajout des indications visuelles…",
+  ],
+  story: [
+    "Préparation de ta séquence stories…",
+    "L'IA construit la narration slide par slide…",
+    "Ajout des interactions (sondage, quiz)…",
+    "Peaufinage du CTA final…",
+  ],
+  default: [
+    "L'IA rédige ton contenu…",
+    "Personnalisation avec ta voix…",
+    "Vérification du ton et de la cohérence…",
+    "Derniers ajustements…",
+  ],
+};
+
+const TIPS = [
+  "💡 Un bon hook = une promesse. Pas un clickbait.",
+  "💡 L'algorithme favorise les contenus sauvegardés. Éducatif = jackpot.",
+  "💡 Le premier slide détermine 80% de l'engagement.",
+  "💡 Un CTA doux performe 2x mieux qu'un CTA directif.",
+  "💡 Les posts qui prennent position = 3x plus de commentaires.",
+  "💡 2x/semaine avec intention > tous les jours sans stratégie.",
+  "💡 Un bon reel = un hook en 3s + une seule idée claire.",
+  "💡 Les stories avec sondage = +40% d'engagement.",
+];
+
+// ── Skeleton adapté au format ──
+function SkeletonPreview({ format }: { format: string }) {
+  if (format === "carousel") {
+    return (
+      <div className="flex items-end justify-center gap-2">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="space-y-2">
+            <div className="h-32 w-24 rounded-xl bg-secondary animate-pulse" />
+            <div className="h-2 w-20 mx-auto rounded bg-secondary animate-pulse" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (format === "reel") {
+    return (
+      <div className="flex justify-center">
+        <div className="h-48 w-28 rounded-xl bg-secondary animate-pulse" />
+      </div>
+    );
+  }
+  if (format === "story") {
+    return (
+      <div className="flex items-end justify-center gap-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-40 w-20 rounded-xl bg-secondary animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+  // post / linkedin / newsletter → text lines
+  return (
+    <div className="space-y-3 max-w-md mx-auto">
+      <div className="h-3 rounded bg-secondary animate-pulse w-full" />
+      <div className="h-3 rounded bg-secondary animate-pulse w-[90%]" />
+      <div className="h-3 rounded bg-secondary animate-pulse w-[95%]" />
+      <div className="h-3 rounded bg-secondary animate-pulse w-[60%]" />
+    </div>
+  );
+}
+
 interface Props {
   result: any;
   format: string;
   generating: boolean;
+  streamingContent?: string;
   onEdit: () => void;
   onReset: () => void;
   onRegenerate: () => void;
@@ -31,19 +114,11 @@ interface Props {
   photos?: { preview: string; base64?: string; name?: string }[];
 }
 
-const LOADING_MESSAGES: Record<string, string> = {
-  carousel: "Création de ton carrousel…",
-  reel: "Écriture de ton script Reel…",
-  story: "Préparation de ta séquence Stories…",
-  post: "Rédaction de ton post…",
-  linkedin: "Rédaction de ton post LinkedIn…",
-  newsletter: "Rédaction de ta newsletter…",
-};
-
 export default function CreerStepResult({
   result,
   format,
   generating,
+  streamingContent,
   onEdit,
   onReset,
   onRegenerate,
@@ -60,14 +135,74 @@ export default function CreerStepResult({
   onStoriesUpdate,
   photos,
 }: Props) {
+  // ── Rotation des messages et tips pendant le loading ──
+  const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
+  const [messageIndex, setMessageIndex] = useState(0);
+  const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * TIPS.length));
+  const [progress, setProgress] = useState(0);
+  const startTimeRef = useRef(Date.now());
+
+  useEffect(() => {
+    if (!generating) {
+      setProgress(0);
+      setMessageIndex(0);
+      return;
+    }
+    startTimeRef.current = Date.now();
+
+    const msgInterval = setInterval(() => {
+      setMessageIndex((prev) => (prev + 1) % messages.length);
+    }, 4000);
+
+    const tipInterval = setInterval(() => {
+      setTipIndex((prev) => (prev + 1) % TIPS.length);
+    }, 6000);
+
+    const progressInterval = setInterval(() => {
+      const elapsed = (Date.now() - startTimeRef.current) / 1000;
+      // Fast at start, slows down approaching 85%
+      const p = Math.min(85, 85 * (1 - Math.exp(-elapsed / 12)));
+      setProgress(Math.round(p));
+    }, 300);
+
+    return () => {
+      clearInterval(msgInterval);
+      clearInterval(tipInterval);
+      clearInterval(progressInterval);
+    };
+  }, [generating, messages.length]);
+
   if (generating) {
+    // Mode streaming : le contenu texte arrive progressivement
+    if (streamingContent) {
+      return (
+        <div className="animate-fade-in space-y-4">
+          <div className="rounded-2xl border border-primary/20 bg-accent/30 p-6">
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{streamingContent}</p>
+            <span className="inline-block w-0.5 h-4 bg-primary animate-pulse ml-0.5" />
+          </div>
+          <p className="text-xs text-center text-muted-foreground">L'IA rédige en temps réel…</p>
+        </div>
+      );
+    }
+
+    // Mode skeleton : formats structurés (carousel, reel, story)
     return (
-      <div className="py-12 text-center animate-fade-in space-y-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-        <p className="text-sm font-medium text-foreground">
-          {LOADING_MESSAGES[format] || "Génération en cours…"}
-        </p>
-        <p className="text-xs text-muted-foreground">Quelques secondes.</p>
+      <div className="py-8 animate-fade-in space-y-5">
+        <SkeletonPreview format={format} />
+
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-center text-foreground animate-fade-in" key={messageIndex}>
+            {messages[messageIndex]}
+          </p>
+          <div className="w-full bg-secondary rounded-full h-2">
+            <div
+              className="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="text-xs text-center text-muted-foreground">{TIPS[tipIndex]}</p>
+        </div>
       </div>
     );
   }
