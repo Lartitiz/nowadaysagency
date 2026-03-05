@@ -1,9 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Download, Loader2, Sparkles } from "lucide-react";
+import { Download, Loader2, Sparkles, FileDown, ChevronDown } from "lucide-react";
 import { useState, useCallback } from "react";
 import html2canvas from "html2canvas";
+import { exportCarouselVisualPptx } from "@/lib/export-carousel-visual-pptx";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { ContentPreview } from "@/components/ContentPreview";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Props {
   canal: string;
@@ -24,8 +26,10 @@ export function CalendarPostPreview({
   mediaUrls, visualHtml, onNavigateToGenerator, hasAngle, hasTheme,
 }: Props) {
   const [downloading, setDownloading] = useState(false);
+  const [downloadingPptx, setDownloadingPptx] = useState(false);
 
-  const handleDownloadVisuals = useCallback(async () => {
+  // ── Télécharger en PNG (ZIP si plusieurs slides) ──
+  const handleDownloadImages = useCallback(async () => {
     if (!visualHtml || visualHtml.length === 0 || downloading) return;
     setDownloading(true);
 
@@ -55,10 +59,7 @@ export function CalendarPostPreview({
           canvas.toBlob((b) => resolve(b!), "image/png");
         });
 
-        images.push({
-          name: `slide-${vs.slide_number}.png`,
-          blob,
-        });
+        images.push({ name: `slide-${vs.slide_number}.png`, blob });
       }
 
       if (images.length === 1) {
@@ -72,9 +73,7 @@ export function CalendarPostPreview({
         try {
           const JSZip = (await import("jszip")).default;
           const zip = new JSZip();
-          for (const img of images) {
-            zip.file(img.name, img.blob);
-          }
+          for (const img of images) zip.file(img.name, img.blob);
           const zipBlob = await zip.generateAsync({ type: "blob" });
           const url = URL.createObjectURL(zipBlob);
           const a = document.createElement("a");
@@ -101,6 +100,20 @@ export function CalendarPostPreview({
       setDownloading(false);
     }
   }, [visualHtml, downloading, theme]);
+
+  // ── Télécharger en PPTX ──
+  const handleDownloadPptx = useCallback(async () => {
+    if (!visualHtml || visualHtml.length === 0 || downloadingPptx) return;
+    setDownloadingPptx(true);
+    try {
+      const fileName = `visuels-${theme || "carrousel"}`.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
+      await exportCarouselVisualPptx(visualHtml, fileName);
+    } catch (err) {
+      console.error("PPTX export error:", err);
+    } finally {
+      setDownloadingPptx(false);
+    }
+  }, [visualHtml, downloadingPptx, theme]);
 
   if (!caption) {
     return (
@@ -129,20 +142,34 @@ export function CalendarPostPreview({
       <div className="py-2 space-y-4 overflow-y-auto max-h-[60vh]">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">✨ Visuels générés ({visualHtml.length} slides)</p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDownloadVisuals}
-            disabled={downloading}
-            className="rounded-full gap-1.5 text-xs"
-          >
-            {downloading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Download className="h-3.5 w-3.5" />
-            )}
-            {downloading ? "Export..." : "Télécharger"}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={downloading || downloadingPptx}
+                className="rounded-full gap-1.5 text-xs"
+              >
+                {(downloading || downloadingPptx) ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" />
+                )}
+                {downloading ? "Export images..." : downloadingPptx ? "Export PPTX..." : "Télécharger"}
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleDownloadImages}>
+                <Download className="h-4 w-4 mr-2" />
+                Images PNG {visualHtml.length > 1 ? "(ZIP)" : "(PNG)"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadPptx}>
+                <FileDown className="h-4 w-4 mr-2" />
+                Présentation (PPTX)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         {visualHtml.map((vs, idx) => (
           <div key={idx} className="rounded-xl border border-border overflow-hidden bg-card inline-block w-full max-w-[320px] mx-auto block">
