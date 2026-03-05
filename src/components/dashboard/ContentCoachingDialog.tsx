@@ -210,13 +210,13 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
             ton_envie: tonToUse,
           },
         },
-      });
+      }, 45000);
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setResult(data);
       setStep("result");
     } catch (e: any) {
-      toast.error(e?.isTimeout ? "Ça prend plus longtemps que prévu. Réessaie." : e.message || "Erreur lors de l'analyse");
+      toast.error(e?.isTimeout ? "La génération des idées prend trop de temps. Réessaie." : e.message || "Erreur lors de l'analyse");
       setStep(6);
     }
   };
