@@ -210,7 +210,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
             ton_envie: tonToUse,
           },
         },
-      }, 45000);
+      }, 120000);
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setResult(data);
