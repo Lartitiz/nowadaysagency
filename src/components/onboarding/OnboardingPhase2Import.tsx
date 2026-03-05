@@ -69,11 +69,24 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
           />
         </div>
 
+        {/* Instagram handle */}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">📱 Ton @ Instagram</label>
+          <input
+            type="text"
+            value={answers.instagram}
+            onChange={e => set("instagram", e.target.value)}
+            placeholder="@toncompte"
+            aria-label="Handle Instagram"
+            className="w-full text-base p-3 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50"
+          />
+        </div>
+
         {/* Instagram screenshot upload */}
         <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">📱 Ton profil Instagram</label>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">📸 Capture d'écran de ton profil</label>
           <p className="text-xs text-muted-foreground/70 mb-2 italic">
-            Fais une capture d'écran de ton profil Instagram (la page avec ta bio, tes abonnés et ta grille) et dépose-la ici. C'est le moyen le plus fiable pour que je puisse analyser ton compte.
+            Optionnel mais recommandé : fais une capture d'écran de ton profil Instagram (la page avec ta bio, tes abonnés et ta grille). Ça permet une analyse plus complète.
           </p>
 
           {!isDemoMode && files.length < 3 && (
