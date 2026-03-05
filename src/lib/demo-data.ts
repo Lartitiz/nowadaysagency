@@ -3,6 +3,37 @@
  * No API call needed — everything is hardcoded for instant loading.
  */
 
+function demoDate(daysOffset: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysOffset);
+  return d.toISOString().split("T")[0];
+}
+
+const DEMO_CALENDAR_POSTS = [
+  { title: "Le jour où une cliente a pleuré en voyant ses photos", format: "carousel", objective: "engagement", planned_day: demoDate(2) },
+  { title: "3 erreurs qui rendent tes photos de profil invisibles", format: "carousel", objective: "visibility", planned_day: demoDate(4) },
+  { title: "Pourquoi 80% des entrepreneures n'ont pas de photo pro", format: "reel", objective: "visibility", planned_day: demoDate(9) },
+  { title: "Before/after : de 'je suis pas photogénique' à 'c'est vraiment moi ?!'", format: "carousel", objective: "conversion", planned_day: demoDate(11) },
+  { title: "Ce que je fais AVANT d'appuyer sur le déclencheur", format: "reel", objective: "engagement", planned_day: "" },
+  { title: "Le selfie professionnel n'existe pas (et c'est ok)", format: "post", objective: "visibility", planned_day: "" },
+];
+
+const DEMO_COACHING_SESSIONS = [
+  { number: 1, type: "launch", title: "Atelier de lancement", status: "completed", date: demoDate(-18), duration: 90, summary: "On a posé le positionnement de Léa : photographe de la confiance. On a défini Marion (sa cliente idéale), restructuré ses 3 offres, et identifié les 4 piliers de contenu." },
+  { number: 2, type: "strategy", title: "Atelier Stratégique", status: "completed", date: demoDate(-4), duration: 120, summary: "Stratégie présentée : 3 posts/semaine (2 carrousels + 1 reel), stories quotidiennes, newsletter mensuelle. Focus Instagram + site. Pinterest en bonus." },
+  { number: 3, type: "checkpoint", title: "Point d'étape", status: "scheduled", date: demoDate(3), duration: 60 },
+  { number: 4, type: "focus", focus_topic: "instagram_content", title: "Création contenus Instagram", status: "scheduled", duration: 120 },
+  { number: 5, type: "focus", focus_topic: "website", title: "Site web / pages de vente", status: "scheduled", duration: 120 },
+  { number: 6, type: "focus", focus_topic: "newsletter", title: "Newsletter / séquence email", status: "scheduled", duration: 60 },
+  { number: 7, type: "focus", focus_topic: "launch", title: "Lancement offre printemps", status: "scheduled", duration: 120 },
+];
+
+const DEMO_COACHING_JOURNAL = [
+  { id: "journal-1", month_number: 1, date: demoDate(-18), title: "Atelier de lancement ✅", body: "On a posé les fondations de ta com'.\nTon positionnement est clair : \"Je capture la confiance.\"\nTa cible, c'est Marion, 35 ans, solopreneuse qui repousse sa séance photo depuis 2 ans.\nTes 3 offres sont restructurées et tes 4 piliers de contenu définis.", laetitia_note: "Léa, tu as un vrai talent pour raconter les histoires de tes clientes. Capitalise là-dessus. C'est ta force.", status: "completed" },
+  { id: "journal-2", month_number: 1, date: demoDate(-4), title: "Atelier Stratégique ✅", body: "Ta stratégie est posée pour les 6 prochains mois.\n3 posts/semaine : 2 carrousels + 1 reel.\nStories quotidiennes. Newsletter mensuelle.\nOn a décidé les 4 sessions focus : Instagram, Site web, Newsletter, Lancement.", laetitia_note: null, status: "completed" },
+  { id: "journal-3", month_number: 2, date: demoDate(3), title: "Point d'étape", body: null, laetitia_note: null, status: "current" },
+];
+
 export const DEMO_DATA = {
   // ── PROFIL ──
   profile: {
@@ -126,44 +157,7 @@ export const DEMO_DATA = {
     "Léa a quitté les mariages pour se spécialiser en portrait entrepreneurial. Sa révélation : une photo peut transformer la confiance d'une femme en elle-même.",
 
   // ── CALENDRIER ──
-  calendar_posts: [
-    {
-      title: "Le jour où une cliente a pleuré en voyant ses photos",
-      format: "carousel",
-      objective: "engagement",
-      planned_day: "2026-02-17",
-    },
-    {
-      title: "3 erreurs qui rendent tes photos de profil invisibles",
-      format: "carousel",
-      objective: "visibility",
-      planned_day: "2026-02-19",
-    },
-    {
-      title: "Pourquoi 80% des entrepreneures n'ont pas de photo pro",
-      format: "reel",
-      objective: "visibility",
-      planned_day: "2026-02-24",
-    },
-    {
-      title: "Before/after : de 'je suis pas photogénique' à 'c'est vraiment moi ?!'",
-      format: "carousel",
-      objective: "conversion",
-      planned_day: "2026-02-26",
-    },
-    {
-      title: "Ce que je fais AVANT d'appuyer sur le déclencheur",
-      format: "reel",
-      objective: "engagement",
-      planned_day: "",
-    },
-    {
-      title: "Le selfie professionnel n'existe pas (et c'est ok)",
-      format: "post",
-      objective: "visibility",
-      planned_day: "",
-    },
-  ],
+  calendar_posts: DEMO_CALENDAR_POSTS,
 
   // ── SAVED IDEAS ──
   saved_ideas: [
@@ -260,68 +254,7 @@ export const DEMO_DATA = {
     price_monthly: 250,
     current_month: 2,
     total_sessions: 7,
-    sessions: [
-      {
-        number: 1,
-        type: "launch",
-        title: "Atelier de lancement",
-        status: "completed",
-        date: "2026-02-03",
-        duration: 90,
-        summary:
-          "On a posé le positionnement de Léa : photographe de la confiance. On a défini Marion (sa cliente idéale), restructuré ses 3 offres, et identifié les 4 piliers de contenu.",
-      },
-      {
-        number: 2,
-        type: "strategy",
-        title: "Atelier Stratégique",
-        status: "completed",
-        date: "2026-02-17",
-        duration: 120,
-        summary:
-          "Stratégie présentée : 3 posts/semaine (2 carrousels + 1 reel), stories quotidiennes, newsletter mensuelle. Focus Instagram + site. Pinterest en bonus.",
-      },
-      {
-        number: 3,
-        type: "checkpoint",
-        title: "Point d'étape",
-        status: "scheduled",
-        date: "2026-02-25",
-        duration: 60,
-      },
-      {
-        number: 4,
-        type: "focus",
-        focus_topic: "instagram_content",
-        title: "Création contenus Instagram",
-        status: "scheduled",
-        duration: 120,
-      },
-      {
-        number: 5,
-        type: "focus",
-        focus_topic: "website",
-        title: "Site web / pages de vente",
-        status: "scheduled",
-        duration: 120,
-      },
-      {
-        number: 6,
-        type: "focus",
-        focus_topic: "newsletter",
-        title: "Newsletter / séquence email",
-        status: "scheduled",
-        duration: 60,
-      },
-      {
-        number: 7,
-        type: "focus",
-        focus_topic: "launch",
-        title: "Lancement offre printemps",
-        status: "scheduled",
-        duration: 120,
-      },
-    ],
+    sessions: DEMO_COACHING_SESSIONS,
     actions: [
       { title: "Restructurer les Highlights", completed: false },
       { title: "Écrire 5 sujets de carrousel", completed: false },
@@ -340,35 +273,7 @@ export const DEMO_DATA = {
       { title: "Templates Canva", status: "pending" },
       { title: "Plan de com' 6 mois", status: "pending" },
     ],
-    journal: [
-      {
-        id: "journal-1",
-        month_number: 1,
-        date: "2026-02-25",
-        title: "Atelier de lancement ✅",
-        body: "On a posé les fondations de ta com'.\nTon positionnement est clair : \"Je capture la confiance.\"\nTa cible, c'est Marion, 35 ans, solopreneuse qui repousse sa séance photo depuis 2 ans.\nTes 3 offres sont restructurées et tes 4 piliers de contenu définis.",
-        laetitia_note: "Léa, tu as un vrai talent pour raconter les histoires de tes clientes. Capitalise là-dessus. C'est ta force.",
-        status: "completed",
-      },
-      {
-        id: "journal-2",
-        month_number: 1,
-        date: "2026-03-11",
-        title: "Atelier Stratégique ✅",
-        body: "Ta stratégie est posée pour les 6 prochains mois.\n3 posts/semaine : 2 carrousels + 1 reel.\nStories quotidiennes. Newsletter mensuelle.\nOn a décidé les 4 sessions focus : Instagram, Site web, Newsletter, Lancement.",
-        laetitia_note: null,
-        status: "completed",
-      },
-      {
-        id: "journal-3",
-        month_number: 2,
-        date: "2026-03-25",
-        title: "Point d'étape",
-        body: null,
-        laetitia_note: null,
-        status: "current",
-      },
-    ],
+    journal: DEMO_COACHING_JOURNAL,
   },
 
   // ── ONBOARDING (pré-rempli) ──
