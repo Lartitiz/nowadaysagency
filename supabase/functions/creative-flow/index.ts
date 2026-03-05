@@ -10,6 +10,7 @@ import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-stream.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -757,6 +758,24 @@ Privilégie les sources françaises et européennes quand elles existent.`,
 
       // Log deep research usage
       await logUsage(user.id, "deep_research", "web_search", undefined, "claude-sonnet-4-5-20250929", workspace_id);
+    }
+
+    // ── Streaming SSE (generate step only, no photo/deepResearch) ──
+    const wantsStream = req.headers.get("Accept") === "text/event-stream";
+    if (wantsStream && step === "generate" && !body.photo_mode && !deepResearch) {
+      const apiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
+      const model = getModelForAction("content");
+
+      const anthropicStream = await streamAnthropicSSE(
+        apiKey,
+        model,
+        systemPrompt,
+        [{ role: "user", content: userPrompt! }],
+        0.85,
+        4096,
+      );
+
+      return createClientSSEStream(anthropicStream, corsHeaders);
     }
 
     // ── Call Anthropic ──
