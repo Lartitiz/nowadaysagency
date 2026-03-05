@@ -131,7 +131,7 @@ export async function exportCarouselPptx(
     const slide = pptx.addSlide();
 
     // If visual_schema is present and supported, use schema builder instead
-    const supportedSchemaTypes = ["checklist", "before_after", "comparison", "stats"];
+    const supportedSchemaTypes = ["checklist", "before_after", "comparison", "stats", "timeline", "equation", "matrix_2x2", "pyramid", "flowchart", "scale"];
     if (s.visual_schema && s.visual_schema.type && supportedSchemaTypes.includes(s.visual_schema.type)) {
       buildSchemaSlide(slide, s, c, f, W, H, PAD_X, CONTENT_W);
       if (category === "tip") tipIndex++;
@@ -800,6 +800,24 @@ function buildSchemaSlide(
     case "stats":
       buildStatsSchema(slide, s, c, f, W, H, PAD_X, CONTENT_W);
       break;
+    case "timeline":
+      buildTimelineSchema(slide, s, c, f, W, H, PAD_X, CONTENT_W);
+      break;
+    case "equation":
+      buildEquationSchema(slide, s, c, f, W, H, PAD_X, CONTENT_W);
+      break;
+    case "matrix_2x2":
+      buildMatrix2x2Schema(slide, s, c, f, W, H, PAD_X, CONTENT_W);
+      break;
+    case "pyramid":
+      buildPyramidSchema(slide, s, c, f, W, H, PAD_X, CONTENT_W);
+      break;
+    case "flowchart":
+      buildFlowchartSchema(slide, s, c, f, W, H, PAD_X, CONTENT_W);
+      break;
+    case "scale":
+      buildScaleSchema(slide, s, c, f, W, H, PAD_X, CONTENT_W);
+      break;
   }
 }
 
@@ -1154,6 +1172,599 @@ function buildStatsSchema(
       slide.addShape("rect", {
         x: colX - 0.01, y: statsY + 0.3, w: 0.02, h: 2.0,
         fill: { color: "EEEEEE" },
+      });
+    }
+  }
+}
+
+// ═══ NEW SCHEMA BUILDERS ═══
+
+/**
+ * TIMELINE — Vertical line with numbered steps
+ */
+function buildTimelineSchema(
+  slide: any, s: SlideData, c: Colors, f: Fonts,
+  W: number, H: number, PAD_X: number, CONTENT_W: number
+) {
+  slide.background = { color: "FFFFFF" };
+
+  // Badge
+  const [badgeText, badgeOpts] = makeBadge("TIMELINE", PAD_X, 0.6, "9B59B6", f);
+  slide.addText(badgeText, badgeOpts);
+
+  // Title
+  const schemaTitle = s.visual_schema?.title || s.title;
+  const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
+  slide.addText(titleParts, {
+    x: PAD_X, y: 1.2, w: CONTENT_W, h: 1.1,
+    fontSize: 22, fontFace: f.title, color: c.secondary,
+    align: "left", valign: "middle", wrap: true, lineSpacingMultiple: 1.2,
+  });
+
+  const steps: any[] = s.visual_schema?.steps || s.visual_schema?.items || [];
+  const count = Math.min(steps.length, 6);
+  if (count === 0) return;
+
+  const startY = 2.5;
+  const endY = H - 1.0;
+  const stepSpacing = (endY - startY) / Math.max(count - 1, 1);
+  const lineX = PAD_X + 0.8;
+
+  // Vertical line
+  slide.addShape("rect", {
+    x: lineX - 0.02, y: startY + 0.15,
+    w: 0.04, h: (count - 1) * stepSpacing,
+    fill: { color: c.primary },
+  });
+
+  const fontSize = count > 4 ? 14 : 18;
+  const descFontSize = count > 4 ? 12 : 14;
+
+  for (let idx = 0; idx < count; idx++) {
+    const step = steps[idx];
+    const stepY = startY + idx * stepSpacing;
+    const label = step.label || step.text || `Étape ${idx + 1}`;
+    const desc = step.desc || step.description || "";
+
+    // Check if label has emoji
+    const emojiMatch = label.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)/u);
+    const displayNum = emojiMatch ? emojiMatch[0] : String(idx + 1);
+
+    // Square on the line
+    slide.addShape("roundRect", {
+      x: lineX - 0.15, y: stepY, w: 0.3, h: 0.3,
+      fill: { color: c.primary }, rectRadius: 0.04,
+    });
+
+    // Number/emoji inside square
+    slide.addText(displayNum, {
+      x: lineX - 0.15, y: stepY, w: 0.3, h: 0.3,
+      fontSize: 14, bold: true, color: "FFFFFF",
+      align: "center", valign: "middle",
+    });
+
+    // Label
+    slide.addText(label, {
+      x: lineX + 0.35, y: stepY - 0.05, w: CONTENT_W - 1.4, h: 0.35,
+      fontSize, fontFace: f.body, color: c.secondary, bold: true,
+      align: "left", valign: "middle", wrap: true,
+    });
+
+    // Description
+    if (desc) {
+      slide.addText(desc, {
+        x: lineX + 0.35, y: stepY + 0.3, w: CONTENT_W - 1.4, h: 0.5,
+        fontSize: descFontSize, fontFace: f.body, color: c.text,
+        align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.3,
+      });
+    }
+  }
+}
+
+/**
+ * EQUATION — Horizontal formula: part + part = result
+ */
+function buildEquationSchema(
+  slide: any, s: SlideData, c: Colors, f: Fonts,
+  W: number, H: number, PAD_X: number, CONTENT_W: number
+) {
+  slide.background = { color: c.bg };
+
+  // Badge
+  const [badgeText, badgeOpts] = makeBadge("FORMULE", 0, 0, c.accent, f);
+  const badgeW = badgeOpts.w as number;
+  slide.addText(badgeText, { ...badgeOpts, x: (W - badgeW) / 2, y: 0.6 });
+
+  // Title
+  const schemaTitle = s.visual_schema?.title || s.title;
+  if (schemaTitle) {
+    const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
+    slide.addText(titleParts, {
+      x: PAD_X, y: 1.2, w: CONTENT_W, h: 1.0,
+      fontSize: 22, fontFace: f.title, color: c.secondary,
+      align: "center", valign: "middle", wrap: true, lineSpacingMultiple: 1.2,
+    });
+  }
+
+  const parts: any[] = s.visual_schema?.parts || [];
+  const result = s.visual_schema?.result || "";
+  const operator = s.visual_schema?.operator || "+";
+  const totalCards = parts.length + 1; // parts + result
+  const operatorCount = parts.length; // operators between parts + "="
+  const totalSlots = totalCards + operatorCount;
+  const cardW = Math.min(1.8, (CONTENT_W - operatorCount * 0.5) / totalCards);
+  const opW = 0.5;
+  const totalW = totalCards * cardW + operatorCount * opW;
+  const startX = (W - totalW) / 2;
+  const cardH = 1.2;
+  const centerY = H / 2 - cardH / 2;
+
+  let curX = startX;
+  for (let idx = 0; idx < parts.length; idx++) {
+    const part = parts[idx];
+    const label = typeof part === "string" ? part : part.label || part.text || "";
+
+    // Part card
+    slide.addShape("roundRect", {
+      x: curX, y: centerY, w: cardW, h: cardH,
+      fill: { color: "FFFFFF" }, rectRadius: 0.1, shadow: makeLightShadow(),
+    });
+    slide.addText(label, {
+      x: curX, y: centerY, w: cardW, h: cardH,
+      fontSize: label.length > 15 ? 16 : 22, fontFace: f.body, color: c.secondary,
+      bold: true, align: "center", valign: "middle", wrap: true,
+    });
+    curX += cardW;
+
+    // Operator
+    const opSymbol = idx < parts.length - 1 ? operator : "=";
+    slide.addText(opSymbol, {
+      x: curX, y: centerY, w: opW, h: cardH,
+      fontSize: 36, fontFace: f.title, color: c.primary,
+      align: "center", valign: "middle",
+    });
+    curX += opW;
+  }
+
+  // Result card
+  const resultLabel = typeof result === "string" ? result : result.label || result.text || "";
+  slide.addShape("roundRect", {
+    x: curX, y: centerY, w: cardW, h: cardH,
+    fill: { color: c.primary }, rectRadius: 0.1,
+  });
+  slide.addText(resultLabel, {
+    x: curX, y: centerY, w: cardW, h: cardH,
+    fontSize: resultLabel.length > 15 ? 16 : 22, fontFace: f.body, color: "FFFFFF",
+    bold: true, align: "center", valign: "middle", wrap: true,
+  });
+}
+
+/**
+ * MATRIX 2×2 — Four quadrants with emojis and labels
+ */
+function buildMatrix2x2Schema(
+  slide: any, s: SlideData, c: Colors, f: Fonts,
+  W: number, H: number, PAD_X: number, CONTENT_W: number
+) {
+  slide.background = { color: "FFFFFF" };
+
+  // Badge
+  const [badgeText, badgeOpts] = makeBadge("MATRICE", 0, 0, c.primary, f);
+  const badgeW = badgeOpts.w as number;
+  slide.addText(badgeText, { ...badgeOpts, x: (W - badgeW) / 2, y: 0.5 });
+
+  // Title
+  const schemaTitle = s.visual_schema?.title || s.title;
+  if (schemaTitle) {
+    const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
+    slide.addText(titleParts, {
+      x: PAD_X, y: 1.0, w: CONTENT_W, h: 1.0,
+      fontSize: 20, fontFace: f.title, color: c.secondary,
+      align: "center", valign: "middle", wrap: true,
+    });
+  }
+
+  const quadrants = s.visual_schema?.quadrants || [];
+  const COLORS = ["3498db", "E67E22", "27AE60", "9B59B6"];
+  const qW = 2.8;
+  const qH = 2.8;
+  const gap = 0.3;
+  const gridW = qW * 2 + gap;
+  const gridStartX = (W - gridW) / 2;
+  const gridStartY = 2.5;
+
+  const positions = [
+    { x: gridStartX, y: gridStartY },
+    { x: gridStartX + qW + gap, y: gridStartY },
+    { x: gridStartX, y: gridStartY + qH + gap },
+    { x: gridStartX + qW + gap, y: gridStartY + qH + gap },
+  ];
+
+  for (let idx = 0; idx < 4; idx++) {
+    const q = quadrants[idx] || {};
+    const pos = positions[idx];
+    const qColor = COLORS[idx];
+
+    // Quadrant card
+    slide.addShape("roundRect", {
+      x: pos.x, y: pos.y, w: qW, h: qH,
+      fill: { color: qColor, transparency: 90 }, rectRadius: 0.1,
+      shadow: makeLightShadow(),
+    });
+
+    // Emoji
+    const emoji = q.emoji || "";
+    if (emoji) {
+      slide.addText(emoji, {
+        x: pos.x, y: pos.y + 0.4, w: qW, h: 0.6,
+        fontSize: 32, align: "center", valign: "middle",
+      });
+    }
+
+    // Label
+    const label = q.label || "";
+    if (label) {
+      slide.addText(label, {
+        x: pos.x + 0.2, y: pos.y + (emoji ? 1.1 : 0.6), w: qW - 0.4, h: qH - (emoji ? 1.6 : 1.2),
+        fontSize: 16, fontFace: f.body, color: c.text, bold: true,
+        align: "center", valign: "top", wrap: true, lineSpacingMultiple: 1.3,
+      });
+    }
+  }
+
+  // Axis labels
+  const xAxis = s.visual_schema?.x_axis || {};
+  const yAxis = s.visual_schema?.y_axis || {};
+
+  if (xAxis.left) {
+    slide.addText(xAxis.left, {
+      x: gridStartX, y: gridStartY + qH * 2 + gap + 0.2, w: qW, h: 0.35,
+      fontSize: 11, fontFace: f.body, color: c.text, align: "center", valign: "middle", transparency: 30,
+    });
+  }
+  if (xAxis.right) {
+    slide.addText(xAxis.right, {
+      x: gridStartX + qW + gap, y: gridStartY + qH * 2 + gap + 0.2, w: qW, h: 0.35,
+      fontSize: 11, fontFace: f.body, color: c.text, align: "center", valign: "middle", transparency: 30,
+    });
+  }
+  if (yAxis.top) {
+    slide.addText(yAxis.top, {
+      x: gridStartX - 1.0, y: gridStartY, w: 0.9, h: qH,
+      fontSize: 11, fontFace: f.body, color: c.text, align: "center", valign: "middle",
+      rotate: 270, transparency: 30,
+    });
+  }
+  if (yAxis.bottom) {
+    slide.addText(yAxis.bottom, {
+      x: gridStartX - 1.0, y: gridStartY + qH + gap, w: 0.9, h: qH,
+      fontSize: 11, fontFace: f.body, color: c.text, align: "center", valign: "middle",
+      rotate: 270, transparency: 30,
+    });
+  }
+}
+
+/**
+ * PYRAMID — Stacked levels from narrow top to wide base
+ */
+function buildPyramidSchema(
+  slide: any, s: SlideData, c: Colors, f: Fonts,
+  W: number, H: number, PAD_X: number, CONTENT_W: number
+) {
+  slide.background = { color: c.bg };
+
+  // Badge
+  const [badgeText, badgeOpts] = makeBadge("HIÉRARCHIE", 0, 0, c.primary, f);
+  const bbW = badgeOpts.w as number;
+  slide.addText(badgeText, { ...badgeOpts, x: (W - bbW) / 2, y: 0.6 });
+
+  // Title
+  const schemaTitle = s.visual_schema?.title || s.title;
+  if (schemaTitle) {
+    const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
+    slide.addText(titleParts, {
+      x: PAD_X, y: 1.2, w: CONTENT_W, h: 1.0,
+      fontSize: 22, fontFace: f.title, color: c.secondary,
+      align: "center", valign: "middle", wrap: true,
+    });
+  }
+
+  const levels: any[] = s.visual_schema?.levels || s.visual_schema?.items || [];
+  const count = Math.min(levels.length, 6);
+  if (count === 0) return;
+
+  const startY = 2.5;
+  const availableH = H - 4.0;
+  const levelH = (availableH - (count - 1) * 0.15) / count;
+  const gap = 0.15;
+  const minW = CONTENT_W * 0.4;
+  const maxW = CONTENT_W * 0.95;
+
+  // Transparency steps for gradient effect
+  const getTransparency = (idx: number): number => {
+    if (count <= 1) return 0;
+    return Math.round((idx / (count - 1)) * 70);
+  };
+
+  for (let idx = 0; idx < count; idx++) {
+    const level = levels[idx];
+    const label = level.label || level.text || "";
+    const desc = level.desc || level.description || "";
+    const levelW = minW + (maxW - minW) * (idx / Math.max(count - 1, 1));
+    const levelX = (W - levelW) / 2;
+    const levelY = startY + idx * (levelH + gap);
+    const transparency = getTransparency(idx);
+    const isDark = transparency < 40;
+
+    // Level rectangle
+    slide.addShape("roundRect", {
+      x: levelX, y: levelY, w: levelW, h: levelH,
+      fill: { color: c.primary, transparency },
+      rectRadius: 0.08,
+    });
+
+    // Label
+    const textColor = isDark ? "FFFFFF" : c.secondary;
+    slide.addText(label, {
+      x: levelX + 0.2, y: levelY + (desc ? 0.05 : 0), w: levelW - 0.4,
+      h: desc ? levelH * 0.55 : levelH,
+      fontSize: count > 4 ? 15 : 18, fontFace: f.body, color: textColor, bold: true,
+      align: "center", valign: desc ? "bottom" : "middle", wrap: true,
+    });
+
+    // Description
+    if (desc) {
+      slide.addText(desc, {
+        x: levelX + 0.2, y: levelY + levelH * 0.5, w: levelW - 0.4, h: levelH * 0.45,
+        fontSize: count > 4 ? 10 : 12, fontFace: f.body, color: textColor,
+        align: "center", valign: "top", wrap: true, transparency: isDark ? 20 : 0,
+      });
+    }
+  }
+}
+
+/**
+ * FLOWCHART — Decision tree with question and branches
+ */
+function buildFlowchartSchema(
+  slide: any, s: SlideData, c: Colors, f: Fonts,
+  W: number, H: number, PAD_X: number, CONTENT_W: number
+) {
+  slide.background = { color: "FFFFFF" };
+
+  // Badge
+  const [badgeText, badgeOpts] = makeBadge("DÉCISION", PAD_X, 0.6, c.primary, f);
+  slide.addText(badgeText, badgeOpts);
+
+  // Title
+  const schemaTitle = s.visual_schema?.title || s.title;
+  if (schemaTitle) {
+    const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
+    slide.addText(titleParts, {
+      x: PAD_X, y: 1.2, w: CONTENT_W, h: 0.8,
+      fontSize: 20, fontFace: f.title, color: c.secondary,
+      align: "center", valign: "middle", wrap: true,
+    });
+  }
+
+  // Start question box
+  const startText = s.visual_schema?.start || s.visual_schema?.question || "";
+  const questionW = 4.0;
+  const questionH = 0.8;
+  const questionX = (W - questionW) / 2;
+  const questionY = 2.2;
+
+  slide.addShape("roundRect", {
+    x: questionX, y: questionY, w: questionW, h: questionH,
+    fill: { color: c.primary }, rectRadius: 0.15,
+  });
+  slide.addText(startText, {
+    x: questionX, y: questionY, w: questionW, h: questionH,
+    fontSize: 18, fontFace: f.body, color: "FFFFFF", bold: true,
+    align: "center", valign: "middle", wrap: true,
+  });
+
+  // Vertical connector line
+  slide.addShape("rect", {
+    x: W / 2 - 0.02, y: questionY + questionH,
+    w: 0.04, h: 0.8,
+    fill: { color: c.primary },
+  });
+
+  const branches: any[] = s.visual_schema?.branches || [];
+  const branchCount = Math.min(branches.length, 4);
+  const BRANCH_COLORS = ["3498db", "27AE60", "E67E22", "9B59B6"];
+
+  if (branchCount === 2) {
+    // Side by side
+    const branchW = (CONTENT_W - 0.5) / 2;
+    const branchY = 4.0;
+    const branchH = 3.5;
+    const leftBX = PAD_X;
+    const rightBX = PAD_X + branchW + 0.5;
+
+    for (let idx = 0; idx < 2; idx++) {
+      const branch = branches[idx];
+      const bx = idx === 0 ? leftBX : rightBX;
+      const bColor = BRANCH_COLORS[idx];
+      const condition = branch.condition || branch.label || "";
+      const result = branch.result || branch.text || "";
+
+      // Branch card
+      slide.addShape("roundRect", {
+        x: bx, y: branchY, w: branchW, h: branchH,
+        fill: { color: bColor, transparency: 90 }, rectRadius: 0.1,
+        shadow: makeLightShadow(),
+      });
+
+      // Condition text
+      slide.addText(condition, {
+        x: bx + 0.2, y: branchY + 0.2, w: branchW - 0.4, h: 1.2,
+        fontSize: 14, fontFace: f.body, color: c.text,
+        align: "center", valign: "middle", wrap: true, lineSpacingMultiple: 1.3,
+      });
+
+      // Result badge
+      if (result) {
+        const [rBadgeText, rBadgeOpts] = makeBadge(result, 0, 0, bColor, f);
+        const rBW = rBadgeOpts.w as number;
+        slide.addText(rBadgeText, {
+          ...rBadgeOpts,
+          x: bx + (branchW - Math.min(rBW, branchW - 0.4)) / 2,
+          y: branchY + branchH - 0.8,
+          w: Math.min(rBW, branchW - 0.4),
+        });
+      }
+    }
+
+    // Horizontal connector
+    slide.addShape("rect", {
+      x: leftBX + branchW / 2, y: questionY + questionH + 0.8 - 0.02,
+      w: rightBX + branchW / 2 - (leftBX + branchW / 2), h: 0.04,
+      fill: { color: c.primary },
+    });
+  } else if (branchCount >= 3) {
+    // Stacked vertically
+    const branchY = 3.8;
+    const branchSpacing = Math.min(1.4, (H - branchY - 0.5) / branchCount);
+
+    for (let idx = 0; idx < branchCount; idx++) {
+      const branch = branches[idx];
+      const by = branchY + idx * branchSpacing;
+      const bColor = BRANCH_COLORS[idx % BRANCH_COLORS.length];
+      const condition = branch.condition || branch.label || "";
+      const result = branch.result || branch.text || "";
+
+      // Branch card
+      slide.addShape("roundRect", {
+        x: PAD_X, y: by, w: CONTENT_W * 0.6, h: branchSpacing - 0.15,
+        fill: { color: bColor, transparency: 90 }, rectRadius: 0.1,
+      });
+
+      slide.addText(condition, {
+        x: PAD_X + 0.2, y: by, w: CONTENT_W * 0.6 - 0.4, h: branchSpacing - 0.15,
+        fontSize: branchCount > 4 ? 12 : 14, fontFace: f.body, color: c.text,
+        align: "left", valign: "middle", wrap: true,
+      });
+
+      // Result badge to the right
+      if (result) {
+        const [rBadgeText, rBadgeOpts] = makeBadge(result, 0, 0, bColor, f);
+        slide.addText(rBadgeText, {
+          ...rBadgeOpts,
+          x: PAD_X + CONTENT_W * 0.65,
+          y: by + (branchSpacing - 0.15) / 2 - 0.19,
+        });
+      }
+
+      // Connection line
+      if (idx > 0) {
+        slide.addShape("rect", {
+          x: PAD_X + 0.4, y: by - 0.15 + 0.06,
+          w: 0.04, h: 0.09,
+          fill: { color: c.primary },
+        });
+      }
+    }
+  }
+}
+
+/**
+ * SCALE — Horizontal spectrum bar with marker
+ */
+function buildScaleSchema(
+  slide: any, s: SlideData, c: Colors, f: Fonts,
+  W: number, H: number, PAD_X: number, CONTENT_W: number
+) {
+  slide.background = { color: "FFFFFF" };
+
+  // Badge
+  const [badgeText, badgeOpts] = makeBadge("SPECTRE", 0, 0, c.primary, f);
+  const bbW = badgeOpts.w as number;
+  slide.addText(badgeText, { ...badgeOpts, x: (W - bbW) / 2, y: 0.6 });
+
+  // Title
+  const schemaTitle = s.visual_schema?.title || s.title;
+  if (schemaTitle) {
+    const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
+    slide.addText(titleParts, {
+      x: PAD_X, y: 1.2, w: CONTENT_W, h: 1.2,
+      fontSize: 22, fontFace: f.title, color: c.secondary,
+      align: "center", valign: "middle", wrap: true, lineSpacingMultiple: 1.2,
+    });
+  }
+
+  // Gradient bar (3 segments: red → orange → green)
+  const barW = CONTENT_W - 1.0;
+  const barH = 0.5;
+  const barX = (W - barW) / 2;
+  const barY = H / 2;
+  const segW = barW / 3;
+  const GRADIENT_COLORS = ["E74C3C", "F39C12", "27AE60"];
+
+  // Left segment (rounded left corners)
+  slide.addShape("roundRect", {
+    x: barX, y: barY, w: segW + 0.05, h: barH,
+    fill: { color: GRADIENT_COLORS[0] }, rectRadius: 0.25,
+  });
+  // Middle segment (cover left segment's right rounding)
+  slide.addShape("rect", {
+    x: barX + segW - 0.02, y: barY, w: segW + 0.04, h: barH,
+    fill: { color: GRADIENT_COLORS[1] },
+  });
+  // Right segment (rounded right corners)
+  slide.addShape("roundRect", {
+    x: barX + segW * 2 - 0.05, y: barY, w: segW + 0.05, h: barH,
+    fill: { color: GRADIENT_COLORS[2] }, rectRadius: 0.25,
+  });
+
+  // Left label
+  const leftLabel = s.visual_schema?.left?.label || "";
+  const leftEmoji = s.visual_schema?.left?.emoji || "";
+  if (leftLabel || leftEmoji) {
+    slide.addText(`${leftEmoji} ${leftLabel}`.trim(), {
+      x: barX - 0.2, y: barY + barH + 0.2, w: barW * 0.4, h: 0.4,
+      fontSize: 13, fontFace: f.body, color: c.text, align: "left", valign: "middle",
+    });
+  }
+
+  // Right label
+  const rightLabel = s.visual_schema?.right?.label || "";
+  const rightEmoji = s.visual_schema?.right?.emoji || "";
+  if (rightLabel || rightEmoji) {
+    slide.addText(`${rightLabel} ${rightEmoji}`.trim(), {
+      x: barX + barW * 0.6 + 0.2, y: barY + barH + 0.2, w: barW * 0.4, h: 0.4,
+      fontSize: 13, fontFace: f.body, color: c.text, align: "right", valign: "middle",
+    });
+  }
+
+  // Marker
+  const marker = s.visual_schema?.marker;
+  if (marker) {
+    const position = Math.max(0, Math.min(100, marker.position || 50));
+    const markerX = barX + (position / 100) * barW;
+    const markerLabel = marker.label || "";
+
+    // Marker triangle (small rect as pointer)
+    slide.addShape("rect", {
+      x: markerX - 0.08, y: barY - 0.2,
+      w: 0.16, h: 0.2,
+      fill: { color: c.primary },
+    });
+
+    // Marker dot on bar
+    slide.addShape("roundRect", {
+      x: markerX - 0.12, y: barY + 0.05,
+      w: 0.24, h: 0.4,
+      fill: { color: c.primary }, rectRadius: 0.12,
+    });
+
+    // Marker label above
+    if (markerLabel) {
+      slide.addText(markerLabel, {
+        x: markerX - 1.2, y: barY - 0.9, w: 2.4, h: 0.6,
+        fontSize: 14, fontFace: f.body, color: c.primary, bold: true,
+        align: "center", valign: "bottom",
       });
     }
   }
