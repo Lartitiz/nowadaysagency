@@ -65,7 +65,7 @@ export default function Onboarding() {
   const {
     step, setStep, answers, brandingAnswers,
     set, setBranding, next, prev, progress, saving,
-    uploadedFiles, uploading, auditResults, diagnosticData, setDiagnosticData,
+    uploadedFiles, uploading, diagnosticData, setDiagnosticData,
     isDemoMode, demoData,
     handleFileUpload, removeFile, handleFinish, handleSkipDemo,
     handleDiagnosticComplete, getPlaceholder, getTimeRemaining, triggerPreScrape,
