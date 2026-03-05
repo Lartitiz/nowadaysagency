@@ -284,7 +284,9 @@ Réponds UNIQUEMENT en JSON :
       userPrompt = "Pose-moi des questions d'approfondissement basées sur mes réponses.";
 
     } else if (step === "generate") {
-      const answersBlock = answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n");
+      const answersBlock = answers?.length
+        ? answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
+        : "";
       const followUpBlock = followUpAnswers?.length
         ? "\n\nQUESTIONS D'APPROFONDISSEMENT :\n" + followUpAnswers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
         : "";
