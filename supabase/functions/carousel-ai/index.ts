@@ -636,7 +636,7 @@ Slides 3-8: Alternance Mythe (❌) / Réalité (✅), 1 paire par slide
 Slide 9: Conclusion
 Slide 10: CTA commentaire "Quel mythe t'énerve le plus ?"`,
     storytelling: `STORYTELLING PERSONNEL (8-12 slides) :
-Slide 1: Hook émotionnel "Ce jour-là, j'ai compris que..."
+Slide 1: Hook concret et spécifique "[Situation vécue précise, avec un détail qui accroche]"
 Slide 2: Contexte "Il y a [durée], je [situation]."
 Slides 3-5: Le problème, la galère, les doutes
 Slides 6-8: Le tournant, ce qui a changé
