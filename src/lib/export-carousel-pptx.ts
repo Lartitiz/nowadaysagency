@@ -44,8 +44,10 @@ function classifyRole(role: string, slideIndex: number, totalSlides: number): st
   return "tip";
 }
 
-/** Accent colors that rotate for tip slides */
-const ACCENT_ROTATION = ["3498db", "27AE60", "E67E22", "9B59B6", "FB3D80"];
+/** Accent colors that rotate for tip slides, starting with the brand primary */
+function getAccentRotation(primary: string): string[] {
+  return [primary, "3498db", "27AE60", "E67E22", "9B59B6"];
+}
 
 /** Factory: soft card shadow (never reuse pptxgenjs option objects) */
 const makeShadow = () => ({
@@ -358,7 +360,8 @@ function buildTipSlide(
   tipIndex: number
 ) {
   slide.background = { color: "FFFFFF" };
-  const accentColor = ACCENT_ROTATION[tipIndex % ACCENT_ROTATION.length];
+  const accentRotation = getAccentRotation(c.primary);
+  const accentColor = accentRotation[tipIndex % accentRotation.length];
 
   // Badge pilule top-left
   const label = s.role || `${String(s.slide_number).padStart(2, "0")}`;
@@ -432,21 +435,6 @@ function buildSeparatorSlide(
   W: number, H: number
 ) {
   slide.background = { color: c.primary };
-
-  // "n o w a d a y s" en haut, espacé
-  slide.addText("n o w a d a y s", {
-    x: 0,
-    y: 0.5,
-    w: W,
-    h: 0.4,
-    fontSize: 10,
-    fontFace: f.body,
-    color: "FFFFFF",
-    align: "center",
-    valign: "middle",
-    charSpacing: 3,
-    bold: true,
-  });
 
   // Title centré en blanc
   slide.addText(s.title, {
@@ -662,7 +650,7 @@ function buildCtaSlide(
   });
 
   // CTA title inside card with highlight
-  const titleParts = highlightLastSignificantWord(s.title, c.primary, c.primary);
+  const titleParts = highlightLastSignificantWord(s.title, c.primary, c.secondary);
   slide.addText(titleParts, {
     x: cardX + 0.4,
     y: cardY + 0.6,
@@ -855,21 +843,25 @@ function buildChecklistSchema(
   const items: any[] = s.visual_schema?.items || [];
   const ITEM_H = 1.15;
   const GAP = 0.25;
+  const adjustedItemH = items.length > 5 ? 0.9 : ITEM_H;
+  const adjustedGap = items.length > 5 ? 0.15 : GAP;
+  const maxItems = Math.min(items.length, Math.floor((H - 3.5) / (adjustedItemH + adjustedGap)));
+  const actualItems = items.slice(0, maxItems);
   let startY = 2.9;
 
-  for (let idx = 0; idx < items.length; idx++) {
-    const item = items[idx];
+  for (let idx = 0; idx < actualItems.length; idx++) {
+    const item = actualItems[idx];
     const checked = !!item.checked;
     const barColor = checked ? "27AE60" : "E74C3C";
     const emoji = checked ? "✅" : "❌";
-    const itemY = startY + idx * (ITEM_H + GAP);
+    const itemY = startY + idx * (adjustedItemH + adjustedGap);
 
     // Card background
     slide.addShape("roundRect", {
       x: PAD_X,
       y: itemY,
       w: CONTENT_W,
-      h: ITEM_H,
+      h: adjustedItemH,
       fill: { color: "FFFFFF" },
       rectRadius: 0.1,
       shadow: makeLightShadow(),
@@ -880,7 +872,7 @@ function buildChecklistSchema(
       x: PAD_X,
       y: itemY,
       w: 0.06,
-      h: ITEM_H,
+      h: adjustedItemH,
       fill: { color: barColor },
     });
 
@@ -889,7 +881,7 @@ function buildChecklistSchema(
       x: PAD_X + 0.2,
       y: itemY,
       w: 0.5,
-      h: ITEM_H,
+      h: adjustedItemH,
       fontSize: 22,
       align: "center",
       valign: "middle",
@@ -901,8 +893,8 @@ function buildChecklistSchema(
       x: PAD_X + 0.75,
       y: itemY,
       w: CONTENT_W - 1.0,
-      h: ITEM_H,
-      fontSize: itemText.length > 60 ? 13 : 15,
+      h: adjustedItemH,
+      fontSize: items.length > 5 ? 13 : (itemText.length > 60 ? 13 : 15),
       fontFace: f.body,
       color: c.text,
       align: "left",
@@ -922,8 +914,8 @@ function buildBeforeAfterSchema(
 ) {
   slide.background = { color: "FFFFFF" };
 
-  // Badge pilule orange centered
-  const [badgeText, badgeOpts] = makeBadge("AVANT / APRÈS", 0, 0, "E67E22", f);
+  // Badge pilule accent centered
+  const [badgeText, badgeOpts] = makeBadge("AVANT / APRÈS", 0, 0, c.accent, f);
   const badgeW = badgeOpts.w as number;
   slide.addText(badgeText, { ...badgeOpts, x: (W - badgeW) / 2, y: 0.6 });
 
@@ -944,8 +936,16 @@ function buildBeforeAfterSchema(
     lineSpacingMultiple: 1.2,
   });
 
+  // Read items from nested or flat structure
+  const beforeItems: any[] = s.visual_schema?.before?.items || s.visual_schema?.before_items || (Array.isArray(s.visual_schema?.before) ? s.visual_schema.before : []);
+  const afterItems: any[] = s.visual_schema?.after?.items || s.visual_schema?.after_items || (Array.isArray(s.visual_schema?.after) ? s.visual_schema.after : []);
+  const beforeLabel = s.visual_schema?.before?.label || "AVANT";
+  const afterLabel = s.visual_schema?.after?.label || "APRÈS";
+
   const colW = (CONTENT_W - 0.5) / 2;
-  const colH = 6.0;
+  const maxItemCount = Math.max(beforeItems.length, afterItems.length, 1);
+  const itemSpacing = 0.85;
+  const colH = Math.min(6.0, 0.7 + maxItemCount * itemSpacing + 0.3);
   const colY = 2.6;
   const leftX = PAD_X;
   const rightX = PAD_X + colW + 0.5;
@@ -969,22 +969,20 @@ function buildBeforeAfterSchema(
   });
 
   // Column headers
-  slide.addText("❌ AVANT", {
+  slide.addText(`❌ ${beforeLabel.toUpperCase()}`, {
     x: leftX + 0.2, y: colY + 0.15, w: colW - 0.4, h: 0.45,
     fontSize: 14, fontFace: f.body, color: "E74C3C", bold: true, align: "center", valign: "middle",
   });
-  slide.addText("✅ APRÈS", {
+  slide.addText(`✅ ${afterLabel.toUpperCase()}`, {
     x: rightX + 0.2, y: colY + 0.15, w: colW - 0.4, h: 0.45,
     fontSize: 14, fontFace: f.body, color: "27AE60", bold: true, align: "center", valign: "middle",
   });
 
-  // Items
-  const beforeItems: any[] = s.visual_schema?.before || [];
-  const afterItems: any[] = s.visual_schema?.after || [];
-
+  // Items (limit to 6)
   const renderColumnItems = (items: any[], x: number, startItemY: number, w: number) => {
-    for (let idx = 0; idx < items.length; idx++) {
-      const itemText = typeof items[idx] === "string" ? items[idx] : items[idx]?.text || "";
+    const displayItems = items.slice(0, 6);
+    for (let idx = 0; idx < displayItems.length; idx++) {
+      const itemText = typeof displayItems[idx] === "string" ? displayItems[idx] : displayItems[idx]?.text || "";
       const itemY = startItemY + idx * 0.85;
 
       // Separator
@@ -1048,8 +1046,14 @@ function buildComparisonSchema(
     align: "center", valign: "middle", wrap: true, lineSpacingMultiple: 1.2,
   });
 
+  // Items
+  const leftItems: any[] = s.visual_schema?.left?.items || [];
+  const rightItems: any[] = s.visual_schema?.right?.items || [];
+
   const colW = (CONTENT_W - 0.5) / 2;
-  const colH = 6.0;
+  const maxItemCount = Math.max(leftItems.length, rightItems.length, 1);
+  const itemSpacing = 0.85;
+  const colH = Math.min(6.0, 0.7 + maxItemCount * itemSpacing + 0.3);
   const colY = 2.6;
   const leftX = PAD_X;
   const rightX = PAD_X + colW + 0.5;
@@ -1082,13 +1086,10 @@ function buildComparisonSchema(
     fontSize: 14, fontFace: f.body, color: rightColor, bold: true, align: "center", valign: "middle",
   });
 
-  // Items
-  const leftItems: any[] = s.visual_schema?.left?.items || [];
-  const rightItems: any[] = s.visual_schema?.right?.items || [];
-
   const renderItems = (items: any[], x: number, startItemY: number, w: number) => {
-    for (let idx = 0; idx < items.length; idx++) {
-      const itemText = typeof items[idx] === "string" ? items[idx] : items[idx]?.text || "";
+    const displayItems = items.slice(0, 6);
+    for (let idx = 0; idx < displayItems.length; idx++) {
+      const itemText = typeof displayItems[idx] === "string" ? displayItems[idx] : displayItems[idx]?.text || "";
       const itemY = startItemY + idx * 0.85;
       if (idx > 0) {
         slide.addShape("rect", {
@@ -1189,7 +1190,7 @@ function buildTimelineSchema(
   slide.background = { color: "FFFFFF" };
 
   // Badge
-  const [badgeText, badgeOpts] = makeBadge("TIMELINE", PAD_X, 0.6, "9B59B6", f);
+  const [badgeText, badgeOpts] = makeBadge("TIMELINE", PAD_X, 0.6, c.primary, f);
   slide.addText(badgeText, badgeOpts);
 
   // Title
