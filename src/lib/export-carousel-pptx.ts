@@ -8,6 +8,7 @@ interface SlideData {
   title: string;
   body: string;
   visual_suggestion?: string;
+  visual_schema?: any;
 }
 
 interface VisualSlide {
@@ -128,6 +129,14 @@ export async function exportCarouselPptx(
     const s = slides[i];
     const category = classifyRole(s.role, i, slides.length);
     const slide = pptx.addSlide();
+
+    // If visual_schema is present and supported, use schema builder instead
+    const supportedSchemaTypes = ["checklist", "before_after", "comparison", "stats"];
+    if (s.visual_schema && s.visual_schema.type && supportedSchemaTypes.includes(s.visual_schema.type)) {
+      buildSchemaSlide(slide, s, c, f, W, H, PAD_X, CONTENT_W);
+      if (category === "tip") tipIndex++;
+      continue;
+    }
 
     switch (category) {
       case "hook":
@@ -766,4 +775,386 @@ function highlightKeyword(
   if (after) parts.push({ text: after, options: { color: baseColor } });
 
   return parts;
+}
+
+// ═══ SCHEMA SLIDE BUILDERS ═══
+
+/**
+ * Dispatcher: routes to the correct schema builder based on visual_schema.type
+ */
+function buildSchemaSlide(
+  slide: any, s: SlideData, c: Colors, f: Fonts,
+  W: number, H: number, PAD_X: number, CONTENT_W: number
+) {
+  const schemaType = s.visual_schema?.type;
+  switch (schemaType) {
+    case "checklist":
+      buildChecklistSchema(slide, s, c, f, W, H, PAD_X, CONTENT_W);
+      break;
+    case "before_after":
+      buildBeforeAfterSchema(slide, s, c, f, W, H, PAD_X, CONTENT_W);
+      break;
+    case "comparison":
+      buildComparisonSchema(slide, s, c, f, W, H, PAD_X, CONTENT_W);
+      break;
+    case "stats":
+      buildStatsSchema(slide, s, c, f, W, H, PAD_X, CONTENT_W);
+      break;
+  }
+}
+
+/**
+ * CHECKLIST — Cards with green/red sidebar + check/cross emojis
+ */
+function buildChecklistSchema(
+  slide: any, s: SlideData, c: Colors, f: Fonts,
+  W: number, H: number, PAD_X: number, CONTENT_W: number
+) {
+  slide.background = { color: c.bg };
+
+  // Badge pilule
+  const [badgeText, badgeOpts] = makeBadge("CHECKLIST", PAD_X, 0.6, c.primary, f);
+  slide.addText(badgeText, badgeOpts);
+
+  // Title with highlighted keyword
+  const schemaTitle = s.visual_schema?.title || s.title;
+  const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
+  slide.addText(titleParts, {
+    x: PAD_X,
+    y: 1.3,
+    w: CONTENT_W,
+    h: 1.4,
+    fontSize: 22,
+    fontFace: f.title,
+    color: c.secondary,
+    align: "left",
+    valign: "middle",
+    wrap: true,
+    lineSpacingMultiple: 1.2,
+  });
+
+  // Items
+  const items: any[] = s.visual_schema?.items || [];
+  const ITEM_H = 1.15;
+  const GAP = 0.25;
+  let startY = 2.9;
+
+  for (let idx = 0; idx < items.length; idx++) {
+    const item = items[idx];
+    const checked = !!item.checked;
+    const barColor = checked ? "27AE60" : "E74C3C";
+    const emoji = checked ? "✅" : "❌";
+    const itemY = startY + idx * (ITEM_H + GAP);
+
+    // Card background
+    slide.addShape("roundRect", {
+      x: PAD_X,
+      y: itemY,
+      w: CONTENT_W,
+      h: ITEM_H,
+      fill: { color: "FFFFFF" },
+      rectRadius: 0.1,
+      shadow: makeLightShadow(),
+    });
+
+    // Left accent bar
+    slide.addShape("rect", {
+      x: PAD_X,
+      y: itemY,
+      w: 0.06,
+      h: ITEM_H,
+      fill: { color: barColor },
+    });
+
+    // Emoji
+    slide.addText(emoji, {
+      x: PAD_X + 0.2,
+      y: itemY,
+      w: 0.5,
+      h: ITEM_H,
+      fontSize: 22,
+      align: "center",
+      valign: "middle",
+    });
+
+    // Item text
+    const itemText = item.text || item.label || "";
+    slide.addText(itemText, {
+      x: PAD_X + 0.75,
+      y: itemY,
+      w: CONTENT_W - 1.0,
+      h: ITEM_H,
+      fontSize: itemText.length > 60 ? 13 : 15,
+      fontFace: f.body,
+      color: c.text,
+      align: "left",
+      valign: "middle",
+      wrap: true,
+      lineSpacingMultiple: 1.3,
+    });
+  }
+}
+
+/**
+ * BEFORE / AFTER — Two columns with red/green sidebars
+ */
+function buildBeforeAfterSchema(
+  slide: any, s: SlideData, c: Colors, f: Fonts,
+  W: number, H: number, PAD_X: number, CONTENT_W: number
+) {
+  slide.background = { color: "FFFFFF" };
+
+  // Badge pilule orange centered
+  const [badgeText, badgeOpts] = makeBadge("AVANT / APRÈS", 0, 0, "E67E22", f);
+  const badgeW = badgeOpts.w as number;
+  slide.addText(badgeText, { ...badgeOpts, x: (W - badgeW) / 2, y: 0.6 });
+
+  // Title
+  const schemaTitle = s.visual_schema?.title || s.title;
+  const titleParts = highlightLastSignificantWord(schemaTitle, "27AE60", c.secondary);
+  slide.addText(titleParts, {
+    x: PAD_X,
+    y: 1.2,
+    w: CONTENT_W,
+    h: 1.2,
+    fontSize: 22,
+    fontFace: f.title,
+    color: c.secondary,
+    align: "center",
+    valign: "middle",
+    wrap: true,
+    lineSpacingMultiple: 1.2,
+  });
+
+  const colW = (CONTENT_W - 0.5) / 2;
+  const colH = 6.0;
+  const colY = 2.6;
+  const leftX = PAD_X;
+  const rightX = PAD_X + colW + 0.5;
+
+  // Left column card (AVANT)
+  slide.addShape("roundRect", {
+    x: leftX, y: colY, w: colW, h: colH,
+    fill: { color: "FFFFFF" }, rectRadius: 0.1, shadow: makeLightShadow(),
+  });
+  slide.addShape("rect", {
+    x: leftX, y: colY, w: 0.06, h: colH, fill: { color: "E74C3C" },
+  });
+
+  // Right column card (APRÈS)
+  slide.addShape("roundRect", {
+    x: rightX, y: colY, w: colW, h: colH,
+    fill: { color: "FFFFFF" }, rectRadius: 0.1, shadow: makeLightShadow(),
+  });
+  slide.addShape("rect", {
+    x: rightX, y: colY, w: 0.06, h: colH, fill: { color: "27AE60" },
+  });
+
+  // Column headers
+  slide.addText("❌ AVANT", {
+    x: leftX + 0.2, y: colY + 0.15, w: colW - 0.4, h: 0.45,
+    fontSize: 14, fontFace: f.body, color: "E74C3C", bold: true, align: "center", valign: "middle",
+  });
+  slide.addText("✅ APRÈS", {
+    x: rightX + 0.2, y: colY + 0.15, w: colW - 0.4, h: 0.45,
+    fontSize: 14, fontFace: f.body, color: "27AE60", bold: true, align: "center", valign: "middle",
+  });
+
+  // Items
+  const beforeItems: any[] = s.visual_schema?.before || [];
+  const afterItems: any[] = s.visual_schema?.after || [];
+
+  const renderColumnItems = (items: any[], x: number, startItemY: number, w: number) => {
+    for (let idx = 0; idx < items.length; idx++) {
+      const itemText = typeof items[idx] === "string" ? items[idx] : items[idx]?.text || "";
+      const itemY = startItemY + idx * 0.85;
+
+      // Separator
+      if (idx > 0) {
+        slide.addShape("rect", {
+          x: x + 0.15, y: itemY - 0.05, w: w - 0.3, h: 0.01, fill: { color: "EEEEEE" },
+        });
+      }
+
+      slide.addText(itemText, {
+        x: x + 0.2, y: itemY, w: w - 0.4, h: 0.75,
+        fontSize: itemText.length > 50 ? 13 : 14, fontFace: f.body, color: c.text,
+        align: "left", valign: "middle", wrap: true, lineSpacingMultiple: 1.3,
+      });
+    }
+  };
+
+  renderColumnItems(beforeItems, leftX, colY + 0.7, colW);
+  renderColumnItems(afterItems, rightX, colY + 0.7, colW);
+
+  // Arrow between columns
+  slide.addText("→", {
+    x: leftX + colW, y: colY, w: 0.5, h: colH,
+    fontSize: 28, fontFace: f.title, color: c.primary, align: "center", valign: "middle",
+  });
+}
+
+/**
+ * COMPARISON — Like before/after but with dynamic labels from schema
+ */
+function buildComparisonSchema(
+  slide: any, s: SlideData, c: Colors, f: Fonts,
+  W: number, H: number, PAD_X: number, CONTENT_W: number
+) {
+  slide.background = { color: "FFFFFF" };
+
+  const leftLabel = s.visual_schema?.left?.label || "Option A";
+  const rightLabel = s.visual_schema?.right?.label || "Option B";
+
+  // Determine colors from emojis in labels
+  const getColorFromLabel = (label: string, fallback: string): string => {
+    if (label.includes("❌")) return "E74C3C";
+    if (label.includes("✅")) return "27AE60";
+    return fallback;
+  };
+  const leftColor = getColorFromLabel(leftLabel, c.primary);
+  const rightColor = getColorFromLabel(rightLabel, "3498db");
+
+  // Badge centered
+  const badgeLabel = s.visual_schema?.badge || "COMPARAISON";
+  const [badgeText, badgeOpts] = makeBadge(badgeLabel, 0, 0, c.primary, f);
+  const badgeW = badgeOpts.w as number;
+  slide.addText(badgeText, { ...badgeOpts, x: (W - badgeW) / 2, y: 0.6 });
+
+  // Title
+  const schemaTitle = s.visual_schema?.title || s.title;
+  const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
+  slide.addText(titleParts, {
+    x: PAD_X, y: 1.2, w: CONTENT_W, h: 1.2,
+    fontSize: 22, fontFace: f.title, color: c.secondary,
+    align: "center", valign: "middle", wrap: true, lineSpacingMultiple: 1.2,
+  });
+
+  const colW = (CONTENT_W - 0.5) / 2;
+  const colH = 6.0;
+  const colY = 2.6;
+  const leftX = PAD_X;
+  const rightX = PAD_X + colW + 0.5;
+
+  // Left column card
+  slide.addShape("roundRect", {
+    x: leftX, y: colY, w: colW, h: colH,
+    fill: { color: "FFFFFF" }, rectRadius: 0.1, shadow: makeLightShadow(),
+  });
+  slide.addShape("rect", {
+    x: leftX, y: colY, w: 0.06, h: colH, fill: { color: leftColor },
+  });
+
+  // Right column card
+  slide.addShape("roundRect", {
+    x: rightX, y: colY, w: colW, h: colH,
+    fill: { color: "FFFFFF" }, rectRadius: 0.1, shadow: makeLightShadow(),
+  });
+  slide.addShape("rect", {
+    x: rightX, y: colY, w: 0.06, h: colH, fill: { color: rightColor },
+  });
+
+  // Column headers
+  slide.addText(leftLabel, {
+    x: leftX + 0.2, y: colY + 0.15, w: colW - 0.4, h: 0.45,
+    fontSize: 14, fontFace: f.body, color: leftColor, bold: true, align: "center", valign: "middle",
+  });
+  slide.addText(rightLabel, {
+    x: rightX + 0.2, y: colY + 0.15, w: colW - 0.4, h: 0.45,
+    fontSize: 14, fontFace: f.body, color: rightColor, bold: true, align: "center", valign: "middle",
+  });
+
+  // Items
+  const leftItems: any[] = s.visual_schema?.left?.items || [];
+  const rightItems: any[] = s.visual_schema?.right?.items || [];
+
+  const renderItems = (items: any[], x: number, startItemY: number, w: number) => {
+    for (let idx = 0; idx < items.length; idx++) {
+      const itemText = typeof items[idx] === "string" ? items[idx] : items[idx]?.text || "";
+      const itemY = startItemY + idx * 0.85;
+      if (idx > 0) {
+        slide.addShape("rect", {
+          x: x + 0.15, y: itemY - 0.05, w: w - 0.3, h: 0.01, fill: { color: "EEEEEE" },
+        });
+      }
+      slide.addText(itemText, {
+        x: x + 0.2, y: itemY, w: w - 0.4, h: 0.75,
+        fontSize: itemText.length > 50 ? 13 : 14, fontFace: f.body, color: c.text,
+        align: "left", valign: "middle", wrap: true, lineSpacingMultiple: 1.3,
+      });
+    }
+  };
+
+  renderItems(leftItems, leftX, colY + 0.7, colW);
+  renderItems(rightItems, rightX, colY + 0.7, colW);
+
+  // Arrow between columns
+  slide.addText("→", {
+    x: leftX + colW, y: colY, w: 0.5, h: colH,
+    fontSize: 28, fontFace: f.title, color: c.primary, align: "center", valign: "middle",
+  });
+}
+
+/**
+ * STATS — Big numbers with labels, 1-3 columns
+ */
+function buildStatsSchema(
+  slide: any, s: SlideData, c: Colors, f: Fonts,
+  W: number, H: number, PAD_X: number, CONTENT_W: number
+) {
+  slide.background = { color: "FFFFFF" };
+
+  // Badge
+  const [badgeText, badgeOpts] = makeBadge("CHIFFRES CLÉS", 0, 0, c.primary, f);
+  const badgeW = badgeOpts.w as number;
+  slide.addText(badgeText, { ...badgeOpts, x: (W - badgeW) / 2, y: 0.6 });
+
+  // Title if present
+  const schemaTitle = s.visual_schema?.title || s.title;
+  if (schemaTitle) {
+    const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
+    slide.addText(titleParts, {
+      x: PAD_X, y: 1.2, w: CONTENT_W, h: 1.2,
+      fontSize: 22, fontFace: f.title, color: c.secondary,
+      align: "center", valign: "middle", wrap: true, lineSpacingMultiple: 1.2,
+    });
+  }
+
+  const stats: any[] = s.visual_schema?.items || s.visual_schema?.stats || [];
+  const count = Math.min(stats.length, 3);
+  if (count === 0) return;
+
+  const statsY = 3.0;
+  const statsH = 4.0;
+  const colW = CONTENT_W / count;
+
+  for (let idx = 0; idx < count; idx++) {
+    const stat = stats[idx];
+    const value = stat.value || stat.number || "0";
+    const label = stat.label || stat.text || "";
+    const colX = PAD_X + idx * colW;
+
+    // Big number
+    slide.addText(String(value), {
+      x: colX, y: statsY, w: colW, h: 2.0,
+      fontSize: 52, fontFace: f.title, color: c.primary, bold: true,
+      align: "center", valign: "bottom",
+    });
+
+    // Label
+    slide.addText(label, {
+      x: colX + 0.15, y: statsY + 2.2, w: colW - 0.3, h: 1.5,
+      fontSize: 16, fontFace: f.body, color: c.text,
+      align: "center", valign: "top", wrap: true, lineSpacingMultiple: 1.4,
+      transparency: 20,
+    });
+
+    // Vertical separator between stats
+    if (idx > 0) {
+      slide.addShape("rect", {
+        x: colX - 0.01, y: statsY + 0.3, w: 0.02, h: 2.0,
+        fill: { color: "EEEEEE" },
+      });
+    }
+  }
 }
