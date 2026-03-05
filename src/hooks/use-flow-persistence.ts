@@ -13,6 +13,7 @@ interface FlowState {
   result: any;
   visualSlides: { slide_number: number; html: string }[];
   savedId: string | null;
+  questions: { id: string; question: string; placeholder?: string }[];
   ts: number;
 }
 
@@ -23,6 +24,12 @@ export function saveFlowState(state: Partial<FlowState>) {
     const existing = loadFlowState();
     const merged = { ...existing, ...state, ts: Date.now() };
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    // Also backup to localStorage for tab-recycling protection (mobile)
+    if (state.step === "result" || state.step === "questions") {
+      try {
+        localStorage.setItem(STORAGE_KEY + "_backup", JSON.stringify(merged));
+      } catch {}
+    }
   } catch {
     // Storage full or unavailable — silently ignore
   }
@@ -31,14 +38,27 @@ export function saveFlowState(state: Partial<FlowState>) {
 export function loadFlowState(): FlowState | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as FlowState;
-    // Expire after MAX_AGE
-    if (parsed.ts && Date.now() - parsed.ts > MAX_AGE_MS) {
-      clearFlowState();
-      return null;
+    if (raw) {
+      const parsed = JSON.parse(raw) as FlowState;
+      if (parsed.ts && Date.now() - parsed.ts > MAX_AGE_MS) {
+        clearFlowState();
+        return null;
+      }
+      return parsed;
     }
-    return parsed;
+    // Fallback: try localStorage backup (survives tab recycling)
+    const backup = localStorage.getItem(STORAGE_KEY + "_backup");
+    if (backup) {
+      const parsed = JSON.parse(backup) as FlowState;
+      if (parsed.ts && Date.now() - parsed.ts > MAX_AGE_MS) {
+        localStorage.removeItem(STORAGE_KEY + "_backup");
+        return null;
+      }
+      // Re-hydrate sessionStorage from backup
+      sessionStorage.setItem(STORAGE_KEY, backup);
+      return parsed;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -47,6 +67,7 @@ export function loadFlowState(): FlowState | null {
 export function clearFlowState() {
   try {
     sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY + "_backup");
   } catch {}
 }
 
@@ -75,5 +96,6 @@ export function useFlowPersistence(deps: Partial<FlowState>) {
     deps.savedId,
     // visualSlides changes often — save on length change
     deps.visualSlides?.length,
+    deps.questions,
   ]);
 }
