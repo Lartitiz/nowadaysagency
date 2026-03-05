@@ -77,6 +77,14 @@ export function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = 
 
   return (
     <>
+      {showVoiceTip && !value.trim() && (
+        <div className="flex items-start gap-2.5 bg-secondary/80 border border-primary/15 rounded-xl px-4 py-3 animate-fade-in mb-2">
+          <span className="text-lg shrink-0 mt-0.5">🎤</span>
+          <p className="text-xs text-foreground/80 leading-relaxed">
+            <span className="font-semibold text-foreground">Astuce :</span> tu vois le petit micro à droite ? Clique dessus et parle.
+          </p>
+        </div>
+      )}
       <div className="relative w-full">
         <input
           type="text"
