@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
-import { Sparkles } from "lucide-react";
+import { Download, Loader2, Sparkles } from "lucide-react";
+import { useState, useCallback } from "react";
+import html2canvas from "html2canvas";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { ContentPreview } from "@/components/ContentPreview";
 
@@ -21,6 +23,85 @@ export function CalendarPostPreview({
   canal, format, caption, theme, username, displayName,
   mediaUrls, visualHtml, onNavigateToGenerator, hasAngle, hasTheme,
 }: Props) {
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadVisuals = useCallback(async () => {
+    if (!visualHtml || visualHtml.length === 0 || downloading) return;
+    setDownloading(true);
+
+    const container = document.createElement("div");
+    container.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1080px;height:1350px;overflow:hidden;z-index:-1;";
+    document.body.appendChild(container);
+
+    try {
+      const images: { name: string; blob: Blob }[] = [];
+
+      for (const vs of visualHtml) {
+        container.innerHTML = vs.html;
+        await document.fonts.ready;
+        await new Promise(r => setTimeout(r, 400));
+
+        const canvas = await html2canvas(container, {
+          width: 1080,
+          height: 1350,
+          scale: 1,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: null,
+          logging: false,
+        });
+
+        const blob = await new Promise<Blob>((resolve) => {
+          canvas.toBlob((b) => resolve(b!), "image/png");
+        });
+
+        images.push({
+          name: `slide-${vs.slide_number}.png`,
+          blob,
+        });
+      }
+
+      if (images.length === 1) {
+        const url = URL.createObjectURL(images[0].blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = images[0].name;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        try {
+          const JSZip = (await import("jszip")).default;
+          const zip = new JSZip();
+          for (const img of images) {
+            zip.file(img.name, img.blob);
+          }
+          const zipBlob = await zip.generateAsync({ type: "blob" });
+          const url = URL.createObjectURL(zipBlob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `visuels-${theme || "carrousel"}.zip`.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch {
+          for (const img of images) {
+            const url = URL.createObjectURL(img.blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = img.name;
+            a.click();
+            URL.revokeObjectURL(url);
+            await new Promise(r => setTimeout(r, 200));
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Download error:", err);
+    } finally {
+      document.body.removeChild(container);
+      setDownloading(false);
+    }
+  }, [visualHtml, downloading, theme]);
+
   if (!caption) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -46,7 +127,23 @@ export function CalendarPostPreview({
   if (visualHtml && visualHtml.length > 0) {
     return (
       <div className="py-2 space-y-4 overflow-y-auto max-h-[60vh]">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">✨ Visuels générés ({visualHtml.length} slides)</p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">✨ Visuels générés ({visualHtml.length} slides)</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadVisuals}
+            disabled={downloading}
+            className="rounded-full gap-1.5 text-xs"
+          >
+            {downloading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="h-3.5 w-3.5" />
+            )}
+            {downloading ? "Export..." : "Télécharger"}
+          </Button>
+        </div>
         {visualHtml.map((vs, idx) => (
           <div key={idx} className="rounded-xl border border-border overflow-hidden bg-card inline-block w-full max-w-[320px] mx-auto block">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 border-b border-border">
