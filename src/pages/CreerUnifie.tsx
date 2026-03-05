@@ -17,6 +17,8 @@ import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import { useContentGenerator } from "@/hooks/use-content-generator";
 import { CONTENT_STRUCTURES, getStructureForCombo } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemoContext } from "@/contexts/DemoContext";
+import { DEMO_DATA } from "@/lib/demo-data";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { exportCarouselPptx } from "@/lib/export-carousel-pptx";
@@ -34,6 +36,7 @@ export default function CreerUnifie() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = useAuth();
+  const { isDemoMode, demoData } = useDemoContext();
   const workspaceId = useWorkspaceId();
   const { data: charterData } = useBrandCharter();
 
@@ -77,6 +80,7 @@ export default function CreerUnifie() {
   const [uploadedPhotos, setUploadedPhotos] = useState<any[]>([]);
   const [photoDescription, setPhotoDescription] = useState("");
   const [photoMode, setPhotoMode] = useState(false);
+  const [demoGenerating, setDemoGenerating] = useState(false);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
@@ -156,6 +160,19 @@ export default function CreerUnifie() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Demo mode: pre-fill with carousel photo example
+  useEffect(() => {
+    if (!isDemoMode || !demoData) return;
+    const demo = (DEMO_DATA as any).carousel_photo_demo;
+    if (!demo) return;
+    if (!ideaText && !selectedFormat) {
+      setIdeaText(demo.subject);
+      setSelectedFormat("carousel");
+      setCarouselSubMode("photo");
+      setObjective(demo.objective);
+    }
+  }, [isDemoMode, demoData]);
 
   // Auto-persist state on changes
   useEffect(() => {
@@ -302,6 +319,19 @@ export default function CreerUnifie() {
 
   const doGenerate = async (ans: Record<string, string>) => {
     if (!selectedFormat) return;
+    // Demo mode: simulate generation with pre-built result
+    if (isDemoMode) {
+      const demo = (DEMO_DATA as any).carousel_photo_demo;
+      if (demo?.result) {
+        setDemoGenerating(true);
+        setStep("result");
+        setTimeout(() => {
+          setResult({ type: "carousel", raw: demo.result, ...demo.result });
+          setDemoGenerating(false);
+        }, 2500);
+        return;
+      }
+    }
     // Reset post-generation state on new generation
     setSavedId(null);
     setVisualSlides([]);
@@ -905,11 +935,11 @@ export default function CreerUnifie() {
               </div>
             )}
 
-            {step === "result" && !isLaunchMode && (generating || streaming || result) && (
+            {step === "result" && !isLaunchMode && (generating || demoGenerating || streaming || result) && (
               <CreerStepResult
                 result={result?.raw || result}
                 format={selectedFormat || "post"}
-                generating={generating || streaming}
+                generating={generating || demoGenerating || streaming}
                 streamingContent={streaming ? streamingContent : undefined}
                 photos={(carouselSubMode === "photo" || carouselSubMode === "mix") ? uploadedPhotos : undefined}
                 onEdit={handleEdit}
