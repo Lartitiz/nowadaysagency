@@ -257,6 +257,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               canal={postCanal} format={format} caption={contentDraft} theme={theme}
               username={igUsername || ownerName} displayName={ownerName} mediaUrls={mediaUrls}
               visualHtml={(editingPost?.story_sequence_detail as any)?.visual_html || null}
+              visualUrls={(editingPost?.story_sequence_detail as any)?.visual_urls || null}
               onNavigateToGenerator={() => handleNavigateToGenerator("generate")}
               hasAngle={!!angle} hasTheme={!!theme.trim()}
             />
