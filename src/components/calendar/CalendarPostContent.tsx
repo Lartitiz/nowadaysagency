@@ -64,6 +64,7 @@ export function CalendarPostContent({
 
   const ContentEditable = () => (
     <div
+      key={showFullContent ? "full" : "preview"}
       contentEditable
       suppressContentEditableWarning
       onBlur={(e) => {
