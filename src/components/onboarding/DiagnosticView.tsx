@@ -92,6 +92,11 @@ function MobileSlides({ data, prenom, onComplete, hasInstagram, hasWebsite, sour
             />
           ))}
         </div>
+        {slide === 0 && (
+          <p className="text-center text-xs text-muted-foreground/60 animate-pulse mb-2">
+            ← Swipe ou clique Suivant →
+          </p>
+        )}
         {slide < totalSlides - 1 && (
           <div className="text-center">
             <Button onClick={() => setSlide(s => s + 1)} className="rounded-full px-8">
