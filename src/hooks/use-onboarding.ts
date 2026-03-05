@@ -89,11 +89,6 @@ export interface UploadedFile {
   url: string;
 }
 
-interface AuditResults {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  documents: any;
-  isLoading: boolean;
-}
 
 export function useOnboarding() {
   const { user } = useAuth();
@@ -114,10 +109,6 @@ export function useOnboarding() {
   const [saving, setSaving] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [auditResults, setAuditResults] = useState<AuditResults>({
-    documents: null,
-    isLoading: false,
-  });
   const [diagnosticData, setDiagnosticData] = useState<DiagnosticData | null>(null);
 
   const [answers, setAnswers] = useState<Answers>({
@@ -284,35 +275,6 @@ export function useOnboarding() {
     }).catch(e => console.warn("Pre-scrape failed (non-blocking):", e));
   }, [isDemoMode, user, answers.website]);
 
-  // Launch background audits when entering diagnostic phase
-  const auditsLaunched = useRef(false);
-  useEffect(() => {
-    if (isDemoMode || !user || auditsLaunched.current) return;
-    if (step < 8) return; // Start at affinage phase
-    auditsLaunched.current = true;
-    setAuditResults(prev => ({ ...prev, isLoading: true }));
-
-    const promises: Promise<void>[] = [];
-
-    if (uploadedFiles.length > 0) {
-      promises.push(
-        supabase.functions
-          .invoke("analyze-documents", {
-            body: { document_ids: uploadedFiles.map(f => f.id) },
-          })
-          .then(res => {
-            if (res.data?.extracted_data) {
-              setAuditResults(prev => ({ ...prev, documents: res.data.extracted_data }));
-            }
-          })
-          .catch(e => console.error("Document analysis failed:", e))
-      );
-    }
-
-    Promise.allSettled(promises).then(() => {
-      setAuditResults(prev => ({ ...prev, isLoading: false }));
-    });
-  }, [step, isDemoMode, user?.id, uploadedFiles]);
 
   /* ── file upload ── */
   function sanitizeFileName(name: string): string {
@@ -636,7 +598,7 @@ export function useOnboarding() {
     saving,
     uploadedFiles,
     uploading,
-    auditResults,
+    
     diagnosticData,
     setDiagnosticData,
     isDemoMode,
