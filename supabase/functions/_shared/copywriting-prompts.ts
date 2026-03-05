@@ -243,7 +243,7 @@ Relance curiosité : "Sauf que.", "Et là.", "Le truc c'est que…", "Attends, c
 
 Relance émotionnelle : "Franchement.", "J'avoue.", "En vrai.", "Bon.", "Du coup.", "Et là, déclic.", "Bref."
 
-Relance tension : "Sauf que rien ne s'est passé comme prévu.", "Spoiler : c'était une erreur.", "Et c'est là que tout a basculé.", "Mais.", "Le problème ?", "Ce qu'on ne te dit pas, c'est que…"
+Relance tension : "Sauf que rien ne s'est passé comme prévu.", "Spoiler : c'était une erreur.", "Sauf que.", "Mais.", "Le truc, c'est que…", "Ce qu'on ne te dit pas, c'est que…"
 
 Relance validation : "(Oui, même toi.)", "(Pas besoin d'être parfaite pour ça.)", "(Et c'est ok.)", "(Je sais, ça fait peur.)", "(Promis, c'est plus simple qu'il n'y paraît.)"
 
@@ -616,85 +616,85 @@ export const LINKEDIN_TEMPLATES: Record<string, string> = {
 STRUCTURE : Accroche stat/contrariante → Constat terrain → Analyse de fond → Ce que ça change concrètement → Ouverture question
 Hook recommandé : statistique ou contrariante
 Objectif : Crédibilité + Visibilité
-Longueur cible : 1500-1900 caractères`,
+Longueur cible : 800-1200 caractères`,
 
   test_grandeur_nature: `TEMPLATE TEST GRANDEUR NATURE :
 STRUCTURE : Accroche "j'ai testé X pendant Y" → Le contexte : pourquoi j'ai testé → Ce qui s'est passé (chronologique) → Le verdict honnête → Ce que j'en retiens pour toi
 Hook recommandé : story ou confession
 Objectif : Confiance + Engagement
-Longueur cible : 1400-1800 caractères`,
+Longueur cible : 800-1200 caractères`,
 
   coup_de_gueule: `TEMPLATE COUP DE GUEULE ENGAGÉ :
 STRUCTURE : Accroche coup de poing → Le constat qui énerve (exemples concrets) → Pourquoi c'est un problème (aller au fond) → L'alternative que tu défends → CTA engagé
 Hook recommandé : frustration ou ennemi_commun
 Objectif : Visibilité + Engagement
-Longueur cible : 1300-1700 caractères
+Longueur cible : 800-1200 caractères
 ATTENTION : reste constructif·ve. Le coup de gueule doit proposer une alternative, pas juste critiquer.`,
 
   mythe_deconstruire: `TEMPLATE MYTHE À DÉCONSTRUIRE :
 STRUCTURE : Accroche "On vous a menti sur..." / "Non, [croyance populaire] n'est pas..." → Le mythe tel qu'on le croit → Pourquoi c'est faux (preuves, expérience) → La réalité nuancée → Ce que ça change dans la pratique
 Hook recommandé : contrariante ou question
 Objectif : Crédibilité + Visibilité
-Longueur cible : 1400-1800 caractères`,
+Longueur cible : 800-1200 caractères`,
 
   storytelling_lecon: `TEMPLATE STORYTELLING + LEÇON :
 STRUCTURE : Hook in medias res ou confession → Contexte (quand, où, pourquoi) → L'histoire (galères, surprises, retournements) → La leçon (sincère, pas moralisatrice) → CTA question intime
 Hook recommandé : story ou confession
 Objectif : Confiance + Engagement
-Longueur cible : 1500-1900 caractères`,
+Longueur cible : 800-1200 caractères`,
 
   histoire_cliente: `TEMPLATE HISTOIRE CLIENTE / ÉTUDE DE CAS :
 STRUCTURE : Hook résultat ou problème frappant → Le contexte client (qui, quel problème, avant) → Ce qu'on a fait ensemble (concret, pas de jargon) → Les résultats (chiffres ou qualitatif, après) → La leçon transférable
 Hook recommandé : avant_apres ou statistique
 Objectif : Vente + Crédibilité
-Longueur cible : 1400-1800 caractères
+Longueur cible : 800-1200 caractères
 Si pas de chiffres : utiliser du qualitatif ("elle a osé", "elle a structuré", "elle a gagné en clarté").`,
 
   surf_actu: `TEMPLATE SURF SUR L'ACTU :
 STRUCTURE : Accroche fait d'actualité → Ce qui se passe (résumé factuel, 2-3 phrases) → Ton angle expert (ce que personne ne dit) → Ce que ça change pour ton audience → Ouverture débat
 Hook recommandé : statistique ou question
 Objectif : Visibilité + Crédibilité
-Longueur cible : 1300-1700 caractères
+Longueur cible : 800-1200 caractères
 IMPORTANT : ne pas juste commenter l'actu, apporter un angle que personne d'autre n'a.`,
 
   regard_philosophique: `TEMPLATE REGARD PHILOSOPHIQUE :
 STRUCTURE : Question existentielle ou observation → Le lien avec ton métier/secteur → Ta réflexion de fond (aller loin dans l'idée) → Ce que ça dit de nous → Ouverture qui fait réfléchir
 Hook recommandé : question ou contrariante
 Objectif : Confiance + Engagement
-Longueur cible : 1500-1900 caractères
+Longueur cible : 800-1200 caractères
 C'est le format France Culture : on prend le temps de penser.`,
 
   conseil_contre_intuitif: `TEMPLATE CONSEIL CONTRE-INTUITIF :
 STRUCTURE : Accroche "Arrête de..." ou "Le meilleur conseil que j'ai reçu..." → Le conseil mainstream que tout le monde donne → Pourquoi ça ne marche pas (ton expérience) → Ce qui marche VRAIMENT → Application concrète
 Hook recommandé : contrariante ou frustration
 Objectif : Crédibilité + Engagement
-Longueur cible : 1400-1700 caractères`,
+Longueur cible : 800-1200 caractères`,
 
   before_after: `TEMPLATE BEFORE/AFTER :
-STRUCTURE : Accroche contraste frappant → AVANT : la situation de départ (concret, douloureux) → Le déclic / ce qui a changé → APRÈS : la situation actuelle → La clé : qu'est-ce qui a fait la différence
+STRUCTURE : Accroche contraste frappant → AVANT : la situation de départ (concret, détaillé) → Ce qui a changé concrètement (action, décision, rencontre) → APRÈS : la situation actuelle (avec des faits) → La clé : qu'est-ce qui a fait la différence
 Hook recommandé : avant_apres ou story
 Objectif : Vente + Confiance
-Longueur cible : 1300-1700 caractères`,
+Longueur cible : 800-1200 caractères`,
 
   build_in_public: `TEMPLATE BUILD IN PUBLIC :
 STRUCTURE : Accroche "Ce mois-ci, j'ai..." → Les coulisses (ce qui a marché, ce qui a foiré) → Les chiffres bruts (si pertinent) → Ce que j'ai appris → La suite
 Hook recommandé : confession ou liste
 Objectif : Confiance + Engagement
-Longueur cible : 1300-1700 caractères
+Longueur cible : 800-1200 caractères
 Authenticité max : montre les vrais chiffres, les vrais doutes.`,
 
   identification_quotidien: `TEMPLATE IDENTIFICATION / QUOTIDIEN :
 STRUCTURE : Accroche scène du quotidien que l'audience reconnaît → Le détail qui fait "c'est tellement moi" → Le lien avec un enjeu pro plus large → Le message derrière → CTA doux
 Hook recommandé : confirmation ou story
 Objectif : Engagement + Confiance
-Longueur cible : 1200-1600 caractères
+Longueur cible : 800-1200 caractères
 C'est le format "on en parle de..." qui crée de la complicité.`,
 
   contenu_lancement: `TEMPLATE CONTENU DE LANCEMENT :
 STRUCTURE : Accroche teasing ou annonce → Le problème que ça résout → Ce que c'est concrètement → Pour qui c'est fait → CTA clair (lien en commentaire)
 Hook recommandé : liste ou question
 Objectif : Vente
-Longueur cible : 1300-1700 caractères
+Longueur cible : 800-1200 caractères
 MAX 20% de tes posts. Le lancement doit être entouré de contenus de valeur.`,
 };
 
