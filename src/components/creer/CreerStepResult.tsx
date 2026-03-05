@@ -11,6 +11,33 @@ import NewsletterResult from "@/components/creer/formatRenderers/NewsletterResul
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
+/**
+ * Nettoie le contenu streamé en temps réel.
+ * L'IA renvoie du JSON wrappé dans des backticks markdown.
+ * On extrait le champ "content" au fur et à mesure.
+ */
+function cleanStreamingContent(raw: string): string {
+  if (!raw) return "";
+
+  let cleaned = raw
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```\s*$/g, "");
+
+  const contentMatch = cleaned.match(/"content"\s*:\s*"([\s\S]*?)(?:"\s*[,}]|$)/);
+  if (contentMatch) {
+    return contentMatch[1]
+      .replace(/\\n/g, "\n")
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, "\\");
+  }
+
+  if (cleaned.trimStart().startsWith("{")) {
+    return "";
+  }
+
+  return cleaned;
+}
 // ── Progress messages par format ──
 const PROGRESS_MESSAGES: Record<string, string[]> = {
   carousel: [
@@ -175,15 +202,19 @@ export default function CreerStepResult({
   if (generating) {
     // Mode streaming : le contenu texte arrive progressivement
     if (streamingContent) {
-      return (
-        <div className="animate-fade-in space-y-4">
-          <div className="rounded-2xl border border-primary/20 bg-accent/30 p-6">
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{streamingContent}</p>
-            <span className="inline-block w-0.5 h-4 bg-primary animate-pulse ml-0.5" />
+      const displayContent = cleanStreamingContent(streamingContent);
+      if (displayContent) {
+        return (
+          <div className="animate-fade-in space-y-4">
+            <div className="rounded-2xl border border-primary/20 bg-accent/30 p-6">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{displayContent}</p>
+              <span className="inline-block w-0.5 h-4 bg-primary animate-pulse ml-0.5" />
+            </div>
+            <p className="text-xs text-center text-muted-foreground">L'IA rédige en temps réel…</p>
           </div>
-          <p className="text-xs text-center text-muted-foreground">L'IA rédige en temps réel…</p>
-        </div>
-      );
+        );
+      }
+      // Si le contenu n'est pas encore extractible, montrer le skeleton
     }
 
     // Mode skeleton : formats structurés (carousel, reel, story)
