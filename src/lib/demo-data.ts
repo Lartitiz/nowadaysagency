@@ -386,6 +386,65 @@ export const DEMO_DATA = {
     level: "intermediate",
     weeklyTime: "30min",
   },
+
+  // ── DÉMO CARROUSEL PHOTO ──
+  carousel_photo_demo: {
+    subject: "Les coulisses d'une séance portrait : ce qui se passe AVANT le déclencheur",
+    format: "carousel" as const,
+    carousel_type: "photo" as const,
+    objective: "engagement",
+    editorial_angle: "storytelling",
+    result: {
+      carousel_type: "photo",
+      hook: "Ce qui se passe AVANT que j'appuie sur le déclencheur 📸",
+      slides: [
+        {
+          slide_number: 1,
+          slide_type: "hook",
+          text: "Ce qui se passe AVANT que j'appuie sur le déclencheur 📸",
+          caption: "Tu crois que le plus important dans une séance photo, c'est le moment où je prends la photo ?\n\nEn vrai, 90% du travail se passe AVANT.",
+        },
+        {
+          slide_number: 2,
+          slide_type: "photo_full",
+          photo_index: 0,
+          caption: "D'abord, on parle. On prend un café. Tu me racontes ton projet, ce qui te fait vibrer, ce qui te bloque. Je ne touche pas à mon appareil pendant au moins 20 minutes.",
+        },
+        {
+          slide_number: 3,
+          slide_type: "photo_full",
+          photo_index: 1,
+          caption: "Ensuite, le coaching posture. Je te montre comment te tenir naturellement. Pas des poses de magazine : TA posture, celle où tu te sens bien. On rigole beaucoup à cette étape.",
+        },
+        {
+          slide_number: 4,
+          slide_type: "photo_full",
+          photo_index: 2,
+          caption: "Et là, sans que tu t'en rendes compte, je commence à shooter. Les premières photos arrivent dans le mouvement, dans le naturel. Pas de \"cheese\" chez moi.",
+        },
+        {
+          slide_number: 5,
+          slide_type: "photo_full",
+          photo_index: 3,
+          caption: "Le résultat ? Des photos où tu te dis \"c'est vraiment moi\". Pas une version filtrée. Pas une version corporate. TOI, en version confiante.",
+        },
+        {
+          slide_number: 6,
+          slide_type: "cta",
+          text: "Envie de vivre ça ? Réserve ta Séance Révélation 💛",
+          caption: "Chaque séance commence par cette mise en confiance. C'est ce qui fait que mes clientes se trouvent belles pour la première fois en photo.\n\n→ Lien en bio pour réserver ta séance.",
+        },
+      ],
+      caption: "Ce qui se passe AVANT que j'appuie sur le déclencheur 📸\n\nTu crois que le plus important dans une séance photo, c'est le clic ?\n\nEn vrai, 90% du travail se passe avant. Le café, la discussion, le coaching posture, les premiers rires.\n\nC'est là que la magie opère. C'est là que tu passes de \"je suis pas photogénique\" à \"attends, c'est vraiment moi ?!\"\n\nEnvie de vivre ça ? Lien en bio 💛\n\n#photographeportrait #portraitfemme #confianceensoi #entrepreneuresfemmes #photographelyon #personalbranding #coachingposture #osersemontrer",
+      hashtags: ["#photographeportrait", "#portraitfemme", "#confianceensoi", "#entrepreneuresfemmes", "#photographelyon", "#personalbranding", "#coachingposture", "#osersemontrer"],
+      quality_check: {
+        hook_score: 9,
+        storytelling_score: 9,
+        cta_score: 8,
+        overall: "Excellent storytelling des coulisses avec une progression naturelle vers l'offre.",
+      },
+    },
+  },
 } as const;
 
 export type DemoDataType = typeof DEMO_DATA;
