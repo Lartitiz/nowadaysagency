@@ -93,7 +93,7 @@ function LoadingMessage() {
   const messages = [
     "Je fouille dans ton branding…",
     "Je cherche des angles originaux…",
-    "Je formule 6 idées différentes…",
+    "Je formule 3 idées percutantes…",
     "J'écris un hook percutant pour chaque…",
     "Derniers ajustements…",
   ];
@@ -561,9 +561,9 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
           {/* Loading */}
           {step === "loading" && (
             <div className="space-y-4 animate-fade-in py-4">
-              {/* Skeleton des 6 idées */}
+              {/* Skeleton des 3 idées */}
               <div className="space-y-2">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
+                {[1, 2, 3].map((i) => (
                   <div
                     key={i}
                     className="rounded-xl border border-border bg-muted/30 p-3.5 animate-pulse"
@@ -594,7 +594,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
               {/* Ideas grid */}
               {result.ideas?.length ? (
                 <>
-                  <p className="text-sm font-medium text-foreground">6 idées pour toi. Choisis celle qui te fait vibrer :</p>
+                  <p className="text-sm font-medium text-foreground">3 idées pour toi. Choisis celle qui te fait vibrer :</p>
                   <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
                     {result.ideas.map((idea, i) => {
                       const isSelected = selectedIdea === idea;
