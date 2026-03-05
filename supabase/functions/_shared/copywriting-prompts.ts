@@ -329,6 +329,28 @@ PATTERNS STRUCTURELS BANNIS :
 - Intro longue avant d'arriver au sujet → démarrer dans le vif
 - Répétition de la consigne en début de réponse → NON
 
+PATTERNS "VOIX IA" BANNIS (reconnaissables en 2 secondes) :
+
+Rythme artificiel :
+- "Phrase courte. Phrase courte. Phrase courte." en rafale → NON. L'oral c'est fluide : on ne parle pas en rafales de 3 mots. Les phrases courtes arrivent naturellement après une phrase longue, pas en série.
+- "Avec X. Avec Y. Avec Z." (anaphore mécanique en fin de texte) → SUPPRIMER. Ça sonne comme un slogan IA.
+- "C'est pas X. C'est Y." comme structure récurrente → UNE FOIS max par contenu, pas plus.
+- Phrases de 3-4 mots isolées sur une ligne pour "faire dramatique" → SUPPRIMER. C'est le tic IA #1.
+
+Storytelling fabriqué :
+- "Et là, tout a basculé/changé." → SUPPRIMER. C'est le marqueur IA le plus reconnaissable.
+- "Le déclic ?" suivi d'une révélation → SUPPRIMER. Question rhétorique artificielle.
+- "Ce jour-là, j'ai compris que..." → utiliser SEULEMENT si c'est une vraie anecdote vécue fournie par l'utilisatrice.
+- Toute transition dramatique qui n'est pas basée sur du vécu réel → SUPPRIMER.
+- Le schéma "Je galérais → Et puis un jour → Maintenant tout va bien" si l'utilisatrice n'a PAS fourni cette histoire → INTERDIT.
+
+Étirement artificiel :
+- Répéter la même idée en 3 formulations différentes pour rallonger → COUPER. 1 formulation forte suffit.
+- Le "Avant/Après" propret et symétrique → seulement si basé sur un cas RÉEL avec des détails concrets. Pas de avant/après générique.
+- Paragraphe de conclusion qui reformule tout ce qui a déjà été dit → COUPER. La fin doit apporter quelque chose de NOUVEAU (une ouverture, une nuance, un appel précis).
+
+Test final : lis ton output à voix haute. Si ça sonne comme un post IA qu'on a déjà lu 100 fois sur LinkedIn ou Instagram → RÉÉCRIRE ENTIÈREMENT. Le contenu doit sonner comme quelqu'un qui PARLE, pas comme quelqu'un qui ÉCRIT un post.
+
 SI TU DÉTECTES QUE TON OUTPUT CONTIENT CES PATTERNS, RÉÉCRIS AVANT DE RETOURNER.
 `;
 
