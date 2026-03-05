@@ -283,6 +283,28 @@ export default function CreerUnifie() {
 
   const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string }) => {
     const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject } = options || {};
+
+    // Demo mode: skip questions step, go directly to generation
+    if (isDemoMode) {
+      setSelectedFormat(format);
+      setEditorialAngle(angle || null);
+      if (sub) setCarouselSubMode(sub);
+      if (photos) setUploadedPhotos(photos);
+      if (desc) setPhotoDescription(desc);
+      if (pm !== undefined) setPhotoMode(pm);
+      setStep("result");
+      // Trigger demo generation directly
+      const demo = (DEMO_DATA as any).carousel_photo_demo;
+      if (demo?.result) {
+        setDemoGenerating(true);
+        setTimeout(() => {
+          setResult({ type: "carousel", raw: demo.result, ...demo.result });
+          setDemoGenerating(false);
+        }, 2500);
+      }
+      return;
+    }
+
     setSelectedFormat(format);
     setEditorialAngle(angle || null);
     if (sub) setCarouselSubMode(sub);
