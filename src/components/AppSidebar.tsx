@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { ChevronRight, Home, PenLine, CalendarDays, MessageCircle, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, BarChart3, Brain, Settings } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ChevronRight, Home, PenLine, CalendarDays, MessageCircle, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, BarChart3, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
+import { useDemoContext } from "@/contexts/DemoContext";
 
 interface NavItem {
   label: string;
@@ -84,9 +85,12 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
 
 export default function AppSidebar() {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
   const { plan } = useUserPlan();
+  const { activateDemo } = useDemoContext();
+  const navigate = useNavigate();
   const planLabel = plan === "now_pilot" ? "Binôme · Illimité ✨" : plan === "outil" ? "Outil · 39€/mois" : "Gratuit";
+  const isPilot = plan === "now_pilot";
 
   const [open, setOpen] = useState(false);
   const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
@@ -252,10 +256,37 @@ export default function AppSidebar() {
               ))}
             </div>
           ))}
+
+          {isAdmin && (
+            <div className="pt-3">
+              <div className="font-mono-ui text-[9.5px] text-muted-foreground uppercase tracking-wider px-3 pb-1.5">
+                ADMIN
+              </div>
+              <button
+                onClick={() => { activateDemo(); navigate("/dashboard"); setOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors text-left"
+              >
+                <Film size={16} />
+                🎬 Mode démo
+              </button>
+              <Link to="/admin/clients" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+                <GraduationCap size={16} />
+                🎓 Mes client·es
+              </Link>
+              <Link to="/admin/audit" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+                <Wrench size={16} />
+                🔧 Audit app
+              </Link>
+              <Link to="/admin/tools" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+                <Wrench size={16} />
+                🛠️ Outils admin
+              </Link>
+            </div>
+          )}
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-border px-2 py-2">
+        <div className="border-t border-border px-2 py-2 space-y-0.5">
           <Link
             to="/parametres"
             className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body transition-colors ${
@@ -264,6 +295,16 @@ export default function AppSidebar() {
           >
             <Settings size={16} />
             Paramètres
+          </Link>
+          {isPilot && (
+            <Link to="/coaching" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+              <HeartHandshake size={16} />
+              Mon accompagnement
+            </Link>
+          )}
+          <Link to="/abonnement" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+            <CreditCard size={16} />
+            Mon abonnement
           </Link>
         </div>
 
@@ -275,6 +316,16 @@ export default function AppSidebar() {
             <div className="text-[13px] font-semibold text-foreground truncate">{firstName}</div>
             <div className="text-[11px] text-muted-foreground truncate">{planLabel || "Plan gratuit"}</div>
           </div>
+        </div>
+
+        <div className="border-t border-border px-2 py-2">
+          <button
+            onClick={() => signOut()}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-destructive hover:bg-destructive/10 transition-colors text-left"
+          >
+            <LogOut size={16} />
+            Déconnexion
+          </button>
         </div>
       </div>
     </>
