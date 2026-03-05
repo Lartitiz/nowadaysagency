@@ -352,15 +352,35 @@ PROFONDEUR :
       } else if (isLinkedIn) {
         depthMandate = `FORMAT : POST LINKEDIN (1300-2000 caractères)
 
-LinkedIn = profondeur analytique. Tu ne vulgarises pas : tu analyses.
+LinkedIn ≠ tribune d'expert·e. LinkedIn = conversation de fond entre professionnel·les qui se respectent.
 
-PROFONDEUR :
-- Accroche dans les 210 premiers caractères (zone visible avant "voir plus"). Accroche FORTE.
-- Corps : développe en paragraphes courts (2-3 phrases). Utilise des données, des retours d'expérience concrets, des comparaisons.
-- Au moins 1 EXEMPLE CONCRET (un cas client anonymisé, une situation terrain, un chiffre) dans le corps.
-- Ton expert mais humain. 1ère personne. Pas de liste à puces sauf si nécessaire.
-- CTA : question ouverte ou invitation pro. 0-2 hashtags en fin.
-- TOTAL : vise 1500+ caractères. Un LinkedIn de 800 caractères, c'est une occasion ratée.`;
+CE QUE TU NE FAIS JAMAIS SUR LINKEDIN :
+❌ La phrase d'accroche mystère ("Il y a 3 ans, j'ai tout quitté." sans que ce soit vrai)
+❌ Le storytelling fabriqué (fausses galères, faux rebondissements)
+❌ Les listes à puces inspirationnelles (✅ Soyez authentique ✅ Croyez en vous)
+❌ Le ton "je vais vous apprendre la vie" (condescendant, donneur de leçons)
+❌ Les phrases creuses ("La clé du succès c'est la régularité", "Le secret c'est l'authenticité")
+❌ Les posts "engagement bait" ("Qui est d'accord ? Likez si vous pensez pareil")
+❌ Le flex déguisé en humilité ("Je n'aurais jamais pensé que mon petit projet atteindrait 100K€")
+❌ Les emojis en début de chaque ligne comme structure
+❌ "Et vous, qu'en pensez-vous ?" en CTA par défaut (trop générique)
+
+CE QUE TU FAIS :
+✅ Ouvrir avec une AFFIRMATION FORTE ou une QUESTION INCONFORTABLE (pas un teaser vide)
+✅ Développer UNE idée en profondeur avec des exemples concrets, pas survoler 5 idées
+✅ Écrire en prose fluide, paragraphes courts (2-3 phrases). Le rythme = phrases longues qui déroulent + phrases courtes qui claquent
+✅ Prendre position : dire ce avec quoi tu n'es PAS d'accord, nommer le problème
+✅ Ton direct, chaleureux, engagé. Comme une conversation entre collègues qui se tutoient pas encore mais qui sont à l'aise
+✅ L'oral assumé est OK : "en vrai", "le truc c'est que", "sauf que" fonctionnent aussi sur LinkedIn
+✅ CTA spécifique : une question précise liée au sujet, ou une invitation concrète (pas "et vous ?")
+✅ Apartés entre parenthèses *(oui, même sur LinkedIn)* pour créer de la connivence
+
+STRUCTURE :
+- Accroche dans les 210 premiers caractères (zone "voir plus"). Phrase d'OUVERTURE, pas de teaser.
+- Corps : 3-5 paragraphes courts. UNE idée creusée. Au moins 1 exemple terrain concret.
+- Fin : phrase de conclusion qui OUVRE (pas qui résume) + CTA précis.
+- 0-2 hashtags en toute fin. Pas plus.
+- TOTAL : vise 1300-1800 caractères. Pas de remplissage.`;
       } else if (isNewsletter) {
         depthMandate = `FORMAT : NEWSLETTER / EMAIL (1500-3000 caractères)
 
@@ -590,7 +610,7 @@ Matrice d'angles par format :
 - Carrousel : prend l'idée la plus PÉDAGOGIQUE. Développe-la en profondeur. Structure en progression logique (constat > bascule > solution > application).
 - Reel : prend l'idée la plus PROVOCANTE ou CONTRE-INTUITIVE. Hook en 3 secondes. Oral, direct, une seule idée martelée.
 - Stories : prend l'angle le plus INTIME ou PERSONNEL. Comme un message vocal à une amie. Confidences, coulisses, réactions spontanées.
-- LinkedIn : prend l'angle le plus ANALYTIQUE. Données, contexte pro, retour d'expérience structuré. Ton plus expert, 1ère personne.
+- LinkedIn : prend l'angle le plus ENGAGÉ. Prise de position, conviction, question de fond. Ton direct et pro-amical, pas corporate. Comme une conversation de fond, pas une tribune.
 - Newsletter : prend l'angle le plus PROFOND. C'est le format qui a le plus de place : développe une réflexion complète avec nuances, apartés, exemples concrets.
 
 Si 2 formats risquent de se chevaucher, force un pivot : change le point d'entrée, la question posée, ou le public visé dans le contenu.
@@ -607,7 +627,7 @@ LONGUEURS OBLIGATOIRES :
 - Carrousel : 8 slides détaillées (slide 1 = hook, slides 2-7 = développement, slide 8 = punchline + CTA). Chaque slide = 2-4 phrases. Pas de slides d'1 mot.
 - Reel : script complet avec timecodes (0-3s hook, 3-15s contexte, 15-45s coeur, 45-60s CTA). Indique les cuts et le texte à l'écran.
 - Stories : séquence de 5-7 stories. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle. Story 4 = interaction obligatoire.
-- LinkedIn : 800-2000 caractères. Paragraphes courts. Accroche dans les 210 premiers caractères. 0-2 hashtags en fin.
+- LinkedIn : 1300-1800 caractères. Paragraphes courts, prose fluide. Accroche dans les 210 premiers caractères. 0-2 hashtags en fin. PAS de listes à puces.
 - Newsletter : 1500-3000 caractères. Objet d'email accrocheur. Structure : hook personnel > développement > leçon > CTA.
 
 RÈGLE DE PROFONDEUR :
