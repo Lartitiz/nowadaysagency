@@ -16,6 +16,7 @@ interface Props {
   displayName: string;
   mediaUrls?: string[];
   visualHtml?: { slide_number: number; html: string }[] | null;
+  visualUrls?: string[] | null;
   onNavigateToGenerator: () => void;
   hasAngle: boolean;
   hasTheme: boolean;
@@ -23,7 +24,7 @@ interface Props {
 
 export function CalendarPostPreview({
   canal, format, caption, theme, username, displayName,
-  mediaUrls, visualHtml, onNavigateToGenerator, hasAngle, hasTheme,
+  mediaUrls, visualHtml, visualUrls, onNavigateToGenerator, hasAngle, hasTheme,
 }: Props) {
   const [downloading, setDownloading] = useState(false);
   const [downloadingPptx, setDownloadingPptx] = useState(false);
@@ -115,6 +116,88 @@ export function CalendarPostPreview({
     }
   }, [visualHtml, downloadingPptx, theme]);
 
+  // ── Download from Storage URLs (PNG) ──
+  const handleDownloadFromUrls = useCallback(async () => {
+    const urls = visualUrls || [];
+    if (urls.length === 0 || downloading) return;
+    setDownloading(true);
+    try {
+      if (urls.length === 1) {
+        const response = await fetch(urls[0]);
+        const blob = await response.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "slide-1.png";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } else {
+        try {
+          const JSZip = (await import("jszip")).default;
+          const zip = new JSZip();
+          for (let i = 0; i < urls.length; i++) {
+            const response = await fetch(urls[i]);
+            const blob = await response.blob();
+            zip.file(`slide-${i + 1}.png`, blob);
+          }
+          const zipBlob = await zip.generateAsync({ type: "blob" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(zipBlob);
+          a.download = `visuels-${theme || "carrousel"}.zip`.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
+          a.click();
+          URL.revokeObjectURL(a.href);
+        } catch {
+          for (let i = 0; i < urls.length; i++) {
+            const response = await fetch(urls[i]);
+            const blob = await response.blob();
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `slide-${i + 1}.png`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            await new Promise(r => setTimeout(r, 200));
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Download error:", err);
+    } finally {
+      setDownloading(false);
+    }
+  }, [visualUrls, downloading, theme]);
+
+  // ── Download PPTX from Storage URLs ──
+  const handlePptxFromUrls = useCallback(async () => {
+    const urls = visualUrls || [];
+    if (urls.length === 0 || downloadingPptx) return;
+    setDownloadingPptx(true);
+    try {
+      const PptxGenJS = (await import("pptxgenjs")).default;
+      const pptx = new PptxGenJS();
+      pptx.defineLayout({ name: "INSTAGRAM", width: 7.5, height: 9.375 });
+      pptx.layout = "INSTAGRAM";
+      pptx.author = "Nowadays Agency";
+
+      for (let i = 0; i < urls.length; i++) {
+        const response = await fetch(urls[i]);
+        const blob = await response.blob();
+        const base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+        const slide = pptx.addSlide();
+        slide.addImage({ data: base64, x: 0, y: 0, w: 7.5, h: 9.375 });
+      }
+
+      const fileName = `visuels-${theme || "carrousel"}`.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
+      await pptx.writeFile({ fileName: fileName + ".pptx" });
+    } catch (err) {
+      console.error("PPTX error:", err);
+    } finally {
+      setDownloadingPptx(false);
+    }
+  }, [visualUrls, downloadingPptx, theme]);
+
   if (!caption) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -136,7 +219,54 @@ export function CalendarPostPreview({
     );
   }
 
-  // Visual HTML slides from carousel generator
+  // ── Render visuals from Storage URLs (priority over visualHtml) ──
+  if (visualUrls && visualUrls.length > 0) {
+    return (
+      <div className="py-2 space-y-4 overflow-y-auto max-h-[60vh]">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">✨ Visuels ({visualUrls.length} slides)</p>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={downloading || downloadingPptx}
+                className="rounded-full gap-1.5 text-xs"
+              >
+                {(downloading || downloadingPptx) ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" />
+                )}
+                {downloading ? "Export images..." : downloadingPptx ? "Export PPTX..." : "Télécharger"}
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleDownloadFromUrls}>
+                <Download className="h-4 w-4 mr-2" />
+                Images PNG {visualUrls.length > 1 ? "(ZIP)" : ""}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePptxFromUrls}>
+                <FileDown className="h-4 w-4 mr-2" />
+                Présentation (PPTX)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        {visualUrls.map((url, idx) => (
+          <div key={idx} className="rounded-xl border border-border overflow-hidden bg-card max-w-[320px] mx-auto">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 border-b border-border">
+              <span className="text-xs font-medium text-muted-foreground">Slide {idx + 1}</span>
+            </div>
+            <img src={url} alt={`Slide ${idx + 1}`} className="w-full h-auto" loading="lazy" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Visual HTML slides (fallback for older posts)
   if (visualHtml && visualHtml.length > 0) {
     return (
       <div className="py-2 space-y-4 overflow-y-auto max-h-[60vh]">
