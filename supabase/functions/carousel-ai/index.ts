@@ -312,6 +312,9 @@ TON STYLE :
 
 ${ANTI_SLOP}
 
+ANTI-BROETRY (s'applique aux captions, pas aux slides) :
+Les captions de carrousels ne sont PAS des listes de phrases sur des lignes séparées. Ce sont des paragraphes fluides de 2-3 phrases. Le rythme vient du contraste entre phrases longues et phrases courtes, pas des sauts de ligne.
+
 ${CHAIN_OF_THOUGHT}
 
 ANTI-BIAIS — TU NE REPRODUIS JAMAIS :

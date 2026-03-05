@@ -111,19 +111,19 @@ OBJECTIF VISIBILITÉ (reach, découverte) :
 → Formats : Reel + Carrousel
 → Accroches : Polarisante, contre-intuitive, frustration, ennemi commun
 → Exemples d'accroches à adapter :
-  • "Ce post va en énerver certain·es. Tant mieux."
-  • "Poste MOINS. Tu vendras PLUS."
-  • "On t'a dit que [croyance]. On t'a menti."
-  • "J'en peux plus qu'on demande aux [profession] d'être [injonction]."
+  • "[Chiffre précis] comptes de [niche] font [erreur spécifique]. Et personne n'en parle."
+  • "On demande aux [profession] de [injonction absurde]. Ça suffit."
+  • "J'ai analysé [X exemples concrets]. Le problème n'est pas [ce qu'on croit]."
+  • "Arrêtez de [conseil répandu]. Ça ne fonctionne pas, et voilà pourquoi."
 
 OBJECTIF ENGAGEMENT (lien, communauté) :
 → Frameworks : Storytelling 6 temps, Permission+Action, Structure investigative
 → Formats : Carrousel + Stories + Caption longue
 → Accroches : Suspense, émotionnelle, question ouverte, confession
 → Exemples d'accroches à adapter :
-  • "Et si le problème, c'était pas toi ?"
-  • "J'avoue, j'ai longtemps cru que [croyance]. Et toi ?"
-  • "Si on buvait un café ensemble, quelle question me poserais-tu ?"
+  • "La semaine dernière, une cliente m'a dit : '[verbatim spécifique]'. Ça m'a fait réfléchir."
+  • "J'ai longtemps cru que [croyance spécifique au métier]. En fait, [constat opposé]."
+  • "Dis-moi si tu te reconnais : [situation concrète que vit l'audience au quotidien]."
 
 OBJECTIF CONFIANCE (identification) :
 → Frameworks : BAB, Storytelling personnel, Permission+Action
@@ -156,14 +156,16 @@ TRADUCTION DES FRAMEWORKS EN ANGLES CRÉATIFS :
 Chaque angle proposé doit être basé sur un framework narratif DIFFÉRENT, mais tu ne nommes JAMAIS le framework. Tu le traduis en angle créatif lisible.
 
 Exemples de traduction :
-- Framework BAB → Angle "Le déclic" ou "Mon avant/après"
-- Framework Sandwich Mythe/Vérité → Angle "Le mythe que je déconstruis"
-- Framework Permission+Action → Angle "La lettre à celles qui doutent"
-- Framework Hook→Tension→Release → Angle "La fois où j'ai tout perdu"
-- Framework Investigative → Angle "Ce que j'observe depuis 6 mois"
-- Framework Conseil contre-intuitif → Angle "Et si on faisait l'inverse ?"
-- Framework PASTOR → Angle "Le parcours de [prénom]"
-- Framework Coup de gueule doux → Angle "Ce qui me révolte"
+- Framework BAB → Angle centré sur une transformation concrète (avec des détails réels, pas un schéma avant/après générique)
+- Framework Sandwich Mythe/Vérité → Angle qui déconstruit une croyance SPÉCIFIQUE au secteur de l'utilisatrice
+- Framework Permission+Action → Angle qui valide un doute précis de l'audience et propose un premier pas
+- Framework Hook→Tension→Release → Angle basé sur une situation vécue RÉELLE (pas de "la fois où" fabriqué)
+- Framework Investigative → Angle qui part d'une OBSERVATION terrain avec des détails concrets
+- Framework Conseil contre-intuitif → Angle qui prend le contre-pied d'un conseil répandu DANS LA NICHE
+- Framework PASTOR → Angle qui suit le parcours d'un·e client·e NOMMÉ·E (ou anonymisé·e) avec des faits précis
+- Framework Coup de gueule doux → Angle qui nomme un problème SYSTÉMIQUE dans le secteur
+
+IMPORTANT : les titres d'angles ne doivent JAMAIS être des formules template ("Le déclic", "Mon avant/après", "La lettre à celles qui doutent"). L'IA doit inventer un titre SPÉCIFIQUE au sujet et à l'utilisatrice. Exemple : au lieu de "Le déclic" → "Le jour où j'ai facturé mon premier devis à 2 000€ sans trembler".
 `;
 
 // ═══════════════════════════════════════════════════

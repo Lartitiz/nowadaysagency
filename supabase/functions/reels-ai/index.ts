@@ -215,6 +215,9 @@ ${PREGEN_INJECTION_RULES}
 
 ${ANTI_SLOP}
 
+ANTI-BROETRY (s'applique aux captions de Reels) :
+La caption du Reel ne répète PAS le script et n'est PAS une série de phrases courtes dramatiques. C'est 1-3 phrases fluides qui complètent la vidéo.
+
 ${CHAIN_OF_THOUGHT}
 
 ANTI-BIAIS — TU NE REPRODUIS JAMAIS :
