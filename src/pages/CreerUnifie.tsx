@@ -15,7 +15,7 @@ import CreerStepResult from "@/components/creer/CreerStepResult";
 import CreerStepEdit from "@/components/creer/CreerStepEdit";
 import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import { useContentGenerator } from "@/hooks/use-content-generator";
-import { CONTENT_STRUCTURES, getStructureForCombo } from "@/lib/content-structures";
+import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
@@ -372,12 +372,28 @@ export default function CreerUnifie() {
         linkedin: "post_linkedin",
         newsletter: "post_newsletter",
       };
+      // Build angle object matching classic path
+      const angleObj = editorialAngle
+        ? (() => {
+            const found = EDITORIAL_ANGLES.find((a) => a.id === editorialAngle);
+            const structureId = getStructureForCombo(selectedFormat, editorialAngle);
+            const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
+            return found
+              ? { title: found.label, structure: structure?.steps.map((s) => s.label), tone: "direct, chaleureux, oral assumé" }
+              : undefined;
+          })()
+        : undefined;
+
       const streamBody: any = {
         step: "generate",
         contentType: contentTypeMap[selectedFormat] || "post_instagram",
         context: enrichedSubject,
+        angle: angleObj,
         answers: Object.keys(ans).length > 0
           ? Object.entries(ans).map(([q, a]) => ({ question: q, answer: a }))
+          : undefined,
+        preGenAnswers: Object.keys(ans).length > 0
+          ? { anecdote: ans.anecdote || ans.q_0 || undefined, emotion: ans.emotion || ans.q_1 || undefined, conviction: ans.conviction || ans.q_2 || undefined }
           : undefined,
         workspace_id: workspaceId || undefined,
         objective: objective || undefined,
