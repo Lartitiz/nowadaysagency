@@ -4,7 +4,7 @@ import { ArrowRight, ChevronDown, Clock } from "lucide-react";
 
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
 import { useOnboardingMissions, OnboardingMission } from "@/hooks/use-onboarding-missions";
-import SuggestedContents from "@/components/dashboard/SuggestedContents";
+
 import WelcomeOverlay from "@/components/dashboard/WelcomeOverlay";
 import GuidedTour from "@/components/GuidedTour";
 import AppHeader from "@/components/AppHeader";
@@ -236,8 +236,6 @@ export default function AdaptiveHome() {
           </div>
         </Card>
 
-        {/* F. Suggested contents */}
-        {profileSummary.brandingTotal >= 30 && <SuggestedContents />}
 
         {/* G. WelcomeOverlay + GuidedTour */}
         <WelcomeOverlay prenom={profileSummary.firstName} />
