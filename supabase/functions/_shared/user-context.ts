@@ -165,12 +165,18 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
 
     if (v.sample_texts?.length) {
       const samples = Array.isArray(v.sample_texts) ? v.sample_texts : [];
-      const topSamples = samples.slice(0, 2);
+      const topSamples = samples.slice(0, 3);
       if (topSamples.length) {
-        voiceLines.push(`- Exemples de textes validés par l'utilisatrice (INSPIRE-TOI de ce style) :`);
+        voiceLines.push(`\n═══ CONTENUS DE RÉFÉRENCE (FEW-SHOT — PRIORITÉ MAXIMALE) ═══`);
+        voiceLines.push(`Voici ${topSamples.length} contenus ÉCRITS PAR L'UTILISATRICE qu'elle considère comme réussis.`);
+        voiceLines.push(`Le contenu que tu vas générer doit ressembler au ${topSamples.length + 1}ème post de cette série.`);
+        voiceLines.push(`Reproduis EXACTEMENT : la longueur de phrases, le vocabulaire, le rythme, les tournures, le niveau de langage.`);
+        voiceLines.push(`Ne reproduis pas le CONTENU de ces exemples. Reproduis le STYLE.`);
         topSamples.forEach((s: string, i: number) => {
-          voiceLines.push(`  Exemple ${i + 1} : "${s.slice(0, 500)}"`);
+          voiceLines.push(`\n--- Exemple ${i + 1} ---`);
+          voiceLines.push(`"${s.slice(0, 800)}"`);
         });
+        voiceLines.push(`--- Fin des exemples ---\n`);
       }
     }
 
