@@ -154,7 +154,7 @@ export default function AppSidebar() {
       >
         {/* Logo "N" button — always visible */}
         <div
-          className="absolute top-[14px] left-[14px] w-8 h-8 rounded-[9px] bg-gradient-to-br from-bordeaux to-raspberry flex items-center justify-center cursor-pointer select-none shadow-none"
+          className="absolute top-[14px] left-[14px] w-8 h-8 rounded-[9px] bg-bordeaux flex items-center justify-center cursor-pointer select-none shadow-none"
           style={{ pointerEvents: "auto" }}
         >
           <span className="text-white font-bold text-sm leading-none">N</span>
@@ -183,7 +183,7 @@ export default function AppSidebar() {
       >
         {/* Header */}
         <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-border">
-          <div className="w-8 h-8 rounded-[9px] bg-gradient-to-br from-bordeaux to-raspberry flex items-center justify-center shrink-0 shadow-none">
+          <div className="w-8 h-8 rounded-[9px] bg-bordeaux flex items-center justify-center shrink-0 shadow-none">
             <span className="text-white font-bold text-sm leading-none">N</span>
           </div>
           <span className="font-display text-[15px] text-bordeaux">Nowadays</span>
@@ -309,7 +309,7 @@ export default function AppSidebar() {
         </div>
 
         <div className="border-t border-border px-4 py-3 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-bordeaux to-raspberry flex items-center justify-center text-white font-semibold text-sm shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-bordeaux flex items-center justify-center text-white font-semibold text-sm shrink-0">
             {initial}
           </div>
           <div className="min-w-0">

@@ -203,7 +203,7 @@ export default function AdaptiveHome() {
               <MarkdownText content={recommendation.explanation} className="text-sm text-muted-foreground mt-1.5 leading-relaxed" />
 
               <Button
-                className="mt-4 rounded-xl bg-bordeaux hover:bg-gradient-to-r hover:from-primary hover:to-rose-medium text-white shadow-none hover:shadow-none"
+                className="mt-4 rounded-xl bg-bordeaux hover:bg-primary text-white shadow-none hover:shadow-none"
                 onClick={(e) => { e.stopPropagation(); handleNavigate(recommendation.ctaRoute); }}
               >
                 {recommendation.ctaLabel}
