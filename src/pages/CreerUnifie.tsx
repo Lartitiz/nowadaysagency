@@ -979,6 +979,13 @@ export default function CreerUnifie() {
 
   const isLaunchMode = editorialAngle === "lancement" && step === "result";
 
+  // Demo mode: replace action handlers with toast notifications
+  const demoToast = () => toast("Cette action est disponible dans l'outil complet. Crée ton compte gratuit !");
+  const effectiveHandleSave = isDemoMode ? demoToast : handleSave;
+  const effectiveHandleAddToCalendar = isDemoMode ? demoToast : handleAddToCalendar;
+  const effectiveHandleExportPptx = isDemoMode ? demoToast : handleExportPptx;
+  const effectiveHandleExportVisualPptx = isDemoMode ? demoToast : handleExportVisualPptx;
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -1083,14 +1090,14 @@ export default function CreerUnifie() {
                 onReset={handleReset}
                 onRegenerate={handleRegenerate}
                 onCopy={handleCopy}
-                onSave={handleSave}
-                onCalendar={handleAddToCalendar}
+                onSave={effectiveHandleSave}
+                onCalendar={effectiveHandleAddToCalendar}
                 calendarLabel={fromCalendar ? "Sauvegarder dans le calendrier" : undefined}
                 onGenerateVisuals={selectedFormat === "carousel" ? handleGenerateVisuals : undefined}
                 visualLoading={visualLoading}
                 visualSlides={visualSlides.length > 0 ? visualSlides : undefined}
-                onExportPptx={selectedFormat === "carousel" ? handleExportPptx : undefined}
-                onExportVisualPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? handleExportVisualPptx : undefined}
+                onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
+                onExportVisualPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPptx : undefined}
                 onSlidesUpdate={selectedFormat === "carousel" ? (slides, caption) => {
                   if (result?.raw) {
                     result.raw.slides = slides;
