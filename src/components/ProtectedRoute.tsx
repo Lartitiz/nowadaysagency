@@ -49,7 +49,49 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     check();
   }, [user?.id, isDemoMode, location.pathname]);
 
-  if (isDemoMode) return <>{children}<FloatingChatButton /></>;
+  if (isDemoMode) {
+    const DEMO_READY_ROUTES = [
+      "/dashboard", "/branding", "/branding/section",
+      "/calendrier", "/accompagnement", "/plan-de-com",
+      "/instagram", "/instagram/profil", "/instagram/profil/bio",
+      "/instagram/engagement", "/linkedin",
+      "/offres", "/guide", "/onboarding", "/welcome",
+      "/connexion-check",
+    ];
+    const currentPath = location.pathname;
+    const isReady = DEMO_READY_ROUTES.some(r => currentPath === r || currentPath.startsWith(r + "/"));
+
+    if (!isReady) {
+      return (
+        <>
+          <div className="min-h-screen bg-background flex flex-col">
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="max-w-md text-center space-y-4 animate-fade-in">
+                <span className="text-5xl block">🔜</span>
+                <h2 className="font-display text-xl text-foreground">
+                  Cette page est disponible dans l'outil complet
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                  Crée ton compte gratuit pour accéder à toutes les fonctionnalités, ou reviens au dashboard pour continuer la visite.
+                </p>
+                <div className="flex gap-3 justify-center pt-2">
+                  <a href="/login" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
+                    Créer mon compte
+                  </a>
+                  <a href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border text-foreground text-sm font-medium hover:bg-muted/50 transition-colors">
+                    ← Retour au dashboard
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+          <FloatingChatButton />
+        </>
+      );
+    }
+
+    return <>{children}<FloatingChatButton /></>;
+  }
 
   if (loading || checkingOnboarding) {
     return (
