@@ -677,6 +677,39 @@ export default function CreerUnifie() {
     setCalendarDialogOpen(true);
   };
 
+  const uploadPhotosToStorage = async (postId: string): Promise<string[]> => {
+    if (!session?.user?.id || uploadedPhotos.length === 0) return [];
+    
+    const urls: string[] = [];
+    for (let i = 0; i < uploadedPhotos.length; i++) {
+      const photo = uploadedPhotos[i];
+      if (!photo.base64) continue;
+      
+      const raw = photo.base64.startsWith("data:") 
+        ? photo.base64 
+        : `data:image/jpeg;base64,${photo.base64}`;
+      const response = await fetch(raw);
+      const blob = await response.blob();
+      
+      const path = `${session.user.id}/${postId}/photos/photo-${i + 1}.jpg`;
+      const { error } = await supabase.storage
+        .from("calendar-visuals")
+        .upload(path, blob, { contentType: "image/jpeg", upsert: true });
+      
+      if (error) {
+        console.error(`Failed to upload photo ${i + 1}:`, error);
+        continue;
+      }
+      
+      const { data: urlData } = supabase.storage
+        .from("calendar-visuals")
+        .getPublicUrl(path);
+      
+      urls.push(urlData.publicUrl);
+    }
+    return urls;
+  };
+
   const handleConfirmCalendar = async () => {
     if (!session?.user?.id || !calendarDate || savingToCalendar) return;
     setSavingToCalendar(true);
@@ -708,12 +741,32 @@ export default function CreerUnifie() {
       }).select("id").single();
 
       if (insertError) throw insertError;
+
+      // Upload photos originales dans Storage
+      const postId = insertedPost?.id;
+      if (postId && (carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
+        try {
+          const photoUrls = await uploadPhotosToStorage(postId);
+          if (photoUrls.length > 0) {
+            const currentDetail = storyDetail || {};
+            await supabase.from("calendar_posts").update({
+              story_sequence_detail: {
+                ...currentDetail,
+                photo_urls: photoUrls,
+              },
+            }).eq("id", postId);
+          }
+        } catch (uploadErr) {
+          console.warn("Photo upload failed (non-blocking):", uploadErr);
+        }
+      }
+
       toast.success("Ajouté au calendrier !");
       setCalendarDialogOpen(false);
       clearFlowState();
 
-      const postId = insertedPost?.id;
-      if (postId) {
+      const finalPostId = postId || insertedPost?.id;
+      if (finalPostId) {
         navigate(`/calendrier?date=${calendarDate}&post=${postId}`);
       } else {
         navigate(`/calendrier?date=${calendarDate}`);
