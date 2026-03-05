@@ -8,6 +8,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Loader2, ArrowRight, ArrowLeft, Check, Lightbulb, X, Sparkles, RotateCcw, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
+import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 
 interface CoachingFlowProps {
   module: string;
@@ -64,6 +65,8 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
   const [iterationCount, setIterationCount] = useState(0);
   const [previousDiagnostics, setPreviousDiagnostics] = useState<Array<{ diagnostic: DiagnosticResult; feedback: string | null }>>([]);
 
+  const { content: streamContent, streaming: isStreaming, invoke: streamInvoke, reset: streamReset } = useStreamingInvoke();
+
   useEffect(() => {
     loadQuestions();
   }, []);
@@ -98,25 +101,42 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
   const generateDiagnostic = async () => {
     setPhase("diagnostic");
     setLoading(true);
+    streamReset();
     try {
       const answersPayload = questions.map((q, i) => ({
         question: q.question,
         answer: answers[i] || "",
       }));
-      const { data, error } = await invokeWithTimeout("coaching-module", {
-        body: { phase: "diagnostic", module, answers: answersPayload, rec_id: recId },
+
+      const fullText = await streamInvoke("coaching-module", {
+        phase: "diagnostic",
+        module,
+        answers: answersPayload,
+        rec_id: recId,
+        workspace_id: workspaceId,
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setDiagnostic(data);
-      setIterationCount(0);
-      setPreviousDiagnostics([]);
-      const edited: Record<string, string> = {};
-      (data.proposals || []).forEach((p: Proposal) => { edited[p.field] = p.value; });
-      setEditedProposals(edited);
+
+      if (fullText) {
+        try {
+          const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+          const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+          if (!parsed) throw new Error("No JSON");
+          setDiagnostic(parsed);
+          setIterationCount(0);
+          setPreviousDiagnostics([]);
+          const edited: Record<string, string> = {};
+          (parsed.proposals || []).forEach((p: Proposal) => { edited[p.field] = p.value; });
+          setEditedProposals(edited);
+        } catch {
+          toast.error("Erreur de format dans la réponse IA. Réessaie.");
+          setPhase("questions");
+        }
+      } else {
+        setPhase("questions");
+      }
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast.error(e?.isTimeout ? "Ça prend plus longtemps que prévu. Réessaie." : friendlyError(e));
+      toast.error(friendlyError(e));
       setPhase("questions");
     } finally {
       setLoading(false);
@@ -127,50 +147,56 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
     if (!adjustmentFeedback.trim() || !diagnostic) return;
     setLoading(true);
     setPhase("diagnostic");
+    streamReset();
     try {
       const answersPayload = questions.map((q, i) => ({
         question: q.question,
         answer: answers[i] || "",
       }));
 
-      // Build history of previous iterations
       const history = previousDiagnostics.map(d => ({
         diagnostic: d.diagnostic.diagnostic,
         proposals: d.diagnostic.proposals,
         feedback: d.feedback,
       }));
 
-      const { data, error } = await invokeWithTimeout("coaching-module", {
-        body: {
-          phase: "adjust",
-          module,
-          answers: answersPayload,
-          rec_id: recId,
-          previous_diagnostic: {
-            diagnostic: diagnostic.diagnostic,
-            pourquoi: diagnostic.pourquoi,
-            proposals: diagnostic.proposals,
-          },
-          adjustment_feedback: adjustmentFeedback,
-          iteration_history: history,
-          iteration: iterationCount + 1,
+      const fullText = await streamInvoke("coaching-module", {
+        phase: "adjust",
+        module,
+        answers: answersPayload,
+        rec_id: recId,
+        previous_diagnostic: {
+          diagnostic: diagnostic.diagnostic,
+          pourquoi: diagnostic.pourquoi,
+          proposals: diagnostic.proposals,
         },
+        adjustment_feedback: adjustmentFeedback,
+        iteration_history: history,
+        iteration: iterationCount + 1,
+        workspace_id: workspaceId,
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
 
-      // Store previous diagnostic with feedback
-      setPreviousDiagnostics(prev => [...prev, { diagnostic, feedback: adjustmentFeedback }]);
-      setDiagnostic(data);
-      setIterationCount(prev => prev + 1);
-      setAdjustmentFeedback("");
+      if (fullText) {
+        try {
+          const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+          const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+          if (!parsed) throw new Error("No JSON");
 
-      const edited: Record<string, string> = {};
-      (data.proposals || []).forEach((p: Proposal) => { edited[p.field] = p.value; });
-      setEditedProposals(edited);
+          setPreviousDiagnostics(prev => [...prev, { diagnostic, feedback: adjustmentFeedback }]);
+          setDiagnostic(parsed);
+          setIterationCount(prev => prev + 1);
+          setAdjustmentFeedback("");
+
+          const edited: Record<string, string> = {};
+          (parsed.proposals || []).forEach((p: Proposal) => { edited[p.field] = p.value; });
+          setEditedProposals(edited);
+        } catch {
+          toast.error("Erreur de format dans la réponse IA. Réessaie.");
+        }
+      }
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast.error(e?.isTimeout ? "Ça prend plus longtemps que prévu. Réessaie." : friendlyError(e));
+      toast.error(friendlyError(e));
     } finally {
       setLoading(false);
     }
@@ -395,12 +421,27 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
 
       {/* Diagnostic loading */}
       {phase === "diagnostic" && loading && (
-        <div className="rounded-2xl border border-border bg-card p-8 text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
-          <p className="text-sm font-medium text-foreground">
-            {iterationCount > 0 ? "L'IA ajuste sa proposition…" : "L'IA analyse tes réponses…"}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">Ça prend quelques secondes.</p>
+        <div className="rounded-2xl border border-border bg-card p-8 animate-fade-in">
+          {isStreaming && streamContent ? (
+            <div className="space-y-3">
+              <div className="rounded-xl border border-primary/20 bg-accent/30 p-4">
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{streamContent}</p>
+                <span className="inline-block w-0.5 h-4 bg-primary animate-pulse ml-0.5" />
+              </div>
+              <p className="text-xs text-center text-muted-foreground">L'IA rédige son analyse…</p>
+            </div>
+          ) : (
+            <div className="text-center space-y-3">
+              <div className="space-y-2 max-w-xs mx-auto">
+                <div className="h-3 rounded bg-secondary animate-pulse w-full" />
+                <div className="h-3 rounded bg-secondary animate-pulse w-[85%]" />
+                <div className="h-3 rounded bg-secondary animate-pulse w-[70%]" />
+              </div>
+              <p className="text-sm font-medium text-foreground">
+                {iterationCount > 0 ? "L'IA ajuste sa proposition…" : "L'IA analyse tes réponses…"}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
