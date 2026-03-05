@@ -51,12 +51,14 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (isDemoMode) {
     const DEMO_READY_ROUTES = [
-      "/dashboard", "/branding", "/branding/section",
+      "/dashboard", "/dashboard/complet", "/dashboard/guide",
+      "/branding", "/branding/section", "/branding/coaching",
+      "/branding/offres", "/branding/proposition",
       "/calendrier", "/accompagnement", "/plan-de-com",
       "/instagram", "/instagram/profil", "/instagram/profil/bio",
       "/instagram/engagement", "/linkedin",
       "/offres", "/guide", "/onboarding", "/welcome",
-      "/connexion-check",
+      "/connexion-check", "/creer",
     ];
     const currentPath = location.pathname;
     const isReady = DEMO_READY_ROUTES.some(r => currentPath === r || currentPath.startsWith(r + "/"));
