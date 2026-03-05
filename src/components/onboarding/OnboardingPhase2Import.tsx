@@ -4,7 +4,7 @@ import { Upload, X } from "lucide-react";
 import { InputIndicator, isValidUrl, addHttpsIfNeeded } from "./OnboardingShared";
 import type { Answers, UploadedFile } from "@/hooks/use-onboarding";
 
-export default function OnboardingPhase2Import({ answers, set, files, uploading, onUpload, onRemove, onNext, isDemoMode }: {
+export default function OnboardingPhase2Import({ answers, set, files, uploading, onUpload, onRemove, onNext, onLeave, isDemoMode }: {
   answers: Answers;
   set: <K extends keyof Answers>(k: K, v: Answers[K]) => void;
   files: UploadedFile[];
@@ -12,6 +12,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
   onUpload: (files: FileList | null) => void;
   onRemove: (id: string) => void;
   onNext: () => void;
+  onLeave?: () => void;
   isDemoMode?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -146,7 +147,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
       </div>
 
       <div className="flex flex-col items-center gap-2">
-        <Button onClick={onNext} className="rounded-full px-8">
+        <Button onClick={() => { onLeave?.(); onNext(); }} className="rounded-full px-8">
           {hasAnything ? "Suivant →" : "Passer →"}
         </Button>
         {!hasAnything && (
