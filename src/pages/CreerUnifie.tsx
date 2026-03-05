@@ -24,6 +24,7 @@ import { exportCarouselVisualPptx } from "@/lib/export-carousel-visual-pptx";
 import { supabase } from "@/integrations/supabase/client";
 import { loadFlowState, saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
 import { useFormPersist } from "@/hooks/use-form-persist";
+import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 
 type Step = "idea" | "format" | "questions" | "result" | "edit";
 type Mode = "create" | "transform";
@@ -145,6 +146,8 @@ export default function CreerUnifie() {
     loadingQuestions,
     questions,
   } = useContentGenerator();
+
+  const { content: streamingContent, streaming, done: streamDone, invoke: streamInvoke, reset: streamReset } = useStreamingInvoke();
 
   // Restore result from persisted state
   useEffect(() => {
@@ -305,6 +308,47 @@ export default function CreerUnifie() {
     const enrichedSubject = existingCalendarContent
       ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
       : ideaText;
+
+    // Formats texte : utiliser le streaming SSE
+    const textFormats = ["post", "linkedin", "newsletter"];
+    const isTextFormat = textFormats.includes(selectedFormat);
+
+    if (isTextFormat) {
+      streamReset();
+      const contentTypeMap: Record<string, string> = {
+        post: "post_instagram",
+        linkedin: "post_linkedin",
+        newsletter: "post_newsletter",
+      };
+      const streamBody: any = {
+        step: "generate",
+        contentType: contentTypeMap[selectedFormat] || "post_instagram",
+        context: enrichedSubject,
+        answers: Object.keys(ans).length > 0
+          ? Object.entries(ans).map(([q, a]) => ({ question: q, answer: a }))
+          : undefined,
+        workspace_id: workspaceId || undefined,
+        objective: objective || undefined,
+        editorialFormat: editorialAngle || undefined,
+        editorialFormatLabel: editorialAngle || undefined,
+        ...(photoMode ? { photo_mode: true, photo_description: photoDescription } : {}),
+      };
+
+      const fullText = await streamInvoke("creative-flow", streamBody);
+
+      if (fullText) {
+        try {
+          const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+          const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { content: fullText };
+          setResult({ type: selectedFormat as any, raw: parsed });
+        } catch {
+          setResult({ type: selectedFormat as any, raw: { content: fullText } });
+        }
+      }
+      return;
+    }
+
+    // Formats structurés : appel classique (pas de streaming)
     await generate({
       format: selectedFormat as any,
       subject: enrichedSubject,
@@ -408,6 +452,7 @@ export default function CreerUnifie() {
 
   const handleReset = () => {
     resetGenerator();
+    streamReset();
     setStep("idea");
     setIdeaText("");
     setObjective(null);
@@ -860,11 +905,12 @@ export default function CreerUnifie() {
               </div>
             )}
 
-            {step === "result" && !isLaunchMode && (generating || result) && (
+            {step === "result" && !isLaunchMode && (generating || streaming || result) && (
               <CreerStepResult
                 result={result?.raw || result}
                 format={selectedFormat || "post"}
-                generating={generating}
+                generating={generating || streaming}
+                streamingContent={streaming ? streamingContent : undefined}
                 photos={(carouselSubMode === "photo" || carouselSubMode === "mix") ? uploadedPhotos : undefined}
                 onEdit={handleEdit}
                 onReset={handleReset}
