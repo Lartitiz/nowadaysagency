@@ -6,6 +6,7 @@ import { type DiagnosticData, computeDiagnosticData, DEMO_DIAGNOSTIC } from "@/l
 import { Progress } from "@/components/ui/progress";
 
 interface Props {
+  // Note: hasInstagram est basé sur les captures d'écran uploadées, pas sur le scraping API (désactivé)
   hasInstagram: boolean;
   hasWebsite: boolean;
   hasDocuments: boolean;
@@ -30,7 +31,7 @@ function buildInitialMessages(hasWebsite: boolean, hasDocuments: boolean): LiveM
   const msgs: LiveMessage[] = [];
   if (hasWebsite) msgs.push({ text: "Je lis ton site web...", type: "scanning" });
   if (hasDocuments) msgs.push({ text: "J'analyse ton profil Instagram...", type: "scanning" });
-  msgs.push({ text: "J'analyse les informations...", type: "scanning" });
+  msgs.push({ text: "Je croise tes données pour un diagnostic personnalisé...", type: "scanning" });
   msgs.push({ text: "Je prépare quelque chose de personnalisé...", type: "scanning" });
   return msgs;
 }
