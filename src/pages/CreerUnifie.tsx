@@ -547,10 +547,6 @@ export default function CreerUnifie() {
       accroche = r.caption?.hook || "";
       contentDraft = (r.slides || []).map((s: any) => s.overlay_text ? `SLIDE ${s.slide_number}: ${s.overlay_text}` : `SLIDE ${s.slide_number}: (photo seule)`).join("\n") + "\n\n" + [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n");
       const storyDetail: any = { type: "carousel_photo", slides: r.slides, caption: r.caption, quality_check: r.quality_check };
-      // Inclure les visuels générés s'ils existent
-      if (visualSlides.length > 0) {
-        storyDetail.visual_html = visualSlides.map((vs: any) => ({ slide_number: vs.slide_number, html: vs.html }));
-      }
       return { contentDraft, accroche, storyDetail };
     }
 
@@ -563,9 +559,6 @@ export default function CreerUnifie() {
         return `SLIDE ${s.slide_number} [📝]: ${s.title || ""} — ${s.body || ""}`;
       }).join("\n") + "\n\n" + [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n");
       const storyDetail: any = { type: "carousel_mix", slides: r.slides, caption: r.caption, quality_check: r.quality_check };
-      if (visualSlides.length > 0) {
-        storyDetail.visual_html = visualSlides.map((vs: any) => ({ slide_number: vs.slide_number, html: vs.html }));
-      }
       return { contentDraft, accroche, storyDetail };
     }
 
@@ -594,9 +587,6 @@ export default function CreerUnifie() {
         slides: r.slides,
         caption: r.caption,
         quality_check: r.quality_check,
-        ...(visualSlides.length > 0 ? {
-          visual_html: visualSlides.map((vs: any) => ({ slide_number: vs.slide_number, html: vs.html })),
-        } : {}),
       };
     } else if (selectedFormat === "reel" && r?.script) {
       storyDetail = {
@@ -710,6 +700,56 @@ export default function CreerUnifie() {
     return urls;
   };
 
+  const uploadVisualsToStorage = async (postId: string): Promise<string[]> => {
+    if (!session?.user?.id || visualSlides.length === 0) return [];
+    
+    const container = document.createElement("div");
+    container.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1080px;height:1350px;overflow:hidden;z-index:-1;";
+    document.body.appendChild(container);
+    
+    const urls: string[] = [];
+    try {
+      for (const vs of visualSlides) {
+        container.innerHTML = vs.html;
+        await document.fonts.ready;
+        await new Promise(r => setTimeout(r, 400));
+        
+        const canvas = await (await import("html2canvas")).default(container, {
+          width: 1080,
+          height: 1350,
+          scale: 1,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: null,
+          logging: false,
+        });
+        
+        const blob = await new Promise<Blob>((resolve) => {
+          canvas.toBlob((b) => resolve(b!), "image/png");
+        });
+        
+        const path = `${session.user.id}/${postId}/slides/slide-${vs.slide_number}.png`;
+        const { error } = await supabase.storage
+          .from("calendar-visuals")
+          .upload(path, blob, { contentType: "image/png", upsert: true });
+        
+        if (error) {
+          console.error(`Failed to upload slide ${vs.slide_number}:`, error);
+          continue;
+        }
+        
+        const { data: urlData } = supabase.storage
+          .from("calendar-visuals")
+          .getPublicUrl(path);
+        
+        urls.push(urlData.publicUrl);
+      }
+    } finally {
+      document.body.removeChild(container);
+    }
+    return urls;
+  };
+
   const handleConfirmCalendar = async () => {
     if (!session?.user?.id || !calendarDate || savingToCalendar) return;
     setSavingToCalendar(true);
@@ -742,22 +782,45 @@ export default function CreerUnifie() {
 
       if (insertError) throw insertError;
 
-      // Upload photos originales dans Storage
       const postId = insertedPost?.id;
-      if (postId && (carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
-        try {
-          const photoUrls = await uploadPhotosToStorage(postId);
-          if (photoUrls.length > 0) {
-            const currentDetail = storyDetail || {};
-            await supabase.from("calendar_posts").update({
-              story_sequence_detail: {
-                ...currentDetail,
-                photo_urls: photoUrls,
-              },
-            }).eq("id", postId);
+
+      if (postId) {
+        const updates: any = {};
+        
+        // Upload photos originales dans Storage
+        if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
+          try {
+            const photoUrls = await uploadPhotosToStorage(postId);
+            if (photoUrls.length > 0) {
+              updates.photo_urls = photoUrls;
+            }
+          } catch (err) {
+            console.warn("Photo upload failed (non-blocking):", err);
           }
-        } catch (uploadErr) {
-          console.warn("Photo upload failed (non-blocking):", uploadErr);
+        }
+        
+        // Upload visuels PNG dans Storage
+        if (visualSlides.length > 0) {
+          try {
+            toast.info("Upload des visuels...");
+            const visualUrls = await uploadVisualsToStorage(postId);
+            if (visualUrls.length > 0) {
+              updates.visual_urls = visualUrls;
+            }
+          } catch (err) {
+            console.warn("Visual upload failed (non-blocking):", err);
+          }
+        }
+        
+        // Mettre à jour le post avec les URLs
+        if (Object.keys(updates).length > 0) {
+          const currentDetail = storyDetail || {};
+          await supabase.from("calendar_posts").update({
+            story_sequence_detail: {
+              ...currentDetail,
+              ...updates,
+            },
+          }).eq("id", postId);
         }
       }
 
@@ -765,8 +828,7 @@ export default function CreerUnifie() {
       setCalendarDialogOpen(false);
       clearFlowState();
 
-      const finalPostId = postId || insertedPost?.id;
-      if (finalPostId) {
+      if (postId) {
         navigate(`/calendrier?date=${calendarDate}&post=${postId}`);
       } else {
         navigate(`/calendrier?date=${calendarDate}`);
