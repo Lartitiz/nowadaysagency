@@ -92,6 +92,9 @@ Tu es experte en création de stories Instagram pour des solopreneuses créative
 
 ${ANTI_SLOP}
 
+ANTI-BROETRY (s'applique aux textes des stories) :
+Le texte de chaque story est court (2-4 lignes), mais ce sont des phrases COMPLÈTES, pas des mots isolés sur une ligne pour faire dramatique. L'oral est fluide, pas haché.
+
 ${CHAIN_OF_THOUGHT}
 
 ${branding_context || ""}`;

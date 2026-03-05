@@ -408,15 +408,26 @@ RÈGLES :
 ❌ Ne décrit pas ce qu'on voit
 ❌ Ne sonne pas comme une fiche produit`;
       } else {
-        depthMandate = `FORMAT : CAPTION INSTAGRAM (800-1500 caractères)
-
+        depthMandate = `FORMAT : CAPTION INSTAGRAM
+${effectiveObjective === "visibilite" || effectiveObjective === "visibilité" ? `
+LONGUEUR : 300-600 caractères. Court, percutant. L'idée doit claquer en quelques phrases.
+Le hook fait tout le travail. Le corps développe UNE seule idée. Pas de remplissage.
+` : effectiveObjective === "engagement" ? `
+LONGUEUR : 400-800 caractères. Assez pour raconter, pas assez pour perdre l'attention.
+Le hook crée la connexion. Le corps partage du vécu ou pose une question qui touche. La fin invite au dialogue.
+` : effectiveObjective === "vente" || effectiveObjective === "conversion" ? `
+LONGUEUR : 600-1200 caractères. Assez pour dérouler la preuve et l'invitation.
+Le hook nomme le problème. Le corps montre la transformation (cas concret). La fin ouvre la porte sans forcer.
+` : `
+LONGUEUR : 600-1200 caractères. Adapte au sujet : si l'idée tient en 600 caractères, ne l'étire pas.
+`}
 PROFONDEUR :
 - Les 125 premiers caractères : hook (la phrase qui fait cliquer "voir plus"). C'est la phrase la plus importante.
 - Corps : développe UNE idée en profondeur. Pas 3 idées survolées : 1 idée CREUSÉE.
 - Au moins 1 exemple concret, 1 anecdote, ou 1 chiffre dans le corps.
 - Apartés entre parenthèses *(comme ça)*, bucket brigades naturelles.
 - Fin : ouverture (question ou invitation), pas un résumé.
-- TOTAL : vise 1000+ caractères. Arrête de te censurer sur la longueur.`;
+- NE PAS étirer pour atteindre une longueur cible. Si c'est dit en 400 caractères, c'est 400.`;
       }
 
       systemPrompt = `${COMMON_PREFIX}
