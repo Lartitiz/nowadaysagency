@@ -434,11 +434,7 @@ PROFONDEUR :
 
 ${ANTI_BIAS}
 
-${CHAIN_OF_THOUGHT}
-
 ${FORMAT_STRUCTURES}
-
-${EDITORIAL_ANGLES_REFERENCE}
 
 ${WRITING_RESOURCES}
 
@@ -492,6 +488,19 @@ Avant de retourner le JSON, vérifie :
 5. Est-ce que la longueur respecte le format demandé ?
 6. Est-ce que le contenu passe le test du café (lisible à voix haute sans sonner robot) ?
 Si une réponse est NON, RÉÉCRIS avant de retourner.
+
+═══════════════════════════════════════════════════
+DERNIÈRES VÉRIFICATIONS (À APPLIQUER APRÈS RÉDACTION)
+═══════════════════════════════════════════════════
+
+${CHAIN_OF_THOUGHT}
+
+ANTI-SLOP FINAL — Relis ton output et vérifie :
+1. Contient-il un marqueur IA banni (rafale de phrases courtes, "Et là tout a basculé", storytelling fabriqué) ? → Réécris la phrase.
+2. Chaque phrase ajoute-t-elle une information NOUVELLE ? → Supprime toute redondance.
+3. Pourrais-tu dire ce texte à voix haute à une amie sans que ça sonne bizarre ? → Simplifie ce qui coince.
+4. Le texte fait-il la bonne longueur ? Si tu peux dire la même chose en moins de mots → Coupe.
+Retourne UNIQUEMENT la version finale corrigée.
 
 ${variation && previousContent ? `
 ═══════════════════════════════════════════════════

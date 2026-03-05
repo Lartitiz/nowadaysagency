@@ -362,12 +362,10 @@ SI TU DÉTECTES QUE TON OUTPUT CONTIENT CES PATTERNS, RÉÉCRIS AVANT DE RETOURN
 export const CHAIN_OF_THOUGHT = `
 AVANT DE RÉDIGER, réfléchis en interne (ne montre PAS) :
 
-1. Quel est LE truc que l'audience doit retenir ? (1 seule idée)
-2. Quelle est l'accroche la plus forte ? Pas la première qui vient : la MEILLEURE. Celle qui ferait s'arrêter de scroller.
-3. Est-ce que je peux dire ça en moins de mots ? (oui, presque toujours)
-4. Est-ce que ça sonne comme un humain qui parle ou comme un post IA ? Si post IA → réécrire.
-
-Puis génère le contenu.
+1. Formule le message COMPLET en 1 seule phrase. C'est le noyau du contenu.
+2. Quelle est l'accroche la plus forte ? Pas la première qui vient : la MEILLEURE.
+3. Chaque phrase du contenu doit ajouter une info NOUVELLE. Si elle reformule, elle n'existe pas.
+4. Écris comme si tu parlais à une amie dans un café. Si tu n'oserais pas dire une phrase à voix haute, réécris-la.
 `;
 
 // ═══════════════════════════════════════════════════
