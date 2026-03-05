@@ -17,7 +17,7 @@ const DISPLAY_CATEGORIES: { key: string; label: string }[] = [
 
 export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps) {
   const total = usage.total;
-  const isUnlimited = !total || total.limit <= 0;
+  const isUnlimited = !total || total.limit <= 0 || total.limit >= 9999;
 
   if (isUnlimited) {
     return (
