@@ -193,7 +193,7 @@ export default function CreerUnifie() {
     if (locState?.existingContent) setExistingCalendarContent(locState.existingContent);
 
     const fmt = paramFormat || locState?.format;
-    const paramCarouselSubMode = searchParams.get("carouselSubMode") as "text" | "photo" | null;
+    const paramCarouselSubMode = searchParams.get("carouselSubMode") as "text" | "photo" | "mix" | null;
     if (fmt) setSelectedFormat(fmt);
     if (paramCarouselSubMode) setCarouselSubMode(paramCarouselSubMode);
 
@@ -234,7 +234,7 @@ export default function CreerUnifie() {
 
   // ── Step handlers ──
 
-  const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" }) => {
+  const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" }) => {
     setAnswers({});
     setEditorialAngle(null);
     setEditContent("");
