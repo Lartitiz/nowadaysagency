@@ -56,6 +56,16 @@ const makeShadow = () => ({
   opacity: 0.08,
 });
 
+/** Factory: light card shadow */
+const makeLightShadow = () => ({
+  type: "outer" as const,
+  blur: 4,
+  offset: 2,
+  angle: 135,
+  color: "000000",
+  opacity: 0.04,
+});
+
 /** Factory: badge pill */
 function makeBadge(
   text: string,
@@ -65,18 +75,18 @@ function makeBadge(
   fonts: { body: string },
 ): [PptxGenJS.TextProps[], PptxGenJS.TextPropsOptions] {
   return [
-    [{ text: text.toUpperCase(), options: { fontSize: 10, bold: true, color: "FFFFFF", fontFace: fonts.body } }],
+    [{ text: text.toUpperCase(), options: { fontSize: 11, bold: true, color: "FFFFFF", fontFace: fonts.body } }],
     {
       x,
       y,
       w: Math.max(1.6, text.length * 0.13 + 0.5),
-      h: 0.35,
+      h: 0.38,
       align: "center",
       valign: "middle",
       fill: { color: fillColor },
       shape: "roundRect" as any,
-      rectRadius: 0.18,
-      charSpacing: 1.5,
+      rectRadius: 0.19,
+      charSpacing: 2,
     },
   ];
 }
@@ -165,7 +175,7 @@ function buildHookSlide(
 ) {
   slide.background = { color: c.bg };
 
-  // Decorative angled rectangle top-right (no circles)
+  // Decorative angled rectangle top-right
   slide.addShape("rect", {
     x: W - 2.2,
     y: -0.3,
@@ -173,6 +183,16 @@ function buildHookSlide(
     h: 2.5,
     fill: { color: c.primary, transparency: 90 },
     rotate: 15,
+  });
+
+  // Decorative angled rectangle bottom-left
+  slide.addShape("rect", {
+    x: -0.5,
+    y: H - 2.0,
+    w: 1.8,
+    h: 1.8,
+    fill: { color: c.accent, transparency: 85 },
+    rotate: -8,
   });
 
   // White card centered (~70% of slide)
@@ -191,7 +211,7 @@ function buildHookSlide(
     shadow: makeShadow(),
   });
 
-  // Badge pilule on top of card
+  // Badge pilule centered on top of card
   const roleLabel = s.role || "ANALOGIE";
   const [badgeText, badgeOpts] = makeBadge(roleLabel, 0, 0, c.primary, f);
   const badgeW = badgeOpts.w as number;
@@ -219,23 +239,28 @@ function buildHookSlide(
 
   // Small decorative square bottom-right of card
   slide.addShape("rect", {
-    x: cardX + cardW - 0.25,
-    y: cardY + cardH - 0.25,
-    w: 0.15,
-    h: 0.15,
+    x: cardX + cardW - 0.28,
+    y: cardY + cardH - 0.28,
+    w: 0.18,
+    h: 0.18,
     fill: { color: c.primary },
     rectRadius: 0.02,
   });
 }
 
 /**
- * CONTEXT / STORYTELLING — Titre + corps, barre latérale accent
+ * CONTEXT / STORYTELLING — Badge pilule, titre, corps dans carte blanche avec barre latérale
  */
 function buildContextSlide(
   slide: any, s: SlideData, c: Colors, f: Fonts,
   W: number, H: number, PAD_X: number, PAD_Y: number, CONTENT_W: number
 ) {
   slide.background = { color: "FFFFFF" };
+
+  // Badge pilule top-left
+  const roleLabel = s.role || "CONTEXTE";
+  const [badgeText, badgeOpts] = makeBadge(roleLabel, PAD_X, 0.6, c.primary, f);
+  slide.addText(badgeText, badgeOpts);
 
   // Title
   slide.addText(s.title, {
@@ -252,23 +277,49 @@ function buildContextSlide(
     lineSpacingMultiple: 1.2,
   });
 
-  // Accent bar left of body
+  // Body in white card with light shadow + left accent bar
   if (s.body) {
     const bodyY = 3.6;
     const bodyH = 4.2;
+    const cardX = PAD_X;
+    const cardW = CONTENT_W;
+
+    // Card background with light shadow
     slide.addShape("rect", {
-      x: PAD_X,
+      x: cardX,
+      y: bodyY,
+      w: cardW,
+      h: bodyH,
+      fill: { color: "FFFFFF" },
+      shadow: makeLightShadow(),
+    });
+
+    // Left accent bar
+    slide.addShape("rect", {
+      x: cardX,
       y: bodyY,
       w: 0.06,
-      h: Math.min(bodyH, 3.0),
+      h: bodyH,
       fill: { color: c.primary },
     });
 
+    // Emoji lightbulb at top of card
+    slide.addText("💡", {
+      x: cardX + 0.3,
+      y: bodyY + 0.2,
+      w: 0.5,
+      h: 0.5,
+      fontSize: 24,
+      align: "left",
+      valign: "top",
+    });
+
+    // Body text
     slide.addText(s.body, {
-      x: PAD_X + 0.3,
-      y: bodyY,
-      w: CONTENT_W - 0.5,
-      h: bodyH,
+      x: cardX + 0.3,
+      y: bodyY + 0.7,
+      w: cardW - 0.5,
+      h: bodyH - 1.0,
       fontSize: 16,
       fontFace: f.body,
       color: c.text,
@@ -290,7 +341,7 @@ function buildContextSlide(
 }
 
 /**
- * TIP / PÉDAGOGIQUE — Badge pilule, titre, corps avec barre colorée latérale
+ * TIP / PÉDAGOGIQUE — Badge pilule, titre avec highlight, corps dans carte avec barre colorée
  */
 function buildTipSlide(
   slide: any, s: SlideData, c: Colors, f: Fonts,
@@ -305,8 +356,9 @@ function buildTipSlide(
   const [badgeText, badgeOpts] = makeBadge(label, PAD_X, 0.6, accentColor, f);
   slide.addText(badgeText, badgeOpts);
 
-  // Title
-  slide.addText(s.title, {
+  // Title with highlighted last significant word
+  const titleParts = highlightLastSignificantWord(s.title, accentColor, c.secondary);
+  slide.addText(titleParts, {
     x: PAD_X,
     y: 1.4,
     w: CONTENT_W,
@@ -327,14 +379,14 @@ function buildTipSlide(
     const cardX = PAD_X;
     const cardW = CONTENT_W;
 
-    // Card background
+    // Card background with light shadow
     slide.addShape("rect", {
       x: cardX,
       y: cardY,
       w: cardW,
       h: cardH,
       fill: { color: "FFFFFF" },
-      shadow: makeShadow(),
+      shadow: makeLightShadow(),
     });
 
     // Left accent bar
@@ -427,7 +479,7 @@ function buildDarkBoxSlide(
 ) {
   slide.background = { color: "1A1A1A" };
 
-  // Title with accent word in yellow
+  // Title with accent word highlighted
   const titleParts = highlightLastSignificantWord(s.title, c.accent, "FFFFFF");
   slide.addText(titleParts, {
     x: PAD_X + 0.3,
@@ -443,7 +495,7 @@ function buildDarkBoxSlide(
     lineSpacingMultiple: 1.3,
   });
 
-  // Body
+  // Body with stronger transparency for visual hierarchy
   if (s.body) {
     slide.addText(s.body, {
       x: PAD_X + 0.3,
@@ -457,22 +509,22 @@ function buildDarkBoxSlide(
       valign: "top",
       wrap: true,
       lineSpacingMultiple: 1.5,
-      transparency: 20,
+      transparency: 25,
     });
   }
 
-  // Small accent bar bottom center
+  // Accent bar bottom center
   slide.addShape("rect", {
-    x: (W - 1.5) / 2,
+    x: (W - 1.8) / 2,
     y: H - 0.8,
-    w: 1.5,
+    w: 1.8,
     h: 0.04,
     fill: { color: c.accent },
   });
 }
 
 /**
- * HOPE / ESPOIR — Fond jaune accent, badge, titre + corps
+ * HOPE / ESPOIR — Fond jaune accent, badge, titre avec highlight + corps
  */
 function buildHopeSlide(
   slide: any, s: SlideData, c: Colors, f: Fonts,
@@ -500,8 +552,9 @@ function buildHopeSlide(
     y: 2.8,
   });
 
-  // Title
-  slide.addText(s.title, {
+  // Title with highlighted last significant word
+  const titleParts = highlightLastSignificantWord(s.title, c.primary, c.primary);
+  slide.addText(titleParts, {
     x: PAD_X + 0.2,
     y: 3.4,
     w: CONTENT_W - 0.4,
@@ -552,6 +605,26 @@ function buildCtaSlide(
 ) {
   slide.background = { color: c.bg };
 
+  // Decorative angled rect top-left
+  slide.addShape("rect", {
+    x: -0.4,
+    y: -0.3,
+    w: 2.0,
+    h: 2.0,
+    fill: { color: c.primary, transparency: 92 },
+    rotate: -10,
+  });
+
+  // Decorative angled rect bottom-right
+  slide.addShape("rect", {
+    x: W - 1.6,
+    y: H - 1.6,
+    w: 2.0,
+    h: 2.0,
+    fill: { color: c.accent, transparency: 88 },
+    rotate: 12,
+  });
+
   // White card
   const cardW = CONTENT_W * 0.75;
   const cardH = 3.2;
@@ -568,12 +641,24 @@ function buildCtaSlide(
     shadow: makeShadow(),
   });
 
-  // CTA title inside card
-  slide.addText(s.title, {
+  // Sparkle emoji centered above title
+  slide.addText("✨", {
+    x: cardX,
+    y: cardY + 0.15,
+    w: cardW,
+    h: 0.5,
+    fontSize: 22,
+    align: "center",
+    valign: "middle",
+  });
+
+  // CTA title inside card with highlight
+  const titleParts = highlightLastSignificantWord(s.title, c.primary, c.primary);
+  slide.addText(titleParts, {
     x: cardX + 0.4,
-    y: cardY + 0.3,
+    y: cardY + 0.6,
     w: cardW - 0.8,
-    h: 1.4,
+    h: 1.1,
     fontSize: 22,
     fontFace: f.title,
     color: c.primary,
@@ -583,7 +668,7 @@ function buildCtaSlide(
     lineSpacingMultiple: 1.2,
   });
 
-  // Body inside card
+  // Body inside card with slight transparency
   if (s.body) {
     slide.addText(s.body, {
       x: cardX + 0.4,
@@ -597,6 +682,7 @@ function buildCtaSlide(
       valign: "top",
       wrap: true,
       lineSpacingMultiple: 1.4,
+      transparency: 15,
     });
   }
 
@@ -645,6 +731,39 @@ function highlightLastSignificantWord(
   if (before) parts.push({ text: before + " ", options: { color: baseColor } });
   parts.push({ text: accent, options: { color: accentColor, italic: true } });
   if (after) parts.push({ text: " " + after, options: { color: baseColor } });
+
+  return parts;
+}
+
+/**
+ * Highlight a specific keyword in accent color + italic within a text.
+ * Falls back to highlightLastSignificantWord if keyword not found.
+ */
+function highlightKeyword(
+  text: string,
+  keyword: string,
+  accentColor: string,
+  baseColor: string
+): PptxGenJS.TextProps[] {
+  if (!text) return [{ text: "", options: {} }];
+  if (!keyword) return highlightLastSignificantWord(text, accentColor, baseColor);
+
+  const lowerText = text.toLowerCase();
+  const lowerKeyword = keyword.toLowerCase();
+  const idx = lowerText.indexOf(lowerKeyword);
+
+  if (idx === -1) {
+    return highlightLastSignificantWord(text, accentColor, baseColor);
+  }
+
+  const before = text.slice(0, idx);
+  const match = text.slice(idx, idx + keyword.length);
+  const after = text.slice(idx + keyword.length);
+
+  const parts: PptxGenJS.TextProps[] = [];
+  if (before) parts.push({ text: before, options: { color: baseColor } });
+  parts.push({ text: match, options: { color: accentColor, italic: true } });
+  if (after) parts.push({ text: after, options: { color: baseColor } });
 
   return parts;
 }
