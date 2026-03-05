@@ -143,7 +143,7 @@ export default function AppSidebar() {
     <>
       {/* Hover trigger zone — invisible 48px strip on left */}
       <div
-        className="fixed top-0 left-0 h-full w-12 z-[300]"
+        className="fixed top-0 left-0 h-full w-12 z-[300] hidden lg:flex lg:flex-col lg:items-center"
         onMouseEnter={handleMouseEnterTrigger}
         onMouseLeave={handleMouseLeaveTrigger}
         style={{ pointerEvents: open ? "none" : "auto" }}
@@ -169,7 +169,7 @@ export default function AppSidebar() {
       {/* Sidebar panel */}
       <div
         ref={panelRef}
-        className="fixed top-0 left-0 h-full w-[260px] z-[301] bg-card border-r border-border flex flex-col overflow-y-auto"
+        className="fixed top-0 left-0 h-full w-[260px] z-[301] bg-card border-r border-border hidden lg:flex flex-col overflow-y-auto"
         style={{
           transform: open ? "translateX(0)" : "translateX(-100%)",
           transition: "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
