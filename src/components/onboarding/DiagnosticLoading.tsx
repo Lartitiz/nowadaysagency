@@ -258,9 +258,9 @@ export default function DiagnosticLoading({
 
         safetyTimeout = setTimeout(() => {
           timeoutFired = true;
-          console.warn("Deep diagnostic timeout (35s), using fallback");
-          useFallback();
-        }, 35000);
+           console.warn("Deep diagnostic timeout (52s), using fallback");
+           useFallback();
+         }, 52000);
 
         const { data, error } = await supabase.functions.invoke("deep-diagnostic", { body: { ...body, isOnboarding: true } });
 
