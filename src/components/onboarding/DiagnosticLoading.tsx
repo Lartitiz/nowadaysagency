@@ -129,6 +129,14 @@ export default function DiagnosticLoading({
   const calledRef = useRef(false);
   const diagnosticDataRef = useRef<DiagnosticData | null>(null);
   const [progressPercent, setProgressPercent] = useState(5);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  // Elapsed seconds tracker
+  useEffect(() => {
+    if (phase !== "loading") return;
+    const interval = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
+    return () => clearInterval(interval);
+  }, [phase]);
 
   // Tips
   const tips = LOADING_TIPS[activityType || ""] || LOADING_TIPS._default;
@@ -375,6 +383,14 @@ export default function DiagnosticLoading({
             </p>
           </motion.div>
         </AnimatePresence>
+      )}
+
+      {phase === "loading" && elapsedSeconds >= 15 && (
+        <p className="text-xs text-muted-foreground animate-in fade-in mt-2">
+          {elapsedSeconds >= 30
+            ? "C'est un peu long... Si ça ne se débloque pas, je prépare un diagnostic simplifié."
+            : "Ça prend un peu plus de temps que prévu, je fouille en profondeur..."}
+        </p>
       )}
     </div>
   );
