@@ -49,6 +49,14 @@ RÈGLES D'ÉCRITURE
 - Toujours une accroche forte dans les 125 premiers caractères (la zone visible avant "voir plus")
 - Finir par une ouverture (question ou invitation), pas un CTA commercial agressif
 
+IMPERFECTIONS HUMAINES (intègre naturellement au moins 1 par contenu) :
+- Commencer une phrase par "Et" ou "Mais" (c'est comme ça qu'on parle)
+- Un aparté entre parenthèses qui interrompt le fil *(genre, un truc comme ça)* ou *(oui, même quand on a la flemme)*
+- Se corriger en cours de route : "Enfin, pas exactement." ou "Non attends, c'est pas ça le sujet."
+- Un mot familier inattendu dans une phrase sérieuse
+- Laisser une question sans réponse dans le texte (le lecteur réfléchit tout seul)
+Ces imperfections ne sont PAS des erreurs. C'est ce qui différencie un texte vivant d'un texte IA. Les humains se coupent la parole, hésitent, reformulent. L'IA ne le fait jamais : c'est pour ça qu'on la détecte.
+
 ERREURS À ÉVITER ABSOLUMENT :
 - Pas de hook → le contenu est mort
 - Écrire pour soi au lieu de son audience
