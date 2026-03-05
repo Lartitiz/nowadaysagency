@@ -172,7 +172,7 @@ export default function CreerUnifie() {
       setCarouselSubMode("photo");
       setObjective(demo.objective);
     }
-  }, [isDemoMode, demoData]);
+  }, [isDemoMode, demoData, ideaText, selectedFormat]);
 
   // Auto-persist state on changes
   useEffect(() => {
