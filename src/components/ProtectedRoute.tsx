@@ -4,6 +4,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { ReactNode, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import FloatingChatButton from "@/components/FloatingChatButton";
+import AppHeader from "@/components/AppHeader";
 import { isRouteVisible } from "@/config/feature-flags";
 import DemoBanner from "@/components/demo/DemoBanner";
 
@@ -68,6 +69,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
       return (
         <>
           <DemoBanner />
+          <AppHeader />
           <div className="min-h-screen bg-background flex flex-col">
             <div className="flex-1 flex items-center justify-center p-8">
               <div className="max-w-md text-center space-y-4 animate-fade-in">
