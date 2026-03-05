@@ -94,6 +94,15 @@ function makeBadge(
   ];
 }
 
+/** Pick badge color: use accent if dark enough, otherwise fall back to primary */
+function safeBadgeColor(accent: string, primary: string): string {
+  const r = parseInt(accent.slice(0, 2), 16);
+  const g = parseInt(accent.slice(2, 4), 16);
+  const b = parseInt(accent.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.65 ? primary : accent;
+}
+
 // ═══ MAIN EXPORT ═══
 
 export async function exportCarouselPptx(
@@ -915,7 +924,7 @@ function buildBeforeAfterSchema(
   slide.background = { color: "FFFFFF" };
 
   // Badge pilule accent centered
-  const [badgeText, badgeOpts] = makeBadge("AVANT / APRÈS", 0, 0, c.accent, f);
+  const [badgeText, badgeOpts] = makeBadge("AVANT / APRÈS", 0, 0, safeBadgeColor(c.accent, c.primary), f);
   const badgeW = badgeOpts.w as number;
   slide.addText(badgeText, { ...badgeOpts, x: (W - badgeW) / 2, y: 0.6 });
 
@@ -1272,7 +1281,7 @@ function buildEquationSchema(
   slide.background = { color: c.bg };
 
   // Badge
-  const [badgeText, badgeOpts] = makeBadge("FORMULE", 0, 0, c.accent, f);
+  const [badgeText, badgeOpts] = makeBadge("FORMULE", 0, 0, safeBadgeColor(c.accent, c.primary), f);
   const badgeW = badgeOpts.w as number;
   slide.addText(badgeText, { ...badgeOpts, x: (W - badgeW) / 2, y: 0.6 });
 
@@ -1292,7 +1301,7 @@ function buildEquationSchema(
   const operator = s.visual_schema?.operator || "+";
   const totalCards = parts.length + 1; // parts + result
   const operatorCount = parts.length; // operators between parts + "="
-  const totalSlots = totalCards + operatorCount;
+  
   const cardW = Math.min(1.8, (CONTENT_W - operatorCount * 0.5) / totalCards);
   const opW = 0.5;
   const totalW = totalCards * cardW + operatorCount * opW;
@@ -1660,9 +1669,10 @@ function buildFlowchartSchema(
 
       // Connection line
       if (idx > 0) {
+        const connH = branchSpacing * 0.15;
         slide.addShape("rect", {
-          x: PAD_X + 0.4, y: by - 0.15 + 0.06,
-          w: 0.04, h: 0.09,
+          x: PAD_X + 0.4, y: by - connH,
+          w: 0.04, h: connH,
           fill: { color: c.primary },
         });
       }
