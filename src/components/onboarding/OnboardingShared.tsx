@@ -31,7 +31,7 @@ export function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = 
   multiline?: boolean;
   showVoiceTip?: boolean;
 }) {
-  const { isListening, toggle } = useSpeechRecognition(
+  const { isListening, toggle, error } = useSpeechRecognition(
     (transcript) => onChange(value ? value + " " + transcript : transcript),
   );
 
@@ -68,34 +68,42 @@ export function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = 
             🎤
           </button>
         </div>
+        {error && !isListening && (
+          <p className="mt-1 text-xs text-destructive">{error}</p>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="relative w-full">
-      <input
-        type="text"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onKeyDown={e => { if (e.key === "Enter" && onEnter) onEnter(); }}
-        placeholder={placeholder}
-        aria-label={placeholder}
-        autoFocus={autoFocus}
-        className="w-full text-xl p-4 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50"
-      />
-      <button
-        type="button"
-        onClick={toggle}
-        className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full transition-all ${
-          isListening
-            ? "bg-destructive text-destructive-foreground animate-pulse"
-            : "bg-muted text-muted-foreground hover:bg-secondary"
-        }`}
-      >
-        🎤
-      </button>
-    </div>
+    <>
+      <div className="relative w-full">
+        <input
+          type="text"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && onEnter) onEnter(); }}
+          placeholder={placeholder}
+          aria-label={placeholder}
+          autoFocus={autoFocus}
+          className="w-full text-xl p-4 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50"
+        />
+        <button
+          type="button"
+          onClick={toggle}
+          className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full transition-all ${
+            isListening
+              ? "bg-destructive text-destructive-foreground animate-pulse"
+              : "bg-muted text-muted-foreground hover:bg-secondary"
+          }`}
+        >
+          🎤
+        </button>
+      </div>
+      {error && !isListening && (
+        <p className="mt-1 text-xs text-destructive">{error}</p>
+      )}
+    </>
   );
 }
 
