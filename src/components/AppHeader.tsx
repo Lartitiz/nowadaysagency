@@ -47,7 +47,7 @@ function AppHeaderInner() {
   const navigate = useNavigate();
   const { plan, usage, isPilot, isPaid } = useUserPlan();
   const { activateDemo } = useDemoContext();
-  const handleDemoClick = () => { activateDemo(); navigate("/onboarding"); };
+  const handleDemoClick = () => { activateDemo(); navigate("/dashboard"); };
   const [hasCoaching, setHasCoaching] = useState(false);
   const [coachingMonth, setCoachingMonth] = useState<number | null>(null);
   const [coachingPhase, setCoachingPhase] = useState<string | null>(null);
