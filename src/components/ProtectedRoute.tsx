@@ -5,6 +5,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import FloatingChatButton from "@/components/FloatingChatButton";
 import { isRouteVisible } from "@/config/feature-flags";
+import DemoBanner from "@/components/demo/DemoBanner";
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading, isAdmin } = useAuth();
@@ -66,6 +67,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     if (!isReady) {
       return (
         <>
+          <DemoBanner />
           <div className="min-h-screen bg-background flex flex-col">
             <div className="flex-1 flex items-center justify-center p-8">
               <div className="max-w-md text-center space-y-4 animate-fade-in">
