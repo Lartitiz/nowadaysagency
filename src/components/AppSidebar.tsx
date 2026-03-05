@@ -86,7 +86,7 @@ export default function AppSidebar() {
   const location = useLocation();
   const { user } = useAuth();
   const { plan } = useUserPlan();
-  const planLabel = plan === "free" ? "Plan gratuit" : plan === "outil" ? "Plan Outil" : plan === "studio" ? "Plan Studio" : plan === "now_pilot" ? "Plan Pilot" : "Plan gratuit";
+  const planLabel = plan === "now_pilot" ? "Binôme · Illimité ✨" : plan === "outil" ? "Outil · 39€/mois" : "Gratuit";
 
   const [open, setOpen] = useState(false);
   const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
@@ -128,6 +128,7 @@ export default function AppSidebar() {
 
   const isActive = (path: string) => {
     if (path.includes("?")) return location.pathname + location.search === path;
+    if (path === "/dashboard") return location.pathname === "/dashboard";
     return location.pathname === path || location.pathname.startsWith(path + "/");
   };
 
@@ -267,7 +268,7 @@ export default function AppSidebar() {
         </div>
 
         <div className="border-t border-border px-4 py-3 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-bordeaux to-raspberry flex items-center justify-center text-white font-semibold text-sm shrink-0">
             {initial}
           </div>
           <div className="min-w-0">

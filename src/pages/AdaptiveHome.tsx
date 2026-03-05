@@ -174,7 +174,7 @@ export default function AdaptiveHome() {
 
         {/* A. Greeting */}
         <div>
-          <h1 className="font-display text-2xl text-foreground">
+          <h1 className="font-display text-[28px] text-foreground leading-tight">
             Salut {profileSummary.firstName} ! 👋
           </h1>
           <p className="text-muted-foreground mt-1 text-[15px]">
@@ -221,7 +221,7 @@ export default function AdaptiveHome() {
         </div>
 
         {/* C. Mini-cards */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {MINI_CARDS.map((card) => (
             <div
               key={card.route}
