@@ -59,9 +59,16 @@ export default function CreerUnifie() {
   // Core state — restore from sessionStorage if available
   const ps = persistedState.current;
   const [mode, setMode] = useState<Mode>(paramMode === "transform" ? "transform" : "create");
-  // Don't restore into "result" or "edit" steps — they need runtime data (result object)
-  const safeStep = ps?.step && !["result", "edit"].includes(ps.step) ? ps.step as Step : "idea";
+  // Restore step — allow "result" and "edit" if their data is available
+  const safeStep = (() => {
+    if (!ps?.step) return "idea";
+    if (ps.step === "result" && ps.result) return "result";
+    if (ps.step === "edit" && ps.editContent) return "edit";
+    if (["result", "edit"].includes(ps.step)) return "idea";
+    return ps.step as Step;
+  })();
   const [step, setStep] = useState<Step>(safeStep);
+  const [restoredQuestions] = useState(ps?.questions || []);
   const [ideaText, setIdeaText] = useState(ps?.ideaText || paramSujet || locState.sujet || locState.subject || "");
   const [objective, setObjective] = useState<string | null>(
     ps?.objective || paramObjectif || locState.objectif || locState.objective || null
@@ -190,9 +197,10 @@ export default function CreerUnifie() {
         result: result || undefined,
         visualSlides,
         savedId,
+        questions: questions || [],
       });
     }
-  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId]);
+  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions]);
 
   // Pre-fill from URL/state & auto-advance (only when URL params are present)
   const initDone = useRef(false);
@@ -1098,7 +1106,7 @@ export default function CreerUnifie() {
                 format={selectedFormat || ""}
                 subject={ideaText}
                 editorialAngle={editorialAngle || undefined}
-                questions={questions}
+                questions={questions.length > 0 ? questions : restoredQuestions}
                 loadingQuestions={loadingQuestions}
                 onNext={handleQuestionsNext}
                 onSkip={handleSkipQuestions}
