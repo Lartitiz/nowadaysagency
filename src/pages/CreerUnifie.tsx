@@ -602,8 +602,10 @@ export default function CreerUnifie() {
     }
 
     if (selectedFormat === "carousel" && r?.slides) {
-      accroche = r.slides?.[0]?.title || "";
-      contentDraft = r.slides?.map((s: any) => `${s.title}\n${s.body || ""}`).join("\n\n");
+      accroche = r.caption?.hook || r.slides?.[0]?.title || "";
+      const slidesText = r.slides?.map((s: any) => `${s.title}\n${s.body || ""}`).join("\n\n");
+      const captionText = r.caption ? [r.caption.hook, r.caption.body, r.caption.cta].filter(Boolean).join("\n") : "";
+      contentDraft = captionText ? `${captionText}\n\n───── SLIDES ─────\n\n${slidesText}` : slidesText;
     } else if (selectedFormat === "linkedin" && (r?.hook || r?.full_text)) {
       accroche = (r.hook || r.full_text?.split(/[.\n]/)[0] || "").trim().slice(0, 200);
       contentDraft = r.full_text || [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
