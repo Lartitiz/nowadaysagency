@@ -605,7 +605,7 @@ export default function CreerUnifie() {
       accroche = r.slides?.[0]?.title || "";
       contentDraft = r.slides?.map((s: any) => `${s.title}\n${s.body || ""}`).join("\n\n");
     } else if (selectedFormat === "linkedin" && (r?.hook || r?.full_text)) {
-      accroche = r.hook || "";
+      accroche = (r.hook || r.full_text?.split(/[.\n]/)[0] || "").trim().slice(0, 200);
       contentDraft = r.full_text || [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
     } else if (selectedFormat === "reel" && r?.script) {
       accroche = r.script?.[0]?.texte_parle || "";
