@@ -55,7 +55,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     const DEMO_READY_ROUTES = [
       "/dashboard", "/dashboard/complet", "/dashboard/guide",
       "/branding", "/branding/section", "/branding/coaching",
-      "/branding/offres", "/branding/proposition",
+      "/branding/offres",
       "/calendrier", "/accompagnement", "/plan-de-com",
       "/instagram", "/instagram/profil", "/instagram/profil/bio",
       "/instagram/engagement", "/linkedin",
