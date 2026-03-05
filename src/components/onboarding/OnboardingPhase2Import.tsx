@@ -70,18 +70,6 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
           />
         </div>
 
-        {/* Instagram handle */}
-        <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">📱 Ton @ Instagram</label>
-          <input
-            type="text"
-            value={answers.instagram}
-            onChange={e => set("instagram", e.target.value)}
-            placeholder="@toncompte"
-            aria-label="Handle Instagram"
-            className="w-full text-base p-3 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50"
-          />
-        </div>
 
         {/* Instagram screenshot upload */}
         <div>
