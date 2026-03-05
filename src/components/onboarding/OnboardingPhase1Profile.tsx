@@ -41,6 +41,7 @@ export default function OnboardingPhase1Profile({ prenom, activite, onPrenomChan
             onChange={onActiviteChange}
             placeholder="Photographe portrait pour entrepreneures"
             onEnter={canNext ? onNext : undefined}
+            showVoiceTip
           />
         </div>
       </div>

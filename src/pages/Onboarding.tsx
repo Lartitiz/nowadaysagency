@@ -73,11 +73,6 @@ export default function Onboarding() {
 
   const { toast } = useToast();
   const [pendingAutoNext, setPendingAutoNext] = useState(false);
-  const [hasSeenVoiceTip, setHasSeenVoiceTip] = useState(false);
-
-  useEffect(() => {
-    if (step > 8 && !hasSeenVoiceTip) setHasSeenVoiceTip(true);
-  }, [step, hasSeenVoiceTip]);
 
   const validatedNext = useCallback(() => {
     const validator = stepValidators[step];
@@ -134,9 +129,6 @@ export default function Onboarding() {
             <div className="w-full">
               <AnimatePresence mode="wait">
                 <motion.div key={step} variants={variants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3, ease: "easeOut" }}>
-                  {step >= 9 && step <= 10 && !hasSeenVoiceTip && (
-                    <p className="text-xs text-muted-foreground text-center mb-2 animate-in fade-in">💡 Tu vois l'icône 🎤 ? Clique dessus pour dicter ta réponse.</p>
-                  )}
 
                   {step === 0 && <WelcomeStep onNext={next} />}
                   {step === 1 && <OnboardingPhase1Profile prenom={answers.prenom} activite={answers.activite} onPrenomChange={v => set("prenom", v)} onActiviteChange={v => set("activite", v)} onNext={validatedNext} />}
