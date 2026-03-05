@@ -283,6 +283,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                   postCanal={postCanal} format={format} angle={angle}
                   objectif={objectif} notes={notes} mediaUrls={mediaUrls}
                   onSaveAndClose={() => { handleSave(); onOpenChange(false); }}
+                  onShowContentViewer={() => setShowContentViewer(true)}
                 />
 
                 <div>
