@@ -265,6 +265,7 @@ serve(async (req) => {
         max_tokens: 4096,
       });
 
+      await logUsage(user.id, "content", "website_vision");
       return new Response(JSON.stringify({ content: visionResult }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     } else if (action === "optimize-about") {
