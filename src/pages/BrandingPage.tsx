@@ -135,7 +135,19 @@ export default function BrandingPage() {
     setMirrorLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("branding-mirror");
-      if (error) throw error;
+      if (error) {
+        // Extract real error message from FunctionsHttpError context
+        let realMessage = error.message;
+        try {
+          const ctx = (error as any).context;
+          if (ctx && typeof ctx.json === "function") {
+            const body = await ctx.json();
+            if (body?.error) realMessage = body.error;
+            if (body?.message) realMessage = body.message;
+          }
+        } catch { /* ignore parse errors */ }
+        throw new Error(realMessage);
+      }
       if (data?.error) throw new Error(data.error);
       setMirrorData(data);
       const wsId = workspaceId !== user?.id ? workspaceId : undefined;
