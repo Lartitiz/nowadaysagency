@@ -551,9 +551,12 @@ Réponds en JSON :
       );
     }
 
-    const shortTypes = ["bio", "bio-audit", "bio-generator", "caption", "instagram-nom"];
-    const maxTokens = shortTypes.includes(type) ? 1024 : 4096;
-    const content = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt, 0.8, maxTokens);
+    const shortTypes = ["bio", "bio-generator", "caption", "instagram-nom"];
+    const longTypes = ["bio-audit", "launch-plan"];
+    const maxTokens = shortTypes.includes(type) ? 1024 : longTypes.includes(type) ? 8192 : 4096;
+    const auditTypes = ["bio-audit"];
+    const modelAction = auditTypes.includes(type) ? "audit" : "content";
+    const content = await callAnthropicSimple(getModelForAction(modelAction), systemPrompt, userPrompt, 0.8, maxTokens);
 
     if (false) { // dead code guard — weekly-suggestions handled above
       let suggestions;

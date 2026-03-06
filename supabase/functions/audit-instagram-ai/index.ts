@@ -304,7 +304,7 @@ Reponds en JSON :
 
     // Fallback: text-only audit if no screenshots
     const userPrompt = "Analyse mon profil Instagram et donne-moi un audit complet avec audit visuel annote et analyse de performance des contenus.";
-    const content = await callAnthropicSimple(getModelForAction("audit"), systemPrompt, userPrompt, 0.7, 8192);
+    const content = await callAnthropicSimple(getModelForAction("audit"), finalSystemPrompt, userPrompt, 0.7, 8192);
 
     await logUsage(user.id, "audit", "audit_instagram", undefined, undefined, workspace_id);
     return new Response(
