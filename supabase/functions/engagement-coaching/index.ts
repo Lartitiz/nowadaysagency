@@ -93,6 +93,7 @@ Génère 3 commentaires DIFFÉRENTS en JSON :
       result = { comments: [], tip: raw };
     }
 
+    await logUsage(userId, "coach", "engagement_coaching");
     return new Response(JSON.stringify(result), {
       headers: { ...cors, "Content-Type": "application/json" },
     });

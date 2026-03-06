@@ -910,6 +910,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
       }
     }
 
+    await logUsage(user.id, "content", "creative_flow", undefined, undefined, workspace_id);
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("creative-flow error:", e);

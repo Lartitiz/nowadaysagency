@@ -236,6 +236,7 @@ Réponds UNIQUEMENT avec le JSON.`;
     }
 
     const response = await callAnthropicSimple(model, systemPrompt, "Génère ma séquence stories.");
+    await logUsage(user.id, "content", "stories");
     return new Response(JSON.stringify({ content: response }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

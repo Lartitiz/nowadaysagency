@@ -371,6 +371,7 @@ Réponds UNIQUEMENT en JSON sans backticks :
 
     systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + systemPrompt;
     const content = await callAnthropicSimple(getModelForAction("website"), systemPrompt, userPrompt, 0.8);
+    await logUsage(user.id, "content", "website");
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {
     console.error("website-ai error:", error);
