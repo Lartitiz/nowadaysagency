@@ -110,7 +110,7 @@ serve(async (req) => {
           }
           messageContent.push({
             type: "text",
-            text: `Voici ${body.photos.length} photo(s) pour un carrousel mixte Instagram.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}\n\nAnalyse chaque photo et crée un carrousel qui mélange slides photo et slides texte.`,
+            text: `BRIEF CRÉATIF : ${body.subject || "non précisé"}. Ce concept doit structurer tout le carrousel.\n\nVoici ${body.photos.length} photo(s) pour un carrousel mixte Instagram.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}\n\nAnalyse chaque photo et crée un carrousel qui mélange slides photo et slides texte.`,
           });
 
           content = await callAnthropic({
@@ -1020,7 +1020,7 @@ Pour chaque slide, tu choisis UN de ces types :
 
 3. "text_only" — Slide texte pure (design system)
    - Pas de photo, design classique avec fond coloré/blanc, typos, badges
-   - Idéal pour : tips, listes, punchlines, CTA, séparateurs
+   - Idéal pour : développement narratif, tips détaillés, prise de position, contexte, CTA. Ce ne sont PAS des séparateurs : chaque slide texte porte du contenu de fond.
    - Champs : title, body, visual_schema (optionnel)
 
 ═══ RÈGLES DE COMPOSITION ═══
@@ -1032,6 +1032,23 @@ Pour chaque slide, tu choisis UN de ces types :
 - Une même photo peut être utilisée dans plusieurs slides (ex: full + detail crop)
 - Alterne les types pour créer du rythme : photo → texte → photo → texte
 - Ne fais JAMAIS 3 slides du même type à la suite
+
+═══ RÈGLES DE NARRATION ═══
+
+- ARC NARRATIF OBLIGATOIRE : le carrousel raconte une histoire (situation → tension → développement → résolution → ouverture). Même un carrousel mixte doit avoir un fil conducteur, pas juste une alternance photo/texte sans logique.
+- CONNEXION ENTRE SLIDES : chaque slide crée une tension qui donne envie de swiper. Utilise des bucket brigades : "Le problème, c'est que...", "Sauf que...", "Résultat ?", "Et là...", "La vraie question c'est..."
+- Les slides text_only doivent avoir un body de 30-50 mots MINIMUM, pas juste un titre + quelques mots. Du vrai contenu de fond avec des phrases complètes et fluides.
+- EXEMPLES CONCRETS dans chaque slide texte : pas de conseil abstrait sans illustration.
+- AU MOINS 1 analogie du quotidien ou référence culture pop dans le carrousel.
+- Le contenu doit sonner comme quelqu'un qui PARLE, pas qui rédige un article. Ton oral : "en vrai", "franchement", "le truc c'est que", apartés en parenthèses.
+- INTERDIT : "Dans un monde où...", "Il est important de...", "N'hésite pas à...", "Voici X astuces pour..."
+
+═══ SUJET = BRIEF CRÉATIF ═══
+
+Le sujet donné par l'utilisatrice est un BRIEF CRÉATIF, pas juste un thème.
+- Si le sujet contient un concept (VS, avant/après, métaphore, angle), le carrousel DOIT s'articuler autour de ce concept. C'est la colonne vertébrale du contenu.
+- Le titre créatif donné par l'utilisatrice doit apparaître (ou être amélioré) sur la slide 1 comme hook.
+- Ne dilue PAS le concept dans un carrousel générique. Le concept structure TOUT.
 
 ═══ ASSIGNATION DES PHOTOS ═══
 
@@ -1093,6 +1110,10 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "photo_integrated_count": 2,
     "text_only_count": 3,
     "all_photos_used": true,
+    "narrative_arc": true,
+    "slides_connected": true,
+    "subject_concept_used": true,
+    "text_slides_min_30_words": true,
     "score": 85
   }
 }`;
