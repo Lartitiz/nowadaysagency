@@ -1091,7 +1091,7 @@ export default function CreerUnifie() {
             {/* Steps */}
             {step === "idea" && (
               <>
-                {!planLoading && remainingTotal() < Infinity && (
+                {!planLoading && remainingTotal() < 9000 && (
                   <p className="text-xs text-muted-foreground text-right mb-2">
                     ✨ {remainingTotal()} générations restantes ce mois
                   </p>
