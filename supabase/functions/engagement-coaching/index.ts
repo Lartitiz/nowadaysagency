@@ -5,7 +5,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { validateRequiredFields } from "../_shared/ai-validators.ts";
-import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
