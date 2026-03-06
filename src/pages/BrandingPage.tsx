@@ -704,6 +704,40 @@ export default function BrandingPage() {
                     onRunMirror={runMirror}
                     lastAuditScore={lastAudit?.score_global}
                     canShowMirror={canShowMirror}
+                    auditSuggestions={auditSuggestions}
+                    onApplySuggestion={async (sectionKey: string, suggestion: string) => {
+                      const fCol = workspaceId ? "workspace_id" : "user_id";
+                      const fVal = workspaceId || user?.id;
+                      if (!fVal) return;
+                      try {
+                        if (sectionKey === "proposition") {
+                          await (supabase.from("brand_profile") as any).update({ positioning: suggestion }).eq(fCol, fVal);
+                        } else if (sectionKey === "persona") {
+                          const { data: p } = await (supabase.from("persona") as any).select("id").eq(fCol, fVal).limit(1).maybeSingle();
+                          if (p) await (supabase.from("persona") as any).update({ step_2_transformation: suggestion }).eq("id", p.id);
+                        } else if (sectionKey === "offers") {
+                          await (supabase.from("brand_profile") as any).update({ offer: suggestion }).eq(fCol, fVal);
+                        } else if (sectionKey === "tone") {
+                          await (supabase.from("brand_profile") as any).update({ voice_description: suggestion }).eq(fCol, fVal);
+                        } else if (sectionKey === "storytelling") {
+                          const { data: st } = await (supabase.from("storytelling") as any).select("id").eq(fCol, fVal).limit(1).maybeSingle();
+                          if (st) await (supabase.from("storytelling") as any).update({ imported_text: suggestion, source: "audit" }).eq("id", st.id);
+                        } else if (sectionKey === "strategy") {
+                          await (supabase.from("brand_profile") as any).update({ content_editorial_line: suggestion }).eq(fCol, fVal);
+                        }
+                        setAuditSuggestions(prev => { const next = { ...prev }; delete next[sectionKey]; return next; });
+                        toast.success("✅ Suggestion appliquée !");
+                        queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
+                        queryClient.invalidateQueries({ queryKey: ["persona"] });
+                        queryClient.invalidateQueries({ queryKey: ["storytelling"] });
+                      } catch {
+                        toast.error("Erreur lors de l'application");
+                      }
+                    }}
+                    onDismissSuggestion={(sectionKey: string) => {
+                      setAuditSuggestions(prev => { const next = { ...prev }; delete next[sectionKey]; return next; });
+                      toast("Suggestion ignorée");
+                    }}
                   />
                 </>
               )}
