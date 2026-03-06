@@ -30,6 +30,15 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Authentification invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Guard: demo user cannot trigger real AI calls
+    if (isDemoUser(user.id)) {
+      return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Rate limit check
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const body = await req.json();
     const { auditTextData: atd, screenshotImages, successPostsData, failPostsData, workspace_id } = body;
     // Legacy fields (optional)
