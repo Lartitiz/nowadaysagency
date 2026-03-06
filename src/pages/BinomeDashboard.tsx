@@ -106,7 +106,7 @@ export default function BinomeDashboard() {
     );
   }
 
-  if (!isStudio) return null;
+  if (!isBinome) return null;
 
   // Calculate progress
   const monthsPaid = subInfo?.studio_months_paid || 0;

@@ -165,7 +165,7 @@ export default function Dashboard() {
   const { user, isAdmin } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
   const navigate = useNavigate();
-  const { isPilot } = useUserPlan();
+  const { isBinome } = useUserPlan();
   const { column, value } = useWorkspaceFilter();
   const { activeWorkspace, activeRole } = useWorkspace();
   const { hasInstagram, hasLinkedin, hasWebsite, hasSeo, loading: channelsLoading, channels } = useActiveChannels();

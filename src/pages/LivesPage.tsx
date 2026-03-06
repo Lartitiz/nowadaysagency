@@ -241,7 +241,7 @@ export default function LivesPage() {
                 <div className="space-y-3">
                   {filteredReplays.map((live) => {
                     const isStudioLive = live.live_type === "studio";
-                    const locked = isStudioLive && !isStudio;
+                    const locked = isStudioLive && !isBinome;
 
                     return (
                       <div

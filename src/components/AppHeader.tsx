@@ -356,7 +356,7 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
           </button>
         </div>
         <DropdownMenuSeparator />
-        {(hasCoaching || isPilot) && (
+        {(hasCoaching || isBinome) && (
           <>
             <DropdownMenuItem onClick={() => navigate("/accompagnement")} className="gap-2 cursor-pointer">
               <Handshake className="h-4 w-4" /> 🤝 Mon accompagnement

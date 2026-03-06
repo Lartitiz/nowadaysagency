@@ -344,7 +344,7 @@ export default function AbonnementPage() {
                 <p>✅ 7 sessions avec Laetitia (~12h)</p>
                 <p>✅ Comptes-rendus détaillés</p>
               </div>
-              {plan === "now_pilot" ? (
+              {plan === "binome" ? (
                 <span className="inline-block mt-3 text-xs font-semibold text-primary">Plan actuel ✓</span>
               ) : (
                 <Button size="sm" variant="outline" className="mt-3 rounded-full text-xs" onClick={() => window.open("https://calendly.com/laetitia-mattioli/appel-decouverte", "_blank")}>

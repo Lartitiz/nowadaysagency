@@ -579,7 +579,7 @@ const QUOTA_CATEGORIES = [
 
 function AiQuotaDisplay() {
   const { plan, usage, isPaid } = useUserPlan();
-  const planLabel = plan === "now_pilot" ? "Binôme de com (250€/mois)" : plan === "outil" ? "Premium (39€/mois)" : "Gratuit";
+  const planLabel = plan === "binome" ? "Binôme de com (250€/mois)" : plan === "outil" ? "Premium (39€/mois)" : "Gratuit";
   const total = usage.total;
   const nextMonth = new Date();
   nextMonth.setMonth(nextMonth.getMonth() + 1, 1);

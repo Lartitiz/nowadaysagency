@@ -89,8 +89,8 @@ export default function AppSidebar() {
   const { plan } = useUserPlan();
   const { activateDemo } = useDemoContext();
   const navigate = useNavigate();
-  const planLabel = plan === "now_pilot" ? "Binôme · Illimité ✨" : plan === "outil" ? "Outil · 39€/mois" : "Gratuit";
-  const isPilot = plan === "now_pilot";
+  const planLabel = plan === "binome" ? "Binôme · Illimité ✨" : plan === "outil" ? "Outil · 39€/mois" : "Gratuit";
+  const isBinome = plan === "binome";
 
   const [open, setOpen] = useState(false);
   const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
