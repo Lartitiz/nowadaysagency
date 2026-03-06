@@ -138,6 +138,8 @@ serve(async (req) => {
       messages: userMsgs,
     });
 
+    await logUsage(user.id, "content", "reels");
+
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -223,6 +223,8 @@ ${template ? `FORMAT DEMANDÉ : ${template}` : ""}`;
       });
     }
 
+    await logUsage(user.id, "content", "newsletter");
+
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

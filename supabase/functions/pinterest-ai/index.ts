@@ -113,6 +113,7 @@ serve(async (req) => {
 
     systemPrompt = VOICE_PRIORITY + systemPrompt;
     const content = await callAnthropicSimple(getModelForAction("pinterest"), systemPrompt, userPrompt, 0.8);
+    await logUsage(user.id, "content", "pinterest");
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {
     if (error instanceof ValidationError) {

@@ -194,6 +194,7 @@ Réponds UNIQUEMENT en JSON valide :
       return new Response(JSON.stringify({ error: "Erreur de format IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    await logUsage(user.id, "content", "inspire");
     return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     console.error("Error:", error);

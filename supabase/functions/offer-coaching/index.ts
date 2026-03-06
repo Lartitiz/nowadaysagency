@@ -193,6 +193,8 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
       parsed = { reaction: content };
     }
 
+    await logUsage(user.id, "content", "offer_coaching");
+
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

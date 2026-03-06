@@ -157,6 +157,8 @@ Réponds UNIQUEMENT en JSON :
       else throw new Error("Format de réponse inattendu");
     }
 
+    await logUsage(user.id, "content", "launch_plan");
+
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
