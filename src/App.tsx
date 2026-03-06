@@ -193,7 +193,7 @@ function AnimatedRoutes() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/connexion" element={<LoginPage />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/now-studio" element={<Navigate to="/studio/discover" replace />} />
+              <Route path="/now-studio" element={<Navigate to="/binome" replace />} />
               <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
               <Route path="/welcome" element={<ProtectedRoute><WelcomePage /></ProtectedRoute>} />
               <Route path="/dashboard" element={<ProtectedRoute><AdaptiveHome /></ProtectedRoute>} />
