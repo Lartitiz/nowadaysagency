@@ -185,7 +185,7 @@ function QuickActions({ onImport, onShowSynthesis, onRunMirror, lastAuditScore, 
   );
 }
 
-function SynthesisView({ completion, summaries, onReanalyze, profileName, profileActivity, onImport, onShowSynthesis, onRunMirror, lastAuditScore, canShowMirror }: Props) {
+function SynthesisView({ completion, summaries, onReanalyze, profileName, profileActivity, onImport, onShowSynthesis, onRunMirror, lastAuditScore, canShowMirror, auditSuggestions, onApplySuggestion, onDismissSuggestion }: Props) {
   const navigate = useNavigate();
   const proposition = summaries.proposition?.phrase;
   const hasProposition = !!proposition && completion.proposition > 0;
