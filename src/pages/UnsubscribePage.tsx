@@ -91,7 +91,7 @@ export default function UnsubscribePage() {
           </>
         ) : (
           <>
-            <MailOff className="h-12 w-12 text-muted-foreground mx-auto" />
+            <MailMinus className="h-12 w-12 text-muted-foreground mx-auto" />
             <h1 className="font-display text-xl font-bold text-foreground">Se désinscrire des emails</h1>
             <p className="text-sm text-muted-foreground">
               Tu ne recevras plus d'emails de L'Assistant Com'. Tu pourras te réinscrire à tout moment depuis cette page.
