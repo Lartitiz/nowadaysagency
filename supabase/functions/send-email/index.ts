@@ -96,10 +96,13 @@ serve(async (req) => {
 
     // Log successful send
     await supabase.from("email_sends").insert({
-      recipient: recipients.join(", "),
+      to_email: recipients.join(", "),
       subject,
       status: "sent",
       resend_id: resendData.id,
+      user_id: user_id || null,
+      template_id: template_id || null,
+      sequence_id: sequence_id || null,
     });
 
     return new Response(JSON.stringify({ success: true, resend_id: resendData.id }), {
