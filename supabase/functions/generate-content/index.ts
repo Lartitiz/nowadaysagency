@@ -8,7 +8,7 @@ import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
 import { validateInput, GenerateContentSchema } from "../_shared/input-validators.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -440,7 +440,7 @@ Réponds en JSON :
         userPrompt = "Rédige le post complet.";
 
       } else if (type === "instagram-audit") {
-        const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, successNotes: sn, failNotes: fn, profileUrl: pu, successPostsData, failPostsData, auditTextData: atd } = body;
+        const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, successNotes: sn, failNotes: fn, profileUrl: pu, successPostsData, failPostsData, auditTextData: atd, screenshotImages } = body;
 
         // Build structured post descriptions for AI
         let successPostsBlock = "";
@@ -658,6 +658,31 @@ Reponds en JSON :
     "general_advice": "..."
   }
 }`;
+        // Build user message (multimodal if screenshots available)
+        if (screenshotImages && screenshotImages.length > 0) {
+          const userContent: any[] = screenshotImages.map((img: any) => ({
+            type: "image",
+            source: { type: "base64", media_type: img.media_type, data: img.data },
+          }));
+          userContent.push({
+            type: "text",
+            text: "Analyse mon profil Instagram en détail avec les captures fournies et les données textuelles ci-dessus.",
+          });
+
+          const visionResult = await callAnthropic({
+            model: getModelForAction("audit"),
+            system: systemPrompt,
+            messages: [{ role: "user", content: userContent }],
+            temperature: 0.7,
+            max_tokens: 4096,
+          });
+
+          return new Response(
+            JSON.stringify({ content: visionResult }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        // Fallback: text-only audit if no screenshots
         userPrompt = "Analyse mon profil Instagram et donne-moi un audit complet avec audit visuel annote et analyse de performance des contenus.";
 
       } else if (type === "instagram-nom") {

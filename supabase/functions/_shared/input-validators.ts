@@ -53,6 +53,7 @@ export const GenerateContentSchema = z.object({
   differentiation: z.record(z.unknown()).optional().nullable(),
   ctaInfo: z.record(z.unknown()).optional().nullable(),
   structureChoice: shortText.optional().nullable(),
+  screenshotImages: z.array(z.object({ data: z.string(), media_type: z.string() })).optional(),
 }).passthrough();
 
 /* ─── create-checkout ─── */
