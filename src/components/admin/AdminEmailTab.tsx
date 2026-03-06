@@ -528,10 +528,16 @@ function HistoriqueView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1.5">
-        {["all", "sent", "failed"].map(s => (
-          <button key={s} onClick={() => { setStatusFilter(s); setPage(0); }} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${statusFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-            {s === "all" ? "Tous" : s === "sent" ? "✅ Envoyés" : "❌ Échoués"}
+      <div className="flex gap-1.5 flex-wrap">
+        {[
+          { key: "all", label: "Tous" },
+          { key: "sent", label: "📤 Envoyés" },
+          { key: "opened", label: "👁 Ouverts" },
+          { key: "clicked", label: "🔗 Cliqués" },
+          { key: "failed", label: "❌ Échoués" },
+        ].map(s => (
+          <button key={s.key} onClick={() => { setStatusFilter(s.key); setPage(0); }} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${statusFilter === s.key ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+            {s.label}
           </button>
         ))}
       </div>
