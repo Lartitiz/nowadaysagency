@@ -277,9 +277,9 @@ export default function AppSidebar() {
                 <Wrench size={16} />
                 🔧 Audit app
               </Link>
-              <Link to="/admin/tools" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+              <Link to="/admin" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
                 <Wrench size={16} />
-                🛠️ Outils admin
+                Admin
               </Link>
             </div>
           )}
