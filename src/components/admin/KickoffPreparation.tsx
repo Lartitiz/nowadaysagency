@@ -118,7 +118,7 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
       return;
     }
 
-    const { error: profErr } = await (supabase.from("profiles").update({ current_plan: "now_pilot" } as any).eq("user_id", clientUserId) as any);
+    const { error: profErr } = await (supabase.from("profiles").update({ current_plan: "binome" } as any).eq("user_id", clientUserId) as any);
     if (profErr) console.error("Erreur mise à jour profil:", profErr);
 
     if (createWorkspace) {

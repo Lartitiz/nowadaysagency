@@ -355,7 +355,7 @@ function BusinessSection({ stats }: { stats: StatsData }) {
 
 function EngagementSection({ stats }: { stats: StatsData }) {
   const PLAN_COLORS: Record<string, string> = {
-    free: "#9CA3AF", outil: "#8B5CF6", studio: "#F59E0B", now_pilot: "#fb3d80", pro: "#3B82F6",
+    free: "#9CA3AF", outil: "#8B5CF6", binome: "#fb3d80", pro: "#3B82F6",
   };
 
   const aiDayData = (stats.ai_by_day || []).map(d => ({
