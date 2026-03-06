@@ -163,12 +163,46 @@ export default function LinkedInPostGenerator() {
     }
   }, [suggestingTemplate, template, workspaceId, user?.id]);
 
-  // Auto-trigger suggestion when subject is pre-filled from navigation
+  // Auto-setup when coming from calendar
   useEffect(() => {
-    if (sujet.trim() && (calendarState?.fromCalendar || calendarState?.sujet || calendarState?.theme)) {
+    if (!calendarState?.fromCalendar && !calendarState?.sujet && !calendarState?.theme) return;
+    
+    const ANGLE_TO_TEMPLATE: Record<string, string> = {
+      "enquete_decryptage": "enquete_decryptage",
+      "test_grandeur_nature": "test_grandeur_nature",
+      "coup_de_gueule": "coup_de_gueule",
+      "mythe_deconstruire": "mythe_deconstruire",
+      "storytelling_lecon": "storytelling_lecon",
+      "histoire_cliente": "histoire_cliente",
+      "surf_actu": "surf_actu",
+      "regard_philosophique": "regard_philosophique",
+      "conseil_contre_intuitif": "conseil_contre_intuitif",
+      "before_after": "before_after",
+      "build_in_public": "build_in_public",
+      "identification_quotidien": "identification_quotidien",
+      "contenu_lancement": "contenu_lancement",
+    };
+    
+    const calAngle = calendarState?.angle;
+    if (calAngle && ANGLE_TO_TEMPLATE[calAngle]) {
+      setTemplate(ANGLE_TO_TEMPLATE[calAngle]);
+    } else {
       suggestTemplate(sujet);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-generate when coming from calendar with all data ready
+  useEffect(() => {
+    if (autoGenTriggered) return;
+    if (!calendarState?.fromCalendar) return;
+    if (!template || !sujet.trim() || generating || result) return;
+    
+    setAutoGenTriggered(true);
+    const timer = setTimeout(() => {
+      generate();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [template, sujet, calendarState?.fromCalendar, autoGenTriggered]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [tipIdx] = useState(() => Math.floor(Math.random() * LINKEDIN_TIPS.length));
   const tip = LINKEDIN_TIPS[tipIdx];
