@@ -21,36 +21,8 @@ const services = [
       "Compte-rendu écrit post-session",
     ],
     price: 150,
-    priceId: "price_1T3irCI0YZbTj9ITc6u9ocSE",
+    priceId: "price_1T7ua6IwPeG7GjpykaYM6Cqr",
     icon: Target,
-  },
-  {
-    key: "audit_perso",
-    emoji: "🔍",
-    title: "Audit personnalisé",
-    description: "Audit approfondi de ta com' avec recommandations personnalisées par Laetitia.",
-    details: [
-      "Analyse complète de tes canaux",
-      "Recommandations prioritaires",
-      "Document PDF livré sous 48h",
-    ],
-    price: 200,
-    priceId: "price_1T3irpI0YZbTj9IT8EtRTNW0",
-    icon: Search,
-  },
-  {
-    key: "weekend",
-    emoji: "🏡",
-    title: "Weekend Bourgogne",
-    description: "3 jours au bord de l'eau. Travail sur ta com', yoga, co-développement.",
-    details: [
-      "Hébergement inclus (La Prochaine Aire)",
-      "Ateliers com' en petit groupe",
-      "Sessions yoga & bien-être",
-    ],
-    price: 450,
-    priceId: "price_1T3is2I0YZbTj9ITseeo04eS",
-    icon: Home,
   },
 ];
 

@@ -15,8 +15,8 @@ export const STRIPE_PLANS = {
   outil: {
     name: "L'Assistant Com'",
     price: 39,
-    priceId: "price_1T3ionI0YZbTj9ITVDBDYXMr",
-    productId: "prod_U1mNtVtFHNrlNy",
+    priceId: "price_1T7uZHIwPeG7GjpycpUQuMqf",
+    productId: "prod_U66mTd9s81uGAY",
     mode: "subscription" as const,
     features: [
       "Générations IA illimitées",
@@ -29,8 +29,8 @@ export const STRIPE_PLANS = {
   binome_monthly: {
     name: "Ton binôme de com'",
     price: 250,
-    priceId: "price_1T3ipcI0YZbTj9ITlKOQN5Tm",
-    productId: "prod_U1mOM9l58BhlY3",
+    priceId: "price_1T7uZbIwPeG7Gjpy3arZSdx8",
+    productId: "prod_U66n9TkhjJae5r",
     mode: "subscription" as const,
     engagement: "6 mois",
     features: [
@@ -43,8 +43,8 @@ export const STRIPE_PLANS = {
   binome_once: {
     name: "Ton binôme de com' (paiement unique)",
     price: 1500,
-    priceId: "price_1T3iq5I0YZbTj9ITnDSpkNWN",
-    productId: "prod_U1mO5DAp2VmRoR",
+    priceId: "price_1T7uZoIwPeG7GjpysrHPkLgh",
+    productId: "prod_U66nHw9q4JTxHL",
     mode: "payment" as const,
     features: [
       "Tout le plan Outil pendant 6 mois",
@@ -58,30 +58,15 @@ export const STRIPE_PRODUCTS = {
   coaching: {
     name: "Coaching Individuel",
     price: 150,
-    priceId: "price_1T3irCI0YZbTj9ITc6u9ocSE",
-    productId: "prod_U1mQHY2k0DJTA7",
-    mode: "payment" as const,
-  },
-  audit_perso: {
-    name: "Audit Personnalisé",
-    price: 200,
-    priceId: "price_1T3irpI0YZbTj9IT8EtRTNW0",
-    productId: "prod_U1mQpx8mgn8Wk1",
-    mode: "payment" as const,
-  },
-  weekend: {
-    name: "Weekend Bourgogne",
-    price: 450,
-    priceId: "price_1T3is2I0YZbTj9ITseeo04eS",
-    productId: "prod_U1mQ2KwUHQeUFn",
+    priceId: "price_1T7ua6IwPeG7GjpykaYM6Cqr",
+    productId: "prod_U66ntcEvBRUkXF",
     mode: "payment" as const,
   },
 } as const;
 
 // Credit packs (one-time purchases)
-// After running setup-credit-packs, fill in the priceIds
 export const CREDIT_PACKS = {
-  pack_10: { credits: 10, price: 3.90, priceId: "price_1T4lcNI0YZbTj9IT2jUiJpNE", mode: "payment" as const, label: "10 crédits", emoji: "⚡" },
-  pack_30: { credits: 30, price: 8.90, priceId: "price_1T4lcOI0YZbTj9ITvP6M4k95", mode: "payment" as const, label: "30 crédits", emoji: "⚡" },
-  pack_60: { credits: 60, price: 14.90, priceId: "price_1T4lcOI0YZbTj9ITwB7OJBoD", mode: "payment" as const, label: "60 crédits", emoji: "🔥" },
+  pack_10: { credits: 10, price: 3.90, priceId: "price_1T7ubCIwPeG7GjpyJ8I0qPAM", mode: "payment" as const, label: "10 crédits", emoji: "⚡" },
+  pack_30: { credits: 30, price: 8.90, priceId: "price_1T7ubQIwPeG7GjpyqFOfJu9e", mode: "payment" as const, label: "30 crédits", emoji: "⚡" },
+  pack_60: { credits: 60, price: 14.90, priceId: "price_1T7ubbIwPeG7GjpyLTMfYjZw", mode: "payment" as const, label: "60 crédits", emoji: "🔥" },
 } as const;

@@ -73,7 +73,7 @@ serve(async (req) => {
 
           // Determine plan from price
           let plan = "outil";
-          if (priceId === "price_1T3ipcI0YZbTj9ITlKOQN5Tm") plan = "studio";
+          if (priceId === "price_1T7uZbIwPeG7Gjpy3arZSdx8") plan = "studio";
 
           // Set cancel_at for studio plan (6 months engagement)
           if (plan === "studio" && !sub.cancel_at) {
@@ -106,10 +106,8 @@ serve(async (req) => {
         } else if (session.mode === "payment") {
           // One-time purchase
           const productTypeMap: Record<string, string> = {
-            "prod_U1mQHY2k0DJTA7": "coaching",
-            "prod_U1mQpx8mgn8Wk1": "audit_perso",
-            "prod_U1mQ2KwUHQeUFn": "weekend",
-            "prod_U1mO5DAp2VmRoR": "studio_once",
+            "prod_U66ntcEvBRUkXF": "coaching",
+            "prod_U66nHw9q4JTxHL": "studio_once",
           };
 
           const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
