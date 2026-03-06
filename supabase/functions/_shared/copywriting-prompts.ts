@@ -376,6 +376,35 @@ AVANT DE RÉDIGER, réfléchis en interne (ne montre PAS) :
 4. Écris comme si tu parlais à une amie dans un café. Si tu n'oserais pas dire une phrase à voix haute, réécris-la.
 `;
 
+export const DEPTH_LAYER = `
+PROFONDEUR INTELLECTUELLE (OBLIGATOIRE) :
+
+Avant de rédiger le contenu, tu DOIS identifier en interne (ne montre PAS) :
+
+1. LE MÉCANISME INVISIBLE : quel biais cognitif, conditionnement social, paradoxe psychologique ou dynamique systémique est en jeu derrière le sujet ? Nomme-le. Exemples : estime de soi conditionnelle (Crocker & Park), comparaison sociale ascendante (Festinger), biais de confirmation, conditionnement de genre à la discrétion, confusion corrélation/causalité dans les métriques...
+
+2. LA CROYANCE SOUS-JACENTE : quelle croyance implicite (que la personne n'a jamais formulée consciemment) alimente le problème ? Exemple : derrière "j'archive mes posts qui flopent", la croyance est "le nombre de likes mesure ma valeur professionnelle".
+
+3. LE RETOURNEMENT DE PERSPECTIVE : quelle phrase pourrait faire dire à la lectrice "ah merde, j'avais jamais vu ça comme ça" ? C'est la pépite du carrousel. Pas un conseil, pas une astuce : un changement de cadre mental.
+
+4. UNE DONNÉE OU RÉFÉRENCE D'APPUI (quand pertinent) : un chiffre sourcé, un concept nommé avec son auteur, une étude. Pas obligatoire sur chaque carrousel, mais quand ça existe, ça crédibilise et ça ancre la réflexion. Intégrer naturellement, pas en mode "selon une étude de Harvard".
+
+APPLICATION DANS LES SLIDES :
+- Le mécanisme doit être EXPLIQUÉ dans au moins 1 slide (pas juste mentionné)
+- La croyance sous-jacente doit être NOMMÉE dans le carrousel (la lectrice doit se dire "c'est exactement ce que je fais")
+- Le retournement de perspective doit être LE MOMENT FORT du carrousel (pas le hook, pas le CTA : le milieu)
+- Si une donnée/référence est utilisée, la sourcer discrètement (nom de l'auteur, année)
+
+CE QUE ÇA CHANGE CONCRÈTEMENT :
+- Un carrousel "tips" ne donne plus juste 5 astuces : il explique POURQUOI ces astuces marchent (le mécanisme)
+- Un carrousel "storytelling" ne raconte plus juste une anecdote : il connecte l'anecdote à un pattern universel
+- Un carrousel "mythe à déconstruire" ne dit plus juste "c'est faux" : il montre le mécanisme qui fait qu'on y croit
+- Un carrousel "prise de position" ne donne plus juste une opinion : il apporte un cadre de réflexion
+
+NIVEAU DE PROFONDEUR ATTENDU :
+Imagine que la lectrice montre le carrousel à une amie et dit "regarde, ça m'a fait réaliser un truc". Si le carrousel ne provoque pas cette réaction, il n'est pas assez profond.
+`;
+
 // ═══════════════════════════════════════════════════
 // SECTION 9 : ANALOGIES VISUELLES (à injecter dans TOUS les prompts)
 // ═══════════════════════════════════════════════════
