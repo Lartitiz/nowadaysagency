@@ -8,6 +8,39 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+
+const AuditInstagramSchema = z.object({
+  auditTextData: z.object({
+    displayName: z.string().optional().nullable(),
+    username: z.string().optional().nullable(),
+    bio: z.string().optional().nullable(),
+    bioLink: z.string().optional().nullable(),
+    photoDescription: z.string().optional().nullable(),
+    highlights: z.array(z.string()).optional().nullable(),
+    highlightsCount: z.number().optional().nullable(),
+    pinnedPosts: z.array(z.object({ description: z.string() })).optional().nullable(),
+    feedDescription: z.string().optional().nullable(),
+    followers: z.number().optional().nullable(),
+    postsPerMonth: z.number().optional().nullable(),
+    frequency: z.string().optional().nullable(),
+    pillars: z.array(z.string()).optional().nullable(),
+    bestPostUrls: z.array(z.string()).optional().nullable(),
+    worstPostUrls: z.array(z.string()).optional().nullable(),
+    bestPostsComment: z.string().optional().nullable(),
+    worstPostsComment: z.string().optional().nullable(),
+  }).optional().nullable(),
+  screenshotImages: z.array(z.object({ data: z.string(), media_type: z.string() })).optional(),
+  successPostsData: z.array(z.record(z.unknown())).optional().nullable(),
+  failPostsData: z.array(z.record(z.unknown())).optional().nullable(),
+  workspace_id: z.string().uuid().optional().nullable(),
+  // Legacy fields
+  bestContent: z.string().optional().nullable(),
+  worstContent: z.string().optional().nullable(),
+  rhythm: z.string().optional().nullable(),
+  objective: z.string().optional().nullable(),
+  profileUrl: z.string().optional().nullable(),
+}).passthrough();
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -39,7 +72,15 @@ serve(async (req) => {
     const rateCheck = checkRateLimit(user.id);
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
-    const body = await req.json();
+    const rawBody = await req.json();
+    const parseResult = AuditInstagramSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      return new Response(
+        JSON.stringify({ error: "Données invalides", details: parseResult.error.issues.map(i => i.message).join(", ") }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const body = parseResult.data;
     const { auditTextData: atd, screenshotImages, successPostsData, failPostsData, workspace_id } = body;
     // Legacy fields (optional)
     const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, profileUrl: pu } = body;
