@@ -48,7 +48,7 @@ export default function UnsubscribePage() {
     return (
       <div className="min-h-screen bg-secondary flex items-center justify-center px-4">
         <div className="bg-card rounded-2xl border border-border p-8 max-w-md w-full text-center space-y-4">
-          <MailOff className="h-12 w-12 text-muted-foreground mx-auto" />
+          <MailMinus className="h-12 w-12 text-muted-foreground mx-auto" />
           <h1 className="font-display text-xl font-bold text-foreground">Gestion des emails</h1>
           <p className="text-sm text-muted-foreground">
             Connecte-toi pour gérer tes préférences email.
