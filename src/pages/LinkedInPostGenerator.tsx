@@ -151,11 +151,11 @@ export default function LinkedInPostGenerator() {
       });
       if (res.error) throw res.error;
       const raw = res.data?.content || "{}";
-      const parsed = typeof raw === "string" ? JSON.parse(raw.replace(/```json?\n?/g, "").replace(/```/g, "").trim()) : raw;
-      if (parsed?.template_id) {
-        setSuggestedTemplate({ id: parsed.template_id, reason: parsed.reason || "" });
-        if (!template) setTemplate(parsed.template_id);
-      }
+       const parsed = typeof raw === "string" ? JSON.parse(raw.replace(/```json?\n?/g, "").replace(/```/g, "").trim()) : raw;
+       if (parsed?.template_id) {
+         setSuggestedTemplate({ id: parsed.template_id, reason: parsed.reason || "" });
+         setTemplate(parsed.template_id);
+       }
     } catch (e) {
       console.warn("Template suggestion failed:", e);
     } finally {

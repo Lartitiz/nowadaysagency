@@ -247,7 +247,15 @@ export default function CreerUnifie() {
         handleFormatNext(fmt, calendarAngle, { overrideSubject: enrichedSubject });
       }
     } else if (locState?.fromCalendar && subject) {
-      if (locState.format) setSelectedFormat(locState.format);
+      // Map calendar formats to CreerUnifie formats
+      const FORMAT_MAP: Record<string, string> = {
+        "post_photo": "post",
+        "post_texte": "post",
+        "post_carrousel": "carousel",
+        "story_serie": "story",
+      };
+      const mappedFormat = locState.format ? (FORMAT_MAP[locState.format] || locState.format) : null;
+      if (mappedFormat) setSelectedFormat(mappedFormat);
       if (locState.angle) setEditorialAngle(locState.angle);
       setStep("format");
     } else if (fmt) {
