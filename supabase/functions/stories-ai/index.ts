@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, AnthropicError, getModelForAction, getModelForRichContent } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP, CHAIN_OF_THOUGHT, DEPTH_LAYER } from "../_shared/copywriting-prompts.ts";
+import { ANTI_SLOP, CHAIN_OF_THOUGHT } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
@@ -96,8 +96,6 @@ ANTI-BROETRY (s'applique aux textes des stories) :
 Le texte de chaque story est court (2-4 lignes), mais ce sont des phrases COMPLÈTES, pas des mots isolés sur une ligne pour faire dramatique. L'oral est fluide, pas haché.
 
 ${CHAIN_OF_THOUGHT}
-
-${DEPTH_LAYER}
 
 ${branding_context || ""}`;
     // Clarify subject (fuzzy path)

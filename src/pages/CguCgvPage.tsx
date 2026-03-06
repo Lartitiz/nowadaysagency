@@ -90,7 +90,7 @@ export default function CguCgvPage() {
             <p className="text-muted-foreground">L'Outil propose plusieurs formules :</p>
             <ul className="list-disc pl-5 text-muted-foreground space-y-1 mt-1">
               <li><strong>Plan Gratuit :</strong> accès à l'ensemble de l'outil avec 25 crédits IA par mois.</li>
-              <li><strong>Plan L'Assistant Com' Premium :</strong> 39€ TTC par mois, sans engagement. Crédits IA étendus (300/mois), audits illimités, tous les modules débloqués.</li>
+              <li><strong>Plan L'Assistant Com' Premium :</strong> 39€ TTC par mois, sans engagement. Crédits IA illimités, audits illimités, tous les modules débloqués.</li>
               <li><strong>Programme "Ton binôme de com'" :</strong> 250€ TTC par mois, engagement de 6 mois (soit 1 500€ TTC au total). Inclut le plan Premium + accompagnement individuel avec Laetitia Mattioli (sessions visio 2h/mois, support WhatsApp jours ouvrés, stratégie personnalisée).</li>
               <li><strong>Paiement unique "Ton binôme de com'" :</strong> 1 500€ TTC en une fois.</li>
               <li><strong>Packs de crédits IA :</strong> 3,90€ (10 crédits), 8,90€ (30 crédits), 14,90€ (60 crédits).</li>
