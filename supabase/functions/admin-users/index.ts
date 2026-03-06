@@ -240,7 +240,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
 
   // Plans & subscriptions
   const subs = subsRes.data || [];
-  const plans: Record<string, number> = { free: 0, outil: 0, studio: 0, now_pilot: 0 };
+  const plans: Record<string, number> = { free: 0, outil: 0, binome: 0 };
   const subsByUser = new Map<string, any>();
   for (const s of subs) {
     subsByUser.set(s.user_id, s);
