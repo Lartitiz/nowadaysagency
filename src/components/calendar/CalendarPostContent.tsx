@@ -82,14 +82,14 @@ export function CalendarPostContent({
 
   const DeepenAndFormatActions = () => (
     <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/50">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="rounded-pill text-xs gap-1.5 text-primary hover:bg-primary/10"
-        onClick={onNavigateToDeepen}
-      >
-        <Sparkles className="h-3 w-3" /> Approfondir avec l'IA
-      </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="rounded-pill text-xs gap-1.5 text-primary hover:bg-primary/10"
+          onClick={onNavigateToDeepen}
+        >
+          <Sparkles className="h-3 w-3" /> Approfondir
+        </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="rounded-pill text-xs gap-1.5 text-muted-foreground hover:text-foreground">
