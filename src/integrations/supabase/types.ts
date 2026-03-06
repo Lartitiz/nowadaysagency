@@ -2249,36 +2249,210 @@ export type Database = {
           },
         ]
       }
+      email_queue: {
+        Row: {
+          cancelled: boolean | null
+          created_at: string | null
+          id: string
+          scheduled_at: string
+          sent: boolean | null
+          sequence_id: string
+          step_id: string
+          user_id: string
+        }
+        Insert: {
+          cancelled?: boolean | null
+          created_at?: string | null
+          id?: string
+          scheduled_at: string
+          sent?: boolean | null
+          sequence_id: string
+          step_id: string
+          user_id: string
+        }
+        Update: {
+          cancelled?: boolean | null
+          created_at?: string | null
+          id?: string
+          scheduled_at?: string
+          sent?: boolean | null
+          sequence_id?: string
+          step_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_queue_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "email_sequences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_queue_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "email_sequence_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_sends: {
         Row: {
-          created_at: string | null
           error: string | null
           id: string
-          recipient: string
           resend_id: string | null
           sent_at: string | null
-          status: string
+          sequence_id: string | null
+          status: string | null
           subject: string
+          template_id: string | null
+          to_email: string
+          user_id: string | null
+        }
+        Insert: {
+          error?: string | null
+          id?: string
+          resend_id?: string | null
+          sent_at?: string | null
+          sequence_id?: string | null
+          status?: string | null
+          subject: string
+          template_id?: string | null
+          to_email: string
+          user_id?: string | null
+        }
+        Update: {
+          error?: string | null
+          id?: string
+          resend_id?: string | null
+          sent_at?: string | null
+          sequence_id?: string | null
+          status?: string | null
+          subject?: string
+          template_id?: string | null
+          to_email?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_sends_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "email_sequences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_sends_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_sequence_steps: {
+        Row: {
+          condition_sql: string | null
+          created_at: string | null
+          delay_hours: number
+          id: string
+          sequence_id: string
+          step_number: number
+          template_id: string
+        }
+        Insert: {
+          condition_sql?: string | null
+          created_at?: string | null
+          delay_hours?: number
+          id?: string
+          sequence_id: string
+          step_number: number
+          template_id: string
+        }
+        Update: {
+          condition_sql?: string | null
+          created_at?: string | null
+          delay_hours?: number
+          id?: string
+          sequence_id?: string
+          step_number?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_sequence_steps_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "email_sequences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_sequence_steps_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_sequences: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          trigger_event: string
         }
         Insert: {
           created_at?: string | null
-          error?: string | null
           id?: string
-          recipient: string
-          resend_id?: string | null
-          sent_at?: string | null
-          status?: string
-          subject: string
+          is_active?: boolean | null
+          name: string
+          trigger_event: string
         }
         Update: {
           created_at?: string | null
-          error?: string | null
           id?: string
-          recipient?: string
-          resend_id?: string | null
-          sent_at?: string | null
-          status?: string
+          is_active?: boolean | null
+          name?: string
+          trigger_event?: string
+        }
+        Relationships: []
+      }
+      email_templates: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          html_body: string
+          id: string
+          is_active: boolean | null
+          name: string
+          subject: string
+          updated_at: string | null
+          variables: string[] | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          html_body: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          subject: string
+          updated_at?: string | null
+          variables?: string[] | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          html_body?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
           subject?: string
+          updated_at?: string | null
+          variables?: string[] | null
         }
         Relationships: []
       }
