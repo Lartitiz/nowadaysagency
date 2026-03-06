@@ -23,7 +23,14 @@ import ContentAnalysisResults from "@/components/audit/ContentAnalysisResults";
 import { calculateAuditScore, type ProfileForScore } from "@/lib/audit-score";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 
-
+const AUDIT_LOADING_MESSAGES = [
+  { time: 0, text: "📱 Lecture de ton profil..." },
+  { time: 4000, text: "📝 Analyse de ta bio et de ton nom..." },
+  { time: 8000, text: "🎯 Évaluation de tes highlights et posts épinglés..." },
+  { time: 14000, text: "📊 Analyse de ton contenu et de tes performances..." },
+  { time: 22000, text: "🧠 Rédaction des recommandations personnalisées..." },
+  { time: 30000, text: "⏳ Dernières touches..." },
+];
 type ViewMode = "hub" | "form" | "results";
 
 export default function InstagramAudit() {
@@ -36,6 +43,7 @@ export default function InstagramAudit() {
   const { diagnosticData: diagCache, isRecent: diagIsRecent } = useDiagnosticCache();
 
   const [analyzing, setAnalyzing] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState("");
   const [auditResult, setAuditResult] = useState<any>(null);
   const [auditId, setAuditId] = useState<string | null>(null);
   const [auditDate, setAuditDate] = useState<string | null>(null);
@@ -46,6 +54,21 @@ export default function InstagramAudit() {
   const { data: editorialLineData } = useEditorialLine();
   const [liveScore, setLiveScore] = useState<number | null>(null);
   const [hasExistingAudit, setHasExistingAudit] = useState(false);
+
+  // Progressive loading messages during audit
+  useEffect(() => {
+    if (!analyzing) { setLoadingMsg(""); return; }
+    const start = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - start;
+      let msg = AUDIT_LOADING_MESSAGES[0].text;
+      for (const lm of AUDIT_LOADING_MESSAGES) {
+        if (elapsed >= lm.time) msg = lm.text;
+      }
+      setLoadingMsg(msg);
+    }, 500);
+    return () => clearInterval(interval);
+  }, [analyzing]);
 
   // Determine initial view from search params
   const paramView = searchParams.get("view") as ViewMode | null;
@@ -593,7 +616,12 @@ export default function InstagramAudit() {
           </div>
         )}
         {analyzing ? (
-          <AiLoadingIndicator context="audit" isLoading={analyzing} />
+          <div className="space-y-4">
+            <AiLoadingIndicator context="audit" isLoading={analyzing} />
+            {loadingMsg && (
+              <p className="text-sm text-muted-foreground text-center animate-pulse">{loadingMsg}</p>
+            )}
+          </div>
         ) : (
           <AuditInputForm initial={initialForm} onSubmit={handleSubmit} loading={analyzing} isRedo={hasExistingAudit} />
         )}
