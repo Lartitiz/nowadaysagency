@@ -187,7 +187,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
               className="p-1.5 rounded-lg border border-border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               title="Replier le panneau idées"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-4 w-4" />
             </button>
           )}
         </div>
