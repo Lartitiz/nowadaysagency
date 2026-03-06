@@ -32,8 +32,8 @@ interface UserRow {
 
 type SortKey = "prenom" | "email" | "plan" | "branding_score" | "ai_usage_count" | "last_sign_in" | "created_at";
 
-const PLAN_FILTERS = ["all", "free", "outil", "pro", "now_pilot"] as const;
-const PLAN_LABELS: Record<string, string> = { all: "Toutes", free: "Free", outil: "Assistant Com'", pro: "Pro", now_pilot: "Binôme" };
+const PLAN_FILTERS = ["all", "free", "outil", "pro", "binome"] as const;
+const PLAN_LABELS: Record<string, string> = { all: "Toutes", free: "Free", outil: "Assistant Com'", pro: "Pro", binome: "Binôme" };
 
 function planBadge(plan: string) {
   switch (plan) {
