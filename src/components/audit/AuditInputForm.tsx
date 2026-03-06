@@ -246,8 +246,10 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           </div>
         </div>
       </section>
+      )}
 
-      {/* ── Stories à la une ── */}
+      {/* ── Stories à la une (complet only) ── */}
+      {!rapidMode && (
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">📱 TES STORIES À LA UNE</h3>
         <div>
@@ -269,8 +271,10 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           )}
         </div>
       </section>
+      )}
 
-      {/* ── Posts épinglés ── */}
+      {/* ── Posts épinglés (complet only) ── */}
+      {!rapidMode && (
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">📌 TES POSTS ÉPINGLÉS</h3>
         <div className="flex gap-3">
@@ -323,8 +327,10 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           </div>
         )}
       </section>
+      )}
 
-      {/* ── Feed ── */}
+      {/* ── Feed (complet only) ── */}
+      {!rapidMode && (
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">🎨 TON FEED</h3>
         <div>
@@ -342,8 +348,10 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           )}
         </div>
       </section>
+      )}
 
-      {/* ── Mes Posts (meilleurs + pires) ── */}
+      {/* ── Mes Posts (meilleurs + pires) — complet only ── */}
+      {!rapidMode && (
       <section className="space-y-4">
         <h3 className="text-sm font-bold text-foreground">📊 MES POSTS</h3>
 
@@ -401,8 +409,9 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           💡 Tu peux uploader des PNG, JPG ou PDF (5 Mo max par fichier). Les captures d'écran des stats du post sont idéales : Instagram › Post › "Voir les statistiques"
         </p>
       </section>
+      )}
 
-      {/* ── Chiffres ── */}
+      {/* ── Chiffres — followers visible in rapid, rest complet only ── */}
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">📊 QUELQUES CHIFFRES</h3>
         <div className="grid grid-cols-2 gap-3">
@@ -410,11 +419,14 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
             <label className="text-xs text-muted-foreground mb-1 block">Nombre d'abonné·es</label>
             <Input type="number" value={form.followers} onChange={(e) => set("followers", e.target.value)} placeholder="6 292" />
           </div>
+          {!rapidMode && (
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Posts publiés ce mois</label>
             <Input type="number" value={form.postsPerMonth} onChange={(e) => set("postsPerMonth", e.target.value)} placeholder="4" />
           </div>
+          )}
         </div>
+        {!rapidMode && (
         <div>
           <label className="text-xs text-muted-foreground mb-2 block">Fréquence de publication :</label>
           <div className="flex flex-wrap gap-2">
@@ -429,9 +441,11 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
             ))}
           </div>
         </div>
+        )}
       </section>
 
-      {/* ── Ligne éditoriale ── */}
+      {/* ── Ligne éditoriale (complet only) ── */}
+      {!rapidMode && (
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">📝 TA LIGNE ÉDITORIALE</h3>
         <div>
@@ -440,10 +454,11 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           <p className="text-xs text-muted-foreground mt-1 italic">Laisse vide si pas encore définis.</p>
         </div>
       </section>
+      )}
 
-      {/* ── Screenshots optionnels ── */}
+      {/* ── Screenshots ── */}
       <section className="space-y-3">
-        <h3 className="text-sm font-bold text-foreground">📸 SCREENSHOTS (optionnel, pour enrichir l'audit)</h3>
+        <h3 className="text-sm font-bold text-foreground">📸 SCREENSHOTS {rapidMode ? "(recommandé)" : "(optionnel, pour enrichir l'audit)"}</h3>
         <div
           onClick={() => profileRef.current?.click()}
           className="rounded-2xl border-2 border-dashed border-border bg-muted/30 p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
