@@ -1020,7 +1020,7 @@ Pour chaque slide, tu choisis UN de ces types :
 
 3. "text_only" — Slide texte pure (design system)
    - Pas de photo, design classique avec fond coloré/blanc, typos, badges
-   - Idéal pour : tips, listes, punchlines, CTA, séparateurs
+   - Idéal pour : développement narratif, tips détaillés, prise de position, contexte, CTA. Ce ne sont PAS des séparateurs : chaque slide texte porte du contenu de fond.
    - Champs : title, body, visual_schema (optionnel)
 
 ═══ RÈGLES DE COMPOSITION ═══
