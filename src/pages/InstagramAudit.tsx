@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useProfile } from "@/hooks/use-profile";
 import { useEditorialLine } from "@/hooks/use-branding";
 import { useQueryClient } from "@tanstack/react-query";
@@ -199,7 +200,7 @@ export default function InstagramAudit() {
         ...worstPostUrls.map(url => url),
       ];
 
-      const res = await supabase.functions.invoke("audit-instagram-ai", {
+      const res = await invokeWithTimeout("audit-instagram-ai", {
         body: {
           screenshotImages: screenshotBase64.length ? screenshotBase64 : undefined,
           auditTextData: {
@@ -223,7 +224,7 @@ export default function InstagramAudit() {
           },
           workspace_id: workspaceId,
         },
-      });
+      }, 120000);
 
       // Check for quota limit (403 responses go into res.error with supabase-js)
       if (res.error) {
