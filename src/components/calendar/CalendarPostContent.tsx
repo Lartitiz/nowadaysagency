@@ -201,9 +201,6 @@ export function CalendarPostContent({
           {contentEditableJsx}
           <ExpandCollapseButtons />
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="rounded-pill text-xs gap-1.5">
-              ✏️ Modifier
-            </Button>
             <Button variant="outline" size="sm" onClick={onCopy} className="rounded-pill text-xs gap-1.5">
               <Copy className="h-3 w-3" /> Copier
             </Button>
