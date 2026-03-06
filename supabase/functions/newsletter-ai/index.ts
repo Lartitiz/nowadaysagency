@@ -111,7 +111,7 @@ serve(async (req) => {
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     // Plan limits
-    const usageCheck = await checkAndIncrementUsage(supabase, user.id, "generation");
+    const usageCheck = await checkQuota(user.id, "content");
     if (!usageCheck.allowed) {
       return new Response(
         JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
