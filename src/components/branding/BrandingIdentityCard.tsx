@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Pencil, Sparkles, ArrowRight, RefreshCw } from "lucide-react";
+import { ChevronDown, Pencil, Sparkles, ArrowRight, RefreshCw, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { BrandingCompletion } from "@/lib/branding-completion";
 
