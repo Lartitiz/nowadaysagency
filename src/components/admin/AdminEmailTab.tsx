@@ -398,7 +398,7 @@ function SequencesView() {
       if (res.error) throw new Error(res.error.message || "Erreur inconnue");
       const d = res.data || {};
       if (event === "process_queue") {
-        toast.success(`File traitée : ${d.sent ?? 0} envoyés, ${d.errors ?? 0} erreurs`);
+        toast.success(`File traitée : ${d.processed ?? 0} envoyés, ${d.errors ?? 0} erreurs`);
       } else if (event === "check_inactive") {
         toast.success(`${d.checked ?? 0} vérifiés, ${d.triggered ?? 0} séquences déclenchées`);
       } else if (event === "check_credits") {
