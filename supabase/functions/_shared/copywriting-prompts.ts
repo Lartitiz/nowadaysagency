@@ -379,30 +379,35 @@ AVANT DE RÉDIGER, réfléchis en interne (ne montre PAS) :
 export const DEPTH_LAYER = `
 PROFONDEUR INTELLECTUELLE (OBLIGATOIRE) :
 
-Avant de rédiger le contenu, tu DOIS identifier en interne (ne montre PAS) :
+Avant de rédiger le contenu, tu DOIS identifier en interne (ne montre PAS ce raisonnement) :
 
-1. LE MÉCANISME INVISIBLE : quel biais cognitif, conditionnement social, paradoxe psychologique ou dynamique systémique est en jeu derrière le sujet ? Nomme-le. Exemples : estime de soi conditionnelle (Crocker & Park), comparaison sociale ascendante (Festinger), biais de confirmation, conditionnement de genre à la discrétion, confusion corrélation/causalité dans les métriques...
+1. LE MÉCANISME INVISIBLE : quel biais cognitif, conditionnement social, paradoxe psychologique ou dynamique systémique est en jeu derrière le sujet ? Nomme-le précisément. Exemples : estime de soi conditionnelle (Crocker & Park), comparaison sociale ascendante (Festinger), biais de confirmation, conditionnement de genre à la discrétion, confusion corrélation/causalité dans les métriques, effet Dunning-Kruger inversé chez les compétent·es, dissonance cognitive entre valeurs et actions commerciales...
 
-2. LA CROYANCE SOUS-JACENTE : quelle croyance implicite (que la personne n'a jamais formulée consciemment) alimente le problème ? Exemple : derrière "j'archive mes posts qui flopent", la croyance est "le nombre de likes mesure ma valeur professionnelle".
+2. LA CROYANCE SOUS-JACENTE : quelle croyance implicite (que la personne n'a jamais formulée consciemment) alimente le problème ? Exemple : derrière "j'archive mes posts qui flopent", la croyance est "le nombre de likes mesure ma valeur professionnelle". Derrière "j'ai pas le temps de communiquer", la croyance est "la com' c'est un bonus, pas une partie de mon métier".
 
-3. LE RETOURNEMENT DE PERSPECTIVE : quelle phrase pourrait faire dire à la lectrice "ah merde, j'avais jamais vu ça comme ça" ? C'est la pépite du carrousel. Pas un conseil, pas une astuce : un changement de cadre mental.
+3. LE RETOURNEMENT DE PERSPECTIVE : quelle phrase ou idée pourrait faire dire à la lectrice "ah merde, j'avais jamais vu ça comme ça" ? C'est la pépite du contenu. Pas un conseil, pas une astuce : un changement de cadre mental. C'est LE moment fort.
 
-4. UNE DONNÉE OU RÉFÉRENCE D'APPUI (quand pertinent) : un chiffre sourcé, un concept nommé avec son auteur, une étude. Pas obligatoire sur chaque carrousel, mais quand ça existe, ça crédibilise et ça ancre la réflexion. Intégrer naturellement, pas en mode "selon une étude de Harvard".
+4. UNE DONNÉE OU RÉFÉRENCE D'APPUI (quand pertinent) : un chiffre sourcé, un concept nommé avec son auteur, une étude. Pas obligatoire sur chaque contenu, mais quand ça existe, ça crédibilise et ça ancre la réflexion. Intégrer naturellement dans le texte ("ce que les psychologues appellent X"), pas en mode footnote académique.
 
-APPLICATION DANS LES SLIDES :
-- Le mécanisme doit être EXPLIQUÉ dans au moins 1 slide (pas juste mentionné)
-- La croyance sous-jacente doit être NOMMÉE dans le carrousel (la lectrice doit se dire "c'est exactement ce que je fais")
-- Le retournement de perspective doit être LE MOMENT FORT du carrousel (pas le hook, pas le CTA : le milieu)
-- Si une donnée/référence est utilisée, la sourcer discrètement (nom de l'auteur, année)
+APPLICATION DANS LE CONTENU :
+- Le mécanisme doit être EXPLIQUÉ (pas juste mentionné en passant) : la lectrice doit comprendre pourquoi elle fait ce qu'elle fait
+- La croyance sous-jacente doit être NOMMÉE : la lectrice doit se dire "c'est exactement ce que je fais sans m'en rendre compte"
+- Le retournement de perspective doit être LE MOMENT FORT du contenu (au milieu ou juste avant la conclusion, pas noyé)
+- La donnée/référence sert de preuve, pas de décoration
 
-CE QUE ÇA CHANGE CONCRÈTEMENT :
-- Un carrousel "tips" ne donne plus juste 5 astuces : il explique POURQUOI ces astuces marchent (le mécanisme)
-- Un carrousel "storytelling" ne raconte plus juste une anecdote : il connecte l'anecdote à un pattern universel
-- Un carrousel "mythe à déconstruire" ne dit plus juste "c'est faux" : il montre le mécanisme qui fait qu'on y croit
-- Un carrousel "prise de position" ne donne plus juste une opinion : il apporte un cadre de réflexion
+CE QUE ÇA CHANGE PAR FORMAT :
+- Carrousel tips : ne donne plus juste 5 astuces, mais explique POURQUOI ces astuces marchent (le mécanisme)
+- Carrousel storytelling : ne raconte plus juste une anecdote, mais connecte l'anecdote à un pattern universel
+- Carrousel mythe à déconstruire : ne dit plus juste "c'est faux", mais montre le mécanisme qui fait qu'on y croit
+- Carrousel prise de position : ne donne plus juste une opinion, mais apporte un cadre de réflexion
+- Post caption : va au-delà du conseil pratique pour toucher la croyance qui bloque
+- Reel : même en 30 secondes, le hook ou le twist porte le retournement de perspective
+- Newsletter : développe le mécanisme en profondeur (c'est le format qui le permet le plus)
+- LinkedIn : apporte la donnée/référence qui crédibilise la prise de position
+- Story : pose la question qui fait réfléchir, pas juste celle qui engage
 
 NIVEAU DE PROFONDEUR ATTENDU :
-Imagine que la lectrice montre le carrousel à une amie et dit "regarde, ça m'a fait réaliser un truc". Si le carrousel ne provoque pas cette réaction, il n'est pas assez profond.
+Imagine que la lectrice montre le contenu à une amie et dit "regarde, ça m'a fait réaliser un truc". Si le contenu ne provoque pas cette réaction, il n'est pas assez profond. On vise la prise de conscience, pas juste l'identification.
 `;
 
 // ═══════════════════════════════════════════════════
