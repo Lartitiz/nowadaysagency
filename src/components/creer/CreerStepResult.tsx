@@ -177,6 +177,7 @@ export default function CreerStepResult({
   const [messageIndex, setMessageIndex] = useState(0);
   const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * TIPS.length));
   const [progress, setProgress] = useState(0);
+  const [visualProgressIndex, setVisualProgressIndex] = useState(0);
   const startTimeRef = useRef(Date.now());
 
   useEffect(() => {
