@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -52,6 +52,28 @@ export function useBrandingSuggestions(workspaceId?: string) {
   const [suggestionId, setSuggestionId] = useState<string>();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Load pending suggestions from database on mount
+  useEffect(() => {
+    if (isDemoMode || !user) return;
+    const loadPending = async () => {
+      const filterCol = workspaceId ? "workspace_id" : "user_id";
+      const filterVal = workspaceId || user.id;
+      const { data } = await (supabase.from("branding_suggestions") as any)
+        .select("id, suggestions")
+        .eq(filterCol, filterVal)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data?.suggestions && Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+        setSuggestions(data.suggestions as Suggestion[]);
+        setSuggestionId(data.id);
+        setShowSuggestions(true);
+      }
+    };
+    loadPending();
+  }, [user?.id, isDemoMode, workspaceId]);
 
   const checkImpact = useCallback(async (field: string, oldValue: string | null, newValue: string) => {
     // Skip non-structural fields or first-time filling
