@@ -33,7 +33,7 @@ type Filter = "all" | "monthly" | "studio";
 export default function LivesPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
-  const { isPaid, isStudio, loading: planLoading } = useUserPlan();
+  const { isPaid, isBinome, loading: planLoading } = useUserPlan();
   const { toast } = useToast();
 
   const [lives, setLives] = useState<Live[]>([]);
@@ -241,7 +241,7 @@ export default function LivesPage() {
                 <div className="space-y-3">
                   {filteredReplays.map((live) => {
                     const isStudioLive = live.live_type === "studio";
-                    const locked = isStudioLive && !isStudio;
+                    const locked = isStudioLive && !isBinome;
 
                     return (
                       <div

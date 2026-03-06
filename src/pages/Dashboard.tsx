@@ -165,7 +165,7 @@ export default function Dashboard() {
   const { user, isAdmin } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
   const navigate = useNavigate();
-  const { isPilot } = useUserPlan();
+  const { isBinome } = useUserPlan();
   const { column, value } = useWorkspaceFilter();
   const { activeWorkspace, activeRole } = useWorkspace();
   const { hasInstagram, hasLinkedin, hasWebsite, hasSeo, loading: channelsLoading, channels } = useActiveChannels();
@@ -287,7 +287,7 @@ export default function Dashboard() {
         .maybeSingle();
       return prog?.current_month ?? null;
     },
-    enabled: (!!user && isPilot) || (isDemoMode && !!demoData?.coaching),
+    enabled: (!!user && isBinome) || (isDemoMode && !!demoData?.coaching),
   });
 
   const comingSoonChannels = useMemo(() => ALL_CHANNELS.filter(c => c.comingSoon && channels.includes(c.id)), [channels]);
@@ -401,7 +401,7 @@ export default function Dashboard() {
         <div className="mb-6 sm:mb-8">
           <h1 className="font-heading text-lg sm:text-[22px] md:text-[28px] font-bold text-foreground leading-tight">
             Hey <span className="text-primary">{profile.prenom}</span>,{" "}
-            {isPilot && coachingMonth
+            {isBinome && coachingMonth
               ? <>accompagnement Binôme · Mois {coachingMonth}/6 🤝</>
               : <>{welcomeMessage}</>
             }
@@ -569,7 +569,7 @@ export default function Dashboard() {
         {/* ═══════════════════════════════════════
            COACHING CARD — Laetitia or Discovery
            ═══════════════════════════════════════ */}
-        {isPilot ? (
+        {isBinome ? (
           <LaetitiaCoachingCard animationDelay={nextDelay()} />
         ) : (
           <DiscoveryCoachingCard animationDelay={nextDelay()} />

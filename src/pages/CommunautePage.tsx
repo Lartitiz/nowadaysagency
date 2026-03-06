@@ -36,7 +36,7 @@ const CATEGORIES = [
 const CommunautePage = () => {
   const { user } = useAuth();
   const { plan } = useUserPlan();
-  const isStudio = plan === "now_pilot";
+  const isBinome = plan === "binome";
   const canWrite = plan !== "free";
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -167,7 +167,7 @@ const CommunautePage = () => {
                   {c.label}
                 </Badge>
               ))}
-              {isStudio && (
+              {isBinome && (
                 <Badge
                   variant={studioOnly ? "default" : "outline"}
                   className="cursor-pointer ml-auto"
@@ -199,7 +199,7 @@ const CommunautePage = () => {
             <TabsTrigger value="question">❓</TabsTrigger>
             <TabsTrigger value="feedback">🔍</TabsTrigger>
             <TabsTrigger value="inspiration">✨</TabsTrigger>
-            {isStudio && <TabsTrigger value="studio"><Crown className="h-3 w-3 mr-1" /> Binôme</TabsTrigger>}
+            {isBinome && <TabsTrigger value="studio"><Crown className="h-3 w-3 mr-1" /> Binôme</TabsTrigger>}
           </TabsList>
 
           <TabsContent value={tab} className="space-y-4 mt-4">

@@ -89,8 +89,8 @@ export default function AppSidebar() {
   const { plan } = useUserPlan();
   const { activateDemo } = useDemoContext();
   const navigate = useNavigate();
-  const planLabel = plan === "now_pilot" ? "Binôme · Illimité ✨" : plan === "outil" ? "Outil · 39€/mois" : "Gratuit";
-  const isPilot = plan === "now_pilot";
+  const planLabel = plan === "binome" ? "Binôme · Illimité ✨" : plan === "outil" ? "Outil · 39€/mois" : "Gratuit";
+  const isBinome = plan === "binome";
 
   const [open, setOpen] = useState(false);
   const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
@@ -296,7 +296,7 @@ export default function AppSidebar() {
             <Settings size={16} />
             Paramètres
           </Link>
-          {isPilot && (
+          {isBinome && (
             <Link to="/coaching" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
               <HeartHandshake size={16} />
               Mon accompagnement

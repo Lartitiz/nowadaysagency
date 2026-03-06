@@ -45,7 +45,7 @@ function AppHeaderInner() {
   const { user, signOut, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { plan, usage, isPilot, isPaid } = useUserPlan();
+  const { plan, usage, isBinome, isPaid } = useUserPlan();
   const { activateDemo } = useDemoContext();
   const handleDemoClick = () => { activateDemo(); navigate("/dashboard"); };
   const [hasCoaching, setHasCoaching] = useState(false);
@@ -71,14 +71,14 @@ function AppHeaderInner() {
     });
   }, [user?.id]);
 
-  const desktopNav = isPilot ? [...NAV_ITEMS, ACCOMPAGNEMENT_ITEM] : NAV_ITEMS;
-  const mobileNav = isPilot ? [...MOBILE_NAV, { to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false }] : MOBILE_NAV;
+  const desktopNav = isBinome ? [...NAV_ITEMS, ACCOMPAGNEMENT_ITEM] : NAV_ITEMS;
+  const mobileNav = isBinome ? [...MOBILE_NAV, { to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false }] : MOBILE_NAV;
 
   const isActive = (item: { to: string; matchExact: boolean }) =>
     item.matchExact ? location.pathname === item.to : location.pathname.startsWith(item.to);
 
-  const planLabel = plan === "now_pilot" ? "🤝 Binôme de com" : plan === "outil" ? "Outil (39€)" : "Gratuit";
-  const planBadge = plan === "now_pilot" ? "🤝 Binôme" : plan === "outil" ? "Pro" : null;
+  const planLabel = plan === "binome" ? "🤝 Binôme de com" : plan === "outil" ? "Outil (39€)" : "Gratuit";
+  const planBadge = plan === "binome" ? "🤝 Binôme" : plan === "outil" ? "Pro" : null;
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;
   const totalPercent = totalLimit > 0 ? Math.round((totalUsed / totalLimit) * 100) : 0;
@@ -138,8 +138,8 @@ function AppHeaderInner() {
               signOut={signOut}
               navigate={navigate}
               isAdmin={isAdmin}
-              hasCoaching={hasCoaching || isPilot}
-              isPilot={isPilot}
+              hasCoaching={hasCoaching || isBinome}
+              isBinome={isBinome}
               coachingMonth={coachingMonth}
               coachingPhase={coachingPhase}
               onDemoClick={handleDemoClick}
@@ -192,8 +192,8 @@ function AppHeaderInner() {
               signOut={signOut}
               navigate={navigate}
               isAdmin={isAdmin}
-              hasCoaching={hasCoaching || isPilot}
-              isPilot={isPilot}
+              hasCoaching={hasCoaching || isBinome}
+              isBinome={isBinome}
               coachingMonth={coachingMonth}
               coachingPhase={coachingPhase}
               onDemoClick={handleDemoClick}
@@ -226,8 +226,8 @@ function AppHeaderInner() {
               signOut={signOut}
               navigate={navigate}
               isAdmin={isAdmin}
-              hasCoaching={hasCoaching || isPilot}
-              isPilot={isPilot}
+              hasCoaching={hasCoaching || isBinome}
+              isBinome={isBinome}
               
               coachingMonth={coachingMonth}
               coachingPhase={coachingPhase}
@@ -298,14 +298,14 @@ interface AvatarMenuProps {
   navigate: (path: string) => void;
   isAdmin: boolean;
   hasCoaching?: boolean;
-  isPilot?: boolean;
+  isBinome?: boolean;
   
   coachingMonth?: number | null;
   coachingPhase?: string | null;
   onDemoClick: () => void;
 }
 
-function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, totalLimit, totalPercent, signOut, navigate, isAdmin, hasCoaching, isPilot, coachingMonth, coachingPhase, onDemoClick }: AvatarMenuProps) {
+function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, totalLimit, totalPercent, signOut, navigate, isAdmin, hasCoaching, isBinome, coachingMonth, coachingPhase, onDemoClick }: AvatarMenuProps) {
   const remaining = totalLimit - totalUsed;
   const isLow = remaining <= 10 && totalLimit > 0;
 
@@ -330,13 +330,13 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-foreground">Salut {firstName} 👋</p>
             {planBadge && (
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${isPilot ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"}`}>
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${isBinome ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"}`}>
                 {planBadge}
               </span>
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">Plan : {planLabel}</p>
-          {isPilot && coachingMonth && (
+          {isBinome && coachingMonth && (
             <p className="text-xs text-muted-foreground">Phase : {coachingPhase === "strategy" ? "Stratégie" : "Binôme"} · Mois {coachingMonth}/6</p>
           )}
           <button
@@ -356,7 +356,7 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
           </button>
         </div>
         <DropdownMenuSeparator />
-        {(hasCoaching || isPilot) && (
+        {(hasCoaching || isBinome) && (
           <>
             <DropdownMenuItem onClick={() => navigate("/accompagnement")} className="gap-2 cursor-pointer">
               <Handshake className="h-4 w-4" /> 🤝 Mon accompagnement

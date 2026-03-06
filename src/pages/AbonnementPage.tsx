@@ -36,7 +36,7 @@ function getNextRenewalDate(): string {
 
 export default function AbonnementPage() {
   const { user } = useAuth();
-  const { plan, usage, isPaid, isPilot, bonusCredits, refresh } = useUserPlan();
+  const { plan, usage, isPaid, isBinome, bonusCredits, refresh } = useUserPlan();
 
   const [subInfo, setSubInfo] = useState<any>(null);
   const [loadingSub, setLoadingSub] = useState(true);
@@ -331,7 +331,7 @@ export default function AbonnementPage() {
               disabled={plan === "outil" || portalLoading}
             />
             <div className={`rounded-xl border-2 p-4 text-center transition-all ${
-              plan === "now_pilot" ? "border-primary bg-rose-pale" : "border-border hover:border-primary/30"
+              plan === "binome" ? "border-primary bg-rose-pale" : "border-border hover:border-primary/30"
             }`}>
               <h3 className="font-display font-bold text-foreground">🤝 Ta binôme de com</h3>
               <p className="text-lg font-semibold text-primary mt-1">250€/mois</p>
@@ -344,7 +344,7 @@ export default function AbonnementPage() {
                 <p>✅ 7 sessions avec Laetitia (~12h)</p>
                 <p>✅ Comptes-rendus détaillés</p>
               </div>
-              {plan === "now_pilot" ? (
+              {plan === "binome" ? (
                 <span className="inline-block mt-3 text-xs font-semibold text-primary">Plan actuel ✓</span>
               ) : (
                 <Button size="sm" variant="outline" className="mt-3 rounded-full text-xs" onClick={() => window.open("https://calendly.com/laetitia-mattioli/appel-decouverte", "_blank")}>

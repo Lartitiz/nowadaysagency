@@ -63,7 +63,7 @@ const statusLabel = (status: string) => {
 export default function BinomeDashboard() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
-  const { isStudio, loading: planLoading } = useUserPlan();
+  const { isBinome, loading: planLoading } = useUserPlan();
   const navigate = useNavigate();
   const [coachings, setCoachings] = useState<Coaching[]>([]);
   const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
@@ -72,15 +72,15 @@ export default function BinomeDashboard() {
   const [subInfo, setSubInfo] = useState<{ studio_start_date?: string; studio_end_date?: string; studio_months_paid?: number } | null>(null);
 
   useEffect(() => {
-     if (!planLoading && !isStudio) {
+     if (!planLoading && !isBinome) {
        navigate("/binome", { replace: true });
      }
-   }, [planLoading, isStudio, navigate]);
+   }, [planLoading, isBinome, navigate]);
 
   useEffect(() => {
-    if (!user || !isStudio) return;
+    if (!user || !isBinome) return;
     loadData();
-  }, [user, isStudio]);
+  }, [user, isBinome]);
 
   const loadData = async () => {
     setLoading(true);
@@ -106,7 +106,7 @@ export default function BinomeDashboard() {
     );
   }
 
-  if (!isStudio) return null;
+  if (!isBinome) return null;
 
   // Calculate progress
   const monthsPaid = subInfo?.studio_months_paid || 0;

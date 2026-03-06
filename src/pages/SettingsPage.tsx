@@ -33,7 +33,7 @@ import {
 export default function SettingsPage() {
   const { user, signOut, isAdmin } = useAuth();
   const { toast } = useToast();
-  const { plan, isPaid, isStudio, refresh: refreshPlan } = useUserPlan();
+  const { plan, isPaid, isBinome, refresh: refreshPlan } = useUserPlan();
 
   // Password change
   const [newPassword, setNewPassword] = useState("");
@@ -579,7 +579,7 @@ const QUOTA_CATEGORIES = [
 
 function AiQuotaDisplay() {
   const { plan, usage, isPaid } = useUserPlan();
-  const planLabel = plan === "now_pilot" ? "Binôme de com (250€/mois)" : plan === "outil" ? "Premium (39€/mois)" : "Gratuit";
+  const planLabel = plan === "binome" ? "Binôme de com (250€/mois)" : plan === "outil" ? "Premium (39€/mois)" : "Gratuit";
   const total = usage.total;
   const nextMonth = new Date();
   nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
