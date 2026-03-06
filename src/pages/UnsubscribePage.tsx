@@ -104,7 +104,7 @@ export default function UnsubscribePage() {
               disabled={acting}
               className="rounded-full gap-2"
             >
-              {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailOff className="h-4 w-4" />}
+              {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailMinus className="h-4 w-4" />}
               Me désinscrire des emails
             </Button>
           </>
