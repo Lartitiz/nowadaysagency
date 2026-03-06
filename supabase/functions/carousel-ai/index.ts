@@ -110,7 +110,7 @@ serve(async (req) => {
           }
           messageContent.push({
             type: "text",
-            text: `Voici ${body.photos.length} photo(s) pour un carrousel mixte Instagram.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}\n\nAnalyse chaque photo et crée un carrousel qui mélange slides photo et slides texte.`,
+            text: `BRIEF CRÉATIF : ${body.subject || "non précisé"}. Ce concept doit structurer tout le carrousel.\n\nVoici ${body.photos.length} photo(s) pour un carrousel mixte Instagram.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}\n\nAnalyse chaque photo et crée un carrousel qui mélange slides photo et slides texte.`,
           });
 
           content = await callAnthropic({
