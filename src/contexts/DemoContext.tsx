@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from "react";
 import { DEMO_DATA, type DemoDataType } from "@/lib/demo-data";
 
-export type DemoPlan = "free" | "now_pilot";
+export type DemoPlan = "free" | "binome";
 
 export interface DemoData {
   profile: { first_name: string; activity: string; activity_type?: string };
