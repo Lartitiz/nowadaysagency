@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -56,7 +56,7 @@ serve(async (req) => {
     // Anthropic API key checked in shared helper
 
     // Check plan limits
-    const usageCheck = await checkAndIncrementUsage(supabase, user.id, "generation");
+    const usageCheck = await checkQuota(user.id, "content");
     if (!usageCheck.allowed) {
       return new Response(
         JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
@@ -113,6 +113,7 @@ serve(async (req) => {
 
     systemPrompt = VOICE_PRIORITY + systemPrompt;
     const content = await callAnthropicSimple(getModelForAction("pinterest"), systemPrompt, userPrompt, 0.8);
+    await logUsage(user.id, "content", "pinterest");
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {
     if (error instanceof ValidationError) {

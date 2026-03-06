@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
@@ -34,7 +34,7 @@ serve(async (req) => {
       });
     }
     // Check plan limits
-    const usageCheck = await checkAndIncrementUsage(supabase, user.id, "generation");
+    const usageCheck = await checkQuota(user.id, "content");
     if (!usageCheck.allowed) {
       return new Response(
         JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
@@ -192,6 +192,8 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
     } catch {
       parsed = { reaction: content };
     }
+
+    await logUsage(user.id, "content", "offer_coaching");
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
