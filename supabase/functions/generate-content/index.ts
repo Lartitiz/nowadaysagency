@@ -6,7 +6,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock 
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { validateInput, GenerateContentSchema } from "../_shared/input-validators.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 
@@ -88,12 +88,13 @@ serve(async (req) => {
     const body = validateInput(rawBody, GenerateContentSchema);
     const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt, workspace_id } = body;
 
-    // Check plan limits — use "audit" category for audit types, "generation" otherwise
+    // Check plan limits — use "audit" category for audit types, "content" otherwise
     const isAuditType = type === "instagram-audit" || type === "bio-audit";
-    const usageCheck = await checkAndIncrementUsage(supabase, user.id, isAuditType ? "audit" : "generation");
-    if (!usageCheck.allowed) {
+    const usageCategory = isAuditType ? "audit" : "content";
+    const quotaCheck = await checkQuota(user.id, usageCategory, workspace_id);
+    if (!quotaCheck.allowed) {
       return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
+        JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0 }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -677,6 +678,7 @@ Reponds en JSON :
             max_tokens: 4096,
           });
 
+          await logUsage(user.id, usageCategory, type, undefined, undefined, workspace_id);
           return new Response(
             JSON.stringify({ content: visionResult }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -789,6 +791,7 @@ Reponds en JSON :
       } catch {
         suggestions = [];
       }
+      await logUsage(user.id, usageCategory, type, undefined, undefined, workspace_id);
       return new Response(
         JSON.stringify({ suggestions, type: "weekly-suggestions" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -813,6 +816,7 @@ Reponds en JSON :
       );
     }
 
+    await logUsage(user.id, usageCategory, type, undefined, undefined, workspace_id);
     return new Response(
       JSON.stringify({ content }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
