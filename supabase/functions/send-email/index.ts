@@ -40,7 +40,7 @@ serve(async (req) => {
       });
     }
 
-    const { to, subject, html, from_name } = await req.json();
+    const { to, subject, html, from_name, template_id, sequence_id, user_id } = await req.json();
 
     if (!to || !subject || !html) {
       return new Response(JSON.stringify({ error: "Missing required fields: to, subject, html" }), {
@@ -79,10 +79,13 @@ serve(async (req) => {
 
       // Log failed send
       await supabase.from("email_sends").insert({
-        recipient: recipients.join(", "),
+        to_email: recipients.join(", "),
         subject,
         status: "failed",
         error: errorMsg,
+        user_id: user_id || null,
+        template_id: template_id || null,
+        sequence_id: sequence_id || null,
       });
 
       return new Response(JSON.stringify({ error: errorMsg }), {
@@ -93,10 +96,13 @@ serve(async (req) => {
 
     // Log successful send
     await supabase.from("email_sends").insert({
-      recipient: recipients.join(", "),
+      to_email: recipients.join(", "),
       subject,
       status: "sent",
       resend_id: resendData.id,
+      user_id: user_id || null,
+      template_id: template_id || null,
+      sequence_id: sequence_id || null,
     });
 
     return new Response(JSON.stringify({ success: true, resend_id: resendData.id }), {
