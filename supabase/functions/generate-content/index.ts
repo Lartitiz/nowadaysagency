@@ -816,6 +816,7 @@ Reponds en JSON :
       );
     }
 
+    await logUsage(user.id, usageCategory, type, undefined, undefined, workspace_id);
     return new Response(
       JSON.stringify({ content }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
