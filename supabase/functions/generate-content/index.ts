@@ -678,6 +678,7 @@ Reponds en JSON :
             max_tokens: 4096,
           });
 
+          await logUsage(user.id, usageCategory, type, undefined, undefined, workspace_id);
           return new Response(
             JSON.stringify({ content: visionResult }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
