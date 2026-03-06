@@ -10,6 +10,38 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
+const AuditInstagramSchema = z.object({
+  auditTextData: z.object({
+    displayName: z.string().optional().nullable(),
+    username: z.string().optional().nullable(),
+    bio: z.string().optional().nullable(),
+    bioLink: z.string().optional().nullable(),
+    photoDescription: z.string().optional().nullable(),
+    highlights: z.array(z.string()).optional().nullable(),
+    highlightsCount: z.number().optional().nullable(),
+    pinnedPosts: z.array(z.object({ description: z.string() })).optional().nullable(),
+    feedDescription: z.string().optional().nullable(),
+    followers: z.number().optional().nullable(),
+    postsPerMonth: z.number().optional().nullable(),
+    frequency: z.string().optional().nullable(),
+    pillars: z.array(z.string()).optional().nullable(),
+    bestPostUrls: z.array(z.string()).optional().nullable(),
+    worstPostUrls: z.array(z.string()).optional().nullable(),
+    bestPostsComment: z.string().optional().nullable(),
+    worstPostsComment: z.string().optional().nullable(),
+  }).optional().nullable(),
+  screenshotImages: z.array(z.object({ data: z.string(), media_type: z.string() })).optional(),
+  successPostsData: z.array(z.record(z.unknown())).optional().nullable(),
+  failPostsData: z.array(z.record(z.unknown())).optional().nullable(),
+  workspace_id: z.string().uuid().optional().nullable(),
+  // Legacy fields
+  bestContent: z.string().optional().nullable(),
+  worstContent: z.string().optional().nullable(),
+  rhythm: z.string().optional().nullable(),
+  objective: z.string().optional().nullable(),
+  profileUrl: z.string().optional().nullable(),
+}).passthrough();
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
