@@ -65,7 +65,7 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
         // Fallback: maybe the edge function returned JSON (not streaming)
         try {
           const json = await resp.json();
-          if (json.error) throw new Error(json.error);
+          if (json.error) throw new Error(json.message || json.error);
           const text = json.content || json.raw || JSON.stringify(json);
           setContent(text);
           setDone(true);
