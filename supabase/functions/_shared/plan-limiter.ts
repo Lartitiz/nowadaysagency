@@ -30,7 +30,7 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     adaptation: 30,
     deep_research: 15,
   },
-  now_pilot: {
+  binome: {
     total: 9999,
     content: 9999,
     audit: 9999,
@@ -46,8 +46,8 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
 
 /** Resolve legacy plan names still in DB to current plan keys */
 const PLAN_ALIASES: Record<string, string> = {
-  studio: "now_pilot",
-  binome: "now_pilot",
+  studio: "binome",
+  now_pilot: "binome",
 };
 
 function resolvePlan(raw: string): string {
