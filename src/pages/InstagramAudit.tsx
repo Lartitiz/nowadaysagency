@@ -54,6 +54,8 @@ export default function InstagramAudit() {
   const { data: editorialLineData } = useEditorialLine();
   const [liveScore, setLiveScore] = useState<number | null>(null);
   const [hasExistingAudit, setHasExistingAudit] = useState(false);
+  const [lastSubmitData, setLastSubmitData] = useState<AuditFormData | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   // Progressive loading messages during audit
   useEffect(() => {
@@ -132,6 +134,8 @@ export default function InstagramAudit() {
 
   const handleSubmit = async (form: AuditFormData) => {
     if (!user) return;
+    setLastSubmitData(form);
+    setLastError(null);
     setAnalyzing(true);
 
     try {
@@ -283,7 +287,9 @@ export default function InstagramAudit() {
       toast({ title: "Audit terminé !" });
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      const msg = friendlyError(e);
+      setLastError(msg);
+      toast({ title: "Erreur", description: msg, variant: "destructive" });
     } finally {
       setAnalyzing(false);
     }
@@ -624,6 +630,21 @@ export default function InstagramAudit() {
         {showDiagBanner && (
           <div className="mb-6">
             <DiagnosticCacheBanner diagnosticData={diagCache} domain="instagram" onRelaunch={() => {}} />
+          </div>
+        )}
+        {lastError && !analyzing && (
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 mb-6">
+            <p className="text-sm text-foreground mb-3">😕 {lastError}</p>
+            {lastSubmitData && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full gap-2"
+                onClick={() => handleSubmit(lastSubmitData)}
+              >
+                🔄 Réessayer avec les mêmes données
+              </Button>
+            )}
           </div>
         )}
         {analyzing ? (
