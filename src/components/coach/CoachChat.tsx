@@ -259,7 +259,7 @@ export default function CoachChat() {
                 key={chip.label}
                 onClick={() => sendMessage(`${chip.emoji} ${chip.label}`)}
                 className="text-xs bg-rose-pale text-primary rounded-full px-3 py-1.5 hover:bg-rose-soft transition-colors text-left"
-                disabled={quotaReached}
+                disabled={false}
               >
                 {chip.emoji} {chip.label}
               </button>
