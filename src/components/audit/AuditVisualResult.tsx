@@ -46,6 +46,7 @@ export interface AuditVisualData {
 
 export interface AuditEvolution {
   previous_score: number;
+  current_score: number;
   previous_date: string;
   improved: { label: string; from: string; to: string }[];
   unchanged: { label: string; status: string }[];
@@ -235,6 +236,7 @@ function ElementCard({ el, refCallback }: { el: AuditElement; refCallback: (node
 function EvolutionBlock({ evolution }: { evolution: AuditEvolution }) {
   const daysDiff = Math.round((Date.now() - new Date(evolution.previous_date).getTime()) / (1000 * 60 * 60 * 24));
   const timeLabel = daysDiff <= 7 ? "il y a quelques jours" : daysDiff <= 30 ? `il y a ${Math.round(daysDiff / 7)} semaines` : `il y a ${Math.round(daysDiff / 30)} mois`;
+  const delta = evolution.current_score - evolution.previous_score;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 mb-6">
@@ -242,7 +244,11 @@ function EvolutionBlock({ evolution }: { evolution: AuditEvolution }) {
         📈 Évolution depuis ton dernier audit ({timeLabel})
       </h3>
       <p className="text-sm text-foreground mb-3">
-        Score : <strong>{evolution.previous_score}/100</strong> → <strong className="text-primary">{/* current shown elsewhere */}</strong>
+        Score : <strong>{evolution.previous_score}/100</strong> → <strong className={delta > 0 ? "text-green-600" : delta < 0 ? "text-red-500" : "text-foreground"}>{evolution.current_score}/100</strong>
+        {" "}
+        {delta > 0 && <span className="text-green-600 font-bold">+{delta} pts</span>}
+        {delta < 0 && <span className="text-red-500 font-bold">{delta} pts</span>}
+        {delta === 0 && <span className="text-muted-foreground">= même score</span>}
       </p>
       {evolution.improved.length > 0 && (
         <p className="text-sm text-foreground">
