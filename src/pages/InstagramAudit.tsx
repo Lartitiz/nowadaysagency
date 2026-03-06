@@ -632,6 +632,21 @@ export default function InstagramAudit() {
             <DiagnosticCacheBanner diagnosticData={diagCache} domain="instagram" onRelaunch={() => {}} />
           </div>
         )}
+        {lastError && !analyzing && (
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 mb-6">
+            <p className="text-sm text-foreground mb-3">😕 {lastError}</p>
+            {lastSubmitData && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full gap-2"
+                onClick={() => handleSubmit(lastSubmitData)}
+              >
+                🔄 Réessayer avec les mêmes données
+              </Button>
+            )}
+          </div>
+        )}
         {analyzing ? (
           <div className="space-y-4">
             <AiLoadingIndicator context="audit" isLoading={analyzing} />
