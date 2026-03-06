@@ -53,9 +53,10 @@ interface Props {
   onIdeaPlanned: () => void;
   onIdeaClick?: (idea: SavedIdea) => void;
   isMobile?: boolean;
+  onCollapse?: () => void;
 }
 
-export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: Props) {
+export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse }: Props) {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
@@ -174,11 +175,22 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile }: P
       )}
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-display text-sm font-bold text-foreground">💡 Mes idées</h3>
-        <span className="text-xs text-muted-foreground">
-          {filteredIdeas.length !== ideas.length
-            ? `${filteredIdeas.length}/${ideas.length}`
-            : ideas.length}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            {filteredIdeas.length !== ideas.length
+              ? `${filteredIdeas.length}/${ideas.length}`
+              : ideas.length}
+          </span>
+          {onCollapse && (
+            <button
+              onClick={onCollapse}
+              className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="Replier le panneau idées"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Search */}

@@ -883,16 +883,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
                     </button>
                   ) : (
                     <div className="border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
-                      <div className="flex justify-end mb-1">
-                        <button
-                          onClick={() => setIdeasCollapsed(true)}
-                          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-xs"
-                          title="Replier"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                      <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} />
+                      <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} onCollapse={() => setIdeasCollapsed(true)} />
                     </div>
                   )}
                 </div>
