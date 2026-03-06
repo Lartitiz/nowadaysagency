@@ -42,7 +42,7 @@ export const DEMO_DATA = {
     activity_type: "photographe",
     instagram: "@lea_portraits",
     website: "www.leaportraits.fr",
-    plan: "now_pilot",
+    plan: "binome",
     credits_monthly: 300,
     credits_used: 47,
   },
@@ -249,7 +249,7 @@ export const DEMO_DATA = {
 
   // ── COACHING BINÔME DE COM' ──
   coaching: {
-    formula: "now_pilot",
+    formula: "binome",
     duration_months: 6,
     price_monthly: 250,
     current_month: 2,
