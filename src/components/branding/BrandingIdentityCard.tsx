@@ -44,6 +44,9 @@ interface Props {
   onRunMirror?: () => void;
   lastAuditScore?: number;
   canShowMirror?: boolean;
+  auditSuggestions?: Record<string, string>;
+  onApplySuggestion?: (sectionKey: string, suggestion: string) => Promise<void>;
+  onDismissSuggestion?: (sectionKey: string) => void;
 }
 
 /* ─── Shared sub-components ─── */
