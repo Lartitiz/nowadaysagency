@@ -192,7 +192,7 @@ export default function InstagramAudit() {
           type: "instagram-audit",
           profile: {},
           screenshots: allScreenshots.length ? allScreenshots : undefined,
-          screenshotImages: screenshotBase64.length ? screenshotBase64 : undefined,
+          screenshotImageUrls: screenshotUrls.length ? screenshotUrls : undefined,
           auditTextData: {
             displayName: form.displayName,
             username: form.username,
