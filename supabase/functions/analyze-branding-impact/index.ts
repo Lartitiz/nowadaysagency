@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
@@ -23,6 +24,14 @@ serve(async (req) => {
     const { changed_field, old_value, new_value, workspace_id } = await req.json();
     if (!changed_field || !old_value || !new_value) {
       return new Response(JSON.stringify({ suggestions: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Check quota
+    const quota = await checkQuota(user.id, "suggestion", workspace_id);
+    if (!quota.allowed) {
+      return new Response(JSON.stringify({ suggestions: [], message: quota.message }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Get full user context
@@ -163,6 +172,8 @@ RÈGLES :
       }).select("id").single();
       inserted = data;
     }
+
+    await logUsage(user.id, "suggestion", "branding_impact", undefined, undefined, workspace_id);
 
     return new Response(JSON.stringify({ suggestions, suggestionId: inserted?.id || null }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
