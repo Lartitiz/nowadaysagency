@@ -39,7 +39,7 @@ const BEFORE_AFTER = {
 };
 
 const INCLUDES = [
-  { emoji: "🛠️", title: "L'Assistant Com' Premium inclus", desc: "Valeur 39€/mois : 300 crédits IA, audits illimités, tout débloqué" },
+   { emoji: "🛠️", title: "L'Assistant Com' Premium inclus", desc: "Valeur 39€/mois : crédits IA illimités, audits illimités, tout débloqué" },
   { emoji: "🎯", title: "6 sessions visio de 2h avec Laetitia", desc: "Sur-mesure, en visio. On fait ensemble." },
   { emoji: "💬", title: "Support WhatsApp jours ouvrés", desc: "Tu poses tes questions entre les sessions. Réponse sous 24-48h." },
   { emoji: "✅", title: "Validation de tes livrables", desc: "Laetitia valide ta bio, ton branding, ton calendrier, tes contenus." },
