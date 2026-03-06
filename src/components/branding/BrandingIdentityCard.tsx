@@ -390,7 +390,7 @@ function SectionDetail({ section, summaries, score }: { section: SectionConfig; 
   }
 }
 
-function ConstructionView({ completion, summaries, onReanalyze, onImport, onShowSynthesis, onRunMirror, lastAuditScore, canShowMirror }: Props) {
+function ConstructionView({ completion, summaries, onReanalyze, onImport, onShowSynthesis, onRunMirror, lastAuditScore, canShowMirror, auditSuggestions, onApplySuggestion, onDismissSuggestion }: Props) {
   const navigate = useNavigate();
   const [openSection, setOpenSection] = useState<string | null>(null);
 
