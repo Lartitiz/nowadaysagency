@@ -78,9 +78,9 @@ export default function BinomeDashboard() {
    }, [planLoading, isBinome, navigate]);
 
   useEffect(() => {
-    if (!user || !isStudio) return;
+    if (!user || !isBinome) return;
     loadData();
-  }, [user, isStudio]);
+  }, [user, isBinome]);
 
   const loadData = async () => {
     setLoading(true);
