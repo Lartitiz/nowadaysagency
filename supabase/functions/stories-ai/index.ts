@@ -128,6 +128,7 @@ RETOURNE un JSON strict :
 }
 Réponds UNIQUEMENT avec le JSON.`;
       const response = await callAnthropicSimple(getModelForAction("stories"), systemPrompt, `Idée brute : "${body.raw_idea}"`);
+      await logUsage(user.id, "content", "stories");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
