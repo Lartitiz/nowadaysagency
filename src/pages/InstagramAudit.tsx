@@ -384,7 +384,7 @@ export default function InstagramAudit() {
         unchanged.push({ label: cur.label, status: statusLabel(cur.status) });
       }
     }
-    return { previous_score: prevDetails?.score_global || previousAudit.score_global || 0, previous_date: previousAudit.created_at, improved, unchanged };
+    return { previous_score: prevDetails?.score_global || previousAudit.score_global || 0, current_score: auditResult.score_global || 0, previous_date: previousAudit.created_at, improved, unchanged };
   };
 
   // ── Loading ──
