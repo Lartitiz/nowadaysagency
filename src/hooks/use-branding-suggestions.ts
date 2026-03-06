@@ -107,6 +107,8 @@ export function useBrandingSuggestions(workspaceId?: string) {
           action: { label: "Voir", onClick: () => setShowSuggestions(true) },
           duration: 6000,
         });
+      } else {
+        toast("✅ Tout est cohérent, aucune mise à jour nécessaire.", { duration: 3000 });
       }
     } catch (e) {
       console.error("Impact analysis failed:", e);
