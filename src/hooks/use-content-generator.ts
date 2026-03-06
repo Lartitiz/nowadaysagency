@@ -316,7 +316,7 @@ export function useContentGenerator() {
       // Edge functions wrap response in { content: "..." } — unwrap before parsing
       const rawContent = data?.content ?? data;
       const parsed = parseAIJson(rawContent);
-      if (!parsed) throw new Error("Impossible de parser la réponse IA");
+      if (!parsed) throw new Error("La génération n'a pas fonctionné comme prévu. Réessaie, ça marche en général au deuxième essai 🌸");
 
       const normalized: ContentResult = {
         type: format,
