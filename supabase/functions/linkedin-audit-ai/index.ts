@@ -59,7 +59,7 @@ serve(async (req) => {
     const screenshots = body.screenshots || [];
     for (const s of screenshots) {
       if (s.url) {
-        contentParts.push({ type: "image_url", image_url: { url: s.url } });
+        contentParts.push({ type: "image", source: { type: "url", url: s.url } });
       }
     }
 
@@ -217,8 +217,7 @@ Réponds UNIQUEMENT en JSON sans backticks :
       ...contentParts,
     ];
 
-    // Note: Anthropic doesn't support image_url in the same way as OpenAI
-    // For multimodal with screenshots, we include image data in message content
+    // Screenshots are sent as Anthropic vision format (type: "image", source: { type: "url" })
     const content = await callAnthropic({
       model: getDefaultModel(),
       system: systemPrompt,
