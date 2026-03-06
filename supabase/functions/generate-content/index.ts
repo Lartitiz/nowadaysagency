@@ -80,14 +80,6 @@ serve(async (req) => {
 
     // Anthropic API key checked in shared helper
 
-    // Check plan limits for generation
-    const usageCheck = await checkAndIncrementUsage(supabase, user.id, "generation");
-    if (!usageCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
     const rawBody = await req.json();
     // Health check ping from admin audit
     if (rawBody.ping) {
@@ -95,6 +87,16 @@ serve(async (req) => {
     }
     const body = validateInput(rawBody, GenerateContentSchema);
     const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt, workspace_id } = body;
+
+    // Check plan limits — use "audit" category for audit types, "generation" otherwise
+    const isAuditType = type === "instagram-audit" || type === "bio-audit";
+    const usageCheck = await checkAndIncrementUsage(supabase, user.id, isAuditType ? "audit" : "generation");
+    if (!usageCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     let systemPrompt = "";
     let userPrompt = "";
