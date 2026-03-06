@@ -176,6 +176,7 @@ RETOURNE un JSON strict :
 Réponds UNIQUEMENT avec le JSON.`;
       const model = "claude-opus-4-6";
       const response = await callAnthropicSimple(model, BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Propose-moi 5 sujets de stories.");
+      await logUsage(user.id, "content", "stories");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
