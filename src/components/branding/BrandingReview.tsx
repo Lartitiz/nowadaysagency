@@ -497,7 +497,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
     } finally {
       setSavingSection(null);
     }
-  }, [user?.id, workspaceId, analysis, validated.size, queryClient, preFilledSections, logEvent]);
+  }, [user?.id, workspaceId, analysis, editedOffers, validated.size, queryClient, preFilledSections, logEvent]);
 
   const toggleCollapse = (key: SectionKey) => {
     setCollapsed((prev) => {
