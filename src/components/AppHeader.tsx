@@ -305,7 +305,7 @@ interface AvatarMenuProps {
   onDemoClick: () => void;
 }
 
-function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, totalLimit, totalPercent, signOut, navigate, isAdmin, hasCoaching, isPilot, coachingMonth, coachingPhase, onDemoClick }: AvatarMenuProps) {
+function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, totalLimit, totalPercent, signOut, navigate, isAdmin, hasCoaching, isBinome, coachingMonth, coachingPhase, onDemoClick }: AvatarMenuProps) {
   const remaining = totalLimit - totalUsed;
   const isLow = remaining <= 10 && totalLimit > 0;
 
