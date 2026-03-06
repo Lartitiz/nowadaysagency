@@ -222,14 +222,23 @@ export default function InstagramAudit() {
         },
       });
 
-      // Check for quota limit
+      // Check for quota limit (403 responses go into res.error with supabase-js)
+      if (res.error) {
+        const errorMsg = res.error.message || "";
+        if (errorMsg.includes("limit_reached") || (res.error as any).context?.body?.error === "limit_reached") {
+          toast({ title: "Tu as utilisé tes audits ce mois-ci 🌸", description: "Ils se renouvellent le 1er du mois, ou tu peux passer au Premium pour plus d'audits.", variant: "default" });
+          setAnalyzing(false);
+          return;
+        }
+        throw new Error(errorMsg);
+      }
+
+      // Fallback check in case data contains error
       if (res.data?.error === "limit_reached") {
         toast({ title: "Tu as utilisé tes audits ce mois-ci 🌸", description: res.data.message || "Ils se renouvellent le 1er du mois, ou tu peux passer au Premium pour plus d'audits.", variant: "default" });
         setAnalyzing(false);
         return;
       }
-
-      if (res.error) throw new Error(res.error.message);
 
       let parsed: any;
       const rawContent = res.data?.content || "";
