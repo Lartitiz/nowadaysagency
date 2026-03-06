@@ -71,8 +71,8 @@ function AppHeaderInner() {
     });
   }, [user?.id]);
 
-  const desktopNav = isPilot ? [...NAV_ITEMS, ACCOMPAGNEMENT_ITEM] : NAV_ITEMS;
-  const mobileNav = isPilot ? [...MOBILE_NAV, { to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false }] : MOBILE_NAV;
+  const desktopNav = isBinome ? [...NAV_ITEMS, ACCOMPAGNEMENT_ITEM] : NAV_ITEMS;
+  const mobileNav = isBinome ? [...MOBILE_NAV, { to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false }] : MOBILE_NAV;
 
   const isActive = (item: { to: string; matchExact: boolean }) =>
     item.matchExact ? location.pathname === item.to : location.pathname.startsWith(item.to);
