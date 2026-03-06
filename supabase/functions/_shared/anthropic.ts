@@ -22,7 +22,7 @@ export interface AnthropicOptions {
 // Modèle par type d'action — Sonnet pour le contenu courant, Opus pour les tâches complexes
 const MODEL_MAP: Record<string, AnthropicModel> = {
   // Opus : tâches complexes qui nécessitent un raisonnement profond
-  "audit": "claude-opus-4-6",
+  "audit": "claude-sonnet-4-5-20250929",
   "coaching": "claude-opus-4-6",
   "coaching_light": "claude-sonnet-4-5-20250929",
   "strategy": "claude-opus-4-6",
