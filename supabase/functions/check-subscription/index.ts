@@ -36,14 +36,14 @@ serve(async (req) => {
     if (isAdmin) {
       // Admin gets unlimited access
       const unlimitedUsage: Record<string, { used: number; limit: number }> = {};
-      for (const cat of Object.keys(PLAN_LIMITS.now_pilot)) {
+      for (const cat of Object.keys(PLAN_LIMITS.binome)) {
         if (cat === "total") continue;
         unlimitedUsage[cat] = { used: 0, limit: 9999 };
       }
       unlimitedUsage.total = { used: 0, limit: 9999 };
 
       return new Response(JSON.stringify({
-        plan: "now_pilot",
+        plan: "binome",
         status: "active",
         current_period_end: null,
         studio_months_paid: 0,
