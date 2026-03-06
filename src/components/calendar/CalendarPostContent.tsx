@@ -212,7 +212,6 @@ export function CalendarPostContent({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={onSmartGenerate}>🔄 Nouvelle version IA</DropdownMenuItem>
-                <DropdownMenuItem onClick={onOpenAtelier}>✨ Ouvrir dans l'atelier</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => { setContentDraft(null); setAccroche(null); }} className="text-destructive">
                   🗑️ Supprimer le contenu
                 </DropdownMenuItem>
