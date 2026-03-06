@@ -171,9 +171,8 @@ RÈGLES :
         status: "pending",
       }).select("id").single();
       inserted = data;
+      await logUsage(user.id, "suggestion", "branding_impact", undefined, undefined, workspace_id);
     }
-
-    await logUsage(user.id, "suggestion", "branding_impact", undefined, undefined, workspace_id);
 
     return new Response(JSON.stringify({ suggestions, suggestionId: inserted?.id || null }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
