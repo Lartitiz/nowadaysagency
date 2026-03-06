@@ -43,7 +43,7 @@ Tu reçois cet email car tu es inscrite sur <a href="{{app_url}}" style="color:#
 </p>
 <p style="margin:0;font-size:11px;color:#bbb;text-align:center;line-height:1.5;">
 Nowadays Agency · Joigny, France<br>
-<a href="{{app_url}}/parametres" style="color:#bbb;text-decoration:underline;">Se désinscrire</a>
+<a href="{{app_url}}/unsubscribe" style="color:#bbb;text-decoration:underline;">Se désinscrire</a>
 </p>
 </td></tr>
 

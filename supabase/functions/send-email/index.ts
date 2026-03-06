@@ -55,7 +55,38 @@ serve(async (req) => {
     }
 
     const fromAddress = `${from_name || "Laetitia"} <hello@nowadaysagency.com>`;
-    const recipients = Array.isArray(to) ? to : [to];
+    const recipients = Array.isArray(to) ? [...to] : [to];
+
+    // Check if any recipient has unsubscribed
+    for (let i = recipients.length - 1; i >= 0; i--) {
+      const email = recipients[i];
+      const { data: unsub } = await supabase
+        .from("email_unsubscribes")
+        .select("id")
+        .eq("email", email.toLowerCase())
+        .maybeSingle();
+
+      if (unsub) {
+        // Log as skipped, don't send
+        await supabase.from("email_sends").insert({
+          to_email: email,
+          subject,
+          status: "skipped",
+          error: "Utilisatrice désabonnée",
+          user_id: user_id || null,
+          template_id: template_id || null,
+          sequence_id: sequence_id || null,
+        });
+        recipients.splice(i, 1);
+      }
+    }
+
+    // If no recipients left after filtering unsubscribes
+    if (recipients.length === 0) {
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: "All recipients unsubscribed" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",

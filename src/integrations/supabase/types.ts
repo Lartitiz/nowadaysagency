@@ -2456,6 +2456,30 @@ export type Database = {
         }
         Relationships: []
       }
+      email_unsubscribes: {
+        Row: {
+          email: string
+          id: string
+          reason: string | null
+          unsubscribed_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          email: string
+          id?: string
+          reason?: string | null
+          unsubscribed_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          email?: string
+          id?: string
+          reason?: string | null
+          unsubscribed_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       engagement_checklist_logs: {
         Row: {
           created_at: string | null

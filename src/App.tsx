@@ -89,6 +89,7 @@ const LegalAiPage = lazy(() => import("./pages/LegalAiPage"));
 const MentionsLegalesPage = lazy(() => import("./pages/MentionsLegalesPage"));
 const ConfidentialitePage = lazy(() => import("./pages/ConfidentialitePage"));
 const CguCgvPage = lazy(() => import("./pages/CguCgvPage"));
+const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage"));
 const PaymentSuccessPage = lazy(() => import("./pages/PaymentSuccessPage"));
 
 const PricingPage = lazy(() => import("./pages/PricingPage"));
@@ -167,7 +168,7 @@ function SmartRedirect({ to, mergeParams }: { to: string; mergeParams?: Record<s
   return <Navigate to={qs ? `${basePath}?${qs}` : basePath} replace state={location.state} />;
 }
 
-const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilot", "/binome", "/pricing", "/services", "/studio/discover", "/share/branding", "/checkout/binome"];
+const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilot", "/binome", "/pricing", "/services", "/studio/discover", "/share/branding", "/checkout/binome", "/unsubscribe"];
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -256,6 +257,7 @@ function AnimatedRoutes() {
               <Route path="/cgu-cgv" element={<CguCgvPage />} />
               <Route path="/checkout/binome" element={<CheckoutBinomePage />} />
               <Route path="/payment/success" element={<PaymentSuccessPage />} />
+              <Route path="/unsubscribe" element={<UnsubscribePage />} />
               <Route path="/invite/:token" element={<InvitePage />} />
               <Route path="/share/branding/:token" element={<SharedBrandingPage />} />
               <Route path="/calendrier/partage/:token" element={<SharedCalendarPage />} />
