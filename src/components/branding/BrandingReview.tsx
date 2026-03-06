@@ -480,7 +480,8 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
     }
     setSavingSection(key);
     try {
-      await SAVE_FNS[key](analysis[key], user.id, workspaceId);
+      const dataToSave = key === "offers" ? { ...analysis.offers, offers: editedOffers } : analysis[key];
+      await SAVE_FNS[key](dataToSave, user.id, workspaceId);
       for (const qk of QUERY_KEYS[key]) queryClient.invalidateQueries({ queryKey: [qk] });
       setValidated((prev) => new Set(prev).add(key));
       setCollapsed((prev) => new Set(prev).add(key));
