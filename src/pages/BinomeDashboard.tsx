@@ -72,10 +72,10 @@ export default function BinomeDashboard() {
   const [subInfo, setSubInfo] = useState<{ studio_start_date?: string; studio_end_date?: string; studio_months_paid?: number } | null>(null);
 
   useEffect(() => {
-    if (!planLoading && !isStudio) {
-      navigate("/studio/discover", { replace: true });
-    }
-  }, [planLoading, isStudio, navigate]);
+     if (!planLoading && !isStudio) {
+       navigate("/binome", { replace: true });
+     }
+   }, [planLoading, isStudio, navigate]);
 
   useEffect(() => {
     if (!user || !isStudio) return;
