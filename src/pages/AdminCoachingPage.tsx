@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace, type Workspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import CoachingProgramList from "@/components/admin/CoachingProgramList";
 import CoachingSessionManager from "@/components/admin/CoachingSessionManager";
 import KickoffPreparation from "@/components/admin/KickoffPreparation";
