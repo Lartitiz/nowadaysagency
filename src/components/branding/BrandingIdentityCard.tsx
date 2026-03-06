@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Pencil, Sparkles, ArrowRight, RefreshCw } from "lucide-react";
+import { ChevronDown, Pencil, Sparkles, ArrowRight, RefreshCw, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { BrandingCompletion } from "@/lib/branding-completion";
 
@@ -44,6 +44,9 @@ interface Props {
   onRunMirror?: () => void;
   lastAuditScore?: number;
   canShowMirror?: boolean;
+  auditSuggestions?: Record<string, string>;
+  onApplySuggestion?: (sectionKey: string, suggestion: string) => Promise<void>;
+  onDismissSuggestion?: (sectionKey: string) => void;
 }
 
 /* ─── Shared sub-components ─── */
@@ -97,6 +100,45 @@ function getSummaryLine(key: string, summaries: SectionSummary): string {
   }
 }
 
+/* ─── Suggestion Banner ─── */
+
+function SuggestionBanner({ sectionKey, suggestion, onApply, onDismiss }: { sectionKey: string; suggestion: string; onApply?: (key: string, text: string) => Promise<void>; onDismiss?: (key: string) => void }) {
+  const [applying, setApplying] = useState(false);
+  return (
+    <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2" onClick={(e) => e.stopPropagation()}>
+      <p className="text-[11px] font-semibold text-primary uppercase tracking-wider">💡 Suggestion de l'audit</p>
+      <p className="text-sm text-foreground leading-relaxed italic">"{suggestion}"</p>
+      <div className="flex gap-2 pt-1">
+        {onApply && (
+          <Button
+            size="sm"
+            variant="default"
+            className="text-xs gap-1.5 rounded-full"
+            disabled={applying}
+            onClick={async (e) => {
+              e.stopPropagation();
+              setApplying(true);
+              try { await onApply(sectionKey, suggestion); } finally { setApplying(false); }
+            }}
+          >
+            <Check className="h-3.5 w-3.5" /> Accepter
+          </Button>
+        )}
+        {onDismiss && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs gap-1.5 text-muted-foreground"
+            onClick={(e) => { e.stopPropagation(); onDismiss(sectionKey); }}
+          >
+            <X className="h-3 w-3" /> Ignorer
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════
    MODE SYNTHÈSE (completion.total >= 50)
    ═══════════════════════════════════════════ */
@@ -143,7 +185,7 @@ function QuickActions({ onImport, onShowSynthesis, onRunMirror, lastAuditScore, 
   );
 }
 
-function SynthesisView({ completion, summaries, onReanalyze, profileName, profileActivity, onImport, onShowSynthesis, onRunMirror, lastAuditScore, canShowMirror }: Props) {
+function SynthesisView({ completion, summaries, onReanalyze, profileName, profileActivity, onImport, onShowSynthesis, onRunMirror, lastAuditScore, canShowMirror, auditSuggestions, onApplySuggestion, onDismissSuggestion }: Props) {
   const navigate = useNavigate();
   const proposition = summaries.proposition?.phrase;
   const hasProposition = !!proposition && completion.proposition > 0;
@@ -217,32 +259,46 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
           const hasTags = section.key === "tone" || section.key === "strategy";
           const tags = section.key === "tone" ? summaries.tone?.keywords : section.key === "strategy" ? summaries.strategy?.pillars : [];
 
+          const hasSuggestion = !!(auditSuggestions?.[section.key]);
+
           return (
-            <button
+            <div
               key={section.key}
-              onClick={() => navigate(section.editRoute)}
               className={`group rounded-2xl p-4 text-left transition-all ${
                 score === 100
                   ? "border border-border/50 bg-muted/30 opacity-80 hover:opacity-100 hover:bg-muted/50"
                   : "border border-border bg-card hover:border-primary/20 hover:shadow-sm"
-              }`}
+              } ${hasSuggestion ? "col-span-1 sm:col-span-2" : ""}`}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">{section.icon}</span>
-                <p className="font-display text-[14px] text-foreground flex-1">{section.title}</p>
-                <StatusDot score={score} />
-                <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-              {hasTags && tags && tags.length > 0 && score > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {tags.slice(0, 4).map((t, i) => <TagChip key={i} label={t} />)}
+              <button
+                onClick={() => navigate(section.editRoute)}
+                className="w-full text-left"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">{section.icon}</span>
+                  <p className="font-display text-[14px] text-foreground flex-1">{section.title}</p>
+                  <StatusDot score={score} />
+                  <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-              ) : (
-                <p className="font-mono-ui text-[12px] text-muted-foreground line-clamp-2">
-                  {getSummaryLine(section.key, summaries)}
-                </p>
+                {hasTags && tags && tags.length > 0 && score > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {tags.slice(0, 4).map((t, i) => <TagChip key={i} label={t} />)}
+                  </div>
+                ) : (
+                  <p className="font-mono-ui text-[12px] text-muted-foreground line-clamp-2">
+                    {getSummaryLine(section.key, summaries)}
+                  </p>
+                )}
+              </button>
+              {hasSuggestion && (
+                <SuggestionBanner
+                  sectionKey={section.key}
+                  suggestion={auditSuggestions![section.key]}
+                  onApply={onApplySuggestion}
+                  onDismiss={onDismissSuggestion}
+                />
               )}
-            </button>
+            </div>
           );
         })}
       </div>
@@ -334,7 +390,7 @@ function SectionDetail({ section, summaries, score }: { section: SectionConfig; 
   }
 }
 
-function ConstructionView({ completion, summaries, onReanalyze, onImport, onShowSynthesis, onRunMirror, lastAuditScore, canShowMirror }: Props) {
+function ConstructionView({ completion, summaries, onReanalyze, onImport, onShowSynthesis, onRunMirror, lastAuditScore, canShowMirror, auditSuggestions, onApplySuggestion, onDismissSuggestion }: Props) {
   const navigate = useNavigate();
   const [openSection, setOpenSection] = useState<string | null>(null);
 
@@ -424,6 +480,14 @@ function ConstructionView({ completion, summaries, onReanalyze, onImport, onShow
                   >
                     <div className="px-5 pb-5 pt-1 border-t border-border/50">
                       <SectionDetail section={section} summaries={summaries} score={score} />
+                      {auditSuggestions?.[section.key] && (
+                        <SuggestionBanner
+                          sectionKey={section.key}
+                          suggestion={auditSuggestions[section.key]}
+                          onApply={onApplySuggestion}
+                          onDismiss={onDismissSuggestion}
+                        />
+                      )}
                       <div className="flex items-center gap-2 mt-4">
                         <Button size="sm" className="text-xs gap-1.5" onClick={() => navigate(section.editRoute)}>
                           {score > 0 ? <><Pencil className="h-3.5 w-3.5" /> Modifier</> : <><Sparkles className="h-3.5 w-3.5" /> Commencer</>}

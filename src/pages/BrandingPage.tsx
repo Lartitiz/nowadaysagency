@@ -93,6 +93,7 @@ export default function BrandingPage() {
   const [importAnalyzing, setImportAnalyzing] = useState(false);
   const [forceImport, setForceImport] = useState(false);
   const [lastAudit, setLastAudit] = useState<any>(null);
+  const [auditSuggestions, setAuditSuggestions] = useState<Record<string, string>>({});
   const [importPhaseNew, setImportPhaseNew] = useState<"form" | "analyzing" | "error" | "reviewing">("form");
   const [analysisSources, setAnalysisSources] = useState<{ website?: string; instagram?: string; linkedin?: string; hasDocuments?: boolean }>({});
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -234,11 +235,33 @@ export default function BrandingPage() {
       });
 
       const { data: auditData } = await (supabase.from("branding_audits") as any)
-        .select("id, created_at, score_global, points_forts, points_faibles")
+        .select("id, created_at, score_global, points_forts, points_faibles, audit_detail")
         .eq(column, value)
         .order("created_at", { ascending: false })
         .limit(1);
-      if (auditData && auditData.length > 0) setLastAudit(auditData[0]);
+      if (auditData && auditData.length > 0) {
+        setLastAudit(auditData[0]);
+        // Extract improvement suggestions from audit_detail
+        if (auditData[0]?.audit_detail) {
+          const detail = auditData[0].audit_detail;
+          const suggestions: Record<string, string> = {};
+          const AUDIT_TO_SECTION: Record<string, string> = {
+            positionnement: "proposition",
+            cible: "persona",
+            ton_voix: "tone",
+            offres: "offers",
+            storytelling: "storytelling",
+            contenu: "strategy",
+          };
+          for (const [auditKey, pillar] of Object.entries(detail)) {
+            const sectionKey = AUDIT_TO_SECTION[auditKey];
+            if (sectionKey && (pillar as any)?.suggestion_amelioration) {
+              suggestions[sectionKey] = (pillar as any).suggestion_amelioration;
+            }
+          }
+          setAuditSuggestions(suggestions);
+        }
+      }
 
       // Check for pending autofill review
       const { data: pendingAutofill } = await (supabase.from("branding_autofill") as any)
@@ -681,6 +704,40 @@ export default function BrandingPage() {
                     onRunMirror={runMirror}
                     lastAuditScore={lastAudit?.score_global}
                     canShowMirror={canShowMirror}
+                    auditSuggestions={auditSuggestions}
+                    onApplySuggestion={async (sectionKey: string, suggestion: string) => {
+                      const fCol = workspaceId ? "workspace_id" : "user_id";
+                      const fVal = workspaceId || user?.id;
+                      if (!fVal) return;
+                      try {
+                        if (sectionKey === "proposition") {
+                          await (supabase.from("brand_profile") as any).update({ positioning: suggestion }).eq(fCol, fVal);
+                        } else if (sectionKey === "persona") {
+                          const { data: p } = await (supabase.from("persona") as any).select("id").eq(fCol, fVal).limit(1).maybeSingle();
+                          if (p) await (supabase.from("persona") as any).update({ step_2_transformation: suggestion }).eq("id", p.id);
+                        } else if (sectionKey === "offers") {
+                          await (supabase.from("brand_profile") as any).update({ offer: suggestion }).eq(fCol, fVal);
+                        } else if (sectionKey === "tone") {
+                          await (supabase.from("brand_profile") as any).update({ voice_description: suggestion }).eq(fCol, fVal);
+                        } else if (sectionKey === "storytelling") {
+                          const { data: st } = await (supabase.from("storytelling") as any).select("id").eq(fCol, fVal).limit(1).maybeSingle();
+                          if (st) await (supabase.from("storytelling") as any).update({ imported_text: suggestion, source: "audit" }).eq("id", st.id);
+                        } else if (sectionKey === "strategy") {
+                          await (supabase.from("brand_profile") as any).update({ content_editorial_line: suggestion }).eq(fCol, fVal);
+                        }
+                        setAuditSuggestions(prev => { const next = { ...prev }; delete next[sectionKey]; return next; });
+                        toast.success("✅ Suggestion appliquée !");
+                        queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
+                        queryClient.invalidateQueries({ queryKey: ["persona"] });
+                        queryClient.invalidateQueries({ queryKey: ["storytelling"] });
+                      } catch {
+                        toast.error("Erreur lors de l'application");
+                      }
+                    }}
+                    onDismissSuggestion={(sectionKey: string) => {
+                      setAuditSuggestions(prev => { const next = { ...prev }; delete next[sectionKey]; return next; });
+                      toast("Suggestion ignorée");
+                    }}
                   />
                 </>
               )}
