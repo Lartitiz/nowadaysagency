@@ -330,7 +330,7 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-foreground">Salut {firstName} 👋</p>
             {planBadge && (
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${isPilot ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"}`}>
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${isBinome ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"}`}>
                 {planBadge}
               </span>
             )}
