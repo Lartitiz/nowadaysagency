@@ -441,7 +441,7 @@ Réponds en JSON :
         userPrompt = "Rédige le post complet.";
 
       } else if (type === "instagram-audit") {
-        const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, successNotes: sn, failNotes: fn, profileUrl: pu, successPostsData, failPostsData, auditTextData: atd, screenshotImages } = body;
+        const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, successNotes: sn, failNotes: fn, profileUrl: pu, successPostsData, failPostsData, auditTextData: atd, screenshotImageUrls } = body;
 
         // Build structured post descriptions for AI
         let successPostsBlock = "";
@@ -660,10 +660,10 @@ Reponds en JSON :
   }
 }`;
         // Build user message (multimodal if screenshots available)
-        if (screenshotImages && screenshotImages.length > 0) {
-          const userContent: any[] = screenshotImages.map((img: any) => ({
+        if (screenshotImageUrls && screenshotImageUrls.length > 0) {
+          const userContent: any[] = screenshotImageUrls.map((url: string) => ({
             type: "image",
-            source: { type: "base64", media_type: img.media_type, data: img.data },
+            source: { type: "url", url },
           }));
           userContent.push({
             type: "text",
