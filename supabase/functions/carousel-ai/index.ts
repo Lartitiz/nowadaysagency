@@ -1033,6 +1033,23 @@ Pour chaque slide, tu choisis UN de ces types :
 - Alterne les types pour créer du rythme : photo → texte → photo → texte
 - Ne fais JAMAIS 3 slides du même type à la suite
 
+═══ RÈGLES DE NARRATION ═══
+
+- ARC NARRATIF OBLIGATOIRE : le carrousel raconte une histoire (situation → tension → développement → résolution → ouverture). Même un carrousel mixte doit avoir un fil conducteur, pas juste une alternance photo/texte sans logique.
+- CONNEXION ENTRE SLIDES : chaque slide crée une tension qui donne envie de swiper. Utilise des bucket brigades : "Le problème, c'est que...", "Sauf que...", "Résultat ?", "Et là...", "La vraie question c'est..."
+- Les slides text_only doivent avoir un body de 30-50 mots MINIMUM, pas juste un titre + quelques mots. Du vrai contenu de fond avec des phrases complètes et fluides.
+- EXEMPLES CONCRETS dans chaque slide texte : pas de conseil abstrait sans illustration.
+- AU MOINS 1 analogie du quotidien ou référence culture pop dans le carrousel.
+- Le contenu doit sonner comme quelqu'un qui PARLE, pas qui rédige un article. Ton oral : "en vrai", "franchement", "le truc c'est que", apartés en parenthèses.
+- INTERDIT : "Dans un monde où...", "Il est important de...", "N'hésite pas à...", "Voici X astuces pour..."
+
+═══ SUJET = BRIEF CRÉATIF ═══
+
+Le sujet donné par l'utilisatrice est un BRIEF CRÉATIF, pas juste un thème.
+- Si le sujet contient un concept (VS, avant/après, métaphore, angle), le carrousel DOIT s'articuler autour de ce concept. C'est la colonne vertébrale du contenu.
+- Le titre créatif donné par l'utilisatrice doit apparaître (ou être amélioré) sur la slide 1 comme hook.
+- Ne dilue PAS le concept dans un carrousel générique. Le concept structure TOUT.
+
 ═══ ASSIGNATION DES PHOTOS ═══
 
 Les photos sont fournies dans l'ordre : photo 1, photo 2, etc.
