@@ -5,6 +5,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { validateInput, ValidationError, AuditBrandingSchema } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 function htmlToText(html: string): string {
   return html
