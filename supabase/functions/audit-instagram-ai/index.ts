@@ -5,6 +5,9 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { isDemoUser } from "../_shared/guard-demo.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -26,6 +29,15 @@ serve(async (req) => {
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Authentification invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    // Guard: demo user cannot trigger real AI calls
+    if (isDemoUser(user.id)) {
+      return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Rate limit check
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const body = await req.json();
     const { auditTextData: atd, screenshotImages, successPostsData, failPostsData, workspace_id } = body;
@@ -262,6 +274,8 @@ Reponds en JSON :
   }
 }`;
 
+    const finalSystemPrompt = BASE_SYSTEM_RULES + "\n\n" + systemPrompt;
+
     // Build user message (multimodal if screenshots available)
     if (screenshotImages && screenshotImages.length > 0) {
       const userContent: any[] = screenshotImages.map((img: any) => ({
@@ -275,7 +289,7 @@ Reponds en JSON :
 
       const visionResult = await callAnthropic({
         model: getModelForAction("audit"),
-        system: systemPrompt,
+        system: finalSystemPrompt,
         messages: [{ role: "user", content: userContent }],
         temperature: 0.7,
         max_tokens: 8192,
@@ -290,7 +304,7 @@ Reponds en JSON :
 
     // Fallback: text-only audit if no screenshots
     const userPrompt = "Analyse mon profil Instagram et donne-moi un audit complet avec audit visuel annote et analyse de performance des contenus.";
-    const content = await callAnthropicSimple(getModelForAction("audit"), systemPrompt, userPrompt, 0.7, 8192);
+    const content = await callAnthropicSimple(getModelForAction("audit"), finalSystemPrompt, userPrompt, 0.7, 8192);
 
     await logUsage(user.id, "audit", "audit_instagram", undefined, undefined, workspace_id);
     return new Response(

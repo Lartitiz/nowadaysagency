@@ -89,7 +89,7 @@ serve(async (req) => {
     const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt, workspace_id } = body;
 
     // Check plan limits — use "audit" category for audit types, "content" otherwise
-    const isAuditType = type === "instagram-audit" || type === "bio-audit";
+    const isAuditType = type === "bio-audit";
     const usageCategory = isAuditType ? "audit" : "content";
     const quotaCheck = await checkQuota(user.id, usageCategory, workspace_id);
     if (!quotaCheck.allowed) {
@@ -551,9 +551,12 @@ Réponds en JSON :
       );
     }
 
-    const shortTypes = ["bio", "bio-audit", "bio-generator", "caption", "instagram-nom"];
-    const maxTokens = shortTypes.includes(type) ? 1024 : 4096;
-    const content = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt, 0.8, maxTokens);
+    const shortTypes = ["bio", "bio-generator", "caption", "instagram-nom"];
+    const longTypes = ["bio-audit", "launch-plan"];
+    const maxTokens = shortTypes.includes(type) ? 1024 : longTypes.includes(type) ? 8192 : 4096;
+    const auditTypes = ["bio-audit"];
+    const modelAction = auditTypes.includes(type) ? "audit" : "content";
+    const content = await callAnthropicSimple(getModelForAction(modelAction), systemPrompt, userPrompt, 0.8, maxTokens);
 
     if (false) { // dead code guard — weekly-suggestions handled above
       let suggestions;
