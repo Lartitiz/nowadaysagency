@@ -10,6 +10,7 @@ import KickoffPreparation from "@/components/admin/KickoffPreparation";
 import AdminUsersTab from "@/components/admin/AdminUsersTab";
 import AdminStatsTab from "@/components/admin/AdminStatsTab";
 import AdminFeedbackTab from "@/components/admin/AdminFeedbackTab";
+import AdminEmailTab from "@/components/admin/AdminEmailTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProgramWithProfile, SessionData } from "@/components/admin/admin-coaching-types";
 
