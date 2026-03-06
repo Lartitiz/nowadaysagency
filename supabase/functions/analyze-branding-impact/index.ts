@@ -151,18 +151,20 @@ RÈGLES :
     }
 
     // Save to database if we have suggestions
+    let inserted: any = null;
     if (suggestions.length > 0) {
-      await supabase.from("branding_suggestions").insert({
+      const { data } = await supabase.from("branding_suggestions").insert({
         user_id: user.id,
         trigger_field: changed_field,
         trigger_old_value: old_value,
         trigger_new_value: new_value,
         suggestions,
         status: "pending",
-      });
+      }).select("id").single();
+      inserted = data;
     }
 
-    return new Response(JSON.stringify({ suggestions }), {
+    return new Response(JSON.stringify({ suggestions, suggestionId: inserted?.id || null }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
