@@ -235,11 +235,33 @@ export default function BrandingPage() {
       });
 
       const { data: auditData } = await (supabase.from("branding_audits") as any)
-        .select("id, created_at, score_global, points_forts, points_faibles")
+        .select("id, created_at, score_global, points_forts, points_faibles, audit_detail")
         .eq(column, value)
         .order("created_at", { ascending: false })
         .limit(1);
-      if (auditData && auditData.length > 0) setLastAudit(auditData[0]);
+      if (auditData && auditData.length > 0) {
+        setLastAudit(auditData[0]);
+        // Extract improvement suggestions from audit_detail
+        if (auditData[0]?.audit_detail) {
+          const detail = auditData[0].audit_detail;
+          const suggestions: Record<string, string> = {};
+          const AUDIT_TO_SECTION: Record<string, string> = {
+            positionnement: "proposition",
+            cible: "persona",
+            ton_voix: "tone",
+            offres: "offers",
+            storytelling: "storytelling",
+            contenu: "strategy",
+          };
+          for (const [auditKey, pillar] of Object.entries(detail)) {
+            const sectionKey = AUDIT_TO_SECTION[auditKey];
+            if (sectionKey && (pillar as any)?.suggestion_amelioration) {
+              suggestions[sectionKey] = (pillar as any).suggestion_amelioration;
+            }
+          }
+          setAuditSuggestions(suggestions);
+        }
+      }
 
       // Check for pending autofill review
       const { data: pendingAutofill } = await (supabase.from("branding_autofill") as any)
