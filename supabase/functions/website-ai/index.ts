@@ -214,6 +214,7 @@ serve(async (req) => {
           .eq("id", auditRow.id);
       }
 
+      await logUsage(user.id, "content", "website_diagnostic");
       return new Response(JSON.stringify({ diagnostic: diagnosticRaw }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     } else if (action === "generate-section-html") {
