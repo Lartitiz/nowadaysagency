@@ -338,7 +338,7 @@ function InscritesView() {
             {emailBody && (
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Aperçu</label>
-                <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto bg-white" dangerouslySetInnerHTML={{ __html: emailBody }} />
+                <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto bg-white" dangerouslySetInnerHTML={{ __html: previewHtml }} />
               </div>
             )}
           </div>
