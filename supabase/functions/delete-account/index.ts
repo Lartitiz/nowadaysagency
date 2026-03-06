@@ -32,10 +32,24 @@ serve(async (req) => {
 
     if (body.targetUserId) {
       if (userData.user.email !== ADMIN_EMAIL) {
-        return new Response(
-          JSON.stringify({ error: "Forbidden" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+        // Fallback: check user_roles table for admin role
+        const adminServiceClient = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
         );
+        const { data: roleRow } = await adminServiceClient
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userData.user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (!roleRow) {
+          return new Response(
+            JSON.stringify({ error: "Forbidden" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+          );
+        }
       }
       userId = body.targetUserId;
       console.log(`[delete-account] ADMIN deletion of user ${body.targetUserId} by ${userData.user.email}`);
