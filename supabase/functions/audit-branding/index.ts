@@ -302,14 +302,14 @@ RETOURNE UNIQUEMENT un objet JSON valide avec cette structure exacte :
     }
   ],
   "audit_detail": {
-    "positionnement": {"score": 80, "statut": "bon", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "..."},
-    "cible": {"score": 60, "statut": "flou", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "..."},
-    "ton_voix": {"score": 70, "statut": "bon", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "..."},
-    "offres": {"score": 50, "statut": "flou", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "..."},
-    "storytelling": {"score": 40, "statut": "absent", "ce_qui_existe": null, "ce_qui_manque": "...", "recommandation": "..."},
-    "identite_visuelle": {"score": 75, "statut": "bon", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "..."},
-    "coherence_cross_canal": {"score": 55, "statut": "flou", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "..."},
-    "contenu": {"score": 65, "statut": "bon", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "..."}
+    "positionnement": {"score": 80, "statut": "bon", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "...", "suggestion_amelioration": null},
+    "cible": {"score": 60, "statut": "flou", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "...", "suggestion_amelioration": "Une description plus précise de sa cible, basée sur ses sources"},
+    "ton_voix": {"score": 70, "statut": "bon", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "...", "suggestion_amelioration": null},
+    "offres": {"score": 50, "statut": "flou", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "...", "suggestion_amelioration": "Une reformulation claire de son offre principale : promesse + pour qui + résultat"},
+    "storytelling": {"score": 40, "statut": "absent", "ce_qui_existe": null, "ce_qui_manque": "...", "recommandation": "...", "suggestion_amelioration": "2-3 phrases d'accroche pour son histoire, basées sur ce qu'on sait d'elle"},
+    "identite_visuelle": {"score": 75, "statut": "bon", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "...", "suggestion_amelioration": null},
+    "coherence_cross_canal": {"score": 55, "statut": "flou", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "...", "suggestion_amelioration": null},
+    "contenu": {"score": 65, "statut": "bon", "ce_qui_existe": "...", "ce_qui_manque": "...", "recommandation": "...", "suggestion_amelioration": null}
   },
   "plan_action_recommande": [
     {"priorite": 1, "action": "...", "module": "branding", "temps_estime": "30 min", "conseil": "Conseil court pour cette action."}
