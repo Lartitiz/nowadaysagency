@@ -314,6 +314,11 @@ export default function CreerStepResult({
 
       {/* 4. Actions secondaires */}
       <div className="flex items-center justify-center gap-3">
+        {onSave && (
+          <Button variant="ghost" size="sm" onClick={onSave} className="gap-1.5 text-xs text-muted-foreground">
+            <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
+          </Button>
+        )}
         <Button variant="ghost" size="sm" onClick={() => onCopy(JSON.stringify(result, null, 2))} className="gap-1.5 text-xs text-muted-foreground">
           <Copy className="h-3.5 w-3.5" /> Copier
         </Button>
