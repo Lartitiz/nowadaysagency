@@ -134,7 +134,7 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

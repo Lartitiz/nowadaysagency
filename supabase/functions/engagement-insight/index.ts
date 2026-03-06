@@ -81,9 +81,9 @@ Génère 1-2 phrases d'insight :
         status: e.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    console.error("engagement-insight error:", e);
     const status = e instanceof ValidationError ? 400 : 500;
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+    const msg = e instanceof ValidationError ? (e instanceof Error ? e.message : "Validation error") : "Erreur interne du serveur";
+    return new Response(JSON.stringify({ error: msg }), {
       status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
