@@ -10,6 +10,7 @@ import KickoffPreparation from "@/components/admin/KickoffPreparation";
 import AdminUsersTab from "@/components/admin/AdminUsersTab";
 import AdminStatsTab from "@/components/admin/AdminStatsTab";
 import AdminFeedbackTab from "@/components/admin/AdminFeedbackTab";
+import AdminEmailTab from "@/components/admin/AdminEmailTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProgramWithProfile, SessionData } from "@/components/admin/admin-coaching-types";
 
@@ -117,6 +118,7 @@ export default function AdminCoachingPage() {
             <TabsList className="mb-6">
               <TabsTrigger value="clientes">Mes clientes</TabsTrigger>
               <TabsTrigger value="users">Utilisatrices</TabsTrigger>
+              <TabsTrigger value="emails">✉️ Emails</TabsTrigger>
               <TabsTrigger value="stats">📊 Stats</TabsTrigger>
               <TabsTrigger value="feedback">🐛 Feedback</TabsTrigger>
             </TabsList>
@@ -133,6 +135,9 @@ export default function AdminCoachingPage() {
             </TabsContent>
             <TabsContent value="users">
               <AdminUsersTab />
+            </TabsContent>
+            <TabsContent value="emails">
+              <AdminEmailTab />
             </TabsContent>
             <TabsContent value="stats">
               <AdminStatsTab />
