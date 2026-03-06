@@ -151,11 +151,11 @@ export default function LinkedInPostGenerator() {
       });
       if (res.error) throw res.error;
       const raw = res.data?.content || "{}";
-      const parsed = typeof raw === "string" ? JSON.parse(raw.replace(/```json?\n?/g, "").replace(/```/g, "").trim()) : raw;
-      if (parsed?.template_id) {
-        setSuggestedTemplate({ id: parsed.template_id, reason: parsed.reason || "" });
-        if (!template) setTemplate(parsed.template_id);
-      }
+       const parsed = typeof raw === "string" ? JSON.parse(raw.replace(/```json?\n?/g, "").replace(/```/g, "").trim()) : raw;
+       if (parsed?.template_id) {
+         setSuggestedTemplate({ id: parsed.template_id, reason: parsed.reason || "" });
+         setTemplate(parsed.template_id);
+       }
     } catch (e) {
       console.warn("Template suggestion failed:", e);
     } finally {
@@ -187,6 +187,8 @@ export default function LinkedInPostGenerator() {
     if (calAngle && ANGLE_TO_TEMPLATE[calAngle]) {
       setTemplate(ANGLE_TO_TEMPLATE[calAngle]);
     } else {
+      // Try AI suggestion, but set a fallback in case it fails or takes too long
+      setTemplate("storytelling_lecon"); // Fallback immédiat (sera écrasé si suggestion réussit)
       suggestTemplate(sujet);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -531,7 +533,7 @@ export default function LinkedInPostGenerator() {
                 <div className="rounded-2xl border border-border bg-card p-6">
                   <p className="whitespace-pre-line text-sm text-foreground leading-relaxed">{result.full_text}</p>
                   <div className="flex flex-wrap items-center gap-3 mt-4 text-xs text-muted-foreground">
-                    <span>📊 <CharacterCounter count={result.character_count} max={3000} sweetSpot={{ min: 1300, max: 1900 }} /></span>
+                    <span>📊 <CharacterCounter count={result.character_count} max={3000} sweetSpot={{ min: 800, max: 1200 }} /></span>
                     <span>🏷️ {result.hashtags?.length || 0} hashtag{(result.hashtags?.length || 0) > 1 ? "s" : ""}</span>
                     {result.template_used && (
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${OBJECTIF_COLORS[LINKEDIN_TEMPLATES_UI.find(t => t.id === result.template_used)?.objectif || ""] || "bg-muted"}`}>
@@ -620,7 +622,7 @@ export default function LinkedInPostGenerator() {
                     className="min-h-[200px]"
                   />
                   <div className="mt-1">
-                    <CharacterCounter count={existingPost.length} max={3000} sweetSpot={{ min: 1300, max: 1900 }} />
+                    <CharacterCounter count={existingPost.length} max={3000} sweetSpot={{ min: 800, max: 1200 }} />
                   </div>
                 </div>
 
@@ -688,7 +690,7 @@ export default function LinkedInPostGenerator() {
                     <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{improveResult.improved_version}</p>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <CharacterCounter count={improveResult.character_count} max={3000} sweetSpot={{ min: 1300, max: 1900 }} />
+                    <CharacterCounter count={improveResult.character_count} max={3000} sweetSpot={{ min: 800, max: 1200 }} />
                   </div>
                 </div>
 
