@@ -190,7 +190,6 @@ export function CalendarPostContent({
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setIsEditing(true)}>✏️ Modifier</DropdownMenuItem>
                 <DropdownMenuItem onClick={onSmartGenerate}>🔄 Nouvelle version IA</DropdownMenuItem>
-                <DropdownMenuItem onClick={onOpenAtelier}>✨ Ouvrir dans l'atelier</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
