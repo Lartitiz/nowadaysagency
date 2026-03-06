@@ -695,7 +695,7 @@ Reponds en JSON :
         userPrompt = "Génère mes 3 posts épinglés stratégiques.";
 
       } else if (type === "instagram-edito") {
-        systemPrompt = `${CORE_PRINCIPLES}\n\n${brandingContext}\n\nCrée une ligne éditoriale personnalisée. Utilise les recommandations du moteur copywriting sur le mix de contenu (4 visibilité + 4 confiance + 2 vente sur 10 posts).\n\nRéponds en JSON :\n{"main_objective": "...", "recommended_rhythm": "X posts/semaine + Y stories/semaine", "pillar_distribution": {"pilier1": 40, "pilier2": 25, "pilier3": 20, "Perso/coulisses": 15}, "preferred_formats": ["carrousel éducatif", "reel coulisses", "post storytelling"], "stop_doing": "...", "do_more": "..."}`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${fullContext}\n\nCrée une ligne éditoriale personnalisée. Utilise les recommandations du moteur copywriting sur le mix de contenu (4 visibilité + 4 confiance + 2 vente sur 10 posts).\n\nRéponds en JSON :\n{"main_objective": "...", "recommended_rhythm": "X posts/semaine + Y stories/semaine", "pillar_distribution": {"pilier1": 40, "pilier2": 25, "pilier3": 20, "Perso/coulisses": 15}, "preferred_formats": ["carrousel éducatif", "reel coulisses", "post storytelling"], "stop_doing": "...", "do_more": "..."}`;
         userPrompt = "Crée ma ligne éditoriale Instagram personnalisée.";
 
       } else if (type === "instagram-edito-pillars") {
