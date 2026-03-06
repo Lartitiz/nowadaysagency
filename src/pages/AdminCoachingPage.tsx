@@ -118,6 +118,7 @@ export default function AdminCoachingPage() {
             <TabsList className="mb-6">
               <TabsTrigger value="clientes">Mes clientes</TabsTrigger>
               <TabsTrigger value="users">Utilisatrices</TabsTrigger>
+              <TabsTrigger value="emails">✉️ Emails</TabsTrigger>
               <TabsTrigger value="stats">📊 Stats</TabsTrigger>
               <TabsTrigger value="feedback">🐛 Feedback</TabsTrigger>
             </TabsList>
