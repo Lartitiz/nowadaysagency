@@ -259,32 +259,46 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
           const hasTags = section.key === "tone" || section.key === "strategy";
           const tags = section.key === "tone" ? summaries.tone?.keywords : section.key === "strategy" ? summaries.strategy?.pillars : [];
 
+          const hasSuggestion = !!(auditSuggestions?.[section.key]);
+
           return (
-            <button
+            <div
               key={section.key}
-              onClick={() => navigate(section.editRoute)}
               className={`group rounded-2xl p-4 text-left transition-all ${
                 score === 100
                   ? "border border-border/50 bg-muted/30 opacity-80 hover:opacity-100 hover:bg-muted/50"
                   : "border border-border bg-card hover:border-primary/20 hover:shadow-sm"
-              }`}
+              } ${hasSuggestion ? "col-span-1 sm:col-span-2" : ""}`}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">{section.icon}</span>
-                <p className="font-display text-[14px] text-foreground flex-1">{section.title}</p>
-                <StatusDot score={score} />
-                <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-              {hasTags && tags && tags.length > 0 && score > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {tags.slice(0, 4).map((t, i) => <TagChip key={i} label={t} />)}
+              <button
+                onClick={() => navigate(section.editRoute)}
+                className="w-full text-left"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">{section.icon}</span>
+                  <p className="font-display text-[14px] text-foreground flex-1">{section.title}</p>
+                  <StatusDot score={score} />
+                  <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-              ) : (
-                <p className="font-mono-ui text-[12px] text-muted-foreground line-clamp-2">
-                  {getSummaryLine(section.key, summaries)}
-                </p>
+                {hasTags && tags && tags.length > 0 && score > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {tags.slice(0, 4).map((t, i) => <TagChip key={i} label={t} />)}
+                  </div>
+                ) : (
+                  <p className="font-mono-ui text-[12px] text-muted-foreground line-clamp-2">
+                    {getSummaryLine(section.key, summaries)}
+                  </p>
+                )}
+              </button>
+              {hasSuggestion && (
+                <SuggestionBanner
+                  sectionKey={section.key}
+                  suggestion={auditSuggestions![section.key]}
+                  onApply={onApplySuggestion}
+                  onDismiss={onDismissSuggestion}
+                />
               )}
-            </button>
+            </div>
           );
         })}
       </div>
