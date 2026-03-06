@@ -31,7 +31,7 @@ const SECTIONS = [
   {
     title: "Création de contenu",
     rows: [
-      { label: "Crédits IA", free: "60/mois", outil: "300/mois", studio: "300/mois" },
+      { label: "Crédits IA", free: "60/mois", outil: "Illimités", studio: "Illimités" },
       { label: "Posts Instagram", free: true, outil: true, studio: true },
       { label: "Reels", free: true, outil: true, studio: true },
       { label: "Stories", free: true, outil: true, studio: true },
@@ -43,7 +43,7 @@ const SECTIONS = [
   {
     title: "Analyse & suivi",
     rows: [
-      { label: "Audits IA", free: "3/mois", outil: "15/mois", studio: "15/mois" },
+      { label: "Audits IA", free: "3/mois", outil: "Illimités", studio: "Illimités" },
       { label: "Audit LinkedIn", free: true, outil: true, studio: true },
       { label: "Import stats (Excel/CSV)", free: true, outil: true, studio: true },
       { label: "Dashboard KPI", free: true, outil: true, studio: true },

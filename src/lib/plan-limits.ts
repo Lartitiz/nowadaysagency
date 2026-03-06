@@ -29,9 +29,9 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     deep_research: 5,
   },
   outil: {
-    total: 300,
-    content: 150,
-    audit: 5,
+    total: 9999,
+    content: 9999,
+    audit: 9999,
     dm_comment: 60,
     bio_profile: 15,
     suggestion: 30,
