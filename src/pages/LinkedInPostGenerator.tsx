@@ -620,7 +620,7 @@ export default function LinkedInPostGenerator() {
                     className="min-h-[200px]"
                   />
                   <div className="mt-1">
-                    <CharacterCounter count={existingPost.length} max={3000} sweetSpot={{ min: 1300, max: 1900 }} />
+                    <CharacterCounter count={existingPost.length} max={3000} sweetSpot={{ min: 800, max: 1200 }} />
                   </div>
                 </div>
 
