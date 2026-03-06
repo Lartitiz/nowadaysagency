@@ -103,18 +103,18 @@ async function checkDataCoherence(): Promise<AuditResult[]> {
       .eq("user_id", prog.client_user_id)
       .maybeSingle();
 
-    if (!sub || sub.plan !== "now_pilot") {
+    if (!sub || sub.plan !== "binome") {
       results.push({
         status: "error",
         category: "Données",
         title: "Plan désynchronisé",
         detail: `Client ${prog.client_user_id.slice(0, 8)}… a un programme actif mais sub.plan = '${sub?.plan || "absent"}'`,
-        fixLabel: "Synchroniser → now_pilot",
+        fixLabel: "Synchroniser → binome",
         fix: async () => {
           await (supabase.from("subscriptions" as any) as any)
             .upsert({
               user_id: prog.client_user_id,
-              plan: "now_pilot",
+              plan: "binome",
               status: "active",
               source: "coaching",
             }, { onConflict: "user_id" });
