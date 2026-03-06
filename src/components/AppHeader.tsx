@@ -298,7 +298,7 @@ interface AvatarMenuProps {
   navigate: (path: string) => void;
   isAdmin: boolean;
   hasCoaching?: boolean;
-  isPilot?: boolean;
+  isBinome?: boolean;
   
   coachingMonth?: number | null;
   coachingPhase?: string | null;
