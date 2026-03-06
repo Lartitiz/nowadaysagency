@@ -72,7 +72,15 @@ serve(async (req) => {
     const rateCheck = checkRateLimit(user.id);
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
-    const body = await req.json();
+    const rawBody = await req.json();
+    const parseResult = AuditInstagramSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      return new Response(
+        JSON.stringify({ error: "Données invalides", details: parseResult.error.issues.map(i => i.message).join(", ") }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const body = parseResult.data;
     const { auditTextData: atd, screenshotImages, successPostsData, failPostsData, workspace_id } = body;
     // Legacy fields (optional)
     const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, profileUrl: pu } = body;
