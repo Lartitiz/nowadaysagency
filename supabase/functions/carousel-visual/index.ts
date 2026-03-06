@@ -669,7 +669,7 @@ Retourne UNIQUEMENT le JSON.`;
     }
     } // end else (text mode)
 
-    const model = "claude-sonnet-4-5-20250929" as any;
+    const model = "claude-opus-4-6" as any;
 
     const rawResponse = await callAnthropic({
       model,
