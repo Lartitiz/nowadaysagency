@@ -42,7 +42,7 @@ export const DEMO_DATA = {
     activity_type: "photographe",
     instagram: "@lea_portraits",
     website: "www.leaportraits.fr",
-    plan: "now_pilot",
+    plan: "binome",
     credits_monthly: 300,
     credits_used: 47,
   },
