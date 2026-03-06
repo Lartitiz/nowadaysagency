@@ -141,7 +141,7 @@ export default function CoachChat() {
   }, [open]);
 
   const sendMessage = useCallback(async (text: string) => {
-    if (!text.trim() || loading || quotaReached) return;
+    if (!text.trim() || loading) return;
 
     const userMsg: ChatMessage = { role: "user", content: text.trim() };
     const updated = [...messages, userMsg];
