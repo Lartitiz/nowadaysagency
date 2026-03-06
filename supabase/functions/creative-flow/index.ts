@@ -495,6 +495,8 @@ DERNIÈRES VÉRIFICATIONS (À APPLIQUER APRÈS RÉDACTION)
 
 ${CHAIN_OF_THOUGHT}
 
+${DEPTH_LAYER}
+
 ANTI-SLOP FINAL — Relis ton output et vérifie :
 1. Contient-il un marqueur IA banni (rafale de phrases courtes, "Et là tout a basculé", storytelling fabriqué) ? → Réécris la phrase.
 2. Chaque phrase ajoute-t-elle une information NOUVELLE ? → Supprime toute redondance.
