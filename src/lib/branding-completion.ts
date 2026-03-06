@@ -135,7 +135,7 @@ export function calculateBrandingCompletion(data: BrandingRawData): BrandingComp
   const stratFilled = stratChecks.filter(filled).length;
   const strategy = Math.round((stratFilled / 3) * 100);
 
-  // CHARTER: weighted score
+  // CHARTER: weighted score (progressive)
   const ch = data.charter;
   let charterScore = 0;
   if (ch) {
@@ -143,12 +143,17 @@ export function calculateBrandingCompletion(data: BrandingRawData): BrandingComp
     const defaults: Record<string, string> = { color_primary: "#E91E8C", color_secondary: "#1A1A2E", color_accent: "#FFE561" };
     const changedColors = (["color_primary", "color_secondary", "color_accent"] as const)
       .filter(k => ch[k] && ch[k] !== defaults[k]).length;
-    if (changedColors >= 3) charterScore += 25;
-    if (ch.font_title && ch.font_title !== "Inter" && ch.font_body && ch.font_body !== "Inter") charterScore += 20;
-    if (Array.isArray(ch.mood_keywords) && ch.mood_keywords.length >= 3) charterScore += 20;
+    // Progressive: 8pts per changed color (max 25)
+    charterScore += Math.min(changedColors * 8, 25);
+    // Progressive: 10pts per changed font (max 20)
+    if (ch.font_title && ch.font_title !== "Inter") charterScore += 10;
+    if (ch.font_body && ch.font_body !== "Inter") charterScore += 10;
+    if (Array.isArray(ch.mood_keywords) && ch.mood_keywords.length >= 1) {
+      charterScore += Math.min(ch.mood_keywords.length * 7, 20);
+    }
     if (filled(ch.photo_style)) charterScore += 15;
   }
-  const charter = charterScore;
+  const charter = Math.min(charterScore, 100);
 
   // OFFERS: at least 1 offer with name + promise or price
   const offerList = data.offersList || [];
