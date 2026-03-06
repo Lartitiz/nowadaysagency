@@ -92,6 +92,7 @@ function FileUploadGrid({ files, onAdd, onRemove, maxFiles = 5, label }: {
 }
 
 export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: AuditInputFormProps) {
+  const [rapidMode, setRapidMode] = useState(!isRedo);
   const [form, setForm] = useState<AuditFormData>({
     displayName: initial?.displayName || "",
     username: initial?.username || "",
