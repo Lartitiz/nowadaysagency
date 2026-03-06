@@ -710,7 +710,6 @@ Réponds UNIQUEMENT en JSON :
     // ── Deep Research (web search via Anthropic) ──
     if (deepResearch && step === "generate") {
       // Check deep_research quota
-      const { checkQuota, logUsage } = await import("../_shared/plan-limiter.ts");
       const drQuota = await checkQuota(user.id, "deep_research");
       if (!drQuota.allowed) {
         return new Response(
