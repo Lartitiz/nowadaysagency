@@ -171,19 +171,59 @@ function StrategySection({ data }: { data: AnalysisResult["content_strategy"] })
   );
 }
 
-function OffersSection({ data }: { data: AnalysisResult["offers"] }) {
+interface OfferItem { name?: string; price?: string; description?: string; target?: string; promise?: string }
+
+function OffersSection({ data, onUpdate, onDelete }: { data: AnalysisResult["offers"]; onUpdate?: (index: number, offer: OfferItem) => void; onDelete?: (index: number) => void }) {
   if (!data?.offers?.length) return null;
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState<OfferItem>({});
+
+  const startEdit = (i: number) => {
+    setEditDraft({ ...data.offers![i] });
+    setEditingIndex(i);
+  };
+  const cancelEdit = () => { setEditingIndex(null); setEditDraft({}); };
+  const confirmEdit = () => {
+    if (editingIndex !== null && onUpdate) {
+      onUpdate(editingIndex, editDraft);
+    }
+    setEditingIndex(null);
+    setEditDraft({});
+  };
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {data.offers.map((o, i) => (
-        <div key={i} className="p-4 rounded-[12px] border border-border bg-background">
-          <div className="flex items-baseline justify-between mb-2">
-            <p className="font-display text-[15px]">{o.name || "Offre"}</p>
-            {o.price && <span className="text-[13px] font-semibold text-[#fb3d80]">{o.price}</span>}
-          </div>
-          {o.description && <p className="text-[13px] text-muted-foreground mb-1">{o.description}</p>}
-          {o.target && <p className="text-[12px]"><span className="font-semibold text-[#91014b]">Pour :</span> {o.target}</p>}
-          {o.promise && <p className="text-[12px]"><span className="font-semibold text-[#91014b]">Promesse :</span> {o.promise}</p>}
+        <div key={i} className="p-4 rounded-[12px] border border-border bg-background relative group">
+          {editingIndex === i ? (
+            <div className="space-y-2">
+              <input value={editDraft.name || ""} onChange={e => setEditDraft(d => ({ ...d, name: e.target.value }))} placeholder="Nom de l'offre" className="w-full text-[14px] font-display border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={editDraft.price || ""} onChange={e => setEditDraft(d => ({ ...d, price: e.target.value }))} placeholder="Prix" className="w-full text-[13px] border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={editDraft.description || ""} onChange={e => setEditDraft(d => ({ ...d, description: e.target.value }))} placeholder="Description" className="w-full text-[13px] border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={editDraft.target || ""} onChange={e => setEditDraft(d => ({ ...d, target: e.target.value }))} placeholder="Pour qui ?" className="w-full text-[13px] border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={editDraft.promise || ""} onChange={e => setEditDraft(d => ({ ...d, promise: e.target.value }))} placeholder="Promesse" className="w-full text-[13px] border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
+              <div className="flex gap-2 pt-1">
+                <button onClick={confirmEdit} className="inline-flex items-center gap-1 text-[12px] font-medium text-emerald-600 hover:text-emerald-700"><Check className="h-3.5 w-3.5" /> OK</button>
+                <button onClick={cancelEdit} className="inline-flex items-center gap-1 text-[12px] font-medium text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /> Annuler</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {(onUpdate || onDelete) && (
+                <div className="absolute top-2.5 right-2.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {onUpdate && <button onClick={() => startEdit(i)} className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Modifier"><Pencil className="h-3.5 w-3.5 text-muted-foreground" /></button>}
+                  {onDelete && <button onClick={() => onDelete(i)} className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors" title="Supprimer"><Trash2 className="h-3.5 w-3.5 text-destructive" /></button>}
+                </div>
+              )}
+              <div className="flex items-baseline justify-between mb-2 pr-14">
+                <p className="font-display text-[15px]">{o.name || "Offre"}</p>
+                {o.price && <span className="text-[13px] font-semibold text-[#fb3d80]">{o.price}</span>}
+              </div>
+              {o.description && <p className="text-[13px] text-muted-foreground mb-1">{o.description}</p>}
+              {o.target && <p className="text-[12px]"><span className="font-semibold text-[#91014b]">Pour :</span> {o.target}</p>}
+              {o.promise && <p className="text-[12px]"><span className="font-semibold text-[#91014b]">Promesse :</span> {o.promise}</p>}
+            </>
+          )}
         </div>
       ))}
     </div>
