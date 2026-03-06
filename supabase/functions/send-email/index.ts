@@ -79,10 +79,13 @@ serve(async (req) => {
 
       // Log failed send
       await supabase.from("email_sends").insert({
-        recipient: recipients.join(", "),
+        to_email: recipients.join(", "),
         subject,
         status: "failed",
         error: errorMsg,
+        user_id: user_id || null,
+        template_id: template_id || null,
+        sequence_id: sequence_id || null,
       });
 
       return new Response(JSON.stringify({ error: errorMsg }), {
