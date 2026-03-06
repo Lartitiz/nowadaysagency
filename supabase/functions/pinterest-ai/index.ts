@@ -56,7 +56,7 @@ serve(async (req) => {
     // Anthropic API key checked in shared helper
 
     // Check plan limits
-    const usageCheck = await checkAndIncrementUsage(supabase, user.id, "generation");
+    const usageCheck = await checkQuota(user.id, "content");
     if (!usageCheck.allowed) {
       return new Response(
         JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
