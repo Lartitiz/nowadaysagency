@@ -138,7 +138,7 @@ export async function checkQuota(
 
   // Check if category is available for this plan
   if ((limits[category] ?? 0) === 0) {
-    const planLabel = plan === "free" ? "Outil" : "Now Studio";
+    const planLabel = plan === "free" ? "Outil" : "Binôme";
     return {
       allowed: false,
       plan,

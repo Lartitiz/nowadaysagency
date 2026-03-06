@@ -99,12 +99,12 @@ serve(async (req) => {
 
     const rows = usageRows || [];
 
-    // Resolve legacy plan aliases (studio → now_pilot, binome → now_pilot)
-    const PLAN_ALIASES: Record<string, string> = { studio: "now_pilot", binome: "now_pilot" };
+    // Resolve legacy plan aliases (studio → binome, now_pilot → binome)
+    const PLAN_ALIASES: Record<string, string> = { studio: "binome", now_pilot: "binome" };
     let plan = sub?.plan || "free";
     plan = PLAN_ALIASES[plan] || plan;
     if (plan === "free" && activeProgram) {
-      plan = "now_pilot";
+      plan = "binome";
     }
     const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
