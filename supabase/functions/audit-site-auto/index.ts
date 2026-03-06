@@ -471,7 +471,7 @@ Réponds UNIQUEMENT en JSON (sans backticks) avec cette structure :
   } catch (e: any) {
     clearTimeout(globalTimeout);
     console.error("[audit-site-auto] Error:", e);
-    return new Response(JSON.stringify({ error: e.message || "Erreur inattendue" }), {
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
       status: 500, headers: { ...cors, "Content-Type": "application/json" },
     });
   }

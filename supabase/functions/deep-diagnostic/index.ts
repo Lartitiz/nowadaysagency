@@ -535,9 +535,8 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
       });
     }
     console.error("deep-diagnostic error:", e);
-    const msg = e instanceof Error ? e.message : "Erreur inconnue";
     return new Response(
-      JSON.stringify({ error: msg }),
+      JSON.stringify({ error: "Erreur interne du serveur" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
