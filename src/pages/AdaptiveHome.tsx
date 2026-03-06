@@ -126,6 +126,7 @@ const MINI_CARDS = [
   { emoji: "🎨", title: "Mon branding", subtitle: "Affiner mon identité", bg: "bg-accent/10", route: "/branding" },
   { emoji: "🔍", title: "Lancer un audit", subtitle: "Instagram ou site web", bg: "bg-[hsl(var(--bento-blue))]", route: "/instagram/audit" },
   { emoji: "💬", title: "Ma routine", subtitle: "15 min d'engagement", bg: "bg-rose-pale", route: "/instagram/routine" },
+  { emoji: "📅", title: "Mon calendrier", subtitle: "Planifier mes contenus", bg: "bg-accent/10", route: "/calendrier" },
 ];
 
 /* ── Main ── */
@@ -221,7 +222,7 @@ export default function AdaptiveHome() {
         </div>
 
         {/* C. Mini-cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           {MINI_CARDS.map((card) => (
             <div
               key={card.route}
