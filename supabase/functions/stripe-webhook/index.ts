@@ -100,7 +100,8 @@ serve(async (req) => {
             updated_at: new Date().toISOString(),
           }, { onConflict: "user_id" });
 
-          await supabase.from("profiles").update({ current_plan: plan }).eq("user_id", userId);
+          const displayPlan = plan === "studio" ? "binome" : plan;
+          await supabase.from("profiles").update({ current_plan: displayPlan }).eq("user_id", userId);
           log("Subscription activated", { userId, plan });
 
         } else if (session.mode === "payment") {
@@ -176,7 +177,7 @@ serve(async (req) => {
               studio_end_date: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString(),
               updated_at: new Date().toISOString(),
             }, { onConflict: "user_id" });
-            await supabase.from("profiles").update({ current_plan: "studio" }).eq("user_id", userId);
+            await supabase.from("profiles").update({ current_plan: "binome" }).eq("user_id", userId);
           }
 
           log("Purchase recorded", { userId, productType });

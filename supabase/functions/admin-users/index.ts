@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, corsHeaders } from "../_shared/cors.ts";
 
 const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
-const PLAN_PRICES: Record<string, number> = { outil: 39, studio: 250, now_pilot: 250, pro: 79 };
+const PLAN_PRICES: Record<string, number> = { outil: 39, binome: 250, pro: 79 };
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -240,19 +240,21 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
 
   // Plans & subscriptions
   const subs = subsRes.data || [];
-  const plans: Record<string, number> = { free: 0, outil: 0, studio: 0, now_pilot: 0 };
+  const plans: Record<string, number> = { free: 0, outil: 0, binome: 0 };
   const subsByUser = new Map<string, any>();
   for (const s of subs) {
     subsByUser.set(s.user_id, s);
   }
+  const PLAN_ALIASES: Record<string, string> = { studio: "binome", now_pilot: "binome" };
   for (const p of profiles) {
-    const plan = subsByUser.get(p.user_id)?.plan || "free";
+    const rawPlan = subsByUser.get(p.user_id)?.plan || "free";
+    const plan = PLAN_ALIASES[rawPlan] || rawPlan;
     plans[plan] = (plans[plan] || 0) + 1;
   }
 
   // Séparer les vraies abonnées payantes des accès promo
-  const paidSubs = subs.filter((s: any) => s.source !== "promo" && s.plan !== "now_pilot" && s.user_id !== adminUserId);
-  const promoSubs = subs.filter((s: any) => (s.source === "promo" || s.plan === "now_pilot") && s.user_id !== adminUserId);
+  const paidSubs = subs.filter((s: any) => s.source !== "promo" && !["now_pilot", "studio"].includes(s.plan) && s.user_id !== adminUserId);
+  const promoSubs = subs.filter((s: any) => (s.source === "promo" || ["now_pilot", "studio"].includes(s.plan)) && s.user_id !== adminUserId);
 
   // Business metrics : seulement les abonnements payants (pas les promos)
   const activePaidSubs = paidSubs.filter((s: any) => (s.status === "active" || s.status === "trialing") && s.plan !== "free");
