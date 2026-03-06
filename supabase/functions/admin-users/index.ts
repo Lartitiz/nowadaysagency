@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, corsHeaders } from "../_shared/cors.ts";
 
 const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
-const PLAN_PRICES: Record<string, number> = { outil: 39, studio: 250, now_pilot: 250, pro: 79 };
+const PLAN_PRICES: Record<string, number> = { outil: 39, binome: 250, pro: 79 };
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
