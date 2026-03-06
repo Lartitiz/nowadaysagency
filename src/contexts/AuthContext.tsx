@@ -223,6 +223,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAdminLoading(false);
       return;
     }
+    // Skip if still on the demo fake user (waiting for real user to restore)
+    if (user.id === "demo-user") {
+      return;
+    }
     setAdminLoading(true);
     Promise.resolve(supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()).then(({ data }) => {
       setIsAdmin(!!data);
