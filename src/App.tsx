@@ -257,6 +257,7 @@ function AnimatedRoutes() {
               <Route path="/cgu-cgv" element={<CguCgvPage />} />
               <Route path="/checkout/binome" element={<CheckoutBinomePage />} />
               <Route path="/payment/success" element={<PaymentSuccessPage />} />
+              <Route path="/unsubscribe" element={<UnsubscribePage />} />
               <Route path="/invite/:token" element={<InvitePage />} />
               <Route path="/share/branding/:token" element={<SharedBrandingPage />} />
               <Route path="/calendrier/partage/:token" element={<SharedCalendarPage />} />
