@@ -87,7 +87,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const deactivateDemo = useCallback(() => {
     setIsDemoMode(false);
     setShowDemoOnboarding(true);
-    setDemoPlan("now_pilot");
+    setDemoPlan("binome");
   }, []);
 
   const value = useMemo<DemoContextType>(
