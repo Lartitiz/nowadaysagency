@@ -136,6 +136,9 @@ export default function AdminCoachingPage() {
             <TabsContent value="users">
               <AdminUsersTab />
             </TabsContent>
+            <TabsContent value="emails">
+              <AdminEmailTab />
+            </TabsContent>
             <TabsContent value="stats">
               <AdminStatsTab />
             </TabsContent>
