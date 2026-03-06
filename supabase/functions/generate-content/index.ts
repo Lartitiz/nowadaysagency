@@ -791,6 +791,7 @@ Reponds en JSON :
       } catch {
         suggestions = [];
       }
+      await logUsage(user.id, usageCategory, type, undefined, undefined, workspace_id);
       return new Response(
         JSON.stringify({ suggestions, type: "weekly-suggestions" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
