@@ -153,6 +153,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       const res = await invokeWithTimeout("generate-content", {
         body: { type: "calendar-quick", theme, objectif: safeObjectif, angle, format: format || "post_carrousel", notes, profile: profileData || {}, canal: postCanal },
       });
+      // Handle quota limit
+      if (res.data?.error === "limit_reached") {
+        toast({ title: "Plus de crédits ce mois-ci 🌸", description: res.data.message || "Tes crédits se renouvellent le 1er du mois.", variant: "default" });
+        setIsGenerating(false);
+        return;
+      }
       if (res.error) throw res.error;
       const generated = res.data?.content || "";
       setContentDraft(generated);
