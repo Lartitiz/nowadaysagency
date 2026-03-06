@@ -167,7 +167,7 @@ const CommunautePage = () => {
                   {c.label}
                 </Badge>
               ))}
-              {isStudio && (
+              {isBinome && (
                 <Badge
                   variant={studioOnly ? "default" : "outline"}
                   className="cursor-pointer ml-auto"
