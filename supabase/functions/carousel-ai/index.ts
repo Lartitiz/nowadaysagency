@@ -4,7 +4,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallbac
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, PREGEN_INJECTION_RULES } from "../_shared/copywriting-prompts.ts";
+import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, PREGEN_INJECTION_RULES } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
@@ -316,6 +316,8 @@ ANTI-BROETRY (s'applique aux captions, pas aux slides) :
 Les captions de carrousels ne sont PAS des listes de phrases sur des lignes séparées. Ce sont des paragraphes fluides de 2-3 phrases. Le rythme vient du contraste entre phrases longues et phrases courtes, pas des sauts de ligne.
 
 ${CHAIN_OF_THOUGHT}
+
+${DEPTH_LAYER}
 
 ANTI-BIAIS — TU NE REPRODUIS JAMAIS :
 - Ton paternaliste → Permission : "Tu as le droit de prendre de la place"
@@ -732,6 +734,7 @@ TON RÔLE : Tu es une coach com' qui aide une solopreneuse/créatrice à extrair
 RÈGLES pour les questions :
 - Chaque question doit être liée SPÉCIFIQUEMENT au sujet "${subject}" et au format ${formatLabel}
 - Les questions doivent faire émerger du vécu, des anecdotes, des opinions tranchées, des exemples concrets
+- AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : "Pourquoi tu penses que [blocage] existe ?", "Qu'est-ce qui fait que [problème] est si répandu selon toi ?", "Si tu devais expliquer à quelqu'un pourquoi [sujet] est un vrai problème, tu dirais quoi ?". L'objectif est d'extraire une réflexion de fond, pas juste un exemple.
 - Si tu as le contexte branding, adapte les questions à son activité et sa cible (ex : "Quand une de tes clientes [cible] te dit..." plutôt que "Quand quelqu'un te dit...")
 - Tutoie l'utilisatrice, sois directe et chaleureuse
 - Chaque question fait 1-2 phrases max
