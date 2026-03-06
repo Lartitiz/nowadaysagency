@@ -45,7 +45,7 @@ export default function UpgradeGate({ feature, children, fallback }: UpgradeGate
 
   if (fallback) return <>{fallback}</>;
 
-  const message = UPGRADE_MESSAGES[feature] || "Tu as atteint ta limite de crédits IA ce mois. Passe au Premium pour 300 crédits/mois.";
+  const message = UPGRADE_MESSAGES[feature] || "Tu as atteint ta limite de crédits IA ce mois. Passe au Premium pour des crédits illimités.";
   const isStudioFeature = STUDIO_FEATURES.includes(feature);
 
   return (
