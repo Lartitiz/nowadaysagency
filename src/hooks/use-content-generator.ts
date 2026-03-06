@@ -311,7 +311,7 @@ export function useContentGenerator() {
       }
 
       if (invokeError) throw new Error(invokeError.message || "Erreur edge function");
-      if (data?.error) throw new Error(data.error);
+      if (data?.error) throw new Error(data.message || data.error);
 
       // Edge functions wrap response in { content: "..." } — unwrap before parsing
       const rawContent = data?.content ?? data;
@@ -412,7 +412,7 @@ export function useContentGenerator() {
         }
 
         if (invokeError) throw new Error(invokeError.message || "Erreur edge function");
-        if (data?.error) throw new Error(data.error);
+        if (data?.error) throw new Error(data.message || data.error);
 
         // carousel-ai wraps its response in { content: "..." } — unwrap before parsing
         const rawContent = data?.content || data;
