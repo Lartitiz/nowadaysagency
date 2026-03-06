@@ -100,6 +100,45 @@ function getSummaryLine(key: string, summaries: SectionSummary): string {
   }
 }
 
+/* ─── Suggestion Banner ─── */
+
+function SuggestionBanner({ sectionKey, suggestion, onApply, onDismiss }: { sectionKey: string; suggestion: string; onApply?: (key: string, text: string) => Promise<void>; onDismiss?: (key: string) => void }) {
+  const [applying, setApplying] = useState(false);
+  return (
+    <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2" onClick={(e) => e.stopPropagation()}>
+      <p className="text-[11px] font-semibold text-primary uppercase tracking-wider">💡 Suggestion de l'audit</p>
+      <p className="text-sm text-foreground leading-relaxed italic">"{suggestion}"</p>
+      <div className="flex gap-2 pt-1">
+        {onApply && (
+          <Button
+            size="sm"
+            variant="default"
+            className="text-xs gap-1.5 rounded-full"
+            disabled={applying}
+            onClick={async (e) => {
+              e.stopPropagation();
+              setApplying(true);
+              try { await onApply(sectionKey, suggestion); } finally { setApplying(false); }
+            }}
+          >
+            <Check className="h-3.5 w-3.5" /> Accepter
+          </Button>
+        )}
+        {onDismiss && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs gap-1.5 text-muted-foreground"
+            onClick={(e) => { e.stopPropagation(); onDismiss(sectionKey); }}
+          >
+            <X className="h-3 w-3" /> Ignorer
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════
    MODE SYNTHÈSE (completion.total >= 50)
    ═══════════════════════════════════════════ */
