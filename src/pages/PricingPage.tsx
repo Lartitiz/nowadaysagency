@@ -279,7 +279,7 @@ export default function PricingPage() {
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Validation livrables par Laetitia</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Espace accompagnement dédié</li>
             </ul>
-            {isCurrentPlan("now_pilot") ? (
+            {isCurrentPlan("binome") ? (
               <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">
                 Ton plan actuel
               </div>
