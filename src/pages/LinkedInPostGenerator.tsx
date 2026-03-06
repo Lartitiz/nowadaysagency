@@ -361,6 +361,19 @@ export default function LinkedInPostGenerator() {
 
           {/* ─── CREATE TAB ─── */}
           <TabsContent value="create" className="space-y-5 mt-4">
+            {/* Calendar auto-gen loading */}
+            {calendarState?.fromCalendar && generating && (
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-3 animate-fade-in">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Rédaction en cours…</p>
+                    <p className="text-xs text-muted-foreground">L'IA rédige ton post LinkedIn à partir du sujet du calendrier.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Tip */}
             <div className="rounded-lg bg-primary/5 border border-primary/20 px-4 py-2.5 text-sm text-foreground">
               💡 {tip.text} <span className="text-xs text-muted-foreground">— {tip.source}</span>
