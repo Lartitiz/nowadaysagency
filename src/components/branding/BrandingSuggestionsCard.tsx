@@ -74,7 +74,10 @@ export default function BrandingSuggestionsCard({
     // 1. Apply each suggestion to its real table
     for (const s of editableSuggestions) {
       const mapping = SECTION_MAP[s.section];
-      if (!mapping) continue;
+      if (!mapping) {
+        console.warn(`No SECTION_MAP entry for section "${s.section}" — suggestion skipped`);
+        continue;
+      }
 
       const filterCol = mapping.filterBy === "profile" ? "user_id" : wsColumn;
       const filterVal = mapping.filterBy === "profile" ? profileUserId : wsValue;
