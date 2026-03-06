@@ -115,6 +115,7 @@ function MobilePostCard({ post, onClick, onMove }: { post: CalendarPost; onClick
 export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea }: Props) {
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
 
   const addIdeaHandler = onAddIdea || onCreatePost;
 
@@ -151,12 +152,12 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
                   <AddPostMenu dateStr={dateStr} onAddIdea={addIdeaHandler} />
                 </div>
                 <div>
-                  {dayPosts.slice(0, 1).map((p) => (
+                  {(expandedDays.has(dateStr) ? dayPosts : dayPosts.slice(0, 1)).map((p) => (
                     <MobilePostCard key={p.id} post={p} onClick={() => onEditPost(p)} onMove={handleMobileMove} />
                   ))}
-                  {dayPosts.length > 1 && (
+                  {dayPosts.length > 1 && !expandedDays.has(dateStr) && (
                     <button
-                      onClick={() => onEditPost(dayPosts[1])}
+                      onClick={() => setExpandedDays(prev => new Set(prev).add(dateStr))}
                       className="text-[11px] text-muted-foreground hover:text-primary mt-0.5"
                     >
                       +{dayPosts.length - 1} autre{dayPosts.length - 1 > 1 ? "s" : ""}
