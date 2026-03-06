@@ -224,7 +224,7 @@ export default function InstagramAudit() {
           },
           workspace_id: workspaceId,
         },
-      }, 120000);
+      }, 180000);
 
       // Check for quota limit (403 responses go into res.error with supabase-js)
       if (res.error) {
