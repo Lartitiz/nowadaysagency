@@ -274,6 +274,8 @@ Reponds en JSON :
   }
 }`;
 
+    const finalSystemPrompt = BASE_SYSTEM_RULES + "\n\n" + systemPrompt;
+
     // Build user message (multimodal if screenshots available)
     if (screenshotImages && screenshotImages.length > 0) {
       const userContent: any[] = screenshotImages.map((img: any) => ({
