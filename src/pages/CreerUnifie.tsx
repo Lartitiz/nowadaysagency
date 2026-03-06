@@ -27,6 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { loadFlowState, saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
 import { useFormPersist } from "@/hooks/use-form-persist";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
+import { useUserPlan } from "@/hooks/use-user-plan";
 
 type Step = "idea" | "format" | "questions" | "result" | "edit";
 type Mode = "create" | "transform";
@@ -39,6 +40,7 @@ export default function CreerUnifie() {
   const { isDemoMode, demoData } = useDemoContext();
   const workspaceId = useWorkspaceId();
   const { data: charterData } = useBrandCharter();
+  const { remainingTotal, loading: planLoading } = useUserPlan();
 
   // URL params
   const paramFormat = searchParams.get("format");
@@ -1088,7 +1090,14 @@ export default function CreerUnifie() {
 
             {/* Steps */}
             {step === "idea" && (
-              <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} />
+              <>
+                {!planLoading && remainingTotal() < Infinity && (
+                  <p className="text-xs text-muted-foreground text-right mb-2">
+                    ✨ {remainingTotal()} générations restantes ce mois
+                  </p>
+                )}
+                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} />
+              </>
             )}
 
             {step === "format" && (
