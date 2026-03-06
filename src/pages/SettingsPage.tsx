@@ -33,7 +33,7 @@ import {
 export default function SettingsPage() {
   const { user, signOut, isAdmin } = useAuth();
   const { toast } = useToast();
-  const { plan, isPaid, isStudio, refresh: refreshPlan } = useUserPlan();
+  const { plan, isPaid, isBinome, refresh: refreshPlan } = useUserPlan();
 
   // Password change
   const [newPassword, setNewPassword] = useState("");
