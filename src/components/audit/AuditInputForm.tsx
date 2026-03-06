@@ -180,7 +180,8 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
         </p>
       </div>
 
-      {/* ── Nom ── */}
+      {/* ── Nom (complet only) ── */}
+      {!rapidMode && (
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">👤 TON NOM</h3>
         <div>
@@ -192,6 +193,7 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           <Input value={form.username} onChange={(e) => set("username", e.target.value)} placeholder="@nowadaysagency" />
         </div>
       </section>
+      )}
 
       {/* ── Bio ── */}
       <section className="space-y-3">
