@@ -199,7 +199,7 @@ const CommunautePage = () => {
             <TabsTrigger value="question">❓</TabsTrigger>
             <TabsTrigger value="feedback">🔍</TabsTrigger>
             <TabsTrigger value="inspiration">✨</TabsTrigger>
-            {isStudio && <TabsTrigger value="studio"><Crown className="h-3 w-3 mr-1" /> Binôme</TabsTrigger>}
+            {isBinome && <TabsTrigger value="studio"><Crown className="h-3 w-3 mr-1" /> Binôme</TabsTrigger>}
           </TabsList>
 
           <TabsContent value={tab} className="space-y-4 mt-4">

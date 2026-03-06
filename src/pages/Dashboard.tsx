@@ -569,7 +569,7 @@ export default function Dashboard() {
         {/* ═══════════════════════════════════════
            COACHING CARD — Laetitia or Discovery
            ═══════════════════════════════════════ */}
-        {isPilot ? (
+        {isBinome ? (
           <LaetitiaCoachingCard animationDelay={nextDelay()} />
         ) : (
           <DiscoveryCoachingCard animationDelay={nextDelay()} />
