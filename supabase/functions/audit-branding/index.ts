@@ -304,6 +304,7 @@ RETOURNE UNIQUEMENT un objet JSON valide avec cette structure exacte :
   "plan_action_recommande": [
     {"priorite": 1, "action": "...", "module": "branding", "temps_estime": "30 min", "conseil": "Conseil court pour cette action."}
   ],
+  "extraction_branding_note": "Si branding_outil existe, beaucoup de ces champs sont déjà remplis. Mets confidence='already_set' pour ceux-là.",
   "extraction_branding": {
     "positioning": {"value": "...", "confidence": "high"},
     "mission": {"value": "...", "confidence": "medium"},
