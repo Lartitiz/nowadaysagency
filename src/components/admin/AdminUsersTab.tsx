@@ -32,14 +32,13 @@ interface UserRow {
 
 type SortKey = "prenom" | "email" | "plan" | "branding_score" | "ai_usage_count" | "last_sign_in" | "created_at";
 
-const PLAN_FILTERS = ["all", "free", "outil", "pro", "now_pilot"] as const;
-const PLAN_LABELS: Record<string, string> = { all: "Toutes", free: "Free", outil: "Assistant Com'", pro: "Pro", now_pilot: "Binôme" };
+const PLAN_FILTERS = ["all", "free", "outil", "pro", "binome"] as const;
+const PLAN_LABELS: Record<string, string> = { all: "Toutes", free: "Free", outil: "Assistant Com'", pro: "Pro", binome: "Binôme" };
 
 function planBadge(plan: string) {
   switch (plan) {
-    case "now_pilot": return <Badge className="bg-pink-500/15 text-pink-600 border-0 text-xs">Binôme</Badge>;
+    case "binome": return <Badge className="bg-pink-500/15 text-pink-600 border-0 text-xs">Binôme</Badge>;
     case "outil": return <Badge className="bg-violet-500/15 text-violet-600 border-0 text-xs">Outil</Badge>;
-    case "studio": return <Badge className="bg-amber-500/15 text-amber-600 border-0 text-xs">Binôme</Badge>;
     default: return <Badge variant="secondary" className="text-xs">Free</Badge>;
   }
 }
@@ -249,7 +248,7 @@ export default function AdminUsersTab() {
         </div>
         <span className="text-sm text-muted-foreground whitespace-nowrap">{filtered.length} utilisatrice{filtered.length > 1 ? "s" : ""}</span>
         <Button variant="outline" size="sm" onClick={() => {
-          const PLAN_CSV: Record<string, string> = { free: "Free", outil: "Assistant Com'", studio: "Binôme de com'", now_pilot: "Binôme de com'", pro: "Pro" };
+          const PLAN_CSV: Record<string, string> = { free: "Free", outil: "Assistant Com'", binome: "Binôme de com'", pro: "Pro" };
           const header = "email;prenom;plan;activite;date_inscription;derniere_connexion";
           const rows = filtered.map((u) => {
             const di = u.created_at ? u.created_at.slice(0, 10) : "";

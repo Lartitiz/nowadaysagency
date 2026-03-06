@@ -63,12 +63,12 @@ interface EmailSend {
 
 // ── Helpers ──
 
-const PLAN_FILTERS = ["all", "free", "outil", "pro", "now_pilot"] as const;
-const PLAN_LABELS: Record<string, string> = { all: "Toutes", free: "Free", outil: "Assistant Com'", pro: "Pro", now_pilot: "Binôme" };
+const PLAN_FILTERS = ["all", "free", "outil", "pro", "binome"] as const;
+const PLAN_LABELS: Record<string, string> = { all: "Toutes", free: "Free", outil: "Assistant Com'", pro: "Pro", binome: "Binôme" };
 
 function planBadge(plan: string) {
   switch (plan) {
-    case "now_pilot": return <Badge className="bg-pink-500/15 text-pink-600 border-0 text-xs">Binôme</Badge>;
+    case "binome": return <Badge className="bg-pink-500/15 text-pink-600 border-0 text-xs">Binôme</Badge>;
     case "outil": return <Badge className="bg-violet-500/15 text-violet-600 border-0 text-xs">Outil</Badge>;
     default: return <Badge variant="secondary" className="text-xs">Free</Badge>;
   }

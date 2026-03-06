@@ -19,7 +19,7 @@ import {
 /* ── Constants ── */
 
 const PLAN_LABELS: Record<string, string> = {
-  free: "Gratuit", outil: "Assistant Com'", studio: "Binôme", now_pilot: "Binôme", pro: "Pro",
+  free: "Gratuit", outil: "Assistant Com'", binome: "Binôme", pro: "Pro",
 };
 
 const PIE_COLORS = ["#fb3d80", "#8B5CF6", "#F59E0B", "#3B82F6", "#10B981", "#6366F1", "#EC4899"];
@@ -206,7 +206,7 @@ function OverviewSection({ stats }: { stats: StatsData }) {
     .map(([plan, count]) => ({ plan, count, label: PLAN_LABELS[plan] || plan }));
 
   const PLAN_COLORS: Record<string, string> = {
-    free: "#9CA3AF", outil: "#8B5CF6", studio: "#F59E0B", now_pilot: "#fb3d80", pro: "#3B82F6",
+    free: "#9CA3AF", outil: "#8B5CF6", binome: "#fb3d80", pro: "#3B82F6",
   };
 
   const maxFeature = Math.max(...stats.top_features.map(f => f.count), 1);
@@ -303,7 +303,7 @@ function OverviewSection({ stats }: { stats: StatsData }) {
 
 function BusinessSection({ stats }: { stats: StatsData }) {
   const PLAN_COLORS: Record<string, string> = {
-    free: "#9CA3AF", outil: "#8B5CF6", studio: "#F59E0B", now_pilot: "#fb3d80", pro: "#3B82F6",
+    free: "#9CA3AF", outil: "#8B5CF6", binome: "#fb3d80", pro: "#3B82F6",
   };
 
   const revenueData = Object.entries(stats.revenue_by_plan || {})
@@ -355,7 +355,7 @@ function BusinessSection({ stats }: { stats: StatsData }) {
 
 function EngagementSection({ stats }: { stats: StatsData }) {
   const PLAN_COLORS: Record<string, string> = {
-    free: "#9CA3AF", outil: "#8B5CF6", studio: "#F59E0B", now_pilot: "#fb3d80", pro: "#3B82F6",
+    free: "#9CA3AF", outil: "#8B5CF6", binome: "#fb3d80", pro: "#3B82F6",
   };
 
   const aiDayData = (stats.ai_by_day || []).map(d => ({
