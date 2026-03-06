@@ -287,7 +287,7 @@ export default function Dashboard() {
         .maybeSingle();
       return prog?.current_month ?? null;
     },
-    enabled: (!!user && isPilot) || (isDemoMode && !!demoData?.coaching),
+    enabled: (!!user && isBinome) || (isDemoMode && !!demoData?.coaching),
   });
 
   const comingSoonChannels = useMemo(() => ALL_CHANNELS.filter(c => c.comingSoon && channels.includes(c.id)), [channels]);
