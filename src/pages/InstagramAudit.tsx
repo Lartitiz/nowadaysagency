@@ -180,6 +180,18 @@ export default function InstagramAudit() {
       }
 
 
+      // 4. Convert profile screenshots to base64 for vision (max 3, needed by Anthropic API)
+      const screenshotBase64: { data: string; media_type: string }[] = [];
+      for (const f of form.profileScreenshots.slice(0, 3)) {
+        const base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.readAsDataURL(f);
+        });
+        const mediaType = f.type === "image/png" ? "image/png" : "image/jpeg";
+        screenshotBase64.push({ data: base64, media_type: mediaType });
+      }
+
       // 5. Call AI audit
       const allScreenshots = [
         ...screenshotUrls,
@@ -192,7 +204,7 @@ export default function InstagramAudit() {
           type: "instagram-audit",
           profile: {},
           screenshots: allScreenshots.length ? allScreenshots : undefined,
-          screenshotImageUrls: screenshotUrls.length ? screenshotUrls : undefined,
+          screenshotImages: screenshotBase64.length ? screenshotBase64 : undefined,
           auditTextData: {
             displayName: form.displayName,
             username: form.username,
