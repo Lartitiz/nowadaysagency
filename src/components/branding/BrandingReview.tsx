@@ -433,6 +433,15 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
   const [showConfetti, setShowConfetti] = useState(false);
   const [coachingSection, setCoachingSection] = useState<SectionKey | null>(null);
   const [refinedSections, setRefinedSections] = useState<Set<SectionKey>>(new Set());
+
+  // Editable offers state
+  const [editedOffers, setEditedOffers] = useState<OfferItem[]>(() => analysis.offers?.offers ? [...analysis.offers.offers] : []);
+  const handleOfferUpdate = useCallback((index: number, offer: OfferItem) => {
+    setEditedOffers(prev => prev.map((o, i) => i === index ? offer : o));
+  }, []);
+  const handleOfferDelete = useCallback((index: number) => {
+    setEditedOffers(prev => prev.filter((_, i) => i !== index));
+  }, []);
   
   // Instagram bio fallback
   const instagramFailed = sourcesFailed.includes("instagram") || (analysis.sources_failed || []).includes("instagram");
