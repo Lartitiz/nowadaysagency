@@ -154,9 +154,27 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
         </div>
       )}
 
+      {/* ── Mode toggle ── */}
+      <div className="flex rounded-full border border-border overflow-hidden mb-6">
+        <button
+          onClick={() => setRapidMode(true)}
+          className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${rapidMode ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+        >
+          ⚡ Rapide
+        </button>
+        <button
+          onClick={() => setRapidMode(false)}
+          className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${!rapidMode ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+        >
+          🔬 Complet
+        </button>
+      </div>
+
       <div className="rounded-2xl border border-border bg-card p-5">
         <p className="text-sm text-muted-foreground mb-1">
-          Remplis les infos de ton profil. Plus c'est précis, plus l'audit sera pertinent.
+          {rapidMode
+            ? "Mode rapide : bio + captures suffisent pour un premier audit. Tu pourras refaire un audit complet ensuite."
+            : "Remplis les infos de ton profil. Plus c'est précis, plus l'audit sera pertinent."}
           <br />
           <strong>Ces infos alimentent TOUT l'outil</strong> (bio, contenu, stratégie).
         </p>
