@@ -691,7 +691,7 @@ Reponds en JSON :
 
       } else if (type === "instagram-pinned") {
         // SECTION 1 + SECTION 4 (CTA éthiques pour les posts)
-        systemPrompt = `${CORE_PRINCIPLES}\n\n${WRITING_RESOURCES}\n\n${brandingContext}\n\nGénère 3 posts épinglés stratégiques :\n\nPOST 1 : MON HISTOIRE - Basé sur le storytelling, crée un lien émotionnel. (Framework BAB/Storytelling)\nPOST 2 : MON OFFRE - Basé sur la proposition de valeur, donne envie. (Framework PASTOR/AIDA éthique)\nPOST 3 : PREUVE SOCIALE - Témoignage ou résultats concrets. (Framework avant/après)\n\nPour chaque post : accroche forte (125 premiers caractères) + contenu complet avec bucket brigades + CTA éthique + format + objectif.\n\nRéponds en JSON :\n{"post_histoire": {"accroche": "...", "contenu": "...", "format": "...", "objectif": "..."}, "post_offre": {...}, "post_preuve": {...}}`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${WRITING_RESOURCES}\n\n${fullContext}\n\nGénère 3 posts épinglés stratégiques :\n\nPOST 1 : MON HISTOIRE - Basé sur le storytelling, crée un lien émotionnel. (Framework BAB/Storytelling)\nPOST 2 : MON OFFRE - Basé sur la proposition de valeur, donne envie. (Framework PASTOR/AIDA éthique)\nPOST 3 : PREUVE SOCIALE - Témoignage ou résultats concrets. (Framework avant/après)\n\nPour chaque post : accroche forte (125 premiers caractères) + contenu complet avec bucket brigades + CTA éthique + format + objectif.\n\nRéponds en JSON :\n{"post_histoire": {"accroche": "...", "contenu": "...", "format": "...", "objectif": "..."}, "post_offre": {...}, "post_preuve": {...}}`;
         userPrompt = "Génère mes 3 posts épinglés stratégiques.";
 
       } else if (type === "instagram-edito") {
