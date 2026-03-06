@@ -86,6 +86,7 @@ export default function LinkedInPostGenerator() {
   const { canGenerate, remainingTotal } = useUserPlan();
   const quotaBlocked = !canGenerate("content");
   const [result, setResult] = useState<PostResult | null>(null);
+  const [autoGenTriggered, setAutoGenTriggered] = useState(false);
   const [copied, setCopied] = useState(false);
   const [suggestedTemplate, setSuggestedTemplate] = useState<{ id: string; reason: string } | null>(null);
   const [suggestingTemplate, setSuggestingTemplate] = useState(false);
