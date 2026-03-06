@@ -89,6 +89,7 @@ const LegalAiPage = lazy(() => import("./pages/LegalAiPage"));
 const MentionsLegalesPage = lazy(() => import("./pages/MentionsLegalesPage"));
 const ConfidentialitePage = lazy(() => import("./pages/ConfidentialitePage"));
 const CguCgvPage = lazy(() => import("./pages/CguCgvPage"));
+const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage"));
 const PaymentSuccessPage = lazy(() => import("./pages/PaymentSuccessPage"));
 
 const PricingPage = lazy(() => import("./pages/PricingPage"));
