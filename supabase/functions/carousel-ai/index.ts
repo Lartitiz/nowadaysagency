@@ -317,6 +317,8 @@ Les captions de carrousels ne sont PAS des listes de phrases sur des lignes sép
 
 ${CHAIN_OF_THOUGHT}
 
+${DEPTH_LAYER}
+
 ANTI-BIAIS — TU NE REPRODUIS JAMAIS :
 - Ton paternaliste → Permission : "Tu as le droit de prendre de la place"
 - Clichés genrés → Parler de compétences, pas de genre
