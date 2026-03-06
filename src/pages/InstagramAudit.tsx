@@ -189,6 +189,13 @@ export default function InstagramAudit() {
         },
       });
 
+      // Check for quota limit
+      if (res.data?.error === "limit_reached") {
+        toast({ title: "Tu as utilisé tes audits ce mois-ci 🌸", description: res.data.message || "Ils se renouvellent le 1er du mois, ou tu peux passer au Premium pour plus d'audits.", variant: "default" });
+        setAnalyzing(false);
+        return;
+      }
+
       if (res.error) throw new Error(res.error.message);
 
       let parsed: any;
