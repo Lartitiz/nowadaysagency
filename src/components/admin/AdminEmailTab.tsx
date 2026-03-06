@@ -334,6 +334,7 @@ function SequencesView() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [steps, setSteps] = useState<SequenceStep[]>([]);
   const [loadingSteps, setLoadingSteps] = useState(false);
+  const [triggerLoading, setTriggerLoading] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -370,6 +371,25 @@ function SequencesView() {
       setSteps([]);
     }
     setLoadingSteps(false);
+  }
+
+  async function handleTrigger(event: string) {
+    setTriggerLoading(event);
+    try {
+      const res = await supabase.functions.invoke("email-trigger", { body: { event } });
+      if (res.error) throw new Error(res.error.message || "Erreur inconnue");
+      const d = res.data || {};
+      if (event === "process_queue") {
+        toast.success(`File traitée : ${d.sent ?? 0} envoyés, ${d.errors ?? 0} erreurs`);
+      } else if (event === "check_inactive") {
+        toast.success(`${d.checked ?? 0} vérifiés, ${d.triggered ?? 0} séquences déclenchées`);
+      } else if (event === "check_credits") {
+        toast.success(`${d.checked ?? 0} vérifiés, ${d.triggered ?? 0} séquences déclenchées`);
+      }
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message || "Erreur inconnue"));
+    }
+    setTriggerLoading(null);
   }
 
   const TRIGGER_LABELS: Record<string, string> = {
@@ -431,6 +451,22 @@ function SequencesView() {
           )}
         </div>
       ))}
+
+      <div className="bg-muted/30 border rounded-xl p-4 mt-6">
+        <h3 className="text-sm font-semibold">🔧 Triggers automatiques</h3>
+        <p className="text-xs text-muted-foreground mt-1">Lance manuellement les vérifications. En production, ces actions sont exécutées automatiquement par des cron jobs.</p>
+        <div className="flex flex-wrap gap-2 mt-3">
+          <Button variant="outline" size="sm" className="gap-1.5" disabled={!!triggerLoading} onClick={() => handleTrigger("process_queue")}>
+            {triggerLoading === "process_queue" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "📬"} Traiter la file d'attente
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5" disabled={!!triggerLoading} onClick={() => handleTrigger("check_inactive")}>
+            {triggerLoading === "check_inactive" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "😴"} Vérifier inactivité
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5" disabled={!!triggerLoading} onClick={() => handleTrigger("check_credits")}>
+            {triggerLoading === "check_credits" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "💳"} Vérifier crédits
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
