@@ -138,8 +138,8 @@ function AppHeaderInner() {
               signOut={signOut}
               navigate={navigate}
               isAdmin={isAdmin}
-              hasCoaching={hasCoaching || isPilot}
-              isPilot={isPilot}
+              hasCoaching={hasCoaching || isBinome}
+              isBinome={isBinome}
               coachingMonth={coachingMonth}
               coachingPhase={coachingPhase}
               onDemoClick={handleDemoClick}
