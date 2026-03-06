@@ -175,14 +175,32 @@ function InscritesView() {
     if (!recipients.length || !emailSubject.trim()) return;
     setSending(true);
 
+    // Helper: resolve template variables
+    function resolveVariables(html: string, subject: string, user: UserRow) {
+      const vars: Record<string, string> = {
+        prenom: user.prenom || "",
+        email: user.email || "",
+        app_url: "https://nowadaysagency.lovable.app",
+      };
+
+      let resolvedHtml = html;
+      let resolvedSubject = subject;
+      for (const [key, value] of Object.entries(vars)) {
+        resolvedHtml = resolvedHtml.split(`{{${key}}}`).join(value);
+        resolvedSubject = resolvedSubject.split(`{{${key}}}`).join(value);
+      }
+      return { html: resolvedHtml, subject: resolvedSubject };
+    }
+
     let successCount = 0;
     for (const r of recipients) {
       try {
+        const resolved = resolveVariables(emailBody || `<p>${emailSubject}</p>`, emailSubject, r);
         const res = await supabase.functions.invoke("send-email", {
           body: {
             to: r.email,
-            subject: emailSubject,
-            html: emailBody || `<p>${emailSubject}</p>`,
+            subject: resolved.subject,
+            html: resolved.html,
             user_id: r.user_id,
             template_id: selectedTemplateId !== "libre" ? selectedTemplateId : undefined,
           },
