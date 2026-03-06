@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Sparkles, Copy, RefreshCw, Loader2, MoreHorizontal, CheckCircle2 } from "lucide-react";
+import { Sparkles, Copy, Loader2, MoreHorizontal, CheckCircle2 } from "lucide-react";
 import type { CalendarPost } from "@/lib/calendar-constants";
 
 interface Props {
