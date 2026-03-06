@@ -248,7 +248,7 @@ export default function AdminUsersTab() {
         </div>
         <span className="text-sm text-muted-foreground whitespace-nowrap">{filtered.length} utilisatrice{filtered.length > 1 ? "s" : ""}</span>
         <Button variant="outline" size="sm" onClick={() => {
-          const PLAN_CSV: Record<string, string> = { free: "Free", outil: "Assistant Com'", studio: "Binôme de com'", now_pilot: "Binôme de com'", pro: "Pro" };
+          const PLAN_CSV: Record<string, string> = { free: "Free", outil: "Assistant Com'", binome: "Binôme de com'", pro: "Pro" };
           const header = "email;prenom;plan;activite;date_inscription;derniere_connexion";
           const rows = filtered.map((u) => {
             const di = u.created_at ? u.created_at.slice(0, 10) : "";
