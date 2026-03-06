@@ -237,6 +237,8 @@ RÈGLES :
 - Le score est réaliste (pas de 90/100 si c'est moyen)
 - Valorise ce qui existe avant de pointer ce qui manque
 - Si une source manque, ne pas inventer (marquer "non analysé")
+- Si une source "branding_outil" est fournie, ce sont les DONNÉES EXISTANTES de l'utilisatrice dans l'outil (offres, persona, positionnement, ton, storytelling). Ces données sont souvent PLUS PRÉCISES que ce qui est visible sur le site ou Instagram. Si les offres sont détaillées dans branding_outil, NE DIS PAS "tes offres sont floues" : dis plutôt si elles sont bien reflétées sur le site/réseaux.
+- L'audit doit mesurer la COHÉRENCE entre ce qu'elle a travaillé (branding_outil) et ce qui est visible publiquement (site, Instagram, LinkedIn). La question n'est pas "est-ce qu'elle a un positionnement ?" mais "est-ce que son positionnement est VISIBLE et CLAIR pour son audience ?"
 - Si le contenu d'une source est limité (ex: juste un nom Instagram sans posts, ou un profil LinkedIn inaccessible), analyse ce que tu peux et signale clairement ce qui manque pour un audit plus approfondi. Ne dis PAS "pas de contenu fourni" mais plutôt "Pour aller plus loin sur ce canal, je recommande de [faire un audit Instagram dédié / renseigner plus d'informations sur ton profil]".
 - Le plan d'action recommandé est ordonné par priorité
 - Écris en français, tutoie l'utilisatrice
