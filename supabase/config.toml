@@ -164,3 +164,6 @@ verify_jwt = false
 
 [functions.email-trigger]
 verify_jwt = false
+
+[functions.resend-webhook]
+verify_jwt = false

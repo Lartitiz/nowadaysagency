@@ -528,10 +528,16 @@ function HistoriqueView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1.5">
-        {["all", "sent", "failed"].map(s => (
-          <button key={s} onClick={() => { setStatusFilter(s); setPage(0); }} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${statusFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-            {s === "all" ? "Tous" : s === "sent" ? "✅ Envoyés" : "❌ Échoués"}
+      <div className="flex gap-1.5 flex-wrap">
+        {[
+          { key: "all", label: "Tous" },
+          { key: "sent", label: "📤 Envoyés" },
+          { key: "opened", label: "👁 Ouverts" },
+          { key: "clicked", label: "🔗 Cliqués" },
+          { key: "failed", label: "❌ Échoués" },
+        ].map(s => (
+          <button key={s.key} onClick={() => { setStatusFilter(s.key); setPage(0); }} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${statusFilter === s.key ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+            {s.label}
           </button>
         ))}
       </div>
@@ -558,9 +564,13 @@ function HistoriqueView() {
                     <td className="py-2.5 px-3 text-xs max-w-[200px] truncate">{s.to_email}</td>
                     <td className="py-2.5 px-3 text-xs max-w-[250px] truncate">{s.subject}</td>
                     <td className="py-2.5 px-3">
-                      <Badge variant={s.status === "sent" ? "default" : "destructive"} className="text-xs">
-                        {s.status === "sent" ? "✅ Envoyé" : "❌ Échoué"}
-                      </Badge>
+                      {s.status === "sent" && <Badge variant="secondary" className="text-xs">📤 Envoyé</Badge>}
+                      {s.status === "opened" && <Badge className="bg-blue-500/15 text-blue-600 border-0 text-xs">👁 Ouvert</Badge>}
+                      {s.status === "clicked" && <Badge className="bg-green-500/15 text-green-600 border-0 text-xs">🔗 Cliqué</Badge>}
+                      {s.status === "bounced" && <Badge className="bg-orange-500/15 text-orange-600 border-0 text-xs">⚠️ Bounced</Badge>}
+                      {s.status === "complained" && <Badge className="bg-red-500/15 text-red-600 border-0 text-xs">🚫 Spam</Badge>}
+                      {s.status === "failed" && <Badge variant="destructive" className="text-xs">❌ Échoué</Badge>}
+                      {s.status === "skipped" && <Badge variant="outline" className="text-xs">⏭ Ignoré</Badge>}
                     </td>
                     <td className="py-2.5 px-3 text-xs text-muted-foreground">{s.sent_at ? formatShortDate(s.sent_at) : "—"}</td>
                   </tr>
