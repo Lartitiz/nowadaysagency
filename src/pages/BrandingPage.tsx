@@ -250,13 +250,26 @@ export default function BrandingPage() {
         .maybeSingle();
 
       if (pendingAutofill?.analysis_result) {
-        setAnalysisResult(pendingAutofill.analysis_result as AnalysisResult);
-        setImportPhaseNew("reviewing");
-        setReanalyzeUrls({
-          website: pendingAutofill.website_url || "",
-          instagram: pendingAutofill.instagram_handle || "",
-          linkedin: pendingAutofill.linkedin_url || "",
-        });
+        // If most sections are already filled, auto-complete the pending review
+        // instead of forcing the user back into the review screen
+        const filledCount = Object.values(sectionCompletion).filter((v: any) => v > 0).length;
+        if (filledCount >= 5) {
+          // Silently mark as completed — user already has their branding
+          await (supabase.from("branding_autofill") as any)
+            .update({ autofill_status: "completed", autofill_pending_review: false })
+            .eq(column, value)
+            .eq("autofill_status", "pending_review");
+          localStorage.setItem(`branding_skip_import_${value}`, "true");
+          setSkipImport(true);
+        } else {
+          setAnalysisResult(pendingAutofill.analysis_result as AnalysisResult);
+          setImportPhaseNew("reviewing");
+          setReanalyzeUrls({
+            website: pendingAutofill.website_url || "",
+            instagram: pendingAutofill.instagram_handle || "",
+            linkedin: pendingAutofill.linkedin_url || "",
+          });
+        }
       }
 
       setLoading(false);
