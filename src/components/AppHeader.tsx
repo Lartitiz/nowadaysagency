@@ -336,7 +336,7 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">Plan : {planLabel}</p>
-          {isPilot && coachingMonth && (
+          {isBinome && coachingMonth && (
             <p className="text-xs text-muted-foreground">Phase : {coachingPhase === "strategy" ? "Stratégie" : "Binôme"} · Mois {coachingMonth}/6</p>
           )}
           <button
