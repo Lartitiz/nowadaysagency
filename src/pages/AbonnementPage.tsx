@@ -160,11 +160,13 @@ export default function AbonnementPage() {
                 <p className="text-xs text-muted-foreground">Prochain renouvellement : {new Date(subInfo.current_period_end).toLocaleDateString("fr-FR")}</p>
               )}
               {isPaid && subInfo?.source !== "promo" && (
-                <Button size="sm" variant="outline" className="rounded-full mt-2 gap-1.5" onClick={handlePortal} disabled={portalLoading}>
-                  {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Gérer mon abonnement
-                </Button>
-                <p className="text-xs text-muted-foreground mt-1">Modifier ta carte, voir tes factures, ou annuler.</p>
+                <div>
+                  <Button size="sm" variant="outline" className="rounded-full mt-2 gap-1.5" onClick={handlePortal} disabled={portalLoading}>
+                    {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Gérer mon abonnement
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">Modifier ta carte, voir tes factures, ou annuler.</p>
+                </div>
               )}
             </div>
           )}
