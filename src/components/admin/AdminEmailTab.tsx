@@ -513,6 +513,23 @@ function HistoriqueView() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 20;
+  const [stats, setStats] = useState({ sent: 0, opened: 0, clicked: 0, failed: 0 });
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("email_sends").select("status");
+      if (data) {
+        const s = { sent: 0, opened: 0, clicked: 0, failed: 0 };
+        for (const r of data) {
+          if (["sent", "opened", "clicked"].includes(r.status)) s.sent++;
+          if (["opened", "clicked"].includes(r.status)) s.opened++;
+          if (r.status === "clicked") s.clicked++;
+          if (["failed", "bounced"].includes(r.status)) s.failed++;
+        }
+        setStats(s);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -526,8 +543,29 @@ function HistoriqueView() {
     load();
   }, [page, statusFilter]);
 
+  const openRate = stats.sent > 0 ? Math.round((stats.opened / stats.sent) * 100) : 0;
+  const clickRate = stats.opened > 0 ? Math.round((stats.clicked / stats.opened) * 100) : 0;
+
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <div className="bg-card border rounded-xl p-3 text-center">
+          <div className="text-2xl font-bold text-foreground">{stats.sent}</div>
+          <div className="text-xs text-muted-foreground">Total envoyés</div>
+        </div>
+        <div className="bg-card border rounded-xl p-3 text-center">
+          <div className="text-2xl font-bold text-blue-600">{stats.opened}</div>
+          <div className="text-xs text-muted-foreground">Ouverts ({openRate}%)</div>
+        </div>
+        <div className="bg-card border rounded-xl p-3 text-center">
+          <div className="text-2xl font-bold text-green-600">{stats.clicked}</div>
+          <div className="text-xs text-muted-foreground">Cliqués ({clickRate}%)</div>
+        </div>
+        <div className="bg-card border rounded-xl p-3 text-center">
+          <div className="text-2xl font-bold text-red-500">{stats.failed}</div>
+          <div className="text-xs text-muted-foreground">Échoués</div>
+        </div>
+      </div>
       <div className="flex gap-1.5 flex-wrap">
         {[
           { key: "all", label: "Tous" },
