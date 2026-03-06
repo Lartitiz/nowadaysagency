@@ -1110,6 +1110,10 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "photo_integrated_count": 2,
     "text_only_count": 3,
     "all_photos_used": true,
+    "narrative_arc": true,
+    "slides_connected": true,
+    "subject_concept_used": true,
+    "text_slides_min_30_words": true,
     "score": 85
   }
 }`;
