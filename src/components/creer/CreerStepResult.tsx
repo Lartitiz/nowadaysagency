@@ -67,6 +67,16 @@ const PROGRESS_MESSAGES: Record<string, string[]> = {
   ],
 };
 
+const VISUAL_PROGRESS_MESSAGES = [
+  "Analyse de ta charte graphique…",
+  "Création du layout de chaque slide…",
+  "Application des couleurs et typos…",
+  "Ajout des éléments décoratifs…",
+  "Rendu des schémas visuels…",
+  "Peaufinage des détails…",
+  "Presque fini…",
+];
+
 const TIPS = [
   "💡 Un bon hook = une promesse. Pas un clickbait.",
   "💡 L'algorithme favorise les contenus sauvegardés. Éducatif = jackpot.",
