@@ -205,6 +205,7 @@ Réponds UNIQUEMENT avec le JSON.`;
     if (type === "daily") {
       const systemPrompt = buildDailyPrompt(STORIES_PREFIX);
       const response = await callAnthropicSimple(getModelForAction("stories"), systemPrompt, "Génère mes 5 stories du quotidien.");
+      await logUsage(user.id, "content", "stories");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
