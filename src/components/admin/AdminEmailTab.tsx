@@ -186,8 +186,8 @@ function InscritesView() {
       let resolvedHtml = html;
       let resolvedSubject = subject;
       for (const [key, value] of Object.entries(vars)) {
-        resolvedHtml = resolvedHtml.replaceAll(`{{${key}}}`, value);
-        resolvedSubject = resolvedSubject.replaceAll(`{{${key}}}`, value);
+        resolvedHtml = resolvedHtml.split(`{{${key}}}`).join(value);
+        resolvedSubject = resolvedSubject.split(`{{${key}}}`).join(value);
       }
       return { html: resolvedHtml, subject: resolvedSubject };
     }
