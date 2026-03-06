@@ -199,11 +199,8 @@ export default function InstagramAudit() {
         ...worstPostUrls.map(url => url),
       ];
 
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await supabase.functions.invoke("audit-instagram-ai", {
         body: {
-          type: "instagram-audit",
-          profile: {},
-          screenshots: allScreenshots.length ? allScreenshots : undefined,
           screenshotImages: screenshotBase64.length ? screenshotBase64 : undefined,
           auditTextData: {
             displayName: form.displayName,
@@ -224,6 +221,7 @@ export default function InstagramAudit() {
             bestPostsComment: form.bestPostsComment || null,
             worstPostsComment: form.worstPostsComment || null,
           },
+          workspace_id: workspaceId,
         },
       });
 
