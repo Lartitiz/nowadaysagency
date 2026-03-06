@@ -122,6 +122,9 @@ export default function AdminCoachingPage() {
               <TabsTrigger value="emails">✉️ Emails</TabsTrigger>
               <TabsTrigger value="stats">📊 Stats</TabsTrigger>
               <TabsTrigger value="feedback">🐛 Feedback</TabsTrigger>
+              <TabsTrigger value="tools" onClick={() => navigate("/admin/tools")} className="text-xs">
+                🔧 Outils
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="clientes">
               <CoachingProgramList
