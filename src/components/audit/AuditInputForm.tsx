@@ -205,13 +205,16 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
         </div>
       </section>
 
-      {/* ── Lien ── */}
+      {/* ── Lien (complet only) ── */}
+      {!rapidMode && (
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">🔗 TON LIEN</h3>
         <Input value={form.bioLink} onChange={(e) => set("bioLink", e.target.value)} placeholder="https://linktr.ee/toncompte" />
       </section>
+      )}
 
-      {/* ── Photo de profil ── */}
+      {/* ── Photo de profil (complet only) ── */}
+      {!rapidMode && (
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">📸 TA PHOTO DE PROFIL</h3>
         <div className="flex items-start gap-4">
