@@ -269,7 +269,7 @@ export default function AppSidebar() {
                 <Film size={16} />
                 🎬 Mode démo
               </button>
-              <Link to="/admin/clients" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+              <Link to="/admin/coaching" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
                 <GraduationCap size={16} />
                 🎓 Mes client·es
               </Link>
