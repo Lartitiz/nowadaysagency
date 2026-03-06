@@ -93,6 +93,7 @@ export default function BrandingPage() {
   const [importAnalyzing, setImportAnalyzing] = useState(false);
   const [forceImport, setForceImport] = useState(false);
   const [lastAudit, setLastAudit] = useState<any>(null);
+  const [auditSuggestions, setAuditSuggestions] = useState<Record<string, string>>({});
   const [importPhaseNew, setImportPhaseNew] = useState<"form" | "analyzing" | "error" | "reviewing">("form");
   const [analysisSources, setAnalysisSources] = useState<{ website?: string; instagram?: string; linkedin?: string; hasDocuments?: boolean }>({});
   const [analysisError, setAnalysisError] = useState<string | null>(null);
