@@ -88,12 +88,13 @@ serve(async (req) => {
     const body = validateInput(rawBody, GenerateContentSchema);
     const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt, workspace_id } = body;
 
-    // Check plan limits — use "audit" category for audit types, "generation" otherwise
+    // Check plan limits — use "audit" category for audit types, "content" otherwise
     const isAuditType = type === "instagram-audit" || type === "bio-audit";
-    const usageCheck = await checkAndIncrementUsage(supabase, user.id, isAuditType ? "audit" : "generation");
-    if (!usageCheck.allowed) {
+    const usageCategory = isAuditType ? "audit" : "content";
+    const quotaCheck = await checkQuota(user.id, usageCategory, workspace_id);
+    if (!quotaCheck.allowed) {
       return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
+        JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0 }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
