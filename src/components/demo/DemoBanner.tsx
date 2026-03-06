@@ -31,8 +31,8 @@ export default function DemoBanner() {
           />
           <PlanTab
             label="Binôme"
-            active={demoPlan === "now_pilot"}
-            onClick={() => setDemoPlan("now_pilot")}
+            active={demoPlan === "binome"}
+            onClick={() => setDemoPlan("binome")}
           />
         </div>
 
