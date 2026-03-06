@@ -168,7 +168,7 @@ function SmartRedirect({ to, mergeParams }: { to: string; mergeParams?: Record<s
   return <Navigate to={qs ? `${basePath}?${qs}` : basePath} replace state={location.state} />;
 }
 
-const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilot", "/binome", "/pricing", "/services", "/studio/discover", "/share/branding", "/checkout/binome", "/unsubscribe"];
+const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilot", "/binome", "/pricing", "/services", "/share/branding", "/checkout/binome", "/unsubscribe"];
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -193,7 +193,7 @@ function AnimatedRoutes() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/connexion" element={<LoginPage />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/now-studio" element={<Navigate to="/studio/discover" replace />} />
+              <Route path="/now-studio" element={<Navigate to="/binome" replace />} />
               <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
               <Route path="/welcome" element={<ProtectedRoute><WelcomePage /></ProtectedRoute>} />
               <Route path="/dashboard" element={<ProtectedRoute><AdaptiveHome /></ProtectedRoute>} />
@@ -232,8 +232,7 @@ function AnimatedRoutes() {
               <Route path="/plan" element={<RedirectWithParams to="/calendrier" mergeParams={{ tab: "strategie" }} />} />
               <Route path="/mon-plan" element={<RedirectWithParams to="/calendrier" mergeParams={{ tab: "strategie" }} />} />
               <Route path="/pricing" element={<PricingPage />} />
-              <Route path="/studio" element={<ProtectedRoute><BinomeDashboard /></ProtectedRoute>} />
-              <Route path="/studio/discover" element={<Navigate to="/binome" replace />} />
+              <Route path="/studio" element={<Navigate to="/binome" replace />} />
               <Route path="/services" element={<ServicesPage />} />
               <Route path="/lives" element={<ProtectedRoute><LivesPage /></ProtectedRoute>} />
               <Route path="/communaute" element={<ProtectedRoute><CommunautePage /></ProtectedRoute>} />
