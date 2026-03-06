@@ -211,11 +211,9 @@ export default function CoachChat() {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-foreground text-[15px]">💬 Coach Com'</span>
-          {dailyLimit < 999 && (
-            <span className="text-xs text-muted-foreground">
-              {used}/{dailyLimit}
-            </span>
-          )}
+          <span className="text-xs text-muted-foreground">
+            {used} msg
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <button
