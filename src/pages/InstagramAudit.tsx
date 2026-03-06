@@ -54,6 +54,8 @@ export default function InstagramAudit() {
   const { data: editorialLineData } = useEditorialLine();
   const [liveScore, setLiveScore] = useState<number | null>(null);
   const [hasExistingAudit, setHasExistingAudit] = useState(false);
+  const [lastSubmitData, setLastSubmitData] = useState<AuditFormData | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   // Progressive loading messages during audit
   useEffect(() => {
