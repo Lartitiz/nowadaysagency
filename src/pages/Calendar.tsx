@@ -821,15 +821,17 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
                       💡
                     </button>
                   ) : (
-                    <div className="relative border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
+                    <div className="relative">
                       <button
                         onClick={() => setIdeasCollapsed(true)}
-                        className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-card border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        className="absolute -top-2 -right-2 z-10 w-7 h-7 rounded-full bg-destructive border border-destructive shadow-md flex items-center justify-center text-destructive-foreground hover:opacity-90 transition-colors"
                         title="Replier le panneau idées"
                       >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       </button>
-                      <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} />
+                      <div className="border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
+                        <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} />
+                      </div>
                     </div>
                   )}
                 </div>
