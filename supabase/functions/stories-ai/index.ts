@@ -97,6 +97,8 @@ Le texte de chaque story est court (2-4 lignes), mais ce sont des phrases COMPLÃ
 
 ${CHAIN_OF_THOUGHT}
 
+${DEPTH_LAYER}
+
 ${branding_context || ""}`;
     // Clarify subject (fuzzy path)
     if (type === "clarify_subject") {

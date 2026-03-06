@@ -222,7 +222,8 @@ La caption du Reel ne répète PAS le script et n'est PAS une série de phrases 
 
 ${CHAIN_OF_THOUGHT}
 
-ANTI-BIAIS — TU NE REPRODUIS JAMAIS :
+${DEPTH_LAYER}
+
 - Ton paternaliste envers les femmes entrepreneures → Permission : "Tu as le droit de prendre de la place"
 - Clichés genrés ("girl boss", "femmes inspirantes") → Parler de compétences, pas de genre
 - Minimisation de l'expertise ("c'est tout simple !") → "C'est pas sorcier, mais ça demande de la méthode"
