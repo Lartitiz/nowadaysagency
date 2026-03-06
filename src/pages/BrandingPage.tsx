@@ -252,7 +252,8 @@ export default function BrandingPage() {
       if (pendingAutofill?.analysis_result) {
         // If most sections are already filled, auto-complete the pending review
         // instead of forcing the user back into the review screen
-        const filledCount = Object.values(sectionCompletion).filter((v: any) => v > 0).length;
+        const filledCount = (["storytelling", "persona", "proposition", "tone", "strategy", "offers"] as const)
+          .filter((k) => comp[k] > 0).length;
         if (filledCount >= 5) {
           // Silently mark as completed — user already has their branding
           await (supabase.from("branding_autofill") as any)
