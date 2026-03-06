@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Sparkles, Copy, RefreshCw, Loader2, MoreHorizontal, CheckCircle2 } from "lucide-react";
+import { Sparkles, Copy, Loader2, MoreHorizontal, CheckCircle2 } from "lucide-react";
 import type { CalendarPost } from "@/lib/calendar-constants";
 
 interface Props {
@@ -80,56 +80,51 @@ export function CalendarPostContent({
     </div>
   );
 
-  const DeepenAndFormatActions = () => (
-    <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/50">
+  const VisualActions = () => {
+    const ssd = editingPost?.story_sequence_detail as any;
+    const hasStructuredContent = !!ssd;
+    const isCarousel = ssd?.type === "carousel" || ssd?.type === "carousel_photo" || ssd?.type === "carousel_mix";
+    const hasVisuals = mediaUrls && mediaUrls.length > 0;
+
+    if (!hasStructuredContent) return null;
+
+    return (
+      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/50">
         <Button
           variant="ghost"
           size="sm"
-          className="rounded-pill text-xs gap-1.5 text-primary hover:bg-primary/10"
-          onClick={onNavigateToDeepen}
+          onClick={() => onShowContentViewer?.()}
+          className="rounded-pill text-xs gap-1.5 text-foreground hover:bg-muted"
         >
-          <Sparkles className="h-3 w-3" /> Approfondir
-        </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="rounded-pill text-xs gap-1.5 text-muted-foreground hover:text-foreground">
-            <RefreshCw className="h-3 w-3" /> Changer de format
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          {postCanal === "instagram" && (
-            <>
-              <DropdownMenuItem onClick={() => onNavigateToFormat("carousel")}>📑 Transformer en carrousel</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onNavigateToFormat("reel")}>🎬 Transformer en reel</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onNavigateToFormat("story")}>📱 Transformer en stories</DropdownMenuItem>
-            </>
-          )}
-          {postCanal === "linkedin" && (
-            <DropdownMenuItem onClick={() => onNavigateToFormat("linkedin")}>📝 Transformer en post LinkedIn</DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={() => navigate("/transformer")}>🔄 Recycler (crosspost)</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {editingPost?.story_sequence_detail && (
-          <Button
-           variant="ghost"
-           size="sm"
-           onClick={() => onShowContentViewer?.()}
-          className="rounded-pill text-xs gap-1.5 text-muted-foreground hover:text-foreground"
-        >
-          👁️ {(editingPost.story_sequence_detail as any)?.type === "reel"
+          👁️ {ssd?.type === "reel"
             ? "Voir le script"
-            : (editingPost.story_sequence_detail as any)?.type === "stories"
+            : ssd?.type === "stories"
             ? "Voir la séquence"
-            : (editingPost.story_sequence_detail as any)?.type === "carousel"
-            ? "Voir les slides"
-            : (editingPost.story_sequence_detail as any)?.type === "carousel_photo"
-            ? "Voir les slides photo"
-            : "Voir le détail"}
+            : "Voir les slides"}
         </Button>
-      )}
-    </div>
-  );
+        {hasVisuals && (
+          <a
+            href={mediaUrls[0]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            📥 Télécharger les visuels
+          </a>
+        )}
+        {isCarousel && !hasVisuals && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onOpenAtelier}
+            className="rounded-pill text-xs gap-1.5 text-primary hover:bg-primary/10"
+          >
+            🎨 Générer les visuels
+          </Button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -195,11 +190,10 @@ export function CalendarPostContent({
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setIsEditing(true)}>✏️ Modifier</DropdownMenuItem>
                 <DropdownMenuItem onClick={onSmartGenerate}>🔄 Nouvelle version IA</DropdownMenuItem>
-                <DropdownMenuItem onClick={onOpenAtelier}>✨ Ouvrir dans l'atelier</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <DeepenAndFormatActions />
+          <VisualActions />
         </div>
 
       ) : hasContent ? (
@@ -207,9 +201,6 @@ export function CalendarPostContent({
           {contentEditableJsx}
           <ExpandCollapseButtons />
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="rounded-pill text-xs gap-1.5">
-              ✏️ Modifier
-            </Button>
             <Button variant="outline" size="sm" onClick={onCopy} className="rounded-pill text-xs gap-1.5">
               <Copy className="h-3 w-3" /> Copier
             </Button>
@@ -221,14 +212,13 @@ export function CalendarPostContent({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={onSmartGenerate}>🔄 Nouvelle version IA</DropdownMenuItem>
-                <DropdownMenuItem onClick={onOpenAtelier}>✨ Ouvrir dans l'atelier</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => { setContentDraft(null); setAccroche(null); }} className="text-destructive">
                   🗑️ Supprimer le contenu
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <DeepenAndFormatActions />
+          <VisualActions />
         </div>
 
       ) : (
