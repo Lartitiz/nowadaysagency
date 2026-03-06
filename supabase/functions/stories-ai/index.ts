@@ -40,8 +40,8 @@ serve(async (req) => {
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     // Check plan limits
-    const { checkAndIncrementUsage } = await import("../_shared/plan-limiter.ts");
-    const usageCheck = await checkAndIncrementUsage(supabase, user.id, "generation");
+    const { checkQuota, logUsage } = await import("../_shared/plan-limiter.ts");
+    const usageCheck = await checkQuota(user.id, "content");
     if (!usageCheck.allowed) {
       return new Response(
         JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
@@ -128,6 +128,7 @@ RETOURNE un JSON strict :
 }
 Réponds UNIQUEMENT avec le JSON.`;
       const response = await callAnthropicSimple(getModelForAction("stories"), systemPrompt, `Idée brute : "${body.raw_idea}"`);
+      await logUsage(user.id, "content", "stories");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -175,6 +176,7 @@ RETOURNE un JSON strict :
 Réponds UNIQUEMENT avec le JSON.`;
       const model = "claude-opus-4-6";
       const response = await callAnthropicSimple(model, BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Propose-moi 5 sujets de stories.");
+      await logUsage(user.id, "content", "stories");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -203,6 +205,7 @@ Réponds UNIQUEMENT avec le JSON.`;
     if (type === "daily") {
       const systemPrompt = buildDailyPrompt(STORIES_PREFIX);
       const response = await callAnthropicSimple(getModelForAction("stories"), systemPrompt, "Génère mes 5 stories du quotidien.");
+      await logUsage(user.id, "content", "stories");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -233,6 +236,7 @@ Réponds UNIQUEMENT avec le JSON.`;
     }
 
     const response = await callAnthropicSimple(model, systemPrompt, "Génère ma séquence stories.");
+    await logUsage(user.id, "content", "stories");
     return new Response(JSON.stringify({ content: response }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -6,7 +6,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock,
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-import { checkAndIncrementUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
@@ -44,7 +44,7 @@ serve(async (req) => {
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     // Check plan limits
-    const usageCheck = await checkAndIncrementUsage(supabase, user.id, "generation");
+    const usageCheck = await checkQuota(user.id, "content");
     if (!usageCheck.allowed) {
       return new Response(
         JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
@@ -710,7 +710,6 @@ Réponds UNIQUEMENT en JSON :
     // ── Deep Research (web search via Anthropic) ──
     if (deepResearch && step === "generate") {
       // Check deep_research quota
-      const { checkQuota, logUsage } = await import("../_shared/plan-limiter.ts");
       const drQuota = await checkQuota(user.id, "deep_research");
       if (!drQuota.allowed) {
         return new Response(
@@ -911,6 +910,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
       }
     }
 
+    await logUsage(user.id, "content", "creative_flow", undefined, undefined, workspace_id);
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("creative-flow error:", e);
