@@ -441,7 +441,7 @@ Réponds en JSON :
         userPrompt = "Rédige le post complet.";
 
       } else if (type === "instagram-audit") {
-        const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, successNotes: sn, failNotes: fn, profileUrl: pu, successPostsData, failPostsData, auditTextData: atd, screenshotImageUrls } = body;
+        const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, successNotes: sn, failNotes: fn, profileUrl: pu, successPostsData, failPostsData, auditTextData: atd, screenshotImages } = body;
 
         // Build structured post descriptions for AI
         let successPostsBlock = "";
