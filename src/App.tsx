@@ -232,8 +232,7 @@ function AnimatedRoutes() {
               <Route path="/plan" element={<RedirectWithParams to="/calendrier" mergeParams={{ tab: "strategie" }} />} />
               <Route path="/mon-plan" element={<RedirectWithParams to="/calendrier" mergeParams={{ tab: "strategie" }} />} />
               <Route path="/pricing" element={<PricingPage />} />
-              <Route path="/studio" element={<ProtectedRoute><BinomeDashboard /></ProtectedRoute>} />
-              <Route path="/studio/discover" element={<Navigate to="/binome" replace />} />
+              <Route path="/studio" element={<Navigate to="/binome" replace />} />
               <Route path="/services" element={<ServicesPage />} />
               <Route path="/lives" element={<ProtectedRoute><LivesPage /></ProtectedRoute>} />
               <Route path="/communaute" element={<ProtectedRoute><CommunautePage /></ProtectedRoute>} />
