@@ -203,6 +203,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const [selectedIdea, setSelectedIdea] = useState<SavedIdea | null>(null);
   const [ideaDetailOpen, setIdeaDetailOpen] = useState(false);
   const [coachingOpen, setCoachingOpen] = useState(false);
+  const [ideasCollapsed, setIdeasCollapsed] = useState(false);
 
   const { data: profileData } = useProfile();
   const ownerName = (profileData as any)?.prenom || "";
@@ -864,15 +865,36 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="flex gap-6">
-              {/* Calendar area (75%) */}
+              {/* Calendar area */}
               <div className="flex-1 min-w-0">
                 {calendarContent}
               </div>
 
-              {/* Sidebar (25%) */}
-              <div className="w-[280px] shrink-0">
-                <div className="sticky top-24 border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
-                  <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} />
+              {/* Ideas sidebar — collapsible */}
+              <div className={`shrink-0 transition-all duration-300 ${ideasCollapsed ? "w-10" : "w-[280px]"}`}>
+                <div className="sticky top-24">
+                  {ideasCollapsed ? (
+                    <button
+                      onClick={() => setIdeasCollapsed(false)}
+                      className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
+                      title="Afficher les idées"
+                    >
+                      💡
+                    </button>
+                  ) : (
+                    <div className="border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
+                      <div className="flex justify-end mb-1">
+                        <button
+                          onClick={() => setIdeasCollapsed(true)}
+                          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-xs"
+                          title="Replier"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

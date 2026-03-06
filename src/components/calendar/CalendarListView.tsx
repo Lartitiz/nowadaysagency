@@ -64,11 +64,12 @@ function InlineStatusSelect({ status, onChange }: { status: string; onChange: (s
 }
 
 /** Expandable draft section */
-function DraftSection({ post, editDraft, setEditDraft, onUpdateDraft }: {
+function DraftSection({ post, editDraft, setEditDraft, onUpdateDraft, onEditPost }: {
   post: CalendarPost;
   editDraft: string;
   setEditDraft: (v: string) => void;
   onUpdateDraft?: (postId: string, draft: string) => void;
+  onEditPost: (p: CalendarPost) => void;
 }) {
   return (
     <div className="px-4 py-3 bg-muted/20 border-b border-border">
@@ -88,6 +89,54 @@ function DraftSection({ post, editDraft, setEditDraft, onUpdateDraft }: {
           <p className="text-xs text-muted-foreground mt-0.5">{post.notes}</p>
         </div>
       )}
+      {/* Visuels */}
+      {(() => {
+        const mediaUrls = (post as any).media_urls;
+        const hasVisuals = mediaUrls && Array.isArray(mediaUrls) && mediaUrls.length > 0;
+        const hasCarousel = (post as any).story_sequence_detail?.type === "carousel" || (post as any).story_sequence_detail?.type === "carousel_photo" || (post as any).story_sequence_detail?.type === "carousel_mix";
+
+        if (hasVisuals) {
+          return (
+            <div className="mt-3 space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground">🎨 Visuels</p>
+              <div className="flex gap-2 flex-wrap">
+                {mediaUrls.slice(0, 6).map((url: string, i: number) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block w-16 h-16 rounded-lg overflow-hidden border border-border hover:border-primary transition-colors">
+                    <img src={url} alt={`Visuel ${i + 1}`} className="w-full h-full object-cover" />
+                  </a>
+                ))}
+                {mediaUrls.length > 6 && (
+                  <span className="text-xs text-muted-foreground self-center">+{mediaUrls.length - 6} autres</span>
+                )}
+              </div>
+              <a
+                href={mediaUrls[0]}
+                download
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+              >
+                ⬇️ Télécharger les visuels
+              </a>
+            </div>
+          );
+        }
+
+        if (hasCarousel && !hasVisuals) {
+          return (
+            <div className="mt-3">
+              <button
+                onClick={() => onEditPost(post)}
+                className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+              >
+                🎨 Générer les visuels →
+              </button>
+            </div>
+          );
+        }
+
+        return null;
+      })()}
     </div>
   );
 }
@@ -154,7 +203,7 @@ function MobileCard({ post, onEditPost, onStatusChange, onDeletePost, onDuplicat
         </div>
       </div>
       {isExpanded && (
-        <DraftSection post={post} editDraft={editDraft} setEditDraft={setEditDraft} onUpdateDraft={onUpdateDraft} />
+        <DraftSection post={post} editDraft={editDraft} setEditDraft={setEditDraft} onUpdateDraft={onUpdateDraft} onEditPost={onEditPost} />
       )}
     </div>
   );
@@ -308,7 +357,7 @@ export function CalendarListView({ posts, onEditPost, onStatusChange, onDeletePo
               </div>
             </div>
             {isExpanded && (
-              <DraftSection post={post} editDraft={editDraft} setEditDraft={setEditDraft} onUpdateDraft={onUpdateDraft} />
+              <DraftSection post={post} editDraft={editDraft} setEditDraft={setEditDraft} onUpdateDraft={onUpdateDraft} onEditPost={onEditPost} />
             )}
           </div>
         );
