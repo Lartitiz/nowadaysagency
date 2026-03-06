@@ -40,7 +40,7 @@ serve(async (req) => {
       });
     }
 
-    const { to, subject, html, from_name } = await req.json();
+    const { to, subject, html, from_name, template_id, sequence_id, user_id } = await req.json();
 
     if (!to || !subject || !html) {
       return new Response(JSON.stringify({ error: "Missing required fields: to, subject, html" }), {
