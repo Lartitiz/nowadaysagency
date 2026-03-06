@@ -146,7 +146,7 @@ Retourne UNIQUEMENT un JSON valide, sans texte avant ni après :
     }
     console.error("analyze-documents error:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Internal error" }),
+      JSON.stringify({ error: "Erreur interne du serveur" }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

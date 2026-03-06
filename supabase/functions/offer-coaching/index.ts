@@ -197,7 +197,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

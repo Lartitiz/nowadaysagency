@@ -252,7 +252,7 @@ serve(async (req) => {
     const msg = error instanceof Error ? error.message : String(error);
     console.error(`[delete-account] Fatal error:`, msg);
     return new Response(
-      JSON.stringify({ error: msg }),
+      JSON.stringify({ error: "Erreur interne du serveur" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }

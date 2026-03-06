@@ -374,9 +374,8 @@ serve(async (req) => {
       });
     }
     console.error("branding-coaching error:", error);
-    const status = (error as any).status || 500;
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Erreur interne" }), {
-      status,
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
+      status: 500,
       headers: { ...cors, "Content-Type": "application/json" },
     });
   }

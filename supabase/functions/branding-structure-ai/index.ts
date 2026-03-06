@@ -184,7 +184,7 @@ serve(async (req) => {
       });
     }
     console.error("branding-structure-ai error:", e);
-    return new Response(JSON.stringify({ error: e.message || "Erreur interne" }), {
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

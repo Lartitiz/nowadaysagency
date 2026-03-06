@@ -374,6 +374,6 @@ Réponds UNIQUEMENT en JSON sans backticks :
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {
     console.error("website-ai error:", error);
-    return new Response(JSON.stringify({ error: error.message || "Erreur inconnue" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

@@ -131,6 +131,6 @@ Réponds UNIQUEMENT en JSON :
       });
     }
     console.error("score-content error:", e);
-    return new Response(JSON.stringify({ error: e.message || "Erreur" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

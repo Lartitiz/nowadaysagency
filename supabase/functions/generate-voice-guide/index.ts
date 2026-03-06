@@ -107,7 +107,7 @@ Réponds UNIQUEMENT avec le JSON, sans commentaire ni balise markdown.`;
     });
   } catch (e: any) {
     console.error("generate-voice-guide error:", e);
-    return new Response(JSON.stringify({ error: e.message || "Erreur interne" }), {
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
       status: 500,
       headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });

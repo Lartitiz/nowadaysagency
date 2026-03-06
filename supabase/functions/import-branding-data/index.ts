@@ -104,10 +104,8 @@ Retourne uniquement le JSON, sans aucune explication autour.`;
     });
   } catch (e) {
     console.error("import-branding-data error:", e);
-    const msg = e instanceof Error ? e.message : "Erreur inconnue";
-    const status = (e as any).status || 500;
-    return new Response(JSON.stringify({ error: msg }), {
-      status,
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
+      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

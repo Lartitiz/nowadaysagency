@@ -154,7 +154,7 @@ serve(async (req) => {
       user_id: null,
       timestamp: new Date().toISOString(),
     }));
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

@@ -103,7 +103,7 @@ RÈGLES :
       });
     }
     console.error("voice-analysis error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }), {
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

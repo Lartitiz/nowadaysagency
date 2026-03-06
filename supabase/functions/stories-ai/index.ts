@@ -251,8 +251,9 @@ Réponds UNIQUEMENT avec le JSON.`;
       timestamp: new Date().toISOString(),
     }));
     const status = e?.status || 500;
-    let message = e instanceof Error ? e.message : "Erreur inconnue";
-    if (status === 529 || message.includes("529") || message.includes("Overloaded")) {
+    const rawMessage = e instanceof Error ? e.message : "";
+    let message = "Erreur interne du serveur";
+    if (status === 529 || rawMessage.includes("529") || rawMessage.includes("Overloaded")) {
       message = "Le serveur IA est temporairement surchargé. Réessaie dans quelques secondes.";
     }
     return new Response(

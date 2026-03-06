@@ -472,7 +472,7 @@ Deno.serve(async (req) => {
       timestamp: new Date().toISOString(),
     }));
     return new Response(
-      JSON.stringify({ error: err.message || "Erreur interne" }),
+      JSON.stringify({ error: "Erreur interne du serveur" }),
       { status: 500, headers: { ...cors, "Content-Type": "application/json" } }
     );
   }

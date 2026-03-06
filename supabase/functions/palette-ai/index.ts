@@ -107,9 +107,8 @@ Retourne ce JSON exactement :
       });
     }
     console.error("palette-ai error:", e);
-    const status = (e as any).status || 500;
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }), {
-      status, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
+      status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
   }
 });

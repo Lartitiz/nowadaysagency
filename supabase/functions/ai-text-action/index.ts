@@ -83,7 +83,7 @@ RÈGLES :
       });
     }
     console.error("ai-text-action error:", e);
-    return new Response(JSON.stringify({ error: e.message }), {
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

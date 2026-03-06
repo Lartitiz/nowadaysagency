@@ -826,7 +826,7 @@ Reponds en JSON :
       timestamp: new Date().toISOString(),
     }));
     return new Response(
-      JSON.stringify({ error: e.message || "Erreur inconnue" }),
+      JSON.stringify({ error: "Erreur interne du serveur" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
