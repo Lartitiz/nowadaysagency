@@ -260,7 +260,7 @@ function AppHeaderInner() {
 
       {/* ─── Client workspace banner ─── */}
       {activeRole === "manager" && activeWorkspace && (
-        <div className="sticky top-12 md:top-14 z-30 border-b border-primary/30 bg-rose-pale">
+        <div className="relative z-30 border-b border-primary/30 bg-rose-pale">
           <div className="mx-auto max-w-[1100px] flex items-center justify-between px-4 sm:px-6 py-2">
             <span className="text-sm font-bold text-foreground">
               👁️ Tu es dans l'espace de {activeWorkspace.name}
