@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from "react";
 import { DEMO_DATA, type DemoDataType } from "@/lib/demo-data";
 
-export type DemoPlan = "free" | "now_pilot";
+export type DemoPlan = "free" | "binome";
 
 export interface DemoData {
   profile: { first_name: string; activity: string; activity_type?: string };
@@ -72,12 +72,12 @@ const DemoContext = createContext<DemoContextType | undefined>(undefined);
 export function DemoProvider({ children }: { children: ReactNode }) {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [showDemoOnboarding, setShowDemoOnboarding] = useState(true);
-  const [demoPlan, setDemoPlan] = useState<DemoPlan>("now_pilot");
+  const [demoPlan, setDemoPlan] = useState<DemoPlan>("binome");
 
   const activateDemo = useCallback(() => {
     setIsDemoMode(true);
     setShowDemoOnboarding(true);
-    setDemoPlan("now_pilot");
+    setDemoPlan("binome");
   }, []);
 
   const skipDemoOnboarding = useCallback(() => {
@@ -87,7 +87,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const deactivateDemo = useCallback(() => {
     setIsDemoMode(false);
     setShowDemoOnboarding(true);
-    setDemoPlan("now_pilot");
+    setDemoPlan("binome");
   }, []);
 
   const value = useMemo<DemoContextType>(
