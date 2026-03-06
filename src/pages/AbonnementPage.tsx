@@ -36,7 +36,7 @@ function getNextRenewalDate(): string {
 
 export default function AbonnementPage() {
   const { user } = useAuth();
-  const { plan, usage, isPaid, isPilot, bonusCredits, refresh } = useUserPlan();
+  const { plan, usage, isPaid, isBinome, bonusCredits, refresh } = useUserPlan();
 
   const [subInfo, setSubInfo] = useState<any>(null);
   const [loadingSub, setLoadingSub] = useState(true);
