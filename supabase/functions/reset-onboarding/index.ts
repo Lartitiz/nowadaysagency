@@ -180,7 +180,7 @@ Deno.serve(async (req) => {
     );
   } catch (error: any) {
     console.error("[reset-onboarding] Fatal:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
       status: 500,
       headers: {
         ...getCorsHeaders(req),
