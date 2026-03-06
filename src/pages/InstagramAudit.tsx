@@ -287,7 +287,9 @@ export default function InstagramAudit() {
       toast({ title: "Audit terminé !" });
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      const msg = friendlyError(e);
+      setLastError(msg);
+      toast({ title: "Erreur", description: msg, variant: "destructive" });
     } finally {
       setAnalyzing(false);
     }
