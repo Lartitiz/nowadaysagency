@@ -63,7 +63,7 @@ const statusLabel = (status: string) => {
 export default function BinomeDashboard() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
-  const { isStudio, loading: planLoading } = useUserPlan();
+  const { isBinome, loading: planLoading } = useUserPlan();
   const navigate = useNavigate();
   const [coachings, setCoachings] = useState<Coaching[]>([]);
   const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
