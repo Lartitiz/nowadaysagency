@@ -232,7 +232,9 @@ export default function InstagramAudit() {
       if (res.error) throw new Error(res.error.message);
 
       let parsed: any;
-      const content = res.data?.content || "";
+      const rawContent = res.data?.content || "";
+      // Clean markdown fences and extract JSON
+      const content = rawContent.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
       try {
         parsed = JSON.parse(content);
       } catch {
