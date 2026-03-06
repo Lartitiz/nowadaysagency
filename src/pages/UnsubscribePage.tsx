@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { MailOff, MailCheck, Loader2 } from "lucide-react";
+import { MailMinus, MailCheck, Loader2 } from "lucide-react";
 
 export default function UnsubscribePage() {
   const { user } = useAuth();
