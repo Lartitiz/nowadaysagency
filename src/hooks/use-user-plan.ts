@@ -193,13 +193,13 @@ function getDemoUsage(demoPlan: string, demoData: any): Record<string, CategoryU
     };
   }
   return {
-    content: { used: 8, limit: 150 },
-    audit: { used: 1, limit: 15 },
+    content: { used: 8, limit: 9999 },
+    audit: { used: 1, limit: 9999 },
     dm_comment: { used: 4, limit: 50 },
     bio_profile: { used: 1, limit: 15 },
     suggestion: { used: 2, limit: 30 },
     import: { used: 0, limit: 10 },
     adaptation: { used: 0, limit: 30 },
-    total: { used: demoData?.profile?.credits_used ?? 16, limit: demoData?.profile?.credits_monthly ?? 300 },
+    total: { used: demoData?.profile?.credits_used ?? 16, limit: 9999 },
   };
 }

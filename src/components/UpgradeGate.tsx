@@ -12,7 +12,7 @@ type Feature =
   | "whatsapp" | "assistant_chat";
 
 const UPGRADE_MESSAGES: Partial<Record<Feature, string>> = {
-  generation_unlimited: "Tu as utilisé tes crédits IA ce mois-ci. Ils se renouvellent le 1er du mois, ou tu peux passer au Premium pour 300 crédits/mois.",
+  generation_unlimited: "Tu as utilisé tes crédits IA ce mois-ci. Ils se renouvellent le 1er du mois, ou tu peux passer au Premium pour des crédits illimités.",
   audit_unlimited: "Tu as utilisé tes audits IA ce mois-ci. Ils se renouvellent le 1er du mois, ou tu peux passer au Premium pour des audits illimités.",
   community_write: "Tu peux lire les échanges de la communauté. Pour poster et commenter, passe au Premium.",
   lives: "Les lives mensuels et replays sont accessibles avec le plan Premium.",
@@ -45,7 +45,7 @@ export default function UpgradeGate({ feature, children, fallback }: UpgradeGate
 
   if (fallback) return <>{fallback}</>;
 
-  const message = UPGRADE_MESSAGES[feature] || "Tu as atteint ta limite de crédits IA ce mois. Passe au Premium pour 300 crédits/mois.";
+  const message = UPGRADE_MESSAGES[feature] || "Tu as atteint ta limite de crédits IA ce mois. Passe au Premium pour des crédits illimités.";
   const isStudioFeature = STUDIO_FEATURES.includes(feature);
 
   return (
