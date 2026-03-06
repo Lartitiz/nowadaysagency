@@ -17,6 +17,7 @@ import type { ProgramWithProfile, SessionData } from "@/components/admin/admin-c
 export default function AdminCoachingPage() {
   const { user, isAdmin } = useAuth();
   const { workspaces } = useWorkspace();
+  const navigate = useNavigate();
   const [programs, setPrograms] = useState<ProgramWithProfile[]>([]);
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
