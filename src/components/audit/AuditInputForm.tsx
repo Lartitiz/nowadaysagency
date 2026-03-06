@@ -92,6 +92,7 @@ function FileUploadGrid({ files, onAdd, onRemove, maxFiles = 5, label }: {
 }
 
 export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: AuditInputFormProps) {
+  const [rapidMode, setRapidMode] = useState(!isRedo);
   const [form, setForm] = useState<AuditFormData>({
     displayName: initial?.displayName || "",
     username: initial?.username || "",
@@ -153,15 +154,34 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
         </div>
       )}
 
+      {/* ── Mode toggle ── */}
+      <div className="flex rounded-full border border-border overflow-hidden mb-6">
+        <button
+          onClick={() => setRapidMode(true)}
+          className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${rapidMode ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+        >
+          ⚡ Rapide
+        </button>
+        <button
+          onClick={() => setRapidMode(false)}
+          className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${!rapidMode ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+        >
+          🔬 Complet
+        </button>
+      </div>
+
       <div className="rounded-2xl border border-border bg-card p-5">
         <p className="text-sm text-muted-foreground mb-1">
-          Remplis les infos de ton profil. Plus c'est précis, plus l'audit sera pertinent.
+          {rapidMode
+            ? "Mode rapide : bio + captures suffisent pour un premier audit. Tu pourras refaire un audit complet ensuite."
+            : "Remplis les infos de ton profil. Plus c'est précis, plus l'audit sera pertinent."}
           <br />
           <strong>Ces infos alimentent TOUT l'outil</strong> (bio, contenu, stratégie).
         </p>
       </div>
 
-      {/* ── Nom ── */}
+      {/* ── Nom (complet only) ── */}
+      {!rapidMode && (
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">👤 TON NOM</h3>
         <div>
@@ -173,6 +193,7 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           <Input value={form.username} onChange={(e) => set("username", e.target.value)} placeholder="@nowadaysagency" />
         </div>
       </section>
+      )}
 
       {/* ── Bio ── */}
       <section className="space-y-3">
@@ -184,13 +205,16 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
         </div>
       </section>
 
-      {/* ── Lien ── */}
+      {/* ── Lien (complet only) ── */}
+      {!rapidMode && (
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">🔗 TON LIEN</h3>
         <Input value={form.bioLink} onChange={(e) => set("bioLink", e.target.value)} placeholder="https://linktr.ee/toncompte" />
       </section>
+      )}
 
-      {/* ── Photo de profil ── */}
+      {/* ── Photo de profil (complet only) ── */}
+      {!rapidMode && (
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">📸 TA PHOTO DE PROFIL</h3>
         <div className="flex items-start gap-4">
@@ -222,8 +246,10 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           </div>
         </div>
       </section>
+      )}
 
-      {/* ── Stories à la une ── */}
+      {/* ── Stories à la une (complet only) ── */}
+      {!rapidMode && (
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">📱 TES STORIES À LA UNE</h3>
         <div>
@@ -245,8 +271,10 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           )}
         </div>
       </section>
+      )}
 
-      {/* ── Posts épinglés ── */}
+      {/* ── Posts épinglés (complet only) ── */}
+      {!rapidMode && (
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">📌 TES POSTS ÉPINGLÉS</h3>
         <div className="flex gap-3">
@@ -299,8 +327,10 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           </div>
         )}
       </section>
+      )}
 
-      {/* ── Feed ── */}
+      {/* ── Feed (complet only) ── */}
+      {!rapidMode && (
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">🎨 TON FEED</h3>
         <div>
@@ -318,8 +348,10 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           )}
         </div>
       </section>
+      )}
 
-      {/* ── Mes Posts (meilleurs + pires) ── */}
+      {/* ── Mes Posts (meilleurs + pires) — complet only ── */}
+      {!rapidMode && (
       <section className="space-y-4">
         <h3 className="text-sm font-bold text-foreground">📊 MES POSTS</h3>
 
@@ -377,8 +409,9 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           💡 Tu peux uploader des PNG, JPG ou PDF (5 Mo max par fichier). Les captures d'écran des stats du post sont idéales : Instagram › Post › "Voir les statistiques"
         </p>
       </section>
+      )}
 
-      {/* ── Chiffres ── */}
+      {/* ── Chiffres — followers visible in rapid, rest complet only ── */}
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">📊 QUELQUES CHIFFRES</h3>
         <div className="grid grid-cols-2 gap-3">
@@ -386,11 +419,14 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
             <label className="text-xs text-muted-foreground mb-1 block">Nombre d'abonné·es</label>
             <Input type="number" value={form.followers} onChange={(e) => set("followers", e.target.value)} placeholder="6 292" />
           </div>
+          {!rapidMode && (
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Posts publiés ce mois</label>
             <Input type="number" value={form.postsPerMonth} onChange={(e) => set("postsPerMonth", e.target.value)} placeholder="4" />
           </div>
+          )}
         </div>
+        {!rapidMode && (
         <div>
           <label className="text-xs text-muted-foreground mb-2 block">Fréquence de publication :</label>
           <div className="flex flex-wrap gap-2">
@@ -405,9 +441,11 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
             ))}
           </div>
         </div>
+        )}
       </section>
 
-      {/* ── Ligne éditoriale ── */}
+      {/* ── Ligne éditoriale (complet only) ── */}
+      {!rapidMode && (
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">📝 TA LIGNE ÉDITORIALE</h3>
         <div>
@@ -416,10 +454,11 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           <p className="text-xs text-muted-foreground mt-1 italic">Laisse vide si pas encore définis.</p>
         </div>
       </section>
+      )}
 
-      {/* ── Screenshots optionnels ── */}
+      {/* ── Screenshots ── */}
       <section className="space-y-3">
-        <h3 className="text-sm font-bold text-foreground">📸 SCREENSHOTS (optionnel, pour enrichir l'audit)</h3>
+        <h3 className="text-sm font-bold text-foreground">📸 SCREENSHOTS {rapidMode ? "(recommandé)" : "(optionnel, pour enrichir l'audit)"}</h3>
         <div
           onClick={() => profileRef.current?.click()}
           className="rounded-2xl border-2 border-dashed border-border bg-muted/30 p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
