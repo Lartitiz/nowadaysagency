@@ -134,6 +134,8 @@ export default function InstagramAudit() {
 
   const handleSubmit = async (form: AuditFormData) => {
     if (!user) return;
+    setLastSubmitData(form);
+    setLastError(null);
     setAnalyzing(true);
 
     try {
