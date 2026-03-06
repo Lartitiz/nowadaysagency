@@ -174,9 +174,10 @@ function StrategySection({ data }: { data: AnalysisResult["content_strategy"] })
 interface OfferItem { name?: string; price?: string; description?: string; target?: string; promise?: string }
 
 function OffersSection({ data, onUpdate, onDelete }: { data: AnalysisResult["offers"]; onUpdate?: (index: number, offer: OfferItem) => void; onDelete?: (index: number) => void }) {
-  if (!data?.offers?.length) return null;
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState<OfferItem>({});
+
+  if (!data?.offers?.length) return null;
 
   const startEdit = (i: number) => {
     setEditDraft({ ...data.offers![i] });
