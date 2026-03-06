@@ -480,6 +480,14 @@ function ConstructionView({ completion, summaries, onReanalyze, onImport, onShow
                   >
                     <div className="px-5 pb-5 pt-1 border-t border-border/50">
                       <SectionDetail section={section} summaries={summaries} score={score} />
+                      {auditSuggestions?.[section.key] && (
+                        <SuggestionBanner
+                          sectionKey={section.key}
+                          suggestion={auditSuggestions[section.key]}
+                          onApply={onApplySuggestion}
+                          onDismiss={onDismissSuggestion}
+                        />
+                      )}
                       <div className="flex items-center gap-2 mt-4">
                         <Button size="sm" className="text-xs gap-1.5" onClick={() => navigate(section.editRoute)}>
                           {score > 0 ? <><Pencil className="h-3.5 w-3.5" /> Modifier</> : <><Sparkles className="h-3.5 w-3.5" /> Commencer</>}
