@@ -187,6 +187,8 @@ export default function LinkedInPostGenerator() {
     if (calAngle && ANGLE_TO_TEMPLATE[calAngle]) {
       setTemplate(ANGLE_TO_TEMPLATE[calAngle]);
     } else {
+      // Try AI suggestion, but set a fallback in case it fails or takes too long
+      setTemplate("storytelling_lecon"); // Fallback immédiat (sera écrasé si suggestion réussit)
       suggestTemplate(sujet);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
