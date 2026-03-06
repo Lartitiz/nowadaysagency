@@ -101,7 +101,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
         body: { posts_per_week: postsPerWeek, context_week: contextWeek, mix_or_focus: mixOrFocus },
       }, 120000);
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.error) throw new Error(data.message || data.error);
       setResult(data);
     } catch (e: any) {
       if (e?.isTimeout) { toast.error("Le coaching prend plus de temps que prévu. Réessaie."); }

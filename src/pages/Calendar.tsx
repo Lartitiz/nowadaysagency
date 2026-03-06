@@ -471,6 +471,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   };
 
   const handleQuickDelete = async (postId: string) => {
+    if (!window.confirm("Supprimer ce post ?")) return;
     await supabase.from("calendar_posts").delete().eq("id", postId);
     setPosts(prev => prev.filter(p => p.id !== postId));
     toast({ title: "🗑️ Post supprimé" });
