@@ -56,7 +56,7 @@ export function CalendarPostMetadata({
 }: Props) {
   return (
     <>
-      {/* Statut */}
+      {/* Statut — toujours visible */}
       <div>
         <label className="text-xs font-semibold mb-1.5 block text-foreground">Statut</label>
         <div className="flex flex-wrap gap-1.5">
@@ -69,24 +69,7 @@ export function CalendarPostMetadata({
         </div>
       </div>
 
-      {/* Canal */}
-      <div>
-        <label className="text-xs font-semibold mb-1.5 block text-foreground">Canal</label>
-        <div className="flex flex-wrap gap-1.5">
-          {[
-            { id: "instagram", emoji: "📸", label: "Instagram" },
-            { id: "linkedin", emoji: "💼", label: "LinkedIn" },
-            { id: "pinterest", emoji: "📌", label: "Pinterest" },
-          ].map((c) => (
-            <button key={c.id} onClick={() => setPostCanal(c.id)}
-              className={`rounded-pill px-2.5 py-1 text-[11px] font-medium border transition-all ${postCanal === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-              {c.emoji} {c.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Date */}
+      {/* Date — toujours visible */}
       {editingPostId && selectedDate && (
         <div>
           <label className="text-xs font-semibold mb-1.5 block text-foreground">Date</label>
@@ -114,26 +97,67 @@ export function CalendarPostMetadata({
         </div>
       )}
 
-      {/* Format */}
-      <div>
-        <label className="text-xs font-semibold mb-1.5 block text-foreground">Format</label>
-        <div className="flex flex-wrap gap-1.5">
-          {(FORMAT_OPTIONS_BY_CANAL[postCanal] || FORMAT_OPTIONS_BY_CANAL.instagram).map((f) => (
-            <button key={f.id} onClick={() => setFormat(format === f.id ? null : f.id)}
-              className={`rounded-pill px-2.5 py-1 text-[11px] font-medium border transition-all ${format === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-              {f.emoji} {f.label}
-            </button>
-          ))}
-        </div>
+      {/* Résumé Canal + Format — ligne compacte */}
+      <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+        <span className="font-medium">{
+          postCanal === "instagram" ? "📸 Instagram" :
+          postCanal === "linkedin" ? "💼 LinkedIn" :
+          postCanal === "pinterest" ? "📌 Pinterest" :
+          postCanal === "newsletter" ? "✉️ Newsletter" :
+          postCanal
+        }</span>
+        {format && (
+          <>
+            <span className="text-border">·</span>
+            <span>{(FORMAT_OPTIONS_BY_CANAL[postCanal] || []).find(f => f.id === format)?.emoji} {(FORMAT_OPTIONS_BY_CANAL[postCanal] || []).find(f => f.id === format)?.label || format}</span>
+          </>
+        )}
+        {objectif && (
+          <>
+            <span className="text-border">·</span>
+            <span>{OBJECTIFS.find(o => o.id === objectif)?.emoji} {OBJECTIFS.find(o => o.id === objectif)?.label || objectif}</span>
+          </>
+        )}
       </div>
 
-      {/* Objectif + Angle — Collapsible */}
+      {/* Canal + Format + Objectif + Angle — replié par défaut */}
       <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
         <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors py-1">
-          <span>🎯 Objectif & angle</span>
+          <span>⚙️ Modifier canal, format, objectif</span>
           <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")} />
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-3 pt-2">
+          {/* Canal */}
+          <div>
+            <label className="text-[11px] font-medium mb-1 block text-muted-foreground">Canal</label>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { id: "instagram", emoji: "📸", label: "Instagram" },
+                { id: "linkedin", emoji: "💼", label: "LinkedIn" },
+                { id: "pinterest", emoji: "📌", label: "Pinterest" },
+              ].map((c) => (
+                <button key={c.id} onClick={() => setPostCanal(c.id)}
+                  className={`rounded-pill px-2.5 py-1 text-[11px] font-medium border transition-all ${postCanal === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                  {c.emoji} {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Format */}
+          <div>
+            <label className="text-[11px] font-medium mb-1 block text-muted-foreground">Format</label>
+            <div className="flex flex-wrap gap-1.5">
+              {(FORMAT_OPTIONS_BY_CANAL[postCanal] || FORMAT_OPTIONS_BY_CANAL.instagram).map((f) => (
+                <button key={f.id} onClick={() => setFormat(format === f.id ? null : f.id)}
+                  className={`rounded-pill px-2.5 py-1 text-[11px] font-medium border transition-all ${format === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                  {f.emoji} {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Objectif */}
           <div>
             <label className="text-[11px] font-medium mb-1 block text-muted-foreground">Objectif</label>
             <div className="flex flex-wrap gap-1">
@@ -150,6 +174,8 @@ export function CalendarPostMetadata({
               ))}
             </div>
           </div>
+
+          {/* Angle */}
           <div>
             <label className="text-[11px] font-medium mb-1 block text-muted-foreground">Angle</label>
             <div className="flex flex-wrap gap-1">
