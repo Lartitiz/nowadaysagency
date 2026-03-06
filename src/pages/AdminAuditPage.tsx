@@ -275,7 +275,7 @@ async function checkConnections(): Promise<AuditResult[]> {
 
   // Subscriptions without matching profile
   const { data: subs } = await (supabase.from("subscriptions" as any) as any).select("user_id, plan");
-  for (const s of (subs || []).filter((s: any) => s.plan === "now_pilot")) {
+  for (const s of (subs || []).filter((s: any) => s.plan === "binome")) {
     const { data: prog } = await (supabase.from("coaching_programs" as any) as any)
       .select("id")
       .eq("client_user_id", s.user_id)
@@ -285,8 +285,8 @@ async function checkConnections(): Promise<AuditResult[]> {
       results.push({
         status: "warning",
         category: "Connexions",
-        title: "Abo now_pilot sans programme actif",
-        detail: `User ${s.user_id.slice(0, 8)}… a un plan now_pilot mais aucun programme actif.`,
+        title: "Abo binôme sans programme actif",
+        detail: `User ${s.user_id.slice(0, 8)}… a un plan binome mais aucun programme actif.`,
       });
     }
   }
