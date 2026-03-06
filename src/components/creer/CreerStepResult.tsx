@@ -67,6 +67,16 @@ const PROGRESS_MESSAGES: Record<string, string[]> = {
   ],
 };
 
+const VISUAL_PROGRESS_MESSAGES = [
+  "Analyse de ta charte graphique…",
+  "Création du layout de chaque slide…",
+  "Application des couleurs et typos…",
+  "Ajout des éléments décoratifs…",
+  "Rendu des schémas visuels…",
+  "Peaufinage des détails…",
+  "Presque fini…",
+];
+
 const TIPS = [
   "💡 Un bon hook = une promesse. Pas un clickbait.",
   "💡 L'algorithme favorise les contenus sauvegardés. Éducatif = jackpot.",
@@ -167,6 +177,7 @@ export default function CreerStepResult({
   const [messageIndex, setMessageIndex] = useState(0);
   const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * TIPS.length));
   const [progress, setProgress] = useState(0);
+  const [visualProgressIndex, setVisualProgressIndex] = useState(0);
   const startTimeRef = useRef(Date.now());
 
   useEffect(() => {
@@ -198,6 +209,18 @@ export default function CreerStepResult({
       clearInterval(progressInterval);
     };
   }, [generating, messages.length]);
+
+  // ── Rotation des messages pour génération visuels ──
+  useEffect(() => {
+    if (!visualLoading) {
+      setVisualProgressIndex(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setVisualProgressIndex((prev) => (prev + 1) % VISUAL_PROGRESS_MESSAGES.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [visualLoading]);
 
   if (generating) {
     // Mode streaming : le contenu texte arrive progressivement
@@ -279,28 +302,63 @@ export default function CreerStepResult({
 
       {/* 3. CTAs principaux */}
       {isCarousel && !hasVisuals ? (
-        <div className="grid grid-cols-2 gap-3">
-          {onGenerateVisuals && (
-            <Button
-              onClick={onGenerateVisuals}
-              disabled={visualLoading}
-              className="h-11 gap-2 text-sm font-semibold"
-            >
-              {visualLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Palette className="h-4 w-4" />
+        <div className="space-y-3">
+          {visualLoading ? (
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-4">
+              {/* Skeleton des slides */}
+              <div className="flex gap-2 overflow-hidden">
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="w-16 h-20 rounded-lg bg-primary/10 animate-pulse shrink-0"
+                    style={{ animationDelay: `${i * 200}ms` }}
+                  />
+                ))}
+                <div className="w-16 h-20 rounded-lg bg-primary/5 shrink-0" />
+              </div>
+
+              {/* Message rotatif */}
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                <p className="text-sm font-medium text-primary animate-fade-in" key={visualProgressIndex}>
+                  {VISUAL_PROGRESS_MESSAGES[visualProgressIndex]}
+                </p>
+              </div>
+
+              {/* Tip */}
+              <p className="text-[11px] text-muted-foreground">
+                💡 L'IA crée chaque slide avec ta charte graphique. Ça prend environ 30 secondes.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {onGenerateVisuals && (
+                <Button
+                  onClick={onGenerateVisuals}
+                  className="h-11 gap-2 text-sm font-semibold"
+                >
+                  <Palette className="h-4 w-4" />
+                  Créer les visuels
+                </Button>
               )}
-              {visualLoading ? "Création..." : "Créer les visuels"}
-            </Button>
+              {onCalendar && (
+                <Button
+                  variant="outline"
+                  onClick={onCalendar}
+                  className="h-11 gap-2 text-sm font-semibold"
+                >
+                  <CalendarDays className="h-4 w-4" /> {calendarLabel || "Ajouter au calendrier"}
+                </Button>
+              )}
+            </div>
           )}
-          {onCalendar && (
+          {visualLoading && onCalendar && (
             <Button
               variant="outline"
               onClick={onCalendar}
-              className="h-11 gap-2 text-sm font-semibold"
+              className="w-full h-9 gap-2 text-xs text-muted-foreground"
             >
-              <CalendarDays className="h-4 w-4" /> {calendarLabel || "Ajouter au calendrier"}
+              <CalendarDays className="h-3.5 w-3.5" /> Ajouter au calendrier en attendant
             </Button>
           )}
         </div>
