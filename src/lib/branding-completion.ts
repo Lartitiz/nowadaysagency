@@ -140,11 +140,10 @@ export function calculateBrandingCompletion(data: BrandingRawData): BrandingComp
   let charterScore = 0;
   if (ch) {
     if (filled(ch.logo_url)) charterScore += 20;
-    const defaults: Record<string, string> = { color_primary: "#E91E8C", color_secondary: "#1A1A2E", color_accent: "#FFE561" };
-    const changedColors = (["color_primary", "color_secondary", "color_accent"] as const)
-      .filter(k => ch[k] && ch[k] !== defaults[k]).length;
-    // Progressive: 8pts per changed color (max 25)
-    charterScore += Math.min(changedColors * 8, 25);
+    // Count filled colors (any non-null value counts — don't penalize default picks)
+    const filledColors = (["color_primary", "color_secondary", "color_accent"] as const)
+      .filter(k => filled(ch[k])).length;
+    charterScore += Math.min(filledColors * 8, 25);
     // Progressive: 10pts per changed font (max 20)
     if (ch.font_title && ch.font_title !== "Inter") charterScore += 10;
     if (ch.font_body && ch.font_body !== "Inter") charterScore += 10;
