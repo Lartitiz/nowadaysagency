@@ -684,7 +684,11 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                             </div>
                           ) : (
                             <>
-                              <div className="mb-5">{RENDERERS[sec.key](analysis)}</div>
+                              <div className="mb-5">
+                                {sec.key === "offers"
+                                  ? <OffersSection data={{ ...analysis.offers, offers: editedOffers }} onUpdate={handleOfferUpdate} onDelete={handleOfferDelete} />
+                                  : RENDERERS[sec.key](analysis)}
+                              </div>
                               {!isValidated && (
                                 <div className="flex flex-col sm:flex-row gap-2">
                                   <button onClick={() => handleValidate(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-emerald-500 text-emerald-600 rounded-[12px] px-5 py-2 text-[14px] font-semibold hover:bg-emerald-50 transition-all disabled:opacity-50">
