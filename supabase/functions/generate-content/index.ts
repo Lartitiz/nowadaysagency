@@ -508,7 +508,7 @@ ${pu ? `- URL du profil : ${pu}` : ""}
 ${successPostsBlock}
 ${failPostsBlock}
 
-${brandingContext}
+${fullContext}
 
 Audite ce profil Instagram. Pour CHAQUE élément, retourne un verdict visuel.
 
