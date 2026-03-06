@@ -2249,6 +2249,39 @@ export type Database = {
           },
         ]
       }
+      email_sends: {
+        Row: {
+          created_at: string | null
+          error: string | null
+          id: string
+          recipient: string
+          resend_id: string | null
+          sent_at: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          recipient: string
+          resend_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject: string
+        }
+        Update: {
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          recipient?: string
+          resend_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+        }
+        Relationships: []
+      }
       engagement_checklist_logs: {
         Row: {
           created_at: string | null
