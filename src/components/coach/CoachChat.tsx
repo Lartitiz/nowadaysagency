@@ -270,37 +270,26 @@ export default function CoachChat() {
 
       {/* Input / Quota limit */}
       <div className="px-3 py-2 border-t border-border shrink-0">
-        {quotaReached ? (
-          <div className="text-center py-2 space-y-2">
-            <p className="text-xs text-muted-foreground">
-              Tu as utilisé tes {dailyLimit} messages du jour. Passe en Pro pour 50 messages/jour 🚀
-            </p>
-            <Button size="sm" variant="outline" asChild>
-              <Link to="/pricing">Voir les plans</Link>
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-end gap-2">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => { setInput(e.target.value); autoResize(e.target); }}
-              onKeyDown={handleKeyDown}
-              placeholder="Pose ta question..."
-              rows={1}
-              className="flex-1 resize-none rounded-xl border border-input bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors max-h-[120px]"
-              disabled={loading}
-            />
-            <Button
-              size="icon"
-              className="shrink-0 h-9 w-9 rounded-xl"
-              onClick={() => sendMessage(input)}
-              disabled={!input.trim() || loading}
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+        <div className="flex items-end gap-2">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => { setInput(e.target.value); autoResize(e.target); }}
+            onKeyDown={handleKeyDown}
+            placeholder="Pose ta question..."
+            rows={1}
+            className="flex-1 resize-none rounded-xl border border-input bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors max-h-[120px]"
+            disabled={loading}
+          />
+          <Button
+            size="icon"
+            className="shrink-0 h-9 w-9 rounded-xl"
+            onClick={() => sendMessage(input)}
+            disabled={!input.trim() || loading}
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
