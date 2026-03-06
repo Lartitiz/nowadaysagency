@@ -508,7 +508,7 @@ ${pu ? `- URL du profil : ${pu}` : ""}
 ${successPostsBlock}
 ${failPostsBlock}
 
-${brandingContext}
+${fullContext}
 
 Audite ce profil Instagram. Pour CHAQUE élément, retourne un verdict visuel.
 
@@ -686,16 +686,16 @@ Reponds en JSON :
         userPrompt = "Analyse mon profil Instagram et donne-moi un audit complet avec audit visuel annote et analyse de performance des contenus.";
 
       } else if (type === "instagram-nom") {
-        systemPrompt = `${CORE_PRINCIPLES}\n\n${brandingContext}\n\nPropose exactement 3 noms de profil Instagram optimisés pour cette utilisatrice. Chaque nom doit contenir un mot-clé lié à son activité pour la recherche (Instagram SEO).\n\nFormats :\n1. [Prénom] | [Activité mot-clé]\n2. [Prénom] | [Bénéfice principal]\n3. [Nom de marque] | [Activité]\n\nRéponds UNIQUEMENT en JSON : ["nom 1", "nom 2", "nom 3"]`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${fullContext}\n\nPropose exactement 3 noms de profil Instagram optimisés pour cette utilisatrice. Chaque nom doit contenir un mot-clé lié à son activité pour la recherche (Instagram SEO).\n\nFormats :\n1. [Prénom] | [Activité mot-clé]\n2. [Prénom] | [Bénéfice principal]\n3. [Nom de marque] | [Activité]\n\nRéponds UNIQUEMENT en JSON : ["nom 1", "nom 2", "nom 3"]`;
         userPrompt = "Propose 3 noms de profil Instagram optimisés.";
 
       } else if (type === "instagram-pinned") {
         // SECTION 1 + SECTION 4 (CTA éthiques pour les posts)
-        systemPrompt = `${CORE_PRINCIPLES}\n\n${WRITING_RESOURCES}\n\n${brandingContext}\n\nGénère 3 posts épinglés stratégiques :\n\nPOST 1 : MON HISTOIRE - Basé sur le storytelling, crée un lien émotionnel. (Framework BAB/Storytelling)\nPOST 2 : MON OFFRE - Basé sur la proposition de valeur, donne envie. (Framework PASTOR/AIDA éthique)\nPOST 3 : PREUVE SOCIALE - Témoignage ou résultats concrets. (Framework avant/après)\n\nPour chaque post : accroche forte (125 premiers caractères) + contenu complet avec bucket brigades + CTA éthique + format + objectif.\n\nRéponds en JSON :\n{"post_histoire": {"accroche": "...", "contenu": "...", "format": "...", "objectif": "..."}, "post_offre": {...}, "post_preuve": {...}}`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${WRITING_RESOURCES}\n\n${fullContext}\n\nGénère 3 posts épinglés stratégiques :\n\nPOST 1 : MON HISTOIRE - Basé sur le storytelling, crée un lien émotionnel. (Framework BAB/Storytelling)\nPOST 2 : MON OFFRE - Basé sur la proposition de valeur, donne envie. (Framework PASTOR/AIDA éthique)\nPOST 3 : PREUVE SOCIALE - Témoignage ou résultats concrets. (Framework avant/après)\n\nPour chaque post : accroche forte (125 premiers caractères) + contenu complet avec bucket brigades + CTA éthique + format + objectif.\n\nRéponds en JSON :\n{"post_histoire": {"accroche": "...", "contenu": "...", "format": "...", "objectif": "..."}, "post_offre": {...}, "post_preuve": {...}}`;
         userPrompt = "Génère mes 3 posts épinglés stratégiques.";
 
       } else if (type === "instagram-edito") {
-        systemPrompt = `${CORE_PRINCIPLES}\n\n${brandingContext}\n\nCrée une ligne éditoriale personnalisée. Utilise les recommandations du moteur copywriting sur le mix de contenu (4 visibilité + 4 confiance + 2 vente sur 10 posts).\n\nRéponds en JSON :\n{"main_objective": "...", "recommended_rhythm": "X posts/semaine + Y stories/semaine", "pillar_distribution": {"pilier1": 40, "pilier2": 25, "pilier3": 20, "Perso/coulisses": 15}, "preferred_formats": ["carrousel éducatif", "reel coulisses", "post storytelling"], "stop_doing": "...", "do_more": "..."}`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${fullContext}\n\nCrée une ligne éditoriale personnalisée. Utilise les recommandations du moteur copywriting sur le mix de contenu (4 visibilité + 4 confiance + 2 vente sur 10 posts).\n\nRéponds en JSON :\n{"main_objective": "...", "recommended_rhythm": "X posts/semaine + Y stories/semaine", "pillar_distribution": {"pilier1": 40, "pilier2": 25, "pilier3": 20, "Perso/coulisses": 15}, "preferred_formats": ["carrousel éducatif", "reel coulisses", "post storytelling"], "stop_doing": "...", "do_more": "..."}`;
         userPrompt = "Crée ma ligne éditoriale Instagram personnalisée.";
 
       } else if (type === "instagram-edito-pillars") {
