@@ -77,7 +77,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const activateDemo = useCallback(() => {
     setIsDemoMode(true);
     setShowDemoOnboarding(true);
-    setDemoPlan("now_pilot");
+    setDemoPlan("binome");
   }, []);
 
   const skipDemoOnboarding = useCallback(() => {
