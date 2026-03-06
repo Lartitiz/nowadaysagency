@@ -82,7 +82,7 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
     const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : null;
     const { data: prog, error } = await (supabase.from("coaching_programs").insert({
       client_user_id: clientUserId, coach_user_id: coachUserId, start_date: startDate, end_date: endDateStr,
-      whatsapp_link: whatsapp || "https://wa.me/33614133921", formula: "now_pilot", duration_months: 6, price_monthly: 250, total_focus_sessions: focusSessions.length,
+      whatsapp_link: whatsapp || "https://wa.me/33614133921", formula: "binome", duration_months: 6, price_monthly: 250, total_focus_sessions: focusSessions.length,
     } as any).select().single() as any);
     if (error) { console.error("Erreur technique:", error); toast.error(friendlyError(error)); setCreating(false); return; }
 
