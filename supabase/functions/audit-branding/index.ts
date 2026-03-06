@@ -242,6 +242,16 @@ RÈGLES :
 - Si le contenu d'une source est limité (ex: juste un nom Instagram sans posts, ou un profil LinkedIn inaccessible), analyse ce que tu peux et signale clairement ce qui manque pour un audit plus approfondi. Ne dis PAS "pas de contenu fourni" mais plutôt "Pour aller plus loin sur ce canal, je recommande de [faire un audit Instagram dédié / renseigner plus d'informations sur ton profil]".
 - Le plan d'action recommandé est ordonné par priorité
 - Écris en français, tutoie l'utilisatrice
+- Pour chaque pilier avec un score < 70, ajoute un champ "suggestion_amelioration" : un TEXTE CONCRET que l'utilisatrice pourrait utiliser directement pour améliorer ce pilier. Ce n'est pas un conseil générique mais une REFORMULATION PRÊTE À UTILISER.
+  · positionnement → une phrase de positionnement reformulée
+  · cible → une description de persona plus précise
+  · offres → une reformulation de l'offre principale (promesse + pour qui + résultat)
+  · storytelling → une accroche de 2-3 phrases pour son histoire
+  · ton_voix → 3 adjectifs de ton + un exemple de phrase dans ce ton
+  · contenu → un exemple de ligne éditoriale ou de sujet de post qui manque
+- Si le score est >= 70, mets suggestion_amelioration à null.
+- Les suggestions doivent s'appuyer sur les SOURCES ANALYSÉES (site, Instagram, branding_outil), pas être inventées.
+- Si branding_outil contient déjà un texte pour ce pilier, la suggestion doit être une AMÉLIORATION de ce texte existant, pas un remplacement total. Garde le fond, améliore la forme.
 
 TABLE DE MAPPING DES ACTIONS :
 Pour chaque point faible, associe UNE action concrète faisable dans l'outil en utilisant cette table.
