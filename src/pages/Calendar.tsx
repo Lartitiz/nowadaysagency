@@ -203,7 +203,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const [selectedIdea, setSelectedIdea] = useState<SavedIdea | null>(null);
   const [ideaDetailOpen, setIdeaDetailOpen] = useState(false);
   const [coachingOpen, setCoachingOpen] = useState(false);
-  const [ideasCollapsed, setIdeasCollapsed] = useState(false);
+  const [ideasCollapsed, setIdeasCollapsed] = useState(true);
 
   const { data: profileData } = useProfile();
   const ownerName = (profileData as any)?.prenom || "";
