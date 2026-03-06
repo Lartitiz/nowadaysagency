@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { MessageCircle, X, Send, Trash2 } from "lucide-react";
-import { useLocation, useNavigate, Link } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { MarkdownText } from "@/components/ui/markdown-text";
@@ -90,12 +90,9 @@ export default function CoachChat() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Quota logic
+  // Usage counter (server is source of truth for quota enforcement)
   const contentUsage = usage?.content;
-  const dailyLimit = plan === "free" ? 10 : plan === "outil" ? 50 : 999;
   const used = contentUsage?.used ?? 0;
-  const remaining = Math.max(0, dailyLimit - used);
-  const quotaReached = remaining <= 0 && plan !== "now_pilot";
 
   // Delayed entrance (500ms)
   useEffect(() => {
@@ -144,7 +141,7 @@ export default function CoachChat() {
   }, [open]);
 
   const sendMessage = useCallback(async (text: string) => {
-    if (!text.trim() || loading || quotaReached) return;
+    if (!text.trim() || loading) return;
 
     const userMsg: ChatMessage = { role: "user", content: text.trim() };
     const updated = [...messages, userMsg];
@@ -185,7 +182,7 @@ export default function CoachChat() {
     } finally {
       setLoading(false);
     }
-  }, [messages, loading, quotaReached, location.pathname, activeWorkspace?.id, refreshPlan]);
+  }, [messages, loading, location.pathname, activeWorkspace?.id, refreshPlan]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -214,11 +211,9 @@ export default function CoachChat() {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-foreground text-[15px]">💬 Coach Com'</span>
-          {dailyLimit < 999 && (
-            <span className="text-xs text-muted-foreground">
-              {used}/{dailyLimit}
-            </span>
-          )}
+          <span className="text-xs text-muted-foreground">
+            {used} msg
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -264,7 +259,7 @@ export default function CoachChat() {
                 key={chip.label}
                 onClick={() => sendMessage(`${chip.emoji} ${chip.label}`)}
                 className="text-xs bg-rose-pale text-primary rounded-full px-3 py-1.5 hover:bg-rose-soft transition-colors text-left"
-                disabled={quotaReached}
+                disabled={false}
               >
                 {chip.emoji} {chip.label}
               </button>
@@ -275,37 +270,26 @@ export default function CoachChat() {
 
       {/* Input / Quota limit */}
       <div className="px-3 py-2 border-t border-border shrink-0">
-        {quotaReached ? (
-          <div className="text-center py-2 space-y-2">
-            <p className="text-xs text-muted-foreground">
-              Tu as utilisé tes {dailyLimit} messages du jour. Passe en Pro pour 50 messages/jour 🚀
-            </p>
-            <Button size="sm" variant="outline" asChild>
-              <Link to="/pricing">Voir les plans</Link>
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-end gap-2">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => { setInput(e.target.value); autoResize(e.target); }}
-              onKeyDown={handleKeyDown}
-              placeholder="Pose ta question..."
-              rows={1}
-              className="flex-1 resize-none rounded-xl border border-input bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors max-h-[120px]"
-              disabled={loading}
-            />
-            <Button
-              size="icon"
-              className="shrink-0 h-9 w-9 rounded-xl"
-              onClick={() => sendMessage(input)}
-              disabled={!input.trim() || loading}
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+        <div className="flex items-end gap-2">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => { setInput(e.target.value); autoResize(e.target); }}
+            onKeyDown={handleKeyDown}
+            placeholder="Pose ta question..."
+            rows={1}
+            className="flex-1 resize-none rounded-xl border border-input bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors max-h-[120px]"
+            disabled={loading}
+          />
+          <Button
+            size="icon"
+            className="shrink-0 h-9 w-9 rounded-xl"
+            onClick={() => sendMessage(input)}
+            disabled={!input.trim() || loading}
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
