@@ -36,14 +36,14 @@ serve(async (req) => {
     if (isAdmin) {
       // Admin gets unlimited access
       const unlimitedUsage: Record<string, { used: number; limit: number }> = {};
-      for (const cat of Object.keys(PLAN_LIMITS.now_pilot)) {
+      for (const cat of Object.keys(PLAN_LIMITS.binome)) {
         if (cat === "total") continue;
         unlimitedUsage[cat] = { used: 0, limit: 9999 };
       }
       unlimitedUsage.total = { used: 0, limit: 9999 };
 
       return new Response(JSON.stringify({
-        plan: "now_pilot",
+        plan: "binome",
         status: "active",
         current_period_end: null,
         studio_months_paid: 0,
@@ -99,12 +99,12 @@ serve(async (req) => {
 
     const rows = usageRows || [];
 
-    // Resolve legacy plan aliases (studio → now_pilot, binome → now_pilot)
-    const PLAN_ALIASES: Record<string, string> = { studio: "now_pilot", binome: "now_pilot" };
+    // Resolve legacy plan aliases (studio → binome, now_pilot → binome)
+    const PLAN_ALIASES: Record<string, string> = { studio: "binome", now_pilot: "binome" };
     let plan = sub?.plan || "free";
     plan = PLAN_ALIASES[plan] || plan;
     if (plan === "free" && activeProgram) {
-      plan = "now_pilot";
+      plan = "binome";
     }
     const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
