@@ -289,7 +289,7 @@ Reponds en JSON :
 
       const visionResult = await callAnthropic({
         model: getModelForAction("audit"),
-        system: systemPrompt,
+        system: finalSystemPrompt,
         messages: [{ role: "user", content: userContent }],
         temperature: 0.7,
         max_tokens: 8192,
