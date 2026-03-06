@@ -89,7 +89,7 @@ serve(async (req) => {
     const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt, workspace_id } = body;
 
     // Check plan limits — use "audit" category for audit types, "content" otherwise
-    const isAuditType = type === "instagram-audit" || type === "bio-audit";
+    const isAuditType = type === "bio-audit";
     const usageCategory = isAuditType ? "audit" : "content";
     const quotaCheck = await checkQuota(user.id, usageCategory, workspace_id);
     if (!quotaCheck.allowed) {
