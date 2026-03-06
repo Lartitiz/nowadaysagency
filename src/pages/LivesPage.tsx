@@ -33,7 +33,7 @@ type Filter = "all" | "monthly" | "studio";
 export default function LivesPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
-  const { isPaid, isStudio, loading: planLoading } = useUserPlan();
+  const { isPaid, isBinome, loading: planLoading } = useUserPlan();
   const { toast } = useToast();
 
   const [lives, setLives] = useState<Live[]>([]);
