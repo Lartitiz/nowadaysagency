@@ -218,7 +218,7 @@ export function CalendarPostContent({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <DeepenAndFormatActions />
+          <VisualActions />
         </div>
 
       ) : (
