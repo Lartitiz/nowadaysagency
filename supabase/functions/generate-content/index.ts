@@ -660,10 +660,10 @@ Reponds en JSON :
   }
 }`;
         // Build user message (multimodal if screenshots available)
-        if (screenshotImageUrls && screenshotImageUrls.length > 0) {
-          const userContent: any[] = screenshotImageUrls.map((url: string) => ({
+        if (screenshotImages && screenshotImages.length > 0) {
+          const userContent: any[] = screenshotImages.map((img: any) => ({
             type: "image",
-            source: { type: "url", url },
+            source: { type: "base64", media_type: img.media_type, data: img.data },
           }));
           userContent.push({
             type: "text",
