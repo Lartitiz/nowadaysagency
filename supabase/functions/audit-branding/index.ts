@@ -269,6 +269,8 @@ persona, positionnement, offres, bio, storytelling, ton, editorial, contenu, ins
 Le conseil doit être en 1-2 phrases, actionnable, et le label du bouton doit commencer par un verbe.
 NE PAS mettre de route dans la réponse — le frontend gère les routes automatiquement.
 
+IMPORTANT pour extraction_branding : Si la source branding_outil contient déjà des données détaillées, mets confidence = "already_set" pour ces champs et reprends la valeur existante. N'extrais à partir des sources publiques (site, Instagram) que les champs qui n'existent PAS encore dans branding_outil ou qui sont significativement différents.
+
 RETOURNE UNIQUEMENT un objet JSON valide avec cette structure exacte :
 {
   "score_global": 72,
