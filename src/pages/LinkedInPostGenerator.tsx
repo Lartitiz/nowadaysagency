@@ -86,6 +86,7 @@ export default function LinkedInPostGenerator() {
   const { canGenerate, remainingTotal } = useUserPlan();
   const quotaBlocked = !canGenerate("content");
   const [result, setResult] = useState<PostResult | null>(null);
+  const [autoGenTriggered, setAutoGenTriggered] = useState(false);
   const [copied, setCopied] = useState(false);
   const [suggestedTemplate, setSuggestedTemplate] = useState<{ id: string; reason: string } | null>(null);
   const [suggestingTemplate, setSuggestingTemplate] = useState(false);
@@ -162,12 +163,46 @@ export default function LinkedInPostGenerator() {
     }
   }, [suggestingTemplate, template, workspaceId, user?.id]);
 
-  // Auto-trigger suggestion when subject is pre-filled from navigation
+  // Auto-setup when coming from calendar
   useEffect(() => {
-    if (sujet.trim() && (calendarState?.fromCalendar || calendarState?.sujet || calendarState?.theme)) {
+    if (!calendarState?.fromCalendar && !calendarState?.sujet && !calendarState?.theme) return;
+    
+    const ANGLE_TO_TEMPLATE: Record<string, string> = {
+      "enquete_decryptage": "enquete_decryptage",
+      "test_grandeur_nature": "test_grandeur_nature",
+      "coup_de_gueule": "coup_de_gueule",
+      "mythe_deconstruire": "mythe_deconstruire",
+      "storytelling_lecon": "storytelling_lecon",
+      "histoire_cliente": "histoire_cliente",
+      "surf_actu": "surf_actu",
+      "regard_philosophique": "regard_philosophique",
+      "conseil_contre_intuitif": "conseil_contre_intuitif",
+      "before_after": "before_after",
+      "build_in_public": "build_in_public",
+      "identification_quotidien": "identification_quotidien",
+      "contenu_lancement": "contenu_lancement",
+    };
+    
+    const calAngle = calendarState?.angle;
+    if (calAngle && ANGLE_TO_TEMPLATE[calAngle]) {
+      setTemplate(ANGLE_TO_TEMPLATE[calAngle]);
+    } else {
       suggestTemplate(sujet);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-generate when coming from calendar with all data ready
+  useEffect(() => {
+    if (autoGenTriggered) return;
+    if (!calendarState?.fromCalendar) return;
+    if (!template || !sujet.trim() || generating || result) return;
+    
+    setAutoGenTriggered(true);
+    const timer = setTimeout(() => {
+      generate();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [template, sujet, calendarState?.fromCalendar, autoGenTriggered]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [tipIdx] = useState(() => Math.floor(Math.random() * LINKEDIN_TIPS.length));
   const tip = LINKEDIN_TIPS[tipIdx];
@@ -326,6 +361,19 @@ export default function LinkedInPostGenerator() {
 
           {/* ─── CREATE TAB ─── */}
           <TabsContent value="create" className="space-y-5 mt-4">
+            {/* Calendar auto-gen loading */}
+            {calendarState?.fromCalendar && generating && (
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-3 animate-fade-in">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Rédaction en cours…</p>
+                    <p className="text-xs text-muted-foreground">L'IA rédige ton post LinkedIn à partir du sujet du calendrier.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Tip */}
             <div className="rounded-lg bg-primary/5 border border-primary/20 px-4 py-2.5 text-sm text-foreground">
               💡 {tip.text} <span className="text-xs text-muted-foreground">— {tip.source}</span>
