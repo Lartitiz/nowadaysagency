@@ -61,6 +61,10 @@ export default function BrandingSuggestionsCard({
     voice_description: { table: "brand_profile", field: "voice_description", filterBy: "workspace" },
     positioning: { table: "brand_profile", field: "positioning", filterBy: "workspace" },
     mission: { table: "brand_profile", field: "mission", filterBy: "workspace" },
+    tone_style: { table: "brand_profile", field: "tone_description", filterBy: "workspace" },
+    storytelling: { table: "storytelling", field: "step_7_polished", filterBy: "workspace" },
+    persona: { table: "persona", field: "description", filterBy: "workspace" },
+    offers: { table: "offers", field: "description_short", filterBy: "workspace" },
   };
 
   const handleApplyAll = async () => {
@@ -70,7 +74,10 @@ export default function BrandingSuggestionsCard({
     // 1. Apply each suggestion to its real table
     for (const s of editableSuggestions) {
       const mapping = SECTION_MAP[s.section];
-      if (!mapping) continue;
+      if (!mapping) {
+        console.warn(`No SECTION_MAP entry for section "${s.section}" — suggestion skipped`);
+        continue;
+      }
 
       const filterCol = mapping.filterBy === "profile" ? "user_id" : wsColumn;
       const filterVal = mapping.filterBy === "profile" ? profileUserId : wsValue;
