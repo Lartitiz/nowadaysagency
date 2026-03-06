@@ -72,7 +72,7 @@ const DemoContext = createContext<DemoContextType | undefined>(undefined);
 export function DemoProvider({ children }: { children: ReactNode }) {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [showDemoOnboarding, setShowDemoOnboarding] = useState(true);
-  const [demoPlan, setDemoPlan] = useState<DemoPlan>("now_pilot");
+  const [demoPlan, setDemoPlan] = useState<DemoPlan>("binome");
 
   const activateDemo = useCallback(() => {
     setIsDemoMode(true);
