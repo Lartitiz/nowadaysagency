@@ -165,6 +165,37 @@ function InscritesView() {
     } else { setEmailSubject(""); setEmailBody(""); }
   }
 
+  // Helper: resolve template variables (extracted for reuse in preview)
+  function resolveVariables(html: string, subject: string, user: UserRow) {
+    const vars: Record<string, string> = {
+      prenom: user.prenom || "",
+      email: user.email || "",
+      app_url: "https://nowadaysagency.lovable.app",
+    };
+
+    let resolvedHtml = html;
+    let resolvedSubject = subject;
+    for (const [key, value] of Object.entries(vars)) {
+      resolvedHtml = resolvedHtml.split(`{{${key}}}`).join(value);
+      resolvedSubject = resolvedSubject.split(`{{${key}}}`).join(value);
+    }
+    return { html: resolvedHtml, subject: resolvedSubject };
+  }
+
+  const previewHtml = useMemo(() => {
+    if (!emailBody) return "";
+    const previewUser: UserRow = dialogUser || {
+      user_id: "preview",
+      prenom: "Prénom",
+      email: "email@example.com",
+      plan: "",
+      ai_usage_count: 0,
+      last_sign_in: null,
+      created_at: "",
+    };
+    return resolveVariables(emailBody, emailSubject, previewUser).html;
+  }, [emailBody, emailSubject, dialogUser]);
+
   async function handleSend() {
     const recipients = dialogUser
       ? [dialogUser]
@@ -174,23 +205,6 @@ function InscritesView() {
 
     if (!recipients.length || !emailSubject.trim()) return;
     setSending(true);
-
-    // Helper: resolve template variables
-    function resolveVariables(html: string, subject: string, user: UserRow) {
-      const vars: Record<string, string> = {
-        prenom: user.prenom || "",
-        email: user.email || "",
-        app_url: "https://nowadaysagency.lovable.app",
-      };
-
-      let resolvedHtml = html;
-      let resolvedSubject = subject;
-      for (const [key, value] of Object.entries(vars)) {
-        resolvedHtml = resolvedHtml.split(`{{${key}}}`).join(value);
-        resolvedSubject = resolvedSubject.split(`{{${key}}}`).join(value);
-      }
-      return { html: resolvedHtml, subject: resolvedSubject };
-    }
 
     let successCount = 0;
     for (const r of recipients) {
