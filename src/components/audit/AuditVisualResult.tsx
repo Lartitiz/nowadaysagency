@@ -46,6 +46,7 @@ export interface AuditVisualData {
 
 export interface AuditEvolution {
   previous_score: number;
+  current_score: number;
   previous_date: string;
   improved: { label: string; from: string; to: string }[];
   unchanged: { label: string; status: string }[];
