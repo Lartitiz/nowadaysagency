@@ -558,19 +558,6 @@ Réponds en JSON :
     const modelAction = auditTypes.includes(type) ? "audit" : "content";
     const content = await callAnthropicSimple(getModelForAction(modelAction), systemPrompt, userPrompt, 0.8, maxTokens);
 
-    if (false) { // dead code guard — weekly-suggestions handled above
-      let suggestions;
-      try {
-        const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
-        suggestions = JSON.parse(cleaned);
-      } catch {
-        suggestions = [];
-      }
-      return new Response(
-        JSON.stringify({ suggestions, type: "weekly-suggestions" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
     await logUsage(user.id, usageCategory, type, undefined, undefined, workspace_id);
     return new Response(
