@@ -45,7 +45,7 @@ function AppHeaderInner() {
   const { user, signOut, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { plan, usage, isPilot, isPaid } = useUserPlan();
+  const { plan, usage, isBinome, isPaid } = useUserPlan();
   const { activateDemo } = useDemoContext();
   const handleDemoClick = () => { activateDemo(); navigate("/dashboard"); };
   const [hasCoaching, setHasCoaching] = useState(false);
