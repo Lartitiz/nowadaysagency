@@ -26,6 +26,14 @@ serve(async (req) => {
       return new Response(JSON.stringify({ suggestions: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Check quota
+    const quota = await checkQuota(user.id, "suggestion", workspace_id);
+    if (!quota.allowed) {
+      return new Response(JSON.stringify({ suggestions: [], message: quota.message }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Get full user context
     const ctx = await getUserContext(supabase, user.id, workspace_id);
     const contextText = formatContextForAI(ctx, {
