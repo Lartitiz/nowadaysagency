@@ -236,14 +236,14 @@ export default function AccompagnementPage() {
               <span className="text-5xl block">🤝</span>
               <h1 className="font-display text-2xl font-bold text-foreground">Ta binôme de com, c'est quoi ?</h1>
               <div className="text-left space-y-3 max-w-md mx-auto">
-                {[
-                  "6 mois de stratégie co-construite",
-                  "Sessions visio 2h/mois avec Laetitia",
-                  "WhatsApp jours ouvrés",
-                  "Tous les outils débloqués",
-                  "Plan de com' personnalisé",
-                  "300 crédits IA / mois",
-                ].map((item) => (
+               {[
+                   "6 mois de stratégie co-construite",
+                   "Sessions visio 2h/mois avec Laetitia",
+                   "WhatsApp jours ouvrés",
+                   "Tous les outils débloqués",
+                   "Plan de com' personnalisé",
+                   "Crédits IA illimités",
+                 ].map((item) => (
                   <div key={item} className="flex items-start gap-2">
                     <span className="text-primary mt-0.5">✓</span>
                     <p className="text-sm text-foreground">{item}</p>
