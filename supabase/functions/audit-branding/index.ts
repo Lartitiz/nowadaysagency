@@ -388,8 +388,8 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
     });
   } catch (e) {
     console.error("audit-branding error:", e);
-    const msg = e instanceof Error ? e.message : "Erreur inconnue";
     const status = e instanceof ValidationError ? 400 : 500;
+    const msg = e instanceof ValidationError ? (e instanceof Error ? e.message : "Validation error") : "Erreur interne du serveur";
     return new Response(JSON.stringify({ error: msg }), {
       status, headers: { ...cors, "Content-Type": "application/json" },
     });
