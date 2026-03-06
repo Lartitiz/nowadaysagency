@@ -4,14 +4,14 @@ import { trackError } from "@/lib/error-tracker";
 import { supabase } from "@/integrations/supabase/client";
 import { useDemoContext } from "@/contexts/DemoContext";
 
-type Plan = "free" | "outil" | "studio" | "now_pilot";
+type Plan = "free" | "outil" | "binome";
 
 /** "studio" et "now_pilot" = même plan (Binôme de com').
  *  Stripe écrit "studio", coaching_programs écrit "now_pilot".
- *  On normalise vers "now_pilot" pour simplifier toute la logique. */
+ *  On normalise vers "binome" pour simplifier toute la logique. */
 export function normalizePlan(raw: string): Plan {
-  if (raw === "studio") return "now_pilot";
-  return (["free", "outil", "now_pilot"].includes(raw) ? raw : "free") as Plan;
+  if (raw === "studio" || raw === "now_pilot") return "binome";
+  return (["free", "outil", "binome"].includes(raw) ? raw : "free") as Plan;
 }
 
 type Feature =
@@ -33,8 +33,7 @@ const OUTIL_FEATURES: Feature[] = [
   "contacts_strategiques", "routine_engagement", "editorial_line", "calendar",
 ];
 
-
-const NOW_PILOT_FEATURES: Feature[] = [
+const BINOME_FEATURES: Feature[] = [
   ...OUTIL_FEATURES,
   "coaching", "whatsapp", "assistant_chat", "direct_channel", "binome",
 ];
@@ -59,15 +58,14 @@ interface UserPlanState {
   remainingAudits: () => number;
   remainingTotal: () => number;
   isPaid: boolean;
-  isStudio: boolean;
-  isPilot: boolean;
+  isBinome: boolean;
   refresh: () => Promise<void>;
 }
 
 export function useUserPlan(): UserPlanState {
   const { user } = useAuth();
   const { isDemoMode, demoData, demoPlan } = useDemoContext();
-  const demoPlanResolved: Plan = isDemoMode ? (demoPlan as Plan) : "free";
+  const demoPlanResolved: Plan = isDemoMode ? normalizePlan(demoPlan as string) : "free";
   const [plan, setPlan] = useState<Plan>(isDemoMode ? demoPlanResolved : "free");
   const [bonusCredits, setBonusCredits] = useState(0);
   const [usage, setUsage] = useState<Record<string, CategoryUsage>>(() => {
@@ -110,13 +108,13 @@ export function useUserPlan(): UserPlanState {
   }, [load]);
 
   const { isAdmin: isAdminUser } = useAuth();
-  const effectivePlan: Plan = isAdminUser ? "now_pilot" : (isDemoMode ? demoPlanResolved : plan);
+  const effectivePlan: Plan = isAdminUser ? "binome" : (isDemoMode ? demoPlanResolved : plan);
 
   const canUseFeature = useCallback(
     (feature: Feature) => {
-      const p = isAdminUser ? "now_pilot" : (isDemoMode ? demoPlanResolved : plan);
+      const p = isAdminUser ? "binome" : (isDemoMode ? demoPlanResolved : plan);
       switch (p) {
-        case "now_pilot": return NOW_PILOT_FEATURES.includes(feature);
+        case "binome": return BINOME_FEATURES.includes(feature);
         case "outil": return OUTIL_FEATURES.includes(feature);
         default: return FREE_FEATURES.includes(feature);
       }
@@ -126,13 +124,13 @@ export function useUserPlan(): UserPlanState {
 
   const canGenerate = useCallback((category: AiCategory = "content") => {
     if (isAdminUser) return true;
-    if (isDemoMode && demoPlan === "now_pilot") return true;
+    if (isDemoMode && demoPlanResolved === "binome") return true;
     const cat = usage[category];
     const total = usage.total;
     if (!cat || !total) return true;
     if (cat.limit === 0) return false;
     return cat.used < cat.limit && total.used < total.limit;
-  }, [usage, isDemoMode, demoPlan, isAdminUser]);
+  }, [usage, isDemoMode, demoPlanResolved, isAdminUser]);
 
   const canAudit = useCallback(() => {
     return canGenerate("audit");
@@ -140,11 +138,11 @@ export function useUserPlan(): UserPlanState {
 
   const remainingGenerations = useCallback((category: AiCategory = "content") => {
     if (isAdminUser) return 100;
-    if (isDemoMode && demoPlan === "now_pilot") return 100;
+    if (isDemoMode && demoPlanResolved === "binome") return 100;
     const cat = usage[category];
     if (!cat) return Infinity;
     return Math.max(0, cat.limit - cat.used);
-  }, [usage, isDemoMode, demoPlan, isAdminUser]);
+  }, [usage, isDemoMode, demoPlanResolved, isAdminUser]);
 
   const remainingAudits = useCallback(() => {
     return remainingGenerations("audit");
@@ -152,12 +150,12 @@ export function useUserPlan(): UserPlanState {
 
   const remainingTotal = useCallback(() => {
     if (isAdminUser) return 284;
-    if (isDemoMode && demoPlan === "now_pilot") return 284;
-    if (isDemoMode && demoPlan === "free") return 2;
+    if (isDemoMode && demoPlanResolved === "binome") return 284;
+    if (isDemoMode && demoPlanResolved === "free") return 2;
     const total = usage.total;
     if (!total) return Infinity;
     return Math.max(0, total.limit - total.used);
-  }, [usage, isDemoMode, demoPlan, isAdminUser]);
+  }, [usage, isDemoMode, demoPlanResolved, isAdminUser]);
 
   return {
     plan: effectivePlan,
@@ -170,9 +168,8 @@ export function useUserPlan(): UserPlanState {
     remainingGenerations,
     remainingAudits,
     remainingTotal,
-    isPaid: isAdminUser || (isDemoMode && demoPlan === "now_pilot") || (!isDemoMode && plan !== "free"),
-    isStudio: !isDemoMode && (isAdminUser || plan === "now_pilot"),
-    isPilot: isAdminUser || (isDemoMode && demoPlan === "now_pilot") || (!isDemoMode && plan === "now_pilot"),
+    isPaid: isAdminUser || (isDemoMode && demoPlanResolved === "binome") || (!isDemoMode && plan !== "free"),
+    isBinome: isAdminUser || (isDemoMode && demoPlanResolved === "binome") || (!isDemoMode && plan === "binome"),
     refresh: load,
   };
 }
@@ -180,7 +177,7 @@ export function useUserPlan(): UserPlanState {
 // TODO: type demoData properly
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getDemoUsage(demoPlan: string, demoData: any): Record<string, CategoryUsage> {
-  if (demoPlan === "free") {
+  if (normalizePlan(demoPlan) === "free") {
     return {
       content: { used: 18, limit: 25 },
       audit: { used: 2, limit: 3 },
