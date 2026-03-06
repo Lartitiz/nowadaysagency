@@ -401,7 +401,7 @@ export default function Dashboard() {
         <div className="mb-6 sm:mb-8">
           <h1 className="font-heading text-lg sm:text-[22px] md:text-[28px] font-bold text-foreground leading-tight">
             Hey <span className="text-primary">{profile.prenom}</span>,{" "}
-            {isPilot && coachingMonth
+            {isBinome && coachingMonth
               ? <>accompagnement Binôme · Mois {coachingMonth}/6 🤝</>
               : <>{welcomeMessage}</>
             }
