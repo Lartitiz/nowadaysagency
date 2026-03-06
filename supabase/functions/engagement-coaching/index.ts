@@ -34,8 +34,8 @@ serve(async (req) => {
     if (missing) return new Response(JSON.stringify({ error: missing }), { status: 400, headers: cors });
 
     // Check usage
-    const limitCheck = await checkAndIncrementUsage(supabase, userId, "engagement_coaching", "coaching");
-    if (limitCheck) return new Response(JSON.stringify({ error: limitCheck }), { status: 403, headers: cors });
+    const limitCheck = await checkQuota(userId, "coach");
+    if (!limitCheck.allowed) return new Response(JSON.stringify({ error: limitCheck.message }), { status: 403, headers: cors });
 
     // Get user context
     const context = await getUserContext(supabase, userId, workspace_id);
