@@ -40,7 +40,7 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     adaptation: 30,
     deep_research: 15,
   },
-  now_pilot: {
+  binome: {
     total: 9999,
     content: 9999,
     audit: 9999,

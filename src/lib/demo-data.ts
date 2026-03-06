@@ -249,7 +249,7 @@ export const DEMO_DATA = {
 
   // ── COACHING BINÔME DE COM' ──
   coaching: {
-    formula: "now_pilot",
+    formula: "binome",
     duration_months: 6,
     price_monthly: 250,
     current_month: 2,
