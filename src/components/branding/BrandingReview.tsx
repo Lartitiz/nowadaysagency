@@ -371,7 +371,6 @@ async function saveStrategy(data: AnalysisResult["content_strategy"], userId: st
 }
 async function saveOffers(data: AnalysisResult["offers"], userId: string, workspaceId: string) {
   if (!data?.offers?.length) return;
-  // Delete existing offers from autofill to avoid duplicates, then insert new ones
   const col = workspaceId ? "workspace_id" : "user_id";
   const val = workspaceId || userId;
   // Check existing offers to avoid duplicates by name
@@ -381,16 +380,20 @@ async function saveOffers(data: AnalysisResult["offers"], userId: string, worksp
   for (const offer of data.offers) {
     const normalizedName = (offer.name || "Offre").toLowerCase().trim();
     if (existingNames.has(normalizedName)) continue; // Skip duplicates
-    await (supabase.from("offers") as any).insert({
+    const { error } = await (supabase.from("offers") as any).insert({
       user_id: userId,
       workspace_id: workspaceId || null,
       name: offer.name || "Offre",
+      offer_type: "paid",
       price_text: offer.price || null,
-      description: offer.description || null,
+      description_short: offer.description || null,
       target_ideal: offer.target || null,
       promise: offer.promise || null,
-      updated_at: new Date().toISOString(),
     });
+    if (error) {
+      console.error("Error saving offer:", offer.name, error);
+      throw error;
+    }
     existingNames.add(normalizedName);
   }
 }
