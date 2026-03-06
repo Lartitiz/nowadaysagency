@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace, type Workspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import CoachingProgramList from "@/components/admin/CoachingProgramList";
 import CoachingSessionManager from "@/components/admin/CoachingSessionManager";
 import KickoffPreparation from "@/components/admin/KickoffPreparation";
@@ -17,6 +17,7 @@ import type { ProgramWithProfile, SessionData } from "@/components/admin/admin-c
 export default function AdminCoachingPage() {
   const { user, isAdmin } = useAuth();
   const { workspaces } = useWorkspace();
+  const navigate = useNavigate();
   const [programs, setPrograms] = useState<ProgramWithProfile[]>([]);
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,6 +122,9 @@ export default function AdminCoachingPage() {
               <TabsTrigger value="emails">✉️ Emails</TabsTrigger>
               <TabsTrigger value="stats">📊 Stats</TabsTrigger>
               <TabsTrigger value="feedback">🐛 Feedback</TabsTrigger>
+              <TabsTrigger value="tools" onClick={() => navigate("/admin/tools")} className="text-xs">
+                🔧 Outils
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="clientes">
               <CoachingProgramList
