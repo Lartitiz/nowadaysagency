@@ -91,10 +91,13 @@ serve(async (req) => {
     // Atomic increment uses
     await supabase.rpc("increment_promo_uses", { promo_id: promo.id });
 
+    // Normalize plan for display (legacy DB values may still say "now_pilot")
+    const displayPlan = (promo.plan_granted === "now_pilot" || promo.plan_granted === "studio") ? "binome" : promo.plan_granted;
+
     // Update profile plan
     await supabase
       .from("profiles")
-      .update({ current_plan: promo.plan_granted })
+      .update({ current_plan: displayPlan })
       .eq("user_id", userId);
 
     // Upsert subscription
@@ -109,8 +112,8 @@ serve(async (req) => {
       { onConflict: "user_id" }
     );
 
-    // If now_pilot, auto-create coaching program + sessions + deliverables
-    if (promo.plan_granted === "now_pilot") {
+    // If binome (or legacy now_pilot), auto-create coaching program + sessions + deliverables
+    if (promo.plan_granted === "now_pilot" || promo.plan_granted === "binome") {
       // Check if program already exists
       const { data: existingProg } = await supabase
         .from("coaching_programs")
@@ -201,7 +204,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      plan: promo.plan_granted,
+      plan: displayPlan,
       expires_at: expiresAt,
       code: upperCode,
     }), {
