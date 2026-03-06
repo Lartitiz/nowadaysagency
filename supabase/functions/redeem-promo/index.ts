@@ -204,7 +204,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      plan: promo.plan_granted,
+      plan: displayPlan,
       expires_at: expiresAt,
       code: upperCode,
     }), {
