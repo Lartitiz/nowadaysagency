@@ -184,7 +184,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
           {onCollapse && (
             <button
               onClick={onCollapse}
-              className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              className="p-1.5 rounded-lg border border-border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               title="Replier le panneau idées"
             >
               <X className="h-3.5 w-3.5" />
