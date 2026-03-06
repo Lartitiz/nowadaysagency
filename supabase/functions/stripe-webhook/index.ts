@@ -100,7 +100,8 @@ serve(async (req) => {
             updated_at: new Date().toISOString(),
           }, { onConflict: "user_id" });
 
-          await supabase.from("profiles").update({ current_plan: plan }).eq("user_id", userId);
+          const displayPlan = plan === "studio" ? "binome" : plan;
+          await supabase.from("profiles").update({ current_plan: displayPlan }).eq("user_id", userId);
           log("Subscription activated", { userId, plan });
 
         } else if (session.mode === "payment") {
