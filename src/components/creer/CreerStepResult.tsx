@@ -210,6 +210,18 @@ export default function CreerStepResult({
     };
   }, [generating, messages.length]);
 
+  // ── Rotation des messages pour génération visuels ──
+  useEffect(() => {
+    if (!visualLoading) {
+      setVisualProgressIndex(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setVisualProgressIndex((prev) => (prev + 1) % VISUAL_PROGRESS_MESSAGES.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [visualLoading]);
+
   if (generating) {
     // Mode streaming : le contenu texte arrive progressivement
     if (streamingContent) {
