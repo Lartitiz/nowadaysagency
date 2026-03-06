@@ -61,6 +61,10 @@ export default function BrandingSuggestionsCard({
     voice_description: { table: "brand_profile", field: "voice_description", filterBy: "workspace" },
     positioning: { table: "brand_profile", field: "positioning", filterBy: "workspace" },
     mission: { table: "brand_profile", field: "mission", filterBy: "workspace" },
+    tone_style: { table: "brand_profile", field: "tone_description", filterBy: "workspace" },
+    storytelling: { table: "storytelling", field: "step_7_polished", filterBy: "workspace" },
+    persona: { table: "persona", field: "description", filterBy: "workspace" },
+    offers: { table: "offers", field: "description_short", filterBy: "workspace" },
   };
 
   const handleApplyAll = async () => {
