@@ -199,10 +199,13 @@ La description template_layout_description doit être TRÈS détaillée (200-500
     });
   } catch (err: any) {
     console.error("audit-visual-templates error:", err);
-    const status = err.message === "Non autorisé" ? 401 : 500;
-    return new Response(JSON.stringify({ error: err.message }), {
-      status,
-      headers: { ...cors, "Content-Type": "application/json" },
+    if (err.message === "Non autorisé") {
+      return new Response(JSON.stringify({ error: "Non autorisé" }), {
+        status: 401, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
+      status: 500, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 });

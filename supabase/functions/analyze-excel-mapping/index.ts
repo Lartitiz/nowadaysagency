@@ -113,7 +113,7 @@ Règles :
     });
   } catch (err) {
     console.error("analyze-excel-mapping error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Erreur interne" }), {
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

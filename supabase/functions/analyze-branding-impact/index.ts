@@ -167,7 +167,7 @@ RÈGLES :
     });
   } catch (e) {
     console.error("analyze-branding-impact error:", e);
-    return new Response(JSON.stringify({ error: e.message, suggestions: [] }), {
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur", suggestions: [] }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -106,11 +106,16 @@ serve(async (req) => {
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    const status = error instanceof ValidationError ? 400 : 500;
     log("ERROR", { message: msg });
-    return new Response(JSON.stringify({ error: msg }), {
+    if (error instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: msg }), {
+        headers: { ...cors, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
       headers: { ...cors, "Content-Type": "application/json" },
-      status,
+      status: 500,
     });
   }
 });

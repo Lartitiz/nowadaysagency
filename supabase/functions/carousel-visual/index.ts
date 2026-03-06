@@ -744,10 +744,13 @@ Retourne UNIQUEMENT le JSON.`;
     });
   } catch (err: any) {
     console.error("carousel-visual error:", err);
-    const status = err.message === "Non autorisé" ? 401 : 500;
-    return new Response(JSON.stringify({ error: err.message }), {
-      status,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (err.message === "Non autorisé") {
+      return new Response(JSON.stringify({ error: "Non autorisé" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
