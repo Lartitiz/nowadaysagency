@@ -203,6 +203,19 @@ Deno.serve(async (req) => {
       sourcesUsed.push("texte_libre");
     }
 
+    // Fetch existing branding data from the tool
+    try {
+      const ctx = await getUserContext(sbService, user.id, workspace_id || undefined);
+      const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.audit);
+      if (brandingContext && brandingContext.length > 50) {
+        sources.branding_outil = brandingContext.slice(0, 8000);
+        sourcesUsed.push("branding_outil");
+      }
+    } catch (e) {
+      console.warn("Failed to fetch branding context:", e);
+      // Non-blocking: audit continues without tool data
+    }
+
     if (sourcesUsed.length === 0) {
       return new Response(JSON.stringify({ error: "Fournis au moins une source à analyser." }), {
         status: 400, headers: { ...cors, "Content-Type": "application/json" },
