@@ -78,7 +78,7 @@ serve(async (req) => {
     };
 
     // Prix du plan Binôme de com (studio_monthly) : engagement 6 mois
-    const STUDIO_MONTHLY_PRICE_ID = "price_1T3ipcI0YZbTj9ITlKOQN5Tm";
+    const STUDIO_MONTHLY_PRICE_ID = "price_1T7uZbIwPeG7Gjpy3arZSdx8";
 
     if (mode === "subscription") {
       sessionParams.subscription_data = {
