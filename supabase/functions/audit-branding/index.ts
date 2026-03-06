@@ -5,6 +5,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { validateInput, ValidationError, AuditBrandingSchema } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 function htmlToText(html: string): string {
   return html
@@ -202,6 +203,19 @@ Deno.serve(async (req) => {
       sourcesUsed.push("texte_libre");
     }
 
+    // Fetch existing branding data from the tool
+    try {
+      const ctx = await getUserContext(sbService, user.id, workspace_id || undefined);
+      const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.audit);
+      if (brandingContext && brandingContext.length > 50) {
+        sources.branding_outil = brandingContext.slice(0, 8000);
+        sourcesUsed.push("branding_outil");
+      }
+    } catch (e) {
+      console.warn("Failed to fetch branding context:", e);
+      // Non-blocking: audit continues without tool data
+    }
+
     if (sourcesUsed.length === 0) {
       return new Response(JSON.stringify({ error: "Fournis au moins une source à analyser." }), {
         status: 400, headers: { ...cors, "Content-Type": "application/json" },
@@ -223,6 +237,8 @@ RÈGLES :
 - Le score est réaliste (pas de 90/100 si c'est moyen)
 - Valorise ce qui existe avant de pointer ce qui manque
 - Si une source manque, ne pas inventer (marquer "non analysé")
+- Si une source "branding_outil" est fournie, ce sont les DONNÉES EXISTANTES de l'utilisatrice dans l'outil (offres, persona, positionnement, ton, storytelling). Ces données sont souvent PLUS PRÉCISES que ce qui est visible sur le site ou Instagram. Si les offres sont détaillées dans branding_outil, NE DIS PAS "tes offres sont floues" : dis plutôt si elles sont bien reflétées sur le site/réseaux.
+- L'audit doit mesurer la COHÉRENCE entre ce qu'elle a travaillé (branding_outil) et ce qui est visible publiquement (site, Instagram, LinkedIn). La question n'est pas "est-ce qu'elle a un positionnement ?" mais "est-ce que son positionnement est VISIBLE et CLAIR pour son audience ?"
 - Si le contenu d'une source est limité (ex: juste un nom Instagram sans posts, ou un profil LinkedIn inaccessible), analyse ce que tu peux et signale clairement ce qui manque pour un audit plus approfondi. Ne dis PAS "pas de contenu fourni" mais plutôt "Pour aller plus loin sur ce canal, je recommande de [faire un audit Instagram dédié / renseigner plus d'informations sur ton profil]".
 - Le plan d'action recommandé est ordonné par priorité
 - Écris en français, tutoie l'utilisatrice
@@ -252,6 +268,8 @@ persona, positionnement, offres, bio, storytelling, ton, editorial, contenu, ins
 
 Le conseil doit être en 1-2 phrases, actionnable, et le label du bouton doit commencer par un verbe.
 NE PAS mettre de route dans la réponse — le frontend gère les routes automatiquement.
+
+IMPORTANT pour extraction_branding : Si la source branding_outil contient déjà des données détaillées, mets confidence = "already_set" pour ces champs et reprends la valeur existante. N'extrais à partir des sources publiques (site, Instagram) que les champs qui n'existent PAS encore dans branding_outil ou qui sont significativement différents.
 
 RETOURNE UNIQUEMENT un objet JSON valide avec cette structure exacte :
 {
@@ -286,6 +304,7 @@ RETOURNE UNIQUEMENT un objet JSON valide avec cette structure exacte :
   "plan_action_recommande": [
     {"priorite": 1, "action": "...", "module": "branding", "temps_estime": "30 min", "conseil": "Conseil court pour cette action."}
   ],
+  "extraction_branding_note": "Si branding_outil existe, beaucoup de ces champs sont déjà remplis. Mets confidence='already_set' pour ceux-là.",
   "extraction_branding": {
     "positioning": {"value": "...", "confidence": "high"},
     "mission": {"value": "...", "confidence": "medium"},
