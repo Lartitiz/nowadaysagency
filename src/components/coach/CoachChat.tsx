@@ -182,7 +182,7 @@ export default function CoachChat() {
     } finally {
       setLoading(false);
     }
-  }, [messages, loading, quotaReached, location.pathname, activeWorkspace?.id, refreshPlan]);
+  }, [messages, loading, location.pathname, activeWorkspace?.id, refreshPlan]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
