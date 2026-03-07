@@ -484,6 +484,39 @@ export default function CreerUnifie() {
       return;
     }
 
+    // Épingle visuelle Pinterest : appel direct (comme carousel mais une seule slide)
+    if (selectedFormat === "pinterest_visual") {
+      setStep("result");
+      setPinterestPinHtml(null);
+      try {
+        const pinType = editorialAngle || "infographie";
+        const { data, error: fnError } = await invokeWithTimeout("pinterest-visual", {
+          body: {
+            subject: enrichedSubject,
+            pin_type: pinType,
+            pinterest_link: pinterestData?.link,
+            pinterest_board: pinterestData?.boardName,
+            workspace_id: workspaceId || undefined,
+          },
+        }, 120000);
+        if (fnError) throw fnError;
+        if (data?.error) throw new Error(data.error);
+        const r = data?.result;
+        setPinterestPinHtml(r?.pin_html || null);
+        setResult({
+          type: "pinterest_visual" as any,
+          raw: {
+            pin_html: r?.pin_html,
+            title: r?.title,
+            description: r?.description,
+          },
+        });
+      } catch (e: any) {
+        toast.error(e?.message || "Erreur lors de la génération du visuel Pinterest");
+      }
+      return;
+    }
+
     // Formats structurés : appel classique (pas de streaming)
     await generate({
       format: selectedFormat as any,
