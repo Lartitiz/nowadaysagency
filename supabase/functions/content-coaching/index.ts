@@ -67,6 +67,8 @@ Deno.serve(async (req) => {
     const CANAL_LABELS: Record<string, string> = {
       instagram: "Instagram",
       linkedin: "LinkedIn",
+      pinterest: "Pinterest",
+      newsletter: "Newsletter",
     };
     const TON_LABELS: Record<string, string> = {
       intime: "Intime et personnel (vulnérabilité, authenticité)",
