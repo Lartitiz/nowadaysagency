@@ -38,7 +38,7 @@ interface Props {
   idea: string;
   objective?: string;
   initialFormat?: string;
-  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }) => void;
+  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean) => void;
   onBack: () => void;
 }
 
