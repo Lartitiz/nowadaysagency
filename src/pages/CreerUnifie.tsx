@@ -598,6 +598,7 @@ export default function CreerUnifie() {
     setSavedId(null);
     setVisualSlides([]);
     setCarouselSubMode(null);
+    setIsLinkedInCarousel(false);
     setUploadedPhotos([]);
     setPhotoDescription("");
     setPhotoMode(false);
