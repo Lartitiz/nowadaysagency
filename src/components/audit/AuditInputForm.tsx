@@ -477,6 +477,9 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
             ))}
           </div>
         )}
+        <p className="text-xs text-muted-foreground italic mt-1">
+          💡 La première capture de ton profil sera analysée visuellement par l'IA. Les autres sont sauvegardées pour référence.
+        </p>
       </section>
 
       <Button onClick={() => onSubmit(form)} disabled={loading || (!form.bio && !form.displayName && form.profileScreenshots.length === 0)} className="w-full rounded-pill gap-2 h-12 text-base">
