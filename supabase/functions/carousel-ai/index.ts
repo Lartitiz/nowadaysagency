@@ -774,16 +774,49 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour :
 function buildExpressFullPrompt(body: any, isLinkedIn: boolean = false): string {
   const { subject, carousel_type, objective, slide_count, deepening_answers, selected_offer, editorial_angle, content_structure } = body;
 
-  let deepeningCtx = "";
+  // ── 1. BLOC SUJET (priorité absolue, en tête de prompt) ──
+
+  const subjectBlock = `══════════════════════════════════════
+SUJET DU CARROUSEL (ta priorité n°1)
+══════════════════════════════════════
+
+"${subject || "non précisé"}"
+
+AVANT D'ÉCRIRE, analyse ce sujet en interne (ne montre pas) :
+- Quel est le MESSAGE CENTRAL en 1 phrase ? (Le noyau que chaque slide sert)
+- Quel MÉCANISME INVISIBLE est en jeu ? (Biais cognitif, conditionnement social, paradoxe psychologique, dynamique de marché)
+- Quelle CROYANCE SOUS-JACENTE alimente le problème ? (Ce que la lectrice n'a jamais formulé consciemment)
+- Quel RETOURNEMENT DE PERSPECTIVE ferait dire "j'avais jamais vu ça comme ça" ?
+- Quelle DONNÉE ou RÉFÉRENCE crédibilise le propos ? (Étude, chiffre, concept nommé avec auteur)
+
+Le sujet n'est pas un thème vague : c'est le CŒUR du carrousel. Chaque slide doit y revenir. Si on peut remplacer le sujet par un autre et que le carrousel fonctionne encore, c'est raté.`;
+
+  // ── 2. BLOC RÉPONSES UTILISATRICE (juste après le sujet) ──
+
+  let deepeningBlock = "";
   if (deepening_answers) {
     const answers = Object.entries(deepening_answers)
       .filter(([, v]) => v && (v as string).trim())
       .map(([k, v]) => `- ${k}: ${v}`)
       .join("\n");
-    if (answers) deepeningCtx = `\nRÉPONSES DE L'UTILISATRICE (intègre son vécu, ses mots, ses exemples) :\n${answers}\n\nINTÉGRATION DES RÉPONSES :\n- Les réponses de l'utilisatrice sont du contenu AUTHENTIQUE. Utilise ses mots exacts.\n- Son vécu et ses expressions doivent apparaître naturellement dans les slides.\n- Si elle a donné une anecdote, elle peut devenir le hook ou l'exemple concret.\n`;
+    if (answers) {
+      deepeningBlock = `
+══════════════════════════════════════
+RÉPONSES DE L'UTILISATRICE (matière première du carrousel)
+══════════════════════════════════════
+
+${answers}
+
+Ces réponses sont PLUS IMPORTANTES que n'importe quel template :
+- Son anecdote → devient le storytelling des slides 2-3. Utilise ses MOTS EXACTS, pas une reformulation.
+- Sa conviction → devient la punchline ou le retournement de perspective.
+- Son émotion → donne le TON de tout le carrousel.
+- Le carrousel raconte SON histoire à travers le framework, pas un framework illustré par un exemple générique.`;
+    }
   }
 
-  // Build structure block
+  // ── 3. BLOC STRUCTURE ÉDITORIALE ──
+
   let structureBlock: string;
   let extraRules = "";
 
@@ -800,83 +833,129 @@ ${EDITORIAL_ANGLES_REFERENCE}`;
     structureBlock = getStructureGuide(carousel_type);
 
   } else {
-    structureBlock = `PAS DE FORMAT IMPOSÉ. Analyse le sujet et choisis la structure la plus pertinente parmi ces options :
+    structureBlock = `PAS DE FORMAT IMPOSÉ. Analyse le sujet "${subject}" et choisis la structure la plus pertinente :
 
 ${EDITORIAL_ANGLES_REFERENCE}
 
-CHOISIS l'angle qui créera le plus de tension et d'engagement pour le sujet "${subject}".
-NE CHOISIS PAS "tips" sauf si le sujet est réellement une liste de conseils pratiques.
+CHOISIS l'angle qui crée le plus de tension pour CE sujet précis.
+NE CHOISIS PAS "tips" sauf si le sujet est réellement une liste de conseils.
 Privilégie les angles narratifs : storytelling, enquête, coup de gueule, mythe à déconstruire.`;
   }
 
+  // ── 4. BLOC LINKEDIN (conditionnel) ──
+
+  const linkedInBlock = isLinkedIn ? `
+══════════════════════════════════════
+ADAPTATION LINKEDIN
+══════════════════════════════════════
+
+Tu écris pour LinkedIn, pas Instagram. Ce qui change fondamentalement :
+- POSTURE : expert·e qui partage une analyse, pas coach qui accompagne.
+- DENSITÉ : chaque slide a 1 donnée chiffrée OU 1 référence nommée OU 1 cas concret. C'est non négociable sur LinkedIn.
+- LONGUEUR : max 80 mots par slide (vs 50 Instagram). Les slides LinkedIn sont plus denses.
+- TON : professionnel et engagé. Vouvoiement par défaut (sauf si le profil de voix de l'utilisatrice indique le tutoiement).
+- CTA : invitation au débat professionnel ("Partagez si cette réflexion vous parle", "Votre avis ?", "Envoyez à un·e collègue qui..."). PAS de "Sauvegarde si...", PAS de "Dis-moi en commentaire".
+- CAPTION : 500-800 caractères, dense, positionnante. Le carrousel doit positionner l'auteur·ice comme référence sur le sujet.` : "";
+
+  // ── ASSEMBLAGE DU PROMPT ──
+
   return `DEMANDE : Génère un carrousel ${isLinkedIn ? "LinkedIn PDF" : "Instagram"} COMPLET.
 
-Tu dois d'abord analyser le sujet, choisir le meilleur angle narratif, écrire un hook irrésistible, puis rédiger toutes les slides avec un fil conducteur fort.
+${subjectBlock}
+${deepeningBlock}
 
-Sujet : "${subject || "non précisé"}"
+══════════════════════════════════════
+PARAMÈTRES
+══════════════════════════════════════
+
 Objectif : ${objective || "engagement"}
 Nombre de slides : ${slide_count || 7}
-${selected_offer ? `Offre à mentionner : ${selected_offer}` : "Pas d'offre à mentionner."}
-${deepeningCtx}
+${selected_offer ? `Offre à mentionner naturellement : ${selected_offer}` : "Pas d'offre à mentionner."}
 
-═══ STRUCTURE ═══
+══════════════════════════════════════
+STRUCTURE ÉDITORIALE
+══════════════════════════════════════
+
 ${structureBlock}
+${linkedInBlock}
 
-═══ RÈGLES DE STRUCTURE ═══
-- Slide 1 = hook percutant (max 12 mots). Technique : provocation, question rhétorique, stat choc, ou confession. Le hook doit créer un GAP (écart entre ce qu'on croit et la réalité).
-- Slide 2 = DOIT fonctionner comme hook autonome (seconde chance algo). Développe le contexte : pourquoi ce sujet, d'où tu parles, quelle observation personnelle.
-- Chaque slide : max ${isLinkedIn ? "80" : "50"} mots, 1 idée principale.
-- Dernière slide = 1 SEUL CTA doux. ${isLinkedIn ? `Formulation type : "Partagez si cette réflexion vous parle", "Quel est votre avis ?", "Envoyez à un·e collègue qui..."` : `Formulation type : "Sauvegarde si...", "Dis-moi en commentaire...", "Envoie à quelqu'un qui..."`}
-- Headlines : 4-7 mots, verbe d'action ou mot déclencheur émotionnel.
+══════════════════════════════════════
+EXIGENCES DE DENSITÉ (ce qui sépare un bon carrousel d'un carrousel générique)
+══════════════════════════════════════
 
-═══ RÈGLES DE NARRATION ═══
-- ARC NARRATIF OBLIGATOIRE : le carrousel raconte une histoire avec situation → tension → développement → résolution → ouverture. Même un carrousel "tips" doit avoir un fil conducteur, pas juste une liste.
-- CONNEXION ENTRE SLIDES : chaque slide crée une tension qui donne envie de swiper. Dernière phrase = amorce de la suivante. Utilise des bucket brigades : "Le problème, c'est que...", "Sauf que...", "Résultat ?", "Et là...", "La vraie question c'est..."
-- EXEMPLES CONCRETS dans chaque slide : pas de conseil abstrait sans illustration.
+Chaque slide (sauf hook et CTA) doit contenir AU MOINS 1 de ces éléments :
+- Une DONNÉE chiffrée sourcée (chiffre + source entre parenthèses)
+- Une ANALOGIE originale ancrée dans le quotidien ou la culture pop
+- Un EXEMPLE CONCRET et spécifique (prénom, situation, détail)
+- Un MÉCANISME NOMMÉ (concept psycho/socio avec auteur si connu)
+- Un VERBATIM réel ou vraisemblable (une phrase que quelqu'un dirait)
+
+Exemple de slide DENSE (ce qu'on veut) :
+"73% des comptes actifs publient 2-3 fois par semaine (Later 2024). Pas parce que la quantité compte. Parce que la régularité entraîne l'algorithme à montrer le contenu. C'est le biais de simple exposition (Zajonc) : on fait davantage confiance à ce qu'on voit souvent."
+
+Exemple de slide GÉNÉRIQUE (ce qu'on refuse) :
+"La régularité est plus importante que la quantité. Publie quand tu as quelque chose à dire. Ton audience préfère un bon contenu par semaine."
+
+La différence : la slide dense a un chiffre + un mécanisme + une implication concrète. La slide générique dit des trucs vrais que tout le monde sait déjà.
+
+══════════════════════════════════════
+RÈGLES STRUCTURELLES (s'appliquent à tous les carrousels, quel que soit le style)
+══════════════════════════════════════
+
+STRUCTURE :
+- Slide 1 = hook percutant (max 12 mots). Technique : provocation, stat choc, confession, question. Le hook crée un GAP entre ce qu'on croit et la réalité.
+- Slide 2 = DOIT fonctionner comme hook autonome (seconde chance algorithmique).
+- Chaque slide : max ${isLinkedIn ? "80" : "50"} mots, 1 idée principale. Des PHRASES COMPLÈTES ET FLUIDES : 2-3 phrases qui développent l'idée, pas des fragments hachés ni des rafales de 3-4 mots.
+- Dernière slide = 1 SEUL CTA. Pas 2. Pas 3.
+- Headlines (title) : 4-7 mots, verbe d'action ou déclencheur émotionnel.
+
+NARRATION :
+- ARC NARRATIF OBLIGATOIRE : situation → tension → développement → résolution → ouverture. Même un carrousel "tips" a un fil conducteur, pas juste une liste.
+- CONNEXION ENTRE SLIDES : chaque slide crée une tension qui donne envie de swiper. La dernière phrase d'une slide amorce la suivante.
 - AU MOINS 1 analogie du quotidien ou référence culture pop dans le carrousel.
-- La caption est DIFFÉRENTE du hook slide 1 et apporte une couche supplémentaire (storytelling perso, contexte, pourquoi ce sujet maintenant).
-${isLinkedIn ? `
-═══ ADAPTATION LINKEDIN ═══
-- LONGUEUR : les slides LinkedIn peuvent être plus denses qu'Instagram. Max 80 mots par slide (vs 50 pour Instagram).
-- TON : professionnel et engagé, pas familier. Vouvoiement sauf indication contraire.
-- DONNÉES : chaque carrousel LinkedIn doit avoir au moins 1 donnée chiffrée ou 1 référence sourcée.
-- CTA : "Partagez si cette réflexion vous parle", "Quel est votre avis ?", "Envoyez à un·e collègue"
-- CAPTION : la caption LinkedIn complète le carrousel avec du contexte supplémentaire, 500-800 caractères.
-- Le carrousel doit positionner l'auteur·ice comme expert·e du sujet.
-- PAS de "Sauvegarde si...", pas de "Dis-moi en commentaire..." → vocabulaire LinkedIn.
-` : ""}
+- La caption est DIFFÉRENTE du hook slide 1. Elle apporte une couche supplémentaire (contexte personnel, pourquoi ce sujet maintenant).
 
-═══ RÈGLES ANTI-IA ═══
-- INTERDIT : "Dans un monde où...", "Il est important de...", "N'hésite pas à...", "Voici X astuces pour..."
-- INTERDIT : Numéroter les slides "Tip 1, Tip 2, Tip 3" de façon mécanique. Si c'est un format tips, chaque tip a un TITRE PROPRE qui accroche, pas "Tip N° : [verbe]".
-- Le contenu doit sonner comme quelqu'un qui PARLE, pas qui RÉDIGE un article.
-- Chaque slide doit pouvoir être lue à voix haute naturellement.
-- Ton oral : "en vrai", "franchement", "le truc c'est que", "du coup", apartés en parenthèses.
-${deepeningCtx ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}${extraRules}
+VOIX ET TON :
+- Si le contexte contient une section VOIX PERSONNELLE ou TON & STYLE : c'est TA PRIORITÉ. Reproduis ce style. Réutilise les expressions signature. Respecte le registre (tu/vous, oral/soutenu, humour/sérieux).
+- Si le contexte ne contient PAS de profil de voix : ${isLinkedIn
+    ? "adopte un ton professionnel et engagé, vouvoiement, dense mais accessible."
+    : "adopte un ton direct et chaleureux, tutoiement, oral assumé mais pas surjoué."
+  }
+- DANS TOUS LES CAS : le contenu doit sonner comme quelqu'un qui PARLE, pas qui rédige un article. Il doit pouvoir être lu à voix haute naturellement.
 
-═══ SCHÉMAS VISUELS (PUISSANT — utilise-les !) ═══
+ANTI-PATTERNS IA (si tu en détectes un dans ton output, RÉÉCRIS avant de retourner) :
+- "Dans un monde où...", "Il est important de...", "N'hésitez pas à...", "Voici X astuces pour..." → SUPPRIMER
+- Numérotation mécanique "Tip 1, Tip 2, Tip 3" → chaque tip a un TITRE PROPRE qui accroche
+- "Et là, tout a basculé." → BANNI, marqueur IA reconnaissable
+- Rafales de phrases de 3-4 mots en série → prose fluide
+- Reformuler la même idée 3 fois pour remplir → 1 formulation forte suffit
+- Conclusion qui résume tout → la fin apporte du NOUVEAU ou n'existe pas
+- Anaphore mécanique ("Avec X. Avec Y. Avec Z.") → UNE FOIS MAX par carrousel
+${deepeningBlock ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}${extraRules}
 
-Certaines slides gagnent à être des SCHÉMAS plutôt que du texte pur. Quand c'est pertinent, ajoute un "visual_schema" à la slide.
-L'IA de design sait dessiner ces schémas en HTML/CSS. N'hésite PAS à les utiliser : 2-3 slides schéma par carrousel = le sweet spot.
+══════════════════════════════════════
+SCHÉMAS VISUELS (quand le sujet s'y prête)
+══════════════════════════════════════
 
-Types disponibles :
-1. "before_after" — { "type": "before_after", "before": { "label": "...", "items": [...] }, "after": { "label": "...", "items": [...] } }
-2. "comparison" — { "type": "comparison", "left": { "label": "...", "items": [...] }, "right": { "label": "...", "items": [...] } }
-3. "timeline" — { "type": "timeline", "steps": [ { "label": "...", "desc": "..." } ] }
-4. "checklist" — { "type": "checklist", "title": "...", "items": [ { "text": "...", "checked": true/false } ] }
-5. "stats" — { "type": "stats", "items": [ { "number": "73%", "label": "..." } ] }
-6. "matrix_2x2" — { "type": "matrix_2x2", "x_axis": {...}, "y_axis": {...}, "quadrants": [...] }
-7. "pyramid" — { "type": "pyramid", "levels": [ { "label": "...", "desc": "..." } ] }
-8. "equation" — { "type": "equation", "parts": [ { "label": "..." } ], "result": { "label": "..." }, "operator": "+" }
-9. "flowchart" — { "type": "flowchart", "start": "...", "branches": [ { "condition": "...", "result": "..." } ] }
-10. "scale" — { "type": "scale", "left": { "label": "...", "emoji": "..." }, "right": { "label": "...", "emoji": "..." }, "marker": { "position": 75, "label": "..." } }
-11. "icon_grid" — { "type": "icon_grid", "items": [ { "emoji": "...", "label": "..." } ] }
+2-3 slides schéma par carrousel = le sweet spot. Types disponibles :
+1. "before_after" — Avant/Après { before: { label, items }, after: { label, items } }
+2. "comparison" — Deux colonnes opposées { left: { label, items }, right: { label, items } }
+3. "timeline" — Progression chronologique { steps: [{ label, desc }] }
+4. "checklist" — Vérification { title, items: [{ text, checked }] }
+5. "stats" — Chiffres clés { items: [{ number, label }] }
+6. "matrix_2x2" — 4 quadrants { x_axis, y_axis, quadrants }
+7. "pyramid" — Hiérarchie { levels: [{ label, desc }] }
+8. "equation" — A + B = C { parts, result, operator }
+9. "flowchart" — Arbre de décision { start, branches: [{ condition, result }] }
+10. "scale" — Gradient entre 2 extrêmes { left, right, marker }
+11. "icon_grid" — Grille d'icônes { items: [{ emoji, label }] }
 
-Utilise un schéma quand la slide compare, liste, chiffre, ou montre un process. Pas pour hook, CTA, ou storytelling.
+Utilise un schéma quand la slide compare, chiffre, ou montre un processus. PAS pour le hook, le CTA, ou le storytelling pur.
+Quand une slide a un visual_schema, le body peut être plus court : le schéma porte le message visuel.
 
 Retourne ce JSON exact :
 {
-  "carousel_type": "le type de carrousel choisi (tips/storytelling/mythe_realite/enquete/etc.)",
+  "carousel_type": "le type choisi (tips/storytelling/mythe_realite/enquete/prise_de_position/etc.)",
   "chosen_angle": {
     "title": "Titre court de l'angle choisi (3-5 mots)",
     "description": "Pourquoi cet angle est le plus pertinent pour ce sujet"
@@ -893,8 +972,8 @@ Retourne ce JSON exact :
     }
   ],
   "caption": {
-    "hook": "Les 125 premiers caractères de la caption (accroche DIFFÉRENTE de slide 1, angle storytelling perso)",
-    "body": "Le reste de la caption (ajout de contexte, pourquoi ce sujet)",
+    "hook": "Les 125 premiers caractères de la caption (accroche DIFFÉRENTE de slide 1, angle personnel)",
+    "body": "Le reste de la caption (contexte, pourquoi ce sujet maintenant)",
     "cta": "Le CTA dans la caption",
     "hashtags": ["hashtag1", "hashtag2"]
   },
@@ -907,6 +986,7 @@ Retourne ce JSON exact :
     "slide_2_works_as_standalone_hook": true,
     "narrative_arc": true,
     "slides_connected": true,
+    "density_check": "chaque slide a au moins 1 élément de densité (donnée/analogie/exemple/mécanisme)",
     "score": 90
   },
   "publishing_tip": "Meilleur moment pour publier ce type de carrousel..."
