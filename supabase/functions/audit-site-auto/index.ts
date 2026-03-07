@@ -370,6 +370,7 @@ serve(async (req) => {
       lines.push(`Formulaires : ${p.hasForms ? "oui" : "non"}`);
       if (p.socialLinks.length) lines.push(`Réseaux sociaux : ${p.socialLinks.join(", ")}`);
       lines.push(`\nContenu visible :\n${p.visibleText}`);
+      if ((p as any).styleHints) lines.push(`\nIndices visuels (CSS) :\n${(p as any).styleHints}`);
       return lines.join("\n");
     }).join("\n");
 
