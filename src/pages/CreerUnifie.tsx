@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, CalendarDays } from "lucide-react";
+import { Loader2, CalendarDays, Palette } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import CreerStepIdea from "@/components/creer/CreerStepIdea";
@@ -95,6 +95,7 @@ export default function CreerUnifie() {
   const [photoMode, setPhotoMode] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
   const [pinterestData, setPinterestData] = useState<{ link?: string; boardId?: string; boardName?: string } | null>(null);
+  const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(false);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
@@ -597,12 +598,35 @@ export default function CreerUnifie() {
     setSavedId(null);
     setVisualSlides([]);
     setCarouselSubMode(null);
+    setIsLinkedInCarousel(false);
     setUploadedPhotos([]);
     setPhotoDescription("");
     setPhotoMode(false);
     clearFlowState();
     clearDraft();
     sessionStorage.removeItem(CREER_RESULT_KEY);
+  };
+
+
+  const handleTransformToLinkedInCarousel = async () => {
+    const r = result?.raw;
+    if (!r) return;
+    const linkedinText = r.full_text || r.content || [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
+    if (!linkedinText) return;
+
+    setIsLinkedInCarousel(true);
+    setSelectedFormat("carousel");
+    setCarouselSubMode("text");
+    setResult(null);
+    setVisualSlides([]);
+    setSavedId(null);
+
+    await generate({
+      format: "carousel" as any,
+      subject: linkedinText,
+      objective: objective || undefined,
+      editorialAngle: editorialAngle || undefined,
+    });
   };
 
   // ── Post-generation handlers ──
@@ -893,7 +917,7 @@ export default function CreerUnifie() {
       const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
       const r = result?.raw;
       const fmt = selectedFormat === "story" ? "story_serie" : (selectedFormat || "post");
-      const canal = selectedFormat === "linkedin" ? "linkedin" : "instagram";
+      const canal = selectedFormat === "linkedin" || isLinkedInCarousel ? "linkedin" : selectedFormat === "pinterest" ? "pinterest" : selectedFormat === "newsletter" ? "newsletter" : "instagram";
 
       const { data: insertedPost, error: insertError } = await supabase.from("calendar_posts").insert({
         user_id: session.user.id,
@@ -1158,9 +1182,11 @@ export default function CreerUnifie() {
                 idea={ideaText}
                 objective={objective || undefined}
                 initialFormat={selectedFormat || undefined}
-                onNext={(fmt, angle, sub, photos, desc, pm, pintData) => {
+                onNext={(fmt, angle, sub, photos, desc, pm, pintData, linkedinCar) => {
                   if (pintData) setPinterestData(pintData);
-                  handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm });
+                  if (linkedinCar) setIsLinkedInCarousel(true);
+                  else setIsLinkedInCarousel(false);
+                  handleFormatNext(fmt, angle, { carouselSubMode: sub || (linkedinCar ? "text" : undefined), photos, photoDescription: desc, photoMode: pm });
                 }}
                 onBack={() => setStep("idea")}
               />
@@ -1237,6 +1263,24 @@ export default function CreerUnifie() {
                   }
                 } : undefined}
               />
+            )}
+
+            {/* Transform LinkedIn text to carousel */}
+            {step === "result" && selectedFormat === "linkedin" && result?.raw && (result.raw.content || result.raw.full_text || result.raw.hook) && !generating && !streaming && !demoGenerating && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-center justify-between gap-4 animate-fade-in">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Transformer en carrousel LinkedIn ?</p>
+                  <p className="text-xs text-muted-foreground">L'IA structure ton post en slides visuelles téléchargeables en PDF.</p>
+                </div>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleTransformToLinkedInCarousel}
+                  className="gap-1.5 shrink-0"
+                >
+                  <Palette className="h-3.5 w-3.5" /> Créer le carrousel
+                </Button>
+              </div>
             )}
 
             {/* Launch mode: multi-chapter results */}

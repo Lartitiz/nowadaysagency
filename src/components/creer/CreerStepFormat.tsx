@@ -38,7 +38,7 @@ interface Props {
   idea: string;
   objective?: string;
   initialFormat?: string;
-  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }) => void;
+  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean) => void;
   onBack: () => void;
 }
 
@@ -57,6 +57,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
   const [pinterestLink, setPinterestLink] = useState("");
   const [pinterestBoardId, setPinterestBoardId] = useState("");
   const [pinterestBoards, setPinterestBoards] = useState<{ id: string; name: string }[]>([]);
+  const [linkedinSubMode, setLinkedinSubMode] = useState<"text" | "carousel" | null>(null);
 
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
@@ -79,7 +80,11 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
   const priorityTypes = objective ? OBJECTIVE_RECOMMENDATIONS[objective]?.priorityTypes || [] : [];
 
   const { recommended, others } = selectedFormat
-    ? getAnglesForType(selectedFormat, objective)
+    ? getAnglesForType(
+        // For LinkedIn carousel, use LinkedIn angles instead of Instagram carousel angles
+        selectedChannel === "linkedin" && selectedFormat === "carousel" ? "linkedin" : selectedFormat,
+        objective
+      )
     : { recommended: [], others: [] };
 
   const handleFormatSelect = (id: string) => {
@@ -97,7 +102,10 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
   const handleChannelSelect = (channelId: ChannelId) => {
     setSelectedChannel(channelId);
     if (channelId === "linkedin") {
-      handleFormatSelect("linkedin");
+      // Don't auto-select format — show sub-mode choice first
+      setLinkedinSubMode(null);
+      setSelectedFormat(null);
+      setSelectedAngle(undefined);
     } else if (channelId === "pinterest") {
       handleFormatSelect("pinterest");
     } else if (channelId === "newsletter") {
@@ -121,6 +129,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
     setPostPhotoDescription("");
     setPinterestLink("");
     setPinterestBoardId("");
+    setLinkedinSubMode(null);
   };
 
   const renderAngleCard = (angle: EditorialAngle, isRecommended: boolean) => {
@@ -174,6 +183,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
     const isCarouselPhoto = selectedFormat === "carousel" && carouselSubMode === "photo";
     const isCarouselMix = selectedFormat === "carousel" && carouselSubMode === "mix";
     const isPostPhoto = selectedFormat === "post" && photoMode;
+    const isLinkedInCarousel = selectedChannel === "linkedin" && selectedFormat === "carousel";
     const pinterestData = selectedFormat === "pinterest" ? {
       link: pinterestLink || undefined,
       boardId: pinterestBoardId || undefined,
@@ -187,6 +197,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
       isCarouselPhoto || isCarouselMix ? photoDescription : isPostPhoto ? postPhotoDescription : undefined,
       selectedFormat === "post" ? photoMode : undefined,
       pinterestData,
+      isLinkedInCarousel,
     );
   };
 
@@ -208,6 +219,39 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
                 <p className="text-[10px] text-muted-foreground mt-0.5">{ch.desc}</p>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* LinkedIn sub-mode selection */}
+      {selectedChannel === "linkedin" && !selectedFormat && (
+        <div className="space-y-3 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleChangeChannel}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+            >
+              <ArrowLeft className="h-3 w-3" /> Changer de canal
+            </button>
+          </div>
+          <p className="text-sm font-semibold text-foreground">Quel format LinkedIn ?</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => { setLinkedinSubMode("text"); handleFormatSelect("linkedin"); }}
+              className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+            >
+              <span className="text-2xl block mb-1">📝</span>
+              <span className="text-xs font-semibold text-foreground">Post texte</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">1300-2000 caractères</p>
+            </button>
+            <button
+              onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel"); }}
+              className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+            >
+              <span className="text-2xl block mb-1">🎠</span>
+              <span className="text-xs font-semibold text-foreground">Carrousel PDF</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">8-10 slides téléchargeables</p>
+            </button>
           </div>
         </div>
       )}
@@ -289,8 +333,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
         </div>
       )}
 
-      {/* Carousel sub-mode */}
-      {selectedFormat === "carousel" && (
+      {/* Carousel sub-mode (Instagram only) */}
+      {selectedFormat === "carousel" && selectedChannel === "instagram" && (
         <div className="space-y-3 animate-fade-in">
           <p className="text-sm font-semibold text-foreground">Quel type de carrousel ?</p>
           <div className="grid grid-cols-3 gap-2">
