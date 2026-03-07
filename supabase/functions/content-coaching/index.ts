@@ -345,6 +345,8 @@ FORMAT DE SORTIE
 ROUTES :
 Instagram : Post → /creer, Carrousel → /creer?format=carousel, Reel → /creer?format=reel, Story → /creer?format=story
 LinkedIn : Post → /creer?format=linkedin, Carrousel → /creer?format=linkedin
+Pinterest : Épingle texte → /creer?canal=pinterest, Épingle visuelle → /creer?canal=pinterest&format=pinterest_visual
+Newsletter : Newsletter → /creer?format=newsletter
 
 Le format recommandé correspond au format choisi (${formatLabel}).
 
