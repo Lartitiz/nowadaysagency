@@ -597,7 +597,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
       setCollapsed((prev) => new Set(prev).add(key));
       toast.success("Section sauvegardée ✓");
       logEvent("section_validated");
-      if (validated.size === 5) {
+      if (validated.size === 6) {
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 4000);
       }
