@@ -374,6 +374,7 @@ export function useContentGenerator() {
           const res = await supabase.functions.invoke("carousel-ai", {
             body: {
               type: "deepening_questions",
+              channel: params.channel || "instagram",
               subject: effectiveSubjectQ,
               subject_details: existingContentQ || undefined,
               objective: objective || null,

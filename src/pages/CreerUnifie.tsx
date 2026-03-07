@@ -384,7 +384,7 @@ export default function CreerUnifie() {
     }
 
     setStep("questions");
-    await generateQuestions({ format, subject: enrichedSubject, editorialAngle: angle, objective: objective || undefined });
+    await generateQuestions({ format, subject: enrichedSubject, editorialAngle: angle, objective: objective || undefined, channel: isLinkedInCarousel ? "linkedin" : undefined });
   };
 
   const handleQuestionsNext = async (ans: Record<string, string>) => {
