@@ -3,7 +3,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { Navigate, useLocation } from "react-router-dom";
 import { ReactNode, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import FloatingChatButton from "@/components/FloatingChatButton";
+
 import AppHeader from "@/components/AppHeader";
 import { isRouteVisible } from "@/config/feature-flags";
 import DemoBanner from "@/components/demo/DemoBanner";
@@ -91,12 +91,11 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
               </div>
             </div>
           </div>
-          <FloatingChatButton />
         </>
       );
     }
 
-    return <>{children}<FloatingChatButton /></>;
+    return <>{children}</>;
   }
 
   if (loading || checkingOnboarding) {
@@ -122,5 +121,5 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     return <Navigate to="/onboarding" replace />;
   }
 
-  return <>{children}<FloatingChatButton /></>;
+  return <>{children}</>;
 }
