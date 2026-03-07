@@ -1121,7 +1121,10 @@ export default function CreerUnifie() {
                 idea={ideaText}
                 objective={objective || undefined}
                 initialFormat={selectedFormat || undefined}
-                onNext={(fmt, angle, sub, photos, desc, pm) => handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm })}
+                onNext={(fmt, angle, sub, photos, desc, pm, pintData) => {
+                  if (pintData) setPinterestData(pintData);
+                  handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm });
+                }}
                 onBack={() => setStep("idea")}
               />
             )}
