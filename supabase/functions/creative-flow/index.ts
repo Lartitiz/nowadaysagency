@@ -373,7 +373,7 @@ TU FAIS :
 - Prendre position. Dire avec quoi tu n'es PAS d'accord.
 - CTA : une question PRÉCISE liée au sujet, ou rien du tout si le texte se suffit.
 - 0-2 hashtags en fin. Pas plus.
-- COURT ET DENSE : 800-1200 caractères. Si tu peux dire la même chose en moins de mots, fais-le. Un post LinkedIn de 800 caractères qui dit quelque chose > un post de 1800 caractères qui étire.`;
+- COURT ET DENSE : 1300-2000 caractères. Si tu peux dire la même chose en moins de mots, fais-le. Un post LinkedIn dense de 1300 caractères qui dit quelque chose > un post de 2500 caractères qui étire.`;
       } else if (isNewsletter) {
         depthMandate = `FORMAT : NEWSLETTER / EMAIL (1500-3000 caractères)
 
