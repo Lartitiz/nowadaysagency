@@ -80,21 +80,43 @@ const PAIN_POINTS = [
 ];
 
 const TARGET_LIST = [
-  "Tu es solopreneuse, freelance, créatrice, coach ou prestataire de services",
-  "Tu veux te rendre visible sans trahir tes valeurs",
-  "Tu en as marre du marketing agressif et tu cherches une approche qui te ressemble",
-  "Tu as besoin de structure sans te sentir enfermée",
-  "Tu veux un outil simple, pas une usine à gaz",
-  "Tu veux gérer toute ta com' au même endroit (pas 10 outils différents)",
+  "Tu crées quelque chose de beau (bijoux, céramique, mode, photo, coaching, yoga, design…) et tu veux que les bonnes personnes le sachent.",
+  "Tu en as marre de poster au hasard en espérant que « ça prenne ». Tu veux un système clair.",
+  "Tu veux un outil qui te guide pas à pas, pas une usine à gaz avec 200 fonctionnalités dont tu n'utiliseras jamais la moitié.",
+  "Tu cherches une approche éthique : pas de manipulation, pas de fausse urgence, pas de « achète maintenant ou tu vas le regretter ».",
+  "Tu veux gérer ta com' au même endroit au lieu de jongler entre Canva, ChatGPT, un tableur et 3 onglets ouverts.",
+  "Tu veux te sentir fière de ta com', pas coupable de ne pas poster assez.",
 ];
 
 const FAQ_DATA = [
-  { q: "C'est quoi la différence avec Canva / Later / ChatGPT ?", a: "Ces outils font une chose. Nous on couvre toute ta com' avec une méthode pensée pour les solopreneuses engagées. Pas des templates génériques." },
-  { q: "Est-ce que ça marche pour mon secteur ?", a: "Si tu es dans la mode, l'artisanat, le bien-être, le design, la food, la culture, le coaching, la communication, le graphisme ou n'importe quel métier de service : oui. L'outil s'adapte à ton activité, quel que soit ton secteur." },
-  { q: "Je suis débutante, c'est pour moi ?", a: "Surtout pour toi. L'outil est pensé pour celles qui ne savent pas par où commencer." },
-  { q: "C'est quoi « Ta binôme de com » ?", a: "Un accompagnement de 6 mois avec Laetitia. L'outil + des sessions visio individuelles + un support WhatsApp. Pour celles et ceux qui veulent structurer leur com' avec quelqu'un à leurs côtés." },
-  { q: "Je peux annuler quand je veux ?", a: "Le plan Outil est sans engagement. Tu annules en 1 clic." },
-  { q: "Mes données sont en sécurité ?", a: "Hébergées en Europe, chiffrées, jamais revendues. On est dans la com' éthique, pas dans la data." },
+  {
+    q: "C'est quoi la différence avec Canva, Later ou ChatGPT ?",
+    a: "Ces outils font chacun un bout du travail. Canva crée des visuels, Later programme des posts, ChatGPT génère du texte. Mais aucun ne part de TA stratégie. L'Assistant Com' commence par tes fondations (ta marque, ta cible, ton ton) et tout le reste en découle. L'IA ne génère pas du contenu générique : elle écrit avec ta voix, parce qu'elle connaît ton branding."
+  },
+  {
+    q: "Est-ce que ça marche pour mon secteur ?",
+    a: "Si tu es dans un univers créatif, lifestyle ou engagé : oui. Mode, bijoux, artisanat, céramique, photo, coaching, yoga, bien-être, design, food, culture, sport… L'outil s'adapte à ton activité dès l'onboarding. Tu décris ce que tu fais, et tout se personnalise autour de ton projet."
+  },
+  {
+    q: "Je suis débutante en com', c'est pour moi ?",
+    a: "Surtout pour toi, en vrai. L'outil est pensé pour celles qui ne savent pas par où commencer. Chaque étape est guidée : tu réponds à des questions, l'outil structure pour toi. Pas besoin de connaître les termes techniques. On t'explique tout au fur et à mesure."
+  },
+  {
+    q: "C'est quoi « Ta binôme de com » ?",
+    a: "C'est un accompagnement de 6 mois avec Laetitia (la fondatrice de Nowadays). Tu as l'outil en premium + des sessions visio individuelles de 2h chaque mois + un support WhatsApp les jours ouvrés. En gros : tu n'es plus seule face à ta com'. On fait ensemble, on construit ensemble. C'est pour celles qui veulent aller plus vite et plus loin."
+  },
+  {
+    q: "Le plan gratuit, c'est vraiment gratuit ? C'est quoi le piège ?",
+    a: "Pas de piège. Le plan gratuit inclut l'onboarding complet, tout l'espace branding, le calendrier éditorial, les espaces par canal, et 10 crédits IA par mois. C'est déjà beaucoup. Le premium à 39€/mois débloque les crédits illimités, les audits, les stats et la communauté. Mais tu peux rester en gratuit aussi longtemps que tu veux."
+  },
+  {
+    q: "Je peux annuler quand je veux ?",
+    a: "Le plan Premium est sans engagement. Tu annules en 1 clic depuis ton espace, et tu repasses en gratuit. Pas de frais cachés, pas de période d'engagement."
+  },
+  {
+    q: "Mes données sont en sécurité ?",
+    a: "Oui. Hébergées en Europe, chiffrées, jamais revendues à des tiers. On fait de la communication éthique, ça vaut aussi pour tes données."
+  },
 ];
 
 /* ─── Feature Visual Component ─── */
