@@ -346,7 +346,7 @@ Retourne UNIQUEMENT ce JSON :
 
     const raw = await callAnthropicSimple(
       getModelForAction("coaching"),
-      systemPrompt + "\n\n" + ANTI_SLOP,
+      systemPrompt,
       "Génère 3 idées de contenu ultra-concrètes avec un hook irrésistible pour chaque.",
       0.9,
       2500,
