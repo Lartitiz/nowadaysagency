@@ -76,18 +76,36 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
 
       // brand_charter: colors, fonts, mood
       const charterUpdates: Record<string, unknown> = {};
+
       if (emptyFields.charter_colors && prefill.detected_colors?.primary) {
-        charterUpdates.color_primary = prefill.detected_colors.primary;
-        if (prefill.detected_colors.secondary) charterUpdates.color_secondary = prefill.detected_colors.secondary;
-        if (prefill.detected_colors.accent) charterUpdates.color_accent = prefill.detected_colors.accent;
-        if (prefill.detected_colors.background) charterUpdates.color_background = prefill.detected_colors.background;
+        const editedColors = editableValues.colors;
+        if (editedColors) {
+          const hexMatches = editedColors.match(/#[0-9a-fA-F]{3,8}/g) || [];
+          charterUpdates.color_primary = hexMatches[0] || prefill.detected_colors.primary;
+          if (hexMatches[1] || prefill.detected_colors.secondary) charterUpdates.color_secondary = hexMatches[1] || prefill.detected_colors.secondary;
+          if (hexMatches[2] || prefill.detected_colors.accent) charterUpdates.color_accent = hexMatches[2] || prefill.detected_colors.accent;
+          if (hexMatches[3] || prefill.detected_colors.background) charterUpdates.color_background = hexMatches[3] || prefill.detected_colors.background;
+        } else {
+          charterUpdates.color_primary = prefill.detected_colors.primary;
+          if (prefill.detected_colors.secondary) charterUpdates.color_secondary = prefill.detected_colors.secondary;
+          if (prefill.detected_colors.accent) charterUpdates.color_accent = prefill.detected_colors.accent;
+          if (prefill.detected_colors.background) charterUpdates.color_background = prefill.detected_colors.background;
+        }
       }
+
       if (emptyFields.charter_fonts && prefill.detected_fonts?.title) {
-        charterUpdates.font_title = prefill.detected_fonts.title;
-        if (prefill.detected_fonts.body) charterUpdates.font_body = prefill.detected_fonts.body;
+        const editedFonts = editableValues.fonts;
+        if (editedFonts) {
+          const parts = editedFonts.split(/[\/,]/).map(s => s.trim()).filter(Boolean);
+          charterUpdates.font_title = parts[0] || prefill.detected_fonts.title;
+          if (parts[1] || prefill.detected_fonts.body) charterUpdates.font_body = parts[1] || prefill.detected_fonts.body;
+        } else {
+          charterUpdates.font_title = prefill.detected_fonts.title;
+          if (prefill.detected_fonts.body) charterUpdates.font_body = prefill.detected_fonts.body;
+        }
       }
+
       if (emptyFields.mood_keywords && prefill.detected_mood?.length) {
-        // Use edited value split back to array
         charterUpdates.mood_keywords = editableValues.mood
           ? editableValues.mood.split(",").map(s => s.trim()).filter(Boolean)
           : prefill.detected_mood;

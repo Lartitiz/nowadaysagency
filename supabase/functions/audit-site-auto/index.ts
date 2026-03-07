@@ -116,6 +116,38 @@ function extractVisibleText(html: string): string {
   return cleaned;
 }
 
+function extractStyleHints(html: string): string {
+  const hints: string[] = [];
+  let m;
+
+  // Extract inline style colors
+  const colorRegex = /(?:color|background-color|background|border-color)\s*:\s*(#[0-9a-fA-F]{3,8}|rgb\([^)]+\)|rgba\([^)]+\))/gi;
+  const colors = new Set<string>();
+  while ((m = colorRegex.exec(html)) !== null) {
+    colors.add(m[1].toLowerCase());
+  }
+  if (colors.size > 0) hints.push(`Couleurs détectées dans le CSS : ${[...colors].slice(0, 10).join(", ")}`);
+
+  // Extract font-family
+  const fontRegex = /font-family\s*:\s*([^;}"]+)/gi;
+  const fonts = new Set<string>();
+  while ((m = fontRegex.exec(html)) !== null) {
+    const cleaned = m[1].replace(/['"]/g, "").split(",")[0].trim();
+    if (cleaned && cleaned.length < 50) fonts.add(cleaned);
+  }
+  if (fonts.size > 0) hints.push(`Polices détectées : ${[...fonts].slice(0, 5).join(", ")}`);
+
+  // Extract CSS custom properties
+  const cssVarRegex = /--[\w-]*(color|primary|secondary|accent|bg|background|font|text)[\w-]*\s*:\s*([^;}"]+)/gi;
+  const vars: string[] = [];
+  while ((m = cssVarRegex.exec(html)) !== null) {
+    vars.push(`${m[0].split(":")[0].trim()}: ${m[2].trim()}`);
+  }
+  if (vars.length > 0) hints.push(`Variables CSS : ${vars.slice(0, 8).join(", ")}`);
+
+  return hints.join("\n");
+}
+
 function truncateText(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
   return text.slice(0, maxChars) + "…";
@@ -130,6 +162,7 @@ interface PageData {
   metaDescription?: string;
   headings: { h1: string[]; h2: string[]; h3: string[] };
   visibleText: string;
+  styleHints: string;
   navLinks: string[];
   images: { count: number; alts: string[] };
   ctas: string[];
@@ -143,6 +176,7 @@ async function fetchPage(url: string, path: string): Promise<PageData> {
     path: path || "/",
     headings: { h1: [], h2: [], h3: [] },
     visibleText: "",
+    styleHints: "",
     navLinks: [],
     images: { count: 0, alts: [] },
     ctas: [],
@@ -175,6 +209,7 @@ async function fetchPage(url: string, path: string): Promise<PageData> {
     result.headings.h2 = extractAllTags(html, "h2").slice(0, 15);
     result.headings.h3 = extractAllTags(html, "h3").slice(0, 15);
     result.visibleText = truncateText(extractVisibleText(html), MAX_TEXT_PER_PAGE * 4); // ~4 chars/token
+    result.styleHints = extractStyleHints(html);
     result.navLinks = extractNavLinks(html);
     result.images = extractImages(html);
     result.ctas = extractCTAs(html);
@@ -335,6 +370,7 @@ serve(async (req) => {
       lines.push(`Formulaires : ${p.hasForms ? "oui" : "non"}`);
       if (p.socialLinks.length) lines.push(`Réseaux sociaux : ${p.socialLinks.join(", ")}`);
       lines.push(`\nContenu visible :\n${p.visibleText}`);
+      if ((p as any).styleHints) lines.push(`\nIndices visuels (CSS) :\n${(p as any).styleHints}`);
       return lines.join("\n");
     }).join("\n");
 
