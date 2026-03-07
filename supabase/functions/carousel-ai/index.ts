@@ -124,7 +124,7 @@ serve(async (req) => {
           });
 
           content = await callAnthropic({
-            model: getModelForAction("carousel"),
+            model: getModelForRichContent("carousel", !!(body.deepening_answers && Object.values(body.deepening_answers).some(v => v && (v as string).trim().length > 50))),
             system: systemPrompt + "\n\n" + mixPrompt,
             messages: [{ role: "user", content: messageContent }],
             max_tokens: 8192,
