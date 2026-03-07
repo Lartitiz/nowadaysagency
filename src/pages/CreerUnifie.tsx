@@ -419,6 +419,7 @@ export default function CreerUnifie() {
     // Reset post-generation state on new generation
     setSavedId(null);
     setVisualSlides([]);
+    setPinterestPinHtml(null);
     const enrichedSubject = existingCalendarContent
       ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
       : ideaText;
