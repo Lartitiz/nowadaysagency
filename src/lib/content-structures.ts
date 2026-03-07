@@ -554,9 +554,10 @@ export function getAnglesForType(
   contentType: string,
   objective?: string
 ): { recommended: EditorialAngle[]; others: EditorialAngle[] } {
-  // LinkedIn has its own dedicated angles
+  // LinkedIn and Pinterest have their own dedicated angles
   const isLinkedIn = contentType === "linkedin";
-  const angleSource = isLinkedIn ? LINKEDIN_EDITORIAL_ANGLES : EDITORIAL_ANGLES;
+  const isPinterest = contentType === "pinterest";
+  const angleSource = isLinkedIn ? LINKEDIN_EDITORIAL_ANGLES : isPinterest ? PINTEREST_EDITORIAL_ANGLES : EDITORIAL_ANGLES;
 
   if (!objective || !OBJECTIVE_RECOMMENDATIONS[objective]) {
     return { recommended: [], others: [...angleSource] };
