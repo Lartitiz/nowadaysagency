@@ -246,6 +246,53 @@ function OffersSection({ data, onUpdate, onDelete }: { data: AnalysisResult["off
   );
 }
 
+function CharterSection({ data }: { data: AnalysisResult["charter"] }) {
+  if (!data) return null;
+  const colors = [
+    data.color_primary && { label: "Primaire", hex: data.color_primary },
+    data.color_secondary && { label: "Secondaire", hex: data.color_secondary },
+    data.color_accent && { label: "Accent", hex: data.color_accent },
+    data.color_background && { label: "Fond", hex: data.color_background },
+  ].filter(Boolean) as { label: string; hex: string }[];
+
+  return (
+    <div className="space-y-3">
+      {colors.length > 0 && (
+        <div>
+          <p className="text-[12px] font-semibold text-[#91014b] mb-2">Couleurs détectées</p>
+          <div className="flex flex-wrap gap-3">
+            {colors.map((c, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-[8px] border border-border shadow-sm" style={{ backgroundColor: c.hex }} />
+                <div>
+                  <p className="text-[12px] font-medium text-foreground">{c.label}</p>
+                  <p className="text-[11px] text-muted-foreground font-mono">{c.hex}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {(data.font_title || data.font_body) && (
+        <div>
+          <p className="text-[12px] font-semibold text-[#91014b] mb-1">Typographies</p>
+          <div className="flex flex-wrap gap-1.5">
+            {data.font_title && <Chip>Titres : {data.font_title}</Chip>}
+            {data.font_body && <Chip>Corps : {data.font_body}</Chip>}
+          </div>
+        </div>
+      )}
+      {data.mood_keywords?.length ? (
+        <div>
+          <p className="text-[12px] font-semibold text-[#91014b] mb-1">Ambiance</p>
+          <div className="flex flex-wrap gap-1.5">{data.mood_keywords.map((k, i) => <Chip key={i}>{k}</Chip>)}</div>
+        </div>
+      ) : null}
+      {data.visual_style_description && <p className="text-[13px] text-muted-foreground italic">{data.visual_style_description}</p>}
+    </div>
+  );
+}
+
 // ─── Save helpers ────────────────────────────────────────────
 async function saveStory(data: AnalysisResult["story"], userId: string, workspaceId: string) {
   if (!data) return;
