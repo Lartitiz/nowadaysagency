@@ -21,7 +21,7 @@ import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 const CHANNELS = [
   { id: "instagram" as const, emoji: "📸", label: "Instagram", desc: "Carrousel, Reel, Story, Post" },
   { id: "linkedin" as const, emoji: "💼", label: "LinkedIn", desc: "Post texte professionnel" },
-  { id: "pinterest" as const, emoji: "📌", label: "Pinterest", desc: "Épingle titre + description SEO" },
+  { id: "pinterest" as const, emoji: "📌", label: "Pinterest", desc: "Épingle texte ou visuelle" },
   { id: "newsletter" as const, emoji: "📧", label: "Newsletter", desc: "Email long format" },
 ];
 
