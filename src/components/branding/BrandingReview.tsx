@@ -563,7 +563,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
   const [showProjectInput, setShowProjectInput] = useState(false);
 
   const validatedCount = validated.size;
-  const allDone = validatedCount === 6;
+  const allDone = validatedCount === 7;
 
   // Log section_validated events
   const logEvent = useCallback(async (eventType: string, meta?: Record<string, any>) => {
