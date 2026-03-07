@@ -628,6 +628,7 @@ export default function CreerUnifie() {
       subject: linkedinText,
       objective: objective || undefined,
       editorialAngle: editorialAngle || undefined,
+      channel: "linkedin",
     });
   };
 
