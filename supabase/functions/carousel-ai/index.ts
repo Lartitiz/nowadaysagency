@@ -1093,8 +1093,8 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "slide_type": "text_only",
       "photo_index": null,
       "role": "context",
-      "title": "Titre de la slide texte",
-      "body": "Corps du texte pédagogique ou narratif",
+      "title": "Le vrai problème, c'est pas l'algo",
+      "body": "En vrai, le problème c'est pas l'algorithme. C'est qu'on poste en espérant que les gens vont deviner ce qu'on fait. Sauf que personne ne devine. Les comptes qui marchent, c'est ceux qui ont quelque chose à dire. (Et oui, toi aussi t'as des choses à dire.)",
       "visual_schema": null
     },
     {
