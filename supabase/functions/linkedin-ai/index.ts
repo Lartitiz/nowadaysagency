@@ -79,26 +79,6 @@ serve(async (req) => {
 
     const VOICE_PRIORITY = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n`;
 
-    const ANTI_BROETRY = `ANTI-BROETRY (CRITIQUE) :\nLinkedIn est infesté de posts où chaque phrase est seule sur sa ligne, sans substance.\nTon contenu est l'INVERSE :\n- Des paragraphes de 2-3 phrases qui développent une idée\n- Des bucket brigades qui relancent NATURELLEMENT (pas des mots seuls sur une ligne)\n- Si une phrase ne tient pas debout seule ET n'ajoute rien, supprime-la\n- Le rythme vient du contraste entre paragraphes développés et phrases courtes qui ponctuent, PAS du saut de ligne systématique\n- Chaque ligne doit apporter une information, une émotion, ou une progression. Zéro remplissage.\n\n`;
-
-    const LINKEDIN_HOOK_RULES = `## LES 3 PREMIÈRES LIGNES (CRITIQUE)
-
-Sur LinkedIn, après 3 lignes le texte est coupé par "...voir plus".
-
-Si ces 3 lignes ne donnent pas envie de cliquer, le post est mort. C'est la SEULE chose qui compte pour la portée.
-
-Techniques pour les 3 premières lignes :
-- Affirmation forte ou chiffre qui interpelle : "J'ai accompagné 47 projets éthiques en 7 ans."
-- Gap de curiosité : promettre la suite sans la donner : "Le point commun de ceux qui échouent ?"
-- Commencer par "Je" pour ancrer dans le vécu : "J'ai fait / découvert / compris / arrêté de..."
-- Opposition ou tension : "Tout le monde dit X. Je pense l'inverse."
-
-Ce qu'on ne fait JAMAIS en hook LinkedIn :
-- Question rhétorique molle ("Vous êtes-vous déjà demandé...?")
-- Emoji en première ligne
-- "🔥 X conseils pour..."
-- Accroches génériques ("Dans le monde d'aujourd'hui...")
-`;
 
 
     let systemPrompt = "";
