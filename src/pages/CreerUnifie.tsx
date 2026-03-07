@@ -1295,11 +1295,11 @@ export default function CreerUnifie() {
               </div>
             )}
 
-            {step === "result" && !isLaunchMode && (generating || demoGenerating || streaming || result) && (
+            {step === "result" && !isLaunchMode && (generating || demoGenerating || streaming || pinterestVisualGenerating || result) && (
               <CreerStepResult
                 result={result?.raw || result}
                 format={selectedFormat || "post"}
-                generating={generating || demoGenerating || streaming}
+                generating={generating || demoGenerating || streaming || pinterestVisualGenerating}
                 streamingContent={streaming ? streamingContent : undefined}
                 photos={(carouselSubMode === "photo" || carouselSubMode === "mix") ? uploadedPhotos : undefined}
                 onEdit={handleEdit}
