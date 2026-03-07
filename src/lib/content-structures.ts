@@ -505,7 +505,7 @@ export const OBJECTIVE_RECOMMENDATIONS: Record<string, ObjectiveRecommendation> 
   credibilite: {
     label: "Crédibilité",
     emoji: "🎓",
-    angles: ["enquete", "analyse-profondeur", "regard-philo", "mythe", "test", "decryptage_expert", "conseil_contre_courant", "reflexion_de_fond"],
+    angles: ["enquete", "analyse-profondeur", "regard-philo", "mythe", "test", "decryptage_expert", "conseil_contre_courant", "reflexion_de_fond", "epingle_conseil", "epingle_article"],
     priorityTypes: ["carousel", "linkedin", "newsletter"],
     hookTypes: ["donnee", "expertise", "decryptage"],
   },
