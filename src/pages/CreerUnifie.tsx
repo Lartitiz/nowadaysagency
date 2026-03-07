@@ -601,6 +601,9 @@ export default function CreerUnifie() {
         text += `\n\n${(r.hashtags as string[]).join(" ")}`;
       }
 
+    } else if (selectedFormat === "pinterest_visual" && (r?.title || r?.description)) {
+      text = `📌 TITRE :\n${r.title || ""}\n\n📝 DESCRIPTION :\n${r.description || ""}`;
+
     } else if (r?.content) {
       text = r.content;
     } else if (r?.post) {
