@@ -98,7 +98,10 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
   const handleChannelSelect = (channelId: ChannelId) => {
     setSelectedChannel(channelId);
     if (channelId === "linkedin") {
-      handleFormatSelect("linkedin");
+      // Don't auto-select format — show sub-mode choice first
+      setLinkedinSubMode(null);
+      setSelectedFormat(null);
+      setSelectedAngle(undefined);
     } else if (channelId === "pinterest") {
       handleFormatSelect("pinterest");
     } else if (channelId === "newsletter") {
