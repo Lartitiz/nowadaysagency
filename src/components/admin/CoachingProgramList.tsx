@@ -140,9 +140,9 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
         .eq("id", wsId);
       toast.success(`Espace « ${wsName} » supprimé`);
     }
+    // Optimistic removal — hide from UI immediately
+    setRemovedWsIds(prev => new Set(prev).add(wsId));
     setDeletingWs(null);
-    // Small delay to let cascading deletes complete before reloading
-    await new Promise(r => setTimeout(r, 500));
     onReload();
   };
 
