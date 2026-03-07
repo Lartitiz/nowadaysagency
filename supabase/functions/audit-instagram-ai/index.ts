@@ -31,6 +31,7 @@ const AuditInstagramSchema = z.object({
     worstPostsComment: z.string().optional().nullable(),
   }).optional().nullable(),
   screenshotImages: z.array(z.object({ data: z.string(), media_type: z.string() })).optional(),
+  screenshotUrls: z.array(z.string()).optional().nullable(),
   successPostsData: z.array(z.record(z.unknown())).optional().nullable(),
   failPostsData: z.array(z.record(z.unknown())).optional().nullable(),
   workspace_id: z.string().uuid().optional().nullable(),
