@@ -446,8 +446,8 @@ async function saveStrategy(data: AnalysisResult["content_strategy"], userId: st
 }
 async function saveOffers(data: AnalysisResult["offers"], userId: string, workspaceId: string) {
   if (!data?.offers?.length) return;
-  const col = workspaceId ? "workspace_id" : "user_id";
-  const val = workspaceId || userId;
+  const col = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
+  const val = workspaceId && workspaceId !== userId ? workspaceId : userId;
   // Check existing offers to avoid duplicates by name
   const { data: existing } = await (supabase.from("offers") as any).select("name").eq(col, val);
   const existingNames = new Set((existing || []).map((o: any) => (o.name || "").toLowerCase().trim()));
