@@ -52,6 +52,7 @@ serve(async (req) => {
       photo_description: z.string().max(2000).optional().nullable(),
     }).passthrough());
     const { type, workspace_id, launch_context } = body;
+    const isLinkedIn = body.channel === "linkedin";
 
     const category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions") ? "suggestion" : "content";
     const quotaCheck = await checkQuota(user.id, category, workspace_id);
@@ -77,7 +78,7 @@ serve(async (req) => {
       }
     }
 
-    let systemPrompt = buildSystemPrompt(brandingContext);
+    let systemPrompt = buildSystemPrompt(brandingContext, isLinkedIn);
 
     // Inject launch context if present
     if (launch_context && (type === "express_full" || type === "hooks" || type === "slides")) {
@@ -194,7 +195,7 @@ serve(async (req) => {
       }
 
       // ── Standard text carousel ──
-      userPrompt = buildExpressFullPrompt(body);
+      userPrompt = buildExpressFullPrompt(body, isLinkedIn);
     } else if (type === "suggest_topics") {
       userPrompt = buildSuggestTopicsPrompt(body);
     } else if (type === "suggest_angles") {
@@ -259,9 +260,9 @@ Réponds UNIQUEMENT en JSON valide :
       // ── Photo carousel with description only (no actual photos) ──
       if (body.carousel_type === "photo" && body.photo_description) {
         const photoDescBlock = `\n\nL'utilisatrice décrit ses photos : "${body.photo_description}". Pose des questions en lien avec ce qu'elle décrit : l'ambiance, le contexte invisible, l'émotion derrière ces images, l'histoire qu'elles racontent ensemble.`;
-        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext) + photoDescBlock;
+        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn) + photoDescBlock;
       } else {
-        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext);
+        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn);
       }
     } else {
       return new Response(JSON.stringify({ error: "Type invalide" }), {
@@ -294,7 +295,7 @@ Réponds UNIQUEMENT en JSON valide :
   }
 });
 
-function buildSystemPrompt(brandingContext: string): string {
+function buildSystemPrompt(brandingContext: string, isLinkedIn: boolean = false): string {
   return `${BASE_SYSTEM_RULES}
 
 Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
@@ -304,13 +305,22 @@ Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORIT
 - Imite les patterns de ton et de structure
 - Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
 
-Tu es une experte en copywriting Instagram spécialisée dans les carrousels. Tu crées du contenu pour des solopreneuses, freelances, créatrices et coachs qui veulent communiquer de manière éthique et authentique.
+${isLinkedIn
+  ? `Tu es une experte en communication LinkedIn spécialisée dans les carrousels PDF. Tu crées du contenu professionnel et engagé pour des structures (coopératives, assos, PME engagées) et des solopreneur·es qui veulent se positionner comme expert·es sur LinkedIn.`
+  : `Tu es une experte en copywriting Instagram spécialisée dans les carrousels. Tu crées du contenu pour des solopreneuses, freelances, créatrices et coachs qui veulent communiquer de manière éthique et authentique.`}
 
 ${brandingContext}
 
 TON STYLE :
-- Direct, chaleureux, oral assumé
-- Tu tutoies toujours
+${isLinkedIn
+  ? `- Professionnel mais chaleureux, expert·e mais accessible
+- Vouvoiement par défaut (sauf si le profil de voix indique le contraire)
+- Densité intellectuelle : données chiffrées, mécanismes expliqués, nuances
+- Moins d'emojis qu'Instagram (0-2 max par slide)
+- Pas de "Sauvegarde si..." → CTA LinkedIn : "Partagez si...", "Votre avis en commentaire ?", "Envoyez à un·e collègue qui..."
+- Le carrousel LinkedIn est un document de référence : chaque slide doit apporter de la valeur concrète`
+  : `- Direct, chaleureux, oral assumé
+- Tu tutoies toujours`}
 - Phrases qui alternent longues et courtes (rythme)
 - Expressions naturelles (en vrai, franchement, le truc c'est que)
 - Humour discret, pas forcé
@@ -705,7 +715,7 @@ Slide 10: CTA doux "Ta photo préférée ? Dis-le moi."
   return guides[type] || guides.tips;
 }
 
-function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string): string {
+function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string, isLinkedIn: boolean = false): string {
   const { carousel_type, subject, objective, editorial_angle, content_structure } = body;
 
   const CAROUSEL_TYPE_LABELS: Record<string, string> = {
@@ -738,6 +748,7 @@ function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string): str
 SUJET du carrousel : "${subject || "non précisé"}"
 OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}
 ${objective ? `\nOriente les questions vers cet objectif. Si "vente" : demande des témoignages clients, des résultats, des transformations. Si "engagement" : demande des anecdotes personnelles, des moments vécus. Si "visibilité" : demande des opinions tranchées, des constats provocants.\n` : ""}${brandingBlock}${angleBlock}
+${isLinkedIn ? `\nATTENTION : c'est un carrousel LINKEDIN. Les questions doivent orienter vers du contenu expert et professionnel :\n- Demander des données, des résultats concrets, des leçons métier\n- Chercher l'expertise spécifique (pas juste l'émotion)\n- Orienter vers du contenu qui positionne comme référence sur le sujet` : ""}
 
 TON RÔLE : Tu es une coach com' qui aide une solopreneuse/créatrice à extraire son vécu, ses opinions et son expertise PERSONNELLE pour que le contenu ne soit pas générique.
 
@@ -746,7 +757,7 @@ RÈGLES pour les questions :
 - Les questions doivent faire émerger du vécu, des anecdotes, des opinions tranchées, des exemples concrets
 - AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : "Pourquoi tu penses que [blocage] existe ?", "Qu'est-ce qui fait que [problème] est si répandu selon toi ?", "Si tu devais expliquer à quelqu'un pourquoi [sujet] est un vrai problème, tu dirais quoi ?". L'objectif est d'extraire une réflexion de fond, pas juste un exemple.
 - Si tu as le contexte branding, adapte les questions à son activité et sa cible (ex : "Quand une de tes clientes [cible] te dit..." plutôt que "Quand quelqu'un te dit...")
-- Tutoie l'utilisatrice, sois directe et chaleureuse
+- ${isLinkedIn ? "Vouvoyez l'utilisatrice, restez professionnel·le et chaleureux·se" : "Tutoie l'utilisatrice, sois directe et chaleureuse"}
 - Chaque question fait 1-2 phrases max
 - Le placeholder est un court exemple de réponse attendue (5-8 mots)
 
@@ -760,7 +771,7 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour :
 }`;
 }
 
-function buildExpressFullPrompt(body: any): string {
+function buildExpressFullPrompt(body: any, isLinkedIn: boolean = false): string {
   const { subject, carousel_type, objective, slide_count, deepening_answers, selected_offer, editorial_angle, content_structure } = body;
 
   let deepeningCtx = "";
@@ -777,7 +788,6 @@ function buildExpressFullPrompt(body: any): string {
   let extraRules = "";
 
   if (editorial_angle && content_structure) {
-    // CAS 1 : Angle éditorial explicite → la structure guide tout
     structureBlock = `ANGLE ÉDITORIAL CHOISI : ${editorial_angle}
 
 STRUCTURE IMPOSÉE (chaque étape = 1 slide) :
@@ -787,11 +797,9 @@ ${EDITORIAL_ANGLES_REFERENCE}`;
     extraRules = "\n- Chaque slide DOIT correspondre à une étape de la structure. Le role de chaque slide dans le JSON doit correspondre au rôle défini dans la structure.";
 
   } else if (carousel_type && carousel_type !== "tips") {
-    // CAS 2 : Type de carrousel explicite (ancien flow)
     structureBlock = getStructureGuide(carousel_type);
 
   } else {
-    // CAS 3 : Ni angle ni type explicite → l'IA choisit le meilleur format
     structureBlock = `PAS DE FORMAT IMPOSÉ. Analyse le sujet et choisis la structure la plus pertinente parmi ces options :
 
 ${EDITORIAL_ANGLES_REFERENCE}
@@ -801,7 +809,7 @@ NE CHOISIS PAS "tips" sauf si le sujet est réellement une liste de conseils pra
 Privilégie les angles narratifs : storytelling, enquête, coup de gueule, mythe à déconstruire.`;
   }
 
-  return `DEMANDE : Génère un carrousel Instagram COMPLET.
+  return `DEMANDE : Génère un carrousel ${isLinkedIn ? "LinkedIn PDF" : "Instagram"} COMPLET.
 
 Tu dois d'abord analyser le sujet, choisir le meilleur angle narratif, écrire un hook irrésistible, puis rédiger toutes les slides avec un fil conducteur fort.
 
@@ -817,8 +825,8 @@ ${structureBlock}
 ═══ RÈGLES DE STRUCTURE ═══
 - Slide 1 = hook percutant (max 12 mots). Technique : provocation, question rhétorique, stat choc, ou confession. Le hook doit créer un GAP (écart entre ce qu'on croit et la réalité).
 - Slide 2 = DOIT fonctionner comme hook autonome (seconde chance algo). Développe le contexte : pourquoi ce sujet, d'où tu parles, quelle observation personnelle.
-- Chaque slide : max 50 mots, 1 idée principale.
-- Dernière slide = 1 SEUL CTA doux. Formulation type : "Sauvegarde si...", "Dis-moi en commentaire...", "Envoie à quelqu'un qui..."
+- Chaque slide : max ${isLinkedIn ? "80" : "50"} mots, 1 idée principale.
+- Dernière slide = 1 SEUL CTA doux. ${isLinkedIn ? `Formulation type : "Partagez si cette réflexion vous parle", "Quel est votre avis ?", "Envoyez à un·e collègue qui..."` : `Formulation type : "Sauvegarde si...", "Dis-moi en commentaire...", "Envoie à quelqu'un qui..."`}
 - Headlines : 4-7 mots, verbe d'action ou mot déclencheur émotionnel.
 
 ═══ RÈGLES DE NARRATION ═══
@@ -827,6 +835,16 @@ ${structureBlock}
 - EXEMPLES CONCRETS dans chaque slide : pas de conseil abstrait sans illustration.
 - AU MOINS 1 analogie du quotidien ou référence culture pop dans le carrousel.
 - La caption est DIFFÉRENTE du hook slide 1 et apporte une couche supplémentaire (storytelling perso, contexte, pourquoi ce sujet maintenant).
+${isLinkedIn ? `
+═══ ADAPTATION LINKEDIN ═══
+- LONGUEUR : les slides LinkedIn peuvent être plus denses qu'Instagram. Max 80 mots par slide (vs 50 pour Instagram).
+- TON : professionnel et engagé, pas familier. Vouvoiement sauf indication contraire.
+- DONNÉES : chaque carrousel LinkedIn doit avoir au moins 1 donnée chiffrée ou 1 référence sourcée.
+- CTA : "Partagez si cette réflexion vous parle", "Quel est votre avis ?", "Envoyez à un·e collègue"
+- CAPTION : la caption LinkedIn complète le carrousel avec du contexte supplémentaire, 500-800 caractères.
+- Le carrousel doit positionner l'auteur·ice comme expert·e du sujet.
+- PAS de "Sauvegarde si...", pas de "Dis-moi en commentaire..." → vocabulaire LinkedIn.
+` : ""}
 
 ═══ RÈGLES ANTI-IA ═══
 - INTERDIT : "Dans un monde où...", "Il est important de...", "N'hésite pas à...", "Voici X astuces pour..."

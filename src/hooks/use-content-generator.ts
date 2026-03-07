@@ -16,6 +16,7 @@ export interface GenerateParams {
   editorialAngle?: string;
   answers?: Record<string, string>;
   workspaceId?: string;
+  channel?: "instagram" | "linkedin";
   // Reel-specific
   faceCam?: string;
   timeAvailable?: string;
@@ -35,6 +36,7 @@ export interface GenerateQuestionsParams {
   subject: string;
   editorialAngle?: string;
   objective?: string;
+  channel?: "instagram" | "linkedin";
 }
 
 export interface Question {
@@ -179,6 +181,7 @@ export function useContentGenerator() {
           const res = await supabase.functions.invoke("carousel-ai", {
             body: {
               type: "express_full",
+              channel: params.channel || "instagram",
               carousel_type: effectiveCarouselType,
               subject: effectiveSubject,
               subject_details: existingContent || undefined,
@@ -371,6 +374,7 @@ export function useContentGenerator() {
           const res = await supabase.functions.invoke("carousel-ai", {
             body: {
               type: "deepening_questions",
+              channel: params.channel || "instagram",
               subject: effectiveSubjectQ,
               subject_details: existingContentQ || undefined,
               objective: objective || null,
