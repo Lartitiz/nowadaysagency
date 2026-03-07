@@ -1154,6 +1154,27 @@ export default function CreerUnifie() {
     }
   };
 
+  const handleExportPinterestEditablePptx = async () => {
+    const pinData = result?.raw?.pin_data;
+    if (!pinData) {
+      toast.error("Données structurées non disponibles. Utilise l'export PNG ou PPTX image.");
+      return;
+    }
+    try {
+      toast.info("Export PPTX éditable en cours...");
+      await exportPinterestEditablePptx(
+        pinData,
+        result?.raw?.title || "",
+        result?.raw?.description || "",
+        ideaText || "epingle-pinterest",
+        charterData
+      );
+      toast.success("PPTX éditable téléchargé !");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'export");
+    }
+  };
+
   // ── Launch sequence (5 chapters) ──
 
   const handleLaunchSequence = async (format: string, angle: string) => {
