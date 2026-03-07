@@ -168,19 +168,28 @@ export default function LinkedInPostGenerator() {
     if (!calendarState?.fromCalendar && !calendarState?.sujet && !calendarState?.theme) return;
     
     const ANGLE_TO_TEMPLATE: Record<string, string> = {
-      "enquete_decryptage": "enquete_decryptage",
-      "test_grandeur_nature": "test_grandeur_nature",
-      "coup_de_gueule": "coup_de_gueule",
+      // Nouveaux IDs LinkedIn (direct match)
+      "decryptage_expert": "decryptage_expert",
+      "prise_de_position": "prise_de_position",
       "mythe_deconstruire": "mythe_deconstruire",
-      "storytelling_lecon": "storytelling_lecon",
-      "histoire_cliente": "histoire_cliente",
-      "surf_actu": "surf_actu",
-      "regard_philosophique": "regard_philosophique",
-      "conseil_contre_intuitif": "conseil_contre_intuitif",
-      "before_after": "before_after",
-      "build_in_public": "build_in_public",
-      "identification_quotidien": "identification_quotidien",
-      "contenu_lancement": "contenu_lancement",
+      "storytelling_pro": "storytelling_pro",
+      "etude_de_cas": "etude_de_cas",
+      "coulisses_metier": "coulisses_metier",
+      "conseil_contre_courant": "conseil_contre_courant",
+      "reflexion_de_fond": "reflexion_de_fond",
+      // Anciens IDs → redirection vers les structures les plus proches
+      "enquete_decryptage": "decryptage_expert",
+      "test_grandeur_nature": "decryptage_expert",
+      "coup_de_gueule": "prise_de_position",
+      "storytelling_lecon": "storytelling_pro",
+      "histoire_cliente": "etude_de_cas",
+      "surf_actu": "decryptage_expert",
+      "regard_philosophique": "reflexion_de_fond",
+      "conseil_contre_intuitif": "conseil_contre_courant",
+      "before_after": "etude_de_cas",
+      "build_in_public": "coulisses_metier",
+      "identification_quotidien": "storytelling_pro",
+      "contenu_lancement": "etude_de_cas",
     };
     
     const calAngle = calendarState?.angle;
@@ -188,7 +197,7 @@ export default function LinkedInPostGenerator() {
       setTemplate(ANGLE_TO_TEMPLATE[calAngle]);
     } else {
       // Try AI suggestion, but set a fallback in case it fails or takes too long
-      setTemplate("storytelling_lecon"); // Fallback immédiat (sera écrasé si suggestion réussit)
+      setTemplate("storytelling_pro"); // Fallback immédiat (sera écrasé si suggestion réussit)
       suggestTemplate(sujet);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
