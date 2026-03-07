@@ -107,10 +107,10 @@ function FeatureVisual({ type }: { type: string }) {
         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">🎨 Mon identité</p>
         <div className="space-y-2.5">
           {[
-            { label: "Mission", value: "Aider les femmes à lancer leur marque éthique", pct: 100 },
-            { label: "Client·e idéal·e", value: "Créatrice 28-40 ans, éco-engagée", pct: 100 },
-            { label: "Ton & style", value: "Chaleureux, direct, engagé", pct: 85 },
-            { label: "Offres", value: "2 offres définies", pct: 60 },
+            { label: "Mon histoire", value: "De l'ingénierie à la céramique : comment j'ai tout plaqué", pct: 100 },
+            { label: "Client·e idéal·e", value: "Femme 30-45 ans, déco consciente, artisanat local", pct: 100 },
+            { label: "Proposition de valeur", value: "Des pièces uniques façonnées à la main, cuites au bois", pct: 85 },
+            { label: "Mes offres", value: "3 offres : pièces sur commande, ateliers, coffrets", pct: 70 },
           ].map((item) => (
             <div key={item.label} className="space-y-1">
               <div className="flex items-center justify-between">
@@ -139,10 +139,10 @@ function FeatureVisual({ type }: { type: string }) {
         </div>
         <div className="rounded-xl bg-rose-pale/60 border border-border p-3 mb-3">
           <p className="text-[11px] text-foreground leading-relaxed">
-            <span className="font-semibold">Hook :</span> Tu passes 2h sur un post pour 12 likes ?
+            <span className="font-semibold">Hook :</span> "Je fais du yoga depuis 5 ans et je ne savais toujours pas respirer."
           </p>
           <p className="text-[11px] text-muted-foreground leading-relaxed mt-1">
-            Voici 3 raisons pour lesquelles le problème n'est pas ton contenu…
+            L'histoire du jour où j'ai compris que tout commençait par le souffle…
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -208,10 +208,10 @@ function FeatureVisual({ type }: { type: string }) {
         </div>
         <div className="space-y-2">
           {[
-            { label: "✅ Bio claire et engageante", good: true },
-            { label: "✅ Identité visuelle cohérente", good: true },
-            { label: "⚠️ Régularité de publication faible", good: false },
-            { label: "⚠️ Pas de CTA dans les posts", good: false },
+            { label: "✅ Univers visuel fort et reconnaissable", good: true },
+            { label: "✅ Stories à la une bien organisées", good: true },
+            { label: "⚠️ Bio sans appel à l'action clair", good: false },
+            { label: "⚠️ Pas de lien vers la boutique dans les posts", good: false },
           ].map((item) => (
             <div key={item.label} className={`text-[11px] px-3 py-1.5 rounded-lg ${item.good ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
               {item.label}
@@ -228,12 +228,12 @@ function FeatureVisual({ type }: { type: string }) {
         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">📱 Tes canaux</p>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { emoji: "📸", name: "Instagram", status: "Audit fait", active: true },
+            { emoji: "📸", name: "Instagram", status: "Score : 72/100", active: true },
             { emoji: "💼", name: "LinkedIn", status: "À configurer", active: false },
-            { emoji: "📌", name: "Pinterest", status: "En cours", active: true },
-            { emoji: "🌐", name: "Site web", status: "Audit fait", active: true },
+            { emoji: "📌", name: "Pinterest", status: "12 épingles planifiées", active: true },
+            { emoji: "🌐", name: "Site web", status: "Score SEO : 45/100", active: true },
             { emoji: "✉️", name: "Newsletter", status: "À configurer", active: false },
-            { emoji: "🔍", name: "SEO", status: "En cours", active: true },
+            { emoji: "🔍", name: "SEO", status: "8 mots-clés trouvés", active: true },
           ].map((canal) => (
             <div key={canal.name} className={`rounded-xl border p-3 ${canal.active ? "border-primary/30 bg-primary/[0.03]" : "border-border"}`}>
               <span className="text-lg block mb-1">{canal.emoji}</span>
