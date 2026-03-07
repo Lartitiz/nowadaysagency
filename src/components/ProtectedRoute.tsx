@@ -121,5 +121,5 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     return <Navigate to="/onboarding" replace />;
   }
 
-  return <>{children}<FloatingChatButton /></>;
+  return <>{children}</>;
 }
