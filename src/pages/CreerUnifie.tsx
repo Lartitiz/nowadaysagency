@@ -1310,6 +1310,9 @@ export default function CreerUnifie() {
                 visualSlides={visualSlides.length > 0 ? visualSlides : undefined}
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
                 onExportVisualPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPptx : undefined}
+                pinterestPinHtml={pinterestPinHtml}
+                onExportPinterestPng={handleExportPinterestPng}
+                onExportPinterestPptx={handleExportPinterestPptx}
                 onSlidesUpdate={selectedFormat === "carousel" ? (slides, caption) => {
                   if (result?.raw) {
                     result.raw.slides = slides;
