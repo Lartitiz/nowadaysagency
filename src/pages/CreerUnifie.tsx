@@ -299,6 +299,14 @@ export default function CreerUnifie() {
   const handleIdeaNext = (idea: string, obj?: string) => {
     setIdeaText(idea);
     setObjective(obj || null);
+    // Reset format-related state so the user starts fresh at channel selection
+    setSelectedFormat(null);
+    setEditorialAngle(null);
+    setCarouselSubMode(null);
+    setUploadedPhotos([]);
+    setPhotoDescription("");
+    setPhotoMode(false);
+    setPinterestData(null);
     setStep("format");
   };
 
