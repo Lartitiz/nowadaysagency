@@ -927,7 +927,7 @@ export default function CreerUnifie() {
         ...(workspaceId && workspaceId !== session.user.id ? { workspace_id: workspaceId } : {}),
         date: calendarDate,
         theme: ideaText,
-        status: "ready",
+        status: "drafting",
         canal,
         format: fmt,
         objectif: objective || null,
