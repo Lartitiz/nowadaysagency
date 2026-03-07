@@ -52,6 +52,7 @@ serve(async (req) => {
       photo_description: z.string().max(2000).optional().nullable(),
     }).passthrough());
     const { type, workspace_id, launch_context } = body;
+    const isLinkedIn = body.channel === "linkedin";
 
     const category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions") ? "suggestion" : "content";
     const quotaCheck = await checkQuota(user.id, category, workspace_id);
