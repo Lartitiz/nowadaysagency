@@ -108,7 +108,9 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
       setSelectedFormat(null);
       setSelectedAngle(undefined);
     } else if (channelId === "pinterest") {
-      handleFormatSelect("pinterest");
+      setPinterestSubMode(null);
+      setSelectedFormat(null);
+      setSelectedAngle(undefined);
     } else if (channelId === "newsletter") {
       handleFormatSelect("newsletter");
     } else {
