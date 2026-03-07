@@ -158,6 +158,99 @@ export const EDITORIAL_ANGLES: EditorialAngle[] = [
   },
 ];
 
+// ── 1b. LINKEDIN_EDITORIAL_ANGLES ──
+
+export const LINKEDIN_EDITORIAL_ANGLES: EditorialAngle[] = [
+  {
+    id: "decryptage_expert",
+    label: "Décryptage expert",
+    emoji: "🔍",
+    principle: "Analyser un phénomène de ton secteur avec un angle neuf, sourcé et argumenté.",
+    defaultStructure: "educationnelle",
+    objectives: ["credibilite", "visibilite"],
+    phase: [1, 2],
+    declic: "prise de conscience",
+    exampleSubjects: ["Ce que personne ne dit sur [tendance de ton secteur]", "Les vrais chiffres derrière [pratique courante]"],
+  },
+  {
+    id: "prise_de_position",
+    label: "Prise de position",
+    emoji: "🔥",
+    principle: "Défendre une conviction argumentée sur ton métier ou ton secteur.",
+    defaultStructure: "coup_de_gueule",
+    objectives: ["visibilite", "engagement"],
+    phase: [1],
+    declic: "prise de conscience",
+    exampleSubjects: ["Je refuse de [pratique mainstream]. Voilà pourquoi.", "[Conviction forte] et je l'assume."],
+  },
+  {
+    id: "mythe_deconstruire",
+    label: "Mythe à déconstruire",
+    emoji: "💥",
+    principle: "Démonter une croyance répandue dans ton secteur avec des preuves concrètes.",
+    defaultStructure: "educationnelle",
+    objectives: ["credibilite", "visibilite"],
+    phase: [1, 2],
+    declic: "prise de conscience",
+    exampleSubjects: ["\"[Croyance répandue]\". C'est faux.", "Non, [idée reçue] ne fonctionne pas. Voilà pourquoi."],
+  },
+  {
+    id: "storytelling_pro",
+    label: "Storytelling pro",
+    emoji: "📖",
+    principle: "Raconter un vécu professionnel et en tirer une leçon applicable.",
+    defaultStructure: "storytelling",
+    objectives: ["engagement", "vente"],
+    phase: [2, 3],
+    declic: "identification",
+    exampleSubjects: ["Le jour où [moment clé professionnel]", "Ce que [erreur/galère] m'a appris sur [sujet]"],
+  },
+  {
+    id: "etude_de_cas",
+    label: "Étude de cas",
+    emoji: "💎",
+    principle: "Montrer des résultats concrets à travers un projet ou une transformation.",
+    defaultStructure: "etude_de_cas",
+    objectives: ["vente", "credibilite"],
+    phase: [3, 4],
+    declic: "projection",
+    exampleSubjects: ["En [durée], [client·e/projet] est passé·e de [avant] à [après]", "Comment [action concrète] a changé [résultat]"],
+  },
+  {
+    id: "coulisses_metier",
+    label: "Coulisses métier",
+    emoji: "🏗️",
+    principle: "Montrer comment tu travailles vraiment : process, outils, décisions.",
+    defaultStructure: "storytelling",
+    objectives: ["engagement", "credibilite"],
+    phase: [2, 3],
+    declic: "les_deux",
+    exampleSubjects: ["Voilà à quoi ressemble vraiment [aspect de ton métier]", "Cette semaine j'ai [action concrète]. Voilà pourquoi."],
+  },
+  {
+    id: "conseil_contre_courant",
+    label: "Conseil contre-courant",
+    emoji: "🔄",
+    principle: "Challenger un conseil mainstream de ton secteur et proposer une alternative.",
+    defaultStructure: "educationnelle",
+    objectives: ["visibilite", "credibilite"],
+    phase: [1, 2],
+    declic: "prise de conscience",
+    exampleSubjects: ["Tout le monde dit [conseil courant]. J'ai fait l'inverse.", "Arrête de [conseil mainstream]. Fais plutôt [alternative]."],
+  },
+  {
+    id: "reflexion_de_fond",
+    label: "Réflexion de fond",
+    emoji: "🧠",
+    principle: "Prendre de la hauteur sur un enjeu sociétal ou sectoriel lié à ton métier.",
+    defaultStructure: "storytelling",
+    objectives: ["credibilite", "engagement"],
+    phase: [2],
+    declic: "les_deux",
+    exampleSubjects: ["Et si [question de fond sur ton secteur] ?", "Ce que [tendance/enjeu] dit vraiment de notre façon de [travailler/communiquer]"],
+  },
+];
+
 // ── 2. CONTENT_STRUCTURES ──
 
 export interface StructureStep {
@@ -342,28 +435,28 @@ export const OBJECTIVE_RECOMMENDATIONS: Record<string, ObjectiveRecommendation> 
   visibilite: {
     label: "Visibilité",
     emoji: "🔍",
-    angles: ["coup-de-gueule", "mythe", "conseil-contre-intuitif", "identification", "surf-actu"],
+    angles: ["coup-de-gueule", "mythe", "conseil-contre-intuitif", "identification", "surf-actu", "prise_de_position", "mythe_deconstruire", "conseil_contre_courant", "decryptage_expert"],
     priorityTypes: ["carousel", "reel", "linkedin"],
     hookTypes: ["choc", "question", "statistique"],
   },
   engagement: {
     label: "Engagement",
     emoji: "💬",
-    angles: ["storytelling", "identification", "build-in-public", "regard-philo", "surf-actu"],
+    angles: ["storytelling", "identification", "build-in-public", "regard-philo", "surf-actu", "storytelling_pro", "coulisses_metier", "reflexion_de_fond"],
     priorityTypes: ["post", "reel", "story"],
     hookTypes: ["identification", "question", "vulnerabilite"],
   },
   vente: {
     label: "Vente",
     emoji: "🛒",
-    angles: ["histoire-cliente", "before-after", "storytelling", "surf-actu", "test"],
+    angles: ["histoire-cliente", "before-after", "storytelling", "surf-actu", "test", "etude_de_cas", "storytelling_pro"],
     priorityTypes: ["carousel", "linkedin", "newsletter"],
     hookTypes: ["resultat", "transformation", "preuve"],
   },
   credibilite: {
     label: "Crédibilité",
     emoji: "🎓",
-    angles: ["enquete", "analyse-profondeur", "regard-philo", "mythe", "test"],
+    angles: ["enquete", "analyse-profondeur", "regard-philo", "mythe", "test", "decryptage_expert", "conseil_contre_courant", "reflexion_de_fond"],
     priorityTypes: ["carousel", "linkedin", "newsletter"],
     hookTypes: ["donnee", "expertise", "decryptage"],
   },
@@ -386,8 +479,8 @@ export function getStructureForCombo(contentType: string, angleId: string): stri
     return "coup_de_gueule";
   }
 
-  // Default: use angle's defaultStructure
-  const angle = EDITORIAL_ANGLES.find((a) => a.id === angleId);
+  // Default: use angle's defaultStructure (check both angle lists)
+  const angle = EDITORIAL_ANGLES.find((a) => a.id === angleId) || LINKEDIN_EDITORIAL_ANGLES.find((a) => a.id === angleId);
   return angle?.defaultStructure || "educationnelle";
 }
 
@@ -412,15 +505,19 @@ export function getAnglesForType(
   contentType: string,
   objective?: string
 ): { recommended: EditorialAngle[]; others: EditorialAngle[] } {
+  // LinkedIn has its own dedicated angles
+  const isLinkedIn = contentType === "linkedin";
+  const angleSource = isLinkedIn ? LINKEDIN_EDITORIAL_ANGLES : EDITORIAL_ANGLES;
+
   if (!objective || !OBJECTIVE_RECOMMENDATIONS[objective]) {
-    return { recommended: [], others: [...EDITORIAL_ANGLES] };
+    return { recommended: [], others: [...angleSource] };
   }
 
   const reco = OBJECTIVE_RECOMMENDATIONS[objective];
   const recommendedIds = new Set(reco.angles);
 
-  const recommended = EDITORIAL_ANGLES.filter((a) => recommendedIds.has(a.id));
-  const others = EDITORIAL_ANGLES.filter((a) => !recommendedIds.has(a.id));
+  const recommended = angleSource.filter((a) => recommendedIds.has(a.id));
+  const others = angleSource.filter((a) => !recommendedIds.has(a.id));
 
   return { recommended, others };
 }

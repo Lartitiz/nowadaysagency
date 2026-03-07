@@ -353,7 +353,7 @@ PROFONDEUR :
         depthMandate = `ANTI-BROETRY :
 Pas de phrases seules sur une ligne pour faire dramatique. Des paragraphes de 2-3 phrases qui développent une idée. Le rythme vient du contraste entre paragraphes et phrases courtes qui ponctuent, pas des sauts de ligne systématiques.
 
-FORMAT : POST LINKEDIN (800-1200 caractères)
+FORMAT : POST LINKEDIN (1300-2000 caractères)
 
 LinkedIn ≠ tribune d'expert·e. C'est une conversation entre pro qui se respectent.
 
@@ -373,7 +373,7 @@ TU FAIS :
 - Prendre position. Dire avec quoi tu n'es PAS d'accord.
 - CTA : une question PRÉCISE liée au sujet, ou rien du tout si le texte se suffit.
 - 0-2 hashtags en fin. Pas plus.
-- COURT ET DENSE : 800-1200 caractères. Si tu peux dire la même chose en moins de mots, fais-le. Un post LinkedIn de 800 caractères qui dit quelque chose > un post de 1800 caractères qui étire.`;
+- COURT ET DENSE : 1300-2000 caractères. Si tu peux dire la même chose en moins de mots, fais-le. Un post LinkedIn dense de 1300 caractères qui dit quelque chose > un post de 2500 caractères qui étire.`;
       } else if (isNewsletter) {
         depthMandate = `FORMAT : NEWSLETTER / EMAIL (1500-3000 caractères)
 
@@ -623,7 +623,7 @@ Matrice d'angles par format :
 - Carrousel : prend l'idée la plus PÉDAGOGIQUE. Développe-la en profondeur. Structure en progression logique (constat > bascule > solution > application).
 - Reel : prend l'idée la plus PROVOCANTE ou CONTRE-INTUITIVE. Hook en 3 secondes. Oral, direct, une seule idée martelée.
 - Stories : prend l'angle le plus INTIME ou PERSONNEL. Comme un message vocal à une amie. Confidences, coulisses, réactions spontanées.
-- LinkedIn : prend l'angle le plus ENGAGÉ. Prise de position, conviction, question de fond. Ton direct et pro-amical. Court et dense (800-1200 car.), pas de remplissage.
+- LinkedIn : prend l'angle le plus ENGAGÉ. Prise de position, conviction, question de fond. Ton direct et pro-amical. Dense (1300-2000 car.), pas de remplissage.
 - Newsletter : prend l'angle le plus PROFOND. C'est le format qui a le plus de place : développe une réflexion complète avec nuances, apartés, exemples concrets.
 
 Si 2 formats risquent de se chevaucher, force un pivot : change le point d'entrée, la question posée, ou le public visé dans le contenu.
@@ -640,7 +640,7 @@ LONGUEURS OBLIGATOIRES :
 - Carrousel : 8 slides détaillées (slide 1 = hook, slides 2-7 = développement, slide 8 = punchline + CTA). Chaque slide = 2-4 phrases. Pas de slides d'1 mot.
 - Reel : script complet avec timecodes (0-3s hook, 3-15s contexte, 15-45s coeur, 45-60s CTA). Indique les cuts et le texte à l'écran.
 - Stories : séquence de 5-7 stories. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle. Story 4 = interaction obligatoire.
-- LinkedIn : 800-1200 caractères. Prose fluide, pas de listes à puces. Accroche dans les 210 premiers caractères. 0-2 hashtags en fin.
+- LinkedIn : 1300-2000 caractères. Prose fluide, pas de listes à puces. Accroche dans les 210 premiers caractères. 0-2 hashtags en fin.
 - Newsletter : 1500-3000 caractères. Objet d'email accrocheur. Structure : hook personnel > développement > leçon > CTA.
 
 RÈGLE DE PROFONDEUR :
