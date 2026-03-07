@@ -451,7 +451,7 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
 }`;
 
         const opusModel = getModelForAction("branding_audit"); // Opus
-        const enrichmentRaw = await callAnthropicSimple(opusModel, enrichmentSystemPrompt, userPrompt, 0.7, 4096);
+        const enrichmentRaw = await callAnthropicSimple(opusModel, enrichmentSystemPrompt, userPrompt, 0.7, 6144);
 
         let enrichmentResult: any;
         try {
