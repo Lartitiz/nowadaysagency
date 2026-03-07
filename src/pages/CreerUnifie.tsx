@@ -16,7 +16,7 @@ import CreerStepResult from "@/components/creer/CreerStepResult";
 import CreerStepEdit from "@/components/creer/CreerStepEdit";
 import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import { useContentGenerator } from "@/hooks/use-content-generator";
-import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
+import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
@@ -91,6 +91,7 @@ export default function CreerUnifie() {
   const [photoDescription, setPhotoDescription] = useState("");
   const [photoMode, setPhotoMode] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
+  const [pinterestData, setPinterestData] = useState<{ link?: string; boardId?: string; boardName?: string } | null>(null);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
@@ -327,6 +328,7 @@ export default function CreerUnifie() {
 
     setSelectedFormat(format);
     setEditorialAngle(angle || null);
+    if (format !== "pinterest") setPinterestData(null);
     if (sub) setCarouselSubMode(sub);
     if (photos) setUploadedPhotos(photos);
     if (desc) setPhotoDescription(desc);
@@ -382,7 +384,7 @@ export default function CreerUnifie() {
       : ideaText;
 
     // Formats texte : utiliser le streaming SSE
-    const textFormats = ["post", "linkedin", "newsletter"];
+    const textFormats = ["post", "linkedin", "newsletter", "pinterest"];
     const isTextFormat = textFormats.includes(selectedFormat);
 
     if (isTextFormat) {
@@ -391,11 +393,12 @@ export default function CreerUnifie() {
         post: "post_instagram",
         linkedin: "post_linkedin",
         newsletter: "post_newsletter",
+        pinterest: "post_pinterest",
       };
       // Build angle object matching classic path
       const angleObj = editorialAngle
         ? (() => {
-            const found = EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || LINKEDIN_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle);
+            const found = EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || LINKEDIN_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || PINTEREST_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle);
             const structureId = getStructureForCombo(selectedFormat, editorialAngle);
             const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
             return found
@@ -420,6 +423,10 @@ export default function CreerUnifie() {
         editorialFormat: editorialAngle || undefined,
         editorialFormatLabel: editorialAngle || undefined,
         ...(photoMode ? { photo_mode: true, photo_description: photoDescription } : {}),
+        ...(selectedFormat === "pinterest" && pinterestData ? {
+          pinterest_link: pinterestData.link,
+          pinterest_board: pinterestData.boardName,
+        } : {}),
       };
 
       const fullText = await streamInvoke("creative-flow", streamBody);
@@ -1114,7 +1121,10 @@ export default function CreerUnifie() {
                 idea={ideaText}
                 objective={objective || undefined}
                 initialFormat={selectedFormat || undefined}
-                onNext={(fmt, angle, sub, photos, desc, pm) => handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm })}
+                onNext={(fmt, angle, sub, photos, desc, pm, pintData) => {
+                  if (pintData) setPinterestData(pintData);
+                  handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm });
+                }}
                 onBack={() => setStep("idea")}
               />
             )}
