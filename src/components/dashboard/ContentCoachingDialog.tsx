@@ -45,6 +45,8 @@ const OBJECTIFS = [
 const CANAUX = [
   { id: "instagram", emoji: "📸", label: "Instagram" },
   { id: "linkedin", emoji: "💼", label: "LinkedIn" },
+  { id: "pinterest", emoji: "📌", label: "Pinterest" },
+  { id: "newsletter", emoji: "📧", label: "Newsletter" },
 ];
 
 const FORMATS_BY_CANAL: Record<string, { id: string; emoji: string; label: string }[]> = {
