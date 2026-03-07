@@ -1271,7 +1271,7 @@ export default function CreerUnifie() {
               />
             )}
 
-            {step === "result" && !isLaunchMode && !generating && !demoGenerating && !streaming && !result && (
+            {step === "result" && !isLaunchMode && !generating && !demoGenerating && !streaming && !pinterestVisualGenerating && !result && (
               <div className="py-12 text-center space-y-4 animate-fade-in">
                 {error ? (
                   <p className="text-destructive font-medium">{error}</p>
