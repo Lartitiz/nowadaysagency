@@ -384,7 +384,7 @@ export default function CreerUnifie() {
       : ideaText;
 
     // Formats texte : utiliser le streaming SSE
-    const textFormats = ["post", "linkedin", "newsletter"];
+    const textFormats = ["post", "linkedin", "newsletter", "pinterest"];
     const isTextFormat = textFormats.includes(selectedFormat);
 
     if (isTextFormat) {
@@ -393,6 +393,7 @@ export default function CreerUnifie() {
         post: "post_instagram",
         linkedin: "post_linkedin",
         newsletter: "post_newsletter",
+        pinterest: "post_pinterest",
       };
       // Build angle object matching classic path
       const angleObj = editorialAngle
