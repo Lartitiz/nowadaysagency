@@ -50,6 +50,27 @@ interface PageAnalysis {
   problemes: string[];
 }
 
+export interface BrandingPrefillFromSite {
+  detected_tone?: string | null;
+  detected_values?: string[];
+  detected_positioning?: string | null;
+  detected_mission?: string | null;
+  detected_combat_cause?: string | null;
+  detected_combat_fights?: string | null;
+  detected_colors?: {
+    primary?: string | null;
+    secondary?: string | null;
+    accent?: string | null;
+    background?: string | null;
+  };
+  detected_fonts?: {
+    title?: string | null;
+    body?: string | null;
+  };
+  detected_mood?: string[];
+  empty_fields?: Record<string, boolean>;
+}
+
 export interface AutoAuditResult {
   score_global: number;
   synthese: string;
@@ -60,6 +81,7 @@ export interface AutoAuditResult {
   priorites: Priorite[];
   plan_action: PlanAction[];
   analyse_par_page: Record<string, PageAnalysis>;
+  branding_prefill_from_site?: BrandingPrefillFromSite | null;
 }
 
 interface PastAudit {
