@@ -160,6 +160,7 @@ interface Props {
   pinterestPinHtml?: string | null;
   onExportPinterestPng?: () => void;
   onExportPinterestPptx?: () => void;
+  onExportPinterestEditablePptx?: () => void;
 }
 
 export default function CreerStepResult({

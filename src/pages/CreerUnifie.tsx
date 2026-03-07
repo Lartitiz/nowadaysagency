@@ -511,6 +511,7 @@ export default function CreerUnifie() {
             pin_html: r?.pin_html,
             title: r?.title,
             description: r?.description,
+            pin_data: r?.pin_data,
           },
         });
       } catch (e: any) {
