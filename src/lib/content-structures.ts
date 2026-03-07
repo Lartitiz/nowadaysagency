@@ -344,7 +344,7 @@ export const PINTEREST_VISUAL_ANGLES: EditorialAngle[] = [
     defaultStructure: "storytelling",
     objectives: ["engagement", "vente"],
     phase: [2, 3],
-    declic: "les deux",
+    declic: "les_deux",
     exampleSubjects: ["Bio Instagram avant/après optimisation", "Site web : ce que je voyais vs ce que mes clientes voyaient"],
   },
   {
