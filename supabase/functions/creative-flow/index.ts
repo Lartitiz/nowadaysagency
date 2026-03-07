@@ -350,12 +350,19 @@ PROFONDEUR :
 - Story finale : conclusion + CTA.
 - Pour chaque story, indique : le TEXTE affiché + le TYPE (texte seul, photo+texte, vidéo, sondage, quiz).`;
       } else if (isLinkedIn) {
+        // Inject enriched LinkedIn template if a matching editorial format was chosen
+        const linkedinTemplateContent = editorialFormat && (LINKEDIN_TEMPLATES as any)[editorialFormat]
+          ? (LINKEDIN_TEMPLATES as any)[editorialFormat]
+          : "";
+
         depthMandate = `ANTI-BROETRY :
 Pas de phrases seules sur une ligne pour faire dramatique. Des paragraphes de 2-3 phrases qui développent une idée. Le rythme vient du contraste entre paragraphes et phrases courtes qui ponctuent, pas des sauts de ligne systématiques.
 
 FORMAT : POST LINKEDIN (1300-2000 caractères)
 
 LinkedIn ≠ tribune d'expert·e. C'est une conversation entre pro qui se respectent.
+
+${linkedinTemplateContent ? `STRUCTURE ÉDITORIALE CHOISIE :\n${linkedinTemplateContent}\n\nSuis cette structure pour organiser le post.` : ""}
 
 TU NE FAIS JAMAIS :
 - Storytelling fabriqué ("Et là, tout a basculé", "Le déclic ?", "Ce jour-là j'ai compris")
@@ -373,7 +380,7 @@ TU FAIS :
 - Prendre position. Dire avec quoi tu n'es PAS d'accord.
 - CTA : une question PRÉCISE liée au sujet, ou rien du tout si le texte se suffit.
 - 0-2 hashtags en fin. Pas plus.
-- COURT ET DENSE : 1300-2000 caractères. Si tu peux dire la même chose en moins de mots, fais-le. Un post LinkedIn dense de 1300 caractères qui dit quelque chose > un post de 2500 caractères qui étire.`;
+- DENSE : 1300-2000 caractères. Chaque phrase apporte du NOUVEAU. Zéro reformulation.`;
       } else if (isNewsletter) {
         depthMandate = `FORMAT : NEWSLETTER / EMAIL (1500-3000 caractères)
 
