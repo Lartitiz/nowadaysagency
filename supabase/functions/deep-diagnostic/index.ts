@@ -406,6 +406,10 @@ Ta mission : déduire un maximum d'informations sur son branding à partir de ce
 - Pour les combats, identifie les causes défendues, les refus assumés, les convictions fortes.
 - Pour les content_pillars, identifie les 3 grands thèmes récurrents.
 
+- Pour le voice_prefill, analyse le style d'écriture du contenu scrappé (site, LinkedIn). Identifie : le niveau de langue (soutenu, courant, familier), le rythme (phrases courtes/longues, alternance), les expressions récurrentes, les mots ou tournures à éviter car absents du vocabulaire de la personne.
+- Pour le charter_prefill, identifie les couleurs dominantes visibles dans le contenu HTML du site (couleurs de fond, couleurs de texte, couleurs d'accent des boutons/liens). Identifie les polices si visible dans le CSS inline ou les font-family. Décris l'ambiance visuelle en 3 mots-clés. Si le site n'a pas été scrappé, mets tout à null.
+- Pour le combat_structured, décompose les combats en 4 dimensions : la cause (pourquoi elle fait ça), les combats (contre quoi elle lutte), l'alternative (ce qu'elle propose à la place), les refus (ce qu'elle refuse de faire). Si une dimension n'est pas identifiable, mets null.
+
 RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
 
 {
@@ -420,6 +424,29 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
     "content_pillars": ["pilier 1", "pilier 2", "pilier 3"],
     "story_draft": "2-4 phrases résumant le parcours ou null",
     "offers": [{ "name": "nom", "description": "description courte", "price": "prix ou null" }]
+  },
+  "voice_prefill": {
+    "voice_summary": "description en 2-3 phrases de comment cette personne écrit : niveau de langue, rythme, longueur des phrases, ton général ou null",
+    "tone_patterns": ["pattern 1", "pattern 2"],
+    "signature_expressions": ["expression 1", "expression 2"],
+    "banned_expressions": ["expression à éviter 1", "expression à éviter 2"]
+  },
+  "charter_prefill": {
+    "color_primary": "code hex de la couleur dominante du site ou null",
+    "color_secondary": "code hex de la 2e couleur ou null",
+    "color_accent": "code hex de la couleur d'accent ou null",
+    "color_background": "code hex du fond principal ou null",
+    "color_text": "code hex du texte principal ou null",
+    "font_title": "nom de la police des titres détectée ou null",
+    "font_body": "nom de la police du corps détectée ou null",
+    "mood_keywords": ["mot-clé ambiance 1", "mot-clé ambiance 2", "mot-clé ambiance 3"],
+    "photo_style": "description du style photo détecté ou null"
+  },
+  "combat_structured": {
+    "combat_cause": "la cause principale défendue ou null",
+    "combat_fights": "ce contre quoi elle se bat concrètement ou null",
+    "combat_alternative": "ce qu'elle propose à la place ou null",
+    "combat_refusals": "ce qu'elle refuse catégoriquement ou null"
   }
 }`;
 
