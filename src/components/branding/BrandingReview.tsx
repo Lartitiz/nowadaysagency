@@ -48,6 +48,7 @@ const COACHING_SECTION_MAP: Record<SectionKey, string> = {
   tone_style: "tone_style",
   content_strategy: "content_strategy",
   offers: "offers",
+  charter: "charter",
 };
 
 const SECTIONS = [
