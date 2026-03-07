@@ -42,7 +42,7 @@ serve(async (req) => {
     validateInput(body, z.object({
       type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles", "deepening_questions", "express_full"]),
       carousel_type: z.string().max(100).optional().nullable(),
-      subject: z.string().max(10000).optional().nullable(),
+      subject: z.string().max(15000).optional().nullable(),
       objective: z.string().max(100).optional().nullable(),
       slide_count: z.number().min(1).max(20).optional(),
       workspace_id: z.string().uuid().optional().nullable(),
