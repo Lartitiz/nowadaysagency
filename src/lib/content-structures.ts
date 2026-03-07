@@ -322,7 +322,7 @@ export const PINTEREST_VISUAL_ANGLES: EditorialAngle[] = [
     defaultStructure: "educationnelle",
     objectives: ["visibilite"],
     phase: [1],
-    declic: "passage à l'action",
+    declic: "prise de conscience",
     exampleSubjects: ["Checklist avant de publier sur Instagram", "10 choses à vérifier sur ton site"],
   },
   {
