@@ -99,6 +99,14 @@ serve(async (req) => {
 
         if (body.photos && body.photos.length > 0) {
           const messageContent: any[] = [];
+          
+          // 1. First: push creative brief and instructions before photos
+          messageContent.push({ 
+            type: "text", 
+            text: `BRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer TOUT le carrousel.\n\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.photo_description ? `Description : "${body.photo_description}"` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}` 
+          });
+          
+          // 2. Then: the photos (existing loop)
           for (const photo of body.photos.slice(0, 10)) {
             if (photo.base64) {
               const raw = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
@@ -108,9 +116,11 @@ serve(async (req) => {
               });
             }
           }
+          
+          // 3. Finally: short message after photos
           messageContent.push({
             type: "text",
-            text: `BRIEF CRÉATIF : ${body.subject || "non précisé"}. Ce concept doit structurer tout le carrousel.\n\nVoici ${body.photos.length} photo(s) pour un carrousel mixte Instagram.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}\n\nAnalyse chaque photo et crée un carrousel qui mélange slides photo et slides texte.`,
+            text: `Voici ${body.photos.length} photo(s). Analyse-les et crée le carrousel mixte en respectant le brief créatif ci-dessus.`
           });
 
           content = await callAnthropic({
