@@ -676,7 +676,7 @@ Retourne UNIQUEMENT le JSON.`;
       system: finalSystemPrompt,
       messages,
       temperature: 0.5,
-      max_tokens: (isPhotoCarousel || isMixCarousel) ? 16384 : 8192,
+      max_tokens: 16384,
     });
 
     let result: any;
