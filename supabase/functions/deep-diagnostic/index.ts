@@ -406,6 +406,10 @@ Ta mission : déduire un maximum d'informations sur son branding à partir de ce
 - Pour les combats, identifie les causes défendues, les refus assumés, les convictions fortes.
 - Pour les content_pillars, identifie les 3 grands thèmes récurrents.
 
+- Pour le voice_prefill, analyse le style d'écriture du contenu scrappé (site, LinkedIn). Identifie : le niveau de langue (soutenu, courant, familier), le rythme (phrases courtes/longues, alternance), les expressions récurrentes, les mots ou tournures à éviter car absents du vocabulaire de la personne.
+- Pour le charter_prefill, identifie les couleurs dominantes visibles dans le contenu HTML du site (couleurs de fond, couleurs de texte, couleurs d'accent des boutons/liens). Identifie les polices si visible dans le CSS inline ou les font-family. Décris l'ambiance visuelle en 3 mots-clés. Si le site n'a pas été scrappé, mets tout à null.
+- Pour le combat_structured, décompose les combats en 4 dimensions : la cause (pourquoi elle fait ça), les combats (contre quoi elle lutte), l'alternative (ce qu'elle propose à la place), les refus (ce qu'elle refuse de faire). Si une dimension n'est pas identifiable, mets null.
+
 RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
 
 {
@@ -420,11 +424,34 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
     "content_pillars": ["pilier 1", "pilier 2", "pilier 3"],
     "story_draft": "2-4 phrases résumant le parcours ou null",
     "offers": [{ "name": "nom", "description": "description courte", "price": "prix ou null" }]
+  },
+  "voice_prefill": {
+    "voice_summary": "description en 2-3 phrases de comment cette personne écrit : niveau de langue, rythme, longueur des phrases, ton général ou null",
+    "tone_patterns": ["pattern 1", "pattern 2"],
+    "signature_expressions": ["expression 1", "expression 2"],
+    "banned_expressions": ["expression à éviter 1", "expression à éviter 2"]
+  },
+  "charter_prefill": {
+    "color_primary": "code hex de la couleur dominante du site ou null",
+    "color_secondary": "code hex de la 2e couleur ou null",
+    "color_accent": "code hex de la couleur d'accent ou null",
+    "color_background": "code hex du fond principal ou null",
+    "color_text": "code hex du texte principal ou null",
+    "font_title": "nom de la police des titres détectée ou null",
+    "font_body": "nom de la police du corps détectée ou null",
+    "mood_keywords": ["mot-clé ambiance 1", "mot-clé ambiance 2", "mot-clé ambiance 3"],
+    "photo_style": "description du style photo détecté ou null"
+  },
+  "combat_structured": {
+    "combat_cause": "la cause principale défendue ou null",
+    "combat_fights": "ce contre quoi elle se bat concrètement ou null",
+    "combat_alternative": "ce qu'elle propose à la place ou null",
+    "combat_refusals": "ce qu'elle refuse catégoriquement ou null"
   }
 }`;
 
         const opusModel = getModelForAction("branding_audit"); // Opus
-        const enrichmentRaw = await callAnthropicSimple(opusModel, enrichmentSystemPrompt, userPrompt, 0.7, 4096);
+        const enrichmentRaw = await callAnthropicSimple(opusModel, enrichmentSystemPrompt, userPrompt, 0.7, 6144);
 
         let enrichmentResult: any;
         try {
@@ -451,7 +478,7 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
         // brand_profile upsert
         const { data: existingProfile } = await supabaseAdmin
           .from("brand_profile")
-          .select("id, positioning, mission, tone_keywords, tone_style, combats, values, content_pillars")
+          .select("id, positioning, mission, tone_keywords, tone_style, combats, values, content_pillars, combat_cause, combat_fights, combat_alternative, combat_refusals")
           .eq(filterCol, filterVal)
           .maybeSingle();
 
@@ -464,6 +491,10 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
           if (!existingProfile.tone_style && prefill.tone_style) updates.tone_style = prefill.tone_style;
           if (!existingProfile.combats && prefill.combats?.length > 0) updates.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
           if ((!existingProfile.content_pillars || (Array.isArray(existingProfile.content_pillars) && existingProfile.content_pillars.length === 0)) && prefill.content_pillars?.length > 0) updates.content_pillars = prefill.content_pillars;
+          if (!existingProfile.combat_cause && prefill.combat_structured?.combat_cause) updates.combat_cause = prefill.combat_structured.combat_cause;
+          if (!existingProfile.combat_fights && prefill.combat_structured?.combat_fights) updates.combat_fights = prefill.combat_structured.combat_fights;
+          if (!existingProfile.combat_alternative && prefill.combat_structured?.combat_alternative) updates.combat_alternative = prefill.combat_structured.combat_alternative;
+          if (!existingProfile.combat_refusals && prefill.combat_structured?.combat_refusals) updates.combat_refusals = prefill.combat_structured.combat_refusals;
           if (Object.keys(updates).length > 0) await supabaseAdmin.from("brand_profile").update(updates).eq("id", existingProfile.id);
         } else {
           const newProfile: Record<string, unknown> = { user_id: userId, workspace_id: workspaceId };
@@ -474,6 +505,10 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
           if (prefill.combats?.length) newProfile.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
           if (prefill.values?.length) newProfile.values = prefill.values;
           if (prefill.content_pillars?.length) newProfile.content_pillars = prefill.content_pillars;
+          if (prefill.combat_structured?.combat_cause) newProfile.combat_cause = prefill.combat_structured.combat_cause;
+          if (prefill.combat_structured?.combat_fights) newProfile.combat_fights = prefill.combat_structured.combat_fights;
+          if (prefill.combat_structured?.combat_alternative) newProfile.combat_alternative = prefill.combat_structured.combat_alternative;
+          if (prefill.combat_structured?.combat_refusals) newProfile.combat_refusals = prefill.combat_structured.combat_refusals;
           await supabaseAdmin.from("brand_profile").insert(newProfile);
         }
 
@@ -504,6 +539,80 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
           const { data: existingStory } = await supabaseAdmin.from("storytelling").select("id").eq(filterCol, filterVal).limit(1).maybeSingle();
           if (!existingStory) {
             await supabaseAdmin.from("storytelling").insert({ user_id: userId, workspace_id: workspaceId, imported_text: prefill.story_draft, source: "diagnostic_prefill", is_primary: true });
+          }
+        }
+
+        // Resolve profileUserId for voice_profile and brand_charter
+        let profileUserId = userId;
+        if (workspaceId) {
+          const { data: ownerRow } = await supabaseAdmin
+            .from("workspace_members")
+            .select("user_id")
+            .eq("workspace_id", workspaceId)
+            .eq("role", "owner")
+            .maybeSingle();
+          if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+        }
+
+        // voice_profile
+        const voicePrefill = prefill.voice_prefill || enrichmentResult?.voice_prefill;
+        if (voicePrefill && (voicePrefill.voice_summary || voicePrefill.tone_patterns?.length || voicePrefill.signature_expressions?.length)) {
+          const { data: existingVoice } = await supabaseAdmin
+            .from("voice_profile")
+            .select("id, voice_summary, tone_patterns, signature_expressions, banned_expressions")
+            .eq("user_id", profileUserId)
+            .maybeSingle();
+
+          if (existingVoice) {
+            const vUpdates: Record<string, unknown> = {};
+            if (!existingVoice.voice_summary && voicePrefill.voice_summary) vUpdates.voice_summary = voicePrefill.voice_summary;
+            if ((!existingVoice.tone_patterns || (Array.isArray(existingVoice.tone_patterns) && existingVoice.tone_patterns.length === 0)) && voicePrefill.tone_patterns?.length) vUpdates.tone_patterns = voicePrefill.tone_patterns;
+            if ((!existingVoice.signature_expressions || (Array.isArray(existingVoice.signature_expressions) && existingVoice.signature_expressions.length === 0)) && voicePrefill.signature_expressions?.length) vUpdates.signature_expressions = voicePrefill.signature_expressions;
+            if ((!existingVoice.banned_expressions || (Array.isArray(existingVoice.banned_expressions) && existingVoice.banned_expressions.length === 0)) && voicePrefill.banned_expressions?.length) vUpdates.banned_expressions = voicePrefill.banned_expressions;
+            if (Object.keys(vUpdates).length > 0) await supabaseAdmin.from("voice_profile").update(vUpdates).eq("id", existingVoice.id);
+          } else {
+            const newVoice: Record<string, unknown> = { user_id: profileUserId, workspace_id: workspaceId };
+            if (voicePrefill.voice_summary) newVoice.voice_summary = voicePrefill.voice_summary;
+            if (voicePrefill.tone_patterns?.length) newVoice.tone_patterns = voicePrefill.tone_patterns;
+            if (voicePrefill.signature_expressions?.length) newVoice.signature_expressions = voicePrefill.signature_expressions;
+            if (voicePrefill.banned_expressions?.length) newVoice.banned_expressions = voicePrefill.banned_expressions;
+            await supabaseAdmin.from("voice_profile").insert(newVoice);
+          }
+        }
+
+        // brand_charter
+        const charterPrefill = prefill.charter_prefill || enrichmentResult?.charter_prefill;
+        if (charterPrefill && (charterPrefill.color_primary || charterPrefill.font_title || charterPrefill.mood_keywords?.length)) {
+          const { data: existingCharter } = await supabaseAdmin
+            .from("brand_charter")
+            .select("id, color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, photo_style")
+            .eq(filterCol, filterVal)
+            .maybeSingle();
+
+          if (existingCharter) {
+            const cUpdates: Record<string, unknown> = {};
+            if (!existingCharter.color_primary && charterPrefill.color_primary) cUpdates.color_primary = charterPrefill.color_primary;
+            if (!existingCharter.color_secondary && charterPrefill.color_secondary) cUpdates.color_secondary = charterPrefill.color_secondary;
+            if (!existingCharter.color_accent && charterPrefill.color_accent) cUpdates.color_accent = charterPrefill.color_accent;
+            if (!existingCharter.color_background && charterPrefill.color_background) cUpdates.color_background = charterPrefill.color_background;
+            if (!existingCharter.color_text && charterPrefill.color_text) cUpdates.color_text = charterPrefill.color_text;
+            if (!existingCharter.font_title && charterPrefill.font_title) cUpdates.font_title = charterPrefill.font_title;
+            if (!existingCharter.font_body && charterPrefill.font_body) cUpdates.font_body = charterPrefill.font_body;
+            if ((!existingCharter.mood_keywords || (Array.isArray(existingCharter.mood_keywords) && existingCharter.mood_keywords.length === 0)) && charterPrefill.mood_keywords?.length) cUpdates.mood_keywords = charterPrefill.mood_keywords;
+            if (!existingCharter.photo_style && charterPrefill.photo_style) cUpdates.photo_style = charterPrefill.photo_style;
+            if (Object.keys(cUpdates).length > 0) await supabaseAdmin.from("brand_charter").update(cUpdates).eq("id", existingCharter.id);
+          } else {
+            const newCharter: Record<string, unknown> = { user_id: profileUserId, workspace_id: workspaceId };
+            if (charterPrefill.color_primary) newCharter.color_primary = charterPrefill.color_primary;
+            if (charterPrefill.color_secondary) newCharter.color_secondary = charterPrefill.color_secondary;
+            if (charterPrefill.color_accent) newCharter.color_accent = charterPrefill.color_accent;
+            if (charterPrefill.color_background) newCharter.color_background = charterPrefill.color_background;
+            if (charterPrefill.color_text) newCharter.color_text = charterPrefill.color_text;
+            if (charterPrefill.font_title) newCharter.font_title = charterPrefill.font_title;
+            if (charterPrefill.font_body) newCharter.font_body = charterPrefill.font_body;
+            if (charterPrefill.mood_keywords?.length) newCharter.mood_keywords = charterPrefill.mood_keywords;
+            if (charterPrefill.photo_style) newCharter.photo_style = charterPrefill.photo_style;
+            await supabaseAdmin.from("brand_charter").insert(newCharter);
           }
         }
 
