@@ -468,6 +468,13 @@ export const CONTENT_TYPE_SPECS: Record<string, ContentTypeSpec> = {
     edgeFunction: "pinterest-ai",
     specs: "Titre SEO + description 100-200 mots",
   },
+  pinterest_visual: {
+    label: "Épingle visuelle",
+    emoji: "🎨",
+    channel: "pinterest",
+    edgeFunction: "pinterest-visual",
+    specs: "Visuel 1000×1500px + titre SEO + description",
+  },
 };
 
 // ── 4. OBJECTIVE_RECOMMENDATIONS ──
