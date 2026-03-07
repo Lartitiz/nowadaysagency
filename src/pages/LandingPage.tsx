@@ -26,15 +26,36 @@ import MiniDiagnostic from "@/components/landing/MiniDiagnostic";
 
 /* ─── Features grid data ─── */
 const FEATURES = [
-  { emoji: "🎨", title: "Mon identité", sub: "Définis ta marque", desc: "Mission, cible, ton, positionnement : pose les fondations de ta com' avec un atelier guidé pas à pas.", soon: false },
-  { emoji: "✍️", title: "Création de contenu", sub: "Trouve des idées et rédige", desc: "Formats, angles, accroches, rédaction guidée. De l'idée au post publié, sans panne d'inspiration.", soon: false },
-  { emoji: "📅", title: "Calendrier éditorial", sub: "Planifie ta communication", desc: "Calendrier visuel avec tags d'objectif et jauge d'équilibre. Tu sais quoi poster et quand.", soon: false },
-  { emoji: "📱", title: "Instagram", sub: "Optimise ton profil", desc: "Bio, stories à la une, audit de profil, routine d'engagement, prospection douce.", soon: false },
-  { emoji: "💼", title: "LinkedIn", sub: "Développe ta présence pro", desc: "Audit de profil, optimisation, contenus adaptés au réseau professionnel.", soon: false },
-  { emoji: "🔍", title: "SEO / Référencement", sub: "Sois trouvée sur Google", desc: "Mots-clés, optimisation de pages, stratégie de contenu pour le référencement naturel.", soon: false },
-  { emoji: "📧", title: "Newsletter / Emailing", sub: "Crée ta liste et fidélise", desc: "Séquences email, newsletters, lead nurturing.", soon: true },
-  { emoji: "🌐", title: "Site web / Pages de vente", sub: "Convertis tes visiteurs", desc: "Pages de vente, landing pages, optimisation.", soon: true },
-  { emoji: "📰", title: "Relations presse", sub: "Fais parler de toi", desc: "Communiqués, fichier presse, stratégie médias.", soon: true },
+  {
+    emoji: "🎨",
+    title: "Ton identité de marque",
+    desc: "Mission, cible, ton, positionnement, storytelling, offres : pose les fondations de ta com' avec un atelier guidé. L'IA te pose les bonnes questions, tu réponds, et ta marque prend forme.",
+    visual: "branding",
+  },
+  {
+    emoji: "✍️",
+    title: "Création de contenu IA",
+    desc: "Choisis un format (carrousel, reel, post, story, newsletter…), un angle, et l'IA rédige pour toi. Avec TA voix, parce qu'elle connaît ton branding.",
+    visual: "content",
+  },
+  {
+    emoji: "📅",
+    title: "Calendrier éditorial",
+    desc: "Vue mensuelle, drag & drop, tags d'objectif. Tu vois ce qui est prévu, ce qui est publié, ce qui manque. Tu sais quoi poster et quand.",
+    visual: "calendar",
+  },
+  {
+    emoji: "🔍",
+    title: "Audits Instagram et SEO",
+    desc: "Colle ton @ ou ton URL, et l'outil analyse tout : bio, posts, régularité, hashtags, mots-clés, structure du site. Tu repars avec des actions concrètes.",
+    visual: "audit",
+  },
+  {
+    emoji: "📱",
+    title: "Espaces par canal",
+    desc: "Instagram, LinkedIn, Pinterest, Site web, Newsletter : chaque canal a son espace dédié avec ses guides, ses checklists et ses générateurs.",
+    visual: "channels",
+  },
 ];
 
 const PAIN_POINTS = [
@@ -67,12 +88,6 @@ const TARGET_LIST = [
   "Tu veux gérer toute ta com' au même endroit (pas 10 outils différents)",
 ];
 
-const ROADMAP = {
-  now: ["Branding & positionnement", "Atelier créatif (idées, rédaction)", "Calendrier éditorial", "Audit Instagram + optimisation", "Audit LinkedIn + optimisation", "Dashboard stats", "Prospection douce", "Communauté"],
-  wip: ["SEO / Référencement naturel", "Newsletter & séquences email", "Pages de vente & landing pages"],
-  soon: ["Relations presse", "Module Pinterest", "Analyse de la concurrence"],
-};
-
 const FAQ_DATA = [
   { q: "C'est quoi la différence avec Canva / Later / ChatGPT ?", a: "Ces outils font une chose. Nous on couvre toute ta com' avec une méthode pensée pour les solopreneuses engagées. Pas des templates génériques." },
   { q: "Est-ce que ça marche pour mon secteur ?", a: "Si tu es dans la mode, l'artisanat, le bien-être, le design, la food, la culture, le coaching, la communication, le graphisme ou n'importe quel métier de service : oui. L'outil s'adapte à ton activité, quel que soit ton secteur." },
@@ -81,6 +96,158 @@ const FAQ_DATA = [
   { q: "Je peux annuler quand je veux ?", a: "Le plan Outil est sans engagement. Tu annules en 1 clic." },
   { q: "Mes données sont en sécurité ?", a: "Hébergées en Europe, chiffrées, jamais revendues. On est dans la com' éthique, pas dans la data." },
 ];
+
+/* ─── Feature Visual Component ─── */
+function FeatureVisual({ type }: { type: string }) {
+  const baseClass = "rounded-2xl bg-card border border-border shadow-card p-5";
+
+  if (type === "branding") {
+    return (
+      <div className={baseClass}>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">🎨 Mon identité</p>
+        <div className="space-y-2.5">
+          {[
+            { label: "Mission", value: "Aider les femmes à lancer leur marque éthique", pct: 100 },
+            { label: "Client·e idéal·e", value: "Créatrice 28-40 ans, éco-engagée", pct: 100 },
+            { label: "Ton & style", value: "Chaleureux, direct, engagé", pct: 85 },
+            { label: "Offres", value: "2 offres définies", pct: 60 },
+          ].map((item) => (
+            <div key={item.label} className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-foreground">{item.label}</span>
+                <span className="text-[10px] text-muted-foreground">{item.pct}%</span>
+              </div>
+              <div className="h-1.5 rounded-sm bg-border overflow-hidden">
+                <div className="h-full rounded-sm bg-primary transition-all" style={{ width: `${item.pct}%` }} />
+              </div>
+              <p className="text-[11px] text-muted-foreground truncate">{item.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "content") {
+    return (
+      <div className={baseClass}>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">✍️ Générer un contenu</p>
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {["Carrousel", "Reel", "Post photo", "Story", "Newsletter"].map((format) => (
+            <span key={format} className="rounded-pill bg-secondary px-2.5 py-1 text-[10px] font-medium text-secondary-foreground">{format}</span>
+          ))}
+        </div>
+        <div className="rounded-xl bg-rose-pale/60 border border-border p-3 mb-3">
+          <p className="text-[11px] text-foreground leading-relaxed">
+            <span className="font-semibold">Hook :</span> Tu passes 2h sur un post pour 12 likes ?
+          </p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed mt-1">
+            Voici 3 raisons pour lesquelles le problème n'est pas ton contenu…
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-7 rounded-pill bg-primary/90 px-3 flex items-center text-[10px] font-medium text-primary-foreground">✨ Régénérer</div>
+          <div className="h-7 rounded-pill border border-border px-3 flex items-center text-[10px] font-medium text-foreground">📋 Copier</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "calendar") {
+    return (
+      <div className={baseClass}>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">📅 Mars 2026</p>
+        <div className="grid grid-cols-7 gap-1">
+          {["L", "M", "M", "J", "V", "S", "D"].map((j, idx) => (
+            <span key={idx} className="text-[9px] text-muted-foreground text-center font-medium py-1">{j}</span>
+          ))}
+          {Array.from({ length: 28 }).map((_, idx) => {
+            const hasPost = [2, 5, 9, 12, 16, 19, 23, 26].includes(idx);
+            const isPublished = [2, 5, 9].includes(idx);
+            const isDraft = [12].includes(idx);
+            return (
+              <div key={idx} className={`h-7 rounded-lg border text-center flex items-center justify-center text-[10px] ${
+                hasPost
+                  ? isPublished
+                    ? "bg-green-100 border-green-200 text-green-700"
+                    : isDraft
+                      ? "bg-amber-100 border-amber-200 text-amber-700"
+                      : "bg-pink-100 border-pink-200 text-pink-600"
+                  : "border-border"
+              }`}>
+                {hasPost ? (isPublished ? "📸" : isDraft ? "📝" : "🎠") : ""}
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-3 mt-3 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-green-200" /> Publié</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-amber-200" /> Brouillon</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-pink-200" /> Planifié</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "audit") {
+    return (
+      <div className={baseClass}>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">🔍 Audit Instagram</p>
+        <div className="flex items-center gap-4 mb-4">
+          <div className="relative w-16 h-16 shrink-0">
+            <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" className="text-border" strokeWidth="3" />
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" className="text-primary" strokeWidth="3" strokeDasharray="68, 100" strokeLinecap="round" />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-foreground">68</span>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-foreground">Score : 68/100</p>
+            <p className="text-[11px] text-muted-foreground">4 forces · 3 axes d'amélioration</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {[
+            { label: "✅ Bio claire et engageante", good: true },
+            { label: "✅ Identité visuelle cohérente", good: true },
+            { label: "⚠️ Régularité de publication faible", good: false },
+            { label: "⚠️ Pas de CTA dans les posts", good: false },
+          ].map((item) => (
+            <div key={item.label} className={`text-[11px] px-3 py-1.5 rounded-lg ${item.good ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
+              {item.label}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "channels") {
+    return (
+      <div className={baseClass}>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">📱 Tes canaux</p>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { emoji: "📸", name: "Instagram", status: "Audit fait", active: true },
+            { emoji: "💼", name: "LinkedIn", status: "À configurer", active: false },
+            { emoji: "📌", name: "Pinterest", status: "En cours", active: true },
+            { emoji: "🌐", name: "Site web", status: "Audit fait", active: true },
+            { emoji: "✉️", name: "Newsletter", status: "À configurer", active: false },
+            { emoji: "🔍", name: "SEO", status: "En cours", active: true },
+          ].map((canal) => (
+            <div key={canal.name} className={`rounded-xl border p-3 ${canal.active ? "border-primary/30 bg-primary/[0.03]" : "border-border"}`}>
+              <span className="text-lg block mb-1">{canal.emoji}</span>
+              <p className="text-xs font-medium text-foreground">{canal.name}</p>
+              <p className={`text-[10px] ${canal.active ? "text-primary" : "text-muted-foreground"}`}>{canal.status}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
 
 /* ═══════════════════════════════════════════════════════════
    MAIN PAGE
@@ -296,28 +463,30 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══ FEATURES GRID ═══ */}
+      {/* ═══ FEATURES ═══ */}
       <section id="features" aria-label="Fonctionnalités de l'outil" className="py-16 sm:py-24 px-4">
-        <div className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-5xl">
           <Reveal>
-            <div className="text-center mb-14">
+            <div className="text-center mb-16">
               <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">Tout ce dont tu as besoin, au même endroit</h2>
-              <p className="text-muted-foreground max-w-xl mx-auto">Pas un énième outil compliqué. Un espace qui te dit quoi faire, te propose des idées, et t'aide à rester régulière.</p>
+              <p className="text-muted-foreground max-w-xl mx-auto">Pas 10 outils différents. Un seul espace qui te guide de la stratégie au contenu publié.</p>
             </div>
           </Reveal>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+          <div className="space-y-16 sm:space-y-24">
             {FEATURES.map((f, i) => (
-              <Reveal key={i} delay={i * 0.05}>
-                <div className={`rounded-2xl border p-6 h-full transition-shadow ${f.soon ? "bg-muted/40 border-border/60 opacity-70" : "bg-card border-border shadow-card hover:shadow-card-hover"}`}>
-                  <div className="flex items-start justify-between mb-3">
-                    <span className="text-3xl">{f.emoji}</span>
-                    {f.soon && (
-                      <span className="text-[10px] font-semibold bg-accent text-accent-foreground rounded-pill px-2.5 py-1">Coming soon</span>
-                    )}
+              <Reveal key={i} delay={0.1}>
+                <div className={`grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center`}>
+                  {/* Texte */}
+                  <div className={i % 2 === 1 ? "md:order-2" : ""}>
+                    <span className="text-3xl mb-3 block">{f.emoji}</span>
+                    <h3 className="font-display text-xl sm:text-2xl font-bold mb-3">{f.title}</h3>
+                    <p className="text-muted-foreground leading-relaxed">{f.desc}</p>
                   </div>
-                  <h3 className="font-display text-base font-bold mb-0.5">{f.title}</h3>
-                  <p className="text-sm font-medium text-primary mb-2">{f.sub}</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+                  {/* Mini-mockup visuel */}
+                  <div className={i % 2 === 1 ? "md:order-1" : ""}>
+                    <FeatureVisual type={f.visual} />
+                  </div>
                 </div>
               </Reveal>
             ))}
@@ -421,114 +590,91 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══ ROADMAP ═══ */}
-      <section aria-label="Feuille de route" className="bg-rose-pale py-16 sm:py-24 px-4">
-        <div className="mx-auto max-w-4xl">
-          <Reveal>
-            <div className="text-center mb-12">
-              <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-3">L'outil grandit avec toi</h2>
-              <p className="text-muted-foreground">On construit en continu. Voilà ce qui arrive bientôt.</p>
-            </div>
-          </Reveal>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <Reveal>
-              <div className="rounded-2xl bg-card border border-border p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-lg">✅</span>
-                  <h3 className="font-display text-sm font-bold">Disponible maintenant</h3>
-                </div>
-                <ul className="space-y-2">
-                  {ROADMAP.now.map((item, i) => (
-                    <li key={i} className="text-sm text-foreground flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-sm bg-primary shrink-0" />{item}</li>
-                  ))}
-                </ul>
-              </div>
-            </Reveal>
-            <Reveal delay={0.1}>
-              <div className="rounded-2xl bg-card border border-border p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-lg">🔨</span>
-                  <h3 className="font-display text-sm font-bold">En développement</h3>
-                </div>
-                <ul className="space-y-2">
-                  {ROADMAP.wip.map((item, i) => (
-                    <li key={i} className="text-sm text-muted-foreground flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-sm bg-accent shrink-0" />{item}</li>
-                  ))}
-                </ul>
-              </div>
-            </Reveal>
-            <Reveal delay={0.2}>
-              <div className="rounded-2xl bg-card border border-border p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-lg">🔜</span>
-                  <h3 className="font-display text-sm font-bold">Bientôt</h3>
-                </div>
-                <ul className="space-y-2">
-                  {ROADMAP.soon.map((item, i) => (
-                    <li key={i} className="text-sm text-muted-foreground flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-sm bg-border shrink-0" />{item}</li>
-                  ))}
-                </ul>
-              </div>
-            </Reveal>
-          </div>
-          <Reveal delay={0.3}>
-            <p className="text-center mt-8 text-sm text-muted-foreground">
-              💡 Une idée ? Dis-nous ce que tu voudrais voir dans l'outil →{" "}
-              <a href="https://instagram.com/nowadaysagency" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">Proposer une fonctionnalité</a>
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
       {/* ═══ PRICING ═══ */}
       <section aria-label="Tarifs" className="py-16 sm:py-24 px-4">
-        <div className="mx-auto max-w-5xl text-center">
+        <div className="mx-auto max-w-4xl text-center">
           <Reveal>
-            <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">Commence gratuitement. Upgrade quand tu es prête.</h2>
+            <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">Commence gratuitement. Sans limite de temps.</h2>
+            <p className="text-muted-foreground max-w-lg mx-auto">L'essentiel est gratuit. Le premium débloque tout, quand tu es prête.</p>
           </Reveal>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-12">
-            {/* Free */}
+
+          {/* 2 colonnes : Gratuit + Premium */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-12 max-w-2xl mx-auto">
+            {/* Gratuit */}
             <Reveal delay={0}>
               <div className="rounded-2xl bg-card border border-border p-6 text-left flex flex-col h-full hover:shadow-card-hover transition-shadow">
                 <span className="text-2xl mb-2">🆓</span>
                 <h3 className="font-display text-lg font-bold">Gratuit</h3>
-                <p className="text-sm text-muted-foreground mt-1 mb-6">L'essentiel pour tester</p>
-                <div className="flex-1" />
-                <a href="#signup-section" onClick={scrollTo("signup-section")} className="block text-center rounded-pill border border-border py-2.5 font-medium text-foreground hover:bg-secondary transition-colors text-sm">
-                  Commencer
+                <p className="text-primary font-bold text-xl mt-1">0€</p>
+                <p className="text-sm text-muted-foreground mt-1 mb-4">Pour tester et commencer à structurer ta com'</p>
+                <ul className="space-y-2 mb-6 flex-1">
+                  {[
+                    "Onboarding conversationnel complet",
+                    "Espace branding (6 sections + coaching IA)",
+                    "Calendrier éditorial + bibliothèque d'idées",
+                    "10 crédits IA / mois",
+                    "1 audit Instagram + 1 audit site",
+                    "Espaces par canal",
+                    "Dashboard + gamification",
+                  ].map((item, idx) => (
+                    <li key={idx} className="text-sm text-foreground flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <a href="#signup-section" onClick={scrollTo("signup-section")} className="block text-center rounded-pill bg-primary text-primary-foreground py-2.5 font-medium hover:bg-bordeaux transition-colors shadow-cta text-sm">
+                  Commencer gratuitement
                 </a>
               </div>
             </Reveal>
-            {/* Outil */}
+
+            {/* Premium */}
             <Reveal delay={0.1}>
               <div className="rounded-2xl bg-card border-2 border-primary p-6 text-left flex flex-col relative shadow-card-hover h-full">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-pill">Populaire</div>
                 <span className="text-2xl mb-2">💎</span>
-                <h3 className="font-display text-lg font-bold">Outil</h3>
+                <h3 className="font-display text-lg font-bold">Premium</h3>
                 <p className="text-primary font-bold text-xl mt-1">39€<span className="text-sm font-normal text-muted-foreground">/mois</span></p>
-                <p className="text-sm text-muted-foreground mt-1 mb-6">Tout l'outil débloqué</p>
-                <div className="flex-1" />
-                <a href="#signup-section" onClick={scrollTo("signup-section")} className="block text-center rounded-pill bg-primary text-primary-foreground py-2.5 font-medium hover:bg-bordeaux transition-colors shadow-cta text-sm">
+                <p className="text-sm text-muted-foreground mt-1 mb-4">Tout l'outil débloqué, sans limite</p>
+                <ul className="space-y-2 mb-6 flex-1">
+                  {[
+                    "Tout le plan gratuit +",
+                    "300 crédits IA / mois",
+                    "Audits illimités (Instagram, LinkedIn, site)",
+                    "Import stats + Dashboard KPI",
+                    "Mini-CRM prospection + routine d'engagement",
+                    "Communauté + lives mensuels",
+                  ].map((item, idx) => (
+                    <li key={idx} className="text-sm text-foreground flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <a href="#signup-section" onClick={scrollTo("signup-section")} className="block text-center rounded-pill border-2 border-primary text-primary py-2.5 font-medium hover:bg-primary hover:text-primary-foreground transition-colors text-sm">
                   S'abonner
                 </a>
               </div>
             </Reveal>
-            {/* Ton binôme de com' */}
-            <Reveal delay={0.2}>
-              <div className="rounded-2xl bg-card border border-border p-6 text-left flex flex-col h-full hover:shadow-card-hover transition-shadow">
-                <span className="text-2xl mb-2">🤝</span>
-                <h3 className="font-display text-lg font-bold">Ta binôme de com</h3>
-                <p className="text-primary font-bold text-xl mt-1">250€<span className="text-sm font-normal text-muted-foreground">/mois × 6</span></p>
-                <p className="text-sm text-muted-foreground mt-1 mb-6">L'outil + Laetitia à tes côtés. On fait ensemble.</p>
-                <div className="flex-1" />
-                <Link to="/binome" className="block text-center rounded-pill border border-border py-2.5 font-medium text-foreground hover:bg-secondary transition-colors text-sm">
-                  En savoir plus
+          </div>
+
+          {/* Bandeau Binôme séparé */}
+          <Reveal delay={0.2}>
+            <div className="mt-10 max-w-2xl mx-auto rounded-2xl bg-rose-pale border border-border p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+                <div className="text-left flex-1">
+                  <h3 className="font-display text-lg font-bold text-foreground">Tu préfères qu'on le fasse ensemble ?</h3>
+                  <p className="text-sm text-muted-foreground mt-1">L'outil + Laetitia à tes côtés pendant 6 mois. Stratégie, contenu, visio, WhatsApp. 250€/mois.</p>
+                </div>
+                <Link to="/binome" className="shrink-0 inline-flex items-center gap-1 rounded-pill border border-primary text-primary px-5 py-2.5 text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                  Découvrir <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
-            </Reveal>
-          </div>
+            </div>
+          </Reveal>
+
           <Reveal delay={0.3}>
-            <Link to="/pricing" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline mt-8">
+            <Link to="/pricing" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline mt-6">
               Voir le détail des plans <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </Reveal>
