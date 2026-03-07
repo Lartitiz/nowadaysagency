@@ -487,6 +487,12 @@ ${angle ? `ANGLE CHOISI :
 - Structure : ${(angle.structure || []).join(" → ")}
 - Ton : ${angle.tone}` : "Pas d'angle spécifique choisi. Choisis le meilleur angle pour le sujet."}
 
+SUJET DE L'UTILISATRICE :
+"""
+${context}
+"""
+Le contenu DOIT parler de ce sujet. Les réponses aux questions ci-dessous enrichissent le sujet mais ne le remplacent pas.
+
 CANAL : ${contentType || "Post Instagram"}
 ${editorialFormatLabel ? `FORMAT ÉDITORIAL : ${editorialFormatLabel}` : ""}
 ${angle?.format_livraison ? `FORMAT DE LIVRAISON : ${angle.format_livraison}` : ""}
