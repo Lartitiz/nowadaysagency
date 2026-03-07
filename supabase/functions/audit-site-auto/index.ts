@@ -176,6 +176,7 @@ async function fetchPage(url: string, path: string): Promise<PageData> {
     path: path || "/",
     headings: { h1: [], h2: [], h3: [] },
     visibleText: "",
+    styleHints: "",
     navLinks: [],
     images: { count: 0, alts: [] },
     ctas: [],
