@@ -16,6 +16,7 @@ export interface GenerateParams {
   editorialAngle?: string;
   answers?: Record<string, string>;
   workspaceId?: string;
+  channel?: "instagram" | "linkedin";
   // Reel-specific
   faceCam?: string;
   timeAvailable?: string;
@@ -35,6 +36,7 @@ export interface GenerateQuestionsParams {
   subject: string;
   editorialAngle?: string;
   objective?: string;
+  channel?: "instagram" | "linkedin";
 }
 
 export interface Question {
