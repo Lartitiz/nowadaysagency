@@ -38,9 +38,24 @@ const FEATURES = [
 ];
 
 const PAIN_POINTS = [
-  { emoji: "😩", text: "Tu postes quand tu y penses, sans stratégie, et tu as l'impression que ça mène nulle part." },
-  { emoji: "📱", text: "Tu passes des heures à chercher quoi dire. Tu ouvres Instagram et tu refermes sans rien publier." },
-  { emoji: "🤷", text: "Tu sais que ta com' est importante mais tu ne sais pas par où commencer, ni comment t'organiser." },
+  {
+    emoji: "📱",
+    pain: "Tu ouvres Instagram, tu fixes l'écran, et tu refermes. Tu sais pas quoi poster, ni quand, ni comment.",
+    flip: "L'outil te propose des idées adaptées à TON activité, et les place dans un calendrier. Tu sais quoi faire chaque semaine.",
+    flipEmoji: "📅",
+  },
+  {
+    emoji: "🎯",
+    pain: "Tu postes un peu au feeling, un carrousel par-ci, une story par-là. Mais t'as aucune idée de si ça marche ou pas.",
+    flip: "L'outil diagnostique ta com', identifie tes forces et tes failles, et te donne un plan d'action clair. Plus de bricolage.",
+    flipEmoji: "🔍",
+  },
+  {
+    emoji: "😶",
+    pain: "Tu t'es formée, t'as regardé des tutos, lu des posts. Mais quand tu te retrouves seule devant ton écran, rien ne sort.",
+    flip: "Chaque étape est guidée. Tu réponds à des questions, l'outil structure pour toi. Tu n'es plus seule face à ta page blanche.",
+    flipEmoji: "✨",
+  },
 ];
 
 const TARGET_LIST = [
