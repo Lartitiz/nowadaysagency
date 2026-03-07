@@ -80,7 +80,11 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
   const priorityTypes = objective ? OBJECTIVE_RECOMMENDATIONS[objective]?.priorityTypes || [] : [];
 
   const { recommended, others } = selectedFormat
-    ? getAnglesForType(selectedFormat, objective)
+    ? getAnglesForType(
+        // For LinkedIn carousel, use LinkedIn angles instead of Instagram carousel angles
+        selectedChannel === "linkedin" && selectedFormat === "carousel" ? "linkedin" : selectedFormat,
+        objective
+      )
     : { recommended: [], others: [] };
 
   const handleFormatSelect = (id: string) => {
