@@ -72,6 +72,110 @@ export function extractTextFromHtml(html: string): string {
 
   return parts.join("\n\n");
 }
+export function extractVisualInfo(html: string): string {
+  const parts: string[] = [];
+
+  // Extract inline styles with color/font info
+  const styleBlocks: string[] = [];
+  const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+  let sm: RegExpExecArray | null;
+  while ((sm = styleRegex.exec(html)) !== null) {
+    styleBlocks.push(sm[1]);
+  }
+  const allCss = styleBlocks.join("\n");
+
+  // Extract hex colors
+  const hexColors = new Set<string>();
+  const hexRegex = /#([0-9a-fA-F]{3,8})\b/g;
+  let hm: RegExpExecArray | null;
+  while ((hm = hexRegex.exec(allCss)) !== null) {
+    const hex = hm[1].toLowerCase();
+    if (!["fff", "ffffff", "000", "000000", "333", "333333", "666", "666666", "999", "999999", "ccc", "cccccc", "eee", "eeeeee", "f5f5f5", "e5e5e5", "d4d4d4"].includes(hex)) {
+      hexColors.add(`#${hex}`);
+    }
+  }
+
+  // Extract rgb/rgba colors
+  const rgbRegex = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/g;
+  let rm: RegExpExecArray | null;
+  while ((rm = rgbRegex.exec(allCss)) !== null) {
+    const r = parseInt(rm[1]), g = parseInt(rm[2]), b = parseInt(rm[3]);
+    if (r === g && g === b) continue;
+    const hex = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+    hexColors.add(hex);
+  }
+
+  // Extract CSS custom properties
+  const varRegex = /--([\w-]*(?:color|brand|primary|secondary|accent|bg|background|text|heading|main)[\w-]*)\s*:\s*([^;]+)/gi;
+  let vm: RegExpExecArray | null;
+  while ((vm = varRegex.exec(allCss)) !== null) {
+    const varName = vm[1].trim();
+    const varValue = vm[2].trim();
+    parts.push(`CSS variable: --${varName}: ${varValue}`);
+  }
+
+  if (hexColors.size > 0) {
+    parts.push(`Couleurs détectées dans le CSS: ${[...hexColors].slice(0, 15).join(", ")}`);
+  }
+
+  // Extract font-family declarations
+  const fonts = new Set<string>();
+  const fontRegex = /font-family\s*:\s*([^;}]+)/gi;
+  let fm: RegExpExecArray | null;
+  while ((fm = fontRegex.exec(allCss)) !== null) {
+    const fontVal = fm[1].trim().replace(/["']/g, "").split(",")[0].trim();
+    if (fontVal && !["inherit", "initial", "unset", "sans-serif", "serif", "monospace", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Arial", "Helvetica"].includes(fontVal)) {
+      fonts.add(fontVal);
+    }
+  }
+
+  // Also check inline styles in HTML
+  const inlineStyleRegex = /style=["']([^"']+)["']/gi;
+  let ism: RegExpExecArray | null;
+  while ((ism = inlineStyleRegex.exec(html)) !== null) {
+    const style = ism[1];
+    const inlineHexRegex = /#([0-9a-fA-F]{3,8})\b/g;
+    let ihm: RegExpExecArray | null;
+    while ((ihm = inlineHexRegex.exec(style)) !== null) {
+      const hex = ihm[1].toLowerCase();
+      if (!["fff", "ffffff", "000", "000000", "333", "666", "999", "ccc", "eee"].includes(hex)) {
+        hexColors.add(`#${hex}`);
+      }
+    }
+    const inlineFontRegex = /font-family\s*:\s*([^;}"']+)/gi;
+    let ifm: RegExpExecArray | null;
+    while ((ifm = inlineFontRegex.exec(style)) !== null) {
+      const f = ifm[1].trim().replace(/["']/g, "").split(",")[0].trim();
+      if (f && !["inherit", "initial", "unset", "sans-serif", "serif", "monospace", "system-ui"].includes(f)) {
+        fonts.add(f);
+      }
+    }
+  }
+
+  // Extract Google Fonts links
+  const gfRegex = /fonts\.googleapis\.com\/css2?\?family=([^"'&>]+)/gi;
+  let gm: RegExpExecArray | null;
+  while ((gm = gfRegex.exec(html)) !== null) {
+    const families = decodeURIComponent(gm[1]).split("|").map(f => f.split(":")[0].replace(/\+/g, " ").trim());
+    families.forEach(f => fonts.add(f));
+  }
+
+  if (fonts.size > 0) {
+    parts.push(`Typographies détectées: ${[...fonts].join(", ")}`);
+  }
+
+  // Extract meta theme-color
+  const themeColorRegex = /<meta[^>]*name=["']theme-color["'][^>]*content=["']([^"']+)["']/i;
+  const tcm = html.match(themeColorRegex);
+  if (tcm) parts.push(`Theme color: ${tcm[1]}`);
+
+  // Extract favicon for brand reference
+  const faviconRegex = /<link[^>]*rel=["'](?:icon|shortcut icon|apple-touch-icon)["'][^>]*href=["']([^"']+)["']/i;
+  const fav = html.match(faviconRegex);
+  if (fav) parts.push(`Favicon: ${fav[1]}`);
+
+  return parts.length > 0 ? `\n\nINFORMATIONS VISUELLES:\n${parts.join("\n")}` : "";
+}
 
 async function jinaFetch(targetUrl: string, signal: AbortSignal): Promise<string | null> {
   try {
@@ -253,7 +357,8 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
     secondaryUrls = links.slice(0, 2);
   }
 
-  // Fallback for main text if Jina failed
+  // Fallback for main text if Jina failed + always extract visual info
+  let visualInfo = "";
   if (!mainText) {
     try {
       const resp = await fetch(formattedUrl, {
@@ -263,9 +368,24 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
       if (resp.ok) {
         const html = await resp.text();
         mainText = extractTextFromHtml(html);
+        visualInfo = extractVisualInfo(html);
       }
     } catch {
       // ignore
+    }
+  } else {
+    // Jina succeeded for text, but we still need the raw HTML for visual extraction
+    try {
+      const resp = await fetch(formattedUrl, {
+        signal,
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+      });
+      if (resp.ok) {
+        const html = await resp.text();
+        visualInfo = extractVisualInfo(html);
+      }
+    } catch {
+      // ignore — visual info is nice-to-have
     }
   }
 
@@ -325,7 +445,7 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
     if (offersResult) secondaryPages.push(offersResult);
   }
 
-  const sections = [`=== PAGE D'ACCUEIL ===\n${mainText}`];
+  const sections = [`=== PAGE D'ACCUEIL ===\n${mainText}${visualInfo}`];
   for (const page of secondaryPages) {
     sections.push(`=== ${page.title} ===\n${page.content}`);
   }

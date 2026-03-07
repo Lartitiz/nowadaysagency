@@ -191,7 +191,7 @@ async function callClaude(
   const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
   if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY non configurée");
 
-  const systemPrompt = `Tu es un·e expert·e en communication et branding. On te donne le contenu en ligne d'une entreprise ou d'un·e solopreneur·e. Ta mission : analyser tout ça et pré-remplir 6 sections de branding.
+  const systemPrompt = `Tu es un·e expert·e en communication et branding. On te donne le contenu en ligne d'une entreprise ou d'un·e solopreneur·e. Ta mission : analyser tout ça et pré-remplir 7 sections de branding.
 
 Pour chaque section, donne une réponse structurée en JSON. Sois concret·e, précis·e, et utilise les mots que la personne utilise elle-même sur ses supports. Ne sois pas générique.
 
@@ -207,6 +207,7 @@ Structure attendue :
   "tone_style": { "confidence": "high|medium|low", "tone_keywords": [], "voice_description": "", "tone_register": "", "tone_level": "", "tone_style_chip": "", "tone_humor": "", "tone_engagement": "", "i_do": [], "i_never_do": [], "fights": [], "key_expressions": "", "things_to_avoid": "", "target_verbatims": "", "channels": [], "visual_style": "" },
   "content_strategy": { "confidence": "high|medium|low", "pillars": [], "creative_twist": "", "formats": [], "rhythm": "", "editorial_line": "" },
   "offers": { "confidence": "high|medium|low", "offers": [{ "name": "", "price": "", "description": "", "target": "", "promise": "" }] },
+  "charter": { "confidence": "high|medium|low", "color_primary": "", "color_secondary": "", "color_accent": "", "color_background": "", "font_title": "", "font_body": "", "mood_keywords": [], "visual_style_description": "" },
   "sources_used": [],
   "sources_failed": [],
   "overall_confidence": "high|medium|low",
@@ -228,7 +229,14 @@ Précisions sur tone_style :
 Précisions sur persona :
 - description : description courte du persona en une phrase (ex: "Solopreneuse créative, 30-40 ans, artisane ou prestataire de service")
 - beautiful_world : dans un monde idéal, à quoi ressemblerait la situation de cette personne ?
-- first_actions : quelles seraient les premières actions concrètes que cette personne ferait en travaillant avec cette marque ?`;
+- first_actions : quelles seraient les premières actions concrètes que cette personne ferait en travaillant avec cette marque ?
+
+Précisions sur charter :
+- Remplis les couleurs UNIQUEMENT si tu détectes des codes HEX ou des couleurs spécifiques dans les informations visuelles. Ne pas inventer de couleurs.
+- font_title et font_body : les typographies détectées dans le CSS ou Google Fonts. font_title = la première typo détectée (souvent les titres), font_body = la deuxième (souvent le corps de texte).
+- mood_keywords : 3 à 5 mots décrivant l'ambiance visuelle (ex: ["minimaliste", "coloré", "chaleureux", "pop"])
+- visual_style_description : description courte du style visuel global
+- Si aucune information visuelle n'est présente dans les sources, mets confidence: "low" et laisse les champs vides.`;
 
   const userPrompt = Object.entries(content)
     .map(([source, text]) => `=== SOURCE: ${source.toUpperCase()} ===\n${text}`)

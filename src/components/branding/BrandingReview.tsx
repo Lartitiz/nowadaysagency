@@ -19,6 +19,7 @@ export interface AnalysisResult {
   tone_style?: { confidence?: string; tone_keywords?: string[]; voice_description?: string; tone_register?: string; tone_level?: string; tone_style_chip?: string; tone_humor?: string; tone_engagement?: string; i_do?: string[]; i_never_do?: string[]; fights?: string[]; key_expressions?: string; things_to_avoid?: string; target_verbatims?: string; channels?: string[]; visual_style?: string };
   content_strategy?: { confidence?: string; pillars?: string[]; creative_twist?: string; formats?: string[]; rhythm?: string; editorial_line?: string };
   offers?: { confidence?: string; offers?: { name?: string; price?: string; description?: string; target?: string; promise?: string }[] };
+  charter?: { confidence?: string; color_primary?: string; color_secondary?: string; color_accent?: string; color_background?: string; font_title?: string; font_body?: string; mood_keywords?: string[]; visual_style_description?: string };
   sources_used?: string[];
   sources_failed?: string[];
   overall_confidence?: string;
@@ -47,6 +48,7 @@ const COACHING_SECTION_MAP: Record<SectionKey, string> = {
   tone_style: "tone_style",
   content_strategy: "content_strategy",
   offers: "offers",
+  charter: "charter",
 };
 
 const SECTIONS = [
@@ -56,6 +58,7 @@ const SECTIONS = [
   { key: "tone_style", title: "Ton & style", emoji: "🎙️" },
   { key: "content_strategy", title: "Ta stratégie de contenu", emoji: "🍒" },
   { key: "offers", title: "Tes offres", emoji: "🎁" },
+  { key: "charter", title: "Ta charte graphique", emoji: "🎨" },
 ] as const;
 
 type SectionKey = (typeof SECTIONS)[number]["key"];
@@ -243,6 +246,53 @@ function OffersSection({ data, onUpdate, onDelete }: { data: AnalysisResult["off
   );
 }
 
+function CharterSection({ data }: { data: AnalysisResult["charter"] }) {
+  if (!data) return null;
+  const colors = [
+    data.color_primary && { label: "Primaire", hex: data.color_primary },
+    data.color_secondary && { label: "Secondaire", hex: data.color_secondary },
+    data.color_accent && { label: "Accent", hex: data.color_accent },
+    data.color_background && { label: "Fond", hex: data.color_background },
+  ].filter(Boolean) as { label: string; hex: string }[];
+
+  return (
+    <div className="space-y-3">
+      {colors.length > 0 && (
+        <div>
+          <p className="text-[12px] font-semibold text-[#91014b] mb-2">Couleurs détectées</p>
+          <div className="flex flex-wrap gap-3">
+            {colors.map((c, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-[8px] border border-border shadow-sm" style={{ backgroundColor: c.hex }} />
+                <div>
+                  <p className="text-[12px] font-medium text-foreground">{c.label}</p>
+                  <p className="text-[11px] text-muted-foreground font-mono">{c.hex}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {(data.font_title || data.font_body) && (
+        <div>
+          <p className="text-[12px] font-semibold text-[#91014b] mb-1">Typographies</p>
+          <div className="flex flex-wrap gap-1.5">
+            {data.font_title && <Chip>Titres : {data.font_title}</Chip>}
+            {data.font_body && <Chip>Corps : {data.font_body}</Chip>}
+          </div>
+        </div>
+      )}
+      {data.mood_keywords?.length ? (
+        <div>
+          <p className="text-[12px] font-semibold text-[#91014b] mb-1">Ambiance</p>
+          <div className="flex flex-wrap gap-1.5">{data.mood_keywords.map((k, i) => <Chip key={i}>{k}</Chip>)}</div>
+        </div>
+      ) : null}
+      {data.visual_style_description && <p className="text-[13px] text-muted-foreground italic">{data.visual_style_description}</p>}
+    </div>
+  );
+}
+
 // ─── Save helpers ────────────────────────────────────────────
 async function saveStory(data: AnalysisResult["story"], userId: string, workspaceId: string) {
   if (!data) return;
@@ -423,16 +473,38 @@ async function saveOffers(data: AnalysisResult["offers"], userId: string, worksp
   }
 }
 
+async function saveCharter(data: AnalysisResult["charter"], userId: string, workspaceId: string) {
+  if (!data) return;
+  const payload: Record<string, any> = { updated_at: new Date().toISOString() };
+  if (data.color_primary) payload.color_primary = data.color_primary;
+  if (data.color_secondary) payload.color_secondary = data.color_secondary;
+  if (data.color_accent) payload.color_accent = data.color_accent;
+  if (data.color_background) payload.color_background = data.color_background;
+  if (data.font_title) payload.font_title = data.font_title;
+  if (data.font_body) payload.font_body = data.font_body;
+  if (data.mood_keywords?.length) payload.mood_keywords = data.mood_keywords;
+  if (data.visual_style_description) payload.moodboard_description = data.visual_style_description;
+  const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
+  const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
+  const { data: existing } = await (supabase.from("brand_charter") as any)
+    .select("id").eq(filterCol, filterVal).maybeSingle();
+  if (existing?.id) {
+    await (supabase.from("brand_charter") as any).update(payload).eq("id", existing.id);
+  } else {
+    await (supabase.from("brand_charter") as any).insert({ user_id: userId, workspace_id: workspaceId || null, ...payload });
+  }
+}
+
 const SAVE_FNS: Record<SectionKey, (data: any, uid: string, wsId: string) => Promise<void>> = {
-  story: saveStory, persona: savePersona, value_proposition: saveValueProp, tone_style: saveTone, content_strategy: saveStrategy, offers: saveOffers,
+  story: saveStory, persona: savePersona, value_proposition: saveValueProp, tone_style: saveTone, content_strategy: saveStrategy, offers: saveOffers, charter: saveCharter,
 };
 
 const QUERY_KEYS: Record<SectionKey, string[]> = {
-  story: ["storytelling-primary", "storytelling-list"], persona: ["persona", "brand-profile"], value_proposition: ["brand-proposition"], tone_style: ["brand-profile"], content_strategy: ["brand-strategy", "brand-profile"], offers: ["brand-profile"],
+  story: ["storytelling-primary", "storytelling-list"], persona: ["persona", "brand-profile"], value_proposition: ["brand-proposition"], tone_style: ["brand-profile"], content_strategy: ["brand-strategy", "brand-profile"], offers: ["brand-profile"], charter: ["brand-charter"],
 };
 
 const RENDERERS: Record<SectionKey, (analysis: AnalysisResult) => React.ReactNode> = {
-  story: (a) => <StorySection data={a.story} />, persona: (a) => <PersonaSection data={a.persona} />, value_proposition: (a) => <ValuePropSection data={a.value_proposition} />, tone_style: (a) => <ToneSection data={a.tone_style} />, content_strategy: (a) => <StrategySection data={a.content_strategy} />, offers: (a) => <OffersSection data={a.offers} />,
+  story: (a) => <StorySection data={a.story} />, persona: (a) => <PersonaSection data={a.persona} />, value_proposition: (a) => <ValuePropSection data={a.value_proposition} />, tone_style: (a) => <ToneSection data={a.tone_style} />, content_strategy: (a) => <StrategySection data={a.content_strategy} />, offers: (a) => <OffersSection data={a.offers} />, charter: (a) => <CharterSection data={a.charter} />,
 };
 
 function sectionHasData(key: SectionKey, analysis: AnalysisResult): boolean {
@@ -491,7 +563,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
   const [showProjectInput, setShowProjectInput] = useState(false);
 
   const validatedCount = validated.size;
-  const allDone = validatedCount === 6;
+  const allDone = validatedCount === 7;
 
   // Log section_validated events
   const logEvent = useCallback(async (eventType: string, meta?: Record<string, any>) => {
@@ -525,7 +597,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
       setCollapsed((prev) => new Set(prev).add(key));
       toast.success("Section sauvegardée ✓");
       logEvent("section_validated");
-      if (validated.size === 5) {
+      if (validated.size === 6) {
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 4000);
       }
@@ -653,7 +725,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                 setCoachingSection(null);
                 toast.success("Section affinée et sauvegardée ✓");
                 logEvent("section_validated");
-                if (validated.size === 5) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+                if (validated.size === 6) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
               }}
               onBack={() => setCoachingSection(null)}
             />
@@ -760,7 +832,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
           <div className="flex-1">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[13px] font-semibold text-foreground">
-                {allDone ? "Branding complété ! 🎉" : `${validatedCount}/6 sections validées`}
+                {allDone ? "Branding complété ! 🎉" : `${validatedCount}/7 sections validées`}
               </span>
               {allDone && (
                 <motion.button initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} onClick={onDone} className="text-[13px] font-semibold text-[#fb3d80] hover:underline">
@@ -769,7 +841,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
               )}
             </div>
             <div className="h-[6px] rounded-full bg-[#fce4ec] overflow-hidden">
-              <motion.div className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #ffa7c6, #fb3d80)" }} animate={{ width: `${(validatedCount / 6) * 100}%` }} transition={{ type: "spring", stiffness: 60, damping: 20 }} />
+              <motion.div className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #ffa7c6, #fb3d80)" }} animate={{ width: `${(validatedCount / 7) * 100}%` }} transition={{ type: "spring", stiffness: 60, damping: 20 }} />
             </div>
           </div>
         </div>
