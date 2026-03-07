@@ -168,7 +168,7 @@ function SmartRedirect({ to, mergeParams }: { to: string; mergeParams?: Record<s
   return <Navigate to={qs ? `${basePath}?${qs}` : basePath} replace state={location.state} />;
 }
 
-const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilot", "/binome", "/pricing", "/services", "/share/branding", "/checkout/binome", "/unsubscribe"];
+const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/binome", "/pricing", "/services", "/share/branding", "/checkout/binome", "/unsubscribe"];
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -193,7 +193,7 @@ function AnimatedRoutes() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/connexion" element={<LoginPage />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/now-studio" element={<Navigate to="/binome" replace />} />
+              
               <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
               <Route path="/welcome" element={<ProtectedRoute><WelcomePage /></ProtectedRoute>} />
               <Route path="/dashboard" element={<ProtectedRoute><AdaptiveHome /></ProtectedRoute>} />
@@ -289,7 +289,7 @@ function AnimatedRoutes() {
                 {/* Redirects from old routes */}
                 <Route path="/instagram/bio" element={<Navigate to="/instagram/profil/bio" replace />} />
                 <Route path="/instagram/highlights" element={<Navigate to="/instagram/profil/stories" replace />} />
-                <Route path="/instagram/inspiration" element={<Navigate to="/instagram/inspirer" replace />} />
+                <Route path="/instagram/inspiration" element={<Navigate to="/creer?mode=transform" replace />} />
               </Route>
               {/* Transversal routes */}
               <Route path="/atelier" element={<SmartRedirect to="/creer" />} />
