@@ -107,10 +107,10 @@ function FeatureVisual({ type }: { type: string }) {
         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">🎨 Mon identité</p>
         <div className="space-y-2.5">
           {[
-            { label: "Mission", value: "Aider les femmes à lancer leur marque éthique", pct: 100 },
-            { label: "Client·e idéal·e", value: "Créatrice 28-40 ans, éco-engagée", pct: 100 },
-            { label: "Ton & style", value: "Chaleureux, direct, engagé", pct: 85 },
-            { label: "Offres", value: "2 offres définies", pct: 60 },
+            { label: "Mon histoire", value: "De l'ingénierie à la céramique : comment j'ai tout plaqué", pct: 100 },
+            { label: "Client·e idéal·e", value: "Femme 30-45 ans, déco consciente, artisanat local", pct: 100 },
+            { label: "Proposition de valeur", value: "Des pièces uniques façonnées à la main, cuites au bois", pct: 85 },
+            { label: "Mes offres", value: "3 offres : pièces sur commande, ateliers, coffrets", pct: 70 },
           ].map((item) => (
             <div key={item.label} className="space-y-1">
               <div className="flex items-center justify-between">
