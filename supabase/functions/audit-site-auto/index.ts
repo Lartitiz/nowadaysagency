@@ -353,6 +353,7 @@ serve(async (req) => {
       charter_colors: !ctx.charter?.color_primary,
       charter_fonts: !ctx.charter?.font_title,
       mood_keywords: !ctx.charter?.mood_keywords || (Array.isArray(ctx.charter?.mood_keywords) && (ctx.charter.mood_keywords as unknown[]).length === 0),
+      persona_empty: !ctx.persona || (!ctx.persona.step_1_frustrations && !ctx.persona.step_2_transformation && !ctx.persona.label),
     };
     const hasEmptyFields = Object.values(emptyBrandingFields).some(v => v);
 
