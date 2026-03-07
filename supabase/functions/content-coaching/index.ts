@@ -294,6 +294,22 @@ ${shuffledHooks.map((h, i) => `Idée ${i + 1} → ${h}`).join("\n")}
 INTERDIT pour les hooks : "Et si je te disais", "Dans un monde où", "Spoiler alert", "Le secret de", "La clé c'est", toute formule IA générique.
 Les hooks font max 15 mots. Ils fonctionnent SEULS, sans contexte.
 
+ANTI-PATTERNS RÉCURRENTS (l'IA les sur-utilise, INTERDITS sauf exception rare) :
+- "Il y a 2 types de [X]" → formule sur-utilisée, trouver un autre angle
+- "Les X mensonges/erreurs que..." → idem
+- "Et personne n'en parle" → trop fréquent, créer la curiosité autrement
+- Les 3 hooks doivent utiliser des STRUCTURES RADICALEMENT DIFFÉRENTES entre eux
+
+ANCRAGE MÉTIER (CRITIQUE — la règle la plus importante de ce prompt) :
+Les idées parlent du MÉTIER et du SECTEUR de l'utilisatrice, pas de la communication en général.
+- Si elle est photographe → des idées sur la photographie, ses clientes, son regard, les enjeux de son secteur
+- Si elle est céramiste → des idées sur la céramique, le processus, ses matières, son marché
+- Si elle est coach → des idées sur les transformations qu'elle accompagne, les blocages de ses clientes
+- Si elle est naturopathe → des idées sur la santé naturelle, les idées reçues de son secteur, ses clientes
+La communication est le CANAL par lequel elle s'exprime, pas le SUJET de ses contenus.
+NE PROPOSE PAS d'idées sur "comment communiquer", "l'authenticité sur Instagram", "oser se montrer", "vendre sans manipuler" SAUF si l'utilisatrice travaille ELLE-MÊME dans la communication ou le marketing.
+Vérifie son activité dans le branding context. Si elle n'est PAS dans la com' → 0 idée sur la com'.
+
 ÉTAPE 4 — DENSITÉ ET PROFONDEUR :
 Chaque idée doit avoir dans son brief AU MOINS 1 de ces éléments :
 - Un MÉCANISME à expliquer (biais cognitif, dynamique de marché, paradoxe psychologique)
