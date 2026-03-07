@@ -1071,8 +1071,20 @@ export default function CreerUnifie() {
             console.warn("Visual upload failed (non-blocking):", err);
           }
         }
+
+        // Upload visuel Pinterest dans Storage
+        if (selectedFormat === "pinterest_visual" && pinterestPinHtml) {
+          try {
+            toast.info("Upload du visuel Pinterest...");
+            const pinVisualUrls = await uploadPinterestVisualToStorage(postId, pinterestPinHtml);
+            if (pinVisualUrls.length > 0) {
+              updates.visual_urls = pinVisualUrls;
+            }
+          } catch (err) {
+            console.warn("Pinterest visual upload failed (non-blocking):", err);
+          }
+        }
         
-        // Mettre à jour le post avec les URLs
         if (Object.keys(updates).length > 0) {
           const currentDetail = storyDetail || {};
           await supabase.from("calendar_posts").update({
