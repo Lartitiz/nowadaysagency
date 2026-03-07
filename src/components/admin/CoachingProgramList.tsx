@@ -36,6 +36,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
   const [newWsName, setNewWsName] = useState("");
   const [showNewWsInput, setShowNewWsInput] = useState(false);
   const [deletingWs, setDeletingWs] = useState<string | null>(null);
+  const [removedWsIds, setRemovedWsIds] = useState<Set<string>>(new Set());
 
   const getNextSession = (programId: string) => sessions.find(s => s.program_id === programId && s.status === "scheduled" && s.scheduled_date);
   const getSessionStats = (programId: string) => {
