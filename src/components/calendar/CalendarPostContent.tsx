@@ -157,16 +157,8 @@ export function CalendarPostContent({
             <Button variant="outline" size="sm" onClick={onCopy} className="rounded-pill text-xs gap-1.5">
               <Copy className="h-3 w-3" /> Copier
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="rounded-pill px-2">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => navigate("/transformer")}>🔄 Recycler (crosspost)</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+
+
           </div>
         </div>
 
