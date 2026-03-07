@@ -12,17 +12,24 @@ import {
   type EditorialAngle,
 } from "@/lib/content-structures";
 import { PhotoUploadZone, type PhotoItem } from "@/components/creer/PhotoUploadZone";
+import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 
 const CHANNELS = [
   { id: "instagram" as const, emoji: "📸", label: "Instagram", desc: "Carrousel, Reel, Story, Post" },
   { id: "linkedin" as const, emoji: "💼", label: "LinkedIn", desc: "Post texte professionnel" },
+  { id: "pinterest" as const, emoji: "📌", label: "Pinterest", desc: "Épingle titre + description SEO" },
   { id: "newsletter" as const, emoji: "📧", label: "Newsletter", desc: "Email long format" },
 ];
 
-type ChannelId = "instagram" | "linkedin" | "newsletter";
+type ChannelId = "instagram" | "linkedin" | "pinterest" | "newsletter";
 
 function deduceChannel(format: string): ChannelId {
   if (format === "linkedin") return "linkedin";
+  if (format === "pinterest") return "pinterest";
   if (format === "newsletter") return "newsletter";
   return "instagram";
 }
@@ -31,7 +38,7 @@ interface Props {
   idea: string;
   objective?: string;
   initialFormat?: string;
-  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean) => void;
+  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }) => void;
   onBack: () => void;
 }
 
@@ -47,6 +54,24 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
   const [photoMode, setPhotoMode] = useState(false);
   const [postPhoto, setPostPhoto] = useState<PhotoItem[]>([]);
   const [postPhotoDescription, setPostPhotoDescription] = useState("");
+  const [pinterestLink, setPinterestLink] = useState("");
+  const [pinterestBoardId, setPinterestBoardId] = useState("");
+  const [pinterestBoards, setPinterestBoards] = useState<{ id: string; name: string }[]>([]);
+
+  const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+
+  useEffect(() => {
+    if (selectedChannel !== "pinterest" || !user) return;
+    const loadBoards = async () => {
+      const { data } = await (supabase.from("pinterest_boards") as any)
+        .select("id, name")
+        .eq(column, value)
+        .order("sort_order");
+      if (data) setPinterestBoards(data);
+    };
+    loadBoards();
+  }, [selectedChannel, user?.id]);
 
   const typeEntries = Object.entries(CONTENT_TYPE_SPECS).filter(
     ([, spec]) => selectedChannel === "instagram" ? spec.channel === "instagram" : true
@@ -73,6 +98,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
     setSelectedChannel(channelId);
     if (channelId === "linkedin") {
       handleFormatSelect("linkedin");
+    } else if (channelId === "pinterest") {
+      handleFormatSelect("pinterest");
     } else if (channelId === "newsletter") {
       handleFormatSelect("newsletter");
     } else {
@@ -92,6 +119,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
     setPhotoMode(false);
     setPostPhoto([]);
     setPostPhotoDescription("");
+    setPinterestLink("");
+    setPinterestBoardId("");
   };
 
   const renderAngleCard = (angle: EditorialAngle, isRecommended: boolean) => {
@@ -145,6 +174,11 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
     const isCarouselPhoto = selectedFormat === "carousel" && carouselSubMode === "photo";
     const isCarouselMix = selectedFormat === "carousel" && carouselSubMode === "mix";
     const isPostPhoto = selectedFormat === "post" && photoMode;
+    const pinterestData = selectedFormat === "pinterest" ? {
+      link: pinterestLink || undefined,
+      boardId: pinterestBoardId || undefined,
+      boardName: pinterestBoards.find(b => b.id === pinterestBoardId)?.name || undefined,
+    } : undefined;
     onNext(
       selectedFormat,
       selectedAngle,
@@ -152,6 +186,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
       isCarouselPhoto || isCarouselMix ? uploadedPhotos : isPostPhoto ? postPhoto : undefined,
       isCarouselPhoto || isCarouselMix ? photoDescription : isPostPhoto ? postPhotoDescription : undefined,
       selectedFormat === "post" ? photoMode : undefined,
+      pinterestData,
     );
   };
 
@@ -161,7 +196,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
       {!selectedChannel && (
         <div className="space-y-3">
           <p className="text-sm font-semibold text-foreground">Sur quel canal publier ?</p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {CHANNELS.map((ch) => (
               <button
                 key={ch.id}
@@ -337,6 +372,42 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
           >
             <Wand2 className="h-3.5 w-3.5" /> L'outil choisit pour moi
           </Button>
+        </div>
+      )}
+
+      {/* Pinterest specifics */}
+      {selectedFormat === "pinterest" && (
+        <div className="space-y-4 animate-fade-in">
+          <p className="text-sm font-semibold text-foreground">Détails de l'épingle</p>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Lien de destination</label>
+            <Input
+              value={pinterestLink}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPinterestLink(e.target.value)}
+              placeholder="https://ton-site.com/produit-ou-article"
+            />
+            <p className="text-[10px] text-muted-foreground">L'URL vers laquelle l'épingle renverra (page produit, article de blog…)</p>
+          </div>
+
+          {pinterestBoards.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Tableau de destination</label>
+              <Select value={pinterestBoardId} onValueChange={setPinterestBoardId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir un tableau" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pinterestBoards.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {pinterestBoards.length === 0 && (
+            <p className="text-[10px] text-muted-foreground">Pas de tableaux configurés. Tu peux en créer dans l'espace Pinterest.</p>
+          )}
         </div>
       )}
 
