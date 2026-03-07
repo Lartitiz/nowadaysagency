@@ -95,6 +95,7 @@ export default function CreerUnifie() {
   const [photoMode, setPhotoMode] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
   const [pinterestData, setPinterestData] = useState<{ link?: string; boardId?: string; boardName?: string } | null>(null);
+  const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(false);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
