@@ -479,8 +479,8 @@ export function getStructureForCombo(contentType: string, angleId: string): stri
     return "coup_de_gueule";
   }
 
-  // Default: use angle's defaultStructure
-  const angle = EDITORIAL_ANGLES.find((a) => a.id === angleId);
+  // Default: use angle's defaultStructure (check both angle lists)
+  const angle = EDITORIAL_ANGLES.find((a) => a.id === angleId) || LINKEDIN_EDITORIAL_ANGLES.find((a) => a.id === angleId);
   return angle?.defaultStructure || "educationnelle";
 }
 
