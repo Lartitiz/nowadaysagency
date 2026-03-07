@@ -202,16 +202,33 @@ Réponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans backticks.
 Structure attendue :
 {
   "story": { "confidence": "high|medium|low", "origin": "", "trigger": "", "struggles": "", "uniqueness": "", "vision": "", "full_story": "" },
-  "persona": { "confidence": "high|medium|low", "name": "", "age_range": "", "job": "", "goals": [], "frustrations": [], "desires": [], "channels": [], "brands_they_follow": [] },
+  "persona": { "confidence": "high|medium|low", "name": "", "age_range": "", "job": "", "description": "", "goals": [], "frustrations": [], "desires": [], "channels": [], "brands_they_follow": [], "beautiful_world": "", "first_actions": "" },
   "value_proposition": { "confidence": "high|medium|low", "key_phrase": "", "problem": "", "solution": "", "differentiator": "", "proofs": [] },
-  "tone_style": { "confidence": "high|medium|low", "tone_keywords": [], "i_do": [], "i_never_do": [], "fights": [], "visual_style": "" },
+  "tone_style": { "confidence": "high|medium|low", "tone_keywords": [], "voice_description": "", "tone_register": "", "tone_level": "", "tone_style_chip": "", "tone_humor": "", "tone_engagement": "", "i_do": [], "i_never_do": [], "fights": [], "key_expressions": "", "things_to_avoid": "", "target_verbatims": "", "channels": [], "visual_style": "" },
   "content_strategy": { "confidence": "high|medium|low", "pillars": [], "creative_twist": "", "formats": [], "rhythm": "", "editorial_line": "" },
   "offers": { "confidence": "high|medium|low", "offers": [{ "name": "", "price": "", "description": "", "target": "", "promise": "" }] },
   "sources_used": [],
   "sources_failed": [],
   "overall_confidence": "high|medium|low",
   "missing_info": ""
-}`;
+}
+
+Précisions sur tone_style :
+- voice_description : une phrase décrivant le ton global ("Direct et chaleureux, comme une amie experte")
+- tone_register : "tutoiement" ou "vouvoiement"
+- tone_level : "accessible", "expert", "technique" ou "vulgarisateur"
+- tone_style_chip : "direct", "poétique", "storytelling", "factuel" ou autre
+- tone_humor : "auto-dérision", "absurde", "pince-sans-rire", "pas d'humour" ou autre
+- tone_engagement : "militant", "discret", "modéré"
+- key_expressions : expressions ou mots récurrents sur le site (séparés par des virgules)
+- things_to_avoid : mots ou formulations que cette marque évite visiblement
+- target_verbatims : phrases que la cible pourrait dire (déduit du positionnement)
+- channels : canaux de communication détectés (ex: ["instagram", "newsletter", "site web"])
+
+Précisions sur persona :
+- description : description courte du persona en une phrase (ex: "Solopreneuse créative, 30-40 ans, artisane ou prestataire de service")
+- beautiful_world : dans un monde idéal, à quoi ressemblerait la situation de cette personne ?
+- first_actions : quelles seraient les premières actions concrètes que cette personne ferait en travaillant avec cette marque ?`;
 
   const userPrompt = Object.entries(content)
     .map(([source, text]) => `=== SOURCE: ${source.toUpperCase()} ===\n${text}`)
