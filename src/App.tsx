@@ -15,7 +15,7 @@ import { SessionProvider } from "@/contexts/SessionContext";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 const SessionOverlay = lazy(() => import("@/components/session/SessionOverlay"));
 const AiDebugShortcut = lazy(() => import("@/components/admin/AiDebugShortcut"));
-const AssistantButton = lazy(() => import("./components/assistant/AssistantButton"));
+
 const AppSidebar = lazy(() => import("./components/AppSidebar"));
 const CoachChat = lazy(() => import("./components/coach/CoachChat"));
 const BetaFeedbackWidget = lazy(() => import("./components/feedback/BetaFeedbackWidget"));
