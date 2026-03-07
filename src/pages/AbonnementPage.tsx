@@ -142,7 +142,7 @@ export default function AbonnementPage() {
                 {subInfo?.plan === "outil" && " · 39€/mois"}
                 {subInfo?.plan === "binome" && " · 250€/mois"}
               </p>
-              {subInfo?.plan === "now_pilot" && (
+              {subInfo?.plan === "binome" && (
                 <div className="mt-2 space-y-1">
                   <p className="text-xs text-muted-foreground">🎯 Accompagnement 6 mois · 7 sessions avec Laetitia</p>
                   <p className="text-xs text-muted-foreground">💡 300 crédits IA / mois</p>
