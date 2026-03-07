@@ -229,15 +229,87 @@ export default function InstagramAudit() {
       }
 
       let parsed: any;
-      const rawContent = res.data?.content || "";
-      // Clean markdown fences and extract JSON
-      const content = rawContent.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      try {
-        parsed = JSON.parse(content);
-      } catch {
-        const match = content.match(/\{[\s\S]*\}/);
-        if (match) parsed = JSON.parse(match[0]);
-        else throw new Error("Format de réponse inattendu");
+
+      const rawData = res.data;
+
+      if (rawData?.content && typeof rawData.content === "object" && rawData.content.score_global !== undefined) {
+
+        parsed = rawData.content;
+
+      } else if (rawData && typeof rawData === "object" && rawData.score_global !== undefined) {
+
+        parsed = rawData;
+
+      } else {
+
+        const rawContent = typeof rawData?.content === "string" ? rawData.content : (typeof rawData === "string" ? rawData : "");
+
+        const cleaned = rawContent.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+
+        
+
+        try {
+
+          parsed = JSON.parse(cleaned);
+
+        } catch {
+
+          const startIdx = cleaned.indexOf("{");
+
+          if (startIdx !== -1) {
+
+            let depth = 0;
+
+            let endIdx = -1;
+
+            for (let i = startIdx; i < cleaned.length; i++) {
+
+              if (cleaned[i] === "{") depth++;
+
+              else if (cleaned[i] === "}") { depth--; if (depth === 0) { endIdx = i; break; } }
+
+            }
+
+            if (endIdx !== -1) {
+
+              try {
+
+                parsed = JSON.parse(cleaned.substring(startIdx, endIdx + 1));
+
+              } catch (innerErr) {
+
+                console.error("JSON extraction failed:", cleaned.substring(0, 500));
+
+                throw new Error("Format de réponse inattendu");
+
+              }
+
+            } else {
+
+              console.error("Unbalanced JSON. Content preview:", cleaned.substring(0, 500));
+
+              throw new Error("Format de réponse inattendu");
+
+            }
+
+          } else {
+
+            console.error("No JSON found. Raw content:", cleaned.substring(0, 500));
+
+            throw new Error("Format de réponse inattendu");
+
+          }
+
+        }
+
+      }
+
+      if (!parsed || typeof parsed !== "object" || parsed.score_global === undefined) {
+
+        console.error("Invalid audit object:", JSON.stringify(parsed).substring(0, 500));
+
+        throw new Error("Format de réponse inattendu");
+
       }
 
       // 5. Save audit to DB
