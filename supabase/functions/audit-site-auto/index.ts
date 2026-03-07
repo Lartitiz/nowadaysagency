@@ -308,6 +308,19 @@ serve(async (req) => {
       includeMirror: false,
     });
 
+    // Detect empty branding fields to know what can be pre-filled from site
+    const emptyBrandingFields = {
+      voice: !ctx.voice?.voice_summary,
+      tone_style: !ctx.tone?.tone_style && !ctx.tone?.voice_description,
+      combat_cause: !ctx.tone?.combat_cause,
+      combat_fights: !ctx.tone?.combat_fights,
+      positioning: !ctx.tone?.positioning && !ctx.profile?.mission,
+      charter_colors: !ctx.charter?.color_primary,
+      charter_fonts: !ctx.charter?.font_title,
+      mood_keywords: !ctx.charter?.mood_keywords || (Array.isArray(ctx.charter?.mood_keywords) && (ctx.charter.mood_keywords as unknown[]).length === 0),
+    };
+    const hasEmptyFields = Object.values(emptyBrandingFields).some(v => v);
+
     // Format page data for AI
     const pagesDataText = pagesOk.map(p => {
       const lines = [`\n--- PAGE : ${p.path} ---`];
@@ -410,6 +423,29 @@ RÈGLES :
 - Ton direct et chaleureux, comme une amie experte
 - Suggestions concrètes (pas "améliorez votre SEO" mais "ajoute un h1 avec le bénéfice principal de ton offre")
 - Si le profil branding est disponible, compare le site avec le branding déclaré et signale les incohérences
+${hasEmptyFields ? `
+BLOC OPTIONNEL — BRANDING PREFILL :
+Si tu détectes des informations sur le ton, les valeurs, le positionnement, les combats ou l'identité visuelle du site, remplis le bloc "branding_prefill_from_site" pour proposer de pré-remplir le branding de l'utilisatrice.
+- Ne mets un champ que si tu as des PREUVES concrètes dans le contenu du site
+- Pour les couleurs, essaie de les identifier depuis le HTML (couleurs des boutons, fonds, titres)
+- Pour le ton, décris le style d'écriture observé
+- Le champ "empty_fields" liste les champs branding actuellement vides chez l'utilisatrice
+- Ne propose QUE ce qui correspond à des champs vides (pas la peine de suggérer un ton si elle en a déjà un)
+
+En plus du JSON principal, ajoute un champ "branding_prefill_from_site" à la racine du JSON de réponse avec cette structure :
+{
+  "detected_tone": "description du ton ou null",
+  "detected_values": ["valeur 1", "valeur 2"] ou [],
+  "detected_positioning": "positionnement ou null",
+  "detected_mission": "mission ou null",
+  "detected_combat_cause": "cause ou null",
+  "detected_combat_fights": "combats ou null",
+  "detected_colors": { "primary": "#hex ou null", "secondary": "#hex ou null", "accent": "#hex ou null", "background": "#hex ou null" },
+  "detected_fonts": { "title": "police ou null", "body": "police ou null" },
+  "detected_mood": ["mot 1", "mot 2", "mot 3"] ou [],
+  "empty_fields": ${JSON.stringify(emptyBrandingFields)}
+}
+Ne propose que des valeurs pour les champs marqués true dans empty_fields.` : ""}
 
 Réponds UNIQUEMENT en JSON (sans backticks) avec cette structure :
 {

@@ -357,6 +357,15 @@ export default function SiteAuditAutoResult({
         </div>
       )}
 
+      {/* ── Suggestions branding (si détecté depuis le site) ── */}
+      {!viewingOld && displayResult.branding_prefill_from_site && (
+        <SiteAuditBrandingSuggestions
+          prefill={displayResult.branding_prefill_from_site}
+          workspaceFilter={workspaceFilter}
+          userId={userId}
+        />
+      )}
+
       {/* ── Priorités d'action ── */}
       {displayResult.priorites?.length > 0 && (
         <div className="space-y-3">
