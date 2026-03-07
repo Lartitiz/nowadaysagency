@@ -962,6 +962,54 @@ export default function CreerUnifie() {
     return urls;
   };
 
+  const uploadPinterestVisualToStorage = async (postId: string, pinHtml: string): Promise<string[]> => {
+    if (!session?.user?.id || !pinHtml) return [];
+
+    const container = document.createElement("div");
+    container.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1000px;height:1500px;overflow:hidden;z-index:-1;";
+    document.body.appendChild(container);
+
+    const urls: string[] = [];
+    try {
+      container.innerHTML = pinHtml;
+      await document.fonts.ready;
+      await new Promise(r => setTimeout(r, 400));
+
+      const canvas = await (await import("html2canvas")).default(container, {
+        width: 1000,
+        height: 1500,
+        scale: 1,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        logging: false,
+      });
+
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((b) => resolve(b!), "image/png");
+      });
+
+      const path = `${session.user.id}/${postId}/pinterest/pin-visual.png`;
+      const { error } = await supabase.storage
+        .from("calendar-visuals")
+        .upload(path, blob, { contentType: "image/png", upsert: true });
+
+      if (error) {
+        console.error("Failed to upload pinterest visual:", error);
+        return [];
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("calendar-visuals")
+        .getPublicUrl(path);
+
+      urls.push(urlData.publicUrl);
+    } finally {
+      document.body.removeChild(container);
+    }
+    return urls;
+  };
+
   const handleConfirmCalendar = async () => {
     if (!session?.user?.id || !calendarDate || savingToCalendar) return;
     setSavingToCalendar(true);
