@@ -1120,6 +1120,28 @@ export default function CreerUnifie() {
     }
   };
 
+  const handleExportPinterestPptx = async () => {
+    if (!pinterestPinHtml) return;
+    try {
+      toast.info("Export PPTX en cours...");
+      await exportPinterestVisualPptx(pinterestPinHtml, ideaText || "epingle-pinterest");
+      toast.success("PPTX téléchargé !");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'export");
+    }
+  };
+
+  const handleExportPinterestPng = async () => {
+    if (!pinterestPinHtml) return;
+    try {
+      toast.info("Export PNG en cours...");
+      await exportPinterestVisualPng(pinterestPinHtml, ideaText || "epingle-pinterest");
+      toast.success("PNG téléchargé !");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'export");
+    }
+  };
+
   // ── Launch sequence (5 chapters) ──
 
   const handleLaunchSequence = async (format: string, angle: string) => {
