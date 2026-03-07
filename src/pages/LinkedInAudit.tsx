@@ -599,7 +599,7 @@ export default function LinkedInAudit() {
         {(() => {
           const LINKEDIN_PILLAR_ACTIONS: Record<string, { label: string; route: string; emoji: string }> = {
             profil: { label: "Optimiser mon profil LinkedIn", route: "/linkedin/profil", emoji: "👤" },
-            contenu: { label: "Améliorer ma stratégie de contenu", route: "/linkedin/post", emoji: "📝" },
+            contenu: { label: "Créer du contenu LinkedIn", route: "/creer?canal=linkedin", emoji: "📝" },
             strategie: { label: "Structurer ma stratégie LinkedIn", route: "/linkedin/recommandations", emoji: "🎯" },
             reseau: { label: "Développer mon réseau", route: "/linkedin/engagement", emoji: "🤝" },
           };

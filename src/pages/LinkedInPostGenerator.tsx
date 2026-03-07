@@ -358,268 +358,24 @@ export default function LinkedInPostGenerator() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Rédiger un post" useFromParam />
+        <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Analyser un post" useFromParam />
 
-        <h1 className="font-display text-[22px] font-bold text-foreground mb-1">✍️ Rédige ton post LinkedIn</h1>
-        <p className="text-sm text-muted-foreground italic mb-6">L'IA structure. Toi, tu incarnes.</p>
+        <h1 className="font-display text-[22px] font-bold text-foreground mb-1">🔍 Analyser un post LinkedIn</h1>
+        <p className="text-sm text-muted-foreground italic mb-6">Colle un post existant pour l'analyser et obtenir une version améliorée.</p>
 
-        {/* Mode tabs */}
-        <Tabs value={mode} onValueChange={(v) => setMode(v as "create" | "improve")} className="mb-6">
-          <TabsList className="grid grid-cols-2 w-full max-w-md">
-            <TabsTrigger value="create">✨ Créer un post</TabsTrigger>
-            <TabsTrigger value="improve">🔧 Améliorer un post</TabsTrigger>
-          </TabsList>
+        {/* CTA vers /creer */}
+        <div className="rounded-xl border border-primary/20 bg-[hsl(var(--rose-pale))] p-4 mb-6 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Tu veux créer un nouveau post LinkedIn ?</p>
+            <p className="text-xs text-muted-foreground">Utilise le créateur de contenu avec les structures LinkedIn guidées.</p>
+          </div>
+          <Button variant="default" size="sm" onClick={() => navigate("/creer?canal=linkedin")} className="gap-1.5 shrink-0">
+            <Sparkles className="h-3.5 w-3.5" /> Créer un post
+          </Button>
+        </div>
 
-          {/* ─── CREATE TAB ─── */}
-          <TabsContent value="create" className="space-y-5 mt-4">
-            {/* Calendar auto-gen loading */}
-            {calendarState?.fromCalendar && generating && (
-              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-3 animate-fade-in">
-                <div className="flex items-center gap-3">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Rédaction en cours…</p>
-                    <p className="text-xs text-muted-foreground">L'IA rédige ton post LinkedIn à partir du sujet du calendrier.</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Tip */}
-            <div className="rounded-lg bg-primary/5 border border-primary/20 px-4 py-2.5 text-sm text-foreground">
-              💡 {tip.text} <span className="text-xs text-muted-foreground">— {tip.source}</span>
-            </div>
-
-            {/* Audience */}
-            <div>
-              <p className="text-sm font-medium text-foreground mb-2">Tu t'adresses à qui sur LinkedIn ?</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {AUDIENCES.map((a) => (
-                  <button
-                    key={a.id}
-                    onClick={() => setAudience(a.id)}
-                    className={`rounded-xl border-2 p-3 text-left transition-all ${
-                      audience === a.id ? "border-primary bg-secondary" : "border-border hover:border-primary/40"
-                    }`}
-                  >
-                    <span className="text-sm font-semibold block">{a.emoji} {a.label}</span>
-                    <span className="text-xs text-muted-foreground">{a.desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Template */}
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <p className="text-sm font-medium text-foreground">Quel type de post ?</p>
-                {!suggestedTemplate && !suggestingTemplate && sujet.trim() && (
-                  <button
-                    onClick={() => suggestTemplate(sujet)}
-                    className="text-xs text-primary hover:underline flex items-center gap-1"
-                  >
-                    <Lightbulb className="h-3 w-3" /> L'IA recommande
-                  </button>
-                )}
-                {suggestingTemplate && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Loader2 className="h-3 w-3 animate-spin" /> Analyse en cours…
-                  </span>
-                )}
-              </div>
-              {suggestedTemplate && (
-                <div className="mb-3 rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-xs text-foreground flex items-start gap-2">
-                  <Lightbulb className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
-                  <span>
-                    <span className="font-medium">Recommandé :</span>{" "}
-                    {LINKEDIN_TEMPLATES_UI.find(t => t.id === suggestedTemplate.id)?.emoji}{" "}
-                    {LINKEDIN_TEMPLATES_UI.find(t => t.id === suggestedTemplate.id)?.label}
-                    {suggestedTemplate.reason && <span className="text-muted-foreground"> — {suggestedTemplate.reason}</span>}
-                  </span>
-                </div>
-              )}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {LINKEDIN_TEMPLATES_UI.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setTemplate(template === t.id ? null : t.id)}
-                    className={`rounded-xl border-2 p-3 text-left transition-all ${
-                      template === t.id ? "border-primary bg-secondary" : "border-border hover:border-primary/40"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-1">
-                      <span className="text-sm font-semibold block">{t.emoji} {t.label}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full border whitespace-nowrap ${OBJECTIF_COLORS[t.objectif] || "bg-muted"}`}>
-                        {t.objectif}
-                      </span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{t.desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Hook type */}
-            <div>
-              <p className="text-sm font-medium text-foreground mb-1">Type d'accroche (optionnel)</p>
-              <p className="text-xs text-muted-foreground mb-2">L'accroche = les 210 premiers caractères. C'est ce qui décide si ton post sera lu ou non.</p>
-              <div className="flex flex-wrap gap-1.5">
-                {LINKEDIN_HOOK_TYPES.map((h) => (
-                  <button
-                    key={h.id}
-                    onClick={() => setHookType(hookType === h.id ? null : h.id)}
-                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                      hookType === h.id ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"
-                    }`}
-                    title={h.example}
-                  >
-                    {h.emoji} {h.label}
-                  </button>
-                ))}
-              </div>
-              {hookType && (
-                <p className="text-xs text-muted-foreground mt-1.5 italic">
-                  Ex : "{LINKEDIN_HOOK_TYPES.find(h => h.id === hookType)?.example}"
-                </p>
-              )}
-            </div>
-
-            {/* Subject */}
-            <Input
-              value={sujet}
-              onChange={(e) => setSujet(e.target.value)}
-              placeholder="De quoi tu veux parler ?"
-              className="h-12"
-              onKeyDown={(e) => e.key === "Enter" && generate()}
-            />
-
-            {/* Pre-gen questions */}
-            <details>
-              <summary className="text-sm text-primary-text font-medium cursor-pointer">
-                💬 Ajouter ta touche perso (optionnel)
-              </summary>
-              <div className="mt-3 space-y-3 pl-1">
-                <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Une anecdote perso liée au sujet ?</label>
-                  <Textarea value={anecdote} onChange={(e) => setAnecdote(e.target.value)} placeholder="Un truc qui t'est arrivé..." className="min-h-[60px]" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Quelle émotion tu veux provoquer ?</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {["💡 Déclic", "😮‍💨 Soulagement", "💪 Motivation", "🪞 Identification", "🤔 Curiosité", "😤 Colère douce"].map((e) => (
-                      <button
-                        key={e}
-                        onClick={() => setEmotion(emotion === e ? "" : e)}
-                        className={`text-xs px-3 py-1.5 rounded-full border transition-all ${emotion === e ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"}`}
-                      >
-                        {e}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Un truc que tu veux absolument dire ?</label>
-                  <Input value={conviction} onChange={(e) => setConviction(e.target.value)} placeholder="Une phrase, une conviction..." />
-                </div>
-              </div>
-            </details>
-
-            {/* Generate button */}
-            <CreditWarning remaining={remainingTotal()} className="mb-3" />
-            <Button onClick={generate} disabled={generating || !template || !sujet.trim() || quotaBlocked} className="rounded-full gap-2">
-              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {generating ? "Rédaction en cours..." : "✨ Rédiger mon post LinkedIn"}
-            </Button>
-            {(!template || !sujet.trim()) && !generating && (
-              <p className="text-xs text-muted-foreground mt-2">
-                {!template ? "👆 Choisis un type de post au-dessus" : "✏️ Indique ton sujet pour continuer"}
-              </p>
-            )}
-
-            {/* Create Result */}
-            {result && !generating && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="rounded-2xl border border-border bg-card p-6">
-                  <p className="whitespace-pre-line text-sm text-foreground leading-relaxed">{result.full_text}</p>
-                  <div className="flex flex-wrap items-center gap-3 mt-4 text-xs text-muted-foreground">
-                    <span>📊 <CharacterCounter count={result.character_count} max={3000} sweetSpot={{ min: 1300, max: 1900 }} /></span>
-                    <span>🏷️ {result.hashtags?.length || 0} hashtag{(result.hashtags?.length || 0) > 1 ? "s" : ""}</span>
-                    {result.template_used && (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${OBJECTIF_COLORS[LINKEDIN_TEMPLATES_UI.find(t => t.id === result.template_used)?.objectif || ""] || "bg-muted"}`}>
-                        {LINKEDIN_TEMPLATES_UI.find(t => t.id === result.template_used)?.label || result.template_used}
-                      </span>
-                    )}
-                    {result.hook_type_used && result.hook_type_used !== "auto" && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-border bg-muted">
-                        {LINKEDIN_HOOK_TYPES.find(h => h.id === result.hook_type_used)?.emoji} {LINKEDIN_HOOK_TYPES.find(h => h.id === result.hook_type_used)?.label || result.hook_type_used}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Hook alternatives */}
-                {result.hook_alternatives && result.hook_alternatives.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">🔄 Autres accroches possibles</h4>
-                    {result.hook_alternatives.map((hook, i) => (
-                      <div key={i} className="rounded-xl border border-border bg-card p-4 flex items-start gap-3">
-                        <p className="flex-1 text-sm text-foreground italic">"{hook}"</p>
-                        <Button variant="ghost" size="sm" className="text-xs shrink-0" onClick={() => {
-                          const currentHook = result.hook;
-                          const newFullText = hook + result.full_text.slice(currentHook.length);
-                          setResult({ ...result, full_text: newFullText, hook: hook, character_count: newFullText.length });
-                        }}>
-                          Utiliser
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <LinkedInPreview text={result.full_text} cutoff={210} label="Post" />
-
-                {/* Timing suggestion */}
-                <div className="rounded-lg bg-primary/5 border border-primary/20 px-4 py-2.5 text-sm text-foreground">
-                  📅 <strong>Meilleur moment pour publier ce post :</strong> mardi à jeudi, entre 8h-9h ou 14h-15h.
-                </div>
-
-                {result.checklist && (
-                  <div className="rounded-xl bg-muted/50 p-4">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Checklist LinkedIn</p>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {result.checklist.map((c, i) => (
-                        <p key={i} className="text-xs text-foreground">{c.ok ? "✅" : "⚠️"} {c.item}</p>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <RedFlagsChecker content={result.full_text} onFix={(fixed) => setResult({ ...result, full_text: fixed })} />
-
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={handleCopy} className="rounded-full gap-1.5">
-                    {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                    {copied ? "Copié !" : "Copier"}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleCalendar(result.full_text)} className="rounded-full gap-1.5">
-                    <CalendarDays className="h-3.5 w-3.5" /> Calendrier
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => { setResult(null); generate(); }} className="rounded-full gap-1.5">
-                    <RefreshCw className="h-3.5 w-3.5" /> Regénérer
-                   </Button>
-                   <Button variant="outline" size="sm" onClick={() => { setIdeasContent(result.full_text); setShowIdeasDialog(true); }} className="rounded-full gap-1.5">
-                     <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
-                   </Button>
-                </div>
-
-                <AiGeneratedMention />
-                <BaseReminder variant="atelier" />
-              </div>
-            )}
-          </TabsContent>
-
-          {/* ─── IMPROVE TAB ─── */}
-          <TabsContent value="improve" className="space-y-5 mt-4">
+        {/* ─── IMPROVE MODE ─── */}
+        <div className="space-y-5">
             {!improveResult && (
               <>
                 <div>
@@ -732,8 +488,7 @@ export default function LinkedInPostGenerator() {
                 </div>
               </div>
             )}
-          </TabsContent>
-        </Tabs>
+        </div>
         <SaveToIdeasDialog
           open={showIdeasDialog}
           onOpenChange={setShowIdeasDialog}
