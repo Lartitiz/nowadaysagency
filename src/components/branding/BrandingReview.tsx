@@ -841,7 +841,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
               )}
             </div>
             <div className="h-[6px] rounded-full bg-[#fce4ec] overflow-hidden">
-              <motion.div className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #ffa7c6, #fb3d80)" }} animate={{ width: `${(validatedCount / 6) * 100}%` }} transition={{ type: "spring", stiffness: 60, damping: 20 }} />
+              <motion.div className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #ffa7c6, #fb3d80)" }} animate={{ width: `${(validatedCount / 7) * 100}%` }} transition={{ type: "spring", stiffness: 60, damping: 20 }} />
             </div>
           </div>
         </div>
