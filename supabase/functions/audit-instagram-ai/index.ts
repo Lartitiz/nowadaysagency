@@ -220,7 +220,7 @@ Sois directe mais bienveillante. Compare TOUJOURS avec le branding.
 RÉPONSE : Tu dois retourner UNIQUEMENT un objet JSON valide. C'est une contrainte technique absolue.
 - Pas de texte avant le JSON (pas de "Voici", pas de "Je vais", pas d'introduction)
 - Pas de texte après le JSON (pas de conclusion, pas de commentaire)
-- Pas de backticks markdown (pas de ```json)
+- Pas de backticks markdown (pas de ${"```"}json)
 - Le premier caractère de ta réponse doit être { et le dernier doit être }
 - Si tu ajoutes du texte autour du JSON, le système plantera. C'est critique.
 
