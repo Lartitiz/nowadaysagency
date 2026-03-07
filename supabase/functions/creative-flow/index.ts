@@ -623,7 +623,7 @@ Matrice d'angles par format :
 - Carrousel : prend l'idée la plus PÉDAGOGIQUE. Développe-la en profondeur. Structure en progression logique (constat > bascule > solution > application).
 - Reel : prend l'idée la plus PROVOCANTE ou CONTRE-INTUITIVE. Hook en 3 secondes. Oral, direct, une seule idée martelée.
 - Stories : prend l'angle le plus INTIME ou PERSONNEL. Comme un message vocal à une amie. Confidences, coulisses, réactions spontanées.
-- LinkedIn : prend l'angle le plus ENGAGÉ. Prise de position, conviction, question de fond. Ton direct et pro-amical. Court et dense (800-1200 car.), pas de remplissage.
+- LinkedIn : prend l'angle le plus ENGAGÉ. Prise de position, conviction, question de fond. Ton direct et pro-amical. Dense (1300-2000 car.), pas de remplissage.
 - Newsletter : prend l'angle le plus PROFOND. C'est le format qui a le plus de place : développe une réflexion complète avec nuances, apartés, exemples concrets.
 
 Si 2 formats risquent de se chevaucher, force un pivot : change le point d'entrée, la question posée, ou le public visé dans le contenu.
