@@ -353,7 +353,7 @@ PROFONDEUR :
         depthMandate = `ANTI-BROETRY :
 Pas de phrases seules sur une ligne pour faire dramatique. Des paragraphes de 2-3 phrases qui développent une idée. Le rythme vient du contraste entre paragraphes et phrases courtes qui ponctuent, pas des sauts de ligne systématiques.
 
-FORMAT : POST LINKEDIN (800-1200 caractères)
+FORMAT : POST LINKEDIN (1300-2000 caractères)
 
 LinkedIn ≠ tribune d'expert·e. C'est une conversation entre pro qui se respectent.
 
