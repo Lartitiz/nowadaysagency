@@ -102,7 +102,7 @@ export default function AbonnementPage() {
   };
 
 
-  const planLabel = subInfo?.plan === "now_pilot" ? "🤝 Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
+  const planLabel = subInfo?.plan === "binome" ? "🤝 Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
 
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;
