@@ -26,15 +26,36 @@ import MiniDiagnostic from "@/components/landing/MiniDiagnostic";
 
 /* ─── Features grid data ─── */
 const FEATURES = [
-  { emoji: "🎨", title: "Mon identité", sub: "Définis ta marque", desc: "Mission, cible, ton, positionnement : pose les fondations de ta com' avec un atelier guidé pas à pas.", soon: false },
-  { emoji: "✍️", title: "Création de contenu", sub: "Trouve des idées et rédige", desc: "Formats, angles, accroches, rédaction guidée. De l'idée au post publié, sans panne d'inspiration.", soon: false },
-  { emoji: "📅", title: "Calendrier éditorial", sub: "Planifie ta communication", desc: "Calendrier visuel avec tags d'objectif et jauge d'équilibre. Tu sais quoi poster et quand.", soon: false },
-  { emoji: "📱", title: "Instagram", sub: "Optimise ton profil", desc: "Bio, stories à la une, audit de profil, routine d'engagement, prospection douce.", soon: false },
-  { emoji: "💼", title: "LinkedIn", sub: "Développe ta présence pro", desc: "Audit de profil, optimisation, contenus adaptés au réseau professionnel.", soon: false },
-  { emoji: "🔍", title: "SEO / Référencement", sub: "Sois trouvée sur Google", desc: "Mots-clés, optimisation de pages, stratégie de contenu pour le référencement naturel.", soon: false },
-  { emoji: "📧", title: "Newsletter / Emailing", sub: "Crée ta liste et fidélise", desc: "Séquences email, newsletters, lead nurturing.", soon: true },
-  { emoji: "🌐", title: "Site web / Pages de vente", sub: "Convertis tes visiteurs", desc: "Pages de vente, landing pages, optimisation.", soon: true },
-  { emoji: "📰", title: "Relations presse", sub: "Fais parler de toi", desc: "Communiqués, fichier presse, stratégie médias.", soon: true },
+  {
+    emoji: "🎨",
+    title: "Ton identité de marque",
+    desc: "Mission, cible, ton, positionnement, storytelling, offres : pose les fondations de ta com' avec un atelier guidé. L'IA te pose les bonnes questions, tu réponds, et ta marque prend forme.",
+    visual: "branding",
+  },
+  {
+    emoji: "✍️",
+    title: "Création de contenu IA",
+    desc: "Choisis un format (carrousel, reel, post, story, newsletter…), un angle, et l'IA rédige pour toi. Avec TA voix, parce qu'elle connaît ton branding.",
+    visual: "content",
+  },
+  {
+    emoji: "📅",
+    title: "Calendrier éditorial",
+    desc: "Vue mensuelle, drag & drop, tags d'objectif. Tu vois ce qui est prévu, ce qui est publié, ce qui manque. Tu sais quoi poster et quand.",
+    visual: "calendar",
+  },
+  {
+    emoji: "🔍",
+    title: "Audits Instagram et SEO",
+    desc: "Colle ton @ ou ton URL, et l'outil analyse tout : bio, posts, régularité, hashtags, mots-clés, structure du site. Tu repars avec des actions concrètes.",
+    visual: "audit",
+  },
+  {
+    emoji: "📱",
+    title: "Espaces par canal",
+    desc: "Instagram, LinkedIn, Pinterest, Site web, Newsletter : chaque canal a son espace dédié avec ses guides, ses checklists et ses générateurs.",
+    visual: "channels",
+  },
 ];
 
 const PAIN_POINTS = [
