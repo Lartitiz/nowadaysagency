@@ -47,7 +47,8 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
         children: [
           { label: "Profil", path: "/linkedin/profil" },
           { label: "Audit", path: "/linkedin/audit" },
-          { label: "Posts", path: "/linkedin/post" },
+          { label: "Créer un post", path: "/creer?canal=linkedin" },
+          { label: "Améliorer un post", path: "/linkedin/post" },
           { label: "Engagement", path: "/linkedin/engagement" },
           { label: "Crosspost", path: "/linkedin/crosspost" },
         ],

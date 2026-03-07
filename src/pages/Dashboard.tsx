@@ -439,7 +439,7 @@ export default function Dashboard() {
                     { label: "Post Instagram", route: "/creer" },
                     { label: "Carousel", route: "/creer?format=carousel" },
                     { label: "Reel", route: "/creer?format=reel" },
-                    { label: "Post LinkedIn", route: "/linkedin/post" },
+                    { label: "Post LinkedIn", route: "/creer?canal=linkedin" },
                     ...(isModuleVisible("site", isAdmin) ? [{ label: "Article de blog", route: "/site/accueil" }] : []),
                   ].map((item) => (
                     <button

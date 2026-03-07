@@ -234,7 +234,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     if (targetFormat === "carousel") navigate(`/creer?format=carousel&${params.toString()}`);
     else if (targetFormat === "reel") navigate(`/creer?format=reel&${params.toString()}`);
     else if (targetFormat === "story") navigate(`/creer?format=story&${params.toString()}`);
-    else if (targetFormat === "linkedin") navigate(`/linkedin/post?${params.toString()}`);
+    else if (targetFormat === "linkedin") navigate(`/creer?canal=linkedin&${params.toString()}`);
     else navigate("/transformer");
   };
 

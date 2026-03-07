@@ -14,7 +14,7 @@ const FORMATS = [
   { id: "carousel", emoji: "🎠", label: "Carrousel", route: "/creer?format=carousel" },
   { id: "reel", emoji: "🎬", label: "Reel", route: "/creer?format=reel" },
   { id: "story", emoji: "📱", label: "Story", route: "/creer?format=story" },
-  { id: "linkedin", emoji: "💼", label: "LinkedIn", route: "/linkedin/post" },
+  { id: "linkedin", emoji: "💼", label: "LinkedIn", route: "/creer?canal=linkedin" },
 ];
 
 export function AddPostMenu({ dateStr, onAddIdea, children }: Props) {
