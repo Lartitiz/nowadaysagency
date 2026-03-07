@@ -48,6 +48,13 @@ async function fetchImageAsBase64(url: string): Promise<{ data: string; media_ty
     const resp = await fetch(url);
     if (!resp.ok) return null;
     const buffer = await resp.arrayBuffer();
+    
+    // Skip images larger than 3MB to avoid Edge Function memory/timeout issues
+    if (buffer.byteLength > 3 * 1024 * 1024) {
+      console.log(`Skipping image too large: ${buffer.byteLength} bytes`);
+      return null;
+    }
+    
     const bytes = new Uint8Array(buffer);
     let binary = "";
     for (let i = 0; i < bytes.length; i++) {
