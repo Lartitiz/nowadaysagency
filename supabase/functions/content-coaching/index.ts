@@ -199,7 +199,7 @@ Deno.serve(async (req) => {
       "Comparaison inattendue : '[Chose A] et [chose B] ont plus en commun qu'on croit'",
       "Interpellation directe : Pointer une erreur courante que l'audience fait sans le savoir",
       "Polarisation douce : Opposer deux postures face à un enjeu du métier et demander laquelle résonne",
-      "Promesse-mystère : 'Le truc qui a changé [aspect] dans mon business. (C'est pas ce que tu crois.)'",
+      "Promesse-mystère : Annoncer un changement de jeu inattendu dans son activité, sans le révéler tout de suite",
     ];
     const shuffledHooks = HOOK_STRUCTURES.sort(() => Math.random() - 0.5).slice(0, 3);
 
