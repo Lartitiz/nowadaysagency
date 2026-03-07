@@ -218,8 +218,32 @@ FORMAT DE RÉPONSE (JSON strict, rien d'autre) :
 {
   "pin_html": "<style>@import url(...);\\n</style><div style=\\"width:1000px;height:1500px;...\\">...</div>",
   "title": "Titre SEO optimisé max 100 caractères",
-  "description": "Description SEO 100-200 mots..."
-}`;
+  "description": "Description SEO 100-200 mots...",
+  "pin_data": {
+    "pin_type": "infographie|checklist|mini_tuto|avant_apres|schema_visuel",
+    "main_title": "Le titre affiché sur le visuel",
+    "badge_label": "TUTO|CHECKLIST|INFOGRAPHIE|AVANT / APRÈS|etc.",
+    "elements": [
+      {
+        "number": 1,
+        "label": "Titre court de l'élément",
+        "description": "Description en 1-2 lignes",
+        "emoji": "🎯",
+        "side": "before|after"
+      }
+    ],
+    "cta_text": "Texte du CTA en bas si applicable",
+    "watermark": "Texte du watermark en bas (nom du projet)"
+  }
+}
+
+RÈGLES pour pin_data.elements :
+- Pour "infographie" et "mini_tuto" : chaque élément a number, label, description, emoji optionnel
+- Pour "checklist" : chaque élément a label (le texte de l'item), number pour l'ordre
+- Pour "avant_apres" : chaque élément a label, side ("before" ou "after"), emoji optionnel (❌ pour before, ✅ pour after)
+- Pour "schema_visuel" : le premier élément (number=0) est l'élément central, les suivants sont périphériques
+
+Le pin_data DOIT être cohérent avec le pin_html (mêmes textes, même structure). C'est une version structurée du même contenu.`;
 
     const userPrompt = `Génère une épingle Pinterest visuelle pour le sujet suivant.
 

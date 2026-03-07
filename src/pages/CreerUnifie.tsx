@@ -18,6 +18,7 @@ import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import { useContentGenerator } from "@/hooks/use-content-generator";
 import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
 import { exportPinterestVisualPptx, exportPinterestVisualPng } from "@/lib/export-pinterest-visual-pptx";
+import { exportPinterestEditablePptx } from "@/lib/export-pinterest-editable-pptx";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
@@ -511,6 +512,7 @@ export default function CreerUnifie() {
             pin_html: r?.pin_html,
             title: r?.title,
             description: r?.description,
+            pin_data: r?.pin_data,
           },
         });
       } catch (e: any) {
@@ -844,7 +846,18 @@ export default function CreerUnifie() {
             console.warn("Visual upload failed:", err);
           }
         }
-        
+
+        // Upload visuel Pinterest dans Storage
+        if (selectedFormat === "pinterest_visual" && pinterestPinHtml) {
+          try {
+            toast.info("Upload du visuel Pinterest...");
+            const pinVisualUrls = await uploadPinterestVisualToStorage(calendarPostId, pinterestPinHtml);
+            if (pinVisualUrls.length > 0) storageUpdates.visual_urls = pinVisualUrls;
+          } catch (err) {
+            console.warn("Pinterest visual upload failed:", err);
+          }
+        }
+
         if (Object.keys(storageUpdates).length > 0) {
           const currentDetail = storyDetail || {};
           await supabase.from("calendar_posts").update({
@@ -960,6 +973,54 @@ export default function CreerUnifie() {
     return urls;
   };
 
+  const uploadPinterestVisualToStorage = async (postId: string, pinHtml: string): Promise<string[]> => {
+    if (!session?.user?.id || !pinHtml) return [];
+
+    const container = document.createElement("div");
+    container.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1000px;height:1500px;overflow:hidden;z-index:-1;";
+    document.body.appendChild(container);
+
+    const urls: string[] = [];
+    try {
+      container.innerHTML = pinHtml;
+      await document.fonts.ready;
+      await new Promise(r => setTimeout(r, 400));
+
+      const canvas = await (await import("html2canvas")).default(container, {
+        width: 1000,
+        height: 1500,
+        scale: 1,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        logging: false,
+      });
+
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((b) => resolve(b!), "image/png");
+      });
+
+      const path = `${session.user.id}/${postId}/pinterest/pin-visual.png`;
+      const { error } = await supabase.storage
+        .from("calendar-visuals")
+        .upload(path, blob, { contentType: "image/png", upsert: true });
+
+      if (error) {
+        console.error("Failed to upload pinterest visual:", error);
+        return [];
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("calendar-visuals")
+        .getPublicUrl(path);
+
+      urls.push(urlData.publicUrl);
+    } finally {
+      document.body.removeChild(container);
+    }
+    return urls;
+  };
+
   const handleConfirmCalendar = async () => {
     if (!session?.user?.id || !calendarDate || savingToCalendar) return;
     setSavingToCalendar(true);
@@ -1021,8 +1082,20 @@ export default function CreerUnifie() {
             console.warn("Visual upload failed (non-blocking):", err);
           }
         }
+
+        // Upload visuel Pinterest dans Storage
+        if (selectedFormat === "pinterest_visual" && pinterestPinHtml) {
+          try {
+            toast.info("Upload du visuel Pinterest...");
+            const pinVisualUrls = await uploadPinterestVisualToStorage(postId, pinterestPinHtml);
+            if (pinVisualUrls.length > 0) {
+              updates.visual_urls = pinVisualUrls;
+            }
+          } catch (err) {
+            console.warn("Pinterest visual upload failed (non-blocking):", err);
+          }
+        }
         
-        // Mettre à jour le post avec les URLs
         if (Object.keys(updates).length > 0) {
           const currentDetail = storyDetail || {};
           await supabase.from("calendar_posts").update({
@@ -1147,6 +1220,27 @@ export default function CreerUnifie() {
       toast.info("Export PNG en cours...");
       await exportPinterestVisualPng(pinterestPinHtml, ideaText || "epingle-pinterest");
       toast.success("PNG téléchargé !");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'export");
+    }
+  };
+
+  const handleExportPinterestEditablePptx = async () => {
+    const pinData = result?.raw?.pin_data;
+    if (!pinData) {
+      toast.error("Données structurées non disponibles. Utilise l'export PNG ou PPTX image.");
+      return;
+    }
+    try {
+      toast.info("Export PPTX éditable en cours...");
+      await exportPinterestEditablePptx(
+        pinData,
+        result?.raw?.title || "",
+        result?.raw?.description || "",
+        ideaText || "epingle-pinterest",
+        charterData
+      );
+      toast.success("PPTX éditable téléchargé !");
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de l'export");
     }
@@ -1323,6 +1417,7 @@ export default function CreerUnifie() {
                 pinterestPinHtml={pinterestPinHtml}
                 onExportPinterestPng={selectedFormat === "pinterest_visual" ? handleExportPinterestPng : undefined}
                 onExportPinterestPptx={selectedFormat === "pinterest_visual" ? handleExportPinterestPptx : undefined}
+                onExportPinterestEditablePptx={selectedFormat === "pinterest_visual" ? handleExportPinterestEditablePptx : undefined}
                 onSlidesUpdate={selectedFormat === "carousel" ? (slides, caption) => {
                   if (result?.raw) {
                     result.raw.slides = slides;

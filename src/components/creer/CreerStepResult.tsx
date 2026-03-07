@@ -160,6 +160,7 @@ interface Props {
   pinterestPinHtml?: string | null;
   onExportPinterestPng?: () => void;
   onExportPinterestPptx?: () => void;
+  onExportPinterestEditablePptx?: () => void;
 }
 
 export default function CreerStepResult({
@@ -185,6 +186,7 @@ export default function CreerStepResult({
   pinterestPinHtml,
   onExportPinterestPng,
   onExportPinterestPptx,
+  onExportPinterestEditablePptx,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
@@ -430,16 +432,21 @@ export default function CreerStepResult({
             <RefreshCw className="h-3.5 w-3.5" /> Regénérer visuels
           </Button>
         )}
-        {format === "pinterest_visual" && result?.pin_html && (
+        {format === "pinterest_visual" && (result?.pin_html || result?.title) && (
           <>
             {onExportPinterestPng && (
               <Button variant="ghost" size="sm" onClick={onExportPinterestPng} className="gap-1.5 text-xs text-muted-foreground">
                 <Download className="h-3.5 w-3.5" /> PNG
               </Button>
             )}
+            {onExportPinterestEditablePptx && (
+              <Button variant="ghost" size="sm" onClick={onExportPinterestEditablePptx} className="gap-1.5 text-xs text-muted-foreground">
+                <Download className="h-3.5 w-3.5" /> PPTX éditable
+              </Button>
+            )}
             {onExportPinterestPptx && (
               <Button variant="ghost" size="sm" onClick={onExportPinterestPptx} className="gap-1.5 text-xs text-muted-foreground">
-                <Download className="h-3.5 w-3.5" /> PPTX
+                <Download className="h-3.5 w-3.5" /> PPTX image
               </Button>
             )}
           </>
