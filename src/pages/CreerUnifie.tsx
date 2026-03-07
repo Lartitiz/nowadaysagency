@@ -489,6 +489,7 @@ export default function CreerUnifie() {
     if (selectedFormat === "pinterest_visual") {
       setStep("result");
       setPinterestPinHtml(null);
+      setPinterestVisualGenerating(true);
       try {
         const pinType = editorialAngle || "infographie";
         const { data, error: fnError } = await invokeWithTimeout("pinterest-visual", {
@@ -514,6 +515,8 @@ export default function CreerUnifie() {
         });
       } catch (e: any) {
         toast.error(e?.message || "Erreur lors de la génération du visuel Pinterest");
+      } finally {
+        setPinterestVisualGenerating(false);
       }
       return;
     }
