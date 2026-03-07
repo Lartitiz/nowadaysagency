@@ -196,7 +196,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
           <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">Ma boîte à idées</h1>
           <p className="text-[15px] text-muted-foreground mt-1">Tout ce que tu as généré, sauvegardé, commencé. Rien ne se perd.</p>
         </div>
-        <Link to="/atelier">
+        <Link to="/creer">
           <Button className="rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux shrink-0">
             💡 Nouvelle idée
           </Button>
