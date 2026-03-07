@@ -220,7 +220,7 @@ export default function SettingsPage() {
                       💎 Passer au plan Premium (39€/mois)
                     </Button>
                     <Button size="sm" variant="outline" className="rounded-full" asChild>
-                      <Link to="/studio/discover">🤝 Découvrir l'accompagnement</Link>
+                      <Link to="/binome">🤝 Découvrir l'accompagnement</Link>
                     </Button>
                   </>
                 )}
