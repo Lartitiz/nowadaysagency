@@ -91,7 +91,6 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
               </div>
             </div>
           </div>
-          <FloatingChatButton />
         </>
       );
     }
