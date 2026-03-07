@@ -263,7 +263,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
               {ideas.length === 0 ? "Commence par générer des idées dans l'atelier. Elles atterriront ici automatiquement." : "Essaie de modifier tes filtres."}
             </p>
             {ideas.length === 0 && (
-              <Link to="/atelier">
+              <Link to="/creer">
                 <Button className="rounded-pill">💡 Aller à l'atelier →</Button>
               </Link>
             )}

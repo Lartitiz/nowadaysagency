@@ -168,7 +168,7 @@ function SmartRedirect({ to, mergeParams }: { to: string; mergeParams?: Record<s
   return <Navigate to={qs ? `${basePath}?${qs}` : basePath} replace state={location.state} />;
 }
 
-const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/now-pilot", "/binome", "/pricing", "/services", "/share/branding", "/checkout/binome", "/unsubscribe"];
+const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/binome", "/pricing", "/services", "/share/branding", "/checkout/binome", "/unsubscribe"];
 
 function AnimatedRoutes() {
   const location = useLocation();

@@ -398,9 +398,9 @@ const BREADCRUMB_MAP: [string, BreadcrumbItem[]][] = [
     { label: "Accueil", path: "/dashboard" },
     { label: "Lives" },
   ]],
-  ["/studio", [
+  ["/binome", [
     { label: "Accueil", path: "/dashboard" },
-    { label: "Studio" },
+    { label: "Binôme de com" },
   ]],
 
   // ── Profil / Settings ──

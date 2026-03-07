@@ -231,7 +231,7 @@ export default function SettingsPage() {
                       Gérer mon abonnement
                     </Button>
                     <Button size="sm" variant="outline" className="rounded-full" asChild>
-                      <Link to="/studio/discover">🤝 Découvrir l'accompagnement</Link>
+                      <Link to="/binome">🤝 Découvrir l'accompagnement</Link>
                     </Button>
                   </>
                 )}

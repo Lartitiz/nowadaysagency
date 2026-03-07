@@ -730,7 +730,7 @@ export default function LandingPage() {
               <nav className="flex flex-col gap-2 text-sm text-background/60">
                 <a href="#features" onClick={scrollTo("features")} className="hover:text-background transition-colors">Fonctionnalités</a>
                 <Link to="/pricing" className="hover:text-background transition-colors">Pricing</Link>
-                <Link to="/studio/discover" className="hover:text-background transition-colors">Accompagnement</Link>
+                <Link to="/binome" className="hover:text-background transition-colors">Accompagnement</Link>
                 <a href="#faq" onClick={scrollTo("faq")} className="hover:text-background transition-colors">FAQ</a>
               </nav>
             </div>
