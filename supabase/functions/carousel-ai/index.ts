@@ -78,7 +78,7 @@ serve(async (req) => {
       }
     }
 
-    let systemPrompt = buildSystemPrompt(brandingContext);
+    let systemPrompt = buildSystemPrompt(brandingContext, isLinkedIn);
 
     // Inject launch context if present
     if (launch_context && (type === "express_full" || type === "hooks" || type === "slides")) {
