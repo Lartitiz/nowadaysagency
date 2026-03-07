@@ -602,6 +602,7 @@ export default function CreerUnifie() {
     setUploadedPhotos([]);
     setPhotoDescription("");
     setPhotoMode(false);
+    setIsLinkedInCarousel(false);
     clearFlowState();
     clearDraft();
     sessionStorage.removeItem(CREER_RESULT_KEY);
