@@ -208,10 +208,10 @@ function FeatureVisual({ type }: { type: string }) {
         </div>
         <div className="space-y-2">
           {[
-            { label: "✅ Bio claire et engageante", good: true },
-            { label: "✅ Identité visuelle cohérente", good: true },
-            { label: "⚠️ Régularité de publication faible", good: false },
-            { label: "⚠️ Pas de CTA dans les posts", good: false },
+            { label: "✅ Univers visuel fort et reconnaissable", good: true },
+            { label: "✅ Stories à la une bien organisées", good: true },
+            { label: "⚠️ Bio sans appel à l'action clair", good: false },
+            { label: "⚠️ Pas de lien vers la boutique dans les posts", good: false },
           ].map((item) => (
             <div key={item.label} className={`text-[11px] px-3 py-1.5 rounded-lg ${item.good ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
               {item.label}
