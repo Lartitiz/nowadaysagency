@@ -111,7 +111,32 @@ export default function CreerUnifie() {
     }
   );
 
-  // Launch sequence state
+  // When arriving at /creer without params (fresh navigation), clear persisted state
+  useEffect(() => {
+    if (!hasSomeContext) {
+      clearFlowState();
+      clearDraft();
+      sessionStorage.removeItem("creer_unifie_result");
+      setStep("idea");
+      setSelectedFormat(null);
+      setEditorialAngle(null);
+      setIdeaText("");
+      setObjective(null);
+      setAnswers({});
+      setEditContent("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // If canal param is set, pre-select the format
+  useEffect(() => {
+    if (paramCanal && !selectedFormat) {
+      if (paramCanal === "linkedin" || paramCanal === "pinterest" || paramCanal === "newsletter") {
+        setSelectedFormat(paramCanal);
+      }
+    }
+  }, [paramCanal]);
+
   const [launchResults, setLaunchResults] = useState<any[]>([]);
   const [launchIndex, setLaunchIndex] = useState(0);
   const [launchGenerating, setLaunchGenerating] = useState(false);
