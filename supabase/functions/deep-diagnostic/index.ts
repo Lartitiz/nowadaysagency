@@ -482,6 +482,7 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
           .eq(filterCol, filterVal)
           .maybeSingle();
 
+        const combatData = prefill.combat_structured || enrichmentResult?.combat_structured;
         if (existingProfile) {
           const updates: Record<string, unknown> = {};
           if (!existingProfile.positioning && prefill.positioning) updates.positioning = prefill.positioning;
@@ -491,10 +492,10 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
           if (!existingProfile.tone_style && prefill.tone_style) updates.tone_style = prefill.tone_style;
           if (!existingProfile.combats && prefill.combats?.length > 0) updates.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
           if ((!existingProfile.content_pillars || (Array.isArray(existingProfile.content_pillars) && existingProfile.content_pillars.length === 0)) && prefill.content_pillars?.length > 0) updates.content_pillars = prefill.content_pillars;
-          if (!existingProfile.combat_cause && prefill.combat_structured?.combat_cause) updates.combat_cause = prefill.combat_structured.combat_cause;
-          if (!existingProfile.combat_fights && prefill.combat_structured?.combat_fights) updates.combat_fights = prefill.combat_structured.combat_fights;
-          if (!existingProfile.combat_alternative && prefill.combat_structured?.combat_alternative) updates.combat_alternative = prefill.combat_structured.combat_alternative;
-          if (!existingProfile.combat_refusals && prefill.combat_structured?.combat_refusals) updates.combat_refusals = prefill.combat_structured.combat_refusals;
+          if (!existingProfile.combat_cause && combatData?.combat_cause) updates.combat_cause = combatData.combat_cause;
+          if (!existingProfile.combat_fights && combatData?.combat_fights) updates.combat_fights = combatData.combat_fights;
+          if (!existingProfile.combat_alternative && combatData?.combat_alternative) updates.combat_alternative = combatData.combat_alternative;
+          if (!existingProfile.combat_refusals && combatData?.combat_refusals) updates.combat_refusals = combatData.combat_refusals;
           if (Object.keys(updates).length > 0) await supabaseAdmin.from("brand_profile").update(updates).eq("id", existingProfile.id);
         } else {
           const newProfile: Record<string, unknown> = { user_id: userId, workspace_id: workspaceId };
@@ -505,10 +506,10 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
           if (prefill.combats?.length) newProfile.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
           if (prefill.values?.length) newProfile.values = prefill.values;
           if (prefill.content_pillars?.length) newProfile.content_pillars = prefill.content_pillars;
-          if (prefill.combat_structured?.combat_cause) newProfile.combat_cause = prefill.combat_structured.combat_cause;
-          if (prefill.combat_structured?.combat_fights) newProfile.combat_fights = prefill.combat_structured.combat_fights;
-          if (prefill.combat_structured?.combat_alternative) newProfile.combat_alternative = prefill.combat_structured.combat_alternative;
-          if (prefill.combat_structured?.combat_refusals) newProfile.combat_refusals = prefill.combat_structured.combat_refusals;
+          if (combatData?.combat_cause) newProfile.combat_cause = combatData.combat_cause;
+          if (combatData?.combat_fights) newProfile.combat_fights = combatData.combat_fights;
+          if (combatData?.combat_alternative) newProfile.combat_alternative = combatData.combat_alternative;
+          if (combatData?.combat_refusals) newProfile.combat_refusals = combatData.combat_refusals;
           await supabaseAdmin.from("brand_profile").insert(newProfile);
         }
 
