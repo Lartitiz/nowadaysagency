@@ -125,6 +125,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
     setPostPhotoDescription("");
     setPinterestLink("");
     setPinterestBoardId("");
+    setLinkedinSubMode(null);
   };
 
   const renderAngleCard = (angle: EditorialAngle, isRecommended: boolean) => {
