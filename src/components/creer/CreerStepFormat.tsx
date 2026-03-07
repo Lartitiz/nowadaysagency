@@ -492,8 +492,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
         </div>
       )}
 
-      {/* Structure info */}
-      {selectedStructure && selectedAngle && (
+      {/* Structure info (hidden for Pinterest formats) */}
+      {selectedStructure && selectedAngle && selectedChannel !== "pinterest" && (
         <div className="rounded-lg bg-muted/50 border border-border p-2.5 space-y-1 animate-fade-in">
           <p className="text-xs font-semibold text-foreground">
             Structure : {selectedStructure.label} ({selectedStructure.steps.length} étapes)
