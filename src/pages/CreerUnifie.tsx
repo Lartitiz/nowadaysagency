@@ -634,6 +634,7 @@ export default function CreerUnifie() {
     setLaunchIndex(0);
     setSavedId(null);
     setVisualSlides([]);
+    setPinterestPinHtml(null);
     setCarouselSubMode(null);
     setIsLinkedInCarousel(false);
     setUploadedPhotos([]);
