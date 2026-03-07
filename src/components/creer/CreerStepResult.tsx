@@ -182,6 +182,9 @@ export default function CreerStepResult({
   onSlidesUpdate,
   onStoriesUpdate,
   photos,
+  pinterestPinHtml,
+  onExportPinterestPng,
+  onExportPinterestPptx,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
