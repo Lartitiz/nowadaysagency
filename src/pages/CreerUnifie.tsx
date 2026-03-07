@@ -54,10 +54,13 @@ export default function CreerUnifie() {
   const locState = (location.state as any) || {};
 
   // Check if we have URL params that should override persisted state
-  const hasUrlParams = !!(paramFormat || paramSujet || paramObjectif || locState.fromCalendar);
+  const paramCanal = searchParams.get("canal");
+  const hasUrlParams = !!(paramFormat || paramCanal || paramSujet || paramObjectif || locState.fromCalendar);
 
-  // Load persisted state for restoration (only when no URL params)
-  const persistedState = useRef(hasUrlParams ? null : loadFlowState());
+  // Only restore persisted state if we have URL params or location state (coming back to an in-progress flow)
+  // Fresh navigation (/creer with nothing) should start clean
+  const hasSomeContext = hasUrlParams || !!location.state;
+  const persistedState = useRef(hasSomeContext ? loadFlowState() : null);
 
   // Core state — restore from sessionStorage if available
   const ps = persistedState.current;
@@ -97,6 +100,7 @@ export default function CreerUnifie() {
     "creer-unifie-form",
     { step, ideaText, objective, selectedFormat, editorialAngle, answers },
     (saved) => {
+      if (!hasSomeContext) return; // Fresh navigation — don't restore
       if (location.state || searchParams.get("format") || searchParams.get("sujet")) return;
       if (saved.step && saved.step !== "idea") setStep(saved.step as Step);
       if (saved.ideaText) setIdeaText(saved.ideaText);
@@ -107,7 +111,32 @@ export default function CreerUnifie() {
     }
   );
 
-  // Launch sequence state
+  // When arriving at /creer without params (fresh navigation), clear persisted state
+  useEffect(() => {
+    if (!hasSomeContext) {
+      clearFlowState();
+      clearDraft();
+      sessionStorage.removeItem("creer_unifie_result");
+      setStep("idea");
+      setSelectedFormat(null);
+      setEditorialAngle(null);
+      setIdeaText("");
+      setObjective(null);
+      setAnswers({});
+      setEditContent("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // If canal param is set, pre-select the format
+  useEffect(() => {
+    if (paramCanal && !selectedFormat) {
+      if (paramCanal === "linkedin" || paramCanal === "pinterest" || paramCanal === "newsletter") {
+        setSelectedFormat(paramCanal);
+      }
+    }
+  }, [paramCanal]);
+
   const [launchResults, setLaunchResults] = useState<any[]>([]);
   const [launchIndex, setLaunchIndex] = useState(0);
   const [launchGenerating, setLaunchGenerating] = useState(false);
