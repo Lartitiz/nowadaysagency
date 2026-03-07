@@ -247,15 +247,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══ MINI DIAGNOSTIC ═══ */}
-      <section aria-label="Mini diagnostic communication" className="py-12 sm:py-16 px-4">
-        <div className="mx-auto max-w-5xl">
-          <Reveal>
-            <MiniDiagnostic />
-          </Reveal>
-        </div>
-      </section>
-
       {/* ═══ SI TU TE RECONNAIS ═══ */}
       <section aria-label="Problèmes courants en communication" className="bg-rose-pale py-16 sm:py-24 px-4">
         <div className="mx-auto max-w-5xl">
@@ -265,9 +256,21 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
             {PAIN_POINTS.map((p, i) => (
               <Reveal key={i} delay={i * 0.1}>
-                <div className="rounded-2xl bg-card border border-border p-6 text-center shadow-card hover:shadow-card-hover transition-shadow h-full">
-                  <span className="text-4xl mb-4 block">{p.emoji}</span>
-                  <p className="text-sm text-foreground leading-relaxed">{p.text}</p>
+                <div className="rounded-2xl bg-card border border-border shadow-card hover:shadow-card-hover transition-shadow h-full overflow-hidden">
+                  {/* Partie haute : la douleur */}
+                  <div className="p-6 pb-4">
+                    <span className="text-3xl mb-3 block">{p.emoji}</span>
+                    <p className="text-sm text-foreground leading-relaxed">{p.pain}</p>
+                  </div>
+                  {/* Séparateur */}
+                  <div className="mx-6 h-px bg-border" />
+                  {/* Partie basse : le retournement */}
+                  <div className="p-6 pt-4 bg-primary/[0.03]">
+                    <div className="flex items-start gap-2">
+                      <span className="text-lg shrink-0 mt-0.5">{p.flipEmoji}</span>
+                      <p className="text-sm text-primary font-medium leading-relaxed">{p.flip}</p>
+                    </div>
+                  </div>
                 </div>
               </Reveal>
             ))}
@@ -277,9 +280,18 @@ export default function LandingPage() {
               <p className="font-display text-xl sm:text-2xl font-bold text-foreground leading-snug max-w-2xl mx-auto">
                 "Le problème, c'est pas toi.
                 <br />
-                C'est qu'on ne t'a jamais donné <span className="text-primary">les bons outils.</span>"
+                C'est que personne ne t'avait donné <span className="text-primary">un outil pensé pour ton quotidien.</span>"
               </p>
             </blockquote>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ═══ MINI DIAGNOSTIC ═══ */}
+      <section aria-label="Mini diagnostic communication" className="py-12 sm:py-16 px-4">
+        <div className="mx-auto max-w-5xl">
+          <Reveal>
+            <MiniDiagnostic />
           </Reveal>
         </div>
       </section>
