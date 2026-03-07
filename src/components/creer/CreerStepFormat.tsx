@@ -183,6 +183,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
     const isCarouselPhoto = selectedFormat === "carousel" && carouselSubMode === "photo";
     const isCarouselMix = selectedFormat === "carousel" && carouselSubMode === "mix";
     const isPostPhoto = selectedFormat === "post" && photoMode;
+    const isLinkedInCarousel = selectedChannel === "linkedin" && selectedFormat === "carousel";
     const pinterestData = selectedFormat === "pinterest" ? {
       link: pinterestLink || undefined,
       boardId: pinterestBoardId || undefined,
@@ -196,6 +197,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
       isCarouselPhoto || isCarouselMix ? photoDescription : isPostPhoto ? postPhotoDescription : undefined,
       selectedFormat === "post" ? photoMode : undefined,
       pinterestData,
+      isLinkedInCarousel,
     );
   };
 
