@@ -393,7 +393,13 @@ export default function CreerStepResult({
             <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
           </Button>
         )}
-        <Button variant="ghost" size="sm" onClick={() => onCopy(JSON.stringify(result, null, 2))} className="gap-1.5 text-xs text-muted-foreground">
+        <Button variant="ghost" size="sm" onClick={() => {
+          if (format === "pinterest_visual" && result?.title) {
+            onCopy(`${result.title}\n\n${result.description || ""}`);
+          } else {
+            onCopy(JSON.stringify(result, null, 2));
+          }
+        }} className="gap-1.5 text-xs text-muted-foreground">
           <Copy className="h-3.5 w-3.5" /> Copier
         </Button>
         {isCarousel && hasVisuals && onExportPptx && (
