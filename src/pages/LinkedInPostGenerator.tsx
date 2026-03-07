@@ -699,7 +699,7 @@ export default function LinkedInPostGenerator() {
                     <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{improveResult.improved_version}</p>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <CharacterCounter count={improveResult.character_count} max={3000} sweetSpot={{ min: 800, max: 1200 }} />
+                    <CharacterCounter count={improveResult.character_count} max={3000} sweetSpot={{ min: 1300, max: 1900 }} />
                   </div>
                 </div>
 

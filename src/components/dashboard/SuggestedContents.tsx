@@ -85,6 +85,15 @@ const ANGLE_LABELS: Record<string, string> = {
   analyse_decryptage: "Analyse & décryptage",
   build_in_public: "Build in public",
   surf_actu: "Surf sur l'actu",
+  // LinkedIn structures
+  decryptage_expert: "Décryptage expert",
+  prise_de_position: "Prise de position",
+  mythe_deconstruire: "Mythe à déconstruire",
+  storytelling_pro: "Storytelling pro",
+  etude_de_cas: "Étude de cas",
+  coulisses_metier: "Coulisses métier",
+  conseil_contre_courant: "Conseil contre-courant",
+  reflexion_de_fond: "Réflexion de fond",
 };
 
 /** Fallback ideas from branding data (no AI call) */
