@@ -271,11 +271,11 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
           </div>
         )}
 
-        {standaloneWorkspaces.length === 0 && !showNewWsInput ? (
+        {standaloneWorkspaces.filter(ws => !removedWsIds.has(ws.id)).length === 0 && !showNewWsInput ? (
           <p className="text-sm text-muted-foreground py-4 text-center">Aucun espace standalone pour le moment</p>
         ) : (
           <div className="space-y-2">
-            {standaloneWorkspaces.map(ws => (
+            {standaloneWorkspaces.filter(ws => !removedWsIds.has(ws.id)).map(ws => (
               <div key={ws.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
                 <div>
                   <p className="text-sm font-semibold text-foreground">{ws.name}</p>
