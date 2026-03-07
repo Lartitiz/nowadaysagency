@@ -217,7 +217,12 @@ Score global = moyenne pondérée (photo 10, nom 10, bio 25, feed 15, highlights
 
 Sois directe mais bienveillante. Compare TOUJOURS avec le branding.
 
-RETOURNE UNIQUEMENT du JSON valide. Pas de texte avant ni apres. Pas de backticks markdown.
+RÉPONSE : Tu dois retourner UNIQUEMENT un objet JSON valide. C'est une contrainte technique absolue.
+- Pas de texte avant le JSON (pas de "Voici", pas de "Je vais", pas d'introduction)
+- Pas de texte après le JSON (pas de conclusion, pas de commentaire)
+- Pas de backticks markdown (pas de ```json)
+- Le premier caractère de ta réponse doit être { et le dernier doit être }
+- Si tu ajoutes du texte autour du JSON, le système plantera. C'est critique.
 
 REGLES STRICTES :
 - NE JAMAIS utiliser de markdown dans le JSON : pas de **gras**, pas de *italique*, pas de backticks. Texte brut UNIQUEMENT.
