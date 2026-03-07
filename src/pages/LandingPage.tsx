@@ -463,28 +463,30 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══ FEATURES GRID ═══ */}
+      {/* ═══ FEATURES ═══ */}
       <section id="features" aria-label="Fonctionnalités de l'outil" className="py-16 sm:py-24 px-4">
-        <div className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-5xl">
           <Reveal>
-            <div className="text-center mb-14">
+            <div className="text-center mb-16">
               <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">Tout ce dont tu as besoin, au même endroit</h2>
-              <p className="text-muted-foreground max-w-xl mx-auto">Pas un énième outil compliqué. Un espace qui te dit quoi faire, te propose des idées, et t'aide à rester régulière.</p>
+              <p className="text-muted-foreground max-w-xl mx-auto">Pas 10 outils différents. Un seul espace qui te guide de la stratégie au contenu publié.</p>
             </div>
           </Reveal>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+          <div className="space-y-16 sm:space-y-24">
             {FEATURES.map((f, i) => (
-              <Reveal key={i} delay={i * 0.05}>
-                <div className={`rounded-2xl border p-6 h-full transition-shadow ${f.soon ? "bg-muted/40 border-border/60 opacity-70" : "bg-card border-border shadow-card hover:shadow-card-hover"}`}>
-                  <div className="flex items-start justify-between mb-3">
-                    <span className="text-3xl">{f.emoji}</span>
-                    {f.soon && (
-                      <span className="text-[10px] font-semibold bg-accent text-accent-foreground rounded-pill px-2.5 py-1">Coming soon</span>
-                    )}
+              <Reveal key={i} delay={0.1}>
+                <div className={`grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center`}>
+                  {/* Texte */}
+                  <div className={i % 2 === 1 ? "md:order-2" : ""}>
+                    <span className="text-3xl mb-3 block">{f.emoji}</span>
+                    <h3 className="font-display text-xl sm:text-2xl font-bold mb-3">{f.title}</h3>
+                    <p className="text-muted-foreground leading-relaxed">{f.desc}</p>
                   </div>
-                  <h3 className="font-display text-base font-bold mb-0.5">{f.title}</h3>
-                  <p className="text-sm font-medium text-primary mb-2">{f.sub}</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+                  {/* Mini-mockup visuel */}
+                  <div className={i % 2 === 1 ? "md:order-1" : ""}>
+                    <FeatureVisual type={f.visual} />
+                  </div>
                 </div>
               </Reveal>
             ))}
