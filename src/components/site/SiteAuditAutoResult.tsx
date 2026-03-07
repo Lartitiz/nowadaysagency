@@ -456,6 +456,29 @@ export default function SiteAuditAutoResult({
                         Aller au module <ArrowRight className="h-3 w-3" />
                       </Button>
                     )}
+                    {/* Garde-fou branding vide */}
+                    {key === "coherence_branding" && !viewingOld && (() => {
+                      const emptyFields = displayResult.branding_prefill_from_site?.empty_fields;
+                      const brandingIsLikelyEmpty = emptyFields
+                        ? Object.values(emptyFields).filter(v => v).length >= 3
+                        : (pilier.statut === "absent" || (pilier.statut === "flou" && pilier.score <= 30));
+                      if (!brandingIsLikelyEmpty) return null;
+                      return (
+                        <div className="rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-3 mt-2">
+                          <p className="text-xs text-amber-800 dark:text-amber-300">
+                            💡 Ce score sera plus pertinent une fois ton branding complété. L'IA compare ton site avec ton profil de marque : si celui-ci est vide, la comparaison n'a pas beaucoup de sens.
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 rounded-pill text-xs mt-2 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950"
+                            onClick={() => navigate("/branding")}
+                          >
+                            Compléter mon branding <ArrowRight className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </CollapsibleContent>
               </Collapsible>
