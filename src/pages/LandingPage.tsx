@@ -1,14 +1,6 @@
-import { useState, useEffect, useRef } from "react";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import PasswordStrengthIndicator from "@/components/ui/PasswordStrengthIndicator";
 import {
   Accordion,
   AccordionContent,
@@ -23,212 +15,14 @@ import {
   Menu,
   X,
   Rocket,
-  ExternalLink,
 } from "lucide-react";
 
-/* ─── useReveal ─── */
-function useReveal(threshold = 0.15) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [threshold]);
-  return { ref, visible };
-}
-
-function Reveal({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
-  const { ref, visible } = useReveal();
-  return (
-    <div ref={ref} className={`${className} ${visible ? "animate-reveal-up" : "opacity-0"}`} style={{ animationDelay: `${delay}s` }}>
-      {children}
-    </div>
-  );
-}
-
-/* ─── SignupForm ─── */
-const signupSchema = z.object({
-  prenom: z.string().trim().min(2, "Ton prénom doit faire au moins 2 caractères").max(50),
-  email: z.string().trim().email("Entre une adresse email valide"),
-  password: z.string().min(8, "Ton mot de passe doit faire au moins 8 caractères"),
-  activite: z.string().optional(),
-});
-type SignupValues = z.infer<typeof signupSchema>;
-
-function SignupForm({ compact = false }: { compact?: boolean }) {
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<SignupValues>({
-    resolver: zodResolver(signupSchema),
-    defaultValues: { prenom: "", email: "", password: "", activite: "" },
-  });
-
-  const onSubmit = async (values: SignupValues) => {
-    setLoading(true);
-    try {
-      localStorage.setItem("lac_prenom", values.prenom);
-      localStorage.setItem("lac_activite", values.activite?.trim() || "");
-      const { data, error } = await supabase.auth.signUp({
-        email: values.email,
-        password: values.password,
-        options: { emailRedirectTo: window.location.origin },
-      });
-      if (error) throw error;
-      if (data.user) {
-        await supabase.from("profiles").insert({
-          user_id: data.user.id,
-          prenom: values.prenom,
-          activite: values.activite?.trim() || "",
-        });
-      }
-      setSuccess(true);
-      toast({ title: "Compte créé !", description: "Vérifie tes emails pour confirmer ton inscription." });
-    } catch (error: any) {
-      const msg = error.message;
-      if (msg === "User already registered") {
-        toast({
-          title: "Tu as déjà un compte !",
-          description: (<span>Connecte-toi ici : <a href="/login" className="underline font-medium text-primary">page de connexion</a></span>) as any,
-          variant: "destructive",
-        });
-      } else {
-        toast({ title: "Oups !", description: msg, variant: "destructive" });
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (success) {
-    return (
-      <div className="rounded-2xl bg-card border border-border p-6 text-center space-y-2 animate-reveal-scale">
-        <CheckCircle2 className="h-10 w-10 text-primary mx-auto" />
-        <p className="font-display text-lg font-bold text-foreground">Presque là !</p>
-        <p className="text-sm text-muted-foreground">Un email de confirmation vient d'être envoyé. Clique sur le lien pour activer ton compte.</p>
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" aria-label="Formulaire d'inscription">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="signup-prenom" className="sr-only">Prénom</label>
-          <Input id="signup-prenom" {...register("prenom")} placeholder="Ton prénom" aria-required="true" className="rounded-xl h-12 bg-card border-border" />
-          {errors.prenom && <p className="text-destructive text-xs mt-1" role="alert">{errors.prenom.message}</p>}
-        </div>
-        <div>
-          <label htmlFor="signup-email" className="sr-only">Email</label>
-          <Input id="signup-email" type="email" {...register("email")} placeholder="Ton email" aria-required="true" className="rounded-xl h-12 bg-card border-border" />
-          {errors.email && <p className="text-destructive text-xs mt-1" role="alert">{errors.email.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="signup-activite" className="sr-only">Activité</label>
-          <Input id="signup-activite" {...register("activite")} placeholder="Ex : photographe, coach, artisane..." className="rounded-xl h-12 bg-card border-border" />
-        </div>
-        <div>
-          <label htmlFor="signup-password" className="sr-only">Mot de passe</label>
-          <Input id="signup-password" type="password" {...register("password")} placeholder="Mot de passe (8 car. min.)" aria-required="true" className="rounded-xl h-12 bg-card border-border" />
-          {errors.password && <p className="text-destructive text-xs mt-1" role="alert">{errors.password.message}</p>}
-          <PasswordStrengthIndicator password={watch("password") || ""} />
-        </div>
-      </div>
-      <label className="flex items-start gap-2 text-xs text-muted-foreground">
-        <input type="checkbox" required className="mt-0.5 accent-primary" />
-        <span>
-          J'accepte les{" "}
-          <a href="/cgu-cgv" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">CGU / CGV</a>
-          {" "}et la{" "}
-          <a href="/confidentialite" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">politique de confidentialité</a>.
-        </span>
-      </label>
-      <Button type="submit" disabled={loading} className="w-full sm:w-auto h-12 rounded-pill px-10 text-base font-medium">
-        {loading ? "Un instant..." : "🚀 Commencer gratuitement"}
-      </Button>
-      <p className="text-xs text-muted-foreground">Gratuit. Sans carte bancaire. En 30 secondes.</p>
-    </form>
-  );
-}
-
-/* ─── StickyCTA ─── */
-function StickyCTA() {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setVisible(window.scrollY > 600);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-  if (!visible) return null;
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] bg-card/90 backdrop-blur-md border-t border-border lg:hidden animate-reveal-up">
-      <a href="#signup-section" onClick={(e) => { e.preventDefault(); document.getElementById("signup-section")?.scrollIntoView({ behavior: "smooth" }); }}
-        className="block w-full text-center rounded-pill bg-primary text-primary-foreground py-3 font-medium shadow-cta">
-        🚀 Accéder gratuitement
-      </a>
-    </div>
-  );
-}
-
-/* ─── Marquee brands ─── */
-const BRANDS = [
-  "Napperon", "Mazeh Paris", "Boom Boom Dance", "Terra y Mar",
-  "Atelier Tiket", "Hopla Studio", "File ton cuir",
-  "Yza Handmade", "Awqa", "Ti Matelot",
-];
-
-function BrandMarquee() {
-  const [isVisible, setIsVisible] = useState(false);
-  const marqueeRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = marqueeRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setIsVisible(true); observer.disconnect(); } },
-      { rootMargin: "100px" }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div ref={marqueeRef} className="overflow-hidden relative py-4">
-      <div className={`flex whitespace-nowrap gap-8 ${isVisible ? "animate-marquee" : ""}`}>
-        {[...BRANDS, ...BRANDS].map((b, i) => (
-          <span key={i} className="inline-block px-6 py-2.5 rounded-xl bg-card border border-border text-sm font-semibold text-foreground shrink-0">
-            {b}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─── Founder photo ─── */
-import laetitiaPhoto from "@/assets/laetitia-photo.webp";
+import Reveal from "@/components/landing/Reveal";
+import SignupForm from "@/components/landing/SignupForm";
+import StickyCTA from "@/components/landing/StickyCTA";
+import BrandMarquee from "@/components/landing/BrandMarquee";
+import FounderPhoto from "@/components/landing/FounderPhoto";
 import MiniDiagnostic from "@/components/landing/MiniDiagnostic";
-
-function FounderPhoto() {
-  return (
-    <img
-      src={laetitiaPhoto}
-      alt="Laetitia, fondatrice de Nowadays"
-      className="w-full max-w-xs rounded-2xl shadow-strong object-cover aspect-[3/4]"
-      loading="lazy"
-      decoding="async"
-    />
-  );
-}
 
 /* ─── Features grid data ─── */
 const FEATURES = [
@@ -339,7 +133,7 @@ export default function LandingPage() {
       {/* ═══ HERO ═══ */}
       <main id="main-content" role="main">
       <section aria-label="Présentation de L'Assistant Com'" className="relative py-16 sm:py-24 lg:py-32 px-4 overflow-hidden">
-        {/* Background shapes — NO circles */}
+        {/* Background shapes */}
         <div className="absolute -top-20 -right-32 w-[500px] h-[320px] bg-rose-soft/40 blur-[80px] pointer-events-none animate-float" style={{ clipPath: "polygon(20% 0%, 80% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%)" }} />
         <div className="absolute bottom-0 -left-24 w-[400px] h-[250px] bg-accent/20 blur-[80px] pointer-events-none animate-float" style={{ animationDelay: "2s", clipPath: "polygon(25% 0%, 75% 0%, 100% 40%, 85% 100%, 15% 100%, 0% 40%)" }} />
 
