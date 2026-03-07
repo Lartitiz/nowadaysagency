@@ -505,10 +505,10 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
           if (prefill.combats?.length) newProfile.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
           if (prefill.values?.length) newProfile.values = prefill.values;
           if (prefill.content_pillars?.length) newProfile.content_pillars = prefill.content_pillars;
-          if (prefill.combat_structured?.combat_cause) newProfile.combat_cause = prefill.combat_structured.combat_cause;
-          if (prefill.combat_structured?.combat_fights) newProfile.combat_fights = prefill.combat_structured.combat_fights;
-          if (prefill.combat_structured?.combat_alternative) newProfile.combat_alternative = prefill.combat_structured.combat_alternative;
-          if (prefill.combat_structured?.combat_refusals) newProfile.combat_refusals = prefill.combat_structured.combat_refusals;
+          if (combatData?.combat_cause) newProfile.combat_cause = combatData.combat_cause;
+          if (combatData?.combat_fights) newProfile.combat_fights = combatData.combat_fights;
+          if (combatData?.combat_alternative) newProfile.combat_alternative = combatData.combat_alternative;
+          if (combatData?.combat_refusals) newProfile.combat_refusals = combatData.combat_refusals;
           await supabaseAdmin.from("brand_profile").insert(newProfile);
         }
 
