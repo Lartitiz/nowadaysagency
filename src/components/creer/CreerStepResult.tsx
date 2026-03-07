@@ -8,6 +8,7 @@ import StoryResult from "@/components/creer/formatRenderers/StoryResult";
 import PostResult from "@/components/creer/formatRenderers/PostResult";
 import LinkedInResult from "@/components/creer/formatRenderers/LinkedInResult";
 import NewsletterResult from "@/components/creer/formatRenderers/NewsletterResult";
+import PinterestVisualResult from "@/components/creer/formatRenderers/PinterestVisualResult";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -58,6 +59,13 @@ const PROGRESS_MESSAGES: Record<string, string[]> = {
     "L'IA construit la narration slide par slide…",
     "Ajout des interactions (sondage, quiz)…",
     "Peaufinage du CTA final…",
+  ],
+  pinterest_visual: [
+    "Composition de ton épingle...",
+    "Création du layout infographie...",
+    "Application de ta charte graphique...",
+    "Génération du titre SEO...",
+    "Dernières retouches...",
   ],
   default: [
     "L'IA rédige ton contenu…",
@@ -149,6 +157,9 @@ interface Props {
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   onStoriesUpdate?: (stories: any[]) => void;
   photos?: { preview: string; base64?: string; name?: string }[];
+  pinterestPinHtml?: string | null;
+  onExportPinterestPng?: () => void;
+  onExportPinterestPptx?: () => void;
 }
 
 export default function CreerStepResult({
@@ -171,6 +182,9 @@ export default function CreerStepResult({
   onSlidesUpdate,
   onStoriesUpdate,
   photos,
+  pinterestPinHtml,
+  onExportPinterestPng,
+  onExportPinterestPptx,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
@@ -285,6 +299,8 @@ export default function CreerStepResult({
         return <LinkedInResult result={result} />;
       case "newsletter":
         return <NewsletterResult result={result} />;
+      case "pinterest_visual":
+        return <PinterestVisualResult result={{ raw: result }} pinHtml={pinterestPinHtml || null} />;
       default:
         return <PostResult result={result} />;
     }
@@ -407,6 +423,20 @@ export default function CreerStepResult({
           <Button variant="ghost" size="sm" onClick={onGenerateVisuals} className="gap-1.5 text-xs text-muted-foreground">
             <RefreshCw className="h-3.5 w-3.5" /> Regénérer visuels
           </Button>
+        )}
+        {format === "pinterest_visual" && result?.pin_html && (
+          <>
+            {onExportPinterestPng && (
+              <Button variant="ghost" size="sm" onClick={onExportPinterestPng} className="gap-1.5 text-xs text-muted-foreground">
+                <Download className="h-3.5 w-3.5" /> PNG
+              </Button>
+            )}
+            {onExportPinterestPptx && (
+              <Button variant="ghost" size="sm" onClick={onExportPinterestPptx} className="gap-1.5 text-xs text-muted-foreground">
+                <Download className="h-3.5 w-3.5" /> PPTX
+              </Button>
+            )}
+          </>
         )}
         <Button variant="ghost" size="sm" onClick={onReset} className="gap-1.5 text-xs text-muted-foreground">
           <RotateCcw className="h-3.5 w-3.5" /> Nouveau contenu

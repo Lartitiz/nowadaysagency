@@ -16,7 +16,8 @@ import CreerStepResult from "@/components/creer/CreerStepResult";
 import CreerStepEdit from "@/components/creer/CreerStepEdit";
 import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import { useContentGenerator } from "@/hooks/use-content-generator";
-import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
+import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
+import { exportPinterestVisualPptx, exportPinterestVisualPng } from "@/lib/export-pinterest-visual-pptx";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
@@ -96,6 +97,8 @@ export default function CreerUnifie() {
   const [demoGenerating, setDemoGenerating] = useState(false);
   const [pinterestData, setPinterestData] = useState<{ link?: string; boardId?: string; boardName?: string } | null>(null);
   const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(false);
+  const [pinterestPinHtml, setPinterestPinHtml] = useState<string | null>(null);
+  const [pinterestVisualGenerating, setPinterestVisualGenerating] = useState(false);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
@@ -417,6 +420,7 @@ export default function CreerUnifie() {
     // Reset post-generation state on new generation
     setSavedId(null);
     setVisualSlides([]);
+    setPinterestPinHtml(null);
     const enrichedSubject = existingCalendarContent
       ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
       : ideaText;
@@ -436,7 +440,7 @@ export default function CreerUnifie() {
       // Build angle object matching classic path
       const angleObj = editorialAngle
         ? (() => {
-            const found = EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || LINKEDIN_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || PINTEREST_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle);
+            const found = EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || LINKEDIN_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || PINTEREST_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || PINTEREST_VISUAL_ANGLES.find((a) => a.id === editorialAngle);
             const structureId = getStructureForCombo(selectedFormat, editorialAngle);
             const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
             return found
@@ -477,6 +481,42 @@ export default function CreerUnifie() {
         } catch {
           setResult({ type: selectedFormat as any, raw: { content: fullText } });
         }
+      }
+      return;
+    }
+
+    // Épingle visuelle Pinterest : appel direct (comme carousel mais une seule slide)
+    if (selectedFormat === "pinterest_visual") {
+      setStep("result");
+      setPinterestPinHtml(null);
+      setPinterestVisualGenerating(true);
+      try {
+        const pinType = editorialAngle || "infographie";
+        const { data, error: fnError } = await invokeWithTimeout("pinterest-visual", {
+          body: {
+            subject: enrichedSubject,
+            pin_type: pinType,
+            pinterest_link: pinterestData?.link,
+            pinterest_board: pinterestData?.boardName,
+            workspace_id: workspaceId || undefined,
+          },
+        }, 120000);
+        if (fnError) throw fnError;
+        if (data?.error) throw new Error(data.error);
+        const r = data?.result;
+        setPinterestPinHtml(r?.pin_html || null);
+        setResult({
+          type: "pinterest_visual" as any,
+          raw: {
+            pin_html: r?.pin_html,
+            title: r?.title,
+            description: r?.description,
+          },
+        });
+      } catch (e: any) {
+        toast.error(e?.message || "Erreur lors de la génération du visuel Pinterest");
+      } finally {
+        setPinterestVisualGenerating(false);
       }
       return;
     }
@@ -598,6 +638,7 @@ export default function CreerUnifie() {
     setLaunchIndex(0);
     setSavedId(null);
     setVisualSlides([]);
+    setPinterestPinHtml(null);
     setCarouselSubMode(null);
     setIsLinkedInCarousel(false);
     setUploadedPhotos([]);
@@ -920,7 +961,7 @@ export default function CreerUnifie() {
       const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
       const r = result?.raw;
       const fmt = selectedFormat === "story" ? "story_serie" : (selectedFormat || "post");
-      const canal = selectedFormat === "linkedin" || isLinkedInCarousel ? "linkedin" : selectedFormat === "pinterest" ? "pinterest" : selectedFormat === "newsletter" ? "newsletter" : "instagram";
+      const canal = selectedFormat === "linkedin" || isLinkedInCarousel ? "linkedin" : selectedFormat === "pinterest" || selectedFormat === "pinterest_visual" ? "pinterest" : selectedFormat === "newsletter" ? "newsletter" : "instagram";
 
       const { data: insertedPost, error: insertError } = await supabase.from("calendar_posts").insert({
         user_id: session.user.id,
@@ -1083,6 +1124,28 @@ export default function CreerUnifie() {
     }
   };
 
+  const handleExportPinterestPptx = async () => {
+    if (!pinterestPinHtml) return;
+    try {
+      toast.info("Export PPTX en cours...");
+      await exportPinterestVisualPptx(pinterestPinHtml, ideaText || "epingle-pinterest");
+      toast.success("PPTX téléchargé !");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'export");
+    }
+  };
+
+  const handleExportPinterestPng = async () => {
+    if (!pinterestPinHtml) return;
+    try {
+      toast.info("Export PNG en cours...");
+      await exportPinterestVisualPng(pinterestPinHtml, ideaText || "epingle-pinterest");
+      toast.success("PNG téléchargé !");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'export");
+    }
+  };
+
   // ── Launch sequence (5 chapters) ──
 
   const handleLaunchSequence = async (format: string, angle: string) => {
@@ -1208,7 +1271,7 @@ export default function CreerUnifie() {
               />
             )}
 
-            {step === "result" && !isLaunchMode && !generating && !demoGenerating && !streaming && !result && (
+            {step === "result" && !isLaunchMode && !generating && !demoGenerating && !streaming && !pinterestVisualGenerating && !result && (
               <div className="py-12 text-center space-y-4 animate-fade-in">
                 {error ? (
                   <p className="text-destructive font-medium">{error}</p>
@@ -1232,11 +1295,11 @@ export default function CreerUnifie() {
               </div>
             )}
 
-            {step === "result" && !isLaunchMode && (generating || demoGenerating || streaming || result) && (
+            {step === "result" && !isLaunchMode && (generating || demoGenerating || streaming || pinterestVisualGenerating || result) && (
               <CreerStepResult
                 result={result?.raw || result}
                 format={selectedFormat || "post"}
-                generating={generating || demoGenerating || streaming}
+                generating={generating || demoGenerating || streaming || pinterestVisualGenerating}
                 streamingContent={streaming ? streamingContent : undefined}
                 photos={(carouselSubMode === "photo" || carouselSubMode === "mix") ? uploadedPhotos : undefined}
                 onEdit={handleEdit}
@@ -1251,6 +1314,9 @@ export default function CreerUnifie() {
                 visualSlides={visualSlides.length > 0 ? visualSlides : undefined}
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
                 onExportVisualPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPptx : undefined}
+                pinterestPinHtml={pinterestPinHtml}
+                onExportPinterestPng={handleExportPinterestPng}
+                onExportPinterestPptx={handleExportPinterestPptx}
                 onSlidesUpdate={selectedFormat === "carousel" ? (slides, caption) => {
                   if (result?.raw) {
                     result.raw.slides = slides;
