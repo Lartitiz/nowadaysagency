@@ -16,7 +16,7 @@ import CreerStepResult from "@/components/creer/CreerStepResult";
 import CreerStepEdit from "@/components/creer/CreerStepEdit";
 import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import { useContentGenerator } from "@/hooks/use-content-generator";
-import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
+import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
@@ -395,7 +395,7 @@ export default function CreerUnifie() {
       // Build angle object matching classic path
       const angleObj = editorialAngle
         ? (() => {
-            const found = EDITORIAL_ANGLES.find((a) => a.id === editorialAngle);
+            const found = EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || LINKEDIN_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle);
             const structureId = getStructureForCombo(selectedFormat, editorialAngle);
             const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
             return found

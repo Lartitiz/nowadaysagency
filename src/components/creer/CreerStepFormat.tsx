@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -13,6 +13,20 @@ import {
 } from "@/lib/content-structures";
 import { PhotoUploadZone, type PhotoItem } from "@/components/creer/PhotoUploadZone";
 
+const CHANNELS = [
+  { id: "instagram" as const, emoji: "📸", label: "Instagram", desc: "Carrousel, Reel, Story, Post" },
+  { id: "linkedin" as const, emoji: "💼", label: "LinkedIn", desc: "Post texte professionnel" },
+  { id: "newsletter" as const, emoji: "📧", label: "Newsletter", desc: "Email long format" },
+];
+
+type ChannelId = "instagram" | "linkedin" | "newsletter";
+
+function deduceChannel(format: string): ChannelId {
+  if (format === "linkedin") return "linkedin";
+  if (format === "newsletter") return "newsletter";
+  return "instagram";
+}
+
 interface Props {
   idea: string;
   objective?: string;
@@ -22,6 +36,9 @@ interface Props {
 }
 
 export default function CreerStepFormat({ idea, objective, initialFormat, onNext, onBack }: Props) {
+  const [selectedChannel, setSelectedChannel] = useState<ChannelId | null>(
+    initialFormat ? deduceChannel(initialFormat) : null
+  );
   const [selectedFormat, setSelectedFormat] = useState<string | null>(initialFormat || null);
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | null>(null);
@@ -31,7 +48,9 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
   const [postPhoto, setPostPhoto] = useState<PhotoItem[]>([]);
   const [postPhotoDescription, setPostPhotoDescription] = useState("");
 
-  const typeEntries = Object.entries(CONTENT_TYPE_SPECS);
+  const typeEntries = Object.entries(CONTENT_TYPE_SPECS).filter(
+    ([, spec]) => selectedChannel === "instagram" ? spec.channel === "instagram" : true
+  );
   const priorityTypes = objective ? OBJECTIVE_RECOMMENDATIONS[objective]?.priorityTypes || [] : [];
 
   const { recommended, others } = selectedFormat
@@ -41,6 +60,31 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
   const handleFormatSelect = (id: string) => {
     if (CONTENT_TYPE_SPECS[id]?.comingSoon) return;
     setSelectedFormat(id);
+    setSelectedAngle(undefined);
+    setCarouselSubMode(null);
+    setUploadedPhotos([]);
+    setPhotoDescription("");
+    setPhotoMode(false);
+    setPostPhoto([]);
+    setPostPhotoDescription("");
+  };
+
+  const handleChannelSelect = (channelId: ChannelId) => {
+    setSelectedChannel(channelId);
+    if (channelId === "linkedin") {
+      handleFormatSelect("linkedin");
+    } else if (channelId === "newsletter") {
+      handleFormatSelect("newsletter");
+    } else {
+      // Instagram: reset format so user picks from sub-grid
+      setSelectedFormat(null);
+      setSelectedAngle(undefined);
+    }
+  };
+
+  const handleChangeChannel = () => {
+    setSelectedChannel(null);
+    setSelectedFormat(null);
     setSelectedAngle(undefined);
     setCarouselSubMode(null);
     setUploadedPhotos([]);
@@ -113,39 +157,80 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Format selection */}
-      <div className="space-y-3">
-        <p className="text-sm font-semibold text-foreground">Quel type de contenu ?</p>
-        <div className="grid grid-cols-2 gap-2">
-          {typeEntries.map(([id, spec]) => {
-            const isRecommended = priorityTypes.includes(id);
-            const isSelected = selectedFormat === id;
-            return (
+      {/* Channel selection */}
+      {!selectedChannel && (
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-foreground">Sur quel canal publier ?</p>
+          <div className="grid grid-cols-3 gap-2">
+            {CHANNELS.map((ch) => (
               <button
-                key={id}
-                onClick={() => handleFormatSelect(id)}
-                disabled={spec.comingSoon}
-                className={`relative rounded-xl border-2 p-3 text-center transition-all ${
-                  spec.comingSoon
-                    ? "opacity-40 cursor-not-allowed border-border bg-muted"
-                    : isSelected
-                    ? "border-primary bg-primary/5 shadow-sm"
-                    : "border-border bg-card hover:border-primary/40"
-                }`}
+                key={ch.id}
+                onClick={() => handleChannelSelect(ch.id)}
+                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
               >
-                <span className="text-2xl block mb-1">{spec.emoji}</span>
-                <span className="text-xs font-semibold text-foreground">{spec.label}</span>
-                {spec.comingSoon && (
-                  <Badge variant="secondary" className="absolute top-1 right-1 text-[9px]">Bientôt</Badge>
-                )}
-                {isRecommended && !spec.comingSoon && (
-                  <p className="text-[10px] text-primary mt-0.5">Recommandé 🎯</p>
-                )}
+                <span className="text-2xl block mb-1">{ch.emoji}</span>
+                <span className="text-xs font-semibold text-foreground">{ch.label}</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{ch.desc}</p>
               </button>
-            );
-          })}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Format selection (Instagram sub-grid) */}
+      {selectedChannel === "instagram" && !selectedFormat && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleChangeChannel}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+            >
+              <ArrowLeft className="h-3 w-3" /> Changer de canal
+            </button>
+          </div>
+          <p className="text-sm font-semibold text-foreground">Quel format Instagram ?</p>
+          <div className="grid grid-cols-2 gap-2">
+            {typeEntries
+              .filter(([, spec]) => spec.channel === "instagram")
+              .map(([id, spec]) => {
+                const isRecommended = priorityTypes.includes(id);
+                return (
+                  <button
+                    key={id}
+                    onClick={() => handleFormatSelect(id)}
+                    disabled={spec.comingSoon}
+                    className={`relative rounded-xl border-2 p-3 text-center transition-all ${
+                      spec.comingSoon
+                        ? "opacity-40 cursor-not-allowed border-border bg-muted"
+                        : "border-border bg-card hover:border-primary/40"
+                    }`}
+                  >
+                    <span className="text-2xl block mb-1">{spec.emoji}</span>
+                    <span className="text-xs font-semibold text-foreground">{spec.label}</span>
+                    {spec.comingSoon && (
+                      <Badge variant="secondary" className="absolute top-1 right-1 text-[9px]">Bientôt</Badge>
+                    )}
+                    {isRecommended && !spec.comingSoon && (
+                      <p className="text-[10px] text-primary mt-0.5">Recommandé 🎯</p>
+                    )}
+                  </button>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Channel back button when format is selected */}
+      {selectedChannel && selectedFormat && (
+        <div>
+          <button
+            onClick={handleChangeChannel}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+          >
+            <ArrowLeft className="h-3 w-3" /> Changer de canal
+          </button>
+        </div>
+      )}
 
       {/* Post photo toggle */}
       {selectedFormat === "post" && (
