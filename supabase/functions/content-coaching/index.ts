@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 
 Deno.serve(async (req) => {
