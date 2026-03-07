@@ -139,15 +139,18 @@ export default function LandingPage() {
 
         <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-12 lg:gap-16 items-center">
           <div className="animate-reveal-up">
+            <span className="inline-flex items-center gap-1.5 rounded-pill bg-primary/10 text-primary text-xs font-semibold px-4 py-1.5 mb-6">
+              ✨ Pour solopreneuses créatives et éthiques
+            </span>
             <h1 className="font-display text-[28px] sm:text-[40px] lg:text-[52px] font-bold leading-[1.12] text-foreground">
-              Ta com' te prend la tête ?
+              L'outil de com' que t'aurais aimé avoir
               <br />
-              <span className="text-primary">On a créé l'outil qu'il te fallait.</span>
+              <span className="text-primary">depuis le début.</span>
             </h1>
             <p className="mt-6 text-base sm:text-lg text-muted-foreground max-w-xl leading-relaxed">
-              Définis ta marque, trouve des idées de contenu, planifie ta communication, optimise tes réseaux. Tout au même endroit.
+              Branding, création de contenu, calendrier éditorial, audits Instagram et SEO. Tout au même endroit, guidé pas à pas.
               <br className="hidden sm:block" />
-              <strong className="text-foreground">Basé sur une vraie méthode, pas du bullshit marketing.</strong>
+              <strong className="text-foreground">Conçu pour les projets engagés. Avec une vraie méthode dedans.</strong>
               <span className="sr-only">Outil de communication tout-en-un pour solopreneuses, artisanes, coachs et freelances créatives.</span>
             </p>
             <div className="mt-8">
@@ -162,27 +165,57 @@ export default function LandingPage() {
           {/* App screenshot mockup */}
           <div className="hidden lg:block animate-reveal-up" style={{ animationDelay: "0.2s" }}>
             <div className="relative">
-              <div className="rounded-2xl bg-card border border-border shadow-strong p-5 transform rotate-1 hover:rotate-0 transition-transform duration-500">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="h-3 w-8 rounded-sm bg-primary/60" />
-                  <div className="h-2 w-24 rounded-sm bg-muted" />
-                  <div className="ml-auto h-6 w-20 rounded-pill bg-accent" />
+              <div className="rounded-2xl bg-card border border-border shadow-strong p-5 transform rotate-1 hover:rotate-0 transition-transform duration-500 space-y-4">
+
+                {/* Mini calendrier semaine */}
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 font-mono">📅 Calendrier éditorial</p>
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((jour) => (
+                      <span key={jour} className="text-[9px] text-muted-foreground text-center font-medium">{jour}</span>
+                    ))}
+                    <div className="h-8 rounded-lg bg-green-100 border border-green-200 flex items-center justify-center text-xs">📸</div>
+                    <div className="h-8 rounded-lg border border-border" />
+                    <div className="h-8 rounded-lg bg-pink-100 border border-pink-200 flex items-center justify-center text-xs">🎠</div>
+                    <div className="h-8 rounded-lg border border-border" />
+                    <div className="h-8 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center text-xs">🎬</div>
+                    <div className="h-8 rounded-lg border border-border" />
+                    <div className="h-8 rounded-lg bg-green-100 border border-green-200 flex items-center justify-center text-xs">📱</div>
+                  </div>
                 </div>
-                <div className="space-y-2 mb-4">
-                  {["Storytelling", "Coup de gueule", "Conseil"].map((label) => (
-                    <div key={label} className="flex items-center gap-2">
-                      <div className="h-7 rounded-pill bg-secondary px-3 flex items-center text-xs font-medium text-secondary-foreground">{label}</div>
-                    </div>
-                  ))}
+
+                <div className="h-px bg-border" />
+
+                {/* Générateur de contenu */}
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 font-mono">✍️ Création de contenu</p>
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {["Storytelling", "Conseil", "Coulisses"].map((pilier) => (
+                      <span key={pilier} className="rounded-pill bg-secondary px-2.5 py-1 text-[10px] font-medium text-secondary-foreground">{pilier}</span>
+                    ))}
+                  </div>
+                  <div className="h-8 w-36 rounded-pill bg-primary/90 flex items-center justify-center gap-1.5 text-[11px] font-medium text-primary-foreground animate-pulse-subtle">
+                    ✨ Générer un post
+                  </div>
                 </div>
-                <div className="h-8 w-40 rounded-pill bg-primary/90 flex items-center justify-center text-xs font-medium text-primary-foreground animate-pulse-subtle">
-                  ✨ Générer un post
+
+                <div className="h-px bg-border" />
+
+                {/* Score diagnostic */}
+                <div className="flex items-center gap-4">
+                  <div className="relative w-14 h-14 shrink-0">
+                    <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                      <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" className="text-border" strokeWidth="3" />
+                      <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" className="text-primary" strokeWidth="3" strokeDasharray="72, 100" strokeLinecap="round" />
+                    </svg>
+                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">72</span>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider font-mono">🔍 Score com'</p>
+                    <p className="text-[11px] text-foreground mt-0.5">3 priorités identifiées</p>
+                  </div>
                 </div>
-                <div className="mt-4 grid grid-cols-7 gap-1">
-                  {Array.from({ length: 14 }).map((_, i) => (
-                    <div key={i} className={`h-6 rounded-sm border border-border ${i === 3 || i === 9 ? "bg-cal-ready" : i === 7 ? "bg-cal-drafting" : i === 11 ? "bg-cal-published" : ""}`} />
-                  ))}
-                </div>
+
               </div>
               <div className="absolute -z-10 -bottom-4 -right-4 w-full h-full bg-accent/30 rounded-2xl pointer-events-none" />
             </div>
