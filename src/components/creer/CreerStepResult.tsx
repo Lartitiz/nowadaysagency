@@ -8,6 +8,7 @@ import StoryResult from "@/components/creer/formatRenderers/StoryResult";
 import PostResult from "@/components/creer/formatRenderers/PostResult";
 import LinkedInResult from "@/components/creer/formatRenderers/LinkedInResult";
 import NewsletterResult from "@/components/creer/formatRenderers/NewsletterResult";
+import PinterestVisualResult from "@/components/creer/formatRenderers/PinterestVisualResult";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
