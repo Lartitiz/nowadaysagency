@@ -181,7 +181,7 @@ function AnimatedRoutes() {
       {showAppWidgets && <Suspense fallback={null}><DemoBanner /></Suspense>}
       <Suspense fallback={null}><SessionOverlay /></Suspense>
       <Suspense fallback={null}><AiDebugShortcut /></Suspense>
-      {showAppWidgets && <Suspense fallback={null}><AssistantButton /></Suspense>}
+      
       {showAppWidgets && <Suspense fallback={null}><AppSidebar /></Suspense>}
       {/* BETA_MODE: replace CoachChat with BetaFeedbackWidget during beta */}
       {showCoach && <Suspense fallback={null}><BetaFeedbackWidget /></Suspense>}
