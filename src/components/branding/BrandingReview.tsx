@@ -293,9 +293,12 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
   if (data.name) payload.portrait_prenom = data.name;
   if (data.age_range) payload.portrait_age = data.age_range;
   if (data.job) payload.description = data.job;
+  if (data.description) payload.description = data.description;
   if (data.frustrations?.length) payload.step_1_frustrations = data.frustrations.join("\n");
   if (data.desires?.length) payload.step_2_transformation = data.desires.join("\n");
   if (data.goals?.length) payload.step_3a_objections = data.goals.join("\n");
+  if (data.beautiful_world) payload.step_4_beautiful = data.beautiful_world;
+  if (data.first_actions) payload.step_5_actions = data.first_actions;
   if (data.channels) payload.channels = data.channels;
   if (data.brands_they_follow?.length) payload.step_4_inspiring = data.brands_they_follow.join(", ");
 
