@@ -895,7 +895,7 @@ export default function CreerUnifie() {
       const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
       const r = result?.raw;
       const fmt = selectedFormat === "story" ? "story_serie" : (selectedFormat || "post");
-      const canal = selectedFormat === "linkedin" ? "linkedin" : "instagram";
+      const canal = selectedFormat === "linkedin" || isLinkedInCarousel ? "linkedin" : selectedFormat === "pinterest" ? "pinterest" : selectedFormat === "newsletter" ? "newsletter" : "instagram";
 
       const { data: insertedPost, error: insertError } = await supabase.from("calendar_posts").insert({
         user_id: session.user.id,
