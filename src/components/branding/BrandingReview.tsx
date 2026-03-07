@@ -473,16 +473,38 @@ async function saveOffers(data: AnalysisResult["offers"], userId: string, worksp
   }
 }
 
+async function saveCharter(data: AnalysisResult["charter"], userId: string, workspaceId: string) {
+  if (!data) return;
+  const payload: Record<string, any> = { updated_at: new Date().toISOString() };
+  if (data.color_primary) payload.color_primary = data.color_primary;
+  if (data.color_secondary) payload.color_secondary = data.color_secondary;
+  if (data.color_accent) payload.color_accent = data.color_accent;
+  if (data.color_background) payload.color_background = data.color_background;
+  if (data.font_title) payload.font_title = data.font_title;
+  if (data.font_body) payload.font_body = data.font_body;
+  if (data.mood_keywords?.length) payload.mood_keywords = data.mood_keywords;
+  if (data.visual_style_description) payload.moodboard_description = data.visual_style_description;
+  const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
+  const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
+  const { data: existing } = await (supabase.from("brand_charter") as any)
+    .select("id").eq(filterCol, filterVal).maybeSingle();
+  if (existing?.id) {
+    await (supabase.from("brand_charter") as any).update(payload).eq("id", existing.id);
+  } else {
+    await (supabase.from("brand_charter") as any).insert({ user_id: userId, workspace_id: workspaceId || null, ...payload });
+  }
+}
+
 const SAVE_FNS: Record<SectionKey, (data: any, uid: string, wsId: string) => Promise<void>> = {
-  story: saveStory, persona: savePersona, value_proposition: saveValueProp, tone_style: saveTone, content_strategy: saveStrategy, offers: saveOffers,
+  story: saveStory, persona: savePersona, value_proposition: saveValueProp, tone_style: saveTone, content_strategy: saveStrategy, offers: saveOffers, charter: saveCharter,
 };
 
 const QUERY_KEYS: Record<SectionKey, string[]> = {
-  story: ["storytelling-primary", "storytelling-list"], persona: ["persona", "brand-profile"], value_proposition: ["brand-proposition"], tone_style: ["brand-profile"], content_strategy: ["brand-strategy", "brand-profile"], offers: ["brand-profile"],
+  story: ["storytelling-primary", "storytelling-list"], persona: ["persona", "brand-profile"], value_proposition: ["brand-proposition"], tone_style: ["brand-profile"], content_strategy: ["brand-strategy", "brand-profile"], offers: ["brand-profile"], charter: ["brand-charter"],
 };
 
 const RENDERERS: Record<SectionKey, (analysis: AnalysisResult) => React.ReactNode> = {
-  story: (a) => <StorySection data={a.story} />, persona: (a) => <PersonaSection data={a.persona} />, value_proposition: (a) => <ValuePropSection data={a.value_proposition} />, tone_style: (a) => <ToneSection data={a.tone_style} />, content_strategy: (a) => <StrategySection data={a.content_strategy} />, offers: (a) => <OffersSection data={a.offers} />,
+  story: (a) => <StorySection data={a.story} />, persona: (a) => <PersonaSection data={a.persona} />, value_proposition: (a) => <ValuePropSection data={a.value_proposition} />, tone_style: (a) => <ToneSection data={a.tone_style} />, content_strategy: (a) => <StrategySection data={a.content_strategy} />, offers: (a) => <OffersSection data={a.offers} />, charter: (a) => <CharterSection data={a.charter} />,
 };
 
 function sectionHasData(key: SectionKey, analysis: AnalysisResult): boolean {
