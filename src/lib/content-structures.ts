@@ -417,7 +417,7 @@ export const CONTENT_TYPE_SPECS: Record<string, ContentTypeSpec> = {
     emoji: "📌",
     channel: "pinterest",
     edgeFunction: "pinterest-ai",
-    comingSoon: true,
+    specs: "Titre SEO + description 100-200 mots",
   },
 };
 
