@@ -157,6 +157,9 @@ interface Props {
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   onStoriesUpdate?: (stories: any[]) => void;
   photos?: { preview: string; base64?: string; name?: string }[];
+  pinterestPinHtml?: string | null;
+  onExportPinterestPng?: () => void;
+  onExportPinterestPptx?: () => void;
 }
 
 export default function CreerStepResult({
