@@ -251,6 +251,55 @@ export const LINKEDIN_EDITORIAL_ANGLES: EditorialAngle[] = [
   },
 ];
 
+// ── 1c. PINTEREST_EDITORIAL_ANGLES ──
+
+export const PINTEREST_EDITORIAL_ANGLES: EditorialAngle[] = [
+  {
+    id: "epingle_produit",
+    label: "Épingle produit / offre",
+    emoji: "🛍️",
+    principle: "Présenter un produit ou une offre avec un titre SEO et une description qui donne envie de cliquer.",
+    defaultStructure: "conseil_pratique",
+    objectives: ["vente"],
+    phase: [3, 4],
+    declic: "projection",
+    exampleSubjects: ["Mon tote bag en lin fait main", "Séance photo portrait pour entrepreneures"],
+  },
+  {
+    id: "epingle_conseil",
+    label: "Épingle conseil / tuto",
+    emoji: "💡",
+    principle: "Partager un conseil pratique ou un mini-tuto que ta cible chercherait sur Pinterest.",
+    defaultStructure: "educationnelle",
+    objectives: ["visibilite", "credibilite"],
+    phase: [1, 2],
+    declic: "prise de conscience",
+    exampleSubjects: ["5 erreurs à éviter pour [sujet]", "Comment [action] en [durée]"],
+  },
+  {
+    id: "epingle_inspiration",
+    label: "Épingle inspiration",
+    emoji: "✨",
+    principle: "Créer une épingle aspirationnelle qui attire par l'univers visuel et le lifestyle.",
+    defaultStructure: "storytelling",
+    objectives: ["visibilite", "engagement"],
+    phase: [1],
+    declic: "identification",
+    exampleSubjects: ["Idées décoration [style]", "Routine bien-être [thème]"],
+  },
+  {
+    id: "epingle_article",
+    label: "Épingle article / blog",
+    emoji: "📝",
+    principle: "Renvoyer vers un article de blog ou une page de contenu avec un titre SEO descriptif.",
+    defaultStructure: "educationnelle",
+    objectives: ["credibilite", "visibilite"],
+    phase: [1, 2],
+    declic: "prise de conscience",
+    exampleSubjects: ["Guide complet : [sujet]", "Tout savoir sur [thème]"],
+  },
+];
+
 // ── 2. CONTENT_STRUCTURES ──
 
 export interface StructureStep {
@@ -417,7 +466,7 @@ export const CONTENT_TYPE_SPECS: Record<string, ContentTypeSpec> = {
     emoji: "📌",
     channel: "pinterest",
     edgeFunction: "pinterest-ai",
-    comingSoon: true,
+    specs: "Titre SEO + description 100-200 mots",
   },
 };
 
@@ -432,11 +481,11 @@ export interface ObjectiveRecommendation {
 }
 
 export const OBJECTIVE_RECOMMENDATIONS: Record<string, ObjectiveRecommendation> = {
-  visibilite: {
+   visibilite: {
     label: "Visibilité",
     emoji: "🔍",
-    angles: ["coup-de-gueule", "mythe", "conseil-contre-intuitif", "identification", "surf-actu", "prise_de_position", "mythe_deconstruire", "conseil_contre_courant", "decryptage_expert"],
-    priorityTypes: ["carousel", "reel", "linkedin"],
+    angles: ["coup-de-gueule", "mythe", "conseil-contre-intuitif", "identification", "surf-actu", "prise_de_position", "mythe_deconstruire", "conseil_contre_courant", "decryptage_expert", "epingle_conseil", "epingle_inspiration", "epingle_article"],
+    priorityTypes: ["carousel", "reel", "linkedin", "pinterest"],
     hookTypes: ["choc", "question", "statistique"],
   },
   engagement: {
@@ -449,14 +498,14 @@ export const OBJECTIVE_RECOMMENDATIONS: Record<string, ObjectiveRecommendation> 
   vente: {
     label: "Vente",
     emoji: "🛒",
-    angles: ["histoire-cliente", "before-after", "storytelling", "surf-actu", "test", "etude_de_cas", "storytelling_pro"],
-    priorityTypes: ["carousel", "linkedin", "newsletter"],
+    angles: ["histoire-cliente", "before-after", "storytelling", "surf-actu", "test", "etude_de_cas", "storytelling_pro", "epingle_produit"],
+    priorityTypes: ["carousel", "linkedin", "newsletter", "pinterest"],
     hookTypes: ["resultat", "transformation", "preuve"],
   },
   credibilite: {
     label: "Crédibilité",
     emoji: "🎓",
-    angles: ["enquete", "analyse-profondeur", "regard-philo", "mythe", "test", "decryptage_expert", "conseil_contre_courant", "reflexion_de_fond"],
+    angles: ["enquete", "analyse-profondeur", "regard-philo", "mythe", "test", "decryptage_expert", "conseil_contre_courant", "reflexion_de_fond", "epingle_conseil", "epingle_article"],
     priorityTypes: ["carousel", "linkedin", "newsletter"],
     hookTypes: ["donnee", "expertise", "decryptage"],
   },
@@ -505,9 +554,10 @@ export function getAnglesForType(
   contentType: string,
   objective?: string
 ): { recommended: EditorialAngle[]; others: EditorialAngle[] } {
-  // LinkedIn has its own dedicated angles
+  // LinkedIn and Pinterest have their own dedicated angles
   const isLinkedIn = contentType === "linkedin";
-  const angleSource = isLinkedIn ? LINKEDIN_EDITORIAL_ANGLES : EDITORIAL_ANGLES;
+  const isPinterest = contentType === "pinterest";
+  const angleSource = isLinkedIn ? LINKEDIN_EDITORIAL_ANGLES : isPinterest ? PINTEREST_EDITORIAL_ANGLES : EDITORIAL_ANGLES;
 
   if (!objective || !OBJECTIVE_RECOMMENDATIONS[objective]) {
     return { recommended: [], others: [...angleSource] };
