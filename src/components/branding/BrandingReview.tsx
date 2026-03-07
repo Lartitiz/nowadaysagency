@@ -832,7 +832,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
           <div className="flex-1">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[13px] font-semibold text-foreground">
-                {allDone ? "Branding complété ! 🎉" : `${validatedCount}/6 sections validées`}
+                {allDone ? "Branding complété ! 🎉" : `${validatedCount}/7 sections validées`}
               </span>
               {allDone && (
                 <motion.button initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} onClick={onDone} className="text-[13px] font-semibold text-[#fb3d80] hover:underline">
