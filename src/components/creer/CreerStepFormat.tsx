@@ -457,7 +457,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
       )}
 
       {/* Pinterest specifics */}
-      {selectedFormat === "pinterest" && (
+      {(selectedFormat === "pinterest" || selectedFormat === "pinterest_visual") && (
         <div className="space-y-4 animate-fade-in">
           <p className="text-sm font-semibold text-foreground">Détails de l'épingle</p>
 
