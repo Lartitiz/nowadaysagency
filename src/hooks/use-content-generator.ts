@@ -181,6 +181,7 @@ export function useContentGenerator() {
           const res = await supabase.functions.invoke("carousel-ai", {
             body: {
               type: "express_full",
+              channel: params.channel || "instagram",
               carousel_type: effectiveCarouselType,
               subject: effectiveSubject,
               subject_details: existingContent || undefined,
