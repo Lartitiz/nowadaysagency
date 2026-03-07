@@ -162,6 +162,7 @@ interface PageData {
   metaDescription?: string;
   headings: { h1: string[]; h2: string[]; h3: string[] };
   visibleText: string;
+  styleHints: string;
   navLinks: string[];
   images: { count: number; alts: string[] };
   ctas: string[];
