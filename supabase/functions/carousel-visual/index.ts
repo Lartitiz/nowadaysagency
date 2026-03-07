@@ -681,15 +681,27 @@ Retourne UNIQUEMENT le JSON.`;
 
     let result: any;
     try {
-      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+      // Strip markdown code fences if present
+      let cleaned = rawResponse.replace(/```(?:json)?\s*/gi, "").replace(/```\s*$/gi, "");
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         result = JSON.parse(jsonMatch[0]);
       } else {
         throw new Error("No JSON found");
       }
-    } catch {
+    } catch (parseErr) {
       console.error("Failed to parse carousel-visual response:", rawResponse.slice(0, 500));
-      throw new Error("L'IA n'a pas retourné un format valide. Réessaie.");
+      // Retry: try to find the slides_html array directly
+      try {
+        const arrayMatch = rawResponse.match(/\[\s*\{[\s\S]*\}\s*\]/);
+        if (arrayMatch) {
+          result = { slides_html: JSON.parse(arrayMatch[0]) };
+        } else {
+          throw parseErr;
+        }
+      } catch {
+        throw new Error("L'IA n'a pas retourné un format valide. Réessaie.");
+      }
     }
 
     // ═══ Post-processing : injecter les photos base64 dans le HTML ═══
