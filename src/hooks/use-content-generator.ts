@@ -269,15 +269,22 @@ export function useContentGenerator() {
         }
 
         case "linkedin": {
-          const res = await supabase.functions.invoke("linkedin-ai", {
+          // LinkedIn is now handled via creative-flow streaming in CreerUnifie.
+          // This fallback exists for edge cases only.
+          const angle = editorialAngle
+            ? EDITORIAL_ANGLES.find((a) => a.id === editorialAngle)
+            : undefined;
+          const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
+          const res = await supabase.functions.invoke("creative-flow", {
             body: {
-              action: "generate-post",
-              sujet: effectiveSubject + (existingContent ? `\n\n${existingContent}` : ""),
-              template: "expert_insight",
-              audience: "tu",
+              step: "generate",
+              contentType: "post_linkedin",
+              context: effectiveSubject + (existingContent ? `\n\n[Contenu existant]\n${existingContent}` : ""),
+              angle: angle
+                ? { title: angle.label, structure: structure?.steps.map((s) => s.label), tone: "direct, chaleureux, professionnel" }
+                : undefined,
               objective: objective || null,
-              editorial_angle: editorialAngle || null,
-              content_structure: structurePrompt || null,
+              editorialFormat: editorialAngle || null,
               workspace_id: workspaceId || null,
             },
           });
