@@ -300,8 +300,9 @@ Réponds UNIQUEMENT en JSON :
       const isReel = formatHint.includes("reel") || formatHint.includes("script");
       const isStories = formatHint.includes("stories") || formatHint.includes("story");
       const isLinkedIn = formatHint.includes("linkedin") || contentType === "post_linkedin";
+      const isPinterest = formatHint.includes("pinterest") || contentType === "post_pinterest";
       const isNewsletter = formatHint.includes("newsletter") || formatHint.includes("email") || contentType === "post_newsletter";
-      const isCaption = !isCarousel && !isReel && !isStories && !isLinkedIn && !isNewsletter;
+      const isCaption = !isCarousel && !isReel && !isStories && !isLinkedIn && !isPinterest && !isNewsletter;
       const isPhotoMode = body.photo_mode === true;
 
       // Build format-specific depth instructions
