@@ -482,6 +482,7 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
           .eq(filterCol, filterVal)
           .maybeSingle();
 
+        const combatData = prefill.combat_structured || enrichmentResult?.combat_structured;
         if (existingProfile) {
           const updates: Record<string, unknown> = {};
           if (!existingProfile.positioning && prefill.positioning) updates.positioning = prefill.positioning;
