@@ -445,7 +445,7 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
     if (offersResult) secondaryPages.push(offersResult);
   }
 
-  const sections = [`=== PAGE D'ACCUEIL ===\n${mainText}`];
+  const sections = [`=== PAGE D'ACCUEIL ===\n${mainText}${visualInfo}`];
   for (const page of secondaryPages) {
     sections.push(`=== ${page.title} ===\n${page.content}`);
   }

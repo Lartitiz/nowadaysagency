@@ -58,6 +58,7 @@ const SECTIONS = [
   { key: "tone_style", title: "Ton & style", emoji: "🎙️" },
   { key: "content_strategy", title: "Ta stratégie de contenu", emoji: "🍒" },
   { key: "offers", title: "Tes offres", emoji: "🎁" },
+  { key: "charter", title: "Ta charte graphique", emoji: "🎨" },
 ] as const;
 
 type SectionKey = (typeof SECTIONS)[number]["key"];
