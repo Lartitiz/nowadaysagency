@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
       "Liste-appât : 'Les 3 [trucs] que [les experts] ne disent jamais'",
       "Comparaison inattendue : '[Chose A] et [chose B] ont plus en commun qu'on croit'",
       "Interpellation directe : 'Tu fais probablement [erreur]. Voici pourquoi.'",
-      "Polarisation douce : 'Il y a 2 types de [profession]. Lequel es-tu ?'",
+      "Polarisation douce : Opposer deux postures face à un enjeu du métier et demander laquelle résonne",
       "Promesse-mystère : 'Le truc qui a changé [aspect] dans mon business. (C'est pas ce que tu crois.)'",
     ];
     const shuffledHooks = HOOK_STRUCTURES.sort(() => Math.random() - 0.5).slice(0, 3);
