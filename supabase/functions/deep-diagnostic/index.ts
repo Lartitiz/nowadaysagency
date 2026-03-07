@@ -542,6 +542,80 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
           }
         }
 
+        // Resolve profileUserId for voice_profile and brand_charter
+        let profileUserId = userId;
+        if (workspaceId) {
+          const { data: ownerRow } = await supabaseAdmin
+            .from("workspace_members")
+            .select("user_id")
+            .eq("workspace_id", workspaceId)
+            .eq("role", "owner")
+            .maybeSingle();
+          if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+        }
+
+        // voice_profile
+        const voicePrefill = prefill.voice_prefill || enrichmentResult?.voice_prefill;
+        if (voicePrefill && (voicePrefill.voice_summary || voicePrefill.tone_patterns?.length || voicePrefill.signature_expressions?.length)) {
+          const { data: existingVoice } = await supabaseAdmin
+            .from("voice_profile")
+            .select("id, voice_summary, tone_patterns, signature_expressions, banned_expressions")
+            .eq("user_id", profileUserId)
+            .maybeSingle();
+
+          if (existingVoice) {
+            const vUpdates: Record<string, unknown> = {};
+            if (!existingVoice.voice_summary && voicePrefill.voice_summary) vUpdates.voice_summary = voicePrefill.voice_summary;
+            if ((!existingVoice.tone_patterns || (Array.isArray(existingVoice.tone_patterns) && existingVoice.tone_patterns.length === 0)) && voicePrefill.tone_patterns?.length) vUpdates.tone_patterns = voicePrefill.tone_patterns;
+            if ((!existingVoice.signature_expressions || (Array.isArray(existingVoice.signature_expressions) && existingVoice.signature_expressions.length === 0)) && voicePrefill.signature_expressions?.length) vUpdates.signature_expressions = voicePrefill.signature_expressions;
+            if ((!existingVoice.banned_expressions || (Array.isArray(existingVoice.banned_expressions) && existingVoice.banned_expressions.length === 0)) && voicePrefill.banned_expressions?.length) vUpdates.banned_expressions = voicePrefill.banned_expressions;
+            if (Object.keys(vUpdates).length > 0) await supabaseAdmin.from("voice_profile").update(vUpdates).eq("id", existingVoice.id);
+          } else {
+            const newVoice: Record<string, unknown> = { user_id: profileUserId, workspace_id: workspaceId };
+            if (voicePrefill.voice_summary) newVoice.voice_summary = voicePrefill.voice_summary;
+            if (voicePrefill.tone_patterns?.length) newVoice.tone_patterns = voicePrefill.tone_patterns;
+            if (voicePrefill.signature_expressions?.length) newVoice.signature_expressions = voicePrefill.signature_expressions;
+            if (voicePrefill.banned_expressions?.length) newVoice.banned_expressions = voicePrefill.banned_expressions;
+            await supabaseAdmin.from("voice_profile").insert(newVoice);
+          }
+        }
+
+        // brand_charter
+        const charterPrefill = prefill.charter_prefill || enrichmentResult?.charter_prefill;
+        if (charterPrefill && (charterPrefill.color_primary || charterPrefill.font_title || charterPrefill.mood_keywords?.length)) {
+          const { data: existingCharter } = await supabaseAdmin
+            .from("brand_charter")
+            .select("id, color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, photo_style")
+            .eq(filterCol, filterVal)
+            .maybeSingle();
+
+          if (existingCharter) {
+            const cUpdates: Record<string, unknown> = {};
+            if (!existingCharter.color_primary && charterPrefill.color_primary) cUpdates.color_primary = charterPrefill.color_primary;
+            if (!existingCharter.color_secondary && charterPrefill.color_secondary) cUpdates.color_secondary = charterPrefill.color_secondary;
+            if (!existingCharter.color_accent && charterPrefill.color_accent) cUpdates.color_accent = charterPrefill.color_accent;
+            if (!existingCharter.color_background && charterPrefill.color_background) cUpdates.color_background = charterPrefill.color_background;
+            if (!existingCharter.color_text && charterPrefill.color_text) cUpdates.color_text = charterPrefill.color_text;
+            if (!existingCharter.font_title && charterPrefill.font_title) cUpdates.font_title = charterPrefill.font_title;
+            if (!existingCharter.font_body && charterPrefill.font_body) cUpdates.font_body = charterPrefill.font_body;
+            if ((!existingCharter.mood_keywords || (Array.isArray(existingCharter.mood_keywords) && existingCharter.mood_keywords.length === 0)) && charterPrefill.mood_keywords?.length) cUpdates.mood_keywords = charterPrefill.mood_keywords;
+            if (!existingCharter.photo_style && charterPrefill.photo_style) cUpdates.photo_style = charterPrefill.photo_style;
+            if (Object.keys(cUpdates).length > 0) await supabaseAdmin.from("brand_charter").update(cUpdates).eq("id", existingCharter.id);
+          } else {
+            const newCharter: Record<string, unknown> = { user_id: profileUserId, workspace_id: workspaceId };
+            if (charterPrefill.color_primary) newCharter.color_primary = charterPrefill.color_primary;
+            if (charterPrefill.color_secondary) newCharter.color_secondary = charterPrefill.color_secondary;
+            if (charterPrefill.color_accent) newCharter.color_accent = charterPrefill.color_accent;
+            if (charterPrefill.color_background) newCharter.color_background = charterPrefill.color_background;
+            if (charterPrefill.color_text) newCharter.color_text = charterPrefill.color_text;
+            if (charterPrefill.font_title) newCharter.font_title = charterPrefill.font_title;
+            if (charterPrefill.font_body) newCharter.font_body = charterPrefill.font_body;
+            if (charterPrefill.mood_keywords?.length) newCharter.mood_keywords = charterPrefill.mood_keywords;
+            if (charterPrefill.photo_style) newCharter.photo_style = charterPrefill.photo_style;
+            await supabaseAdmin.from("brand_charter").insert(newCharter);
+          }
+        }
+
         console.log("Enrichment phase 2 completed successfully");
       } catch (e) {
         console.error("Enrichment phase 2 failed (non-blocking):", e);
