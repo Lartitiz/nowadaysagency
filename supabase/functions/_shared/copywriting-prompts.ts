@@ -807,57 +807,6 @@ Objectif : Crédibilité + Engagement | Phase 2
 Longueur cible : 1300-2000 caractères`,
 };
 
-export const LINKEDIN_HOOK_TYPES_PROMPTS: Record<string, string> = {
-  statistique: `ACCROCHE STATISTIQUE :
-Commence par un chiffre frappant qui remet en question une croyance.
-Exemple : "78% des solopreneuses publient sur Instagram... pour 3% de taux d'engagement."
-Règle : le chiffre doit être vérifiable ou issu de ton expérience.`,
-
-  contrariante: `ACCROCHE CONTRARIANTE :
-Affirme le contraire de ce que tout le monde pense.
-Exemple : "Le personal branding est une arnaque. (Enfin, celui qu'on vous vend.)"
-Règle : la suite doit nuancer et argumenter, pas juste provoquer.`,
-
-  story: `ACCROCHE STORY / IN MEDIAS RES :
-Plonge directement dans une scène, sans contexte.
-Exemple : "Il est 23h, je fixe mon écran. Mon post a 3 likes. J'hésite à tout supprimer."
-Règle : sensorialité (heure, lieu, action) + tension.`,
-
-  confession: `ACCROCHE CONFESSION :
-Vulnérabilité assumée, aveu professionnel.
-Exemple : "J'ai mis 2 ans à comprendre que mon offre ne servait à rien."
-Règle : l'aveu doit être sincère ET mener à un apprentissage.`,
-
-  frustration: `ACCROCHE FRUSTRATION PARTAGÉE :
-Nomme un agacement que ton audience ressent sans oser le dire.
-Exemple : "Tu en as pas marre qu'on te dise de 'juste être toi-même' comme stratégie de com' ?"
-Règle : la frustration est un pont vers une solution.`,
-
-  question: `ACCROCHE QUESTION DE FOND :
-Pose une vraie question (pas rhétorique) qui fait réfléchir.
-Exemple : "Est-ce qu'on peut communiquer de manière éthique... et quand même être visible ?"
-Règle : la question doit être OUVERTE, pas binaire.`,
-
-  liste: `ACCROCHE LISTE / PROMESSE :
-Annonce un contenu structuré avec un nombre.
-Exemple : "3 choses que j'aurais aimé savoir avant de lancer ma newsletter."
-Règle : le nombre doit être tenu. Pas de liste à rallonge.`,
-
-  avant_apres: `ACCROCHE AVANT/APRÈS :
-Contraste fort entre deux états.
-Exemple : "Il y a 6 mois, elle postait dans le vide. Aujourd'hui, ses posts génèrent des demandes de devis."
-Règle : le contraste doit être CONCRET, pas vague.`,
-
-  ennemi_commun: `ACCROCHE ENNEMI COMMUN :
-Désigne un adversaire partagé (pas une personne, un système ou une pratique).
-Exemple : "Le marketing de la peur a fait assez de dégâts dans l'entrepreneuriat féminin."
-Règle : l'ennemi est une PRATIQUE, jamais une personne.`,
-
-  confirmation: `ACCROCHE CONFIRMATION / VALIDATION :
-Valide ce que l'audience ressent ou pense secrètement.
-Exemple : "Si tu trouves que LinkedIn c'est chiant... c'est peut-être qu'on t'a mal expliqué."
-Règle : valider d'abord, puis ouvrir une porte.`,
-};
 
 export const LINKEDIN_TIPS = [
   { text: "Les 210 premiers caractères décident de tout. 60-70% des lecteur·ices ne cliquent jamais 'voir plus'.", source: "Algorithm InSights 2025" },

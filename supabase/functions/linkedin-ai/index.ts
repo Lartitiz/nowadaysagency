@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, LINKEDIN_HOOK_TYPES_PROMPTS, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE, PREGEN_INJECTION_RULES } from "../_shared/copywriting-prompts.ts";
+import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE, PREGEN_INJECTION_RULES } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
@@ -53,11 +53,9 @@ serve(async (req) => {
 
     // Determine category based on action
     const categoryMap: Record<string, string> = {
-      "generate-post": "content",
       "improve-post": "content",
       "adapt-instagram": "adaptation",
       "crosspost": "adaptation",
-      "suggest-template": "content",
       "title": "bio_profile",
       "summary": "bio_profile",
       "optimize-experience": "bio_profile",
@@ -81,26 +79,6 @@ serve(async (req) => {
 
     const VOICE_PRIORITY = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n`;
 
-    const ANTI_BROETRY = `ANTI-BROETRY (CRITIQUE) :\nLinkedIn est infesté de posts où chaque phrase est seule sur sa ligne, sans substance.\nTon contenu est l'INVERSE :\n- Des paragraphes de 2-3 phrases qui développent une idée\n- Des bucket brigades qui relancent NATURELLEMENT (pas des mots seuls sur une ligne)\n- Si une phrase ne tient pas debout seule ET n'ajoute rien, supprime-la\n- Le rythme vient du contraste entre paragraphes développés et phrases courtes qui ponctuent, PAS du saut de ligne systématique\n- Chaque ligne doit apporter une information, une émotion, ou une progression. Zéro remplissage.\n\n`;
-
-    const LINKEDIN_HOOK_RULES = `## LES 3 PREMIÈRES LIGNES (CRITIQUE)
-
-Sur LinkedIn, après 3 lignes le texte est coupé par "...voir plus".
-
-Si ces 3 lignes ne donnent pas envie de cliquer, le post est mort. C'est la SEULE chose qui compte pour la portée.
-
-Techniques pour les 3 premières lignes :
-- Affirmation forte ou chiffre qui interpelle : "J'ai accompagné 47 projets éthiques en 7 ans."
-- Gap de curiosité : promettre la suite sans la donner : "Le point commun de ceux qui échouent ?"
-- Commencer par "Je" pour ancrer dans le vécu : "J'ai fait / découvert / compris / arrêté de..."
-- Opposition ou tension : "Tout le monde dit X. Je pense l'inverse."
-
-Ce qu'on ne fait JAMAIS en hook LinkedIn :
-- Question rhétorique molle ("Vous êtes-vous déjà demandé...?")
-- Emoji en première ligne
-- "🔥 X conseils pour..."
-- Accroches génériques ("Dans le monde d'aujourd'hui...")
-`;
 
 
     let systemPrompt = "";
@@ -114,52 +92,6 @@ Ce qu'on ne fait JAMAIS en hook LinkedIn :
       const { passion, parcours, offre, cta } = params;
       systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${context}\n\n${qualityBlocks}\n\nÉLÉMENTS FOURNIS :\n- Sa passion : "${passion || ""}"\n- Son parcours : "${parcours || ""}"\n- Ce qu'elle propose : "${offre || ""}"\n- Son appel à l'action : "${cta || ""}"\n\nGénère 6 versions du résumé LinkedIn, organisées par longueur et style.\n\nLONGUEURS :\n- Court (80-120 mots) : pour les profils qui débutent ou qui veulent l'essentiel\n- Moyen (180-220 mots) : le standard recommandé\n- Long (280-320 mots) : pour les profils avancés qui veulent tout raconter\n\nSTYLES :\n- Storytelling : narratif, personnel, avec un arc (avant → déclic → maintenant → invitation)\n- Pro : structuré, factuel, direct, avec des preuves concrètes\n\nRÈGLE CRITIQUE : les 3 premières lignes de CHAQUE version sont les seules visibles avant le clic "voir plus". Elles doivent ACCROCHER. Pas de "Bonjour, je suis [prénom]". Pas de "Bienvenue sur mon profil". Un hook. Direct.\n\nHOOKS LINKEDIN EFFICACES (à adapter, pas copier) :\n- Question provocante : "Et si ton problème n'était pas [X] mais [Y] ?"\n- Stat choc : "X% des [cible] font [erreur]. Je les aide à [solution]."\n- Mini-récit : "Il y a 3 ans, j'ai [moment déclic]. Aujourd'hui..."\n- Affirmation forte : "Je crois que [conviction]. C'est pour ça que..."\n- Confession : "J'ai longtemps cru que [croyance]. Jusqu'à [déclic]."\n\n${branding.storytelling?.step_7_polished ? "Utilise le storytelling comme base narrative pour les versions storytelling." : ""}\n\n- Max 2 600 caractères par version.\n- Intégrer naturellement des mots-clés SEO.\n- Aérer avec des sauts de ligne.\n- PAS de "Bonjour, je suis [prénom] et je suis passionnée par...".\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"court_storytelling": "...", "court_pro": "...", "moyen_storytelling": "...", "moyen_pro": "...", "long_storytelling": "...", "long_pro": "...", "hook_used": "le type de hook choisi pour les versions storytelling"}`;
       userPrompt = "Génère 6 versions de résumé LinkedIn.";
-
-    } else if (action === "generate-post") {
-      let { template, audience, sujet, anecdote, emotion, conviction, hook_type, editorial_angle, content_structure, objective } = params;
-      const templateContent = (LINKEDIN_TEMPLATES as any)[template] || "";
-      
-      // Fallback: inject branding if no personal elements provided
-      if (!anecdote && !emotion && !conviction) {
-        const fallback = buildPreGenFallback(ctx);
-        if (fallback) {
-          anecdote = fallback.anecdote ? `${fallback.anecdote} (élément tiré du branding)` : undefined;
-          emotion = fallback.emotion;
-          conviction = fallback.conviction ? `${fallback.conviction} (élément tiré du branding)` : undefined;
-        }
-      }
-
-      let personalBlock = "";
-      if (anecdote || emotion || conviction) {
-        personalBlock = `\nÉLÉMENTS PERSONNELS :\n${anecdote ? `- Anecdote : "${anecdote}"` : ""}\n${emotion ? `- Émotion visée : ${emotion}` : ""}\n${conviction ? `- Conviction : "${conviction}"` : ""}`;
-      }
-
-      const hookInstruction = hook_type && LINKEDIN_HOOK_TYPES_PROMPTS[hook_type]
-        ? `\n\nTYPE D'ACCROCHE DEMANDÉ :\n${LINKEDIN_HOOK_TYPES_PROMPTS[hook_type]}\nUtilise CE type d'accroche pour les 210 premiers caractères.`
-        : "";
-
-      let editorialAngleBlock = "";
-      if (editorial_angle && content_structure) {
-        editorialAngleBlock = `\n\nANGLE ÉDITORIAL IMPOSÉ : ${editorial_angle}\n\nSTRUCTURE À SUIVRE :\n${content_structure}\n\nLe post LinkedIn DOIT suivre cette structure. Adapte le ton (légèrement plus pro) et la longueur (1300-2000 caractères) mais garde la structure narrative.\n\n${EDITORIAL_ANGLES_REFERENCE}`;
-      }
-
-      const objectiveInstruction = objective
-        ? `\nOBJECTIF DU POST : ${objective}\n${
-            objective === "vente" || objective === "conversion"
-              ? "Oriente le post vers la conversion : avant/après, étude de cas, témoignage, CTA vers l'offre."
-              : objective === "visibilite" || objective === "visibilité"
-              ? "Oriente le post vers le reach : prise de position, accroche polarisante, contenu partageable. Pas de CTA commercial."
-              : objective === "engagement"
-              ? "Oriente le post vers l'engagement : storytelling personnel, question ouverte, invitation au dialogue."
-              : objective === "credibilite" || objective === "crédibilité"
-              ? "Oriente le post vers la crédibilité : données, analyses, références, expertise démontrée."
-              : `Adapte le post pour atteindre l'objectif "${objective}".`
-          }\n`
-        : "";
-
-      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${ANTI_BROETRY}${LINKEDIN_HOOK_RULES}\n\n${PREGEN_INJECTION_RULES}\n\n${context}\n\n${qualityBlocks}\n${objectiveInstruction}\nAUDIENCE : ${audience || "tu"}\n${audience === "vous" ? "Utilise le vouvoiement chaleureux et professionnel." : audience === "mixte" ? "Utilise un ton mixte, principalement tutoiement avec vouvoiement quand c'est plus pro." : "Utilise le tutoiement."}\n\n${templateContent}\n${personalBlock}\n${hookInstruction}\n${editorialAngleBlock}\n\nEn plus du hook principal, génère 2 accroches alternatives pour le même post. Chaque accroche doit utiliser un ANGLE DIFFÉRENT (pas juste une reformulation). Ajoute-les dans le champ "hook_alternatives".\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks :\n{\n  "hook": "Les 210 premiers caractères",\n  "body": "Le corps complet avec sauts de ligne",\n  "cta": "La question ou invitation finale",\n  "full_text": "Le post complet prêt à copier",\n  "character_count": 1247,\n  "hashtags": [],\n  "hook_alternatives": ["Variante 2 d'accroche (angle différent)", "Variante 3 d'accroche (angle différent)"],\n  "template_used": "${template}",\n  "hook_type_used": "${hook_type || "auto"}",\n  "editorial_angle_used": "${editorial_angle || "auto"}",\n  "checklist": [\n    { "item": "Accroche < 210 car.", "ok": true },\n    { "item": "Paragraphes courts (1-3 lignes)", "ok": true },\n    { "item": "Opinion/expertise visible", "ok": true },\n    { "item": "Exemple concret ou storytelling", "ok": true },\n    { "item": "0-2 emojis", "ok": true },\n    { "item": "3-5 hashtags de niche", "ok": true },\n    { "item": "Pas de lien dans le corps", "ok": true },\n    { "item": "CTA question ouverte", "ok": true },\n    { "item": "Écriture inclusive", "ok": true },\n    { "item": "Pas de tiret cadratin", "ok": true },\n    { "item": "1300-1900 caractères", "ok": true },\n    { "item": "Bucket brigades / rythme", "ok": true }\n  ]\n}`;
-      userPrompt = `Rédige un post LinkedIn sur ce sujet : "${sujet || "sujet libre"}"`;
-
 
     } else if (action === "adapt-instagram") {
       const { postContent, audience } = params;
