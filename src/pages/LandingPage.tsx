@@ -88,12 +88,6 @@ const TARGET_LIST = [
   "Tu veux gérer toute ta com' au même endroit (pas 10 outils différents)",
 ];
 
-const ROADMAP = {
-  now: ["Branding & positionnement", "Atelier créatif (idées, rédaction)", "Calendrier éditorial", "Audit Instagram + optimisation", "Audit LinkedIn + optimisation", "Dashboard stats", "Prospection douce", "Communauté"],
-  wip: ["SEO / Référencement naturel", "Newsletter & séquences email", "Pages de vente & landing pages"],
-  soon: ["Relations presse", "Module Pinterest", "Analyse de la concurrence"],
-};
-
 const FAQ_DATA = [
   { q: "C'est quoi la différence avec Canva / Later / ChatGPT ?", a: "Ces outils font une chose. Nous on couvre toute ta com' avec une méthode pensée pour les solopreneuses engagées. Pas des templates génériques." },
   { q: "Est-ce que ça marche pour mon secteur ?", a: "Si tu es dans la mode, l'artisanat, le bien-être, le design, la food, la culture, le coaching, la communication, le graphisme ou n'importe quel métier de service : oui. L'outil s'adapte à ton activité, quel que soit ton secteur." },
