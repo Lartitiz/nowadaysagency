@@ -53,11 +53,9 @@ serve(async (req) => {
 
     // Determine category based on action
     const categoryMap: Record<string, string> = {
-      "generate-post": "content",
       "improve-post": "content",
       "adapt-instagram": "adaptation",
       "crosspost": "adaptation",
-      "suggest-template": "content",
       "title": "bio_profile",
       "summary": "bio_profile",
       "optimize-experience": "bio_profile",
