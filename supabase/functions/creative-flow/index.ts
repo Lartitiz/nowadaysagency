@@ -68,7 +68,7 @@ serve(async (req) => {
       photo_description: z.string().max(2000).optional().nullable(),
       photos: z.array(z.object({ base64: z.string(), mimeType: z.string().optional() })).max(1).optional(),
     }).passthrough());
-    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent } = body;
+    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent, pinterest_link, pinterest_board } = body;
 
     // Determine channel from contentType for persona selection
     const channelFromType = contentType?.includes("linkedin") ? "linkedin" : contentType?.includes("instagram") || contentType?.includes("carousel") || contentType?.includes("reel") || contentType?.includes("stories") ? "instagram" : undefined;
@@ -383,9 +383,14 @@ TU FAIS :
 - 0-2 hashtags en fin. Pas plus.
 - DENSE : 1300-2000 caractères. Chaque phrase apporte du NOUVEAU. Zéro reformulation.`;
       } else if (isPinterest) {
+        const pinterestContext = (pinterest_link || pinterest_board)
+          ? `\nDÉTAILS DE L'ÉPINGLE :\n${pinterest_link ? `- Lien de destination : ${pinterest_link}` : "- Pas de lien fourni"}\n${pinterest_board ? `- Tableau de destination : "${pinterest_board}"` : ""}\n${pinterest_link ? `\nLa description doit donner envie de cliquer sur ce lien. Mentionne ce que la personne va trouver en cliquant.` : ""}\n`
+          : "";
+
         depthMandate = `FORMAT : ÉPINGLE PINTEREST (titre + description)
 
 Pinterest est un MOTEUR DE RECHERCHE VISUEL, pas un réseau social. Le contenu est optimisé pour la RECHERCHE.
+${pinterestContext}
 
 TITRE (max 100 caractères) :
 - Mot-clé principal dans les 3 premiers mots
