@@ -857,7 +857,8 @@ export default function CreerUnifie() {
             console.warn("Pinterest visual upload failed:", err);
           }
         }
-        
+
+        if (Object.keys(storageUpdates).length > 0) {
           const currentDetail = storyDetail || {};
           await supabase.from("calendar_posts").update({
             story_sequence_detail: { ...currentDetail, ...storageUpdates },
