@@ -80,21 +80,43 @@ const PAIN_POINTS = [
 ];
 
 const TARGET_LIST = [
-  "Tu es solopreneuse, freelance, créatrice, coach ou prestataire de services",
-  "Tu veux te rendre visible sans trahir tes valeurs",
-  "Tu en as marre du marketing agressif et tu cherches une approche qui te ressemble",
-  "Tu as besoin de structure sans te sentir enfermée",
-  "Tu veux un outil simple, pas une usine à gaz",
-  "Tu veux gérer toute ta com' au même endroit (pas 10 outils différents)",
+  "Tu crées quelque chose de beau (bijoux, céramique, mode, photo, coaching, yoga, design…) et tu veux que les bonnes personnes le sachent.",
+  "Tu en as marre de poster au hasard en espérant que « ça prenne ». Tu veux un système clair.",
+  "Tu veux un outil qui te guide pas à pas, pas une usine à gaz avec 200 fonctionnalités dont tu n'utiliseras jamais la moitié.",
+  "Tu cherches une approche éthique : pas de manipulation, pas de fausse urgence, pas de « achète maintenant ou tu vas le regretter ».",
+  "Tu veux gérer ta com' au même endroit au lieu de jongler entre Canva, ChatGPT, un tableur et 3 onglets ouverts.",
+  "Tu veux te sentir fière de ta com', pas coupable de ne pas poster assez.",
 ];
 
 const FAQ_DATA = [
-  { q: "C'est quoi la différence avec Canva / Later / ChatGPT ?", a: "Ces outils font une chose. Nous on couvre toute ta com' avec une méthode pensée pour les solopreneuses engagées. Pas des templates génériques." },
-  { q: "Est-ce que ça marche pour mon secteur ?", a: "Si tu es dans la mode, l'artisanat, le bien-être, le design, la food, la culture, le coaching, la communication, le graphisme ou n'importe quel métier de service : oui. L'outil s'adapte à ton activité, quel que soit ton secteur." },
-  { q: "Je suis débutante, c'est pour moi ?", a: "Surtout pour toi. L'outil est pensé pour celles qui ne savent pas par où commencer." },
-  { q: "C'est quoi « Ta binôme de com » ?", a: "Un accompagnement de 6 mois avec Laetitia. L'outil + des sessions visio individuelles + un support WhatsApp. Pour celles et ceux qui veulent structurer leur com' avec quelqu'un à leurs côtés." },
-  { q: "Je peux annuler quand je veux ?", a: "Le plan Outil est sans engagement. Tu annules en 1 clic." },
-  { q: "Mes données sont en sécurité ?", a: "Hébergées en Europe, chiffrées, jamais revendues. On est dans la com' éthique, pas dans la data." },
+  {
+    q: "C'est quoi la différence avec Canva, Later ou ChatGPT ?",
+    a: "Ces outils font chacun un bout du travail. Canva crée des visuels, Later programme des posts, ChatGPT génère du texte. Mais aucun ne part de TA stratégie. L'Assistant Com' commence par tes fondations (ta marque, ta cible, ton ton) et tout le reste en découle. L'IA ne génère pas du contenu générique : elle écrit avec ta voix, parce qu'elle connaît ton branding."
+  },
+  {
+    q: "Est-ce que ça marche pour mon secteur ?",
+    a: "Si tu es dans un univers créatif, lifestyle ou engagé : oui. Mode, bijoux, artisanat, céramique, photo, coaching, yoga, bien-être, design, food, culture, sport… L'outil s'adapte à ton activité dès l'onboarding. Tu décris ce que tu fais, et tout se personnalise autour de ton projet."
+  },
+  {
+    q: "Je suis débutante en com', c'est pour moi ?",
+    a: "Surtout pour toi, en vrai. L'outil est pensé pour celles qui ne savent pas par où commencer. Chaque étape est guidée : tu réponds à des questions, l'outil structure pour toi. Pas besoin de connaître les termes techniques. On t'explique tout au fur et à mesure."
+  },
+  {
+    q: "C'est quoi « Ta binôme de com » ?",
+    a: "C'est un accompagnement de 6 mois avec Laetitia (la fondatrice de Nowadays). Tu as l'outil en premium + des sessions visio individuelles de 2h chaque mois + un support WhatsApp les jours ouvrés. En gros : tu n'es plus seule face à ta com'. On fait ensemble, on construit ensemble. C'est pour celles qui veulent aller plus vite et plus loin."
+  },
+  {
+    q: "Le plan gratuit, c'est vraiment gratuit ? C'est quoi le piège ?",
+    a: "Pas de piège. Le plan gratuit inclut l'onboarding complet, tout l'espace branding, le calendrier éditorial, les espaces par canal, et 10 crédits IA par mois. C'est déjà beaucoup. Le premium à 39€/mois débloque les crédits illimités, les audits, les stats et la communauté. Mais tu peux rester en gratuit aussi longtemps que tu veux."
+  },
+  {
+    q: "Je peux annuler quand je veux ?",
+    a: "Le plan Premium est sans engagement. Tu annules en 1 clic depuis ton espace, et tu repasses en gratuit. Pas de frais cachés, pas de période d'engagement."
+  },
+  {
+    q: "Mes données sont en sécurité ?",
+    a: "Oui. Hébergées en Europe, chiffrées, jamais revendues à des tiers. On fait de la communication éthique, ça vaut aussi pour tes données."
+  },
 ];
 
 /* ─── Feature Visual Component ─── */
@@ -494,26 +516,57 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══ UNE VRAIE MÉTHODE ═══ */}
-      <section aria-label="La méthode Nowadays" className="bg-rose-pale py-16 sm:py-24 px-4">
-        <div className="mx-auto max-w-5xl">
+      {/* ═══ POURQUOI PAS LES AUTRES ═══ */}
+      <section aria-label="Comparatif avec les autres outils" className="bg-rose-pale py-16 sm:py-24 px-4">
+        <div className="mx-auto max-w-4xl">
           <Reveal>
             <div className="text-center mb-14">
-              <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">Pas un outil générique. Une vraie méthode dedans.</h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">L'outil est construit sur la méthode Nowadays : 10 ans d'expérience en communication éthique, +150 projets accompagnés, des cours dans les plus grandes écoles.</p>
+              <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">Pourquoi pas juste ChatGPT, Canva ou une formation en ligne ?</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">Tu as sûrement déjà essayé. Voilà pourquoi ça ne suffisait pas.</p>
             </div>
           </Reveal>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+
+          <div className="space-y-4">
             {[
-              { emoji: "🎯", title: "Adapté à TON activité", desc: "Pas des conseils génériques. L'outil connaît ton projet, ta cible, ton ton." },
-              { emoji: "💚", title: "Éthique par design", desc: "Zéro manipulation, zéro marketing d'urgence. De la com' humaine et sincère." },
-              { emoji: "👩", title: "Créé par une experte", desc: "Derrière l'outil, il y a Laetitia, 10 ans de terrain." },
-            ].map((c, i) => (
+              {
+                other: "ChatGPT",
+                otherEmoji: "🤖",
+                otherDesc: "Génère du texte générique. Ne connaît pas ta marque, ton ton, ta cible. Tu dois tout re-briefer à chaque fois.",
+                nowDesc: "L'IA connaît TON branding. Elle génère avec TA voix, tes piliers, ton style. Pas besoin de re-expliquer à chaque fois.",
+              },
+              {
+                other: "Canva / Later / Hootsuite",
+                otherEmoji: "🎨",
+                otherDesc: "Créer des visuels ou programmer des posts, c'est bien. Mais ça ne te dit pas QUOI poster, ni pourquoi, ni dans quel ordre.",
+                nowDesc: "L'outil part de ta stratégie : positionnement, persona, objectifs. Le contenu découle de tes fondations, pas l'inverse.",
+              },
+              {
+                other: "Formations en ligne",
+                otherEmoji: "📺",
+                otherDesc: "Tu apprends la théorie. Puis tu te retrouves seule devant ton écran à essayer d'appliquer. Et rien ne sort.",
+                nowDesc: "Ici, tu appliques directement. Tu réponds aux questions, l'outil structure, l'IA rédige. Chaque étape produit un résultat concret.",
+              },
+            ].map((item, i) => (
               <Reveal key={i} delay={i * 0.1}>
-                <div className="rounded-2xl bg-card border border-border p-6 text-center shadow-card h-full">
-                  <span className="text-4xl mb-4 block">{c.emoji}</span>
-                  <h3 className="font-display text-base font-bold mb-2">{c.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{c.desc}</p>
+                <div className="rounded-2xl bg-card border border-border overflow-hidden shadow-card">
+                  <div className="grid grid-cols-1 sm:grid-cols-2">
+                    {/* L'alternative */}
+                    <div className="p-5 sm:p-6 border-b sm:border-b-0 sm:border-r border-border">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">{item.otherEmoji}</span>
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{item.other}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{item.otherDesc}</p>
+                    </div>
+                    {/* L'Assistant Com' */}
+                    <div className="p-5 sm:p-6 bg-primary/[0.03]">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">✨</span>
+                        <span className="text-xs font-semibold text-primary uppercase tracking-wider">L'Assistant Com'</span>
+                      </div>
+                      <p className="text-sm text-foreground leading-relaxed font-medium">{item.nowDesc}</p>
+                    </div>
+                  </div>
                 </div>
               </Reveal>
             ))}
