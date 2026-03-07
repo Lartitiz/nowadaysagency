@@ -48,6 +48,13 @@ async function fetchImageAsBase64(url: string): Promise<{ data: string; media_ty
     const resp = await fetch(url);
     if (!resp.ok) return null;
     const buffer = await resp.arrayBuffer();
+    
+    // Skip images larger than 3MB to avoid Edge Function memory/timeout issues
+    if (buffer.byteLength > 3 * 1024 * 1024) {
+      console.log(`Skipping image too large: ${buffer.byteLength} bytes`);
+      return null;
+    }
+    
     const bytes = new Uint8Array(buffer);
     let binary = "";
     for (let i = 0; i < bytes.length; i++) {
@@ -119,7 +126,7 @@ serve(async (req) => {
     let visionImages = screenshotImages || [];
     if ((!visionImages || visionImages.length === 0) && body.screenshotUrls && body.screenshotUrls.length > 0) {
       const fetched = await Promise.all(
-        body.screenshotUrls.slice(0, 3).map((url: string) => fetchImageAsBase64(url))
+        body.screenshotUrls.slice(0, 1).map((url: string) => fetchImageAsBase64(url))
       );
       visionImages = fetched.filter(Boolean) as { data: string; media_type: string }[];
     }
@@ -363,7 +370,7 @@ Reponds en JSON :
         system: finalSystemPrompt,
         messages: [{ role: "user", content: userContent }],
         temperature: 0.7,
-        max_tokens: 8192,
+        max_tokens: 4096,
       });
 
       await logUsage(user.id, "audit", "audit_instagram", undefined, undefined, workspace_id);
