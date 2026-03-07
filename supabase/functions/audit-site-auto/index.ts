@@ -209,6 +209,7 @@ async function fetchPage(url: string, path: string): Promise<PageData> {
     result.headings.h2 = extractAllTags(html, "h2").slice(0, 15);
     result.headings.h3 = extractAllTags(html, "h3").slice(0, 15);
     result.visibleText = truncateText(extractVisibleText(html), MAX_TEXT_PER_PAGE * 4); // ~4 chars/token
+    result.styleHints = extractStyleHints(html);
     result.navLinks = extractNavLinks(html);
     result.images = extractImages(html);
     result.ctas = extractCTAs(html);
