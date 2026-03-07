@@ -300,8 +300,9 @@ Réponds UNIQUEMENT en JSON :
       const isReel = formatHint.includes("reel") || formatHint.includes("script");
       const isStories = formatHint.includes("stories") || formatHint.includes("story");
       const isLinkedIn = formatHint.includes("linkedin") || contentType === "post_linkedin";
+      const isPinterest = formatHint.includes("pinterest") || contentType === "post_pinterest";
       const isNewsletter = formatHint.includes("newsletter") || formatHint.includes("email") || contentType === "post_newsletter";
-      const isCaption = !isCarousel && !isReel && !isStories && !isLinkedIn && !isNewsletter;
+      const isCaption = !isCarousel && !isReel && !isStories && !isLinkedIn && !isPinterest && !isNewsletter;
       const isPhotoMode = body.photo_mode === true;
 
       // Build format-specific depth instructions
@@ -381,6 +382,40 @@ TU FAIS :
 - CTA : une question PRÉCISE liée au sujet, ou rien du tout si le texte se suffit.
 - 0-2 hashtags en fin. Pas plus.
 - DENSE : 1300-2000 caractères. Chaque phrase apporte du NOUVEAU. Zéro reformulation.`;
+      } else if (isPinterest) {
+        depthMandate = `FORMAT : ÉPINGLE PINTEREST (titre + description)
+
+Pinterest est un MOTEUR DE RECHERCHE VISUEL, pas un réseau social. Le contenu est optimisé pour la RECHERCHE.
+
+TITRE (max 100 caractères) :
+- Mot-clé principal dans les 3 premiers mots
+- Descriptif et utile, pas accrocheur clickbait
+- "Idées décoration salon bohème" > "Vous n'allez pas croire cette déco"
+- "Comment [verbe] [complément]" fonctionne très bien
+- Penser : qu'est-ce que ma cible taperait dans la barre de recherche Pinterest ?
+
+DESCRIPTION (100-200 mots, 2-3 paragraphes) :
+- Décrire CE QUE la personne va trouver en cliquant sur le lien
+- Intégrer les mots-clés naturellement dans le texte (pas de keyword stuffing)
+- Ton clair, utile, descriptif. Moins de personnalité qu'Instagram.
+- PAS de hashtags (inutiles sur Pinterest)
+- Inclure un appel à l'action doux en fin ("Découvre le guide complet", "Retrouve toutes les étapes sur le site", "Enregistre cette épingle pour plus tard")
+- Écriture inclusive avec point médian
+
+TU NE FAIS JAMAIS :
+- Hashtags (ça ne sert à rien sur Pinterest)
+- Titres clickbait ou accrocheurs style Instagram ("Vous n'allez pas croire...")
+- Jargon marketing (funnel, lead magnet, ROI)
+- Ton trop personnel ou émotionnel (c'est du SEO, pas du storytelling)
+- Tiret cadratin (—)
+
+STRUCTURE DE RÉPONSE :
+📌 TITRE : [titre SEO optimisé, max 100 caractères]
+
+📝 DESCRIPTION :
+[paragraphe 1 : ce que la personne va trouver/apprendre]
+[paragraphe 2 : détails, bénéfices concrets]
+[paragraphe 3 : appel à l'action doux]`;
       } else if (isNewsletter) {
         depthMandate = `FORMAT : NEWSLETTER / EMAIL (1500-3000 caractères)
 
