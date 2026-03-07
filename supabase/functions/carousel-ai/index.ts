@@ -1073,6 +1073,16 @@ Pour chaque slide photo (photo_full ou photo_integrated), indique photo_index (1
 - 5-10 hashtags pertinents
 ${deepeningCtx}${angleBlock}
 
+═══ VÉRIFICATION FINALE (avant de retourner le JSON) ═══
+
+Relis chaque slide et vérifie :
+- AUCUNE slide ne contient "Dans un monde où", "Il est important de", "N'hésitez pas", "Voici X astuces"
+- Les slides text_only ont TOUTES un body d'au moins 30 mots (des phrases complètes, pas des fragments)
+- Le concept du sujet ("${body.subject || ""}") est visible dans le hook ET structure l'ensemble
+- Il y a un arc narratif clair d'une slide à l'autre (pas juste des slides indépendantes)
+- Le contenu sonne ORAL et INCARNÉ, pas comme un article de blog IA
+Si une slide échoue à un de ces tests, RÉÉCRIS-LA avant de retourner le JSON.
+
 RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
 {
   "carousel_type": "mix",
