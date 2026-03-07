@@ -479,6 +479,29 @@ export default function SiteAuditAutoResult({
                         </div>
                       );
                     })()}
+                    {/* Garde-fou persona vide pour copywriting */}
+                    {key === "copywriting" && !viewingOld && (() => {
+                      const emptyFields = displayResult.branding_prefill_from_site?.empty_fields;
+                      const personaIsEmpty = emptyFields
+                        ? !!emptyFields.persona_empty
+                        : (pilier.statut === "absent" || (pilier.statut === "flou" && pilier.score <= 30));
+                      if (!personaIsEmpty) return null;
+                      return (
+                        <div className="rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-3 mt-2">
+                          <p className="text-xs text-amber-800 dark:text-amber-300">
+                            💡 L'IA évalue si ton site parle le langage de ta cible. Sans persona défini, cette analyse manque de contexte : complète ta cliente idéale pour un diagnostic plus précis.
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 rounded-pill text-xs mt-2 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950"
+                            onClick={() => navigate("/branding?section=persona")}
+                          >
+                            Définir ma cliente idéale <ArrowRight className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </CollapsibleContent>
               </Collapsible>
