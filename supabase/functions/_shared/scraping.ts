@@ -357,7 +357,8 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
     secondaryUrls = links.slice(0, 2);
   }
 
-  // Fallback for main text if Jina failed
+  // Fallback for main text if Jina failed + always extract visual info
+  let visualInfo = "";
   if (!mainText) {
     try {
       const resp = await fetch(formattedUrl, {
@@ -367,9 +368,24 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
       if (resp.ok) {
         const html = await resp.text();
         mainText = extractTextFromHtml(html);
+        visualInfo = extractVisualInfo(html);
       }
     } catch {
       // ignore
+    }
+  } else {
+    // Jina succeeded for text, but we still need the raw HTML for visual extraction
+    try {
+      const resp = await fetch(formattedUrl, {
+        signal,
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+      });
+      if (resp.ok) {
+        const html = await resp.text();
+        visualInfo = extractVisualInfo(html);
+      }
+    } catch {
+      // ignore — visual info is nice-to-have
     }
   }
 
