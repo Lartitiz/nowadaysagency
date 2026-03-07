@@ -162,7 +162,7 @@ export default function SettingsPage() {
     }
   };
 
-  const planLabel = subInfo?.plan === "now_pilot" ? "Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
+  const planLabel = subInfo?.plan === "binome" ? "Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
 
   return (
     <div className="min-h-screen bg-background">
@@ -240,7 +240,7 @@ export default function SettingsPage() {
                     💎 S'abonner pour garder l'accès
                   </Button>
                 )}
-                {subInfo?.plan === "now_pilot" && (
+                {subInfo?.plan === "binome" && (
                   <Button size="sm" variant="outline" className="rounded-full" onClick={handleManageSubscription} disabled={portalLoading}>
                     {portalLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Gérer mon abonnement

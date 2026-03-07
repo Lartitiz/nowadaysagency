@@ -102,7 +102,7 @@ export default function AbonnementPage() {
   };
 
 
-  const planLabel = subInfo?.plan === "now_pilot" ? "🤝 Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
+  const planLabel = subInfo?.plan === "binome" ? "🤝 Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
 
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;
@@ -140,9 +140,9 @@ export default function AbonnementPage() {
               <p className="text-sm">
                 <span className="font-semibold text-primary">{subInfo?.source === "promo" ? "💎 " : ""}{planLabel}</span>
                 {subInfo?.plan === "outil" && " · 39€/mois"}
-                {subInfo?.plan === "now_pilot" && " · 250€/mois"}
+                {subInfo?.plan === "binome" && " · 250€/mois"}
               </p>
-              {subInfo?.plan === "now_pilot" && (
+              {subInfo?.plan === "binome" && (
                 <div className="mt-2 space-y-1">
                   <p className="text-xs text-muted-foreground">🎯 Accompagnement 6 mois · 7 sessions avec Laetitia</p>
                   <p className="text-xs text-muted-foreground">💡 300 crédits IA / mois</p>

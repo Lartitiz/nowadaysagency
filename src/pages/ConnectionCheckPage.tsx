@@ -142,7 +142,7 @@ export default function ConnectionCheckPage() {
     results.push({ category: "Routine", name: "Logs routine accessibles", status: engErr ? "error" : "ok", detail: engErr?.message || `${engLogs?.length || 0} entrées récentes` });
 
     // Coaching
-    if (profile?.current_plan === "now_pilot") {
+     if (profile?.current_plan === "now_pilot" || profile?.current_plan === "binome") {
       const { data: prog } = await supabase.from("coaching_programs").select("id, current_month, current_phase").eq("client_user_id", user.id).eq("status", "active").maybeSingle();
       results.push({ category: "Accompagnement", name: "Programme Binôme", status: prog ? "ok" : "error", detail: prog ? `Mois ${prog.current_month}` : "Plan Binôme actif mais AUCUN programme trouvé !" });
       if (prog) {
