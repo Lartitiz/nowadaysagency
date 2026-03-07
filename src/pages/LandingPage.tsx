@@ -139,10 +139,10 @@ function FeatureVisual({ type }: { type: string }) {
         </div>
         <div className="rounded-xl bg-rose-pale/60 border border-border p-3 mb-3">
           <p className="text-[11px] text-foreground leading-relaxed">
-            <span className="font-semibold">Hook :</span> Tu passes 2h sur un post pour 12 likes ?
+            <span className="font-semibold">Hook :</span> "Je fais du yoga depuis 5 ans et je ne savais toujours pas respirer."
           </p>
           <p className="text-[11px] text-muted-foreground leading-relaxed mt-1">
-            Voici 3 raisons pour lesquelles le problème n'est pas ton contenu…
+            L'histoire du jour où j'ai compris que tout commençait par le souffle…
           </p>
         </div>
         <div className="flex items-center gap-2">
