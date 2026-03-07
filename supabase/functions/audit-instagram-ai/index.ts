@@ -43,6 +43,26 @@ const AuditInstagramSchema = z.object({
   profileUrl: z.string().optional().nullable(),
 }).passthrough();
 
+async function fetchImageAsBase64(url: string): Promise<{ data: string; media_type: string } | null> {
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const buffer = await resp.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+    const contentType = resp.headers.get("content-type") || "image/jpeg";
+    const mediaType = contentType.includes("png") ? "image/png" : "image/jpeg";
+    return { data: base64, media_type: mediaType };
+  } catch (e) {
+    console.error("Failed to fetch image:", url, e);
+    return null;
+  }
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
