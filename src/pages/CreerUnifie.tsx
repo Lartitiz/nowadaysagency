@@ -601,6 +601,9 @@ export default function CreerUnifie() {
         text += `\n\n${(r.hashtags as string[]).join(" ")}`;
       }
 
+    } else if (selectedFormat === "pinterest_visual" && (r?.title || r?.description)) {
+      text = `📌 TITRE :\n${r.title || ""}\n\n📝 DESCRIPTION :\n${r.description || ""}`;
+
     } else if (r?.content) {
       text = r.content;
     } else if (r?.post) {
@@ -746,6 +749,9 @@ export default function CreerUnifie() {
     } else if (selectedFormat === "story" && r?.stories) {
       accroche = r.stories?.[0]?.text || "";
       contentDraft = r.stories?.map((s: any) => `STORY ${s.number || ""} (${s.timing || ""})\n${s.format_label || s.format || ""}\n${s.text || ""}${s.sticker ? `\n🎯 ${s.sticker.label || s.sticker.type || ""}` : ""}`).join("\n\n───\n\n");
+    } else if (selectedFormat === "pinterest_visual" && (r?.title || r?.description)) {
+      accroche = r.title || "";
+      contentDraft = `📌 ${r.title || ""}\n\n${r.description || ""}`;
     } else {
       contentDraft = r.content || r.post || r.text || "";
       accroche = contentDraft.split("\n")[0] || "";
@@ -1315,8 +1321,8 @@ export default function CreerUnifie() {
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
                 onExportVisualPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPptx : undefined}
                 pinterestPinHtml={pinterestPinHtml}
-                onExportPinterestPng={handleExportPinterestPng}
-                onExportPinterestPptx={handleExportPinterestPptx}
+                onExportPinterestPng={selectedFormat === "pinterest_visual" ? handleExportPinterestPng : undefined}
+                onExportPinterestPptx={selectedFormat === "pinterest_visual" ? handleExportPinterestPptx : undefined}
                 onSlidesUpdate={selectedFormat === "carousel" ? (slides, caption) => {
                   if (result?.raw) {
                     result.raw.slides = slides;
