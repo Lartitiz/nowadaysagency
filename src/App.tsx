@@ -289,7 +289,7 @@ function AnimatedRoutes() {
                 {/* Redirects from old routes */}
                 <Route path="/instagram/bio" element={<Navigate to="/instagram/profil/bio" replace />} />
                 <Route path="/instagram/highlights" element={<Navigate to="/instagram/profil/stories" replace />} />
-                <Route path="/instagram/inspiration" element={<Navigate to="/instagram/inspirer" replace />} />
+                <Route path="/instagram/inspiration" element={<Navigate to="/creer?mode=transform" replace />} />
               </Route>
               {/* Transversal routes */}
               <Route path="/atelier" element={<SmartRedirect to="/creer" />} />
