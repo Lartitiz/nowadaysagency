@@ -14,9 +14,9 @@ import { Button } from "@/components/ui/button";
 // ─── Types ───────────────────────────────────────────────────
 export interface AnalysisResult {
   story?: { confidence?: string; origin?: string; trigger?: string; struggles?: string; uniqueness?: string; vision?: string; full_story?: string };
-  persona?: { confidence?: string; name?: string; age_range?: string; job?: string; goals?: string[]; frustrations?: string[]; desires?: string[]; channels?: string[]; brands_they_follow?: string[] };
+  persona?: { confidence?: string; name?: string; age_range?: string; job?: string; description?: string; goals?: string[]; frustrations?: string[]; desires?: string[]; channels?: string[]; brands_they_follow?: string[]; beautiful_world?: string; first_actions?: string };
   value_proposition?: { confidence?: string; key_phrase?: string; problem?: string; solution?: string; differentiator?: string; proofs?: string[] };
-  tone_style?: { confidence?: string; tone_keywords?: string[]; i_do?: string[]; i_never_do?: string[]; fights?: string[]; visual_style?: string };
+  tone_style?: { confidence?: string; tone_keywords?: string[]; voice_description?: string; tone_register?: string; tone_level?: string; tone_style_chip?: string; tone_humor?: string; tone_engagement?: string; i_do?: string[]; i_never_do?: string[]; fights?: string[]; key_expressions?: string; things_to_avoid?: string; target_verbatims?: string; channels?: string[]; visual_style?: string };
   content_strategy?: { confidence?: string; pillars?: string[]; creative_twist?: string; formats?: string[]; rhythm?: string; editorial_line?: string };
   offers?: { confidence?: string; offers?: { name?: string; price?: string; description?: string; target?: string; promise?: string }[] };
   sources_used?: string[];
@@ -147,12 +147,24 @@ function ToneSection({ data }: { data: AnalysisResult["tone_style"] }) {
   if (!data) return null;
   return (
     <div className="space-y-3">
+      {data.voice_description && <p className="text-[14px] leading-relaxed text-foreground italic bg-muted/30 rounded-[12px] p-3">{data.voice_description}</p>}
       {data.tone_keywords?.length ? <div className="flex flex-wrap gap-1.5">{data.tone_keywords.map((k, i) => <Chip key={i}>{k}</Chip>)}</div> : null}
+      {(data.tone_register || data.tone_level || data.tone_style_chip || data.tone_humor || data.tone_engagement) && (
+        <div className="flex flex-wrap gap-1.5">
+          {data.tone_register && <Chip>{data.tone_register}</Chip>}
+          {data.tone_level && <Chip>{data.tone_level}</Chip>}
+          {data.tone_style_chip && <Chip>{data.tone_style_chip}</Chip>}
+          {data.tone_humor && <Chip>{data.tone_humor}</Chip>}
+          {data.tone_engagement && <Chip>{data.tone_engagement}</Chip>}
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
         {data.i_do?.length ? <div className="p-3 rounded-[12px] bg-emerald-50"><p className="font-semibold text-emerald-700 mb-2">✅ Je fais</p><ul className="space-y-1">{data.i_do.map((d, i) => <li key={i}>• {d}</li>)}</ul></div> : null}
         {data.i_never_do?.length ? <div className="p-3 rounded-[12px] bg-[#fce4ec]"><p className="font-semibold text-[#91014b] mb-2">🚫 Je ne fais jamais</p><ul className="space-y-1">{data.i_never_do.map((d, i) => <li key={i}>• {d}</li>)}</ul></div> : null}
       </div>
       {data.fights?.length ? <div><p className="text-[12px] font-semibold text-[#91014b] mb-1">Combats</p><div className="flex flex-wrap gap-1.5">{data.fights.map((f, i) => <Chip key={i}>{f}</Chip>)}</div></div> : null}
+      {data.key_expressions && <p className="text-[13px]"><span className="font-semibold text-[#91014b]">Expressions clés :</span> {data.key_expressions}</p>}
+      {data.channels?.length ? <div><p className="text-[12px] font-semibold text-[#91014b] mb-1">Canaux</p><div className="flex flex-wrap gap-1.5">{data.channels.map((c, i) => <Chip key={i}>{c}</Chip>)}</div></div> : null}
       {data.visual_style && <p className="text-[13px] text-muted-foreground italic">{data.visual_style}</p>}
     </div>
   );
@@ -281,9 +293,12 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
   if (data.name) payload.portrait_prenom = data.name;
   if (data.age_range) payload.portrait_age = data.age_range;
   if (data.job) payload.description = data.job;
+  if (data.description) payload.description = data.description;
   if (data.frustrations?.length) payload.step_1_frustrations = data.frustrations.join("\n");
   if (data.desires?.length) payload.step_2_transformation = data.desires.join("\n");
   if (data.goals?.length) payload.step_3a_objections = data.goals.join("\n");
+  if (data.beautiful_world) payload.step_4_beautiful = data.beautiful_world;
+  if (data.first_actions) payload.step_5_actions = data.first_actions;
   if (data.channels) payload.channels = data.channels;
   if (data.brands_they_follow?.length) payload.step_4_inspiring = data.brands_they_follow.join(", ");
 
@@ -324,9 +339,19 @@ async function saveTone(data: AnalysisResult["tone_style"], userId: string, work
   if (!data) return;
   const payload: Record<string, any> = { updated_at: new Date().toISOString() };
   if (data.tone_keywords) payload.tone_keywords = data.tone_keywords;
+  if (data.voice_description) payload.voice_description = data.voice_description;
+  if (data.tone_register) payload.tone_register = data.tone_register;
+  if (data.tone_level) payload.tone_level = data.tone_level;
+  if (data.tone_style_chip) payload.tone_style = data.tone_style_chip;
+  if (data.tone_humor) payload.tone_humor = data.tone_humor;
+  if (data.tone_engagement) payload.tone_engagement = data.tone_engagement;
   if (data.i_do?.length) payload.tone_do = data.i_do.join("\n");
   if (data.i_never_do?.length) payload.tone_dont = data.i_never_do.join("\n");
   if (data.fights?.length) payload.combat_cause = data.fights.join("\n");
+  if (data.key_expressions) payload.key_expressions = data.key_expressions;
+  if (data.things_to_avoid) payload.things_to_avoid = data.things_to_avoid;
+  if (data.target_verbatims) payload.target_verbatims = data.target_verbatims;
+  if (data.channels?.length) payload.channels = data.channels;
   if (data.visual_style) payload.visual_style = data.visual_style;
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
