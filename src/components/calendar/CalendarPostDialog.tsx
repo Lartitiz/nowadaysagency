@@ -201,7 +201,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       const state = { fromCalendar: true, calendarPostId: editingPost?.id, theme, objectif, angle, format, notes, postDate: selectedDate, existingContent: contentDraft, existingAccroche: accroche, launchId: editingPost?.launch_id, contentType: editingPost?.content_type, category: editingPost?.category, objective: editingPost?.objective, ...(editingPost?.launch_id ? { launchContext: { launchId: editingPost.launch_id, contentType: editingPost.content_type, chapter: (editingPost as any)?.chapter, chapterLabel: (editingPost as any)?.chapter_label, audiencePhase: (editingPost as any)?.audience_phase } } : {}) };
       const fmt = format || "post_carrousel";
       if (postCanal === "newsletter" || fmt === "newsletter_standard") navigate(`/creer?format=newsletter&${params.toString()}`, { state });
-      else if (postCanal === "linkedin") navigate(`/linkedin/post?${params.toString()}`, { state: { ...state, sujet: theme } });
+      else if (postCanal === "linkedin") navigate(`/creer?canal=linkedin&${params.toString()}`, { state });
       else if (fmt === "post_carrousel" || fmt === "carousel") {
         if (angle && ANGLE_TO_CAROUSEL[angle]) params.set("carousel_type", ANGLE_TO_CAROUSEL[angle]);
         navigate(`/creer?format=carousel&${params.toString()}`, { state });
