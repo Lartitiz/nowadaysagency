@@ -17,19 +17,14 @@ export const LINKEDIN_TIPS = [
 ];
 
 export const LINKEDIN_TEMPLATES_UI = [
-  { id: "enquete_decryptage", emoji: "🔍", label: "Enquête / Décryptage", desc: "Analyse d'une tendance, investigation", objectif: "crédibilité" },
-  { id: "test_grandeur_nature", emoji: "🧪", label: "Test grandeur nature", desc: "J'ai testé X, voici mon verdict", objectif: "confiance" },
-  { id: "coup_de_gueule", emoji: "😤", label: "Coup de gueule engagé", desc: "Ce qui t'énerve + ton alternative", objectif: "visibilité" },
-  { id: "mythe_deconstruire", emoji: "💥", label: "Mythe à déconstruire", desc: "Idée reçue à exploser", objectif: "crédibilité" },
-  { id: "storytelling_lecon", emoji: "📖", label: "Storytelling + leçon", desc: "Histoire perso + apprentissage", objectif: "confiance" },
-  { id: "histoire_cliente", emoji: "💎", label: "Histoire cliente", desc: "Étude de cas, avant/après", objectif: "vente" },
-  { id: "surf_actu", emoji: "📰", label: "Surf sur l'actu", desc: "Actu + ton angle expert", objectif: "visibilité" },
-  { id: "regard_philosophique", emoji: "🧠", label: "Regard philosophique", desc: "Réflexion profonde, France Culture", objectif: "confiance" },
-  { id: "conseil_contre_intuitif", emoji: "🔄", label: "Conseil contre-intuitif", desc: "Le contraire de ce qu'on croit", objectif: "crédibilité" },
-  { id: "before_after", emoji: "✨", label: "Before / After", desc: "Transformation concrète", objectif: "vente" },
-  { id: "build_in_public", emoji: "🏗️", label: "Build in public", desc: "Coulisses, vrais chiffres, doutes", objectif: "confiance" },
-  { id: "identification_quotidien", emoji: "☕", label: "Identification / Quotidien", desc: "Scène que tout le monde reconnaît", objectif: "engagement" },
-  { id: "contenu_lancement", emoji: "🚀", label: "Contenu de lancement", desc: "Annonce d'offre ou nouveauté", objectif: "vente" },
+  { id: "decryptage_expert", emoji: "🔍", label: "Décryptage expert", desc: "Analyser un phénomène de ton secteur avec un angle neuf", objectif: "crédibilité" },
+  { id: "prise_de_position", emoji: "🔥", label: "Prise de position", desc: "Défendre une conviction argumentée sur ton métier", objectif: "visibilité" },
+  { id: "mythe_deconstruire", emoji: "💥", label: "Mythe à déconstruire", desc: "Démonter une croyance répandue avec des preuves", objectif: "crédibilité" },
+  { id: "storytelling_pro", emoji: "📖", label: "Storytelling pro", desc: "Raconter un vécu + en tirer une leçon pro", objectif: "confiance" },
+  { id: "etude_de_cas", emoji: "💎", label: "Étude de cas", desc: "Montrer des résultats concrets (les tiens ou d'un·e client·e)", objectif: "vente" },
+  { id: "coulisses_metier", emoji: "🏗️", label: "Coulisses métier", desc: "Montrer comment tu travailles vraiment", objectif: "confiance" },
+  { id: "conseil_contre_courant", emoji: "🔄", label: "Conseil contre-courant", desc: "Challenger un conseil mainstream de ton secteur", objectif: "crédibilité" },
+  { id: "reflexion_de_fond", emoji: "🧠", label: "Réflexion de fond", desc: "Prendre de la hauteur sur un enjeu large", objectif: "confiance" },
 ];
 
 export const LINKEDIN_HOOK_TYPES = [
