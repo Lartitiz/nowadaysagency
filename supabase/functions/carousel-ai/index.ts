@@ -715,7 +715,7 @@ Slide 10: CTA doux "Ta photo préférée ? Dis-le moi."
   return guides[type] || guides.tips;
 }
 
-function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string): string {
+function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string, isLinkedIn: boolean = false): string {
   const { carousel_type, subject, objective, editorial_angle, content_structure } = body;
 
   const CAROUSEL_TYPE_LABELS: Record<string, string> = {
@@ -748,6 +748,7 @@ function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string): str
 SUJET du carrousel : "${subject || "non précisé"}"
 OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}
 ${objective ? `\nOriente les questions vers cet objectif. Si "vente" : demande des témoignages clients, des résultats, des transformations. Si "engagement" : demande des anecdotes personnelles, des moments vécus. Si "visibilité" : demande des opinions tranchées, des constats provocants.\n` : ""}${brandingBlock}${angleBlock}
+${isLinkedIn ? `\nATTENTION : c'est un carrousel LINKEDIN. Les questions doivent orienter vers du contenu expert et professionnel :\n- Demander des données, des résultats concrets, des leçons métier\n- Chercher l'expertise spécifique (pas juste l'émotion)\n- Orienter vers du contenu qui positionne comme référence sur le sujet` : ""}
 
 TON RÔLE : Tu es une coach com' qui aide une solopreneuse/créatrice à extraire son vécu, ses opinions et son expertise PERSONNELLE pour que le contenu ne soit pas générique.
 
@@ -756,7 +757,7 @@ RÈGLES pour les questions :
 - Les questions doivent faire émerger du vécu, des anecdotes, des opinions tranchées, des exemples concrets
 - AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : "Pourquoi tu penses que [blocage] existe ?", "Qu'est-ce qui fait que [problème] est si répandu selon toi ?", "Si tu devais expliquer à quelqu'un pourquoi [sujet] est un vrai problème, tu dirais quoi ?". L'objectif est d'extraire une réflexion de fond, pas juste un exemple.
 - Si tu as le contexte branding, adapte les questions à son activité et sa cible (ex : "Quand une de tes clientes [cible] te dit..." plutôt que "Quand quelqu'un te dit...")
-- Tutoie l'utilisatrice, sois directe et chaleureuse
+- ${isLinkedIn ? "Vouvoyez l'utilisatrice, restez professionnel·le et chaleureux·se" : "Tutoie l'utilisatrice, sois directe et chaleureuse"}
 - Chaque question fait 1-2 phrases max
 - Le placeholder est un court exemple de réponse attendue (5-8 mots)
 
