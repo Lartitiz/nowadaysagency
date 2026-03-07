@@ -14,9 +14,9 @@ import { Button } from "@/components/ui/button";
 // ─── Types ───────────────────────────────────────────────────
 export interface AnalysisResult {
   story?: { confidence?: string; origin?: string; trigger?: string; struggles?: string; uniqueness?: string; vision?: string; full_story?: string };
-  persona?: { confidence?: string; name?: string; age_range?: string; job?: string; goals?: string[]; frustrations?: string[]; desires?: string[]; channels?: string[]; brands_they_follow?: string[] };
+  persona?: { confidence?: string; name?: string; age_range?: string; job?: string; description?: string; goals?: string[]; frustrations?: string[]; desires?: string[]; channels?: string[]; brands_they_follow?: string[]; beautiful_world?: string; first_actions?: string };
   value_proposition?: { confidence?: string; key_phrase?: string; problem?: string; solution?: string; differentiator?: string; proofs?: string[] };
-  tone_style?: { confidence?: string; tone_keywords?: string[]; i_do?: string[]; i_never_do?: string[]; fights?: string[]; visual_style?: string };
+  tone_style?: { confidence?: string; tone_keywords?: string[]; voice_description?: string; tone_register?: string; tone_level?: string; tone_style_chip?: string; tone_humor?: string; tone_engagement?: string; i_do?: string[]; i_never_do?: string[]; fights?: string[]; key_expressions?: string; things_to_avoid?: string; target_verbatims?: string; channels?: string[]; visual_style?: string };
   content_strategy?: { confidence?: string; pillars?: string[]; creative_twist?: string; formats?: string[]; rhythm?: string; editorial_line?: string };
   offers?: { confidence?: string; offers?: { name?: string; price?: string; description?: string; target?: string; promise?: string }[] };
   sources_used?: string[];
