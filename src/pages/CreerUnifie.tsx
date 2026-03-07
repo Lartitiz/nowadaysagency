@@ -607,6 +607,28 @@ export default function CreerUnifie() {
     sessionStorage.removeItem(CREER_RESULT_KEY);
   };
 
+
+  const handleTransformToLinkedInCarousel = async () => {
+    const r = result?.raw;
+    if (!r) return;
+    const linkedinText = r.full_text || r.content || [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
+    if (!linkedinText) return;
+
+    setIsLinkedInCarousel(true);
+    setSelectedFormat("carousel");
+    setCarouselSubMode("text");
+    setResult(null);
+    setVisualSlides([]);
+    setSavedId(null);
+
+    await generate({
+      format: "carousel" as any,
+      subject: linkedinText,
+      objective: objective || undefined,
+      editorialAngle: editorialAngle || undefined,
+    });
+  };
+
   // ── Post-generation handlers ──
 
   const handleSave = async () => {
