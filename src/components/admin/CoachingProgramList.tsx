@@ -140,6 +140,8 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
       toast.success(`Espace « ${wsName} » supprimé`);
     }
     setDeletingWs(null);
+    // Small delay to let cascading deletes complete before reloading
+    await new Promise(r => setTimeout(r, 500));
     onReload();
   };
 
