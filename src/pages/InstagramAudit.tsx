@@ -170,6 +170,8 @@ export default function InstagramAudit() {
       if (form.feedScreenshot) screenshotUrls.push(await uploadFile(form.feedScreenshot, "audit-screenshots", "feed"));
       if (form.highlightsScreenshot) screenshotUrls.push(await uploadFile(form.highlightsScreenshot, "audit-screenshots", "highlights"));
 
+      // Note: only the first screenshot will be analyzed by AI vision, others are saved for reference
+
       // 3. Upload best/worst post files
       const bestPostUrls: string[] = [];
       for (const f of form.bestPostFiles) {
