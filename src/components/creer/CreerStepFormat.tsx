@@ -180,7 +180,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
   const selectedStructureId = selectedFormat && selectedAngle ? getStructureForCombo(selectedFormat, selectedAngle) : null;
   const selectedStructure = selectedStructureId ? CONTENT_STRUCTURES[selectedStructureId] : null;
 
-  const showAngles = selectedFormat && (selectedFormat !== "carousel" || carouselSubMode !== null || selectedChannel === "linkedin");
+  const showAngles = selectedFormat && (selectedFormat !== "carousel" || carouselSubMode !== null || selectedChannel === "linkedin") && selectedFormat !== "pinterest_visual" || selectedFormat === "pinterest_visual";
 
   const handleNext = () => {
     if (!selectedFormat) return;
