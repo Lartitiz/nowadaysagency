@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, CalendarDays } from "lucide-react";
+import { Loader2, CalendarDays, Palette } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import CreerStepIdea from "@/components/creer/CreerStepIdea";
