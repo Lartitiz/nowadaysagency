@@ -195,7 +195,7 @@ serve(async (req) => {
       }
 
       // ── Standard text carousel ──
-      userPrompt = buildExpressFullPrompt(body);
+      userPrompt = buildExpressFullPrompt(body, isLinkedIn);
     } else if (type === "suggest_topics") {
       userPrompt = buildSuggestTopicsPrompt(body);
     } else if (type === "suggest_angles") {
