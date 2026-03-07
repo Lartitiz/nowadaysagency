@@ -478,7 +478,7 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
         // brand_profile upsert
         const { data: existingProfile } = await supabaseAdmin
           .from("brand_profile")
-          .select("id, positioning, mission, tone_keywords, tone_style, combats, values, content_pillars")
+          .select("id, positioning, mission, tone_keywords, tone_style, combats, values, content_pillars, combat_cause, combat_fights, combat_alternative, combat_refusals")
           .eq(filterCol, filterVal)
           .maybeSingle();
 
