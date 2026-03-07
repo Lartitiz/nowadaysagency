@@ -298,8 +298,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
         </div>
       )}
 
-      {/* Carousel sub-mode */}
-      {selectedFormat === "carousel" && (
+      {/* Carousel sub-mode (Instagram only) */}
+      {selectedFormat === "carousel" && selectedChannel === "instagram" && (
         <div className="space-y-3 animate-fade-in">
           <p className="text-sm font-semibold text-foreground">Quel type de carrousel ?</p>
           <div className="grid grid-cols-3 gap-2">
