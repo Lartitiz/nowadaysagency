@@ -60,6 +60,9 @@ Deno.serve(async (req) => {
       carousel: "Carrousel",
       reel: "Reel vidéo court",
       story: "Story Instagram",
+      pinterest: "Épingle Pinterest (titre + description SEO)",
+      pinterest_visual: "Épingle visuelle Pinterest (infographie, checklist, schéma)",
+      newsletter: "Newsletter (email long format)",
       // Rétrocompatibilité
       post_texte: "Post texte (légende Instagram ou post LinkedIn)",
       carrousel: "Carrousel",
