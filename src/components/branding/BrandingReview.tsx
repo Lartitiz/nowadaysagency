@@ -19,6 +19,7 @@ export interface AnalysisResult {
   tone_style?: { confidence?: string; tone_keywords?: string[]; voice_description?: string; tone_register?: string; tone_level?: string; tone_style_chip?: string; tone_humor?: string; tone_engagement?: string; i_do?: string[]; i_never_do?: string[]; fights?: string[]; key_expressions?: string; things_to_avoid?: string; target_verbatims?: string; channels?: string[]; visual_style?: string };
   content_strategy?: { confidence?: string; pillars?: string[]; creative_twist?: string; formats?: string[]; rhythm?: string; editorial_line?: string };
   offers?: { confidence?: string; offers?: { name?: string; price?: string; description?: string; target?: string; promise?: string }[] };
+  charter?: { confidence?: string; color_primary?: string; color_secondary?: string; color_accent?: string; color_background?: string; font_title?: string; font_body?: string; mood_keywords?: string[]; visual_style_description?: string };
   sources_used?: string[];
   sources_failed?: string[];
   overall_confidence?: string;
