@@ -300,7 +300,66 @@ export const PINTEREST_EDITORIAL_ANGLES: EditorialAngle[] = [
   },
 ];
 
-// ── 2. CONTENT_STRUCTURES ──
+// ── 1d. PINTEREST_VISUAL_ANGLES ──
+
+export const PINTEREST_VISUAL_ANGLES: EditorialAngle[] = [
+  {
+    id: "infographie",
+    label: "Infographie",
+    emoji: "📊",
+    principle: "Un flux visuel avec étapes, chiffres clés ou process. Idéal pour les guides et tutoriels.",
+    defaultStructure: "educationnelle",
+    objectives: ["visibilite", "credibilite"],
+    phase: [1, 2],
+    declic: "prise de conscience",
+    exampleSubjects: ["5 étapes pour lancer ta boutique en ligne", "Le process créatif de A à Z"],
+  },
+  {
+    id: "checklist",
+    label: "Checklist",
+    emoji: "✅",
+    principle: "Une liste à cocher visuellement attractive. Parfait pour les contenus « à ne pas oublier ».",
+    defaultStructure: "educationnelle",
+    objectives: ["visibilite"],
+    phase: [1],
+    declic: "prise de conscience",
+    exampleSubjects: ["Checklist avant de publier sur Instagram", "10 choses à vérifier sur ton site"],
+  },
+  {
+    id: "mini_tuto",
+    label: "Mini-tuto",
+    emoji: "🛠️",
+    principle: "3 à 5 étapes numérotées compactes. Le format « comment faire » qui cartonne sur Pinterest.",
+    defaultStructure: "educationnelle",
+    objectives: ["visibilite", "credibilite"],
+    phase: [1, 2],
+    declic: "prise de conscience",
+    exampleSubjects: ["Comment photographier tes créations en 4 étapes", "Créer une palette de couleurs en 3 minutes"],
+  },
+  {
+    id: "avant_apres",
+    label: "Avant / Après",
+    emoji: "🔄",
+    principle: "Comparaison visuelle côte à côte ou empilée. Montre la transformation.",
+    defaultStructure: "storytelling",
+    objectives: ["engagement", "vente"],
+    phase: [2, 3],
+    declic: "les_deux",
+    exampleSubjects: ["Bio Instagram avant/après optimisation", "Site web : ce que je voyais vs ce que mes clientes voyaient"],
+  },
+  {
+    id: "schema_visuel",
+    label: "Schéma visuel",
+    emoji: "🧠",
+    principle: "Diagramme, mind map ou équation visuelle. Pour expliquer un concept complexe simplement.",
+    defaultStructure: "educationnelle",
+    objectives: ["credibilite", "visibilite"],
+    phase: [1, 2],
+    declic: "prise de conscience",
+    exampleSubjects: ["L'écosystème de ta communication", "Le parcours de ta cliente idéale"],
+  },
+];
+
 
 export interface StructureStep {
   role: string;
@@ -468,6 +527,13 @@ export const CONTENT_TYPE_SPECS: Record<string, ContentTypeSpec> = {
     edgeFunction: "pinterest-ai",
     specs: "Titre SEO + description 100-200 mots",
   },
+  pinterest_visual: {
+    label: "Épingle visuelle",
+    emoji: "🎨",
+    channel: "pinterest",
+    edgeFunction: "pinterest-visual",
+    specs: "Visuel 1000×1500px + titre SEO + description",
+  },
 };
 
 // ── 4. OBJECTIVE_RECOMMENDATIONS ──
@@ -557,7 +623,8 @@ export function getAnglesForType(
   // LinkedIn and Pinterest have their own dedicated angles
   const isLinkedIn = contentType === "linkedin";
   const isPinterest = contentType === "pinterest";
-  const angleSource = isLinkedIn ? LINKEDIN_EDITORIAL_ANGLES : isPinterest ? PINTEREST_EDITORIAL_ANGLES : EDITORIAL_ANGLES;
+  const isPinterestVisual = contentType === "pinterest_visual";
+  const angleSource = isLinkedIn ? LINKEDIN_EDITORIAL_ANGLES : isPinterestVisual ? PINTEREST_VISUAL_ANGLES : isPinterest ? PINTEREST_EDITORIAL_ANGLES : EDITORIAL_ANGLES;
 
   if (!objective || !OBJECTIVE_RECOMMENDATIONS[objective]) {
     return { recommended: [], others: [...angleSource] };
