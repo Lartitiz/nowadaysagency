@@ -60,6 +60,13 @@ const FORMATS_BY_CANAL: Record<string, { id: string; emoji: string; label: strin
     { id: "post", emoji: "📝", label: "Post" },
     { id: "carousel", emoji: "🎠", label: "Carrousel" },
   ],
+  pinterest: [
+    { id: "pinterest", emoji: "📝", label: "Épingle texte" },
+    { id: "pinterest_visual", emoji: "🎨", label: "Épingle visuelle" },
+  ],
+  newsletter: [
+    { id: "newsletter", emoji: "📧", label: "Newsletter" },
+  ],
 };
 
 const EDITORIAL_ANGLES = [
