@@ -395,7 +395,7 @@ export default function CreerUnifie() {
       // Build angle object matching classic path
       const angleObj = editorialAngle
         ? (() => {
-            const found = EDITORIAL_ANGLES.find((a) => a.id === editorialAngle);
+            const found = EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || LINKEDIN_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle);
             const structureId = getStructureForCombo(selectedFormat, editorialAngle);
             const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
             return found
