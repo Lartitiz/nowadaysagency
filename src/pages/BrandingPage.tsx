@@ -200,6 +200,8 @@ export default function BrandingPage() {
       if (comp.proposition > 0) filled.add("value_proposition");
       if (comp.tone > 0) filled.add("tone_style");
       if (comp.strategy > 0) filled.add("content_strategy");
+      if (comp.offers > 0) filled.add("offers");
+      if (comp.charter > 0) filled.add("charter");
       setPreFilledSections(filled);
 
       const enough = !!(data.persona?.step_1_frustrations && data.storytellingList && data.storytellingList.length > 0);
