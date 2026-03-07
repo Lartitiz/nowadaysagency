@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState } from "react";
 import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,41 +7,13 @@ import { useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Copy, Check, RefreshCw, CalendarDays, Loader2, Search, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
-import BaseReminder from "@/components/BaseReminder";
-import AiGeneratedMention from "@/components/AiGeneratedMention";
-import RedFlagsChecker from "@/components/RedFlagsChecker";
-import { useUserPlan } from "@/hooks/use-user-plan";
-import CreditWarning from "@/components/CreditWarning";
 import LinkedInPreview from "@/components/linkedin/LinkedInPreview";
 import CharacterCounter from "@/components/linkedin/CharacterCounter";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LINKEDIN_TIPS, LINKEDIN_TEMPLATES_UI, LINKEDIN_HOOK_TYPES, OBJECTIF_COLORS } from "@/lib/linkedin-data";
-import { useFormPersist } from "@/hooks/use-form-persist";
-
-const AUDIENCES = [
-  { id: "tu", emoji: "🙋", label: 'Tutoiement ("tu")', desc: "Direct, intime, chaleureux" },
-  { id: "vous", emoji: "🤝", label: 'Vouvoiement ("vous")', desc: "Pro, crédible, respectueux" },
-  { id: "mixte", emoji: "🌐", label: "Ton mixte", desc: "Adapté selon le contexte" },
-];
-
-interface PostResult {
-  hook: string;
-  body: string;
-  cta: string;
-  full_text: string;
-  character_count: number;
-  hashtags: string[];
-  template_used: string;
-  hook_type_used?: string;
-  hook_alternatives?: string[];
-  checklist: { item: string; ok: boolean }[];
-}
 
 interface ImproveResult {
   score: number;
@@ -64,32 +36,7 @@ export default function LinkedInPostGenerator() {
   const calendarState = location.state as {
     fromCalendar?: boolean;
     calendarPostId?: string;
-    theme?: string;
-    sujet?: string;
-    objectif?: string;
-    angle?: string;
-    notes?: string;
   } | null;
-
-  // Mode
-  const [mode, setMode] = useState<"create" | "improve">("create");
-
-  // Create mode state
-  const [template, setTemplate] = useState<string | null>(null);
-  const [audience, setAudience] = useState("tu");
-  const [sujet, setSujet] = useState(calendarState?.sujet || calendarState?.theme || "");
-  const [anecdote, setAnecdote] = useState(calendarState?.notes || "");
-  const [emotion, setEmotion] = useState("");
-  const [conviction, setConviction] = useState("");
-  const [hookType, setHookType] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
-  const { canGenerate, remainingTotal } = useUserPlan();
-  const quotaBlocked = !canGenerate("content");
-  const [result, setResult] = useState<PostResult | null>(null);
-  const [autoGenTriggered, setAutoGenTriggered] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [suggestedTemplate, setSuggestedTemplate] = useState<{ id: string; reason: string } | null>(null);
-  const [suggestingTemplate, setSuggestingTemplate] = useState(false);
 
   // Improve mode state
   const [existingPost, setExistingPost] = useState("");
@@ -98,148 +45,6 @@ export default function LinkedInPostGenerator() {
   const [copiedImprove, setCopiedImprove] = useState<string | null>(null);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
   const [ideasContent, setIdeasContent] = useState("");
-
-  const { restored: draftRestored, clearDraft } = useFormPersist(
-    "linkedin-post-form",
-    { mode, template, audience, sujet, anecdote, emotion, conviction, hookType },
-    (saved) => {
-      if (calendarState) return;
-      if (saved.mode) setMode(saved.mode);
-      if (saved.template) setTemplate(saved.template);
-      if (saved.audience) setAudience(saved.audience);
-      if (saved.sujet) setSujet(saved.sujet);
-      if (saved.anecdote) setAnecdote(saved.anecdote);
-      if (saved.emotion) setEmotion(saved.emotion);
-      if (saved.conviction) setConviction(saved.conviction);
-      if (saved.hookType) setHookType(saved.hookType);
-    }
-  );
-
-  // ── Persist generated result ──
-  const LINKEDIN_RESULT_KEY = "linkedin_post_result";
-  const resultRestoredRef = useRef(false);
-
-  useEffect(() => {
-    if (resultRestoredRef.current) return;
-    if (calendarState) return;
-    resultRestoredRef.current = true;
-    try {
-      const raw = sessionStorage.getItem(LINKEDIN_RESULT_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw);
-      if (saved.result) setResult(saved.result);
-      if (saved.improveResult) setImproveResult(saved.improveResult);
-    } catch { /* ignore */ }
-  }, []);
-
-  useEffect(() => {
-    if (!result && !improveResult) return;
-    try {
-      sessionStorage.setItem(LINKEDIN_RESULT_KEY, JSON.stringify({ result, improveResult }));
-    } catch { /* ignore */ }
-  }, [result, improveResult]);
-
-  // Random tip
-  // Auto-suggest template when subject is pre-filled
-  const suggestTemplate = useCallback(async (text: string) => {
-    if (!text.trim() || suggestingTemplate) return;
-    setSuggestingTemplate(true);
-    setSuggestedTemplate(null);
-    try {
-      const res = await supabase.functions.invoke("linkedin-ai", {
-        body: { action: "suggest-template", sujet: text, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-      });
-      if (res.error) throw res.error;
-      const raw = res.data?.content || "{}";
-       const parsed = typeof raw === "string" ? JSON.parse(raw.replace(/```json?\n?/g, "").replace(/```/g, "").trim()) : raw;
-       if (parsed?.template_id) {
-         setSuggestedTemplate({ id: parsed.template_id, reason: parsed.reason || "" });
-         setTemplate(parsed.template_id);
-       }
-    } catch (e) {
-      console.warn("Template suggestion failed:", e);
-    } finally {
-      setSuggestingTemplate(false);
-    }
-  }, [suggestingTemplate, template, workspaceId, user?.id]);
-
-  // Auto-setup when coming from calendar
-  useEffect(() => {
-    if (!calendarState?.fromCalendar && !calendarState?.sujet && !calendarState?.theme) return;
-    
-    const ANGLE_TO_TEMPLATE: Record<string, string> = {
-      // Nouveaux IDs LinkedIn (direct match)
-      "decryptage_expert": "decryptage_expert",
-      "prise_de_position": "prise_de_position",
-      "mythe_deconstruire": "mythe_deconstruire",
-      "storytelling_pro": "storytelling_pro",
-      "etude_de_cas": "etude_de_cas",
-      "coulisses_metier": "coulisses_metier",
-      "conseil_contre_courant": "conseil_contre_courant",
-      "reflexion_de_fond": "reflexion_de_fond",
-      // Anciens IDs → redirection vers les structures les plus proches
-      "enquete_decryptage": "decryptage_expert",
-      "test_grandeur_nature": "decryptage_expert",
-      "coup_de_gueule": "prise_de_position",
-      "storytelling_lecon": "storytelling_pro",
-      "histoire_cliente": "etude_de_cas",
-      "surf_actu": "decryptage_expert",
-      "regard_philosophique": "reflexion_de_fond",
-      "conseil_contre_intuitif": "conseil_contre_courant",
-      "before_after": "etude_de_cas",
-      "build_in_public": "coulisses_metier",
-      "identification_quotidien": "storytelling_pro",
-      "contenu_lancement": "etude_de_cas",
-    };
-    
-    const calAngle = calendarState?.angle;
-    if (calAngle && ANGLE_TO_TEMPLATE[calAngle]) {
-      setTemplate(ANGLE_TO_TEMPLATE[calAngle]);
-    } else {
-      // Try AI suggestion, but set a fallback in case it fails or takes too long
-      setTemplate("storytelling_pro"); // Fallback immédiat (sera écrasé si suggestion réussit)
-      suggestTemplate(sujet);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Auto-generate when coming from calendar with all data ready
-  useEffect(() => {
-    if (autoGenTriggered) return;
-    if (!calendarState?.fromCalendar) return;
-    if (!template || !sujet.trim() || generating || result) return;
-    
-    setAutoGenTriggered(true);
-    const timer = setTimeout(() => {
-      generate();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [template, sujet, calendarState?.fromCalendar, autoGenTriggered]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const [tipIdx] = useState(() => Math.floor(Math.random() * LINKEDIN_TIPS.length));
-  const tip = LINKEDIN_TIPS[tipIdx];
-
-  const generate = async () => {
-    if (!template || !sujet.trim()) {
-      toast({ title: "Choisis un template et un sujet", variant: "destructive" });
-      return;
-    }
-    setGenerating(true);
-    setResult(null);
-    try {
-      const res = await supabase.functions.invoke("linkedin-ai", {
-        body: { action: "generate-post", template, audience, sujet, anecdote, emotion, conviction, hook_type: hookType, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-      });
-      if (res.error) throw new Error(res.error.message);
-      const content = res.data?.content || "";
-      let parsed: PostResult = parseAIResponse(content);
-      setResult(parsed);
-    } catch (e: any) {
-      console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
-    } finally {
-      setGenerating(false);
-    }
-  };
 
   const improvePost = async () => {
     if (!existingPost.trim()) return;
@@ -261,18 +66,6 @@ export default function LinkedInPostGenerator() {
     }
   };
 
-  const handleCopy = () => {
-    if (!result) return;
-    navigator.clipboard.writeText(result.full_text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    toast({
-      title: "Post copié ✅",
-      description: "Reste 15-30 min après publication pour répondre aux premiers commentaires. C'est pendant la Golden Hour que la visibilité se joue.",
-      duration: 8000,
-    });
-  };
-
   const copyImproveText = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopiedImprove(key);
@@ -283,7 +76,6 @@ export default function LinkedInPostGenerator() {
   const useHookAlternative = (hook: string) => {
     if (!improveResult) return;
     const lines = improveResult.improved_version.split("\n");
-    // Replace first non-empty line(s) up to ~210 chars with the alternative hook
     let charCount = 0;
     let cutIdx = 0;
     for (let i = 0; i < lines.length; i++) {
@@ -301,8 +93,7 @@ export default function LinkedInPostGenerator() {
 
   const getNextOptimalDate = () => {
     const now = new Date();
-    const day = now.getDay(); // 0=Sun
-    // Find next Tue(2), Wed(3), or Thu(4)
+    const day = now.getDay();
     let daysAhead = 0;
     for (let i = 1; i <= 7; i++) {
       const d = (day + i) % 7;
@@ -335,8 +126,8 @@ export default function LinkedInPostGenerator() {
       user_id: profileUserId,
       workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
       date: dateStr,
-      theme: sujet || "Post LinkedIn",
-      angle: template || "improve",
+      theme: "Post LinkedIn amélioré",
+      angle: "improve",
       canal: "linkedin",
       status: "drafting",
       content_draft: text,
@@ -493,11 +284,11 @@ export default function LinkedInPostGenerator() {
           open={showIdeasDialog}
           onOpenChange={setShowIdeasDialog}
           contentType="post_linkedin"
-          subject={sujet || "Post LinkedIn"}
+          subject="Post LinkedIn amélioré"
           contentData={{
             type: "linkedin_post",
             text: ideasContent,
-            template: template || "improve",
+            template: "improve",
           }}
           sourceModule="linkedin-post"
           format="post_texte"
