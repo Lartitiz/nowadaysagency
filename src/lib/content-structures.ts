@@ -505,15 +505,19 @@ export function getAnglesForType(
   contentType: string,
   objective?: string
 ): { recommended: EditorialAngle[]; others: EditorialAngle[] } {
+  // LinkedIn has its own dedicated angles
+  const isLinkedIn = contentType === "linkedin";
+  const angleSource = isLinkedIn ? LINKEDIN_EDITORIAL_ANGLES : EDITORIAL_ANGLES;
+
   if (!objective || !OBJECTIVE_RECOMMENDATIONS[objective]) {
-    return { recommended: [], others: [...EDITORIAL_ANGLES] };
+    return { recommended: [], others: [...angleSource] };
   }
 
   const reco = OBJECTIVE_RECOMMENDATIONS[objective];
   const recommendedIds = new Set(reco.angles);
 
-  const recommended = EDITORIAL_ANGLES.filter((a) => recommendedIds.has(a.id));
-  const others = EDITORIAL_ANGLES.filter((a) => !recommendedIds.has(a.id));
+  const recommended = angleSource.filter((a) => recommendedIds.has(a.id));
+  const others = angleSource.filter((a) => !recommendedIds.has(a.id));
 
   return { recommended, others };
 }
