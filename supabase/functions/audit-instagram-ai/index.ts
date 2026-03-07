@@ -126,7 +126,7 @@ serve(async (req) => {
     let visionImages = screenshotImages || [];
     if ((!visionImages || visionImages.length === 0) && body.screenshotUrls && body.screenshotUrls.length > 0) {
       const fetched = await Promise.all(
-        body.screenshotUrls.slice(0, 3).map((url: string) => fetchImageAsBase64(url))
+        body.screenshotUrls.slice(0, 1).map((url: string) => fetchImageAsBase64(url))
       );
       visionImages = fetched.filter(Boolean) as { data: string; media_type: string }[];
     }
