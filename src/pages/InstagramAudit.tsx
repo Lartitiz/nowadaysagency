@@ -629,16 +629,17 @@ export default function InstagramAudit() {
             )}
           </div>
         )}
-        {analyzing ? (
+{analyzing && (
           <div className="space-y-4">
             <AiLoadingIndicator context="audit" isLoading={analyzing} />
             {loadingMsg && (
               <p className="text-sm text-muted-foreground text-center animate-pulse">{loadingMsg}</p>
             )}
           </div>
-        ) : (
-          <AuditInputForm initial={initialForm} onSubmit={handleSubmit} loading={analyzing} isRedo={hasExistingAudit} />
         )}
+        <div className={analyzing ? "hidden" : ""}>
+          <AuditInputForm initial={initialForm} onSubmit={handleSubmit} loading={analyzing} isRedo={hasExistingAudit} />
+        </div>
       </main>
     </div>
   );

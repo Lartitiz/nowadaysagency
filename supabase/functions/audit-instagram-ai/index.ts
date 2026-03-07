@@ -106,15 +106,6 @@ serve(async (req) => {
     // Legacy fields (optional)
     const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, profileUrl: pu } = body;
 
-    // Server-side: convert screenshot URLs to base64 if no base64 images provided
-    let visionImages = screenshotImages || [];
-    if ((!visionImages || visionImages.length === 0) && body.screenshotUrls && body.screenshotUrls.length > 0) {
-      const fetched = await Promise.all(
-        body.screenshotUrls.slice(0, 3).map((url: string) => fetchImageAsBase64(url))
-      );
-      visionImages = fetched.filter(Boolean) as { data: string; media_type: string }[];
-    }
-
     // Check quota
     const quotaCheck = await checkQuota(user.id, "audit", workspace_id);
     if (!quotaCheck.allowed) {
@@ -122,6 +113,15 @@ serve(async (req) => {
         JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0 }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Server-side: convert screenshot URLs to base64 if no base64 images provided
+    let visionImages = screenshotImages || [];
+    if ((!visionImages || visionImages.length === 0) && body.screenshotUrls && body.screenshotUrls.length > 0) {
+      const fetched = await Promise.all(
+        body.screenshotUrls.slice(0, 3).map((url: string) => fetchImageAsBase64(url))
+      );
+      visionImages = fetched.filter(Boolean) as { data: string; media_type: string }[];
     }
 
     // Get branding context
