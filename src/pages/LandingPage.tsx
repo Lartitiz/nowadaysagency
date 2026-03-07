@@ -228,12 +228,12 @@ function FeatureVisual({ type }: { type: string }) {
         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">📱 Tes canaux</p>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { emoji: "📸", name: "Instagram", status: "Audit fait", active: true },
+            { emoji: "📸", name: "Instagram", status: "Score : 72/100", active: true },
             { emoji: "💼", name: "LinkedIn", status: "À configurer", active: false },
-            { emoji: "📌", name: "Pinterest", status: "En cours", active: true },
-            { emoji: "🌐", name: "Site web", status: "Audit fait", active: true },
+            { emoji: "📌", name: "Pinterest", status: "12 épingles planifiées", active: true },
+            { emoji: "🌐", name: "Site web", status: "Score SEO : 45/100", active: true },
             { emoji: "✉️", name: "Newsletter", status: "À configurer", active: false },
-            { emoji: "🔍", name: "SEO", status: "En cours", active: true },
+            { emoji: "🔍", name: "SEO", status: "8 mots-clés trouvés", active: true },
           ].map((canal) => (
             <div key={canal.name} className={`rounded-xl border p-3 ${canal.active ? "border-primary/30 bg-primary/[0.03]" : "border-border"}`}>
               <span className="text-lg block mb-1">{canal.emoji}</span>
