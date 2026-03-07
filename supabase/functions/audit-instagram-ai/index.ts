@@ -348,8 +348,8 @@ Reponds en JSON :
     const finalSystemPrompt = BASE_SYSTEM_RULES + "\n\n" + systemPrompt;
 
     // Build user message (multimodal if screenshots available)
-    if (screenshotImages && screenshotImages.length > 0) {
-      const userContent: any[] = screenshotImages.map((img: any) => ({
+    if (visionImages && visionImages.length > 0) {
+      const userContent: any[] = visionImages.map((img: any) => ({
         type: "image",
         source: { type: "base64", media_type: img.media_type, data: img.data },
       }));
