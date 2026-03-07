@@ -260,9 +260,9 @@ Réponds UNIQUEMENT en JSON valide :
       // ── Photo carousel with description only (no actual photos) ──
       if (body.carousel_type === "photo" && body.photo_description) {
         const photoDescBlock = `\n\nL'utilisatrice décrit ses photos : "${body.photo_description}". Pose des questions en lien avec ce qu'elle décrit : l'ambiance, le contexte invisible, l'émotion derrière ces images, l'histoire qu'elles racontent ensemble.`;
-        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext) + photoDescBlock;
+        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn) + photoDescBlock;
       } else {
-        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext);
+        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn);
       }
     } else {
       return new Response(JSON.stringify({ error: "Type invalide" }), {
