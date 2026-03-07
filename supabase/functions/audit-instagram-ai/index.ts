@@ -31,6 +31,7 @@ const AuditInstagramSchema = z.object({
     worstPostsComment: z.string().optional().nullable(),
   }).optional().nullable(),
   screenshotImages: z.array(z.object({ data: z.string(), media_type: z.string() })).optional(),
+  screenshotUrls: z.array(z.string()).optional().nullable(),
   successPostsData: z.array(z.record(z.unknown())).optional().nullable(),
   failPostsData: z.array(z.record(z.unknown())).optional().nullable(),
   workspace_id: z.string().uuid().optional().nullable(),
@@ -41,6 +42,26 @@ const AuditInstagramSchema = z.object({
   objective: z.string().optional().nullable(),
   profileUrl: z.string().optional().nullable(),
 }).passthrough();
+
+async function fetchImageAsBase64(url: string): Promise<{ data: string; media_type: string } | null> {
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const buffer = await resp.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+    const contentType = resp.headers.get("content-type") || "image/jpeg";
+    const mediaType = contentType.includes("png") ? "image/png" : "image/jpeg";
+    return { data: base64, media_type: mediaType };
+  } catch (e) {
+    console.error("Failed to fetch image:", url, e);
+    return null;
+  }
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -84,6 +105,15 @@ serve(async (req) => {
     const { auditTextData: atd, screenshotImages, successPostsData, failPostsData, workspace_id } = body;
     // Legacy fields (optional)
     const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, profileUrl: pu } = body;
+
+    // Server-side: convert screenshot URLs to base64 if no base64 images provided
+    let visionImages = screenshotImages || [];
+    if ((!visionImages || visionImages.length === 0) && body.screenshotUrls && body.screenshotUrls.length > 0) {
+      const fetched = await Promise.all(
+        body.screenshotUrls.slice(0, 3).map((url: string) => fetchImageAsBase64(url))
+      );
+      visionImages = fetched.filter(Boolean) as { data: string; media_type: string }[];
+    }
 
     // Check quota
     const quotaCheck = await checkQuota(user.id, "audit", workspace_id);
@@ -318,8 +348,8 @@ Reponds en JSON :
     const finalSystemPrompt = BASE_SYSTEM_RULES + "\n\n" + systemPrompt;
 
     // Build user message (multimodal if screenshots available)
-    if (screenshotImages && screenshotImages.length > 0) {
-      const userContent: any[] = screenshotImages.map((img: any) => ({
+    if (visionImages && visionImages.length > 0) {
+      const userContent: any[] = visionImages.map((img: any) => ({
         type: "image",
         source: { type: "base64", media_type: img.media_type, data: img.data },
       }));
