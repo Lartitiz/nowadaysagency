@@ -97,6 +97,158 @@ const FAQ_DATA = [
   { q: "Mes données sont en sécurité ?", a: "Hébergées en Europe, chiffrées, jamais revendues. On est dans la com' éthique, pas dans la data." },
 ];
 
+/* ─── Feature Visual Component ─── */
+function FeatureVisual({ type }: { type: string }) {
+  const baseClass = "rounded-2xl bg-card border border-border shadow-card p-5";
+
+  if (type === "branding") {
+    return (
+      <div className={baseClass}>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">🎨 Mon identité</p>
+        <div className="space-y-2.5">
+          {[
+            { label: "Mission", value: "Aider les femmes à lancer leur marque éthique", pct: 100 },
+            { label: "Client·e idéal·e", value: "Créatrice 28-40 ans, éco-engagée", pct: 100 },
+            { label: "Ton & style", value: "Chaleureux, direct, engagé", pct: 85 },
+            { label: "Offres", value: "2 offres définies", pct: 60 },
+          ].map((item) => (
+            <div key={item.label} className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-foreground">{item.label}</span>
+                <span className="text-[10px] text-muted-foreground">{item.pct}%</span>
+              </div>
+              <div className="h-1.5 rounded-sm bg-border overflow-hidden">
+                <div className="h-full rounded-sm bg-primary transition-all" style={{ width: `${item.pct}%` }} />
+              </div>
+              <p className="text-[11px] text-muted-foreground truncate">{item.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "content") {
+    return (
+      <div className={baseClass}>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">✍️ Générer un contenu</p>
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {["Carrousel", "Reel", "Post photo", "Story", "Newsletter"].map((format) => (
+            <span key={format} className="rounded-pill bg-secondary px-2.5 py-1 text-[10px] font-medium text-secondary-foreground">{format}</span>
+          ))}
+        </div>
+        <div className="rounded-xl bg-rose-pale/60 border border-border p-3 mb-3">
+          <p className="text-[11px] text-foreground leading-relaxed">
+            <span className="font-semibold">Hook :</span> Tu passes 2h sur un post pour 12 likes ?
+          </p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed mt-1">
+            Voici 3 raisons pour lesquelles le problème n'est pas ton contenu…
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-7 rounded-pill bg-primary/90 px-3 flex items-center text-[10px] font-medium text-primary-foreground">✨ Régénérer</div>
+          <div className="h-7 rounded-pill border border-border px-3 flex items-center text-[10px] font-medium text-foreground">📋 Copier</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "calendar") {
+    return (
+      <div className={baseClass}>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">📅 Mars 2026</p>
+        <div className="grid grid-cols-7 gap-1">
+          {["L", "M", "M", "J", "V", "S", "D"].map((j, idx) => (
+            <span key={idx} className="text-[9px] text-muted-foreground text-center font-medium py-1">{j}</span>
+          ))}
+          {Array.from({ length: 28 }).map((_, idx) => {
+            const hasPost = [2, 5, 9, 12, 16, 19, 23, 26].includes(idx);
+            const isPublished = [2, 5, 9].includes(idx);
+            const isDraft = [12].includes(idx);
+            return (
+              <div key={idx} className={`h-7 rounded-lg border text-center flex items-center justify-center text-[10px] ${
+                hasPost
+                  ? isPublished
+                    ? "bg-green-100 border-green-200 text-green-700"
+                    : isDraft
+                      ? "bg-amber-100 border-amber-200 text-amber-700"
+                      : "bg-pink-100 border-pink-200 text-pink-600"
+                  : "border-border"
+              }`}>
+                {hasPost ? (isPublished ? "📸" : isDraft ? "📝" : "🎠") : ""}
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-3 mt-3 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-green-200" /> Publié</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-amber-200" /> Brouillon</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-pink-200" /> Planifié</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "audit") {
+    return (
+      <div className={baseClass}>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">🔍 Audit Instagram</p>
+        <div className="flex items-center gap-4 mb-4">
+          <div className="relative w-16 h-16 shrink-0">
+            <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" className="text-border" strokeWidth="3" />
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" className="text-primary" strokeWidth="3" strokeDasharray="68, 100" strokeLinecap="round" />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-foreground">68</span>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-foreground">Score : 68/100</p>
+            <p className="text-[11px] text-muted-foreground">4 forces · 3 axes d'amélioration</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {[
+            { label: "✅ Bio claire et engageante", good: true },
+            { label: "✅ Identité visuelle cohérente", good: true },
+            { label: "⚠️ Régularité de publication faible", good: false },
+            { label: "⚠️ Pas de CTA dans les posts", good: false },
+          ].map((item) => (
+            <div key={item.label} className={`text-[11px] px-3 py-1.5 rounded-lg ${item.good ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
+              {item.label}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "channels") {
+    return (
+      <div className={baseClass}>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">📱 Tes canaux</p>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { emoji: "📸", name: "Instagram", status: "Audit fait", active: true },
+            { emoji: "💼", name: "LinkedIn", status: "À configurer", active: false },
+            { emoji: "📌", name: "Pinterest", status: "En cours", active: true },
+            { emoji: "🌐", name: "Site web", status: "Audit fait", active: true },
+            { emoji: "✉️", name: "Newsletter", status: "À configurer", active: false },
+            { emoji: "🔍", name: "SEO", status: "En cours", active: true },
+          ].map((canal) => (
+            <div key={canal.name} className={`rounded-xl border p-3 ${canal.active ? "border-primary/30 bg-primary/[0.03]" : "border-border"}`}>
+              <span className="text-lg block mb-1">{canal.emoji}</span>
+              <p className="text-xs font-medium text-foreground">{canal.name}</p>
+              <p className={`text-[10px] ${canal.active ? "text-primary" : "text-muted-foreground"}`}>{canal.status}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 /* ═══════════════════════════════════════════════════════════
    MAIN PAGE
    ═══════════════════════════════════════════════════════════ */
