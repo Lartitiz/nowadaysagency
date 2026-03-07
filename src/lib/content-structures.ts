@@ -333,7 +333,7 @@ export const PINTEREST_VISUAL_ANGLES: EditorialAngle[] = [
     defaultStructure: "educationnelle",
     objectives: ["visibilite", "credibilite"],
     phase: [1, 2],
-    declic: "passage à l'action",
+    declic: "prise de conscience",
     exampleSubjects: ["Comment photographier tes créations en 4 étapes", "Créer une palette de couleurs en 3 minutes"],
   },
   {
