@@ -590,114 +590,91 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══ ROADMAP ═══ */}
-      <section aria-label="Feuille de route" className="bg-rose-pale py-16 sm:py-24 px-4">
-        <div className="mx-auto max-w-4xl">
-          <Reveal>
-            <div className="text-center mb-12">
-              <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-3">L'outil grandit avec toi</h2>
-              <p className="text-muted-foreground">On construit en continu. Voilà ce qui arrive bientôt.</p>
-            </div>
-          </Reveal>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <Reveal>
-              <div className="rounded-2xl bg-card border border-border p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-lg">✅</span>
-                  <h3 className="font-display text-sm font-bold">Disponible maintenant</h3>
-                </div>
-                <ul className="space-y-2">
-                  {ROADMAP.now.map((item, i) => (
-                    <li key={i} className="text-sm text-foreground flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-sm bg-primary shrink-0" />{item}</li>
-                  ))}
-                </ul>
-              </div>
-            </Reveal>
-            <Reveal delay={0.1}>
-              <div className="rounded-2xl bg-card border border-border p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-lg">🔨</span>
-                  <h3 className="font-display text-sm font-bold">En développement</h3>
-                </div>
-                <ul className="space-y-2">
-                  {ROADMAP.wip.map((item, i) => (
-                    <li key={i} className="text-sm text-muted-foreground flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-sm bg-accent shrink-0" />{item}</li>
-                  ))}
-                </ul>
-              </div>
-            </Reveal>
-            <Reveal delay={0.2}>
-              <div className="rounded-2xl bg-card border border-border p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-lg">🔜</span>
-                  <h3 className="font-display text-sm font-bold">Bientôt</h3>
-                </div>
-                <ul className="space-y-2">
-                  {ROADMAP.soon.map((item, i) => (
-                    <li key={i} className="text-sm text-muted-foreground flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-sm bg-border shrink-0" />{item}</li>
-                  ))}
-                </ul>
-              </div>
-            </Reveal>
-          </div>
-          <Reveal delay={0.3}>
-            <p className="text-center mt-8 text-sm text-muted-foreground">
-              💡 Une idée ? Dis-nous ce que tu voudrais voir dans l'outil →{" "}
-              <a href="https://instagram.com/nowadaysagency" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">Proposer une fonctionnalité</a>
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
       {/* ═══ PRICING ═══ */}
       <section aria-label="Tarifs" className="py-16 sm:py-24 px-4">
-        <div className="mx-auto max-w-5xl text-center">
+        <div className="mx-auto max-w-4xl text-center">
           <Reveal>
-            <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">Commence gratuitement. Upgrade quand tu es prête.</h2>
+            <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">Commence gratuitement. Sans limite de temps.</h2>
+            <p className="text-muted-foreground max-w-lg mx-auto">L'essentiel est gratuit. Le premium débloque tout, quand tu es prête.</p>
           </Reveal>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-12">
-            {/* Free */}
+
+          {/* 2 colonnes : Gratuit + Premium */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-12 max-w-2xl mx-auto">
+            {/* Gratuit */}
             <Reveal delay={0}>
               <div className="rounded-2xl bg-card border border-border p-6 text-left flex flex-col h-full hover:shadow-card-hover transition-shadow">
                 <span className="text-2xl mb-2">🆓</span>
                 <h3 className="font-display text-lg font-bold">Gratuit</h3>
-                <p className="text-sm text-muted-foreground mt-1 mb-6">L'essentiel pour tester</p>
-                <div className="flex-1" />
-                <a href="#signup-section" onClick={scrollTo("signup-section")} className="block text-center rounded-pill border border-border py-2.5 font-medium text-foreground hover:bg-secondary transition-colors text-sm">
-                  Commencer
+                <p className="text-primary font-bold text-xl mt-1">0€</p>
+                <p className="text-sm text-muted-foreground mt-1 mb-4">Pour tester et commencer à structurer ta com'</p>
+                <ul className="space-y-2 mb-6 flex-1">
+                  {[
+                    "Onboarding conversationnel complet",
+                    "Espace branding (6 sections + coaching IA)",
+                    "Calendrier éditorial + bibliothèque d'idées",
+                    "10 crédits IA / mois",
+                    "1 audit Instagram + 1 audit site",
+                    "Espaces par canal",
+                    "Dashboard + gamification",
+                  ].map((item, idx) => (
+                    <li key={idx} className="text-sm text-foreground flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <a href="#signup-section" onClick={scrollTo("signup-section")} className="block text-center rounded-pill bg-primary text-primary-foreground py-2.5 font-medium hover:bg-bordeaux transition-colors shadow-cta text-sm">
+                  Commencer gratuitement
                 </a>
               </div>
             </Reveal>
-            {/* Outil */}
+
+            {/* Premium */}
             <Reveal delay={0.1}>
               <div className="rounded-2xl bg-card border-2 border-primary p-6 text-left flex flex-col relative shadow-card-hover h-full">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-pill">Populaire</div>
                 <span className="text-2xl mb-2">💎</span>
-                <h3 className="font-display text-lg font-bold">Outil</h3>
+                <h3 className="font-display text-lg font-bold">Premium</h3>
                 <p className="text-primary font-bold text-xl mt-1">39€<span className="text-sm font-normal text-muted-foreground">/mois</span></p>
-                <p className="text-sm text-muted-foreground mt-1 mb-6">Tout l'outil débloqué</p>
-                <div className="flex-1" />
-                <a href="#signup-section" onClick={scrollTo("signup-section")} className="block text-center rounded-pill bg-primary text-primary-foreground py-2.5 font-medium hover:bg-bordeaux transition-colors shadow-cta text-sm">
+                <p className="text-sm text-muted-foreground mt-1 mb-4">Tout l'outil débloqué, sans limite</p>
+                <ul className="space-y-2 mb-6 flex-1">
+                  {[
+                    "Tout le plan gratuit +",
+                    "300 crédits IA / mois",
+                    "Audits illimités (Instagram, LinkedIn, site)",
+                    "Import stats + Dashboard KPI",
+                    "Mini-CRM prospection + routine d'engagement",
+                    "Communauté + lives mensuels",
+                  ].map((item, idx) => (
+                    <li key={idx} className="text-sm text-foreground flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <a href="#signup-section" onClick={scrollTo("signup-section")} className="block text-center rounded-pill border-2 border-primary text-primary py-2.5 font-medium hover:bg-primary hover:text-primary-foreground transition-colors text-sm">
                   S'abonner
                 </a>
               </div>
             </Reveal>
-            {/* Ton binôme de com' */}
-            <Reveal delay={0.2}>
-              <div className="rounded-2xl bg-card border border-border p-6 text-left flex flex-col h-full hover:shadow-card-hover transition-shadow">
-                <span className="text-2xl mb-2">🤝</span>
-                <h3 className="font-display text-lg font-bold">Ta binôme de com</h3>
-                <p className="text-primary font-bold text-xl mt-1">250€<span className="text-sm font-normal text-muted-foreground">/mois × 6</span></p>
-                <p className="text-sm text-muted-foreground mt-1 mb-6">L'outil + Laetitia à tes côtés. On fait ensemble.</p>
-                <div className="flex-1" />
-                <Link to="/binome" className="block text-center rounded-pill border border-border py-2.5 font-medium text-foreground hover:bg-secondary transition-colors text-sm">
-                  En savoir plus
+          </div>
+
+          {/* Bandeau Binôme séparé */}
+          <Reveal delay={0.2}>
+            <div className="mt-10 max-w-2xl mx-auto rounded-2xl bg-rose-pale border border-border p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+                <div className="text-left flex-1">
+                  <h3 className="font-display text-lg font-bold text-foreground">Tu préfères qu'on le fasse ensemble ?</h3>
+                  <p className="text-sm text-muted-foreground mt-1">L'outil + Laetitia à tes côtés pendant 6 mois. Stratégie, contenu, visio, WhatsApp. 250€/mois.</p>
+                </div>
+                <Link to="/binome" className="shrink-0 inline-flex items-center gap-1 rounded-pill border border-primary text-primary px-5 py-2.5 text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                  Découvrir <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
-            </Reveal>
-          </div>
+            </div>
+          </Reveal>
+
           <Reveal delay={0.3}>
-            <Link to="/pricing" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline mt-8">
+            <Link to="/pricing" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline mt-6">
               Voir le détail des plans <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </Reveal>
