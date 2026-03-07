@@ -251,19 +251,14 @@ Ce qu'on ne fait JAMAIS en hook LinkedIn :
     } else if (action === "suggest-template") {
       const { sujet: suggestSujet } = params;
       const templateList = [
-        { id: "enquete_decryptage", label: "Enquête / Décryptage", desc: "Analyse d'une tendance, investigation", objectif: "crédibilité" },
-        { id: "test_grandeur_nature", label: "Test grandeur nature", desc: "J'ai testé X, voici mon verdict", objectif: "confiance" },
-        { id: "coup_de_gueule", label: "Coup de gueule engagé", desc: "Ce qui t'énerve + ton alternative", objectif: "visibilité" },
-        { id: "mythe_deconstruire", label: "Mythe à déconstruire", desc: "Idée reçue à exploser", objectif: "crédibilité" },
-        { id: "storytelling_lecon", label: "Storytelling + leçon", desc: "Histoire perso + apprentissage", objectif: "confiance" },
-        { id: "histoire_cliente", label: "Histoire cliente", desc: "Étude de cas, avant/après", objectif: "vente" },
-        { id: "surf_actu", label: "Surf sur l'actu", desc: "Actu + ton angle expert", objectif: "visibilité" },
-        { id: "regard_philosophique", label: "Regard philosophique", desc: "Réflexion profonde", objectif: "confiance" },
-        { id: "conseil_contre_intuitif", label: "Conseil contre-intuitif", desc: "Le contraire de ce qu'on croit", objectif: "crédibilité" },
-        { id: "before_after", label: "Before / After", desc: "Transformation concrète", objectif: "vente" },
-        { id: "build_in_public", label: "Build in public", desc: "Coulisses, vrais chiffres, doutes", objectif: "confiance" },
-        { id: "identification_quotidien", label: "Identification / Quotidien", desc: "Scène que tout le monde reconnaît", objectif: "engagement" },
-        { id: "contenu_lancement", label: "Contenu de lancement", desc: "Annonce d'offre ou nouveauté", objectif: "vente" },
+        { id: "decryptage_expert", label: "Décryptage expert", desc: "Analyser un phénomène avec un angle neuf, sourcé et argumenté", objectif: "crédibilité" },
+        { id: "prise_de_position", label: "Prise de position", desc: "Défendre une conviction argumentée sur son métier ou secteur", objectif: "visibilité" },
+        { id: "mythe_deconstruire", label: "Mythe à déconstruire", desc: "Démonter une croyance répandue avec des preuves concrètes", objectif: "crédibilité" },
+        { id: "storytelling_pro", label: "Storytelling pro", desc: "Raconter un vécu professionnel + en tirer une leçon applicable", objectif: "confiance" },
+        { id: "etude_de_cas", label: "Étude de cas", desc: "Montrer des résultats concrets, process et transformation", objectif: "vente" },
+        { id: "coulisses_metier", label: "Coulisses métier", desc: "Montrer comment on travaille vraiment, les process et décisions", objectif: "confiance" },
+        { id: "conseil_contre_courant", label: "Conseil contre-courant", desc: "Challenger un conseil mainstream et proposer une alternative", objectif: "crédibilité" },
+        { id: "reflexion_de_fond", label: "Réflexion de fond", desc: "Prendre de la hauteur sur un enjeu sociétal lié au métier", objectif: "confiance" },
       ];
 
       // Use Gemini Flash for speed (classification task)
