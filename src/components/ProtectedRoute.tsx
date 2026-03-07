@@ -95,7 +95,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
       );
     }
 
-    return <>{children}<FloatingChatButton /></>;
+    return <>{children}</>;
   }
 
   if (loading || checkingOnboarding) {
