@@ -461,10 +461,13 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
         <h3 className="text-sm font-bold text-foreground">📸 SCREENSHOTS {rapidMode ? "(recommandé)" : "(optionnel, pour enrichir l'audit)"}</h3>
         <div
           onClick={() => profileRef.current?.click()}
-          className="rounded-2xl border-2 border-dashed border-border bg-muted/30 p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add("border-primary", "bg-primary/5"); }}
+          onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove("border-primary", "bg-primary/5"); }}
+          onDrop={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove("border-primary", "bg-primary/5"); if (e.dataTransfer.files?.length) handleProfileFiles(e.dataTransfer.files); }}
+          className="rounded-2xl border-2 border-dashed border-border bg-muted/30 p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
         >
           <Upload className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
-          <p className="text-xs text-muted-foreground">Screenshots de ton profil, feed, highlights...</p>
+          <p className="text-xs text-muted-foreground">Glisse tes screenshots ici ou clique pour parcourir</p>
         </div>
         <input ref={profileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleProfileFiles(e.target.files)} />
         {form.profileScreenshots.length > 0 && (
