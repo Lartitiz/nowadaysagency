@@ -60,6 +60,13 @@ const PROGRESS_MESSAGES: Record<string, string[]> = {
     "Ajout des interactions (sondage, quiz)…",
     "Peaufinage du CTA final…",
   ],
+  pinterest_visual: [
+    "Composition de ton épingle...",
+    "Création du layout infographie...",
+    "Application de ta charte graphique...",
+    "Génération du titre SEO...",
+    "Dernières retouches...",
+  ],
   default: [
     "L'IA rédige ton contenu…",
     "Personnalisation avec ta voix…",
