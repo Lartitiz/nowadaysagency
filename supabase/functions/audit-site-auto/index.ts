@@ -116,6 +116,38 @@ function extractVisibleText(html: string): string {
   return cleaned;
 }
 
+function extractStyleHints(html: string): string {
+  const hints: string[] = [];
+  let m;
+
+  // Extract inline style colors
+  const colorRegex = /(?:color|background-color|background|border-color)\s*:\s*(#[0-9a-fA-F]{3,8}|rgb\([^)]+\)|rgba\([^)]+\))/gi;
+  const colors = new Set<string>();
+  while ((m = colorRegex.exec(html)) !== null) {
+    colors.add(m[1].toLowerCase());
+  }
+  if (colors.size > 0) hints.push(`Couleurs détectées dans le CSS : ${[...colors].slice(0, 10).join(", ")}`);
+
+  // Extract font-family
+  const fontRegex = /font-family\s*:\s*([^;}"]+)/gi;
+  const fonts = new Set<string>();
+  while ((m = fontRegex.exec(html)) !== null) {
+    const cleaned = m[1].replace(/['"]/g, "").split(",")[0].trim();
+    if (cleaned && cleaned.length < 50) fonts.add(cleaned);
+  }
+  if (fonts.size > 0) hints.push(`Polices détectées : ${[...fonts].slice(0, 5).join(", ")}`);
+
+  // Extract CSS custom properties
+  const cssVarRegex = /--[\w-]*(color|primary|secondary|accent|bg|background|font|text)[\w-]*\s*:\s*([^;}"]+)/gi;
+  const vars: string[] = [];
+  while ((m = cssVarRegex.exec(html)) !== null) {
+    vars.push(`${m[0].split(":")[0].trim()}: ${m[2].trim()}`);
+  }
+  if (vars.length > 0) hints.push(`Variables CSS : ${vars.slice(0, 8).join(", ")}`);
+
+  return hints.join("\n");
+}
+
 function truncateText(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
   return text.slice(0, maxChars) + "…";
