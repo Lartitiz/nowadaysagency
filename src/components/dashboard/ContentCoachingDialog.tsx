@@ -45,6 +45,8 @@ const OBJECTIFS = [
 const CANAUX = [
   { id: "instagram", emoji: "📸", label: "Instagram" },
   { id: "linkedin", emoji: "💼", label: "LinkedIn" },
+  { id: "pinterest", emoji: "📌", label: "Pinterest" },
+  { id: "newsletter", emoji: "📧", label: "Newsletter" },
 ];
 
 const FORMATS_BY_CANAL: Record<string, { id: string; emoji: string; label: string }[]> = {
@@ -57,6 +59,13 @@ const FORMATS_BY_CANAL: Record<string, { id: string; emoji: string; label: strin
   linkedin: [
     { id: "post", emoji: "📝", label: "Post" },
     { id: "carousel", emoji: "🎠", label: "Carrousel" },
+  ],
+  pinterest: [
+    { id: "pinterest", emoji: "📝", label: "Épingle texte" },
+    { id: "pinterest_visual", emoji: "🎨", label: "Épingle visuelle" },
+  ],
+  newsletter: [
+    { id: "newsletter", emoji: "📧", label: "Newsletter" },
   ],
 };
 
@@ -367,27 +376,36 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
             </div>
           )}
 
-          {/* Step 3: Canal */}
-          {step === 3 && (
-            <div className="space-y-3 animate-fade-in">
-              <p className="text-sm font-medium text-foreground">Sur quel canal tu veux publier ?</p>
-              <div className="grid grid-cols-2 gap-2">
-                {CANAUX.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => handleCanalSelect(c.id)}
-                    className="rounded-xl border-2 border-border bg-card p-4 text-center hover:border-primary hover:shadow-sm transition-all group"
-                  >
-                    <span className="text-2xl block mb-1">{c.emoji}</span>
-                    <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{c.label}</span>
-                  </button>
-                ))}
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setStep(2)} className="gap-1">
-                <ArrowLeft className="h-3.5 w-3.5" /> Retour
-              </Button>
-            </div>
-          )}
+           {/* Step 3: Canal */}
+           {step === 3 && (
+             <div className="space-y-3 animate-fade-in">
+               <p className="text-sm font-medium text-foreground">Sur quel canal tu veux publier ?</p>
+               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                 {CANAUX.map(c => {
+                   const descriptions: Record<string, string> = {
+                     instagram: "Carrousel, Reel, Story, Post",
+                     linkedin: "Post texte, Carrousel PDF",
+                     pinterest: "Épingle texte ou visuelle",
+                     newsletter: "Email long format",
+                   };
+                   return (
+                     <button
+                       key={c.id}
+                       onClick={() => handleCanalSelect(c.id)}
+                       className="rounded-xl border-2 border-border bg-card p-4 text-center hover:border-primary hover:shadow-sm transition-all group"
+                     >
+                       <span className="text-2xl block mb-1">{c.emoji}</span>
+                       <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{c.label}</span>
+                       <p className="text-xs text-muted-foreground mt-1">{descriptions[c.id]}</p>
+                     </button>
+                   );
+                 })}
+               </div>
+               <Button variant="ghost" size="sm" onClick={() => setStep(2)} className="gap-1">
+                 <ArrowLeft className="h-3.5 w-3.5" /> Retour
+               </Button>
+             </div>
+           )}
 
           {/* Step 4: Format */}
           {step === 4 && (

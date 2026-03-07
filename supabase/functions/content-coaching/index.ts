@@ -60,6 +60,9 @@ Deno.serve(async (req) => {
       carousel: "Carrousel",
       reel: "Reel vidéo court",
       story: "Story Instagram",
+      pinterest: "Épingle Pinterest (titre + description SEO)",
+      pinterest_visual: "Épingle visuelle Pinterest (infographie, checklist, schéma)",
+      newsletter: "Newsletter (email long format)",
       // Rétrocompatibilité
       post_texte: "Post texte (légende Instagram ou post LinkedIn)",
       carrousel: "Carrousel",
@@ -67,6 +70,8 @@ Deno.serve(async (req) => {
     const CANAL_LABELS: Record<string, string> = {
       instagram: "Instagram",
       linkedin: "LinkedIn",
+      pinterest: "Pinterest",
+      newsletter: "Newsletter",
     };
     const TON_LABELS: Record<string, string> = {
       intime: "Intime et personnel (vulnérabilité, authenticité)",
@@ -340,6 +345,8 @@ FORMAT DE SORTIE
 ROUTES :
 Instagram : Post → /creer, Carrousel → /creer?format=carousel, Reel → /creer?format=reel, Story → /creer?format=story
 LinkedIn : Post → /creer?format=linkedin, Carrousel → /creer?format=linkedin
+Pinterest : Épingle texte → /creer?canal=pinterest, Épingle visuelle → /creer?canal=pinterest&format=pinterest_visual
+Newsletter : Newsletter → /creer?format=newsletter
 
 Le format recommandé correspond au format choisi (${formatLabel}).
 
