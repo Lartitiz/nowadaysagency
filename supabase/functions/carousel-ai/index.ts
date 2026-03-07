@@ -770,7 +770,7 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour :
 }`;
 }
 
-function buildExpressFullPrompt(body: any): string {
+function buildExpressFullPrompt(body: any, isLinkedIn: boolean = false): string {
   const { subject, carousel_type, objective, slide_count, deepening_answers, selected_offer, editorial_angle, content_structure } = body;
 
   let deepeningCtx = "";
@@ -787,7 +787,6 @@ function buildExpressFullPrompt(body: any): string {
   let extraRules = "";
 
   if (editorial_angle && content_structure) {
-    // CAS 1 : Angle éditorial explicite → la structure guide tout
     structureBlock = `ANGLE ÉDITORIAL CHOISI : ${editorial_angle}
 
 STRUCTURE IMPOSÉE (chaque étape = 1 slide) :
@@ -797,11 +796,9 @@ ${EDITORIAL_ANGLES_REFERENCE}`;
     extraRules = "\n- Chaque slide DOIT correspondre à une étape de la structure. Le role de chaque slide dans le JSON doit correspondre au rôle défini dans la structure.";
 
   } else if (carousel_type && carousel_type !== "tips") {
-    // CAS 2 : Type de carrousel explicite (ancien flow)
     structureBlock = getStructureGuide(carousel_type);
 
   } else {
-    // CAS 3 : Ni angle ni type explicite → l'IA choisit le meilleur format
     structureBlock = `PAS DE FORMAT IMPOSÉ. Analyse le sujet et choisis la structure la plus pertinente parmi ces options :
 
 ${EDITORIAL_ANGLES_REFERENCE}
@@ -811,7 +808,7 @@ NE CHOISIS PAS "tips" sauf si le sujet est réellement une liste de conseils pra
 Privilégie les angles narratifs : storytelling, enquête, coup de gueule, mythe à déconstruire.`;
   }
 
-  return `DEMANDE : Génère un carrousel Instagram COMPLET.
+  return `DEMANDE : Génère un carrousel ${isLinkedIn ? "LinkedIn PDF" : "Instagram"} COMPLET.
 
 Tu dois d'abord analyser le sujet, choisir le meilleur angle narratif, écrire un hook irrésistible, puis rédiger toutes les slides avec un fil conducteur fort.
 
@@ -827,8 +824,8 @@ ${structureBlock}
 ═══ RÈGLES DE STRUCTURE ═══
 - Slide 1 = hook percutant (max 12 mots). Technique : provocation, question rhétorique, stat choc, ou confession. Le hook doit créer un GAP (écart entre ce qu'on croit et la réalité).
 - Slide 2 = DOIT fonctionner comme hook autonome (seconde chance algo). Développe le contexte : pourquoi ce sujet, d'où tu parles, quelle observation personnelle.
-- Chaque slide : max 50 mots, 1 idée principale.
-- Dernière slide = 1 SEUL CTA doux. Formulation type : "Sauvegarde si...", "Dis-moi en commentaire...", "Envoie à quelqu'un qui..."
+- Chaque slide : max ${isLinkedIn ? "80" : "50"} mots, 1 idée principale.
+- Dernière slide = 1 SEUL CTA doux. ${isLinkedIn ? `Formulation type : "Partagez si cette réflexion vous parle", "Quel est votre avis ?", "Envoyez à un·e collègue qui..."` : `Formulation type : "Sauvegarde si...", "Dis-moi en commentaire...", "Envoie à quelqu'un qui..."`}
 - Headlines : 4-7 mots, verbe d'action ou mot déclencheur émotionnel.
 
 ═══ RÈGLES DE NARRATION ═══
@@ -837,6 +834,16 @@ ${structureBlock}
 - EXEMPLES CONCRETS dans chaque slide : pas de conseil abstrait sans illustration.
 - AU MOINS 1 analogie du quotidien ou référence culture pop dans le carrousel.
 - La caption est DIFFÉRENTE du hook slide 1 et apporte une couche supplémentaire (storytelling perso, contexte, pourquoi ce sujet maintenant).
+${isLinkedIn ? `
+═══ ADAPTATION LINKEDIN ═══
+- LONGUEUR : les slides LinkedIn peuvent être plus denses qu'Instagram. Max 80 mots par slide (vs 50 pour Instagram).
+- TON : professionnel et engagé, pas familier. Vouvoiement sauf indication contraire.
+- DONNÉES : chaque carrousel LinkedIn doit avoir au moins 1 donnée chiffrée ou 1 référence sourcée.
+- CTA : "Partagez si cette réflexion vous parle", "Quel est votre avis ?", "Envoyez à un·e collègue"
+- CAPTION : la caption LinkedIn complète le carrousel avec du contexte supplémentaire, 500-800 caractères.
+- Le carrousel doit positionner l'auteur·ice comme expert·e du sujet.
+- PAS de "Sauvegarde si...", pas de "Dis-moi en commentaire..." → vocabulaire LinkedIn.
+` : ""}
 
 ═══ RÈGLES ANTI-IA ═══
 - INTERDIT : "Dans un monde où...", "Il est important de...", "N'hésite pas à...", "Voici X astuces pour..."
