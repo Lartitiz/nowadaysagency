@@ -647,90 +647,164 @@ HASHTAGS :
 `;
 
 export const LINKEDIN_TEMPLATES: Record<string, string> = {
-  enquete_decryptage: `TEMPLATE ENQUÊTE / DÉCRYPTAGE :
-STRUCTURE : Accroche stat/contrariante → Constat terrain → Analyse de fond → Ce que ça change concrètement → Ouverture question
+  decryptage_expert: `TEMPLATE DÉCRYPTAGE EXPERT :
+
+PRINCIPE : Prendre un phénomène observable dans ton secteur et l'analyser avec un angle que les autres n'ont pas pris. Le « et personne n'en parle » version LinkedIn : argumenté, sourcé, profond.
+
+ARCHITECTURE DU POST :
+1. ACCROCHE (3 lignes max, < 210 car.) — Affirmation forte ou donnée contre-intuitive. Pas de question molle. Le lecteur doit se dire « ah bon ? » ou « enfin quelqu'un qui le dit ».
+2. LE CONSTAT OBSERVABLE — « Voilà ce que j'observe depuis X mois / dans mon travail avec X type de client·es / en enseignant à X ». Ancrer dans le réel avec des situations, des phrases entendues, des comportements récurrents.
+3. L'ANALYSE EN PROFONDEUR — Le cœur du post. Expliquer le POURQUOI derrière le constat. Intégrer UN biais cognitif nommé, OU une référence psycho/socio, OU une donnée chiffrée. Montrer qu'on comprend les mécanismes, pas juste les symptômes.
+4. CE QUE ÇA CHANGE CONCRÈTEMENT — Pas une conclusion qui résume. Une implication pratique ou un retournement final qui ouvre une nouvelle question.
+5. QUESTION OUVERTE — Qui invite un vrai point de vue argumenté, pas un « et vous ? ».
+
+EXIGENCES DE DENSITÉ :
+- Au moins 1 donnée chiffrée OU 1 référence nommée (concept, étude, auteur·ice)
+- Au moins 1 exemple concret tiré de l'expérience terrain
+- L'analyse va au-delà de l'opinion : elle explique un mécanisme
+
 Hook recommandé : statistique ou contrariante
-Objectif : Crédibilité + Visibilité
-Longueur cible : 800-1200 caractères`,
+Objectif : Crédibilité + Visibilité | Phase 1-2
+Longueur cible : 1300-2000 caractères`,
 
-  test_grandeur_nature: `TEMPLATE TEST GRANDEUR NATURE :
-STRUCTURE : Accroche "j'ai testé X pendant Y" → Le contexte : pourquoi j'ai testé → Ce qui s'est passé (chronologique) → Le verdict honnête → Ce que j'en retiens pour toi
-Hook recommandé : story ou confession
-Objectif : Confiance + Engagement
-Longueur cible : 800-1200 caractères`,
+  prise_de_position: `TEMPLATE PRISE DE POSITION :
 
-  coup_de_gueule: `TEMPLATE COUP DE GUEULE ENGAGÉ :
-STRUCTURE : Accroche coup de poing → Le constat qui énerve (exemples concrets) → Pourquoi c'est un problème (aller au fond) → L'alternative que tu défends → CTA engagé
-Hook recommandé : frustration ou ennemi_commun
-Objectif : Visibilité + Engagement
-Longueur cible : 800-1200 caractères
-ATTENTION : reste constructif·ve. Le coup de gueule doit proposer une alternative, pas juste critiquer.`,
+PRINCIPE : Défendre une conviction liée à son métier, son secteur, ses valeurs. Pas un coup de gueule émotionnel : une position argumentée, assumée, qui fait réfléchir. Le « voilà ce que je crois et voilà pourquoi ».
+
+ARCHITECTURE DU POST :
+1. ACCROCHE POLARISANTE (3 lignes max, < 210 car.) — Une affirmation qui tranche. Pas consensuelle. Le lecteur prend position mentalement dès la première phrase.
+2. LE POURQUOI — D'où vient cette conviction. Pas un argumentaire froid : un cheminement. « Pendant longtemps j'ai cru X / J'ai vu Y arriver trop souvent / Chaque fois que je rencontre Z, je constate que… ». L'incarnation rend la position crédible.
+3. L'ARGUMENT PRINCIPAL — UNE idée forte, développée avec de la matière. Pas 5 arguments survolés. Un seul angle bien creusé avec un exemple, une analogie ou un chiffre.
+4. LA NUANCE (optionnel mais puissant) — Reconnaître la limite de sa propre position. Ça renforce la crédibilité. « Bien sûr, ça ne veut pas dire que… »
+5. OUVERTURE OU QUESTION CLIVANTE — Pas de résumé. Une question qui force le lecteur à choisir son camp.
+
+EXIGENCES DE DENSITÉ :
+- La conviction est reliée à un enjeu plus large que le cas personnel
+- Au moins 1 analogie ou 1 exemple concret qui rend la position tangible
+- Éviter le ton « donneur de leçons » : c'est une conviction partagée, pas un sermon
+
+Hook recommandé : contrariante ou frustration
+Objectif : Visibilité + Engagement | Phase 1
+Longueur cible : 1300-2000 caractères`,
 
   mythe_deconstruire: `TEMPLATE MYTHE À DÉCONSTRUIRE :
-STRUCTURE : Accroche "On vous a menti sur..." / "Non, [croyance populaire] n'est pas..." → Le mythe tel qu'on le croit → Pourquoi c'est faux (preuves, expérience) → La réalité nuancée → Ce que ça change dans la pratique
+
+PRINCIPE : Prendre une croyance répandue dans son secteur et la démonter avec des arguments concrets. Le « on t'a dit que X, mais en réalité… ». Génère du commentaire et du partage.
+
+ARCHITECTURE DU POST :
+1. ACCROCHE = LE MYTHE FORMULÉ COMME UNE VÉRITÉ (3 lignes max, < 210 car.) — Énoncer la croyance telle qu'on l'entend partout. Entre guillemets si possible. Ou frontalement : « [Croyance répandue]. C'est faux. »
+2. POURQUOI CE MYTHE EXISTE — C'est ce qui fait la différence avec un post banal. Expliquer d'OÙ vient cette croyance, pourquoi elle s'est installée, à qui elle profite. Un biais cognitif nommé ici est très puissant (biais du survivant, effet de halo, preuve sociale inversée…).
+3. LA RÉALITÉ, AVEC PREUVES — Données, expérience terrain, cas client, observation concrète. Pas « moi je pense que c'est faux » mais « voilà ce que j'ai constaté / voilà ce que les données montrent ».
+4. CE QU'IL FAUT RETENIR À LA PLACE — La vraie leçon. Courte, directe. La reformulation de ce qui est vrai maintenant que le mythe est tombé.
+5. QUESTION — Qui demande au lecteur s'il a déjà été confronté à ce mythe, ou propose un autre mythe à déconstruire.
+
+EXIGENCES DE DENSITÉ :
+- Le mythe choisi est réellement répandu (pas un homme de paille)
+- L'explication du « pourquoi ça existe » est OBLIGATOIRE : c'est ce qui élève le post
+- Au moins 1 preuve concrète (donnée, cas, observation vérifiable)
+
 Hook recommandé : contrariante ou question
-Objectif : Crédibilité + Visibilité
-Longueur cible : 800-1200 caractères`,
+Objectif : Crédibilité + Visibilité | Phase 1-2
+Longueur cible : 1300-2000 caractères`,
 
-  storytelling_lecon: `TEMPLATE STORYTELLING + LEÇON :
-STRUCTURE : Hook in medias res ou confession → Contexte (quand, où, pourquoi) → L'histoire (galères, surprises, retournements) → La leçon (sincère, pas moralisatrice) → CTA question intime
+  storytelling_pro: `TEMPLATE STORYTELLING PRO :
+
+PRINCIPE : Raconter une expérience vécue (galère, déclic, erreur, réussite inattendue) et en tirer une leçon applicable. Le perso LinkedIn : pas du journal intime, mais du vécu au service d'un enseignement professionnel.
+
+ARCHITECTURE DU POST :
+1. ACCROCHE = LE MOMENT-CLÉ (3 lignes max, < 210 car.) — Plonger directement dans la scène. Pas « il y a 3 ans, j'ai vécu quelque chose qui a tout changé » (slop). Le détail concret qui ancre : un chiffre, une phrase entendue, une situation précise.
+2. LE CONTEXTE (court) — Juste assez pour comprendre la situation. 2-3 phrases max. Le lecteur est dans la scène rapidement.
+3. CE QUI S'EST PASSÉ — Les faits, les actions, les réactions. Avec des détails concrets qui rendent le récit réel (pas « j'ai ressenti de la tristesse » mais ce qu'on a FAIT concrètement).
+4. CE QUE ÇA M'A APPRIS — La leçon formulée de façon universelle : pas « j'ai appris que » mais « ce que cette situation révèle, c'est que… ». Relier l'anecdote à un principe plus large, un biais, une tendance, un enjeu sectoriel.
+5. OUVERTURE — Question qui invite les autres à partager une expérience similaire, ou phrase de fin qui reste en tête.
+
+EXIGENCES DE DENSITÉ :
+- L'anecdote est SPÉCIFIQUE (dates, lieux, détails concrets = crédibilité)
+- La leçon dépasse le cas personnel : relier à un mécanisme, un biais, une tendance
+- PAS de schéma « je galérais → j'ai trouvé LA solution → maintenant tout va bien » : la vraie vie est nuancée
+- INTERDIT : « Et là, tout a basculé » — marqueur slop LinkedIn n°1
+
 Hook recommandé : story ou confession
-Objectif : Confiance + Engagement
-Longueur cible : 800-1200 caractères`,
+Objectif : Confiance + Engagement | Phase 2-3
+Longueur cible : 1300-2000 caractères`,
 
-  histoire_cliente: `TEMPLATE HISTOIRE CLIENTE / ÉTUDE DE CAS :
-STRUCTURE : Hook résultat ou problème frappant → Le contexte client (qui, quel problème, avant) → Ce qu'on a fait ensemble (concret, pas de jargon) → Les résultats (chiffres ou qualitatif, après) → La leçon transférable
+  etude_de_cas: `TEMPLATE ÉTUDE DE CAS :
+
+PRINCIPE : Raconter un projet, une mission, une collaboration ou sa propre transformation avec des résultats concrets. La preuve sociale incarnée. Sur LinkedIn, c'est le format de vente le plus puissant : il montre plutôt qu'il affirme.
+
+ARCHITECTURE DU POST :
+1. ACCROCHE = LE RÉSULTAT OU LE CONTRASTE (3 lignes max, < 210 car.) — Commencer par la fin ou par le décalage. Un chiffre, un avant/après concret. « En 4 mois, elle est passée de [situation A] à [situation B]. » ou « Quand [personne] m'a contacté·e, [problème concret]. »
+2. LE POINT DE DÉPART — La situation initiale avec assez de détails pour que le lecteur se reconnaisse. Les frustrations, les blocages, les tentatives précédentes qui n'ont pas marché.
+3. CE QUI A ÉTÉ FAIT CONCRÈTEMENT — Le process, pas la magie. Les actions spécifiques, les choix, les arbitrages. Montrer la méthode sans tout révéler. Pas « on a mis en place une stratégie digitale » (vide).
+4. LES RÉSULTATS — Chiffrés si possible. Qualitatifs sinon (une phrase du/de la client·e, un changement observable). Honnêtes : pas de « x10 en 30 jours ».
+5. LA LEÇON TRANSFÉRABLE — Un insight que le lecteur peut appliquer à sa propre situation. Le CTA vers l'offre vient APRÈS la valeur, en PS ou en commentaire.
+
+EXIGENCES DE DENSITÉ :
+- Des chiffres ou des faits vérifiables (même approximatifs : « le taux d'engagement est passé de ~2% à ~7% » > « les résultats ont explosé »)
+- Le process décrit est assez spécifique pour prouver l'expertise, pas assez détaillé pour être reproduit sans accompagnement
+- Si c'est un cas client : anonymiser avec assez de détails pour que ça reste crédible
+
 Hook recommandé : avant_apres ou statistique
-Objectif : Vente + Crédibilité
-Longueur cible : 800-1200 caractères
-Si pas de chiffres : utiliser du qualitatif ("elle a osé", "elle a structuré", "elle a gagné en clarté").`,
+Objectif : Confiance + Vente | Phase 3-4
+Longueur cible : 1300-2000 caractères`,
 
-  surf_actu: `TEMPLATE SURF SUR L'ACTU :
-STRUCTURE : Accroche fait d'actualité → Ce qui se passe (résumé factuel, 2-3 phrases) → Ton angle expert (ce que personne ne dit) → Ce que ça change pour ton audience → Ouverture débat
-Hook recommandé : statistique ou question
-Objectif : Visibilité + Crédibilité
-Longueur cible : 800-1200 caractères
-IMPORTANT : ne pas juste commenter l'actu, apporter un angle que personne d'autre n'a.`,
+  coulisses_metier: `TEMPLATE COULISSES MÉTIER :
 
-  regard_philosophique: `TEMPLATE REGARD PHILOSOPHIQUE :
-STRUCTURE : Question existentielle ou observation → Le lien avec ton métier/secteur → Ta réflexion de fond (aller loin dans l'idée) → Ce que ça dit de nous → Ouverture qui fait réfléchir
-Hook recommandé : question ou contrariante
-Objectif : Confiance + Engagement
-Longueur cible : 800-1200 caractères
-C'est le format France Culture : on prend le temps de penser.`,
+PRINCIPE : Montrer l'envers du décor : comment on travaille vraiment, les décisions prises, les outils utilisés, les process, les doutes, les choix. Le « build in public » version LinkedIn : transparent, instructif, pas exhibitionniste.
 
-  conseil_contre_intuitif: `TEMPLATE CONSEIL CONTRE-INTUITIF :
-STRUCTURE : Accroche "Arrête de..." ou "Le meilleur conseil que j'ai reçu..." → Le conseil mainstream que tout le monde donne → Pourquoi ça ne marche pas (ton expérience) → Ce qui marche VRAIMENT → Application concrète
+ARCHITECTURE DU POST :
+1. ACCROCHE = UN MOMENT OU UNE DÉCISION CONCRÈTE (3 lignes max, < 210 car.) — « La semaine dernière, j'ai passé 3 heures sur un truc que personne ne verra jamais. » ou « Voilà à quoi ressemble vraiment ma journée de [métier]. » Entrer par le concret.
+2. LA COULISSE — Décrire avec précision ce qu'on fait, comment, et pourquoi. Les outils, les étapes, les micro-décisions. Le détail fait la valeur : pas « je prépare une stratégie de contenu » mais les étapes réelles du process.
+3. LE POURQUOI DERRIÈRE LE COMMENT — Expliquer les principes ou convictions derrière les actions. C'est ce qui rend le post utile. Relier le process à une croyance, une valeur, un enseignement.
+4. CE QUE ÇA PEUT INSPIRER — Pas un conseil direct (« fais comme moi ») mais une invitation à regarder ses propres coulisses différemment. Question ouverte.
+
+EXIGENCES DE DENSITÉ :
+- Des détails opérationnels RÉELS (outils nommés, durées, étapes concrètes)
+- Relier le « comment je fais » à un « pourquoi je fais comme ça » : le process seul est plat, le process + la philosophie est riche
+- Éviter le humble brag déguisé en coulisses (« je travaille 14h par jour ») : montrer le travail, pas la performance
+
+Hook recommandé : confession ou story
+Objectif : Confiance + Engagement | Phase 2-3
+Longueur cible : 1300-2000 caractères`,
+
+  conseil_contre_courant: `TEMPLATE CONSEIL CONTRE-COURANT :
+
+PRINCIPE : Prendre un conseil mainstream répété partout et expliquer pourquoi il ne fonctionne pas (ou plus). Ça positionne l'expertise différemment, ça crée de la curiosité, et ça génère du débat.
+
+ARCHITECTURE DU POST :
+1. ACCROCHE = LE CONSEIL MAINSTREAM (3 lignes max, < 210 car.) — Le formuler tel qu'on l'entend partout. Puis le contredire. « [Conseil qu'on entend partout]. C'est probablement le pire conseil qu'on puisse donner. » ou « Tout le monde dit [X]. J'ai fait l'inverse. »
+2. POURQUOI CE CONSEIL EST DONNÉ — Comprendre avant de contredire. L'intention derrière le conseil, pourquoi il a pu fonctionner à un moment. Ça montre la nuance.
+3. POURQUOI ÇA NE MARCHE PAS (OU PLUS) — L'argumentation avec faits, observations terrain, cas concrets. Un biais cognitif peut expliquer pourquoi le conseil continue d'être répété (biais de confirmation, biais d'autorité, effet de mode…).
+4. L'ALTERNATIVE — Ce que l'utilisatrice recommande à la place. Concret, applicable, différent. Pas un autre conseil générique : un changement de perspective ou une action spécifique.
+5. QUESTION QUI OUVRE LE DÉBAT — « Est-ce que vous appliquez encore [conseil] ? Qu'est-ce qui marche vraiment pour vous ? »
+
+EXIGENCES DE DENSITÉ :
+- Le conseil mainstream ciblé est réellement courant (pas un épouvantail)
+- L'alternative est testée ou au moins argumentée
+- La nuance « pourquoi ce conseil existe » distingue un bon post d'un post contrarian gratuit
+
 Hook recommandé : contrariante ou frustration
-Objectif : Crédibilité + Engagement
-Longueur cible : 800-1200 caractères`,
+Objectif : Crédibilité + Visibilité | Phase 1-2
+Longueur cible : 1300-2000 caractères`,
 
-  before_after: `TEMPLATE BEFORE/AFTER :
-STRUCTURE : Accroche contraste frappant → AVANT : la situation de départ (concret, détaillé) → Ce qui a changé concrètement (action, décision, rencontre) → APRÈS : la situation actuelle (avec des faits) → La clé : qu'est-ce qui a fait la différence
-Hook recommandé : avant_apres ou story
-Objectif : Vente + Confiance
-Longueur cible : 800-1200 caractères`,
+  reflexion_de_fond: `TEMPLATE RÉFLEXION DE FOND :
 
-  build_in_public: `TEMPLATE BUILD IN PUBLIC :
-STRUCTURE : Accroche "Ce mois-ci, j'ai..." → Les coulisses (ce qui a marché, ce qui a foiré) → Les chiffres bruts (si pertinent) → Ce que j'ai appris → La suite
-Hook recommandé : confession ou liste
-Objectif : Confiance + Engagement
-Longueur cible : 800-1200 caractères
-Authenticité max : montre les vrais chiffres, les vrais doutes.`,
+PRINCIPE : Prendre de la hauteur sur un enjeu de société, de secteur ou de métier. La tribune LinkedIn : pas un édito d'expert·e omniscient·e, mais une réflexion incarnée. Le côté « France Culture » du contenu LinkedIn.
 
-  identification_quotidien: `TEMPLATE IDENTIFICATION / QUOTIDIEN :
-STRUCTURE : Accroche scène du quotidien que l'audience reconnaît → Le détail qui fait "c'est tellement moi" → Le lien avec un enjeu pro plus large → Le message derrière → CTA doux
-Hook recommandé : confirmation ou story
-Objectif : Engagement + Confiance
-Longueur cible : 800-1200 caractères
-C'est le format "on en parle de..." qui crée de la complicité.`,
+ARCHITECTURE DU POST :
+1. ACCROCHE = UNE OBSERVATION OU UNE QUESTION LARGE (3 lignes max, < 210 car.) — Pas un constat banal (« le monde change »). Une observation précise qui ouvre sur quelque chose de plus grand. « J'ai remarqué que mes client·es me posent de plus en plus la même question. Et cette question en dit long sur [enjeu]. »
+2. LE DÉVELOPPEMENT — Dérouler la réflexion comme on la penserait à voix haute. Avec des bifurcations, des « mais en même temps », des nuances. C'est le format où on a le droit de ne pas avoir de réponse définitive. Intégrer des références si pertinent : un concept, un livre, un fait de société.
+3. LE LIEN AVEC LE MÉTIER — Relier la réflexion large au quotidien concret du lecteur. Pourquoi cet enjeu impacte sa façon de travailler, de communiquer, de vendre, de créer. C'est ce pont qui rend le post utile.
+4. OUVERTURE SANS CONCLUSION — Pas de réponse toute faite. Une question qui reste ouverte, une tension non résolue. Les meilleurs posts de réflexion de fond sont ceux qu'on continue de mâcher 2 heures après.
 
-  contenu_lancement: `TEMPLATE CONTENU DE LANCEMENT :
-STRUCTURE : Accroche teasing ou annonce → Le problème que ça résout → Ce que c'est concrètement → Pour qui c'est fait → CTA clair (lien en commentaire)
-Hook recommandé : liste ou question
-Objectif : Vente
-Longueur cible : 800-1200 caractères
-MAX 20% de tes posts. Le lancement doit être entouré de contenus de valeur.`,
+EXIGENCES DE DENSITÉ :
+- Au moins 1 référence extérieure (concept nommé, livre, étude, fait de société daté)
+- La réflexion va quelque part même si elle ne conclut pas
+- Éviter le ton « philosophe de LinkedIn » grandiloquent et vague : rester ancré dans le concret
+
+Hook recommandé : question ou contrariante
+Objectif : Crédibilité + Engagement | Phase 2
+Longueur cible : 1300-2000 caractères`,
 };
 
 export const LINKEDIN_HOOK_TYPES_PROMPTS: Record<string, string> = {
