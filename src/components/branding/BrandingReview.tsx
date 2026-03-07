@@ -725,7 +725,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                 setCoachingSection(null);
                 toast.success("Section affinée et sauvegardée ✓");
                 logEvent("section_validated");
-                if (validated.size === 5) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+                if (validated.size === 6) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
               }}
               onBack={() => setCoachingSection(null)}
             />
