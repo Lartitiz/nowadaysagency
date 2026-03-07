@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -939,7 +940,7 @@ export default function CreerUnifie() {
       const isMixCarousel = result.raw.carousel_type === "mix";
       const hasPhotos = isPhotoCarousel || isMixCarousel;
 
-      const { data, error: fnError } = await supabase.functions.invoke("carousel-visual", {
+      const { data, error: fnError } = await invokeWithTimeout("carousel-visual", {
         body: {
           slides: result.raw.slides.map((s: any) => ({
             slide_number: s.slide_number,
@@ -973,7 +974,7 @@ export default function CreerUnifie() {
             template_style: null,
           }),
         },
-      });
+      }, 120000);
       if (fnError) throw fnError;
       if (data?.error) throw new Error(data.error);
       setVisualSlides(data.result?.slides_html || []);
