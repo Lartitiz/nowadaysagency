@@ -534,6 +534,20 @@ export const CONTENT_TYPE_SPECS: Record<string, ContentTypeSpec> = {
     edgeFunction: "pinterest-visual",
     specs: "Visuel 1000×1500px + titre SEO + description",
   },
+  pinterest_inspiration: {
+    label: "Inspiration Pinterest",
+    emoji: "🔍",
+    channel: "pinterest",
+    edgeFunction: "pinterest-inspiration",
+    specs: "Analyse d'une épingle + adaptation au projet",
+  },
+  pinterest_photo: {
+    label: "Épingle photo",
+    emoji: "📷",
+    channel: "pinterest",
+    edgeFunction: "pinterest-photo-brief",
+    specs: "Brief photo + overlay texte + titre/description SEO",
+  },
 };
 
 // ── 4. OBJECTIVE_RECOMMENDATIONS ──
