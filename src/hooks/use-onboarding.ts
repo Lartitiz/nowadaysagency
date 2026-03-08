@@ -214,7 +214,7 @@ export function useOnboarding() {
       ]);
       const done = profile?.onboarding_completed === true || config?.onboarding_completed === true;
 
-      if (done && step < TOTAL_STEPS) {
+      if (done) {
         navigate("/dashboard", { replace: true });
         return;
       }
