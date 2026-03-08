@@ -104,6 +104,7 @@ export default function CreerUnifie() {
   const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(false);
   const [pinterestPinHtml, setPinterestPinHtml] = useState<string | null>(null);
   const [pinterestVisualGenerating, setPinterestVisualGenerating] = useState(false);
+  const [inspirationLoading, setInspirationLoading] = useState(false);
   const [inspirationAnalysis, setInspirationAnalysis] = useState<any>(ps?.inspirationAnalysis || null);
   const [inspirationProposals, setInspirationProposals] = useState<any[]>(ps?.inspirationProposals || []);
   const [chosenProposal, setChosenProposal] = useState<any>(null);
@@ -410,6 +411,7 @@ export default function CreerUnifie() {
       setStep("inspiration_proposals");
       setInspirationAnalysis(null);
       setInspirationProposals([]);
+      setInspirationLoading(true);
       try {
         const { data, error: fnError } = await invokeWithTimeout("pinterest-inspiration", {
           body: {
@@ -434,6 +436,8 @@ export default function CreerUnifie() {
           : msg
         );
         setStep("format");
+      } finally {
+        setInspirationLoading(false);
       }
       return;
     }
@@ -1630,7 +1634,7 @@ export default function CreerUnifie() {
             )}
 
             {step === "inspiration_proposals" && (
-              generating ? (
+              inspirationLoading ? (
                 <div className="py-12 text-center space-y-3 animate-fade-in">
                   <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
                   <p className="text-sm font-medium text-foreground">Analyse de l'épingle en cours...</p>
