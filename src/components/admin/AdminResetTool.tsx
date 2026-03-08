@@ -229,6 +229,12 @@ export default function AdminResetTool() {
       } else {
         toast.success(`🔥 Compte ${targetEmail} remis à zéro. ${deleted} tables réinitialisées.`);
       }
+
+      // Redirect to onboarding if the reset target is the current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email === targetEmail) {
+        window.location.href = "/onboarding";
+      }
     } finally {
       setTotalResetting(false);
     }
