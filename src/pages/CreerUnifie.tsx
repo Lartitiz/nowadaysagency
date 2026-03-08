@@ -426,6 +426,7 @@ export default function CreerUnifie() {
         setInspirationAnalysis(analysis);
         setInspirationProposals(proposals);
       } catch (e: any) {
+        if (handleQuotaError(e)) { setStep("format"); return; }
         const msg = e?.message || "Erreur lors de l'analyse";
         const isTimeout = msg.includes("timeout") || msg.includes("Timeout") || msg.includes("dépassé");
         toast.error(isTimeout
