@@ -196,27 +196,43 @@ export function useOnboarding() {
     }
   }, [restoredFromSave]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Check if onboarding already completed
+  // Check if onboarding already completed OR if step is stale after a reset
   useEffect(() => {
-    if (isDemoMode || !user || step >= TOTAL_STEPS) return;
+    if (isDemoMode || !user) return;
 
     const check = async () => {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("onboarding_completed")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (profile?.onboarding_completed) {
+      const [{ data: profile }, { data: config }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("onboarding_completed")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        (supabase.from("user_plan_config") as any)
+          .select("onboarding_completed")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
+      const done = profile?.onboarding_completed === true || config?.onboarding_completed === true;
+
+      if (done && step < TOTAL_STEPS) {
         navigate("/dashboard", { replace: true });
         return;
       }
-      const { data: config } = await (supabase
-        .from("user_plan_config") as any)
-        .select("onboarding_completed")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (config?.onboarding_completed) {
-        navigate("/dashboard", { replace: true });
+
+      // Safety: DB says NOT completed but localStorage has a step beyond the flow → reset to 0
+      if (!done && step >= TOTAL_STEPS) {
+        console.warn("[onboarding] Stale step detected after reset, resetting to 0");
+        localStorage.removeItem("lac_onboarding_step");
+        localStorage.removeItem("lac_onboarding_answers");
+        localStorage.removeItem("lac_onboarding_branding");
+        localStorage.removeItem("lac_onboarding_ts");
+        setStep(0);
+        setAnswers({
+          prenom: "", activite: "", activity_type: "", activity_detail: "",
+          canaux: [], desired_channels: [], blocage: "", objectif: "", temps: "",
+          instagram: "", website: "", linkedin: "", linkedin_summary: "",
+          change_priority: "", product_or_service: "", uniqueness: "",
+        });
       }
     };
     check();
