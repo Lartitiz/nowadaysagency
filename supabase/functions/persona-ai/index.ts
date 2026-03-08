@@ -173,7 +173,7 @@ Réponds en JSON :
         break;
 
       case "benefits":
-        systemPrompt = `Tu es expert·e en stratégie de marque pour des solopreneuses créatives et éthiques.
+        systemPrompt = `Tu es expert·e en stratégie de marque.
 
 TEXTE DE L'UTILISATRICE SUR LA TRANSFORMATION RÊVÉE :
 "${d.step_2_transformation || ""}"
