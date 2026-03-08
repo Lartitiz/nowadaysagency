@@ -31,12 +31,14 @@ export default function OnboardingPhase1Profile({ prenom, activite, onPrenomChan
             placeholder="Léa"
             autoFocus
             aria-label="Ton prénom"
+            onKeyDown={e => { if (e.key === "Enter" && prenom.trim().length >= 2) { e.preventDefault(); const activiteInput = document.getElementById("onboarding-activite"); activiteInput?.focus(); } }}
             className="w-full text-xl p-4 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50"
           />
         </div>
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Tu fais quoi ?</label>
           <VoiceInput
+            id="onboarding-activite"
             value={activite}
             onChange={onActiviteChange}
             placeholder="Photographe portrait pour entrepreneures"
