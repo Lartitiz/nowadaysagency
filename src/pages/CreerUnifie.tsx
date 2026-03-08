@@ -18,15 +18,11 @@ import PinterestInspirationStep from "@/components/creer/PinterestInspirationSte
 import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import { useContentGenerator } from "@/hooks/use-content-generator";
 import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
-import { exportPinterestVisualPptx, exportPinterestVisualPng } from "@/lib/export-pinterest-visual-pptx";
-import { exportPinterestEditablePptx } from "@/lib/export-pinterest-editable-pptx";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandCharter } from "@/hooks/use-branding";
-import { exportCarouselPptx } from "@/lib/export-carousel-pptx";
-import { exportCarouselVisualPptx } from "@/lib/export-carousel-visual-pptx";
 import { supabase } from "@/integrations/supabase/client";
 import { loadFlowState, saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
 import { useFormPersist } from "@/hooks/use-form-persist";
@@ -1427,6 +1423,7 @@ export default function CreerUnifie() {
   const handleExportPptx = async () => {
     if (!result?.raw?.slides) return;
     try {
+      const { exportCarouselPptx } = await import("@/lib/export-carousel-pptx");
       await exportCarouselPptx(
         result.raw.slides,
         ideaText || "carrousel",
@@ -1443,6 +1440,7 @@ export default function CreerUnifie() {
     if (visualSlides.length === 0) return;
     try {
       toast.info("Export visuels en cours (capture des slides)…");
+      const { exportCarouselVisualPptx } = await import("@/lib/export-carousel-visual-pptx");
       await exportCarouselVisualPptx(visualSlides, ideaText || "carrousel-visuels");
       toast.success("PPTX visuels téléchargé !");
     } catch (e: any) {
@@ -1454,6 +1452,7 @@ export default function CreerUnifie() {
     if (!pinterestPinHtml) return;
     try {
       toast.info("Export PPTX en cours...");
+      const { exportPinterestVisualPptx } = await import("@/lib/export-pinterest-visual-pptx");
       await exportPinterestVisualPptx(pinterestPinHtml, ideaText || "epingle-pinterest");
       toast.success("PPTX téléchargé !");
     } catch (e: any) {
@@ -1465,6 +1464,7 @@ export default function CreerUnifie() {
     if (!pinterestPinHtml) return;
     try {
       toast.info("Export PNG en cours...");
+      const { exportPinterestVisualPng } = await import("@/lib/export-pinterest-visual-pptx");
       await exportPinterestVisualPng(pinterestPinHtml, ideaText || "epingle-pinterest");
       toast.success("PNG téléchargé !");
     } catch (e: any) {
@@ -1476,6 +1476,7 @@ export default function CreerUnifie() {
     if (!photoBriefOverlayHtml) return;
     try {
       toast.info("Export PNG en cours...");
+      const { exportPinterestVisualPng } = await import("@/lib/export-pinterest-visual-pptx");
       await exportPinterestVisualPng(photoBriefOverlayHtml, ideaText || "overlay-pinterest");
       toast.success("PNG téléchargé !");
     } catch (e: any) {
@@ -1491,6 +1492,7 @@ export default function CreerUnifie() {
     }
     try {
       toast.info("Export PPTX éditable en cours...");
+      const { exportPinterestEditablePptx } = await import("@/lib/export-pinterest-editable-pptx");
       await exportPinterestEditablePptx(
         pinData,
         result?.raw?.title || "",
