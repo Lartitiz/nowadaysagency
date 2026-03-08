@@ -466,6 +466,46 @@ export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
   mirror: { includeStory: false, includePersona: false, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: true, includeCharter: false, includeMirror: true },
 };
 
+/**
+ * Builds a dynamic identity line for AI system prompts.
+ * Replaces hardcoded "solopreneuses créatives et engagées" with
+ * a description adapted to the actual user's profile.
+ */
+export function buildIdentityBlock(
+  profile: any,
+  role: string = "coach communication"
+): string {
+  let userDesc = "";
+
+  if (profile?.prenom && profile?.activite) {
+    userDesc = `${profile.prenom}, ${profile.activite}`;
+    if (profile.cible) userDesc += ` (cible : ${profile.cible})`;
+  } else if (profile?.activite) {
+    userDesc = profile.activite;
+  } else if (profile?.type_activite) {
+    const typeLabels: Record<string, string> = {
+      artisane: "créatrice artisanale",
+      mode_textile: "mode et textile",
+      art_design: "art et design",
+      deco_interieur: "déco et design d'intérieur",
+      beaute_cosmetiques: "beauté et cosmétiques",
+      bien_etre: "bien-être",
+      coach: "coaching et accompagnement",
+      coach_sportive: "coaching sportif",
+      consultante: "consulting et freelance",
+      formatrice: "formation",
+    };
+
+    userDesc = typeLabels[profile.type_activite] || profile.type_activite;
+  }
+
+  const userLine = userDesc
+    ? `Tu accompagnes actuellement ${userDesc}.`
+    : "Tu accompagnes des entrepreneur·es et indépendant·es dans leur communication.";
+
+  return `Tu es ${role} au sein de L'Assistant Com'.\n${userLine}`;
+}
+
 export function buildProfileBlock(profile: any): string {
   const lines = [
     `- Prénom : ${profile.prenom || "?"}`,
