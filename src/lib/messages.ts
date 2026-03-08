@@ -143,5 +143,21 @@ export const MESSAGES = {
       body: "Ajoute ton premier prospect pour commencer à suivre tes opportunités.",
       cta: "Ajouter un prospect →",
     },
+    pinterest_boards: {
+      icon: "🎨",
+      title: "Aucun tableau pour l'instant",
+      body: "Crée 3 à 5 tableaux en lien avec ton univers. Chaque tableau est une porte d'entrée vers ta marque.",
+      cta: "Ajouter un tableau →",
+    },
+    pinterest_pins: {
+      icon: "📌",
+      title: "Aucune épingle sauvegardée",
+      body: "Génère ta première épingle optimisée ci-dessus, puis sauvegarde-la ici.",
+    },
+    linkedin_recos: {
+      icon: "💬",
+      title: "Pas encore de recommandations",
+      body: "Les recommandations LinkedIn sont la preuve sociale la plus puissante en B2B. Commence par en demander 3.",
+    },
   },
 } as const;
