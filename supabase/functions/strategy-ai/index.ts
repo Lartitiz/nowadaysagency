@@ -48,7 +48,7 @@ serve(async (req) => {
 
     if (type === "facets") {
       const { text, facets, profile, persona, tone } = body;
-      systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en personal branding.
 
 CE QUE L'UTILISATRICE A PARTAGÉ :
 "${text || ""}"

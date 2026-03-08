@@ -200,7 +200,7 @@ Réponds en JSON :
         break;
 
       case "barriers":
-        systemPrompt = `Tu es expert·e en stratégie de marque pour des solopreneuses créatives et éthiques.
+        systemPrompt = `Tu es expert·e en stratégie de marque.
 
 TEXTE SUR LES OBJECTIONS :
 "${d.step_3a_objections || ""}"
