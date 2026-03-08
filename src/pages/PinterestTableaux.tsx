@@ -99,7 +99,11 @@ export default function PinterestTableaux() {
           <p>• Un tableau coulisses : fabrication, atelier, processus</p>
         </div>
 
-        <p className="text-sm font-semibold text-foreground mb-4">Tu as {boards.length} tableau{boards.length !== 1 ? "x" : ""}. On recommande entre 3 et 5 pour commencer.</p>
+        {boards.length === 0 ? (
+          <EmptyState {...MESSAGES.empty.pinterest_boards} onAction={addBoard} />
+        ) : (
+          <p className="text-sm font-semibold text-foreground mb-4">Tu as {boards.length} tableau{boards.length !== 1 ? "x" : ""}. On recommande entre 3 et 5 pour commencer.</p>
+        )}
 
         <div className="space-y-4">
           {boards.map((b, idx) => (

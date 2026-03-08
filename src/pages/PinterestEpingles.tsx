@@ -140,7 +140,11 @@ export default function PinterestEpingles() {
         {/* Saved pins */}
         <section>
           <h3 className="font-display text-base font-bold mb-3">Mes épingles sauvegardées</h3>
-          <p className="text-sm text-muted-foreground mb-4">Tu as {pins.length} épingle{pins.length !== 1 ? "s" : ""}. On recommande au moins 10 pour lancer ta présence.</p>
+          {pins.length === 0 ? (
+            <EmptyState {...MESSAGES.empty.pinterest_pins} />
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground mb-4">Tu as {pins.length} épingle{pins.length !== 1 ? "s" : ""}. On recommande au moins 10 pour lancer ta présence.</p>
           <div className="space-y-3">
             {pins.map(p => (
               <div key={p.id} className="rounded-xl border border-border p-4">
