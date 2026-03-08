@@ -712,6 +712,7 @@ export default function CreerUnifie() {
       // CHEMIN B : brief photo + overlay
       setStep("result");
       setPhotoBriefOverlayHtml(null);
+      setPinterestVisualGenerating(true);
       try {
         const { data, error: fnError } = await invokeWithTimeout("pinterest-photo-brief", {
           body: {
@@ -742,6 +743,8 @@ export default function CreerUnifie() {
         setIdeaText(proposal.subject);
       } catch (e: any) {
         toast.error(e?.message || "Erreur lors de la génération du brief");
+      } finally {
+        setPinterestVisualGenerating(false);
       }
     }
   };
