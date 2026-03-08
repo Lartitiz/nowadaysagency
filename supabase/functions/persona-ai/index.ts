@@ -146,7 +146,7 @@ serve(async (req) => {
         break;
 
       case "frustrations":
-        systemPrompt = `Tu es expert·e en stratégie de marque pour des solopreneuses créatives et éthiques.
+        systemPrompt = `Tu es expert·e en stratégie de marque.
 
 TEXTE DE L'UTILISATRICE SUR LES FRUSTRATIONS DE SA CIBLE :
 "${d.step_1_frustrations || ""}"
