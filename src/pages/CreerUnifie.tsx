@@ -642,6 +642,9 @@ export default function CreerUnifie() {
     } else if (selectedFormat === "pinterest_visual" && (r?.title || r?.description)) {
       text = `📌 TITRE :\n${r.title || ""}\n\n📝 DESCRIPTION :\n${r.description || ""}`;
 
+    } else if (selectedFormat === "pinterest_photo" && (r?.title || r?.photo_brief)) {
+      text = `📌 TITRE :\n${r.title || ""}\n\n📝 DESCRIPTION :\n${r.description || ""}\n\n📷 BRIEF PHOTO :\n• Sujet : ${r?.photo_brief?.what || ""}\n• Cadrage : ${r?.photo_brief?.framing || ""}\n• Lumière : ${r?.photo_brief?.lighting || ""}\n• Accessoires : ${(r?.photo_brief?.props || []).join(", ")}\n• Couleurs : ${r?.photo_brief?.colors || ""}\n• Ambiance : ${r?.photo_brief?.mood || ""}`;
+
     } else if (r?.content) {
       text = r.content;
     } else if (r?.post) {
