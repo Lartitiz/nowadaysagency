@@ -279,11 +279,32 @@ CHARTE GRAPHIQUE :
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
     const model = "claude-opus-4-6" as any;
+    const hasReference = !!reqBody.reference_image_base64;
+
+    let messages: any[];
+    if (hasReference) {
+      const rawBase64 = reqBody.reference_image_base64.replace(/^data:image\/[a-z]+;base64,/, "");
+      messages = [{
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: { type: "base64", media_type: "image/jpeg", data: rawBase64 }
+          },
+          {
+            type: "text",
+            text: `Voici l'épingle Pinterest de référence. Inspire-toi de sa structure.\n\n${userPrompt}`
+          }
+        ]
+      }];
+    } else {
+      messages = [{ role: "user", content: userPrompt }];
+    }
 
     const rawResponse = await callAnthropic({
       model,
       system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
+      messages,
       temperature: 0.5,
       max_tokens: 8192,
     });
