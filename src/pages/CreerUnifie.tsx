@@ -127,9 +127,10 @@ export default function CreerUnifie() {
     }
   );
 
-  // When arriving at /creer without params (fresh navigation), clear persisted state
+  // When arriving at /creer without params AND no persisted in-progress flow, clear state
+  // This distinguishes "fresh sidebar click" from "page reload mid-flow"
   useEffect(() => {
-    if (!hasSomeContext) {
+    if (!hasSomeContext && !shouldRestore) {
       clearFlowState();
       clearDraft();
       sessionStorage.removeItem("creer_unifie_result");
