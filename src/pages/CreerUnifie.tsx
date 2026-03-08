@@ -116,7 +116,7 @@ export default function CreerUnifie() {
     "creer-unifie-form",
     { step, ideaText, objective, selectedFormat, editorialAngle, answers },
     (saved) => {
-      if (!hasSomeContext) return; // Fresh navigation — don't restore
+      if (!shouldRestore) return; // Fresh navigation — don't restore
       if (location.state || searchParams.get("format") || searchParams.get("sujet")) return;
       if (saved.step && saved.step !== "idea") setStep(saved.step as Step);
       if (saved.ideaText) setIdeaText(saved.ideaText);
